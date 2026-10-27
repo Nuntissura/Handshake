@@ -758,7 +758,9 @@ ORDER BY purpose ASC;
 COMMIT TRANSACTION;
 "#;
 
-const SELECT_ACTIVE_MODEL_QUERY: &str = r#"
+macro_rules! select_active_model_query {
+    ($audit_append:literal) => {
+        concat!(r#"
 BEGIN TRANSACTION;
 LET $target = (SELECT runtime_role, lifecycle_state FROM model_runtime_registry
  WHERE owner_account_id = $scope.owner_account_id
@@ -828,7 +830,7 @@ IF array::len($target) != 1 OR $target[0].lifecycle_state != 'active'
     } ELSE IF $rows[0].artifact_sha256 = $target_artifact_sha256 {
         THROW 'model registry active selection target is unchanged';
     };
-    CREATE type::record('kernel_event_ledger', $event.event_id) CONTENT $event;
+    "#, $audit_append, r#"
     UPDATE $rows[0].id SET
         artifact_sha256 = $target_artifact_sha256,
         selection_revision = $expected_revision + 1,
@@ -845,7 +847,18 @@ IF array::len($target) != 1 OR $target[0].lifecycle_state != 'active'
     FROM $rows[0].id;
 };
 COMMIT TRANSACTION;
-"#;
+"#)
+    };
+}
+
+const SELECT_ACTIVE_MODEL_QUERY: &str = select_active_model_query!(
+    "CREATE type::record('kernel_event_ledger', $event.event_id) CONTENT $event;"
+);
+
+#[cfg(feature = "test-utils")]
+const SELECT_ACTIVE_MODEL_AUDIT_FAULT_QUERY: &str = select_active_model_query!(
+    "THROW 'MODEL_SELECTION_FIXTURE_AUDIT_APPEND_FAILURE';"
+);
 
 const LIST_REGISTRATIONS_QUERY: &str = r#"
 BEGIN TRANSACTION;
@@ -1427,7 +1440,7 @@ impl SurrealModelRegistryStore {
         let runtime_role_token = purpose.runtime_role().as_str().to_owned();
         let target_artifact_sha256_hex = hex::encode(target_artifact_sha256);
         let event_write = scoped_receipt_write(event, scope)?;
-        let query = SELECT_ACTIVE_MODEL_QUERY.to_owned();
+        let query = SELECT_ACTIVE_MODEL_QUERY;
         #[cfg(feature = "test-utils")]
         let query = {
             let mut pending = self.active_selection_audit_fault.lock().map_err(|_| {
@@ -1435,11 +1448,7 @@ impl SurrealModelRegistryStore {
             })?;
             if pending.as_deref() == Some(request_fingerprint.as_str()) {
                 pending.take();
-                query.replacen(
-                    "CREATE type::record('kernel_event_ledger', $event.event_id) CONTENT $event;",
-                    "THROW 'MODEL_SELECTION_FIXTURE_AUDIT_APPEND_FAILURE';",
-                    1,
-                )
+                SELECT_ACTIVE_MODEL_AUDIT_FAULT_QUERY
             } else {
                 query
             }
@@ -1450,7 +1459,7 @@ impl SurrealModelRegistryStore {
                 Box::pin(async move {
                     database
                         .query_values_at::<StoredActiveSelection, _>(
-                            &query,
+                            query,
                             ActiveSelectBindings {
                                 scope: scope_bindings,
                                 purpose: purpose_token,

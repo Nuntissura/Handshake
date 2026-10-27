@@ -380,11 +380,31 @@ async fn recovery_rejects_checkpoint_projection_and_receipt_corruption_at_boot_a
             .record_recovery_checkpoint(checkpoint(&posture, &message, &checkpoint_id)))
             .await
             .expect("record canonical checkpoint");
+        let observation = if corruption == ModelLaneAuthorityTestCorruption::ProjectionScope {
+            Some(harness.store.test_capture_projection_scope_observation(
+                &harness.isolated, &posture.run_id, &checkpoint_id,
+            ).await.expect("bind admitted physical checkpoint and immutable receipt before corruption"))
+        } else {
+            None
+        };
         harness.create_record(harness
             .store
             .test_corrupt_scoped_authority("recovery_checkpoint", &checkpoint_id, corruption))
             .await
             .expect("apply enumerated checkpoint corruption");
+        let post_corruption = if let Some((token, baseline)) = observation.as_ref() {
+            let observed = harness.store.test_observe_projection_scope_corruption(
+                &harness.isolated, token,
+            ).await.expect("observe fixed physical checkpoint after actor-only corruption");
+            assert_eq!(observed["projection_actor_principal_id"], "counterfactual-projection-principal");
+            let mut normalized = observed.clone();
+            normalized["projection_actor_principal_id"] = baseline["projection_actor_principal_id"].clone();
+            assert_eq!(&normalized, baseline,
+                "only the fixed projection actor changes; raw11, physical key, attribution and receipt pointer remain identical");
+            Some(observed)
+        } else {
+            None
+        };
         let head_after_corruption = harness.head(&posture.run_id).await;
         if corruption == ModelLaneAuthorityTestCorruption::ProjectionScope {
             assert_eq!(head_after_corruption, recorded_checkpoint.event_ledger_seq,
@@ -395,11 +415,21 @@ async fn recovery_rejects_checkpoint_projection_and_receipt_corruption_at_boot_a
             .recover_run_after_restart(&posture.run_id))
             .await;
         assert!(direct.is_err());
+        if let (Some((token, _)), Some(expected)) = (observation.as_ref(), post_corruption.as_ref()) {
+            assert_eq!(&harness.store.test_observe_projection_scope_corruption(
+                &harness.isolated, token,
+            ).await.expect("observe same physical checkpoint immediately after direct denial"), expected);
+        }
         let boot = harness.recover(harness
             .store
             .recover_restartable_runs_at_boot())
             .await;
         assert!(boot.is_err());
+        if let (Some((token, _)), Some(expected)) = (observation.as_ref(), post_corruption.as_ref()) {
+            assert_eq!(&harness.store.test_observe_projection_scope_corruption(
+                &harness.isolated, token,
+            ).await.expect("observe same physical checkpoint immediately after boot denial"), expected);
+        }
         if corruption == ModelLaneAuthorityTestCorruption::ProjectionScope {
             let direct = direct.expect_err("projection counterpart omission must deny").to_string();
             let boot = boot.expect_err("boot counterpart omission must deny").to_string();
@@ -409,6 +439,7 @@ async fn recovery_rejects_checkpoint_projection_and_receipt_corruption_at_boot_a
         }
         assert_eq!(harness.head(&posture.run_id).await, head_after_corruption,
             "direct and boot denial cannot append ledger receipts after the actual corruption");
+        drop(observation);
         harness.cleanup().await;
     }
 }
@@ -1942,5 +1973,133 @@ async fn prepared_cloud_launch_denies_unbacked_projection_and_consent_without_la
     assert_eq!(harness.read(harness.store.test_scoped_authority_receipts(
         &posture.run_id, 256,
     )).await.expect("read original ModelLane receipts after cloud denial"), before_receipts);
+    harness.cleanup().await;
+}
+#[tokio::test]
+async fn prepared_cloud_launch_denies_missing_consent_after_genuine_durable_projection() {
+    use handshake_core::swarm_orchestration::model_lane::{
+        LaunchAuthority, ModelLaneError, ModelLaneKind, ModelLaneProviderKind, RuntimeBinding,
+        CloudExportDelegation, ModelLaneCloudConsentScope, ModelLaneCloudExportPosture,
+        ModelLaneCloudProjectionPlanStatus, ModelLaneCloudRetentionPolicy, NewModelLaneCloudProjectionPlan,
+    };
+
+    let harness = Harness::create("cloud-missing-consent").await;
+    let posture = harness.posture("cloud-missing-consent").await;
+    let (_, payload) = ordinary_payload_case(&posture, "cloud-missing-consent");
+    let payload_ref = payload.artifact_ref.clone();
+    let payload_hash = payload.artifact_sha256.clone();
+    harness.create_record(harness.store.record_context_bundle_artifact_binding(payload))
+        .await.expect("persist genuine projection payload bytes and hash through canonical producer");
+    let before = harness.read(harness.store.replay_run(&posture.run_id))
+        .await.expect("read genuine authenticated source run and lane");
+    let before_receipts = harness.read(harness.store.test_scoped_authority_receipts(
+        &posture.run_id, 256,
+    )).await.expect("read genuine source ModelLane receipts");
+    assert!(!before_receipts.is_empty());
+
+    let run_id = format!("cloud-denied-run-{}", uuid::Uuid::now_v7());
+    let lane_id = format!("cloud-denied-lane-{}", uuid::Uuid::now_v7());
+    let stream_id = format!("model-lane://{run_id}/events");
+    let projection_ref = format!("cloud-projection-plan://{run_id}/{lane_id}");
+    let consent_ref = format!("cloud-consent-receipt://{run_id}/{lane_id}");
+    let mut run = before.run.inner.clone();
+    run.run_id = run_id.clone();
+    run.lane_ids = vec![lane_id.clone()];
+    run.event_ledger_stream_id = stream_id.clone();
+    run.projection_plan_ref = Some(projection_ref.clone());
+    run.consent_receipt_ref = Some(consent_ref.clone());
+    run.idempotency_key = format!("prepared-cloud-denial-{run_id}");
+    run.replay_order_key = format!("0001-{run_id}");
+    run.selected_model_id = Some("model://dexterity/byok_cloud/gpt-4o-mini".into());
+    run.candidate_model_ids = vec!["model://dexterity/byok_cloud/gpt-4o-mini".into()];
+    let mut lane = before.lanes.iter().find(|lane| lane.lane_id == posture.lane_id)
+        .expect("genuine source lane").inner.clone();
+    lane.run_id = run_id.clone();
+    lane.lane_id = lane_id.clone();
+    lane.lane_span_id = format!("span-{lane_id}");
+    lane.event_ledger_stream_id = stream_id;
+    lane.kind = ModelLaneKind::CloudModel;
+    lane.runtime_binding = RuntimeBinding::Cloud;
+    lane.launch_authority = LaunchAuthority::CloudLane;
+    lane.provider_kind = ModelLaneProviderKind::OpenAi;
+    lane.model_id = run.selected_model_id.clone();
+    lane.adapter_id = "openai_byok".into();
+    lane.backend = "cloud_lane_openai".into();
+    lane.projection_plan_ref = run.projection_plan_ref.clone();
+    lane.consent_receipt_ref = run.consent_receipt_ref.clone();
+    assert!(run.engine_profile.is_none() && lane.engine_profile.is_none());
+
+    let scope_basis = json!({
+        "run_id": &run_id,
+        "lane_id": &lane_id,
+        "model_session_id": &lane.model_session_id,
+        "provider_kind": "openai",
+        "requested_model_id": lane.model_id.as_ref().expect("cloud model fixture identity"),
+        "projection_plan_id": &projection_ref,
+    });
+    let scope_hash = format!("{:x}", <sha2::Sha256 as sha2::Digest>::digest(
+        serde_json::to_vec(&scope_basis).expect("serialize actual projection scope basis"),
+    ));
+    let plan = harness.create_record(harness.store.record_cloud_projection_plan(
+        NewModelLaneCloudProjectionPlan {
+            projection_plan_id: projection_ref.clone(), run_id: run_id.clone(),
+            trace_id: run.trace_id.clone(), lane_id: Some(lane_id.clone()),
+            model_session_id: Some(lane.model_session_id.clone()), provider_kind: Some("openai".into()),
+            requested_model_id: lane.model_id.clone(), scope_hash,
+            source_artifact_refs: vec![payload_ref.clone()], payload_artifact_ref: payload_ref,
+            payload_sha256: payload_hash,
+            redaction_policy_ref: "redaction-policy://operator-chat/cloud-byok".into(),
+            redaction_summary: "component payload contains only its explicitly authored ordinary text".into(),
+            retention_policy: ModelLaneCloudRetentionPolicy::NoTrainingEphemeral,
+            export_posture: ModelLaneCloudExportPosture::RedactedContextOnly,
+            provider_profile_ref: "provider-profile://operator-chat/openai".into(),
+            fan_out_targets: vec!["provider://openai/byok".into()],
+            export_delegation: CloudExportDelegation {
+                audience_refs: vec!["provider://openai/byok".into()],
+                source_scope: handshake_core::swarm_orchestration::resource_scope::AccountBoundAuthority::from_access(harness.store.access()),
+                authorization_receipt_ref: None,
+            },
+            consent_scope: ModelLaneCloudConsentScope::SingleLane, target_bindings: vec![],
+            status: ModelLaneCloudProjectionPlanStatus::Active,
+            event_ledger_stream_id: run.event_ledger_stream_id.clone(),
+            work_packet_id: run.work_packet_id.clone().expect("actual producer work packet"),
+            micro_task_id: run.micro_task_id.clone().expect("actual producer microtask"),
+            task_board_id: run.task_board_id.clone().expect("actual producer taskboard"),
+            owner_session: run.owner_session.clone(), idempotency_key: format!("projection-{run_id}"),
+            created_at_utc: Utc::now().to_rfc3339(),
+            user_manual_behavior_ref: "usermanual://model-lane-cloud-projection-consent#launch".into(),
+            diagnostic_payload: json!({"case": "genuine-projection-without-consent"}),
+        },
+    )).await.expect("issue durable projection under genuine scoped Workspace Create");
+    assert!(!plan.event_ledger_event_id.is_empty());
+    assert!(plan.event_ledger_seq > 0);
+    assert_eq!(plan.projection_plan_hash.len(), 64);
+    let authority_before = harness.read(harness.store.replay_cloud_consent_authority(&run_id))
+        .await.expect("independently reread native projection and absent consent");
+    assert_eq!(authority_before.projection_plans, vec![plan]);
+    assert!(authority_before.consent_receipts.is_empty());
+    let denied = harness.create_record(harness.store.record_prepared_launch((run, lane)))
+        .await.expect_err("genuine projection without durable consent must deny prepared launch");
+    let expected = format!(
+        "CX-MM-007 cloud lane launch denied for run_id {run_id} lane_id {lane_id}: final cloud launch insertion fence denied: invalid model lane input: ConsentReceipt {consent_ref} is not durable"
+    );
+    match denied {
+        ModelLaneError::InvalidInput(reason) => assert_eq!(reason, expected),
+        other => panic!("expected exact CX-MM-007 missing durable consent denial, got {other}"),
+    }
+    assert!(matches!(
+        harness.read(harness.store.replay_run(&run_id)).await,
+        Err(ModelLaneError::NotFound(reason)) if reason == format!("run_id {run_id}")
+    ), "denied prepared cloud run must not be published");
+    assert!(harness.read(harness.store.test_scoped_authority_receipts(&run_id, 256))
+        .await.expect("inspect denied run ModelLane authority receipts").is_empty(),
+        "denial must not publish ModelLane run/lane authority or linked receipts");
+    assert_eq!(harness.read(harness.store.replay_run(&posture.run_id))
+        .await.expect("read original run after cloud denial"), before);
+    assert_eq!(harness.read(harness.store.test_scoped_authority_receipts(
+        &posture.run_id, 256,
+    )).await.expect("read original ModelLane receipts after cloud denial"), before_receipts);
+    assert_eq!(harness.read(harness.store.replay_cloud_consent_authority(&run_id))
+        .await.expect("reread native projection and absent consent after denial"), authority_before);
     harness.cleanup().await;
 }

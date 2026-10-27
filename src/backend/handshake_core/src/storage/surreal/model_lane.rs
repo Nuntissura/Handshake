@@ -2208,6 +2208,86 @@ pub(crate) struct SurrealModelLaneRecoveryAuthoritySnapshot {
     pub receipt_payload_hash: String,
 }
 
+#[cfg(all(feature = "surreal-test-support", feature = "runtime-full"))]
+pub(crate) struct SurrealRecoveryProjectionScopeObservationToken<'owner> {
+    owner: &'owner crate::test_harness::surreal_test_store_support::IsolatedSurrealTestStore,
+    storage: super::SurrealStorage,
+    bindings: RecoveryProjectionScopeObservationBindings,
+    baseline: RecoveryProjectionScopeObservation,
+}
+
+#[cfg(all(feature = "surreal-test-support", feature = "runtime-full"))]
+#[derive(Clone, SurrealValue)]
+struct RecoveryProjectionScopeObservationBindings {
+    record_id: String,
+    aggregate_id: String,
+    run_id: String,
+    event_id: String,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+}
+
+#[cfg(all(feature = "surreal-test-support", feature = "runtime-full"))]
+#[derive(Clone, Eq, PartialEq, serde::Serialize, SurrealValue)]
+struct RecoveryProjectionScopeObservation {
+    raw11: SurrealModelLaneRecoveryAuthoritySnapshot,
+    physical_record_id: String,
+    record_kind: String,
+    aggregate_id: String,
+    run_id: String,
+    receipt_pointer_table: String,
+    receipt_pointer_id: String,
+    projection_owner_account_id: String,
+    projection_actor_principal_id: String,
+    projection_authenticated_session_id: String,
+    projection_access_space_id: String,
+    projection_workspace_id: String,
+    receipt_owner_account_id: String,
+    receipt_actor_principal_id: String,
+    receipt_authenticated_session_id: String,
+    receipt_access_space_id: String,
+    receipt_workspace_id: String,
+}
+
+#[cfg(all(feature = "surreal-test-support", feature = "runtime-full"))]
+const RECOVERY_PROJECTION_SCOPE_OBSERVATION_QUERY: &str = r#"
+SELECT { record_json: record_json, event_id: event_id, event_seq: event_seq, event_stream_version: event_stream_version, transaction_seq: transaction_seq, receipt_event_id: event_ledger_event_id.event_id, receipt_event_seq: event_ledger_event_id.event_sequence, receipt_event_stream_version: event_ledger_event_id.payload.event_stream_version, receipt_session_run_id: event_ledger_event_id.session_run_id, receipt_payload_json: event_ledger_event_id.payload.event_payload_json, receipt_payload_hash: event_ledger_event_id.payload_hash } AS raw11,
+    record::id(id) AS physical_record_id,
+    record_kind AS record_kind,
+    aggregate_id AS aggregate_id,
+    run_id AS run_id,
+    record::tb(event_ledger_event_id) AS receipt_pointer_table,
+    record::id(event_ledger_event_id) AS receipt_pointer_id,
+    owner_account_id AS projection_owner_account_id,
+    actor_principal_id AS projection_actor_principal_id,
+    authenticated_session_id AS projection_authenticated_session_id,
+    access_space_id AS projection_access_space_id,
+    workspace_id AS projection_workspace_id,
+    event_ledger_event_id.owner_account_id AS receipt_owner_account_id,
+    event_ledger_event_id.actor_principal_id AS receipt_actor_principal_id,
+    event_ledger_event_id.authenticated_session_id AS receipt_authenticated_session_id,
+    event_ledger_event_id.access_space_id AS receipt_access_space_id,
+    event_ledger_event_id.workspace_id AS receipt_workspace_id
+FROM type::record('model_lane_authority', $record_id)
+WHERE record_kind = 'recovery_checkpoint' AND aggregate_id = $aggregate_id AND run_id = $run_id
+  AND owner_account_id = $owner_account_id
+  AND (actor_principal_id = $actor_principal_id OR actor_principal_id = 'counterfactual-projection-principal')
+  AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id
+  AND event_id = $event_id AND event_ledger_event_id = type::record('kernel_event_ledger', $event_id)
+  AND event_ledger_event_id.event_id = $event_id
+  AND event_ledger_event_id.source_component = 'model_lane'
+  AND event_ledger_event_id.aggregate_type = 'recovery_checkpoint'
+  AND event_ledger_event_id.aggregate_id = $aggregate_id
+  AND event_ledger_event_id.kernel_task_run_id = $run_id AND event_ledger_event_id.payload.run_id = $run_id
+  AND event_ledger_event_id.owner_account_id = $owner_account_id
+  AND event_ledger_event_id.actor_principal_id = $actor_principal_id
+  AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id
+  AND event_ledger_event_id.access_space_id = $access_space_id AND event_ledger_event_id.workspace_id = $workspace_id;
+"#;
+
 #[cfg(feature = "surreal-test-support")]
 #[derive(Clone, Copy)]
 enum RecoveryAuthorityTestCorruption {
@@ -4239,6 +4319,85 @@ impl SurrealModelLaneStore {
             });
         }
         Ok(snapshot)
+    }
+
+    // This observes a held isolated test owner's retained client, not record-user authority.
+    #[cfg(all(feature = "surreal-test-support", feature = "runtime-full"))]
+    pub(crate) async fn test_capture_projection_scope_observation<'owner>(
+        &self,
+        owner: &'owner crate::test_harness::surreal_test_store_support::IsolatedSurrealTestStore,
+        run_id: &str,
+        checkpoint_id: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<(SurrealRecoveryProjectionScopeObservationToken<'owner>, serde_json::Value), SurrealStorageError> {
+        self.require_recovery_test_owner(owner)?;
+        validate_scope(scope)?;
+        validate_identity(run_id, run_id)?;
+        validate_identity(checkpoint_id, checkpoint_id)?;
+        let admitted = self.get(ModelLaneRecordKind::RecoveryCheckpoint, checkpoint_id, scope).await?.ok_or(
+            SurrealStorageError::InvalidModelLaneRecord { reason: "projection-scope observation requires an admitted checkpoint" },
+        )?;
+        if admitted.run_id != run_id {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "projection-scope observation has a different run" });
+        }
+        self.validate_event_link(ModelLaneRecordKind::RecoveryCheckpoint, &admitted, scope).await?;
+        let raw11 = self.test_recovery_authority_snapshot(owner, ModelLaneRecordKind::RecoveryCheckpoint, run_id, checkpoint_id, scope).await?;
+        let bindings = RecoveryProjectionScopeObservationBindings {
+            record_id: stable_record_id(ModelLaneRecordKind::RecoveryCheckpoint.as_str(), checkpoint_id, scope),
+            aggregate_id: checkpoint_id.to_owned(), run_id: run_id.to_owned(), event_id: admitted.event_id,
+            owner_account_id: scope.owner_account_id.clone(), actor_principal_id: scope.actor_principal_id.clone(),
+            authenticated_session_id: scope.authenticated_session_id.clone(), access_space_id: scope.access_space_id.clone(),
+            workspace_id: scope.workspace_id.clone(),
+        };
+        let baseline = self.read_projection_scope_observation(&bindings).await?;
+        if baseline.raw11 != raw11 || baseline.physical_record_id != bindings.record_id
+            || baseline.projection_actor_principal_id != scope.actor_principal_id
+            || baseline.receipt_pointer_table != "kernel_event_ledger" || baseline.receipt_pointer_id != bindings.event_id
+        {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "projection-scope observation admission changed" });
+        }
+        self.require_recovery_test_owner(owner)?;
+        let value = serde_json::to_value(&baseline).map_err(|_| SurrealStorageError::InvalidModelLaneRecord {
+            reason: "projection-scope observation serialization failed",
+        })?;
+        Ok((SurrealRecoveryProjectionScopeObservationToken { owner, storage: self.storage.clone(), bindings, baseline }, value))
+    }
+
+    #[cfg(all(feature = "surreal-test-support", feature = "runtime-full"))]
+    pub(crate) async fn test_observe_projection_scope_corruption(
+        &self,
+        owner: &crate::test_harness::surreal_test_store_support::IsolatedSurrealTestStore,
+        token: &SurrealRecoveryProjectionScopeObservationToken<'_>,
+    ) -> Result<serde_json::Value, SurrealStorageError> {
+        self.require_recovery_test_owner(owner)?;
+        if !std::ptr::eq(owner, token.owner) || !std::sync::Arc::ptr_eq(&self.storage.inner, &token.storage.inner) {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "projection-scope observation has a foreign token owner" });
+        }
+        let observed = self.read_projection_scope_observation(&token.bindings).await?;
+        let mut expected = token.baseline.clone();
+        expected.projection_actor_principal_id = "counterfactual-projection-principal".to_owned();
+        if observed != expected {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "projection-scope observation changed outside its fixed actor corruption" });
+        }
+        self.require_recovery_test_owner(owner)?;
+        serde_json::to_value(observed).map_err(|_| SurrealStorageError::InvalidModelLaneRecord {
+            reason: "projection-scope observation serialization failed",
+        })
+    }
+
+    #[cfg(all(feature = "surreal-test-support", feature = "runtime-full"))]
+    async fn read_projection_scope_observation(
+        &self,
+        bindings: &RecoveryProjectionScopeObservationBindings,
+    ) -> Result<RecoveryProjectionScopeObservation, SurrealStorageError> {
+        let bindings = bindings.clone();
+        let mut rows = self.storage.with_data_operation(|database| Box::pin(async move {
+            database.query_values::<RecoveryProjectionScopeObservation, _>(RECOVERY_PROJECTION_SCOPE_OBSERVATION_QUERY, bindings).await
+        })).await?;
+        if rows.len() != 1 {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "projection-scope observation requires its captured checkpoint and receipt" });
+        }
+        Ok(rows.remove(0))
     }
 
     #[cfg(feature = "surreal-test-support")]

@@ -570,6 +570,10 @@ pub enum ModelLaneCrdtTestCorruption {
     PromotionAcceptedCausation,
 }
 
+#[cfg(all(feature = "surreal-test-support", feature = "runtime-full"))]
+pub struct ModelLaneProjectionScopeObservationToken<'owner> {
+    inner: crate::storage::surreal::SurrealRecoveryProjectionScopeObservationToken<'owner>,
+}
 #[cfg(feature = "surreal-test-support")]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct ModelLaneRecoveryAuthorityTestSnapshot {
@@ -2873,6 +2877,28 @@ impl ModelLaneStore {
         Ok(result)
     }
 
+    #[cfg(all(feature = "surreal-test-support", feature = "runtime-full"))]
+    pub async fn test_capture_projection_scope_observation<'owner>(
+        &self,
+        owner: &'owner crate::test_harness::surreal_test_store_support::IsolatedSurrealTestStore,
+        run_id: &str,
+        checkpoint_id: &str,
+    ) -> ModelLaneResult<(ModelLaneProjectionScopeObservationToken<'owner>, serde_json::Value)> {
+        let scope = self.surreal_write_scope("capture finite owned checkpoint observation")?;
+        let (inner, baseline) = self.provider().await?
+            .test_capture_projection_scope_observation(owner, run_id, checkpoint_id, &scope).await?;
+        Ok((ModelLaneProjectionScopeObservationToken { inner }, baseline))
+    }
+
+    #[cfg(all(feature = "surreal-test-support", feature = "runtime-full"))]
+    pub async fn test_observe_projection_scope_corruption(
+        &self,
+        owner: &crate::test_harness::surreal_test_store_support::IsolatedSurrealTestStore,
+        token: &ModelLaneProjectionScopeObservationToken<'_>,
+    ) -> ModelLaneResult<serde_json::Value> {
+        Ok(self.provider().await?
+            .test_observe_projection_scope_corruption(owner, &token.inner).await?)
+    }
     /// Fixture-owned observation; native access is tested separately.
     #[cfg(all(feature = "surreal-test-support", feature = "runtime-full"))]
     pub async fn test_recovery_authority_snapshot(
@@ -8081,7 +8107,7 @@ impl ModelLaneStore {
                             checkpoints.push(checkpoint);
                         }
                     }
-                    Ok(checkpoints)
+                    Ok::<_, ModelLaneError>(checkpoints)
                 },
             ).await?;
             for checkpoint in checkpoints {

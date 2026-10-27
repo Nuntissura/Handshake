@@ -110,6 +110,8 @@ pub use loom_search::{
 };
 #[cfg(feature = "test-utils")]
 pub use model_lane::{ContextCompletionTestControl, ContextCoordinationBusy, ContextCoordinationTestHolder, ContextAdmissionTestControl, ContextAdmissionTestObservation, observe_context_coordination_busy_for_test};
+#[cfg(all(feature = "surreal-test-support", feature = "runtime-full"))]
+pub(crate) use model_lane::SurrealRecoveryProjectionScopeObservationToken;
 pub(crate) use model_lane::{
     bootstrap_model_lane_schema, ContextCoordinationPurpose, ModelLaneRecordKind, ModelLaneScope,
     TxCheckedRoleEvidence,
