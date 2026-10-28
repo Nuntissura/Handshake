@@ -671,6 +671,27 @@
             "preservation": "Preserve clean owner handovers, unfinished candidates, valid reviews, Primary custody, the single MT172 trio, parallel GUI/Kumihimo ownership and explicit stops. Existing Codeleader reporting remains; no additional Root GO/report gate.",
             "limits": "Execution coordination only; no task-contract, permission, retry, admission, proof, publication or process-authority change. Existing native_subagent_channel limits remain."
           },
+          "root_direct_execution_20261028": {
+            "record_id": "WP012-ROOT-DIRECT-EXECUTION-20261028-01",
+            "source": {
+              "master_thread": "01a17815-783f-71b0-a740-3c48849c43f9",
+              "human_resume_message": "01a1843a-e1b2-7a90-99be-c38111534f6f",
+              "human_resume_text": "continue work, follow the goal remove all ticks",
+              "goal_observation": "Master verified the current edited goal with get_goal: from now on no more teams; you will manage your subagent; Coding, checker/dependency, GUI, staged specialists and eval; one picotask at a time with GUI asynchronous in parallel; refresh sub agents after each cargo build cycle."
+            },
+            "execution_precedence": "This human-directed arrangement replaces the prior team execution allocation in actual_teams and coding_cycle_continuation. Retain those old roles, records and source ownership history; their old teams remain stopped.",
+            "current_execution": "Root directly manages its native workers. Root holds transferred physical Product/control/common-Git/manifests/locks/compiler scheduling custody, exercised solely through /root/coding; /root/gui owns the transferred external GUI candidate responsibility. No nested teams or tick scheduling.",
+            "sequencing": "Advance one MT172 picotask at a time; current focus is PT003 routing/schema proof with PT039 as its compile predecessor. GUI continues asynchronously in parallel. Refresh subagents after each actual completed Cargo cycle through clean handovers, retaining unfinished candidates and valid review/proof; no build restart or inferred resource release.",
+            "clean_handover_turns": {
+              "primary": "01a1843d-d146-7351-b616-0a8740aab9e6",
+              "coding": "01a1843d-d20b-7d73-ad58-2069befd5aba",
+              "codeleader": "01a1843d-d49b-7cd0-9553-0ff66445edc0",
+              "codecheck": "01a1843d-d3b2-7031-940e-8e72c920b81a",
+              "diagnostics": "01a1843d-d562-7ff0-ad44-436f7fb1aec8",
+              "gui": "01a1843d-d2ee-76b3-8e60-fd6f1c412387"
+            },
+            "preservation": "Execution coordination only. Preserve all original requirements, acceptance, source pins, authorship, unfinished candidates, valid reviews/proof, failures, spent attempts and explicit stops. Canonical Kumihimo publication and distinct pinned host adoption remain required. This records no task-contract, status, permission, retry, admission, proof-gate or runtime-verdict change and adds no Root GO/report gate."
+          },
           "review_delivery_scope": {
             "record_id": "WP012-REVIEW-DELIVERY-SCOPE-20261028-01",
             "recorded_at_utc": "2026-10-28T15:59:03Z",

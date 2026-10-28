@@ -3239,7 +3239,9 @@
           "refs": [
             ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-172.json#/picotask_plan/items/26",
             ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-172.json#/source_import_binding/source_acceptance_records/10",
-            ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-014.json#/scope/acceptance_criteria"
+            ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-014.json#/scope/acceptance_criteria",
+            ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-125.json#/scope/acceptance_criteria/2",
+            ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-125.json#/scope/acceptance_criteria/3"
           ],
           "source_mts": [
             "WP012:MT-172"
@@ -17189,10 +17191,19 @@
             ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-100.json#/scope/acceptance_criteria/1",
             ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-100.json#/scope/acceptance_criteria/2",
             ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-100.json#/scope/acceptance_criteria/3",
-            ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-100.json#/scope/acceptance_criteria/4"
+            ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-100.json#/scope/acceptance_criteria/4",
+            ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-125.json#/scope/acceptance_criteria/0",
+            ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-125.json#/scope/acceptance_criteria/1",
+            ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-125.json#/scope/acceptance_criteria/2",
+            ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-125.json#/scope/acceptance_criteria/3",
+            ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-125.json#/scope/acceptance_criteria/4",
+            ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-125.json#/scope/proof_targets/0",
+            ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-125.json#/scope/proof_targets/1",
+            ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-125.json#/scope/proof_targets/2"
           ],
           "source_mt_refs": [
-            ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-100.json"
+            ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-100.json",
+            ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-125.json"
           ],
           "owning_native_module": "src/frontend/handshake_native/src/app.rs",
           "owner_paths": [
@@ -17219,13 +17230,14 @@
         "focused_acceptance": [
           "Launch request uses chosen root rather than process cwd",
           "No display label becomes a shell command",
-          "Original process/quiet-operation proof remains required"
+          "Original process/quiet-operation proof remains required",
+          "Preserve all original MT-125.json#/scope/acceptance_criteria and MT-125.json#/scope/proof_targets: one canonical terminal/model-folder root definition, two-workspace divergence, typed no-root failure without process-cwd fallback, and the original non-vacuity regression proof."
         ],
         "proof": {
           "reuse": [
             "MT-100.json#/validation_v1"
           ],
-          "remaining": "Launch request uses chosen root rather than process cwd; No display label becomes a shell command; Original process/quiet-operation proof remains required. Retain actual original independent runtime acceptance and unaffected proof reuse."
+          "remaining": "Launch request uses chosen root rather than process cwd; No display label becomes a shell command; Original process/quiet-operation proof remains required. Retain actual original independent runtime acceptance and unaffected proof reuse. Also retain MT-125.json#/scope/proof_targets/0, MT-125.json#/scope/proof_targets/1 and MT-125.json#/scope/proof_targets/2: the original two-workspace divergence GREEN and RED against process-cwd behavior, typed no-root/no silent fallback proof, and tests/test_terminal_launch.rs EndpointMissing proof. Reuse unchanged valid evidence under the existing proof policy."
         },
         "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/64"
       },
@@ -27409,13 +27421,15 @@
           "MT-125.json#/validation_v2"
         ],
         "covered_by_picotasks": [
-          "GUI-WP012-172-MODELS"
+          "GUI-WP012-172-MODELS",
+          "GUI-WP012-process-terminal"
         ],
         "gui_disposition": "REUSE_ROOT_MT172_CONCRETE_CONSUMER",
-        "specific_consumer_or_reason": "Existing ModelRuntime launch/registry controls and original chosen-workspace cwd, actual model request and unavailable state; reuse dedicated MT172 MODELS implementation.",
+        "specific_consumer_or_reason": "Existing ModelRuntime launch/registry controls retain actual model request and unavailable state through dedicated MT172 MODELS; GUI-WP012-process-terminal retains terminal launch in the chosen workspace root and the shared terminal/model-folder seed resolver under all original MT-125 acceptance and proof targets.",
         "source_domain": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
         "picos": [
-          "GUI-WP012-172-MODELS"
+          "GUI-WP012-172-MODELS",
+          "GUI-WP012-process-terminal"
         ],
         "source_mt": "MT-125"
       },
