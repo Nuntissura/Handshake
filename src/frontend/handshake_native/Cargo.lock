@@ -595,6 +595,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ae3f5d315924270530207e2a68396c3cc547f6dca3fbdca317cfb1a51edb593"
 
 [[package]]
+name = "cabinet"
+version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=c56cc9500243d9ad027e20cc291c71352c936a3a#c56cc9500243d9ad027e20cc291c71352c936a3a"
+dependencies = [
+ "cabinet-peak",
+]
+
+[[package]]
+name = "cabinet-peak"
+version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=c56cc9500243d9ad027e20cc291c71352c936a3a#c56cc9500243d9ad027e20cc291c71352c936a3a"
+
+[[package]]
+name = "cabinet_host"
+version = "0.1.0"
+dependencies = [
+ "cabinet",
+ "egui",
+]
+
+[[package]]
 name = "calloop"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1769,6 +1790,8 @@ name = "handshake-native"
 version = "0.1.0"
 dependencies = [
  "base64",
+ "cabinet",
+ "cabinet_host",
  "chacha20poly1305",
  "chrono",
  "chrono-tz",
@@ -1816,6 +1839,7 @@ dependencies = [
  "lsp-types",
  "memmap2",
  "minidumper",
+ "motion_preference",
  "object",
  "palmistry",
  "palmistry-control-protocol",
@@ -2831,6 +2855,13 @@ dependencies = [
  "libc",
  "wasi",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "motion_preference"
+version = "0.1.0"
+dependencies = [
+ "egui",
 ]
 
 [[package]]

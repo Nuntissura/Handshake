@@ -97,8 +97,7 @@ dependencies = [
 [[package]]
 name = "accesskit_windows"
 version = "0.29.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2d63dd5041e49c363d83f5419a896ecb074d309c414036f616dc0b04faca971"
+source = "git+https://github.com/Nuntissura/assets.git?rev=8a97b9ae445872e4143fad1eb92f9ad082017595#8a97b9ae445872e4143fad1eb92f9ad082017595"
 dependencies = [
  "accesskit",
  "accesskit_consumer 0.31.0",
@@ -226,7 +225,7 @@ dependencies = [
  "android-properties",
  "bitflags 2.13.2",
  "cc",
- "jni",
+ "jni 0.22.4",
  "libc",
  "log",
  "ndk",
@@ -1270,6 +1269,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "cabinet"
+version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=c56cc9500243d9ad027e20cc291c71352c936a3a#c56cc9500243d9ad027e20cc291c71352c936a3a"
+dependencies = [
+ "cabinet-peak",
+]
+
+[[package]]
+name = "cabinet-peak"
+version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=c56cc9500243d9ad027e20cc291c71352c936a3a#c56cc9500243d9ad027e20cc291c71352c936a3a"
+
+[[package]]
+name = "cabinet_host"
+version = "0.1.0"
+dependencies = [
+ "cabinet",
+ "egui",
+]
+
+[[package]]
 name = "calloop"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1363,6 +1383,12 @@ dependencies = [
  "libc",
  "shlex 2.0.1",
 ]
+
+[[package]]
+name = "cesu8"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d43a04d8753f35258c91f8ec639f792891f748a1edbd759cf1dcea3382ad83c"
 
 [[package]]
 name = "cexpr"
@@ -2405,8 +2431,7 @@ dependencies = [
 [[package]]
 name = "eframe"
 version = "0.33.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "457481173e6db5ca9fa2be93a58df8f4c7be639587aeb4853b526c6cf87db4e6"
+source = "git+https://github.com/Nuntissura/assets.git?rev=8a97b9ae445872e4143fad1eb92f9ad082017595#8a97b9ae445872e4143fad1eb92f9ad082017595"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -2461,8 +2486,7 @@ dependencies = [
 [[package]]
 name = "egui-wgpu"
 version = "0.33.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e4d209971c84b2352a06174abdba701af1e552ce56b144d96f2bd50a3c91236"
+source = "git+https://github.com/Nuntissura/assets.git?rev=8a97b9ae445872e4143fad1eb92f9ad082017595#8a97b9ae445872e4143fad1eb92f9ad082017595"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -3393,6 +3417,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "handpick"
+version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=6f24d9b16f7675f2193115935ea35ae844828735#6f24d9b16f7675f2193115935ea35ae844828735"
+dependencies = [
+ "serde",
+ "url",
+]
+
+[[package]]
 name = "handshake-account-activation"
 version = "0.1.0"
 dependencies = [
@@ -3415,8 +3448,11 @@ dependencies = [
 name = "handshake-layout-snapshot"
 version = "0.1.0"
 dependencies = [
+ "kumihimo-core",
+ "kumihimo-layout-json",
  "serde",
  "serde_json",
+ "uuid",
 ]
 
 [[package]]
@@ -3424,6 +3460,8 @@ name = "handshake-native"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "cabinet",
+ "cabinet_host",
  "chacha20poly1305",
  "chrono",
  "chrono-tz",
@@ -3434,12 +3472,15 @@ dependencies = [
  "eframe",
  "egui",
  "egui_tiles",
+ "handpick",
  "handshake-account-activation",
  "handshake-diag-ring",
  "handshake-layout-snapshot",
  "handshake-workspace-activation",
  "handshake_asset_resolver",
  "handshake_code_structure",
+ "handshake_context_menu_egui",
+ "handshake_dexterity",
  "handshake_diff_merge",
  "handshake_embed_views",
  "handshake_find_replace",
@@ -3451,6 +3492,7 @@ dependencies = [
  "handshake_rich_document_model",
  "handshake_rich_formatting",
  "handshake_runtime_instance",
+ "handshake_signature_help",
  "handshake_swarm_lane_diagnostics",
  "handshake_text_mechanics",
  "handshake_wikilink_semantics",
@@ -3459,9 +3501,14 @@ dependencies = [
  "iana-time-zone",
  "image",
  "interprocess",
+ "kumihimo-content",
+ "kumihimo-core",
+ "kumihimo-egui",
+ "kumihimo-layout-json",
  "lsp-types",
  "memmap2",
  "minidumper",
+ "motion_preference",
  "palmistry-control-protocol",
  "pulldown-cmark",
  "rand 0.9.5",
@@ -3509,6 +3556,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "handshake_canonical_json"
+version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=30089b4d506861e4b3bcdd1f72805b17ebfc2324#30089b4d506861e4b3bcdd1f72805b17ebfc2324"
+dependencies = [
+ "hex",
+ "serde",
+ "serde_json",
+ "serde_json_canonicalizer",
+ "sha2 0.10.9",
+]
+
+[[package]]
 name = "handshake_capability_registry_document"
 version = "0.1.0"
 dependencies = [
@@ -3527,6 +3586,15 @@ dependencies = [
  "jsonschema",
  "serde",
  "serde_json",
+ "uuid",
+]
+
+[[package]]
+name = "handshake_ckc_provenance"
+version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=578f2c6ccdb2a35bab1edaf43b75eca732dc7a78#578f2c6ccdb2a35bab1edaf43b75eca732dc7a78"
+dependencies = [
+ "serde",
  "uuid",
 ]
 
@@ -3557,6 +3625,7 @@ dependencies = [
 [[package]]
 name = "handshake_code_structure"
 version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=ff373410b87114c077fc6a5b11cc8be7eafb811d#ff373410b87114c077fc6a5b11cc8be7eafb811d"
 dependencies = [
  "handshake_text_mechanics",
  "tree-sitter",
@@ -3570,6 +3639,20 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.9",
+]
+
+[[package]]
+name = "handshake_context_menu"
+version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=92e4729398b7630c0802db36a34001b429821c78#92e4729398b7630c0802db36a34001b429821c78"
+
+[[package]]
+name = "handshake_context_menu_egui"
+version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=92e4729398b7630c0802db36a34001b429821c78#92e4729398b7630c0802db36a34001b429821c78"
+dependencies = [
+ "egui",
+ "handshake_context_menu",
 ]
 
 [[package]]
@@ -3602,32 +3685,41 @@ dependencies = [
  "handshake-diag-ring",
  "handshake_capability_registry_document",
  "handshake_ckc_moodboard",
+ "handshake_ckc_provenance",
  "handshake_ckc_search_metrics",
  "handshake_ckc_sheet_parser",
  "handshake_ckc_sheet_template",
  "handshake_contact_sheet",
+ "handshake_dexterity",
  "handshake_document",
  "handshake_document_surreal",
  "handshake_job_admission",
+ "handshake_member_enrollment",
  "handshake_model_lane_navigation",
  "handshake_model_lane_routing",
  "handshake_openpose_render",
+ "handshake_producer_association",
  "handshake_prompt_feedback",
  "handshake_resource_scope",
+ "handshake_role_authority",
  "handshake_runtime_instance",
  "handshake_storage_support",
  "handshake_swarm_breaker",
  "handshake_swarm_event_ids",
  "handshake_swarm_routing_policy",
  "handshake_swarm_schedule",
+ "handshake_workflow_lifecycle",
  "hex",
  "hmac",
+ "hsk-studio-accord",
+ "hsk-studio-worker",
  "icalendar",
  "idna",
  "image",
  "interprocess",
  "jsonschema",
  "lopdf",
+ "model-manager-core",
  "once_cell",
  "portable-pty",
  "rappct",
@@ -3669,8 +3761,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "handshake_dexterity"
+version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=30089b4d506861e4b3bcdd1f72805b17ebfc2324#30089b4d506861e4b3bcdd1f72805b17ebfc2324"
+dependencies = [
+ "handshake_canonical_json",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "handshake_diff_merge"
 version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=ff373410b87114c077fc6a5b11cc8be7eafb811d#ff373410b87114c077fc6a5b11cc8be7eafb811d"
 dependencies = [
  "handshake_text_mechanics",
  "serde_json",
@@ -3719,6 +3822,7 @@ dependencies = [
 [[package]]
 name = "handshake_find_replace"
 version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=ff373410b87114c077fc6a5b11cc8be7eafb811d#ff373410b87114c077fc6a5b11cc8be7eafb811d"
 dependencies = [
  "handshake_text_mechanics",
  "regex",
@@ -3734,6 +3838,7 @@ dependencies = [
 [[package]]
 name = "handshake_gutter"
 version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=ff373410b87114c077fc6a5b11cc8be7eafb811d#ff373410b87114c077fc6a5b11cc8be7eafb811d"
 dependencies = [
  "egui",
  "handshake_text_mechanics",
@@ -3762,6 +3867,7 @@ dependencies = [
 [[package]]
 name = "handshake_lsp_wire"
 version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=61d2481b1a01d7f1d400633e983e3244662db436#61d2481b1a01d7f1d400633e983e3244662db436"
 dependencies = [
  "lsp-types",
  "serde_json",
@@ -3769,8 +3875,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "handshake_member_enrollment"
+version = "0.1.0"
+source = "git+https://github.com/Nuntissura/Handshake.git?rev=74d130af75b2735351005d240dc7f793f2433961#74d130af75b2735351005d240dc7f793f2433961"
+dependencies = [
+ "uuid",
+]
+
+[[package]]
 name = "handshake_model_lane_navigation"
 version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=00cb5f5b5ad18094699d65638ff2e2016cbe9f29#00cb5f5b5ad18094699d65638ff2e2016cbe9f29"
 dependencies = [
  "serde",
 ]
@@ -3805,6 +3920,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "handshake_producer_association"
+version = "0.1.0"
+source = "git+https://github.com/Nuntissura/Handshake.git?rev=74d130af75b2735351005d240dc7f793f2433961#74d130af75b2735351005d240dc7f793f2433961"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.21",
+ "uuid",
+]
+
+[[package]]
 name = "handshake_prompt_feedback"
 version = "0.1.0"
 dependencies = [
@@ -3817,6 +3944,7 @@ dependencies = [
 [[package]]
 name = "handshake_rename"
 version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=ff373410b87114c077fc6a5b11cc8be7eafb811d#ff373410b87114c077fc6a5b11cc8be7eafb811d"
 dependencies = [
  "handshake_text_mechanics",
  "lsp-types",
@@ -3835,7 +3963,9 @@ dependencies = [
 [[package]]
 name = "handshake_rich_document_model"
 version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=a118e58a2afaad6009567e046422828c99277aa0#a118e58a2afaad6009567e046422828c99277aa0"
 dependencies = [
+ "regex",
  "ropey",
  "serde",
  "serde_json",
@@ -3845,9 +3975,22 @@ dependencies = [
 [[package]]
 name = "handshake_rich_formatting"
 version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=7511afa4059905a747b61b72876b6fda605fc904#7511afa4059905a747b61b72876b6fda605fc904"
 dependencies = [
  "handshake_rich_document_model",
  "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "handshake_role_authority"
+version = "0.1.0"
+dependencies = [
+ "handshake_resource_scope",
+ "handshake_storage_support",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
  "thiserror 2.0.21",
 ]
 
@@ -3860,6 +4003,14 @@ dependencies = [
  "thiserror 2.0.21",
  "uuid",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "handshake_signature_help"
+version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=558844d5b81abe30651f94d193ac0bf76165b9cd#558844d5b81abe30651f94d193ac0bf76165b9cd"
+dependencies = [
+ "lsp-types",
 ]
 
 [[package]]
@@ -3916,6 +4067,7 @@ dependencies = [
 [[package]]
 name = "handshake_text_mechanics"
 version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=9339227c05a813600db1fa4cdb71b9b9988d5992#9339227c05a813600db1fa4cdb71b9b9988d5992"
 dependencies = [
  "ecolor",
  "ropey",
@@ -3930,6 +4082,14 @@ version = "0.1.0"
 dependencies = [
  "handshake_rich_document_model",
  "regex",
+]
+
+[[package]]
+name = "handshake_workflow_lifecycle"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "tokio",
 ]
 
 [[package]]
@@ -4117,6 +4277,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "hsk-studio-accord"
+version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=ec3ba13f19cf3d1ac9497c55178b2030c9502675#ec3ba13f19cf3d1ac9497c55178b2030c9502675"
+
+[[package]]
+name = "hsk-studio-worker"
+version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=ec3ba13f19cf3d1ac9497c55178b2030c9502675#ec3ba13f19cf3d1ac9497c55178b2030c9502675"
+dependencies = [
+ "hsk-studio-accord",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "html5ever"
 version = "0.40.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4268,7 +4442,7 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tower-service",
- "webpki-roots",
+ "webpki-roots 1.0.9",
 ]
 
 [[package]]
@@ -4500,9 +4674,9 @@ dependencies = [
 
 [[package]]
 name = "image"
-version = "0.25.10"
+version = "0.25.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85ab80394333c02fe689eaf900ab500fbd0c2213da414687ebf995a65d5a6104"
+checksum = "e6506c6c10786659413faa717ceebcb8f70731c0a60cbae39795fdf114519c1a"
 dependencies = [
  "bytemuck",
  "byteorder-lite",
@@ -4513,8 +4687,8 @@ dependencies = [
  "num-traits",
  "png",
  "tiff",
- "zune-core",
- "zune-jpeg",
+ "zune-core 0.5.3",
+ "zune-jpeg 0.5.15",
 ]
 
 [[package]]
@@ -4628,6 +4802,22 @@ name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
+
+[[package]]
+name = "jni"
+version = "0.21.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a87aa2bb7d2af34197c04845522473242e1aa17c12f4935d5856491a7fb8c97"
+dependencies = [
+ "cesu8",
+ "cfg-if",
+ "combine",
+ "jni-sys 0.3.1",
+ "log",
+ "thiserror 1.0.69",
+ "walkdir",
+ "windows-sys 0.45.0",
+]
 
 [[package]]
 name = "jni"
@@ -4789,6 +4979,52 @@ dependencies = [
  "accesskit",
  "accesskit_consumer 0.30.1",
  "parking_lot",
+]
+
+[[package]]
+name = "kumihimo-content"
+version = "0.2.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=8a97b9ae445872e4143fad1eb92f9ad082017595#8a97b9ae445872e4143fad1eb92f9ad082017595"
+dependencies = [
+ "kumihimo-core",
+]
+
+[[package]]
+name = "kumihimo-core"
+version = "0.3.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=8a97b9ae445872e4143fad1eb92f9ad082017595#8a97b9ae445872e4143fad1eb92f9ad082017595"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "kumihimo-egui"
+version = "0.2.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=8a97b9ae445872e4143fad1eb92f9ad082017595#8a97b9ae445872e4143fad1eb92f9ad082017595"
+dependencies = [
+ "eframe",
+ "egui",
+ "egui-wgpu",
+ "egui-winit",
+ "image",
+ "kumihimo-content",
+ "kumihimo-core",
+ "pollster 0.4.0",
+ "raw-window-handle",
+ "serde_json",
+ "wgpu",
+ "windows-sys 0.61.2",
+ "winit",
+]
+
+[[package]]
+name = "kumihimo-layout-json"
+version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=8a97b9ae445872e4143fad1eb92f9ad082017595#8a97b9ae445872e4143fad1eb92f9ad082017595"
+dependencies = [
+ "kumihimo-core",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -5263,6 +5499,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "model-manager-core"
+version = "0.1.0"
+source = "git+https://github.com/qualcomm/GenieX.git?rev=7b234f6c2f75c64b64bcbfd24eb47e6dec4028dd#7b234f6c2f75c64b64bcbfd24eb47e6dec4028dd"
+dependencies = [
+ "async-trait",
+ "flate2",
+ "fs2",
+ "reqwest 0.12.28",
+ "rustls",
+ "rustls-platform-verifier",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-util",
+ "url",
+ "webpki-roots 0.26.11",
+]
+
+[[package]]
 name = "monostate"
 version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5285,10 +5541,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "motion_preference"
+version = "0.1.0"
+dependencies = [
+ "egui",
+]
+
+[[package]]
 name = "moxcms"
-version = "0.8.1"
+version = "0.7.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb85c154ba489f01b25c0d36ae69a87e4a1c73a72631fc6c0eb6dde34a73e44b"
+checksum = "ac9557c559cd6fc9867e122e20d2cbefc9ca29d80d027a8e39310920ed2f0a97"
 dependencies = [
  "num-traits",
  "pxfm",
@@ -6020,6 +6283,12 @@ name = "opaque-debug"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
+
+[[package]]
+name = "openssl-probe"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e036b411754132fd6b74e94b74e9a13c5cf606fa93d1885c35860d3060820b1"
 
 [[package]]
 name = "option-ext"
@@ -7012,6 +7281,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "futures-util",
+ "h2 0.4.20",
  "http 1.5.0",
  "http-body 1.1.0",
  "http-body-util",
@@ -7040,7 +7310,7 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-streams",
  "web-sys",
- "webpki-roots",
+ "webpki-roots 1.0.9",
 ]
 
 [[package]]
@@ -7359,6 +7629,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustls-native-certs"
+version = "0.8.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a073f5dc7469f984c52ad2752b63b0807745133b6de880b7b64c1ac4c48aec4"
+dependencies = [
+ "openssl-probe",
+ "rustls-pki-types",
+ "schannel",
+ "security-framework",
+]
+
+[[package]]
 name = "rustls-pki-types"
 version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7367,6 +7649,33 @@ dependencies = [
  "web-time",
  "zeroize",
 ]
+
+[[package]]
+name = "rustls-platform-verifier"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19787cda76408ec5404443dc8b31795c87cd8fec49762dc75fa727740d34acc1"
+dependencies = [
+ "core-foundation 0.10.1",
+ "core-foundation-sys",
+ "jni 0.21.1",
+ "log",
+ "once_cell",
+ "rustls",
+ "rustls-native-certs",
+ "rustls-platform-verifier-android",
+ "rustls-webpki",
+ "security-framework",
+ "security-framework-sys",
+ "webpki-root-certs 0.26.11",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "rustls-platform-verifier-android"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f87165f0995f63a9fbeea62b64d10b4d9d8e78ec6d7d51fb2125fda7bb36788f"
 
 [[package]]
 name = "rustls-webpki"
@@ -7392,6 +7701,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
+name = "ryu-js"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04d056b875a9d2e6cb9a61d127afee9ac5999b9f87bcb32079d1318e505be714"
+
+[[package]]
 name = "salsa20"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7407,6 +7722,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "schannel"
+version = "0.1.30"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9cb23c424d8ee841bb4d813677ca237e2a610067d594fec130f87d6093495ab5"
+dependencies = [
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7478,6 +7802,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "security-framework"
+version = "3.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b7f4bc775c73d9a02cde8bf7b2ec4c9d12743edf609006c7facc23998404cd1d"
+dependencies = [
+ "bitflags 2.13.2",
+ "core-foundation 0.10.1",
+ "core-foundation-sys",
+ "libc",
+ "security-framework-sys",
+]
+
+[[package]]
+name = "security-framework-sys"
+version = "2.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ce2691df843ecc5d231c0b14ece2acc3efb62c0a398c7e1d875f3983ce020e3"
+dependencies = [
+ "core-foundation-sys",
+ "libc",
+]
+
+[[package]]
 name = "seize"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7529,17 +7876,27 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.154"
+version = "1.0.151"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7e9cc8b1b85264074fbcc02a88680c4096b1e47df8f739dceb03bf482f04bd6"
+checksum = "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14"
 dependencies = [
- "foldhash 0.2.0",
  "indexmap",
  "itoa",
  "memchr",
  "serde",
  "serde_core",
  "zmij",
+]
+
+[[package]]
+name = "serde_json_canonicalizer"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87f7bb64f8c7e9f783fdfe883b5fe93a90bee1597c63705baa91842c5f698620"
+dependencies = [
+ "ryu-js",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -8464,16 +8821,16 @@ dependencies = [
 
 [[package]]
 name = "tiff"
-version = "0.11.3"
+version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b63feaf3343d35b6ca4d50483f94843803b0f51634937cc2ec519fc32232bc52"
+checksum = "af9605de7fee8d9551863fd692cce7637f548dbd9db9180fcc07ccc6d26c336f"
 dependencies = [
  "fax",
  "flate2",
  "half",
  "quick-error",
  "weezl",
- "zune-jpeg",
+ "zune-jpeg 0.4.21",
 ]
 
 [[package]]
@@ -8709,6 +9066,7 @@ dependencies = [
  "futures-core",
  "futures-io",
  "futures-sink",
+ "futures-util",
  "libc",
  "pin-project-lite",
  "tokio",
@@ -9225,7 +9583,7 @@ dependencies = [
  "rustls-pki-types",
  "ureq-proto",
  "utf8-zero",
- "webpki-roots",
+ "webpki-roots 1.0.9",
 ]
 
 [[package]]
@@ -9285,9 +9643,9 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "uuid"
-version = "1.28.0"
+version = "1.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cc1186384beb7dd8eedea376413fd654937285ea6c9cfbb928dc3043ea4b606"
+checksum = "2cefc03fd367c0c6d4305de1b312cf00248c4114f4a0418ce6a6af769e3b0bd9"
 dependencies = [
  "getrandom 0.4.3",
  "js-sys",
@@ -9610,7 +9968,7 @@ version = "1.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62c35be770821a214dbc362fc26908c853e776c0004294d0b10b8a6bad582f94"
 dependencies = [
- "jni",
+ "jni 0.22.4",
  "log",
  "ndk-context",
  "objc2 0.6.5",
@@ -9618,6 +9976,33 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "url",
  "web-sys",
+]
+
+[[package]]
+name = "webpki-root-certs"
+version = "0.26.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75c7f0ef91146ebfb530314f5f1d24528d7f0767efbfd31dce919275413e393e"
+dependencies = [
+ "webpki-root-certs 1.0.11",
+]
+
+[[package]]
+name = "webpki-root-certs"
+version = "1.0.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e49d0e65abc00c142e8f9428da991da9f1a250c39be97459901eb12b9b49f62a"
+dependencies = [
+ "rustls-pki-types",
+]
+
+[[package]]
+name = "webpki-roots"
+version = "0.26.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "521bc38abb08001b01866da9f51eb7c5d647a19260e00054a8c7fd5f9e57f7a9"
+dependencies = [
+ "webpki-roots 1.0.9",
 ]
 
 [[package]]
@@ -10126,6 +10511,15 @@ dependencies = [
 
 [[package]]
 name = "windows-sys"
+version = "0.45.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75283be5efb2831d37ea142365f009c02ec203cd29a3ebecbc093d52315b66d0"
+dependencies = [
+ "windows-targets 0.42.2",
+]
+
+[[package]]
+name = "windows-sys"
 version = "0.48.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "677d2418bec65e3338edb076e806bc1ec15693c5d0104683f2efe857f61056a9"
@@ -10158,6 +10552,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae137229bcbd6cdf0f7b80a31df61766145077ddf49416a728b02cb3921ff3fc"
 dependencies = [
  "windows-link 0.2.1",
+]
+
+[[package]]
+name = "windows-targets"
+version = "0.42.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e5180c00cd44c9b1c88adb3693291f1cd93605ded80c250a75d472756b4d071"
+dependencies = [
+ "windows_aarch64_gnullvm 0.42.2",
+ "windows_aarch64_msvc 0.42.2",
+ "windows_i686_gnu 0.42.2",
+ "windows_i686_msvc 0.42.2",
+ "windows_x86_64_gnu 0.42.2",
+ "windows_x86_64_gnullvm 0.42.2",
+ "windows_x86_64_msvc 0.42.2",
 ]
 
 [[package]]
@@ -10211,6 +10620,12 @@ dependencies = [
 
 [[package]]
 name = "windows_aarch64_gnullvm"
+version = "0.42.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "597a5118570b68bc08d8d59125332c54f1ba9d9adeedeef5b99b02ba2b0698f8"
+
+[[package]]
+name = "windows_aarch64_gnullvm"
 version = "0.48.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b38e32f0abccf9987a4e3079dfb67dcd799fb61361e53e2882c3cbaf0d905d8"
@@ -10223,6 +10638,12 @@ checksum = "32a4622180e7a0ec044bb555404c800bc9fd9ec262ec147edd5989ccd0c02cd3"
 
 [[package]]
 name = "windows_aarch64_msvc"
+version = "0.42.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e08e8864a60f06ef0d0ff4ba04124db8b0fb3be5776a5cd47641e942e58c4d43"
+
+[[package]]
+name = "windows_aarch64_msvc"
 version = "0.48.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc35310971f3b2dbbf3f0690a219f40e2d9afcf64f9ab7cc1be722937c26b4bc"
@@ -10232,6 +10653,12 @@ name = "windows_aarch64_msvc"
 version = "0.52.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09ec2a7bb152e2252b53fa7803150007879548bc709c039df7627cabbd05d469"
+
+[[package]]
+name = "windows_i686_gnu"
+version = "0.42.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c61d927d8da41da96a81f029489353e68739737d3beca43145c8afec9a31a84f"
 
 [[package]]
 name = "windows_i686_gnu"
@@ -10253,6 +10680,12 @@ checksum = "0eee52d38c090b3caa76c563b86c3a4bd71ef1a819287c19d586d7334ae8ed66"
 
 [[package]]
 name = "windows_i686_msvc"
+version = "0.42.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44d840b6ec649f480a41c8d80f9c65108b92d89345dd94027bfe06ac444d1060"
+
+[[package]]
+name = "windows_i686_msvc"
 version = "0.48.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f55c233f70c4b27f66c523580f78f1004e8b5a8b659e05a4eb49d4166cca406"
@@ -10262,6 +10695,12 @@ name = "windows_i686_msvc"
 version = "0.52.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "240948bc05c5e7c6dabba28bf89d89ffce3e303022809e73deaefe4f6ec56c66"
+
+[[package]]
+name = "windows_x86_64_gnu"
+version = "0.42.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8de912b8b8feb55c064867cf047dda097f92d51efad5b491dfb98f6bbb70cb36"
 
 [[package]]
 name = "windows_x86_64_gnu"
@@ -10277,6 +10716,12 @@ checksum = "147a5c80aabfbf0c7d901cb5895d1de30ef2907eb21fbbab29ca94c5b08b1a78"
 
 [[package]]
 name = "windows_x86_64_gnullvm"
+version = "0.42.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26d41b46a36d453748aedef1486d5c7a85db22e56aff34643984ea85514e94a3"
+
+[[package]]
+name = "windows_x86_64_gnullvm"
 version = "0.48.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b7b52767868a23d5bab768e390dc5f5c55825b6d30b86c844ff2dc7414044cc"
@@ -10286,6 +10731,12 @@ name = "windows_x86_64_gnullvm"
 version = "0.52.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "24d5b23dc417412679681396f2b49f3de8c1473deb516bd34410872eff51ed0d"
+
+[[package]]
+name = "windows_x86_64_msvc"
+version = "0.42.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9aec5da331524158c6d1a4ac0ab1541149c0b9505fde06423b02f5ef0106b9f0"
 
 [[package]]
 name = "windows_x86_64_msvc"
@@ -10866,9 +11317,24 @@ dependencies = [
 
 [[package]]
 name = "zune-core"
+version = "0.4.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f423a2c17029964870cfaabb1f13dfab7d092a62a29a89264f4d36990ca414a"
+
+[[package]]
+name = "zune-core"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d56377fd46368984a170bc5aac5567e52ca5da874caa60bea39fcbca78fb658b"
+
+[[package]]
+name = "zune-jpeg"
+version = "0.4.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29ce2c8a9384ad323cf564b67da86e21d3cfdff87908bc1223ed5c99bc792713"
+dependencies = [
+ "zune-core 0.4.12",
+]
 
 [[package]]
 name = "zune-jpeg"
@@ -10876,7 +11342,7 @@ version = "0.5.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "27bc9d5b815bc103f142aa054f561d9187d191692ec7c2d1e2b4737f8dbd7296"
 dependencies = [
- "zune-core",
+ "zune-core 0.5.3",
 ]
 
 [[package]]
