@@ -659,6 +659,18 @@
             "supported_continuation": "Coding owns its actual Notes04 native agent and prepares its own source/API candidate handback to Primary through its supported native ownership channel. That fresh owner handback is distinct from forwarding the failed payload; do not retry or relay that payload through another sender.",
             "limits": "Primary may continue independent capture/binding preparation and consume supported actual handbacks. Routing changes no scope, acceptance, status, permission or pin, and grants no measurement, pin adoption, compiler, runtime retry or cleanup."
           },
+          "coding_cycle_continuation": {
+            "record_id": "WP012-CODING-CYCLE-CONTINUATION-20261028-01",
+            "owner_parent": "01a17387-13d3-7091-951e-c06728fb7e94",
+            "source": {
+              "thread_id": "01a168a9-05b2-7630-9633-5faac88dd068",
+              "turn_id": "01a183d1-395b-7622-8563-f75d0ed1d9a2",
+              "tool_call_id": "exec-622a7a82-79e8-43f3-bfb3-43b8895b309f"
+            },
+            "coordination": "Coding consumes completed native handbacks and keeps useful owned MT172 work active through native waits, supported parent followups and direct peer handoffs. Quiesce at an actual dependency, repeated blocker or concrete Cargo-ready unit; dispatch alone requires no further Root wake-up or routine acknowledgement.",
+            "preservation": "Preserve clean owner handovers, unfinished candidates, valid reviews, Primary custody, the single MT172 trio, parallel GUI/Kumihimo ownership and explicit stops. Existing Codeleader reporting remains; no additional Root GO/report gate.",
+            "limits": "Execution coordination only; no task-contract, permission, retry, admission, proof, publication or process-authority change. Existing native_subagent_channel limits remain."
+          },
           "review_delivery_scope": {
             "record_id": "WP012-REVIEW-DELIVERY-SCOPE-20261028-01",
             "recorded_at_utc": "2026-10-28T15:59:03Z",
