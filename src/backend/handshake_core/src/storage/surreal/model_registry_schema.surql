@@ -143,7 +143,7 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_registry_process_read($row: object) {
 };
 
 DEFINE FUNCTION OVERWRITE fn::wp012_model_registry_optional($actual: any, $expected: any) {
-    RETURN IF $expected = NONE { $actual = NONE OR $actual = NULL } ELSE { ($actual = $expected) };
+    RETURN IF $expected = NONE { $actual = NONE OR $actual = NULL } ELSE { RETURN $actual = $expected; };
 };
 
 DEFINE FUNCTION OVERWRITE fn::wp012_model_registry_process_receipt_read($event: object) {

@@ -31,6 +31,85 @@ use super::{SurrealStorage, SurrealStorageError};
 
 const SCHEMA: &str = include_str!("model_registry_schema.surql");
 
+#[cfg(test)]
+mod tests {
+    use surrealdb::{engine::local::Mem, types::Value, Surreal};
+
+    use super::SCHEMA;
+
+    #[tokio::test]
+    async fn model_registry_optional_info_preserves_none_null_and_equality() {
+        let start = SCHEMA
+            .find("DEFINE FUNCTION OVERWRITE fn::wp012_model_registry_optional(")
+            .expect("production optional-value function");
+        let definition = &SCHEMA[start..];
+        let end = definition.find("\n};").expect("function terminator") + "\n};".len();
+        let client = Surreal::new::<Mem>(()).await.expect("open isolated Mem store");
+        client
+            .use_ns("optional_info")
+            .use_db("optional_info")
+            .await
+            .expect("select Mem context");
+        client
+            .query(&definition[..end])
+            .await
+            .expect("install production function")
+            .check()
+            .expect("production function definition succeeds");
+
+        let mut response = client
+            .query("INFO FOR DB STRUCTURE;")
+            .await
+            .expect("read actual structured database INFO")
+            .check()
+            .expect("stored function survives INFO decoding");
+        let info: Value = response.take(0).expect("decode structured database INFO");
+        let Value::Object(info) = info else {
+            panic!("database INFO must be an object");
+        };
+        let Some(Value::Array(functions)) = info.get("functions") else {
+            panic!("structured INFO must contain the installed function");
+        };
+        assert_eq!(functions.len(), 1);
+
+        for (actual, expected, matches) in [
+            ("NONE", "NONE", true),
+            ("NULL", "NONE", true),
+            ("0", "NONE", false),
+            ("false", "NONE", false),
+            ("''", "NONE", false),
+            ("NULL", "NULL", true),
+            ("NONE", "NULL", false),
+            ("1", "1", true),
+            ("2", "1", false),
+            ("'1'", "1", false),
+            ("'same'", "'same'", true),
+            ("'other'", "'same'", false),
+            ("true", "true", true),
+            ("false", "true", false),
+            ("[1, 2]", "[1, 2]", true),
+            ("[2, 1]", "[1, 2]", false),
+            ("{ key: 'value' }", "{ key: 'value' }", true),
+            ("{ key: 'other' }", "{ key: 'value' }", false),
+            ("model_runtime_registry:one", "model_runtime_registry:one", true),
+            ("model_runtime_registry:two", "model_runtime_registry:one", false),
+            ("'alpha'", "/alp.*/", true),
+            ("'beta'", "/alp.*/", false),
+        ] {
+            let mut response = client
+                .query(format!(
+                    "RETURN fn::wp012_model_registry_optional({actual}, {expected});"
+                ))
+                .await
+                .expect("evaluate production optional-value function")
+                .check()
+                .expect("optional-value evaluation succeeds");
+            let observed: bool = response.take(0).expect("function returns a boolean");
+            assert_eq!(observed, matches, "actual={actual}, expected={expected}");
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct SurrealModelRegistryStore {
     storage: SurrealStorage,
