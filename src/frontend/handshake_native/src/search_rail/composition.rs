@@ -13,11 +13,21 @@ struct NoteHandle {
     authority: Arc<Mutex<RichEditorState>>,
 }
 
+struct MountedSurface {
+    editor: handpick::EditorId,
+    view_id: String,
+    document_id: String,
+    response: egui::Response,
+}
+
 #[derive(Default)]
 pub(super) struct MountedNotes {
     core: Option<handpick::WritingSession>,
     editors: HashMap<handpick::EditorId, NoteHandle>,
     composition: Option<handpick::CompositionToken>,
+    presented: Option<(handpick::EditorId, u64, String)>,
+    surface: Option<MountedSurface>,
+    pub(super) space_limited: bool,
     released: Vec<(String, String)>,
     bus: Option<Arc<Mutex<crate::interop::InteractionBus>>>,
     pub(super) requested: bool,
@@ -43,7 +53,17 @@ impl MountedNotes {
     }
 
     pub(super) fn focused_binding(&self) -> Option<(String, String)> {
+        if !self.expanded() { return None; }
         let active = self.active()?;
+        let surface = self.surface.as_ref()?;
+        if self.core.as_ref()?.editor()?.0 != &surface.editor
+            || active.view_id != surface.view_id || active.document_id != surface.document_id
+            || !surface.response.has_focus()
+            || !surface.response.ctx.content_rect().contains_rect(surface.response.rect)
+            || surface.response.ctx.input(|input| input.pointer.any_pressed()
+                && input.pointer.interact_pos().is_none_or(|pos| !surface.response.rect.contains(pos))) {
+            return None;
+        }
         let focused = crate::interop::InteractionBus::with_try_lock(self.bus.as_ref()?, |bus| {
             bus.focus_owner().is_some_and(|id| id.as_ref() == active.view_id)
         }).unwrap_or(false);
@@ -60,6 +80,9 @@ impl MountedNotes {
         self.core = None;
         self.editors.clear();
         self.composition = None;
+        self.presented = None;
+        self.surface = None;
+        self.space_limited = false;
         self.requested = false;
         self.error = None;
     }
@@ -293,6 +316,19 @@ impl MountedNotes {
                     .map_err(|error| error.to_string())?;
             }
         }
+        if let Some(properties) = &state.properties {
+            let fence = core.fence().map_err(|error| error.to_string())?;
+            let presentation = (fence.editor.clone(), context.edit_revision, properties.doc_metadata.title.clone());
+            if self.presented.as_ref() != Some(&presentation) {
+                let text = state.with_document(crate::rich_editor::save::export::export_plain_text)
+                    .map_err(|error| error.to_string())?;
+                core.present_draft(&fence,
+                    u32::try_from(text.encode_utf16().count()).unwrap_or(u32::MAX),
+                    u32::try_from(text.lines().count()).unwrap_or(u32::MAX),
+                    text.is_empty(), &properties.doc_metadata.title).map_err(|error| error.to_string())?;
+                self.presented = Some(presentation);
+            }
+        }
         let clean = owner.with_save_gate(|gate| gate.document_is_loaded() && !gate.is_dirty());
         if clean && self.composition.is_none() && core.committed_note().is_none() {
             if let Some(identity) = owner.document_identity() {
@@ -310,7 +346,7 @@ impl MountedNotes {
         Ok(())
     }
 
-    fn bookmarks(
+    pub(super) fn bookmarks(
         &mut self,
         ui: &mut egui::Ui,
         workspace: &str,
@@ -387,7 +423,7 @@ impl MountedNotes {
         }
     }
 
-    pub(super) fn show(
+    pub(super) fn prepare(
         &mut self,
         ctx: &egui::Context,
         workspace: &str,
@@ -395,7 +431,6 @@ impl MountedNotes {
         base: &str,
         current: Option<Arc<Mutex<RichEditorState>>>,
         store: &crate::editor_pane_factories::RichEditorDocumentStore,
-        mount: &crate::editor_pane_factories::RichEditorPaneMount,
         runtime: Option<&tokio::runtime::Handle>,
         observations: bool,
     ) {
@@ -449,132 +484,319 @@ impl MountedNotes {
         if !account.is_some_and(|account| account.is_active()) {
             return;
         }
-        let expanded = self.core.as_ref().is_some_and(|core| core.expanded());
-        let bookmarked = self
-            .core
-            .as_ref()
-            .is_some_and(|core| !core.pins().is_empty() || !core.bookmarks().is_empty());
-        if !expanded && !bookmarked && self.error.is_none() {
+        self.prune_released();
+    }
+
+    pub(super) fn expanded(&self) -> bool {
+        self.core.as_ref().is_some_and(|core| core.expanded())
+    }
+
+    pub(super) fn has_bookmarks(&self) -> bool {
+        self.core.as_ref().is_some_and(|core| !core.pins().is_empty() || !core.bookmarks().is_empty())
+    }
+
+    pub(super) fn toggle(&mut self) {
+        if self.core.as_ref().is_none_or(|core| core.editor().is_none()) {
+            self.request_attach_current();
             return;
         }
-        egui::TopBottomPanel::top("handpick.notes.composition")
-            .resizable(expanded)
-            .default_height(if expanded { 240.0 } else { 32.0 })
-            .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    if let Some(account) = account {
-                        self.bookmarks(ui, workspace, base, account);
-                    }
-                    if let Some(state) = self.active() {
-                        let response = ui.button("Bookmark");
-                        ctx.accesskit_node_builder(response.id, |node| {
-                            node.set_author_id("handpick.notes.bookmark")
-                        });
-                        if response.clicked() {
-                            let result = self
-                                .core
-                                .as_mut()
-                                .ok_or_else(|| "Notes session unavailable".to_owned())
-                                .and_then(|core| {
-                                    Self::bookmark_active(core)
-                                });
-                            self.observe(if result.is_ok() { crate::diagnostics::gui_events::GuiDiagnosticPhase::Accepted }
-                                else { crate::diagnostics::gui_events::GuiDiagnosticPhase::Rejected });
-                            if let Err(error) = result {
-                                self.error = Some(error);
-                            }
-                        }
-                        let composing = state
-                            .editor
-                            .lock()
-                            .is_ok_and(|state| state.preedit.is_active());
-                        let can_save = state
-                            .authority
-                            .lock()
-                            .is_ok_and(|state| state.has_save_context())
-                            && !composing;
-                        if let Ok(authority) = state.authority.lock() {
-                            if let Some(save) = &authority.save {
-                                use crate::rich_editor::save::save_manager::SaveState;
-                                ui.small(match &save.state {
-                                    SaveState::Saving { .. } => "Saving note",
-                                    SaveState::Conflict { .. } | SaveState::ConfirmKeepYours { .. } => "Save conflict; open the note to resolve it",
-                                    SaveState::Error(_) => "Save failed; open the note for recovery",
-                                    SaveState::Idle => if authority.document_owner().with_save_gate(|gate| gate.is_dirty()) { "Unsaved changes" } else { "Saved note" },
-                                });
-                            }
-                        }
-                        let save = ui.add_enabled(can_save, egui::Button::new("Save note"));
-                        ctx.accesskit_node_builder(save.id, |node| {
-                            node.set_author_id("handpick.notes.save")
-                        });
-                        if save.clicked() {
-                            if let Ok(mut state) = state.authority.lock() {
-                                if !account.is_some_and(|account| {
-                                    state
-                                        .document_owner()
-                                        .has_active_binding(workspace, base, account)
-                                }) {
-                                    self.error = Some(
-                                        "Notes authority changed; save was not dispatched".into(),
-                                    );
-                                } else if !state.request_save_for_host() {
-                                    self.error =
-                                        Some("Notes save is unavailable; edits retained".into());
-                                }
-                            }
-                        }
-                        let close = ui.button("Close writing");
-                        ctx.accesskit_node_builder(close.id, |node| {
-                            node.set_author_id("handpick.notes.close")
-                        });
-                        if close.clicked() {
-                            let result = self
-                                .core
-                                .as_mut()
-                                .ok_or_else(|| "Notes session unavailable".to_owned())
-                                .and_then(|core| {
-                                    core.close_quicknote(
-                                        &core.fence().map_err(|error| error.to_string())?,
-                                    )
-                                    .map_err(|error| error.to_string())
-                                });
-                            self.observe(if matches!(result, Ok(handpick::QuicknoteClose::Closed)) {
-                                crate::diagnostics::gui_events::GuiDiagnosticPhase::Accepted
-                            } else { crate::diagnostics::gui_events::GuiDiagnosticPhase::Rejected });
-                            match result {
-                                Ok(handpick::QuicknoteClose::Closed) => {}
-                                Ok(handpick::QuicknoteClose::NeedsSaveOrPin) => {
-                                    self.error = Some(
-                                        "Save or bookmark the current edit before closing".into(),
-                                    )
-                                }
-                                Err(error) => self.error = Some(error),
-                            }
-                        }
-                    }
-                });
-                if let Some(error) = &self.error {
-                    ui.colored_label(ui.visuals().error_fg_color, error);
-                    let dismiss = ui.button("Dismiss message");
-                    ctx.accesskit_node_builder(dismiss.id, |node| {
-                        node.set_author_id("handpick.notes.dismiss")
-                    });
-                    if dismiss.clicked() {
-                        self.error = None;
-                    }
-                }
-                if self.core.as_ref().is_some_and(|core| core.expanded()) {
-                    if let Some(state) = self.active() {
-                        ui.push_id(&state.view_id, |ui| {
-                            let _ = mount.render_view(ui, Some(&state.document_id), &state.view_id);
-                        });
-                    }
-                }
-            });
-        if let Err(error) = self.synchronize() {
-            self.error = Some(error);
+        let Some(core) = &mut self.core else { return };
+        let result = if core.expanded() { core.compact() } else { core.expand() };
+        if let Err(error) = result { self.error = Some(error.to_string()); }
+    }
+
+    pub(super) fn request_attach_current(&mut self) {
+        self.requested = true;
+    }
+
+    pub(super) fn set_query_purpose(&mut self, purpose: handpick::QueryPurpose) {
+        if let Some(core) = &mut self.core {
+            if core.query_purpose() != purpose {
+                if let Err(error) = core.set_query_purpose(purpose) { self.error = Some(error.to_string()); }
+            }
         }
+    }
+
+    pub(super) fn take_selected_query(&self, ctx: &egui::Context, frame_composing: bool) -> Option<String> {
+        if frame_composing || self.composing() || self.focused_binding().is_none() { return None; }
+        let handle = self.active()?;
+        let text = handle.editor.lock().ok()?.selected_text_for_stage().filter(|text| !text.trim().is_empty())?;
+        ctx.input_mut(|input| input.consume_key(egui::Modifiers::ALT, egui::Key::Enter)).then_some(text)
+    }
+
+    pub(super) fn completion_open(&self) -> bool {
+        self.active().is_some_and(|handle| handle.editor.lock().is_ok_and(|state|
+            state.wikilink_autocomplete.is_some() || state.tag_autocomplete.is_some() || state.slash_menu.is_some()))
+    }
+
+    pub(super) fn composing(&self) -> bool {
+        self.active().is_some_and(|handle| handle.editor.lock().is_ok_and(|state| state.preedit.is_active()))
+    }
+
+    pub(super) fn focus_editor(&mut self) {
+        if let Some(handle) = self.active() {
+            if let Ok(mut state) = handle.editor.lock() { state.request_editor_focus(); }
+        }
+    }
+
+    pub(super) fn controls(
+        &mut self, ui: &mut egui::Ui, workspace: &str,
+        account: Option<&Arc<crate::local_account::AuthenticatedContext>>, base: &str, frame_composing: bool,
+    ) {
+        let active = self.active();
+        let composing = frame_composing || active.as_ref().is_some_and(|handle|
+            handle.editor.lock().is_ok_and(|state| state.preedit.is_active()));
+        let can_save = !composing && active.as_ref().is_some_and(|handle|
+            handle.authority.lock().is_ok_and(|state| state.has_save_context()));
+        let save = ui.add_enabled(can_save, egui::Button::new("Save"))
+            .on_disabled_hover_text("Open a note to save it here");
+        ui.ctx().accesskit_node_builder(save.id, |node| node.set_author_id("handpick.notes.save"));
+        let save_key = !composing && self.focused_binding().is_some()
+            && ui.input_mut(|input| input.consume_key(egui::Modifiers::CTRL, egui::Key::Enter));
+        if save.clicked() || save_key {
+            self.request_save(workspace, account, base, frame_composing);
+        }
+        let bookmark = ui.add_enabled(active.is_some() && !composing, egui::Button::new("Bookmark"));
+        ui.ctx().accesskit_node_builder(bookmark.id, |node| node.set_author_id("handpick.notes.bookmark"));
+        if bookmark.clicked() {
+            let result = self.core.as_mut().ok_or_else(|| "Notes session unavailable".to_owned())
+                .and_then(Self::bookmark_active);
+            self.observe(if result.is_ok() { crate::diagnostics::gui_events::GuiDiagnosticPhase::Accepted }
+                else { crate::diagnostics::gui_events::GuiDiagnosticPhase::Rejected });
+            if let Err(error) = result { self.error = Some(error); }
+        }
+        if active.is_some() {
+            let close = ui.add_enabled(!composing, egui::Button::new("Close"));
+            ui.ctx().accesskit_node_builder(close.id, |node| node.set_author_id("handpick.notes.close"));
+            if close.clicked() {
+                let result = self.core.as_mut().ok_or_else(|| "Notes session unavailable".to_owned())
+                    .and_then(|core| core.close_quicknote(&core.fence().map_err(|error| error.to_string())?)
+                        .map_err(|error| error.to_string()));
+                self.observe(if matches!(result, Ok(handpick::QuicknoteClose::Closed)) {
+                    crate::diagnostics::gui_events::GuiDiagnosticPhase::Accepted
+                } else { crate::diagnostics::gui_events::GuiDiagnosticPhase::Rejected });
+                match result {
+                    Ok(handpick::QuicknoteClose::Closed) => {}
+                    Ok(handpick::QuicknoteClose::NeedsSaveOrPin) =>
+                        self.error = Some("Save or bookmark the current edit before closing".into()),
+                    Err(error) => self.error = Some(error),
+                }
+            }
+        }
+    }
+
+    fn request_save(&mut self, workspace: &str,
+        account: Option<&Arc<crate::local_account::AuthenticatedContext>>, base: &str, frame_composing: bool) {
+        let result = (|| {
+            if frame_composing { return Err("Finish the current text composition first"); }
+            let handle = self.active().ok_or("Notes editor unavailable")?;
+            let composing = handle.editor.lock().map_err(|_| "Notes editor unavailable")?.preedit.is_active();
+            if composing { return Err("Finish the current text composition first"); }
+            let mut state = handle.authority.lock().map_err(|_| "Notes authority unavailable")?;
+            if !account.is_some_and(|account| state.document_owner().has_active_binding(workspace, base, account)) {
+                return Err("Notes authority changed; save was not dispatched");
+            }
+            if !state.request_save_for_host() { return Err("Notes save is unavailable; edits retained"); }
+            Ok(())
+        })();
+        self.observe(if result.is_ok() { crate::diagnostics::gui_events::GuiDiagnosticPhase::Accepted }
+            else { crate::diagnostics::gui_events::GuiDiagnosticPhase::Rejected });
+        if let Err(error) = result { self.error = Some(error.into()); }
+    }
+
+    fn save_status(&self) -> Option<String> {
+        let handle = self.active()?;
+        let state = handle.authority.lock().ok()?;
+        let save = state.save.as_ref()?;
+        use crate::rich_editor::save::save_manager::SaveState;
+        Some(match &save.state {
+            SaveState::Saving { .. } => "Saving note",
+            SaveState::Conflict { .. } | SaveState::ConfirmKeepYours { .. } => "Save conflict; open the note to resolve it",
+            SaveState::Error(_) => "Save failed; open the note for recovery",
+            SaveState::Idle => if state.document_owner().with_save_gate(|gate| gate.is_dirty()) { "Unsaved changes" } else { "Saved note" },
+        }.into())
+    }
+
+    pub(super) fn body(&mut self, ui: &mut egui::Ui, mount: &crate::editor_pane_factories::RichEditorPaneMount) {
+        self.surface = None;
+        self.space_limited = false;
+        if let Some(status) = self.save_status() { ui.small(status); }
+        if let Some(error) = &self.error {
+            ui.colored_label(ui.visuals().error_fg_color, error);
+            let dismiss = ui.button("Dismiss message");
+            ui.ctx().accesskit_node_builder(dismiss.id, |node| node.set_author_id("handpick.notes.dismiss"));
+            if dismiss.clicked() { self.error = None; }
+        }
+        if self.expanded() {
+            if let Some(state) = self.active() {
+                if let Some(height) = notes_body_height(ui.ctx().content_rect().height(),
+                    ui.ctx().content_rect().bottom() - ui.cursor().top()) {
+                    let response = ui.allocate_ui(egui::vec2(ui.available_width(), height), |ui|
+                        ui.push_id(&state.view_id, |ui|
+                            mount.render_view(ui, Some(&state.document_id), &state.view_id)).inner).inner;
+                    if let (Some(response), Some((editor, _))) = (response, self.core.as_ref().and_then(|core| core.editor())) {
+                        self.surface = Some(MountedSurface { editor: editor.clone(), view_id: state.view_id,
+                            document_id: state.document_id, response });
+                    }
+                } else { self.space_limited = true; }
+            }
+        }
+        if let Err(error) = self.synchronize() { self.error = Some(error); }
         self.prune_released();
     }
 }
+
+fn notes_body_height(viewport_height: f32, remaining: f32) -> Option<f32> {
+    (remaining >= 120.0).then(|| (viewport_height * 0.4).clamp(120.0, 240.0).min(remaining))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn input(events: Vec<egui::Event>) -> egui::RawInput {
+        egui::RawInput { focused: true, screen_rect: Some(egui::Rect::from_min_size(
+            egui::Pos2::ZERO, egui::vec2(600.0, 500.0))), events, ..Default::default() }
+    }
+
+    fn enter(modifiers: egui::Modifiers) -> egui::Event {
+        egui::Event::Key { key: egui::Key::Enter, physical_key: None, pressed: true,
+            repeat: false, modifiers }
+    }
+
+    fn notes_with_live_surface(ctx: &egui::Context) -> MountedNotes {
+        use crate::rich_editor::document_model::node::BlockNode;
+        use crate::rich_editor::renderer::rich_editor_widget::RichEditorPaneFactory;
+        let editor_id = handpick::EditorId::new("editor").unwrap();
+        let editor = Arc::new(Mutex::new(RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph("text")]))));
+        {
+            use crate::rich_editor::document_model::{selection::Selection, position::DocPosition};
+            let mut state = editor.lock().unwrap();
+            state.selection = Selection::Text { anchor: DocPosition::new(vec![0, 0], 0),
+                head: DocPosition::new(vec![0, 0], 4) };
+            state.request_editor_focus();
+        }
+        let mut core = session();
+        core.bind(editor_id.clone(), 0).unwrap();
+        core.expand().unwrap();
+        let factory = RichEditorPaneFactory::new(editor.clone());
+        let mut surface = None;
+        let _ = ctx.run(input(Vec::new()), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                surface = Some(factory.render_for_view(ui, Arc::from("view")));
+            });
+        });
+        let mut notes = MountedNotes::default();
+        notes.core = Some(core);
+        notes.bus = Some(crate::interop::InteractionBus::get_or_init(ctx));
+        notes.editors.insert(editor_id.clone(), NoteHandle { document_id: "note".into(), view_id: "view".into(),
+            editor: editor.clone(), authority: editor });
+        notes.surface = Some(MountedSurface { editor: editor_id, view_id: "view".into(), document_id: "note".into(),
+            response: surface.unwrap() });
+        notes
+    }
+
+    #[test]
+    fn stale_bus_owner_cannot_route_shortcuts_after_query_focus_or_compact() {
+        let ctx = egui::Context::default();
+        let mut notes = notes_with_live_surface(&ctx);
+        assert_eq!(notes.focused_binding(), Some(("view".into(), "note".into())));
+        let mut query = "keep this query".to_owned();
+        let _ = ctx.run(input(Vec::new()), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                ui.add(egui::TextEdit::singleline(&mut query)).request_focus();
+            });
+        });
+        assert_eq!(crate::interop::InteractionBus::with_try_lock(notes.bus.as_ref().unwrap(),
+            |bus| bus.focus_owner().map(|id| id.to_string())), Some(Some("view".into())));
+        assert!(notes.focused_binding().is_none());
+        let _ = ctx.run(input(vec![enter(egui::Modifiers::CTRL), enter(egui::Modifiers::ALT)]), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                notes.controls(ui, "workspace", None, "http://127.0.0.1:9911", false);
+                assert!(notes.take_selected_query(ctx, false).is_none(), "the old note must not replace the query");
+                assert!(ctx.input_mut(|input| input.consume_key(egui::Modifiers::CTRL, egui::Key::Enter)), "the old note must not consume Save");
+                assert!(ctx.input_mut(|input| input.consume_key(egui::Modifiers::ALT, egui::Key::Enter)), "the old note must not consume selected-text lookup");
+                assert!(notes.error.is_none(), "no save attempt may reach the old authority");
+            });
+        });
+        let id = notes.surface.as_ref().unwrap().response.id;
+        ctx.memory_mut(|memory| memory.request_focus(id));
+        notes.core.as_mut().unwrap().compact().unwrap();
+        assert!(notes.focused_binding().is_none());
+        assert_eq!(query, "keep this query");
+    }
+
+    #[test]
+    fn first_frame_ime_fences_controls_and_explicit_save_before_owner_preedit_updates() {
+        let ctx = egui::Context::default();
+        let mut notes = notes_with_live_surface(&ctx);
+        assert!(!notes.composing());
+        let _ = ctx.run(input(vec![egui::Event::Ime(egui::ImeEvent::Preedit("preedit".into())),
+            enter(egui::Modifiers::CTRL), enter(egui::Modifiers::ALT)]), |ctx| {
+            let frame_composing = ctx.input(|input| input.events.iter().any(|event| matches!(event, egui::Event::Ime(_))));
+            egui::CentralPanel::default().show(ctx, |ui| {
+                assert!(!notes.composing(), "controls precede the actual editor render");
+                notes.controls(ui, "workspace", None, "http://127.0.0.1:9911", frame_composing);
+                assert!(notes.take_selected_query(ctx, frame_composing).is_none());
+                assert!(ctx.input_mut(|input| input.consume_key(egui::Modifiers::CTRL, egui::Key::Enter)));
+                assert!(ctx.input_mut(|input| input.consume_key(egui::Modifiers::ALT, egui::Key::Enter)));
+                assert!(notes.error.is_none(), "the controls must not request save on the first IME frame");
+                notes.request_save("workspace", None, "http://127.0.0.1:9911", frame_composing);
+                assert_eq!(notes.error.as_deref(), Some("Finish the current text composition first"));
+                assert!(!notes.composing(), "the frame fence works before persistent preedit is updated");
+            });
+        });
+    }
+
+    #[test]
+    fn body_budget_never_allocates_the_native_minimum_when_it_does_not_fit() {
+        for remaining in [-1.0, 0.0, 1.0, 64.0, 119.0] {
+            assert_eq!(notes_body_height(500.0, remaining), None);
+        }
+        assert_eq!(notes_body_height(500.0, 120.0), Some(120.0));
+        assert_eq!(notes_body_height(500.0, 150.0), Some(150.0));
+        assert_eq!(notes_body_height(1000.0, 500.0), Some(240.0));
+    }
+
+    fn session() -> handpick::WritingSession {
+        handpick::WritingSession::new(handpick::ContextId::new("account").unwrap(),
+            handpick::SessionId::new("writing").unwrap(), 8)
+    }
+
+    #[test]
+    fn expand_after_close_requests_the_current_note_again() {
+        let mut notes = MountedNotes::default();
+        notes.toggle();
+        assert!(notes.requested);
+        notes.requested = false;
+        let mut core = session();
+        core.bind_committed(handpick::EditorId::new("editor").unwrap(), 0,
+            handpick::NoteId::new("note").unwrap(), handpick::RevisionId::new("1").unwrap()).unwrap();
+        assert_eq!(core.close_quicknote(&core.fence().unwrap()).unwrap(), handpick::QuicknoteClose::Closed);
+        notes.core = Some(core);
+        notes.toggle();
+        assert!(notes.requested);
+        assert!(notes.core.as_ref().unwrap().editor().is_none());
+    }
+
+    #[test]
+    fn notes_ime_state_remains_active_without_a_new_frame_event() {
+        use crate::rich_editor::document_model::{node::BlockNode, position::DocPosition};
+        let editor_id = handpick::EditorId::new("editor").unwrap();
+        let mut core = session();
+        core.bind(editor_id.clone(), 0).unwrap();
+        let mut state = RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph("text")]));
+        state.preedit.anchor = Some(DocPosition::new(vec![0, 0], 0));
+        state.preedit.text = "preedit".into();
+        let editor = Arc::new(Mutex::new(state));
+        let mut notes = MountedNotes::default();
+        notes.core = Some(core);
+        notes.editors.insert(editor_id, NoteHandle { document_id: "note".into(), view_id: "view".into(),
+            editor: editor.clone(), authority: editor.clone() });
+        assert!(notes.composing());
+        assert!(notes.composing(), "a quiet frame does not end the owning editor composition");
+        editor.lock().unwrap().preedit.clear();
+        assert!(!notes.composing());
+    }
+}
+

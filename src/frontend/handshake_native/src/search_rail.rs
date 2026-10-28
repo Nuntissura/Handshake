@@ -1,4 +1,4 @@
-//! Persistent Handpick header with an attached grouped graph-result picker.
+//! Persistent Handpick field with attached Notes and grouped graph/command results.
 //! Shared Handpick owns request fences and picker state. This host owns authorization,
 //! offset paging and the existing typed navigation bus; native Notes retains writing ownership.
 //!
@@ -234,6 +234,10 @@ pub fn is_known_content_type(value: &str) -> bool {
 /// The `scope` argument is the pill-selected scope used UNLESS a typed scope-prefix overrides it
 /// (typed prefix wins â€” AC-022-4). Never panics on malformed input (PROOF-022-1e).
 pub fn parse_rail_query(raw: &str, scope: SearchScope) -> RailQuery {
+    parse_rail_query_text(raw, scope, false)
+}
+
+fn parse_rail_query_text(raw: &str, scope: SearchScope, preserve_quotes: bool) -> RailQuery {
     let mut out = RailQuery {
         scope,
         ..RailQuery::default()
@@ -249,6 +253,7 @@ pub fn parse_rail_query(raw: &str, scope: SearchScope) -> RailQuery {
                 if let Some(scope_override) = SearchScope::from_keyword(&op_lower) {
                     out.scope = scope_override;
                     // `project:foo` keeps `foo` as free-text; bare `project:` is just a scope selector.
+                    let value = if preserve_quotes { value } else { value.replace('"', "") };
                     let v = value.trim();
                     if !v.is_empty() {
                         free_parts.push(v.to_owned());
@@ -257,18 +262,19 @@ pub fn parse_rail_query(raw: &str, scope: SearchScope) -> RailQuery {
                 }
                 match op_lower.as_str() {
                     "tag" | "mention" => {
-                        for v in split_operator_values(&value) {
+                        for v in split_operator_values(&value.replace('"', "")) {
                             out.tag_ids.push(v);
                         }
                     }
                     "path" | "folder" => {
+                        let value = value.replace('"', "");
                         let v = value.trim();
                         if !v.is_empty() {
                             out.path = Some(v.to_owned());
                         }
                     }
                     "kind" => {
-                        for v in split_operator_values(&value) {
+                        for v in split_operator_values(&value.replace('"', "")) {
                             if !is_known_content_type(&v) {
                                 out.kind_errors.push(v.clone());
                             }
@@ -277,11 +283,11 @@ pub fn parse_rail_query(raw: &str, scope: SearchScope) -> RailQuery {
                     }
                     // An unrecognized operator (e.g. `foo:bar`) is NOT a known facet; keep the whole
                     // token as free-text (React parity: unknown operators fall through to the query).
-                    _ => free_parts.push(token.clone()),
+                    _ => free_parts.push(if preserve_quotes { token } else { token.replace('"', "") }),
                 }
             }
             // A plain token (no `name:` operator shape) is free-text.
-            None => free_parts.push(token.clone()),
+            None => free_parts.push(if preserve_quotes { token } else { token.replace('"', "") }),
         }
     }
 
@@ -290,7 +296,7 @@ pub fn parse_rail_query(raw: &str, scope: SearchScope) -> RailQuery {
 }
 
 /// Split a raw query into tokens on whitespace, honoring double-quoted runs (port of the React
-/// `splitQueryTokens` state machine). A `"`-quoted span is one token with the quotes removed;
+/// `splitQueryTokens` state machine). Quotes remain available to the receiving parser;
 /// whitespace inside quotes is preserved. Unterminated quotes consume to end-of-string. Never panics.
 fn split_query_tokens(raw: &str) -> Vec<String> {
     let mut tokens: Vec<String> = Vec::new();
@@ -302,6 +308,7 @@ fn split_query_tokens(raw: &str) -> Vec<String> {
         match ch {
             '"' => {
                 in_quotes = !in_quotes;
+                current.push(ch);
                 have_token = true; // a `""` is an (empty) token, matching the TS source.
             }
             c if c.is_whitespace() && !in_quotes => {
@@ -932,6 +939,9 @@ pub struct HandpickHost {
     session: Option<handpick::Session>,
     picker: handpick::Picker,
     rows: Vec<Hit>,
+    commands: Vec<&'static crate::command_registry::AppCommand>,
+    command_context: Option<crate::command_registry::EditorMenuEnableContext>,
+    command_action: Option<&'static str>,
     delivery: Arc<Mutex<Option<HeaderPage>>>,
     task: Option<tokio::task::JoinHandle<()>>,
     query: Option<AdmittedHeaderQuery>,
@@ -940,6 +950,7 @@ pub struct HandpickHost {
     open: bool,
     exhausted: bool,
     skip_focus_open: bool,
+    lookup_from_notes: bool,
     observations: bool,
 }
 
@@ -954,6 +965,34 @@ impl Drop for HandpickHost {
 }
 
 impl HandpickHost {
+    pub fn set_command_context(&mut self, context: crate::command_registry::EditorMenuEnableContext) {
+        self.command_context = Some(context);
+    }
+
+    pub fn take_command_action(&mut self) -> Option<&'static str> {
+        self.command_action.take()
+    }
+
+    fn command_enabled(&self, command: &crate::command_registry::AppCommand) -> bool {
+        self.account.as_ref().is_some_and(|account| account.is_active())
+            && !crate::command_registry::effective_disabled(command,
+                self.command_context.unwrap_or(crate::command_registry::EditorMenuEnableContext::unavailable()))
+    }
+
+    fn activate_command(&mut self, key: &handpick::ResultKey) -> bool {
+        if key.provider.as_str() != "native.commands" { return false; }
+        let command = self.commands.iter().copied().find(|command| command.id == key.result.as_str());
+        let Some(command) = command.filter(|command| self.command_enabled(command)) else { return false; };
+        if let Some(session) = &mut self.session {
+            if let Err(error) = session.select(key.clone()) {
+                self.error = Some(error.to_string());
+                return false;
+            }
+        } else { return false; }
+        self.command_action = Some(command.id);
+        true
+    }
+
     pub fn matches_context(&self, workspace: &str,
         account: Option<&Arc<crate::local_account::AuthenticatedContext>>, base: &str) -> bool {
         self.workspace == workspace && self.backend == base && match (&self.account, account) {
@@ -986,7 +1025,9 @@ impl HandpickHost {
         if same { return; }
         let mut notes = std::mem::take(&mut self.notes);
         notes.retire_session();
+        let command_context = self.command_context;
         *self = Self::default();
+        self.command_context = command_context;
         self.notes = notes;
         self.binding_changed = true;
         ctx.data_mut(|data| data.remove::<RailUiState>(state_id()));
@@ -1019,6 +1060,8 @@ impl HandpickHost {
         }
         self.delivery = Arc::new(Mutex::new(None));
         self.rows.clear();
+        self.commands.clear();
+        self.command_action = None;
         self.picker = handpick::Picker::new();
         self.error = None;
         self.exhausted = false;
@@ -1031,7 +1074,7 @@ impl HandpickHost {
                 return;
             }
             self.query = Some(AdmittedHeaderQuery {
-                parsed: frame.query.clone(),
+                parsed: parse_rail_query_text(&frame.literal, frame.query.scope, true),
                 draft_revision: session.draft_revision(),
             });
         }
@@ -1060,35 +1103,55 @@ impl HandpickHost {
             self.error = Some("Current input has not been admitted; edit the query before searching".into());
             return;
         };
-        let query = admitted.parsed.clone();
+        let mut query = admitted.parsed.clone();
+        if !query.kind_errors.is_empty() {
+            if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Rejected); }
+            self.error = Some("Unsupported kind filter; query retained".into()); return;
+        }
+        use unicode_normalization::UnicodeNormalization;
+        let normalized: String = query.free_text.nfc().collect();
+        let parsed = match handpick::parse_query(&normalized) {
+            Ok(parsed) => parsed,
+            Err(error) => { self.error = Some(error.to_string()); return; }
+        };
+        if parsed.incomplete || !parsed.unsupported.is_empty() {
+            self.error = Some("This query mode needs its native provider; query retained".into()); return;
+        }
+        if matches!(parsed.purpose, handpick::QueryPurpose::Commands | handpick::QueryPurpose::Settings) {
+            if query.scope != SearchScope::Project || !query.tag_ids.is_empty() || query.path.is_some()
+                || !query.kind_filters.is_empty() || has_legacy_filters(literal)
+                || parsed.tag.is_some() || parsed.area.is_some() || parsed.task.is_some()
+                || parsed.result_type.as_deref().is_some_and(|kind| !matches!(kind, "command" | "settings")) {
+                self.error = Some("These filters are not supported by the command owner; query retained".into());
+                return;
+            }
+            if let Err(error) = self.present_commands(&parsed) { self.error = Some(error); }
+            return;
+        }
+        let source_kind = graph_source_kind(parsed.result_type.as_deref());
         if !matches!(query.scope, SearchScope::Project | SearchScope::File) {
             if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Unavailable); }
             self.error = Some("This scope has no graph provider yet. Its existing search intent remains available.".into());
             return;
         }
-        if !query.kind_errors.is_empty() {
-            if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Rejected); }
-            self.error = Some("Unsupported kind filter; query retained".into()); return;
-        }
-        if query.free_text.trim().is_empty() {
+        if parsed.words.is_empty() {
             if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Rejected); }
             self.error = Some("Enter search text to query the graph".into()); return;
         }
-        use unicode_normalization::UnicodeNormalization;
-        let normalized: String = query.free_text.nfc().collect();
-        match handpick::parse_query(&normalized) {
-            Ok(parsed) if parsed.incomplete || !parsed.unsupported.is_empty()
-                || matches!(parsed.purpose, handpick::QueryPurpose::Commands | handpick::QueryPurpose::Settings)
-                || parsed.result_type.is_some() || parsed.area.is_some() || parsed.task.is_some() => {
-                if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Unavailable); }
-                self.error = Some("This query mode needs its native provider; query retained".into()); return;
-            }
-            Err(error) => {
-                if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Rejected); }
-                self.error = Some(error.to_string()); return;
-            }
-            Ok(_) => {}
+        if (parsed.result_type.is_some() && source_kind.is_none()) || parsed.area.is_some() || parsed.task.is_some() {
+            if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Unavailable); }
+            self.error = Some("This query mode needs its native provider; query retained".into()); return;
         }
+        // Preserve token spelling and quoting. The type travels through source_kinds, never q.
+        let tokens = split_query_tokens(&normalized);
+        if tokens.iter().any(|token| token.contains('"') && token.chars().any(char::is_whitespace)) {
+            // The current graph owner strips quotes then splits words; it cannot promise a phrase.
+            self.error = Some("Exact phrase search needs its graph provider; query retained".into()); return;
+        }
+        query.free_text = tokens.into_iter().filter(|token|
+            !split_operator(token).is_some_and(|(name, _)| name.eq_ignore_ascii_case("type")))
+            .collect::<Vec<_>>().join(" ");
+        let query = HeaderGraphQuery { intent: query, source_kind };
         let (Some(account), Some(runtime), Some(session)) = (&self.account, runtime, &mut self.session) else {
             if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Unavailable); }
             self.error = Some("Connect an authenticated workspace to search".into()); return;
@@ -1128,9 +1191,54 @@ impl HandpickHost {
         }
         self.delivery = Arc::new(Mutex::new(None));
         self.rows.clear();
+        self.commands.clear();
+        self.command_action = None;
         self.picker = handpick::Picker::new();
         self.exhausted = false;
         self.request(ctx, runtime, literal);
+    }
+
+    fn present_commands(&mut self, parsed: &handpick::ParsedQuery) -> Result<(), String> {
+        if !self.account.as_ref().is_some_and(|account| account.is_active()) {
+            return Err("Connect an authenticated workspace to use commands".into());
+        }
+        let commands: Vec<_> = crate::command_registry::filtered_commands(
+            parsed.words.first().map_or("", String::as_str)).into_iter()
+            .filter(|command| parsed.words.iter().skip(1).all(|term|
+                crate::command_registry::matches_query(command, term)))
+            .filter(|command| parsed.purpose != handpick::QueryPurpose::Settings || command.id.starts_with("settings."))
+            .collect();
+        let descriptors = commands.iter().map(|command| Ok(handpick::SearchItem {
+            key: handpick::ResultKey {
+                provider: handpick::ProviderId::new("native.commands").map_err(str::to_owned)?,
+                result: handpick::ResultId::new(command.id).map_err(str::to_owned)?,
+            },
+            label: command.label.into(), detail: Some(command.description.into()),
+            actions: vec![handpick::Action {
+                id: handpick::ActionId::new(command.id).map_err(str::to_owned)?,
+                kind: if parsed.purpose == handpick::QueryPurpose::Settings {
+                    handpick::ActionKind::RevealSetting
+                } else { handpick::ActionKind::RunCommand },
+            }],
+        })).collect::<Result<Vec<_>, String>>()?;
+        let session = self.session.as_mut().ok_or("Search session unavailable")?;
+        let fence = session.begin().map_err(|error| error.to_string())?;
+        session.deliver(&fence, handpick::Channel::Search, handpick::DeliveryStatus::Complete, descriptors.clone())
+            .map_err(|error| error.to_string())?;
+        let loaded = descriptors.len() as u32;
+        self.picker.set_results(descriptors.into_iter().map(|item| handpick::PickerItem {
+            item, category: handpick::ResultCategory::Actions, location: None,
+            highlights: Vec::new(), preview: None,
+        }).collect(), vec![handpick::PickerCoverage {
+            category: handpick::ResultCategory::Actions, status: handpick::DeliveryStatus::Complete,
+            loaded, total: Some(loaded),
+        }]).map_err(|error| error.to_string())?;
+        self.rows.clear();
+        self.commands = commands;
+        self.exhausted = true;
+        self.error = None;
+        if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Completed); }
+        Ok(())
     }
 
     fn drain(&mut self) {
@@ -1188,7 +1296,7 @@ impl HandpickHost {
             return;
         }
         let items: Vec<_> = descriptors.into_iter().zip(&rows).map(|(item, hit)| handpick::PickerItem {
-            item, category: header_category(hit), location: None, highlights: Vec::new(), preview: None,
+            item, category: header_category(hit), location: header_location(hit), highlights: Vec::new(), preview: None,
         }).collect();
         let coverage = handpick::ResultCategory::ALL.into_iter().filter_map(|category| {
             let loaded = items.iter().filter(|row| row.category == category).count() as u32;
@@ -1217,36 +1325,93 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
     host.bind(ctx, workspace, account, base);
     host.observations = observations;
     host.drain();
+    host.notes.prepare(ctx, workspace, host.account.as_ref(), base, current_note,
+        notes_store, runtime, observations);
     let input_id = unsafe { egui::Id::from_high_entropy_bits(RAIL_INPUT_NODE_ID) };
     let native_popup_open = egui::Popup::is_any_open(ctx);
+    let notes_completion_open = host.notes.completion_open();
     let composing = ctx.data_mut(|data| data.get_temp::<RailUiState>(state_id()))
         .is_some_and(|state| state.composing)
+        || host.notes.composing()
         || ctx.input(|input| input.events.iter().any(|event| matches!(event, egui::Event::Ime(_))));
     if host.open && !native_popup_open && !composing && ctx.memory(|memory| memory.has_focus(input_id)) {
         for (key, delta) in [(egui::Key::ArrowDown, 1), (egui::Key::ArrowUp, -1)] {
             if ctx.input_mut(|input| input.consume_key(egui::Modifiers::NONE, key)) { host.picker.move_selection(delta); }
         }
     }
-    let mut frame = egui::TopBottomPanel::top("handshake_handpick_header")
-        .exact_height(RAIL_HEIGHT).show(ctx, |ui| ui.horizontal(|ui| {
-            let width = (ui.available_width() - 76.0).max(32.0);
-            let frame = ui.allocate_ui_with_layout(egui::vec2(width, RAIL_HEIGHT),
-                egui::Layout::top_down(egui::Align::Min), |ui| show(ui, view)).inner;
-            let notes = ui.add_enabled(host.account.as_ref().is_some_and(|account| account.is_active()), egui::Button::new("Notes"));
-            ctx.accesskit_node_builder(notes.id, |node| node.set_author_id("handpick.notes.open"));
-            if notes.clicked() { host.notes.requested = true; }
-            frame
-        }).inner).inner;
+    if let Some(text) = host.notes.take_selected_query(ctx, composing) {
+        ctx.data_mut(|data| {
+            let mut state = data.get_temp::<RailUiState>(state_id()).unwrap_or_default();
+            state.query = text;
+            data.insert_temp(state_id(), state);
+        });
+        host.input_seen = false;
+        host.open = true;
+        host.lookup_from_notes = true;
+        ctx.memory_mut(|memory| memory.request_focus(input_id));
+    }
+    let mut expand_id = None;
+    let header = egui::TopBottomPanel::top("handshake_handpick_header")
+        .resizable(false).show(ctx, |ui| {
+            if host.notes.has_bookmarks() {
+                egui::ScrollArea::horizontal().id_salt("handpick.bookmarks").show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        if let Some(account) = host.account.as_ref() {
+                            host.notes.bookmarks(ui, workspace, base, account);
+                        }
+                    });
+                });
+            }
+            egui::Frame::new().fill(view.colors.inactive_pill_bg)
+                .inner_margin(4.0).show(ui, |ui| {
+                    let frame = ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let expand = ui.add_enabled(host.account.as_ref().is_some_and(|account| account.is_active()),
+                            egui::Button::new(if host.notes.expanded() { "Compact" } else { "Expand" }));
+                        expand_id = Some(expand.id);
+                        ctx.accesskit_node_builder(expand.id, |node| {
+                            node.set_author_id("handpick.notes.open");
+                            node.set_expanded(host.notes.expanded());
+                        });
+                        if expand.clicked() && !composing { host.notes.toggle(); }
+                        expand.on_hover_text("Expand or compact the attached note. Right-click to attach the current Notes editor.")
+                            .context_menu(|ui| {
+                                let attach = ui.add_enabled(!composing && !host.notes.composing(), egui::Button::new("Attach current note"));
+                                ctx.accesskit_node_builder(attach.id, |node| node.set_author_id("handpick.notes.attach-current"));
+                                if attach.clicked() { host.notes.request_attach_current(); ui.close(); }
+                            });
+                        host.notes.controls(ui, workspace, host.account.as_ref(), base, composing);
+                        show(ui, view)
+                    }).inner;
+                    host.notes.body(ui, notes_mount);
+                    frame
+                }).inner
+        });
+    let popup_anchor = egui::pos2(header.inner.anchor.left(), header.response.rect.bottom());
+    let mut frame = header.inner;
+    frame.composing |= composing;
+    if host.notes.space_limited {
+        let message = "The attached Notes editor needs more room. Compact Notes or enlarge the window; the editor is retained.";
+        if let Some(id) = expand_id {
+            ctx.accesskit_node_builder(id, |node| node.set_description(message));
+            if let Some(response) = ctx.read_response(id) { response.on_hover_text(message); }
+        }
+    }
     host.replace_input(&frame);
+    if let Ok(parsed) = handpick::parse_query(&frame.literal) {
+        host.notes.set_query_purpose(parsed.purpose);
+    }
     ctx.accesskit_node_builder(input_id, |node| node.set_expanded(host.open));
     let skip_focus_open = std::mem::take(&mut host.skip_focus_open);
     if frame.focused && !skip_focus_open && !frame.literal.trim().is_empty() { host.open = true; }
     let mut picked = None;
-    if host.open && !frame.composing && !native_popup_open && !egui::Popup::is_any_open(ctx) {
+    if host.open && !frame.composing && !native_popup_open && !notes_completion_open && !egui::Popup::is_any_open(ctx) {
         if ctx.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
             host.open = false;
             host.skip_focus_open = true;
-            ctx.memory_mut(|memory| memory.request_focus(input_id));
+            if std::mem::take(&mut host.lookup_from_notes) {
+                host.notes.focus_editor();
+                ctx.request_repaint();
+            } else { ctx.memory_mut(|memory| memory.request_focus(input_id)); }
         }
     }
     if matches!(&frame.outcome, RailOutcome::Clear) {
@@ -1254,28 +1419,38 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
     } else if matches!(&frame.outcome, RailOutcome::Fire(_)) && !frame.composing {
         if host.open && frame.select_current {
             if let Some(key) = host.picker.view().selected {
+                if key.provider.as_str() == "native.commands" {
+                    host.activate_command(&key);
+                }
                 picked = host.rows.iter().find(|hit| header_key(hit).ok().as_ref() == Some(&key)
                     && crate::quick_switcher::resolve_open_target(hit).enabled()).cloned();
             }
         }
-        if picked.is_none() { host.restart(ctx, runtime, &frame.literal); host.open = true; }
+        if picked.is_none() && host.command_action.is_none() { host.restart(ctx, runtime, &frame.literal); host.open = true; }
     }
     if !frame.composing && host.due.is_some_and(|due| std::time::Instant::now() >= due) {
         host.request(ctx, runtime, &frame.literal);
     }
     if let Some(due) = host.due { ctx.request_repaint_after(due.saturating_duration_since(std::time::Instant::now())); }
-    host.notes.show(ctx, workspace, host.account.as_ref(), base, current_note, notes_store, notes_mount, runtime, observations);
-    if host.open && !egui::Popup::is_any_open(ctx) {
+    let show_popup = host.open && !egui::Popup::is_any_open(ctx);
+    let popup_frame = egui::Frame::popup(&ctx.style());
+    let popup_height = results_height(ctx, popup_anchor.y, popup_frame.total_margin().sum().y);
+    if show_popup && popup_height.is_none() {
+        let message = "Search results need more room. Compact Notes or enlarge the window; the query and results are retained.";
+        ctx.accesskit_node_builder(input_id, |node| node.set_description(message));
+        if let Some(response) = ctx.read_response(input_id) { response.on_hover_text(message); }
+    }
+    if let (true, Some(popup_height)) = (show_popup, popup_height) {
         let popup = egui::Area::new(egui::Id::new("handpick.results"))
-            .order(egui::Order::Foreground).fixed_pos(frame.anchor.left_bottom())
-            .show(ctx, |ui| egui::Frame::popup(ui.style()).show(ui, |ui| {
+            .order(egui::Order::Foreground).fixed_pos(popup_anchor).constrain(false)
+            .show(ctx, |ui| popup_frame.show(ui, |ui| {
                 ui.set_width(frame.anchor.width().min(720.0));
                 ctx.accesskit_node_builder(ui.id(), |node| {
                     node.set_role(accesskit::Role::ListBox);
                     node.set_author_id("handpick.results");
                     node.set_label("Workspace search results");
                 });
-                egui::ScrollArea::vertical().max_height((ctx.content_rect().height() * 0.55).min(480.0))
+                egui::ScrollArea::vertical().min_scrolled_height(0.0).max_height(popup_height)
                     .show(ui, |ui| {
                         if let Some(session) = &host.session {
                             if let Ok(handpick::InputState::Source { form, .. }) = session.input_state(&session.fence(), frame.composing) {
@@ -1295,7 +1470,7 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
                             }
                         }
                         let view = host.picker.view();
-                        if host.exhausted && host.rows.is_empty() { ui.label("No graph matches"); }
+                        if host.exhausted && host.rows.is_empty() && host.commands.is_empty() { ui.label("No matches"); }
                         for group in view.groups {
                             let label = category_label(group.category);
                             let count = group.total.map_or_else(|| format!("{} loaded Â· total unknown", group.loaded), |total| total.to_string());
@@ -1307,6 +1482,20 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
                             if heading.clicked() { host.picker.toggle(group.category); }
                             for row in group.items {
                                 let selected = view.selected.as_ref() == Some(&row.item.key);
+                                if let Some(command) = host.commands.iter().copied().find(|command|
+                                    row.item.key.provider.as_str() == "native.commands" && command.id == row.item.key.result.as_str()) {
+                                    let response = ui.push_id(command.stable_id, |ui| ui.add_enabled(
+                                        host.command_enabled(command) && !frame.composing,
+                                        egui::Button::new(command.label).selected(selected))).inner;
+                                    ctx.accesskit_node_builder(response.id, |node| {
+                                        node.set_role(accesskit::Role::ListBoxOption);
+                                        node.set_author_id(format!("handpick.command.{}", command.stable_id));
+                                        node.set_selected(selected);
+                                    });
+                                    if response.clicked() { host.activate_command(&row.item.key); }
+                                    ui.small(command.description);
+                                    continue;
+                                }
                                 if let Some(hit) = host.rows.iter().find(|hit| header_key(hit).ok().as_ref() == Some(&row.item.key)) {
                                     let supported = crate::quick_switcher::resolve_open_target(hit).enabled();
                                     let response = ui.push_id(
@@ -1320,6 +1509,15 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
                                         node.set_selected(selected);
                                     });
                                     if response.clicked() { picked = Some(hit.clone()); }
+                                    response.context_menu(|ui| {
+                                        if ui.add_enabled(supported && !frame.composing, egui::Button::new("Open")).clicked() {
+                                            picked = Some(hit.clone());
+                                            ui.close();
+                                        }
+                                        if let Some(location) = &row.location { ui.small(location); }
+                                        if !hit.excerpt.is_empty() { ui.label(&hit.excerpt); }
+                                    });
+                                    if let Some(location) = &row.location { ui.small(location); }
                                     if let Some(detail) = row.item.detail { ui.small(detail); }
                                 }
                             }
@@ -1340,13 +1538,19 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
         if ctx.input(|input| input.pointer.any_pressed()) && !popup.contains_pointer()
             && !frame.anchor.contains(ctx.input(|input| input.pointer.interact_pos().unwrap_or(egui::Pos2::ZERO))) {
             host.open = false;
+            host.lookup_from_notes = false;
         }
     }
     if !host.account.as_ref().is_some_and(|account| account.is_active()) { picked = None; }
-    if picked.is_some() { host.open = false; }
+    if picked.is_some() || host.command_action.is_some() { host.open = false; }
     ctx.accesskit_node_builder(input_id, |node| node.set_expanded(host.open));
     host.fence_legacy_intent(&mut frame);
     (frame, picked)
+}
+
+fn results_height(ctx: &egui::Context, anchor_y: f32, margin: f32) -> Option<f32> {
+    let remaining = ctx.content_rect().bottom() - anchor_y - margin;
+    (remaining >= ctx.style().spacing.interact_size.y).then(|| remaining.min(480.0))
 }
 
 fn header_key(hit: &Hit) -> Result<handpick::ResultKey, String> {
@@ -1357,7 +1561,57 @@ fn header_key(hit: &Hit) -> Result<handpick::ResultKey, String> {
 }
 fn header_item(hit: &Hit) -> Result<handpick::SearchItem, String> {
     Ok(handpick::SearchItem { key: header_key(hit)?, label: hit.title.clone(),
-        detail: (!hit.excerpt.is_empty()).then(|| hit.excerpt.clone()), actions: Vec::new() })
+        detail: (!hit.excerpt.is_empty()).then(|| hit.excerpt.clone()),
+        actions: if crate::quick_switcher::resolve_open_target(hit).enabled() {
+            vec![handpick::Action { id: handpick::ActionId::new("open").map_err(str::to_owned)?,
+                kind: handpick::ActionKind::Open }]
+        } else { Vec::new() } })
+}
+fn header_location(hit: &Hit) -> Option<String> {
+    ["rich_document_id", "document_id", "page_slug", "work_packet_id", "entity_key"].into_iter()
+        .find_map(|key| hit.metadata.get(key).and_then(serde_json::Value::as_str)
+            .map(str::trim).filter(|value| !value.is_empty())
+            .map(|value| value.chars().take(256).collect()))
+}
+fn has_legacy_filters(literal: &str) -> bool {
+    split_query_tokens(literal).iter().any(|token| split_operator(token).is_some_and(|(name, _)|
+        matches!(name.to_ascii_lowercase().as_str(), "tag" | "mention" | "path" | "folder" | "kind")))
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum HeaderSourceKind { File, TagHub, LoomBlock, UserManualPage }
+impl HeaderSourceKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::File => "file", Self::TagHub => "tag_hub",
+            Self::LoomBlock => "loom_block", Self::UserManualPage => "user_manual_page",
+        }
+    }
+}
+
+struct HeaderGraphQuery {
+    intent: RailQuery,
+    source_kind: Option<HeaderSourceKind>,
+}
+impl HeaderGraphQuery {
+    fn params(&self, offset: usize) -> Vec<(&'static str, String)> {
+        let mut params = vec![("q", self.intent.free_text.clone()), ("limit", "50".into()), ("offset", offset.to_string())];
+        if let Some(source_kind) = self.source_kind { params.push(("source_kinds", source_kind.as_str().into())); }
+        if let Some(content_type) = self.intent.resolved_content_type() { params.push(("content_type", content_type)); }
+        if !self.intent.tag_ids.is_empty() { params.push(("tag_ids", self.intent.tag_ids.join(","))); }
+        if let Some(path) = &self.intent.path { params.push(("path", path.clone())); }
+        params
+    }
+}
+
+fn graph_source_kind(result_type: Option<&str>) -> Option<HeaderSourceKind> {
+    match result_type {
+        Some("file") => Some(HeaderSourceKind::File),
+        Some("tag") => Some(HeaderSourceKind::TagHub),
+        Some("block") => Some(HeaderSourceKind::LoomBlock),
+        Some("manual") => Some(HeaderSourceKind::UserManualPage),
+        _ => None,
+    }
 }
 fn header_category(hit: &Hit) -> handpick::ResultCategory {
     match hit.source_kind.as_str() {
@@ -1377,17 +1631,14 @@ fn category_label(category: handpick::ResultCategory) -> &'static str {
 }
 
 async fn fetch_header_page(base: &str, workspace: &str,
-    account: Arc<crate::local_account::AuthenticatedContext>, query: &RailQuery, offset: usize)
+    account: Arc<crate::local_account::AuthenticatedContext>, query: &HeaderGraphQuery, offset: usize)
     -> Result<Vec<Hit>, HeaderFetchError> {
     let mut url = reqwest::Url::parse(base).map_err(|_| "Invalid backend address".to_owned())?;
     {
         let mut segments = url.path_segments_mut().map_err(|_| "Invalid backend address".to_owned())?;
         segments.pop_if_empty().push("workspaces").push(workspace).push("loom").push("graph-search");
     }
-    let mut params = vec![("q", query.free_text.clone()), ("limit", "50".into()), ("offset", offset.to_string())];
-    if let Some(content_type) = query.resolved_content_type() { params.push(("content_type", content_type)); }
-    if !query.tag_ids.is_empty() { params.push(("tag_ids", query.tag_ids.join(","))); }
-    if let Some(path) = &query.path { params.push(("path", path.clone())); }
+    let params = query.params(offset);
     let client = crate::backend_client::shared_http_client();
     let response = crate::local_account::AuthenticatedRequest::new(client.clone(), Some(account.clone()),
         client.get(url).query(&params).timeout(std::time::Duration::from_secs(5)))
@@ -1406,6 +1657,146 @@ async fn fetch_header_page(base: &str, workspace: &str,
 #[cfg(test)]
 mod handpick_boundary_tests {
     use super::*;
+
+    #[test]
+    fn short_viewport_withholds_results_and_zero_minimum_stays_within_scroll_budget() {
+        let ctx = egui::Context::default();
+        let _ = ctx.run(egui::RawInput { focused: true, screen_rect: Some(egui::Rect::from_min_size(
+            egui::Pos2::ZERO, egui::vec2(240.0, 100.0))), ..Default::default() }, |ctx| {
+            assert_eq!(results_height(ctx, ctx.content_rect().bottom(), 0.0), None);
+            assert_eq!(results_height(ctx, ctx.content_rect().bottom() - 1.0, 0.0), None);
+            let row = ctx.style().spacing.interact_size.y;
+            assert_eq!(results_height(ctx, ctx.content_rect().bottom() - row, 0.0), Some(row));
+            egui::Area::new(egui::Id::new("short-results-test")).fixed_pos(egui::Pos2::ZERO)
+                .constrain(false).show(ctx, |ui| {
+                    ui.set_width(200.0);
+                    let scroll = egui::ScrollArea::vertical().min_scrolled_height(0.0).max_height(8.0)
+                        .show(ui, |ui| { for _ in 0..100 { ui.label("Actual overflowing result row"); } });
+                    assert!(scroll.inner_rect.height() <= 8.0, "the default64px floor must not defeat the viewport budget");
+                });
+        });
+    }
+
+    #[test]
+    fn command_terms_are_anded_and_quoted_terms_remain_phrases() {
+        let ctx = egui::Context::default();
+        let base = "http://127.0.0.1:9911";
+        let mut host = HandpickHost::default();
+        host.bind(&ctx, "workspace", Some(crate::local_account::mock_account_context(base)), base);
+        host.replace_input(&frame("> open settings".into()));
+        host.request(&ctx, None, "> open settings");
+        assert!(host.error.is_none());
+        assert!(host.commands.iter().any(|command| command.id == "settings.open"));
+        assert!(host.commands.iter().all(|command|
+            crate::command_registry::matches_query(command, "open")
+                && crate::command_registry::matches_query(command, "settings")));
+
+        host.replace_input(&frame("> \"open settings\"".into()));
+        host.request(&ctx, None, "> \"open settings\"");
+        assert!(host.error.is_none());
+        assert_eq!(host.commands.iter().map(|command| command.id).collect::<Vec<_>>(),
+            crate::command_registry::filtered_commands("open settings").iter().map(|command| command.id).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn command_modes_never_discard_legacy_facets() {
+        let ctx = egui::Context::default();
+        let base = "http://127.0.0.1:9911";
+        let mut host = HandpickHost::default();
+        host.bind(&ctx, "workspace", Some(crate::local_account::mock_account_context(base)), base);
+        for literal in ["> save tag:t1", "> save mention:m1", "> save path:src", "> save folder:src",
+            "> save kind:note", "> save kind:bogus", "type:settings tag:t1", "type:settings path:src",
+            "> save tag:", "> save mention:", "> save path:", "> save kind:",
+            "> save in:title", "> save is:todo", "> save type:file", "file: > save"] {
+            host.replace_input(&frame(literal.into()));
+            host.request(&ctx, None, literal);
+            assert!(host.error.is_some(), "{literal}");
+            assert!(host.commands.is_empty(), "{literal}");
+            assert!(host.picker.view().groups.is_empty(), "{literal}");
+            assert!(host.take_command_action().is_none(), "{literal}");
+            assert!(host.task.is_none(), "{literal}");
+            assert_eq!(host.session.as_ref().unwrap().draft(), literal);
+        }
+    }
+
+    #[test]
+    fn graph_type_is_a_wire_filter_and_quoted_operators_stay_literal() {
+        let query = HeaderGraphQuery {
+            intent: parse_rail_query_text("\"kind:wiki_page\"", SearchScope::Project, true),
+            source_kind: graph_source_kind(Some("file")),
+        };
+        let request = reqwest::Client::new().get("http://127.0.0.1:9911/workspaces/workspace/loom/graph-search")
+            .query(&query.params(50)).build().unwrap();
+        let params: std::collections::HashMap<_, _> = request.url().query_pairs().into_owned().collect();
+        assert_eq!(params.get("source_kinds").map(String::as_str), Some("file"));
+        assert_eq!(params.get("q").map(String::as_str), Some("\"kind:wiki_page\""));
+        assert_eq!(params.get("offset").map(String::as_str), Some("50"));
+        assert!(!params.contains_key("content_type"));
+    }
+
+    #[test]
+    fn graph_phrase_is_retained_and_declined_until_canonical_provider_supports_it() {
+        let ctx = egui::Context::default();
+        let base = "http://127.0.0.1:9911";
+        let mut host = HandpickHost::default();
+        host.bind(&ctx, "workspace", Some(crate::local_account::mock_account_context(base)), base);
+        let literal = "type:file \"alpha kind:wiki_page\"";
+        host.replace_input(&frame(literal.into()));
+        let admitted = &host.query.as_ref().unwrap().parsed;
+        assert!(admitted.kind_filters.is_empty());
+        assert_eq!(admitted.free_text, literal);
+        host.request(&ctx, None, literal);
+        assert_eq!(host.error.as_deref(), Some("Exact phrase search needs its graph provider; query retained"));
+        assert!(host.task.is_none());
+        assert_eq!(host.session.as_ref().unwrap().draft(), literal);
+    }
+
+    #[test]
+    fn settings_query_routes_catalog_action_and_an_edit_retires_it() {
+        let ctx = egui::Context::default();
+        let base = "http://127.0.0.1:9911";
+        let mut host = HandpickHost::default();
+        host.bind(&ctx, "workspace", Some(crate::local_account::mock_account_context(base)), base);
+        host.replace_input(&frame("type:settings".into()));
+        host.request(&ctx, None, "type:settings");
+        assert!(host.error.is_none());
+        assert!(host.task.is_none(), "local commands do not require a graph request");
+        let group = host.picker.view().groups.into_iter().find(|group|
+            group.category == handpick::ResultCategory::Actions).unwrap();
+        assert_eq!(group.status, handpick::DeliveryStatus::Complete);
+        assert_eq!(group.total, Some(group.loaded));
+        assert!(!group.items.is_empty());
+        assert!(group.items.iter().all(|row| row.item.key.result.as_str().starts_with("settings.")));
+        let key = group.items[0].item.key.clone();
+        assert_eq!(group.items[0].item.actions[0].kind, handpick::ActionKind::RevealSetting);
+        assert!(host.activate_command(&key));
+        assert_eq!(host.take_command_action(), Some(key.result.as_str()));
+        host.replace_input(&frame("another query".into()));
+        assert!(!host.activate_command(&key));
+        assert!(host.take_command_action().is_none());
+        assert!(host.picker.view().groups.is_empty());
+    }
+
+    #[test]
+    fn unavailable_editor_command_is_visible_but_never_dispatched() {
+        let ctx = egui::Context::default();
+        let base = "http://127.0.0.1:9911";
+        let mut host = HandpickHost::default();
+        host.bind(&ctx, "workspace", Some(crate::local_account::mock_account_context(base)), base);
+        host.set_command_context(crate::command_registry::EditorMenuEnableContext::unavailable());
+        host.replace_input(&frame("> save".into()));
+        host.request(&ctx, None, "> save");
+        assert!(host.error.is_none());
+        let command = host.commands.iter().copied().find(|command|
+            command.id == crate::command_registry::CMD_EDITOR_FILE_SAVE).unwrap();
+        let key = handpick::ResultKey {
+            provider: handpick::ProviderId::new("native.commands").unwrap(),
+            result: handpick::ResultId::new(command.id).unwrap(),
+        };
+        assert!(!host.command_enabled(command));
+        assert!(!host.activate_command(&key));
+        assert!(host.take_command_action().is_none());
+    }
 
     fn frame(literal: String) -> RailFrame {
         RailFrame {

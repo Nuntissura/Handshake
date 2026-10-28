@@ -131,10 +131,31 @@ fn saved_content_contains_exact_hs_link(
         .is_ok_and(|document| contains(&document, expected))
 }
 
+/// Actual block height from one fully laid-out render pass.
+#[derive(Clone, Copy, Debug)]
+pub struct RichEditorContentExtent {
+    view_incarnation: uuid::Uuid,
+    context: crate::rich_editor::document_owner::EditorSaveContext,
+    viewport: egui::ViewportId,
+    pass: u64,
+    wrap_width: f32,
+    height: f32,
+}
+
+impl RichEditorContentExtent {
+    pub fn view_incarnation(&self) -> uuid::Uuid { self.view_incarnation }
+    pub fn context(&self) -> crate::rich_editor::document_owner::EditorSaveContext { self.context }
+    pub fn wrap_width(&self) -> f32 { self.wrap_width }
+    pub fn height(&self) -> f32 { self.height }
+}
+
 /// The persistent, mutable editor state. Held behind an `Arc<Mutex<>>` by the owner
 /// (`HandshakeApp` / a test) so the per-frame [`RichEditorWidget`] borrows it; the model
 /// types are single-threaded-friendly (no internal locks) per MT-011's design.
 pub struct RichEditorState {
+    render_view_incarnation: Option<uuid::Uuid>,
+    measure_content_next_render: bool,
+    measured_content_extent: Option<(egui::Context, RichEditorContentExtent)>,
     authenticated_context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
     owner_backend_url: String,
     document_owner: crate::rich_editor::document_owner::DocumentEditOwner,
@@ -347,6 +368,31 @@ pub struct RichEditorState {
 }
 
 impl RichEditorState {
+    pub fn view_incarnation(&self) -> Option<uuid::Uuid> { self.render_view_incarnation }
+
+    pub(crate) fn set_render_view_incarnation(&mut self, view_incarnation: uuid::Uuid) {
+        if self.render_view_incarnation != Some(view_incarnation) {
+            self.render_view_incarnation = Some(view_incarnation);
+            self.measured_content_extent = None;
+        }
+    }
+
+    /// Request full layout on the next render, including offscreen paragraphs.
+    pub fn measure_content_on_next_render(&mut self) {
+        self.measure_content_next_render = true;
+        self.measured_content_extent = None;
+    }
+
+    /// A measurement is valid only in its render pass and owner revision.
+    pub fn measured_content_extent(&self, ctx: &egui::Context) -> Option<RichEditorContentExtent> {
+        let (producing_context, extent) = self.measured_content_extent.as_ref()?;
+        (producing_context == ctx
+            && extent.viewport == ctx.viewport_id()
+            && extent.pass == ctx.cumulative_pass_nr()
+            && self.document_owner.current_context().ok() == Some(extent.context))
+            .then_some(*extent)
+    }
+
     pub fn document_owner(&self) -> crate::rich_editor::document_owner::DocumentEditOwner {
         self.document_owner.clone()
     }
@@ -519,6 +565,9 @@ impl RichEditorState {
                 None,
             );
         Self {
+            render_view_incarnation: None,
+            measure_content_next_render: false,
+            measured_content_extent: None,
             authenticated_context: None,
             owner_backend_url: base.to_owned(),
             document_owner: crate::rich_editor::document_owner::DocumentEditOwner::new(doc),
@@ -5283,6 +5332,9 @@ impl RichEditorWidget {
             0.0
         };
 
+        let measure_content = std::mem::take(&mut state.measure_content_next_render);
+        state.measured_content_extent = None;
+        let measurement_context = state.document_owner.current_context().ok();
         let caret_galley_out = egui::ScrollArea::vertical()
             .id_salt("rich-editor-scroll")
             .auto_shrink([false, false])
@@ -5332,7 +5384,7 @@ impl RichEditorWidget {
                             .children
                             .iter()
                             .all(|child| matches!(child, Child::Text(_)));
-                    if virtualizable {
+                    if virtualizable && !measure_content {
                         let estimated_height = base_font_size + super::line_layout::BLOCK_GAP_PTS;
                         let block_rect = egui::Rect::from_min_size(
                             top,
@@ -5683,6 +5735,20 @@ impl RichEditorWidget {
                 // Reserve the painted vertical extent so the scroll area sizes correctly. The reading
                 // column's left margin is included so the scroll content is sized to the centered column.
                 let used_height = (top.y - ui.cursor().min.y).max(0.0);
+                if measure_content {
+                    if let (Some(context), Some(view_incarnation)) =
+                        (measurement_context, state.render_view_incarnation)
+                    {
+                        state.measured_content_extent = Some((ui.ctx().clone(), RichEditorContentExtent {
+                            view_incarnation,
+                            context,
+                            viewport: ui.ctx().viewport_id(),
+                            pass: ui.ctx().cumulative_pass_nr(),
+                            wrap_width: content_width,
+                            height: used_height,
+                        }));
+                    }
+                }
                 ui.allocate_space(egui::vec2(content_width + left_margin, used_height));
 
                 // Paint the blinking caret over the blocks (only when collapsed + blink-on). WP-KERNEL-012

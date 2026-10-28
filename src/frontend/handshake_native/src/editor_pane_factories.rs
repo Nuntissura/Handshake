@@ -1816,6 +1816,8 @@ impl RichEditorPaneMount {
         } else {
             self.documents.base_view_incarnation
         };
+        state.lock().unwrap_or_else(|error| error.into_inner())
+            .set_render_view_incarnation(view_incarnation);
         self.wire_state_if_needed(&state, document_id, view_incarnation);
         // MT-042: the shell has already opened the exact rich-document identity as soon as the tab is
         // inserted. Publish that authoritative target immediately instead of waiting for the async body

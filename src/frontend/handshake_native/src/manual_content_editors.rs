@@ -568,6 +568,22 @@ tree; an agent moves focus with click_widget (Focus is a declared action on ever
 palette (Ctrl+Shift+P) is command_palette.rs + command_registry.rs — its container is \
 command-palette.dialog, its input is command-palette.search, its list is command-palette.list. The \
 quick-switcher (quick-switcher.dialog / quick-switcher.search) jumps between open docs/blocks/symbols. \
+Handpick stays in the persistent header with the Loom shortcut, Save and Expand in one attached field. Existing \
+note bookmarks sit above it; their excerpts appear on hover or keyboard focus. Type > to find \
+registered commands or type:settings to find Settings actions. Unavailable editor commands stay \
+disabled. The existing graph search accepts type:file, type:tag, type:block and type:manual followed \
+by search text. The scope menu preserves all nine scopes and reports missing providers explicitly. \
+Expand mounts an existing authorized Notes editor in the attached body. Save or Ctrl+Enter requests \
+that note's normal save; Alt+Enter searches its selected text without replacing the note or selection. \
+Escape closes that lookup and returns to the editor after any editor completion closes. The Loom shortcut \
+searches the whole project. Right-click Expand to attach the current Notes editor. Shortcuts require \
+the attached editor to be visible and currently focused. During IME composition Save is fenced. If \
+Notes or results do not fit, their controls explain how to make room; the editor, query and results \
+are retained. The query field uses \
+bottom-rail.input; Save uses handpick.notes.save and Expand uses handpick.notes.open. New unsaved note \
+capture, scope-preserving Search action, exact graph phrases, additional query modes, destination \
+insertion and URL source actions remain unavailable in \
+this build. A search result or save request is not proof that a note was saved. \
 The manual search box (manual-search) filters topics by keyword. Backlink / graph jump: click a wikilink \
 chip, an outgoing.resolved.* / outgoing.unresolved.* row, or a graph node (graph.open-node) to navigate \
 to the target document/block. The bottom status bar exposes the VS-Code-class editor segments \

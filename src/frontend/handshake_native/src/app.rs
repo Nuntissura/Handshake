@@ -21236,6 +21236,8 @@ impl HandshakeApp {
         let current_note = self
             .active_rich_document_id()
             .map(|_| self.active_rich_state());
+        let command_context = self.editor_menu_enable_context(ctx);
+        self.handpick_header.set_command_context(command_context);
         let (frame, picked) = crate::search_rail::show_header(
             ctx,
             crate::search_rail::RailView {
@@ -21252,6 +21254,15 @@ impl HandshakeApp {
             &self.editor_mounts.rich_documents,
             &self.editor_mounts.rich_embedded_mount,
         );
+        if let Some(command_id) = self.handpick_header.take_command_action() {
+            let allowed = self.local_account.context.as_ref().is_some_and(|account| account.is_active())
+                && crate::command_registry::all_commands().iter().find(|command| command.id == command_id)
+                    .is_some_and(|command| !crate::command_registry::effective_disabled(command,
+                        self.editor_menu_enable_context(ctx)));
+            if allowed {
+                self.dispatch_palette_action(ctx, command_id);
+            }
+        }
         for (view_id, document_id) in self.handpick_header.take_released_note_bindings() {
             let store = &self.editor_mounts.rich_documents;
             if store.view_keys_for_content_id(&document_id).iter().any(|(view, _)| view == &view_id) {
