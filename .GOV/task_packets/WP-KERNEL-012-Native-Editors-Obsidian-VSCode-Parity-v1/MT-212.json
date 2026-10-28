@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-212",
   "created_at_utc": "2026-10-26T12:53:14.7419363Z",
-  "updated_at_utc": "2026-10-28T15:31:59.018803+00:00",
+  "updated_at_utc": "2026-10-28T16:17:08.388272+00:00",
   "identity": {
     "mt_id": "MT-212",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -185,7 +185,9 @@
       "src/frontend/handshake_native/motion_preference/Cargo.toml",
       "src/frontend/handshake_native/motion_preference/src/lib.rs",
       "src/frontend/handshake_native/motion_preference/README.md",
-      "src/frontend/handshake_native_composition_tests/tests/test_swarm_lane_diagnostics_argus.rs"
+      "src/frontend/handshake_native_composition_tests/tests/test_swarm_lane_diagnostics_argus.rs",
+      "src/frontend/handshake_native_composition_tests/Cargo.toml",
+      "src/frontend/handshake_native_composition_tests/Cargo.lock"
     ],
     "forbidden_write_paths": [
       "Original MT acceptance/status rewrites",
@@ -393,7 +395,9 @@
       "src/frontend/handshake_native/motion_preference/Cargo.toml",
       "src/frontend/handshake_native/motion_preference/src/lib.rs",
       "src/frontend/handshake_native/motion_preference/README.md",
-      "src/frontend/handshake_native_composition_tests/tests/test_swarm_lane_diagnostics_argus.rs"
+      "src/frontend/handshake_native_composition_tests/tests/test_swarm_lane_diagnostics_argus.rs",
+      "src/frontend/handshake_native_composition_tests/Cargo.toml",
+      "src/frontend/handshake_native_composition_tests/Cargo.lock"
     ],
     "forbidden_paths": [
       "Original MT acceptance/status rewrites",
