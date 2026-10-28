@@ -637,6 +637,19 @@
         "routing_adjustment_20261028": {
           "record_id": "WP012-COORDINATION-ROUTING-20261028-01",
           "recorded_at_utc": "2026-10-28T11:19:40Z",
+          "direct_technical_handoffs": {
+            "record_id": "WP012-DIRECT-TECHNICAL-HANDOFF-ROUTES-20261028-01",
+            "prepared_at_utc": "2026-10-28T12:15:02Z",
+            "human_reply": "Authorize both direct routes",
+            "approval_source": { "master_thread": "01a17815-783f-71b0-a740-3c48849c43f9", "request_user_input_async_call": "call_a4a661e9ffce4e33a4f5c060fd330f50" },
+            "sender": "01a17387-13d3-7091-951e-c06728fb7e94",
+            "destinations": ["01a17815-783f-71b0-a740-3c48849c43f9", "01a17374-1d96-7e02-9aea-77b0f62f20dc"],
+            "scope": "Communication only: Coding may send WP012 technical source/interface handoffs directly to Master/Spec and the canonical asset owner at those exact destinations.",
+            "authorization_state": "HUMAN_AUTHORIZED",
+            "delivery_state": "UNVERIFIED_NO_SUBSEQUENT_DELIVERY_CLAIMED",
+            "failure_history": "Preserve prior automatic-review failures for missing destination-specific human authorization/private-project disclosure. This records the later human authorization, not a successful send or erasure of those failures.",
+            "limits": "No general retry/reset, execution, compiler, runtime, source, publication or process grant; no scope, pin, team allocation or acceptance change. This communication record does not gate existing checkpoints/source."
+          },
           "directory_worktree_picker": "Existing-law implementation/contract allocation gap under Spec 2.3.13.12.2-5, 3.7, 11.1, DEX-EP-007-020 and HBR privacy; Codeleader routes actual broker/schema/capability/launch owners. A missing code variant, locator or receipt alone is not a human policy decision.",
           "gpu_startup_policy": "Human approved kernel-owned shell startup for login/app-shell Vulkan only; no account-content access or model jobs. Current grants still govern protected account/workspace/module work. Logout stops new protected work, preserves the shell and retains in-flight GPU ownership until actual settlement.",
           "host_policy_ref": "MT-203.json#/operator_authority/pre_account_gpu_startup_20261028",
