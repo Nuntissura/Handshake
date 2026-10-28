@@ -13,7 +13,7 @@ use handshake_core::storage::surreal::resource_authority::{
 use handshake_core::storage::NewWorkspace;
 use handshake_core::swarm_orchestration::model_lane::{
     ModelLaneAuthority, ModelLaneAuthorityTestCorruption, ModelLaneDiagnosticTier,
-    ModelLaneDiagnosticTierState, ModelLaneMessageKind,
+    ModelLaneDiagnosticTierState, ModelLaneMessageKind, ModelLaneNavigationScalar, ModelLaneRecoveryEventRecord,
     ModelLaneLeaseScope, ModelLaneLeaseState, ModelLaneMtRuntimeStatus, ModelLaneRecoveryEventKind,
     ModelLaneRecoveryFailureKind, ModelLaneRecoveryState, ModelLaneRecoveryStatus, ModelLaneResult, ModelLaneStatus, ModelLaneStore,
     NewModelLaneContextBundleArtifactBinding, NewModelLaneDiagnosticTierStatus,
@@ -1348,7 +1348,11 @@ async fn recovery_children_and_ledger_receipts_preserve_all_five_scope_fields_an
     let navigation = harness.navigation(harness.store.navigation_by_recovery(&posture.run_id))
         .await.expect("separately authorized navigation positive");
     assert_eq!(navigation.recovery_events.len(), 1);
-    assert_eq!(navigation.recovery_events[0].recovery_event_id, event.recovery_event_id);
+    assert_eq!(navigation.recovery_events[0].aggregate_id, event.recovery_event_id);
+    assert_eq!(navigation.recovery_events[0].run_id, event.run_id);
+    assert_eq!(navigation.recovery_events[0].event_ledger_event_id, event.event_ledger_event_id);
+    assert_eq!(navigation.recovery_events[0].event_ledger_seq, event.event_ledger_seq);
+    assert_eq!(navigation.recovery_events[0].ordering_seq, Some(event.replay_order_seq));
     assert_eq!(harness.read(harness.store.test_scoped_authority_receipts(&posture.run_id, 256))
         .await.expect("passive diagnostics/navigation do not mutate"), receipts);
     for (index, foreign_scope) in one_field_recovery_scopes(&harness.scope).into_iter().enumerate() {
@@ -1538,7 +1542,7 @@ async fn recovery_serializes_public_append_and_two_recoveries_with_current_orpha
     let ordinary = ordinary.expect("successful append observed after every child settled");
     assert!((2..=4).contains(&ordinary.replay_order_seq));
     assert_eq!(recovered_runs.len(), 2);
-    for recovered in recovered_runs {
+    for recovered in &recovered_runs {
         assert_eq!(recovered.checkpoint, checkpoint);
         assert_eq!(recovered.active_leases.iter().map(|v| v.lease_id.as_str()).collect::<Vec<_>>(), vec!["race-active"]);
         assert_eq!(recovered.reclaimable_lease_ids, vec!["race-expired-a", "race-expired-b"]);
@@ -1552,8 +1556,9 @@ async fn recovery_serializes_public_append_and_two_recoveries_with_current_orpha
     }
     let canonical = harness.navigation(harness.store.navigation_by_recovery(&posture.run_id))
         .await.expect("full canonical tail read under separate original navigation grant");
-    assert_eq!(canonical.recovery_events.iter().map(|v| v.replay_order_seq).collect::<Vec<_>>(), vec![1, 2, 3, 4]);
-    assert_eq!(canonical.recovery_events.iter().filter(|v| v.event_kind == ModelLaneRecoveryEventKind::OrphanDetected).count(), 2);
+    let canonical_events = recovered_runs[0].recovery_events.iter()
+        .chain(std::iter::once(&ordinary)).collect::<Vec<_>>();
+    assert_recovery_navigation(&canonical.recovery_events, &canonical_events, &[1, 2, 3, 4], 2);
     let mut later = lease(&posture, "race-expired-later", "2020-01-03T00:00:00Z");
     later.lane_id = Some(lane.lane_id.clone());
     later.scope_ref = format!("model-lane://{}/{}", posture.run_id, lane.lane_id);
@@ -1566,9 +1571,37 @@ async fn recovery_serializes_public_append_and_two_recoveries_with_current_orpha
     assert_eq!(harness.recover(harness.store.recover_restartable_runs_at_boot()).await.expect("repeat boot"), boot);
     assert_eq!(harness.read(harness.store.test_scoped_authority_receipts(&posture.run_id, 256)).await.expect("repeat boot receipts"), receipts);
     let canonical = harness.navigation(harness.store.navigation_by_recovery(&posture.run_id)).await.expect("complete durable canonical tail");
-    assert_eq!(canonical.recovery_events.iter().map(|v| v.replay_order_seq).collect::<Vec<_>>(), vec![1, 2, 3, 4, 5]);
-    assert_eq!(canonical.recovery_events.iter().filter(|v| v.event_kind == ModelLaneRecoveryEventKind::OrphanDetected).count(), 3);
+    let canonical_events = boot[0].recovery_events.iter()
+        .chain(std::iter::once(&ordinary)).collect::<Vec<_>>();
+    assert_recovery_navigation(&canonical.recovery_events, &canonical_events, &[1, 2, 3, 4, 5], 3);
     harness.cleanup().await;
+}
+
+fn assert_recovery_navigation(
+    navigation: &[ModelLaneNavigationScalar],
+    canonical_events: &[&ModelLaneRecoveryEventRecord],
+    expected_order: &[i64],
+    expected_orphans: usize,
+) {
+    let mut events = canonical_events.to_vec();
+    events.sort_by_key(|event| event.replay_order_seq);
+    assert_eq!(events.iter().map(|event| event.recovery_event_id.as_str())
+        .collect::<std::collections::BTreeSet<_>>().len(), events.len());
+    assert_eq!(navigation.iter().map(|event| event.aggregate_id.as_str())
+        .collect::<std::collections::BTreeSet<_>>().len(), navigation.len());
+    assert_eq!(events.iter().map(|event| event.replay_order_seq).collect::<Vec<_>>(), expected_order);
+    assert_eq!(navigation.iter().map(|event| event.ordering_seq).collect::<Vec<_>>(),
+        expected_order.iter().copied().map(Some).collect::<Vec<_>>());
+    assert_eq!(navigation.len(), events.len());
+    for (scalar, event) in navigation.iter().zip(&events) {
+        assert_eq!(scalar.aggregate_id, event.recovery_event_id);
+        assert_eq!(scalar.run_id, event.run_id);
+        assert_eq!(scalar.event_ledger_event_id, event.event_ledger_event_id);
+        assert_eq!(scalar.event_ledger_seq, event.event_ledger_seq);
+        assert_eq!(scalar.ordering_seq, Some(event.replay_order_seq));
+    }
+    assert_eq!(events.iter().filter(|event|
+        event.event_kind == ModelLaneRecoveryEventKind::OrphanDetected).count(), expected_orphans);
 }
 
 fn one_field_recovery_scopes(scope: &ResourceScope) -> Vec<ResourceScope> {

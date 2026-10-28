@@ -868,6 +868,7 @@ async fn orphan_receipt_stale_and_revoked_authority_are_rejected() {
 
 #[tokio::test]
 async fn lifecycle_counterfactual_is_component_only_and_unreceipted_engine_update_is_rejected() {
+    use surrealdb::types::SurrealValue;
     #[derive(surrealdb::types::SurrealValue)]
     struct Attempt { target: surrealdb::types::RecordId }
     async fn canonical_state(storage: &SurrealStorage) -> (Vec<surrealdb::types::Value>, Vec<surrealdb::types::Value>) {

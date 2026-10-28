@@ -1385,6 +1385,7 @@ async fn selection_http_observer_reads_actual_kernel_receipt_with_issued_exact_r
 // This assertion must never be cited as actual runtime/default restoration proof.
 #[tokio::test]
 async fn canonical_selection_audit_fault_is_finite_atomic_and_request_specific() {
+    use surrealdb::types::SurrealValue;
     use handshake_core::test_harness::model_runtime_selection::fail_next_selection_audit_append;
     #[derive(Debug, PartialEq, surrealdb::types::SurrealValue)]
     struct AuditRow {
