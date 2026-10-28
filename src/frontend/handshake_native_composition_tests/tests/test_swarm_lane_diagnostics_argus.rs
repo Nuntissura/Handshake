@@ -360,6 +360,141 @@ fn argus_keeps_last_success_visible_when_refresh_fails() {
     );
 }
 
+#[derive(Default)]
+struct DeferredDiagnosticsTransport {
+    requested_runs: Mutex<Vec<Option<String>>>,
+    pending: Mutex<VecDeque<handshake_native::swarm_lane_diagnostics::SwarmLaneDiagnosticsCell>>,
+}
+
+impl DeferredDiagnosticsTransport {
+    fn record(
+        &self,
+        run_id: Option<&str>,
+        cell: handshake_native::swarm_lane_diagnostics::SwarmLaneDiagnosticsCell,
+    ) {
+        self.requested_runs.lock().expect("record diagnostics request")
+            .push(run_id.map(str::to_owned));
+        self.pending.lock().expect("retain diagnostics delivery").push_back(cell);
+    }
+
+    fn deliver_next(&self, projection: SwarmLaneDiagnosticsProjection) {
+        let cell = self.pending.lock().expect("take pending diagnostics delivery")
+            .pop_front().expect("a diagnostics request is pending");
+        *cell.lock().expect("deliver diagnostics result") = Some(Ok(projection));
+    }
+
+    fn requested_runs(&self) -> Vec<Option<String>> {
+        self.requested_runs.lock().expect("inspect requested runs").clone()
+    }
+}
+
+impl SwarmLaneDiagnosticsTransport for DeferredDiagnosticsTransport {
+    fn fetch_latest(
+        &self,
+        cell: handshake_native::swarm_lane_diagnostics::SwarmLaneDiagnosticsCell,
+    ) {
+        self.record(None, cell);
+    }
+
+    fn fetch_run(
+        &self,
+        run_id: &str,
+        cell: handshake_native::swarm_lane_diagnostics::SwarmLaneDiagnosticsCell,
+    ) {
+        self.record(Some(run_id), cell);
+    }
+}
+
+fn deferred_diagnostics_harness(
+    transport: Arc<DeferredDiagnosticsTransport>,
+) -> Harness<'static, HandshakeApp> {
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_string(),
+        db_status: "ok".to_string(),
+        migration_version: Some(1),
+    }));
+    app.set_swarm_lane_diagnostics_transport_for_test(transport);
+    let mut harness = Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), app);
+    harness.run();
+    harness.get_by_label("MODELS").click();
+    harness.run();
+    harness.get_by_label("Open Lane Diagnostics").click();
+    harness.run();
+    harness
+}
+
+fn assert_refresh_disabled_and_argus_rejected(harness: &mut Harness<'_, HandshakeApp>) {
+    use handshake_native::mcp::{ActionError, ActionReceiptStatus, UiAction};
+
+    let author = node_by_author(harness, REFRESH_AUTHOR_ID).accesskit_node()
+        .author_id().expect("Refresh retains its scoped author ID").to_owned();
+    let snapshot = harness.state_mut().capture_mcp_snapshot_for_navigation();
+    assert!(snapshot.find_unique_by_author_id(&author)
+        .expect("Refresh remains inspectable while disabled").disabled);
+    let channel = harness.state().mcp_action_channel();
+    let mut channel = channel.lock().expect("inspect diagnostics action channel");
+    assert!(matches!(
+        channel.enqueue(&snapshot, &author, UiAction::Click),
+        Err(ActionError::DisabledTarget { author_id }) if author_id == author
+    ));
+    assert!(!channel.receipts().iter().any(|receipt| {
+        receipt.target == author && receipt.status == ActionReceiptStatus::Applied
+    }));
+}
+
+#[test]
+fn diagnostics_refresh_queues_once_then_disables_until_delivery() {
+    let transport = Arc::new(DeferredDiagnosticsTransport::default());
+    let mut harness = deferred_diagnostics_harness(transport.clone());
+    assert_eq!(transport.requested_runs(), vec![None], "initial fetch is automatic");
+    assert_refresh_disabled_and_argus_rejected(&mut harness);
+
+    let projection = fixture_projection();
+    let expected_run = projection.run.run_id.clone();
+    transport.deliver_next(projection);
+    harness.run();
+    assert!(!node_by_author(&harness, REFRESH_AUTHOR_ID).accesskit_node().is_disabled());
+
+    node_by_author(&harness, REFRESH_AUTHOR_ID).click_accesskit();
+    harness.run();
+    assert_eq!(transport.requested_runs(), vec![None, Some(expected_run.clone())]);
+    assert_refresh_disabled_and_argus_rejected(&mut harness);
+    node_by_author(&harness, REFRESH_AUTHOR_ID).click_accesskit();
+    harness.run();
+    assert_eq!(transport.requested_runs(), vec![None, Some(expected_run)],
+        "a busy Refresh cannot queue a duplicate request");
+
+    transport.deliver_next(fixture_projection());
+    harness.run();
+    assert!(!node_by_author(&harness, REFRESH_AUTHOR_ID).accesskit_node().is_disabled());
+    assert!(accesskit_label(&harness, FRESHNESS_AUTHOR_ID).starts_with("CURRENT |"));
+}
+
+#[test]
+fn diagnostics_refresh_rejects_initial_busy_and_offline_controls() {
+    let transport = Arc::new(DeferredDiagnosticsTransport::default());
+    let mut busy = deferred_diagnostics_harness(transport.clone());
+    assert_refresh_disabled_and_argus_rejected(&mut busy);
+    node_by_author(&busy, REFRESH_AUTHOR_ID).click_accesskit();
+    busy.run();
+    assert_eq!(transport.requested_runs(), vec![None],
+        "Refresh cannot duplicate the initial in-flight fetch");
+
+    let mut offline = shell_harness();
+    offline.run();
+    offline.get_by_label("MODELS").click();
+    offline.run();
+    offline.get_by_label("Open Lane Diagnostics").click();
+    offline.run();
+    let current = accesskit_label(&offline, FRESHNESS_AUTHOR_ID);
+    assert_refresh_disabled_and_argus_rejected(&mut offline);
+    node_by_author(&offline, REFRESH_AUTHOR_ID).click_accesskit();
+    offline.run();
+    assert_refresh_disabled_and_argus_rejected(&mut offline);
+    assert_eq!(accesskit_label(&offline, FRESHNESS_AUTHOR_ID), current,
+        "offline Refresh preserves the last supplied projection");
+}
+
 #[test]
 fn native_consumes_backend_generated_schema_v3_projection_artifact() {
     let operation_origin = tokio::time::Instant::now();

@@ -216,6 +216,11 @@ struct LoadResult {
 /// the expand/collapse flags for the two groups, and a width cache for the paper-strip labels. It
 /// does NOT own pane state — clicking a leaf is reported as a [`ProjectTreeEvent`] the app applies.
 pub struct ProjectTree {
+    cabinet: cabinet_host::State,
+    cabinet_generation: u64,
+    cabinet_source_revision: u64,
+    cabinet_active_resource: Option<String>,
+    cabinet_rename_identity: Option<(u64, u64, String)>,
     /// Backend root used for asynchronous project-content loads. Production keeps
     /// [`BACKEND_BASE_URL`]; managed-runtime tests rebind it together with the shell's other clients.
     backend_base_url: String,
@@ -260,6 +265,11 @@ impl Default for ProjectTree {
 impl ProjectTree {
     pub fn new() -> Self {
         Self {
+            cabinet: cabinet_host::State::default(),
+            cabinet_generation: 0,
+            cabinet_source_revision: 0,
+            cabinet_active_resource: None,
+            cabinet_rename_identity: None,
             backend_base_url: BACKEND_BASE_URL.to_owned(),
             authenticated_context: None,
             workspace_id: None,
@@ -275,6 +285,88 @@ impl ProjectTree {
             rx: None,
             width_cache: std::collections::HashMap::new(),
             retry_requested: false,
+        }
+    }
+
+    fn sync_cabinet(&mut self) -> Result<(), String> {
+        use cabinet::{Entry, EntryKind};
+        let workspace = self.workspace_id.as_deref().unwrap_or("unbound");
+        let scope = match self.authenticated_context.as_deref() {
+            Some(account) => format!("project:{:?}", [workspace, account.account_id.as_str(), account.principal_id.as_str(), account.session_id.as_str(), account.access_space_id.as_str()]),
+            None => format!("project:unbound:{workspace:?}"),
+        };
+        if self.cabinet.source_is_current(&scope, self.cabinet_generation, self.cabinet_source_revision) { return Ok(()); }
+        let mut entries = Vec::new();
+        for (index, (slug, title)) in [("documents", "Documents"), ("canvases", "Canvases"), ("bookmarks", "Bookmarks")].into_iter().enumerate() {
+            let mut entry = Entry::new(format!("project-tree.group.{slug}"), None, title, EntryKind::Folder);
+            entry.order = index as i64;
+            entry.capabilities = cabinet_host::capabilities(false, false, false);
+            entries.push(entry);
+        }
+        for (index, doc) in self.documents.iter().enumerate() {
+            let mut entry = Entry::new(format!("document:{}", doc.id), Some("project-tree.group.documents".into()), &doc.title, EntryKind::Leaf);
+            entry.resource_id = format!("rich-document:{}", doc.id);
+            entry.order = index as i64;
+            entry.capabilities = cabinet_host::capabilities(true, true, false);
+            entries.push(entry);
+        }
+        for (index, canvas) in self.canvases.iter().enumerate() {
+            let mut entry = Entry::new(format!("canvas:{}", canvas.id), Some("project-tree.group.canvases".into()), &canvas.title, EntryKind::Leaf);
+            entry.resource_id = format!("canvas:{}", canvas.id);
+            entry.order = index as i64;
+            entry.capabilities = cabinet_host::capabilities(true, true, false);
+            entries.push(entry);
+        }
+        for (index, bookmark) in self.bookmarks.iter().enumerate() {
+            let mut entry = Entry::new(format!("bookmark:{}", bookmark.block_id), Some("project-tree.group.bookmarks".into()), &bookmark.title, EntryKind::Leaf);
+            entry.resource_id = format!("loom-block:{}", bookmark.block_id);
+            entry.order = index as i64;
+            entry.capabilities = cabinet_host::capabilities(true, true, false);
+            entries.push(entry);
+        }
+        let initial = self.cabinet.model().is_none();
+        self.cabinet.sync(scope, self.cabinet_generation, self.cabinet_source_revision, entries, true)?;
+        if initial {
+            for group in ["documents", "canvases", "bookmarks"] {
+                self.cabinet.projection_expand(&format!("project-tree.group.{group}"), true)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn cabinet_prepare_rename(&mut self, entity_key: &str, title: &str, operation_id: u64) -> Result<(), String> {
+        self.sync_cabinet()?;
+        let id = self.cabinet.model().and_then(|model| model.snapshot().entries.iter().find(|entry| entry.resource_id == entity_key).map(|entry| entry.id.clone())).ok_or("Rename target is no longer in the project tree")?;
+        self.cabinet.prepare_rename(&id, title)?;
+        if !self.cabinet.bind(self.cabinet_generation, operation_id) { return Err("Project tree changed before rename dispatch".to_owned()); }
+        self.cabinet_rename_identity = Some((self.cabinet_generation, operation_id, entity_key.to_owned()));
+        Ok(())
+    }
+
+    pub(crate) fn cabinet_accepts_rename_delivery(&self, operation_id: u64, entity_key: &str) -> bool {
+        self.cabinet_rename_identity.as_ref().is_some_and(|(generation, operation, entity)| {
+            *generation == self.cabinet_generation && *operation == operation_id && entity == entity_key
+                && matches!(self.cabinet.bound_operation(*generation, *operation), Some(cabinet::Operation::Rename { .. }))
+        })
+    }
+
+    pub(crate) fn cabinet_rename_terminal(&mut self, operation_id: u64, result: Result<(), String>) {
+        self.cabinet.terminal(self.cabinet_generation, operation_id, result);
+    }
+
+    pub(crate) fn cabinet_rename_unstarted(&mut self, operation_id: u64, error: String) {
+        self.cabinet.bound_unstarted(self.cabinet_generation, operation_id, error);
+    }
+
+    pub(crate) fn cabinet_acknowledge_read(&mut self) { self.cabinet.acknowledge_read(); }
+
+    pub(crate) fn cabinet_reveal_resource(&mut self, resource: Option<&str>) {
+        if resource == self.cabinet_active_resource.as_deref() { return; }
+        let Some(resource) = resource else { self.cabinet_active_resource = None; return; };
+        if self.sync_cabinet().is_err() { return; }
+        let id = self.cabinet.model().and_then(|model| model.snapshot().entries.iter().find(|entry| entry.resource_id == resource).map(|entry| entry.id.clone()));
+        if let Some(id) = id {
+            if self.cabinet.reveal(&id).is_ok() { self.cabinet_active_resource = Some(resource.to_owned()); }
         }
     }
 
@@ -321,6 +413,7 @@ impl ProjectTree {
     /// Leaves the bookmark list unchanged (use [`set_content_with_bookmarks`](Self::set_content_with_bookmarks)
     /// to seed bookmarks too).
     pub fn set_content(&mut self, documents: Vec<DocumentSummary>, canvases: Vec<CanvasSummary>) {
+        self.cabinet_source_revision = self.cabinet_source_revision.wrapping_add(1);
         self.documents = documents;
         self.canvases = canvases;
         self.loading = false;
@@ -337,6 +430,7 @@ impl ProjectTree {
         canvases: Vec<CanvasSummary>,
         bookmarks: Vec<BookmarkSummary>,
     ) {
+        self.cabinet_source_revision = self.cabinet_source_revision.wrapping_add(1);
         self.documents = documents;
         self.canvases = canvases;
         self.bookmarks = bookmarks;
@@ -353,6 +447,10 @@ impl ProjectTree {
             return;
         }
         self.workspace_id = Some(workspace_id.to_owned());
+        self.cabinet_generation = self.cabinet_generation.saturating_add(1);
+        self.cabinet = cabinet_host::State::default();
+        self.cabinet_active_resource = None;
+        self.cabinet_rename_identity = None;
         self.documents.clear();
         self.canvases.clear();
         self.bookmarks.clear();
@@ -369,6 +467,10 @@ impl ProjectTree {
         context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
     ) {
         self.authenticated_context = context;
+        self.cabinet_generation = self.cabinet_generation.saturating_add(1);
+        self.cabinet = cabinet_host::State::default();
+        self.cabinet_active_resource = None;
+        self.cabinet_rename_identity = None;
         self.rx = None;
         self.load_id = self.load_id.wrapping_add(1);
         self.documents.clear();
@@ -432,6 +534,7 @@ impl ProjectTree {
         self.documents.retain(|d| d.id != document_id);
         let removed = self.documents.len() != before;
         if removed {
+            self.cabinet_source_revision = self.cabinet_source_revision.wrapping_add(1);
             self.width_cache.clear();
         }
         removed
@@ -444,6 +547,7 @@ impl ProjectTree {
         self.canvases.retain(|c| c.id != canvas_id);
         let removed = self.canvases.len() != before;
         if removed {
+            self.cabinet_source_revision = self.cabinet_source_revision.wrapping_add(1);
             self.width_cache.clear();
         }
         removed
@@ -456,6 +560,7 @@ impl ProjectTree {
         self.bookmarks.retain(|b| b.block_id != block_id);
         let removed = self.bookmarks.len() != before;
         if removed {
+            self.cabinet_source_revision = self.cabinet_source_revision.wrapping_add(1);
             self.width_cache.clear();
         }
         removed
@@ -480,6 +585,8 @@ impl ProjectTree {
             self.loading = false;
             match result.payload {
                 Ok((documents, canvases, bookmarks)) => {
+                    self.cabinet.canonical_refetch();
+                    self.cabinet_source_revision = self.cabinet_source_revision.wrapping_add(1);
                     self.documents = documents;
                     self.canvases = canvases;
                     self.bookmarks = bookmarks;
@@ -508,6 +615,15 @@ impl ProjectTree {
         colors: ProjectTreeColors,
     ) -> Option<ProjectTreeEvent> {
         let mut event: Option<ProjectTreeEvent> = None;
+        if let Err(error) = self.sync_cabinet() {
+            self.error = Some(format!("Project tree unavailable: {error}"));
+        }
+        let mut visible: std::collections::HashSet<String> = self.cabinet.model().map(|model| model.projected_rows().iter().map(|row| row.id.clone()).collect()).unwrap_or_default();
+        if let Some(model) = self.cabinet.model() {
+            self.documents_open = model.expanded("project-tree.group.documents");
+            self.canvases_open = model.expanded("project-tree.group.canvases");
+            self.bookmarks_open = model.expanded("project-tree.group.bookmarks");
+        }
 
         // Container Tree node: register a fixed id on the tree's rect so its live AccessKit node
         // attaches under the correct parent, then enrich it (Role::Tree + author_id).
@@ -579,18 +695,24 @@ impl ProjectTree {
             &mut self.documents_open,
             self.documents.len(),
             colors,
+            &mut self.cabinet,
         ) {
-            // header toggled; nothing else to do (state already flipped)
+            let _ = self.cabinet.projection_expand("project-tree.group.documents", self.documents_open);
+            if let Some(model) = self.cabinet.model() { visible = model.projected_rows().iter().map(|row| row.id.clone()).collect(); }
         }
         if self.documents_open {
             for doc in &self.documents {
                 let author_id = format!("project-tree.doc.{}", stable_part(&doc.id));
+                let entry_id = format!("document:{}", doc.id);
+                if !visible.contains(&entry_id) { continue; }
                 let width = *self
                     .width_cache
                     .entry(author_id.clone())
                     .or_insert_with(|| measure_label(ui, &doc.title));
-                let row_resp = paper_strip_row(ui, &doc.title, &author_id, width, colors);
-                if row_resp.clicked() {
+                let row_resp = ui.add_enabled_ui(self.cabinet.navigation_available(), |ui| paper_strip_row(ui, &doc.title, &author_id, width, colors)).inner;
+                self.cabinet.row_navigation(ui, &row_resp, &entry_id);
+                if row_resp.clicked() && self.cabinet.select_for_open(ui, &row_resp, &entry_id) && self.cabinet.request(cabinet::Operation::Open { id: entry_id.clone() }).is_ok() {
+                    row_resp.request_focus();
                     event = Some(ProjectTreeEvent::OpenDocument(doc.id.clone()));
                 }
                 let target = ExplorerRowTarget {
@@ -600,7 +722,7 @@ impl ProjectTree {
                     document_id: None,
                     expected_updated_at: doc.updated_at.clone(),
                 };
-                if let Some(menu_event) = row_context_menu(ui, &row_resp, &target) {
+                if let Some(menu_event) = row_context_menu(ui, &row_resp, &target, self.cabinet.navigation_available()) {
                     event = Some(menu_event);
                 }
             }
@@ -614,18 +736,24 @@ impl ProjectTree {
             &mut self.canvases_open,
             self.canvases.len(),
             colors,
+            &mut self.cabinet,
         ) {
-            // header toggled
+            let _ = self.cabinet.projection_expand("project-tree.group.canvases", self.canvases_open);
+            if let Some(model) = self.cabinet.model() { visible = model.projected_rows().iter().map(|row| row.id.clone()).collect(); }
         }
         if self.canvases_open {
             for canvas in &self.canvases {
                 let author_id = format!("project-tree.canvas.{}", stable_part(&canvas.id));
+                let entry_id = format!("canvas:{}", canvas.id);
+                if !visible.contains(&entry_id) { continue; }
                 let width = *self
                     .width_cache
                     .entry(author_id.clone())
                     .or_insert_with(|| measure_label(ui, &canvas.title));
-                let row_resp = paper_strip_row(ui, &canvas.title, &author_id, width, colors);
-                if row_resp.clicked() {
+                let row_resp = ui.add_enabled_ui(self.cabinet.navigation_available(), |ui| paper_strip_row(ui, &canvas.title, &author_id, width, colors)).inner;
+                self.cabinet.row_navigation(ui, &row_resp, &entry_id);
+                if row_resp.clicked() && self.cabinet.select_for_open(ui, &row_resp, &entry_id) && self.cabinet.request(cabinet::Operation::Open { id: entry_id.clone() }).is_ok() {
+                    row_resp.request_focus();
                     event = Some(ProjectTreeEvent::OpenCanvas(canvas.id.clone()));
                 }
                 let target = ExplorerRowTarget {
@@ -635,7 +763,7 @@ impl ProjectTree {
                     document_id: None,
                     expected_updated_at: canvas.updated_at.clone(),
                 };
-                if let Some(menu_event) = row_context_menu(ui, &row_resp, &target) {
+                if let Some(menu_event) = row_context_menu(ui, &row_resp, &target, self.cabinet.navigation_available()) {
                     event = Some(menu_event);
                 }
             }
@@ -654,20 +782,26 @@ impl ProjectTree {
             &mut self.bookmarks_open,
             self.bookmarks.len(),
             colors,
+            &mut self.cabinet,
         ) {
-            // header toggled
+            let _ = self.cabinet.projection_expand("project-tree.group.bookmarks", self.bookmarks_open);
+            if let Some(model) = self.cabinet.model() { visible = model.projected_rows().iter().map(|row| row.id.clone()).collect(); }
         }
         if self.bookmarks_open {
             for bookmark in &self.bookmarks {
                 let author_id =
                     format!("project-tree.bookmark.{}", stable_part(&bookmark.block_id));
+                let entry_id = format!("bookmark:{}", bookmark.block_id);
+                if !visible.contains(&entry_id) { continue; }
                 let label_text = format!("{}  [{}]", bookmark.title, bookmark.kind);
                 let width = *self
                     .width_cache
                     .entry(author_id.clone())
                     .or_insert_with(|| measure_label(ui, &label_text));
-                let row_resp = paper_strip_row(ui, &label_text, &author_id, width, colors);
-                if row_resp.clicked() {
+                let row_resp = ui.add_enabled_ui(self.cabinet.navigation_available(), |ui| paper_strip_row(ui, &label_text, &author_id, width, colors)).inner;
+                self.cabinet.row_navigation(ui, &row_resp, &entry_id);
+                if row_resp.clicked() && self.cabinet.select_for_open(ui, &row_resp, &entry_id) && self.cabinet.request(cabinet::Operation::Open { id: entry_id.clone() }).is_ok() {
+                    row_resp.request_focus();
                     event = Some(ProjectTreeEvent::OpenBookmark {
                         document_id: bookmark.document_id.clone(),
                         block_id: bookmark.block_id.clone(),
@@ -682,7 +816,7 @@ impl ProjectTree {
                     document_id: bookmark.document_id.clone(),
                     expected_updated_at: bookmark.updated_at.clone(),
                 };
-                if let Some(menu_event) = row_context_menu(ui, &row_resp, &target) {
+                if let Some(menu_event) = row_context_menu(ui, &row_resp, &target, self.cabinet.navigation_available()) {
                     event = Some(menu_event);
                 }
             }
@@ -714,6 +848,7 @@ impl ProjectTree {
             node.set_label("Project tree".to_owned());
         });
 
+        self.cabinet.take_navigation_changes();
         event
     }
 
@@ -726,6 +861,7 @@ impl ProjectTree {
         open: &mut bool,
         count: usize,
         colors: ProjectTreeColors,
+        cabinet: &mut cabinet_host::State,
     ) -> bool {
         let author_id = format!("project-tree.group.{slug}");
         let id = egui::Id::new(&author_id);
@@ -742,6 +878,7 @@ impl ProjectTree {
             egui::Sense::hover(),
         );
         let resp = ui.interact(rect, id, egui::Sense::click());
+        cabinet.row_navigation(ui, &resp, &author_id);
         if ui.is_rect_visible(rect) {
             ui.painter().galley(
                 egui::pos2(rect.left() + pad, rect.center().y - galley.size().y * 0.5),
@@ -762,6 +899,8 @@ impl ProjectTree {
 
         let mut changed = false;
         if resp.clicked() {
+            resp.request_focus();
+            let _ = cabinet.select(&author_id, cabinet::SelectionModifiers::default());
             *open = !*open;
             changed = true;
         }
@@ -888,9 +1027,12 @@ fn row_context_menu(
     ui: &mut egui::Ui,
     row_resp: &egui::Response,
     target: &ExplorerRowTarget,
+    available: bool,
 ) -> Option<ProjectTreeEvent> {
     let mut event = None;
-    let menu = ContextMenu::new("explorer").items(explorer_context_items(target.kind));
+    let items = explorer_context_items(target.kind);
+    let items = if available { items } else { items.into_iter().map(|item| item.disabled("Wait for the current tree operation to be reconciled")).collect() };
+    let menu = ContextMenu::new("explorer").items(items);
     if let Some(confirmed_id) = menu.show_on(row_resp) {
         if let Some(action) = explorer_action_for_id(confirmed_id, target.kind) {
             event = Some(match action {
@@ -1214,6 +1356,81 @@ async fn fetch_summaries(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cabinet_project_rename_waits_for_current_terminal_and_canonical_poll() {
+        let mut tree = ProjectTree::new();
+        tree.workspace_id = Some("workspace-one".to_owned());
+        tree.set_content_with_bookmarks(
+            vec![DocumentSummary::new("D-1", "Before")],
+            vec![CanvasSummary::new("C-1", "Canvas")],
+            vec![BookmarkSummary::new("B-1", "Bookmark", "document", Some("D-1".to_owned()))],
+        );
+        tree.sync_cabinet().unwrap();
+        let model = tree.cabinet.model().unwrap();
+        assert!(model.entry("document:D-1").is_some());
+        assert!(model.entry("canvas:C-1").is_some());
+        assert_eq!(model.entry("bookmark:B-1").unwrap().resource_id, "loom-block:B-1");
+        tree.cabinet.projection_expand("project-tree.group.documents", false).unwrap();
+        tree.cabinet_reveal_resource(Some("rich-document:D-1"));
+        assert!(tree.cabinet.model().unwrap().projected_rows().iter().any(|row| row.id == "document:D-1"));
+
+        tree.cabinet_prepare_rename("rich-document:D-1", "After", 17).unwrap();
+        tree.cabinet_rename_terminal(16, Ok(()));
+        assert!(tree.cabinet.model().unwrap().pending().is_some());
+        tree.cabinet_rename_terminal(17, Ok(()));
+        tree.sync_cabinet().unwrap();
+        assert_eq!(tree.cabinet.model().unwrap().entry("document:D-1").unwrap().label, "Before");
+        assert!(tree.cabinet.model().unwrap().pending().is_some());
+
+        let (tx, rx) = std::sync::mpsc::channel();
+        tree.rx = Some(rx);
+        tx.send(LoadResult { load_id: tree.load_id, payload: Ok((vec![DocumentSummary::new("D-1", "After")], tree.canvases.clone(), tree.bookmarks.clone())) }).unwrap();
+        tree.poll();
+        tree.sync_cabinet().unwrap();
+        let model = tree.cabinet.model().unwrap();
+        assert!(model.pending().is_none());
+        assert_eq!(model.entry("document:D-1").unwrap().label, "After");
+
+        tree.cabinet_prepare_rename("rich-document:D-1", "Denied", 18).unwrap();
+        tree.cabinet_rename_terminal(18, Err("denied".to_owned()));
+        assert_eq!(tree.cabinet.model().unwrap().entry("document:D-1").unwrap().label, "After");
+        tree.bind_authenticated_context(None);
+        assert!(tree.cabinet.model().is_none());
+        assert!(tree.documents().is_empty());
+    }
+
+    #[test]
+    fn cabinet_rename_custody_outlives_dialog_and_local_projection_refresh() {
+        let mut tree = ProjectTree::new();
+        tree.workspace_id = Some("workspace-one".to_owned());
+        tree.set_content(vec![DocumentSummary::new("D-1", "Before")], Vec::new());
+        tree.cabinet_prepare_rename("rich-document:D-1", "After", 41).unwrap();
+        // The host dialog may close independently. Only the retained operation and entity own
+        // its delivery, including after another canonical load invalidates local pending state.
+        tree.set_content(vec![DocumentSummary::new("D-1", "Before")], Vec::new());
+        tree.sync_cabinet().unwrap();
+        assert!(tree.cabinet.model().unwrap().pending().is_none());
+        assert!(tree.cabinet_accepts_rename_delivery(41, "rich-document:D-1"));
+        assert!(!tree.cabinet_accepts_rename_delivery(40, "rich-document:D-1"));
+        assert!(!tree.cabinet_accepts_rename_delivery(41, "canvas:D-1"));
+        assert!(!tree.cabinet.navigation_available());
+        tree.cabinet_rename_terminal(41, Ok(()));
+        tree.sync_cabinet().unwrap();
+        assert!(!tree.cabinet.navigation_available());
+
+        let (tx, rx) = std::sync::mpsc::channel();
+        tree.rx = Some(rx);
+        tx.send(LoadResult { load_id: tree.load_id, payload: Ok((vec![DocumentSummary::new("D-1", "After")], Vec::new(), Vec::new())) }).unwrap();
+        tree.poll();
+        tree.sync_cabinet().unwrap();
+        assert!(tree.cabinet.navigation_available());
+        assert!(!tree.cabinet_accepts_rename_delivery(41, "rich-document:D-1"));
+        assert_eq!(tree.cabinet.model().unwrap().entry("document:D-1").unwrap().label, "After");
+        tree.cabinet_prepare_rename("rich-document:D-1", "Again", 42).unwrap();
+        tree.bind_authenticated_context(None);
+        assert!(!tree.cabinet_accepts_rename_delivery(42, "rich-document:D-1"));
+    }
 
     struct BookmarkPageServer {
         base: String,

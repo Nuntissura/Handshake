@@ -1,0 +1,19 @@
+[workspace]
+
+[package]
+name = "cabinet_host"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+cabinet = { git = "https://github.com/Nuntissura/assets.git", rev = "c56cc9500243d9ad027e20cc291c71352c936a3a", version = "=0.1.0", default-features = false }
+egui = { version = "=0.33.3", default-features = false, features = ["accesskit"] }
+
+[profile.dev]
+debug = "line-tables-only"
+incremental = false
+
+[profile.test]
+debug = "line-tables-only"
+incremental = false

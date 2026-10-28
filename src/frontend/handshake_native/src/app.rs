@@ -4110,12 +4110,13 @@ mod code_ref_nav_delivery_tests {
 
 #[cfg(test)]
 mod rename_delivery_tests {
-    use super::{rename_delivery_is_current, ExplorerRenameTarget, PendingRename};
+    use super::{rename_delivery_is_current, ExplorerRenameOrigin, ExplorerRenameTarget, PendingRename};
     use crate::backend_client::{RenameDelivery, RenameOperation};
     use std::collections::VecDeque;
 
     fn pending(document_id: &str, operation_id: Option<u64>) -> PendingRename {
         PendingRename {
+            origin: ExplorerRenameOrigin::ProjectTree,
             target: ExplorerRenameTarget::Document {
                 document_id: document_id.to_owned(),
                 expected_updated_at: Some("token".to_owned()),
@@ -4133,6 +4134,44 @@ mod rename_delivery_tests {
             },
             result: Ok("Renamed".to_owned()),
         }
+    }
+
+    #[test]
+    fn loom_rename_does_not_require_a_bookmark_or_settle_another_tree_rename() {
+        let mut tree = crate::project_tree::ProjectTree::new();
+        tree.set_content(
+            vec![crate::project_tree::DocumentSummary::new("KRD-tree", "Before")],
+            Vec::new(),
+        );
+        pending("KRD-tree", None).prepare_dispatch(&mut tree, "After", 31).unwrap();
+        let loom = PendingRename {
+            origin: ExplorerRenameOrigin::Loom,
+            target: ExplorerRenameTarget::LoomBlock {
+                block_id: "unbookmarked-block".to_owned(),
+                expected_updated_at: None,
+            },
+            text: "Loom title".to_owned(),
+            operation_id: None,
+        };
+        loom.prepare_dispatch(&mut tree, "Renamed Loom block", 32).unwrap();
+        assert!(!tree.cabinet_accepts_rename_delivery(32, "loom-block:unbookmarked-block"));
+        assert!(tree.cabinet_accepts_rename_delivery(31, "rich-document:KRD-tree"));
+    }
+
+    #[test]
+    fn project_tree_rename_still_rejects_a_removed_target() {
+        let mut tree = crate::project_tree::ProjectTree::new();
+        tree.set_content(
+            vec![crate::project_tree::DocumentSummary::new("KRD-removed", "Before")],
+            Vec::new(),
+        );
+        let rename = pending("KRD-removed", None);
+        tree.set_content(Vec::new(), Vec::new());
+        assert_eq!(
+            rename.prepare_dispatch(&mut tree, "After", 33),
+            Err("Rename target is no longer in the project tree".to_owned()),
+        );
+        assert!(!tree.cabinet_accepts_rename_delivery(33, "rich-document:KRD-removed"));
     }
 
     #[test]
@@ -6909,10 +6948,35 @@ pub struct DrawerIntents {
 pub struct PendingRename {
     /// The exact backend entity and id the rename mutates.
     pub target: ExplorerRenameTarget,
+    pub origin: ExplorerRenameOrigin,
     /// The live text buffer, seeded from the row's current title and edited in the rename dialog.
     pub text: String,
     /// The one currently in-flight worker. `None` means the dialog is editable/retryable.
     pub operation_id: Option<u64>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExplorerRenameOrigin {
+    ProjectTree,
+    Loom,
+}
+
+impl PendingRename {
+    fn prepare_dispatch(
+        &self,
+        project_tree: &mut crate::project_tree::ProjectTree,
+        title: &str,
+        operation_id: u64,
+    ) -> Result<(), String> {
+        match self.origin {
+            ExplorerRenameOrigin::ProjectTree => project_tree.cabinet_prepare_rename(
+                &self.target.entity_key(),
+                title,
+                operation_id,
+            ),
+            ExplorerRenameOrigin::Loom => Ok(()),
+        }
+    }
 }
 
 /// Typed explorer rename destination. This prevents cross-entity id confusion at the final dispatch
@@ -23245,7 +23309,7 @@ impl HandshakeApp {
                     self.settings_detached_context.as_ref(),
                     self.settings_effect_context.as_ref(),
                 ].into_iter().flatten() {
-                    theme::egui_apply::apply_motion_preference(ctx, reduce_motion);
+                    motion_preference::apply_motion_preference(ctx, reduce_motion);
                     ctx.request_repaint();
                 }
                 self.schedule_settings_save();
@@ -24005,7 +24069,7 @@ impl HandshakeApp {
     }
 
     fn render_settings_surface(&mut self, ctx: &egui::Context, detached: bool) {
-        theme::egui_apply::apply_motion_preference(ctx, self.workspace_settings.reduce_motion);
+        motion_preference::apply_motion_preference(ctx, self.workspace_settings.reduce_motion);
         if detached && !self.capturing_snapshot {
             self.settings_detached_context=Some(ctx.clone());
             if self.kumihimo_host.is_none() {self.prepare_kumihimo(ctx);}
@@ -25799,7 +25863,7 @@ impl HandshakeApp {
     /// document/canvas open -> open a tab on the active pane; quick-link click -> focus pane + activate
     /// tab; stash/rail toggles -> flip the persisted drawer flags; agenda/mail/notes -> open the tab.
     fn apply_left_rail_event(&mut self, ctx: &egui::Context, event: LeftRailEvent) -> bool {
-        match event {
+        let changed = match event {
             LeftRailEvent::OpenDocument(doc_id) => {
                 self.open_content_on_active_pane(PaneType::Workspace, Some(doc_id))
             }
@@ -25835,6 +25899,7 @@ impl HandshakeApp {
                 // spawns the verified PATCH off the UI thread (see `drive_rename` + the dialog render).
                 self.rename_error = None;
                 self.pending_rename = Some(PendingRename {
+                    origin: ExplorerRenameOrigin::ProjectTree,
                     target: ExplorerRenameTarget::LoomBlock {
                         block_id,
                         expected_updated_at,
@@ -25851,6 +25916,7 @@ impl HandshakeApp {
             } => {
                 self.rename_error = None;
                 self.pending_rename = Some(PendingRename {
+                    origin: ExplorerRenameOrigin::ProjectTree,
                     target: ExplorerRenameTarget::Document {
                         document_id,
                         expected_updated_at,
@@ -25867,6 +25933,7 @@ impl HandshakeApp {
             } => {
                 self.rename_error = None;
                 self.pending_rename = Some(PendingRename {
+                    origin: ExplorerRenameOrigin::ProjectTree,
                     target: ExplorerRenameTarget::Canvas {
                         canvas_id,
                         expected_updated_at,
@@ -25941,7 +26008,9 @@ impl HandshakeApp {
                 }
                 false
             }
-        }
+        };
+        if changed { self.left_rail.project_tree.cabinet_acknowledge_read(); }
+        changed
     }
 
     /// MT-020 explorer-row rename driver: drain any delivered rename PATCH result, then render the
@@ -25964,12 +26033,30 @@ impl HandshakeApp {
             .unwrap_or_default();
         for delivery in delivered {
             let is_current = rename_delivery_is_current(self.pending_rename.as_ref(), &delivery);
-            if !is_current {
+            let cabinet_current = self.left_rail.project_tree.cabinet_accepts_rename_delivery(delivery.operation.operation_id, &delivery.operation.entity_key);
+            if !is_current && !cabinet_current {
                 tracing::debug!(
                     operation_id = delivery.operation.operation_id,
                     entity_key = %delivery.operation.entity_key,
                     "ignored stale explorer rename completion"
                 );
+                continue;
+            }
+            if cabinet_current {
+                self.left_rail.project_tree.cabinet_rename_terminal(
+                    delivery.operation.operation_id,
+                    delivery.result.as_ref().map(|_| ()).map_err(Clone::clone),
+                );
+            }
+            if !is_current {
+                // Closing a dialog does not cancel the dispatched rename or retire its identity.
+                // Reconcile the exact terminal without reopening or replacing another dialog.
+                if let Some(handle) = self.runtime_handle.clone() {
+                    self.left_rail.project_tree.retry(&handle);
+                } else {
+                    self.left_rail.project_tree.set_error("Previous rename settled; confirmed project data is unavailable: runtime unavailable");
+                }
+                ctx.request_repaint();
                 continue;
             }
             match delivery.result {
@@ -25979,6 +26066,8 @@ impl HandshakeApp {
                     // Reload the tree so the backend-owned new title shows (the visible result).
                     if let Some(handle) = self.runtime_handle.clone() {
                         self.left_rail.project_tree.retry(&handle);
+                    } else {
+                        self.left_rail.project_tree.set_error("Rename returned success, but confirmed project data is unavailable: runtime unavailable");
                     }
                     ctx.request_repaint();
                 }
@@ -25987,6 +26076,9 @@ impl HandshakeApp {
                         pending.operation_id = None;
                     }
                     self.rename_error = Some(msg);
+                    if let Some(handle) = self.runtime_handle.clone() {
+                        self.left_rail.project_tree.retry(&handle);
+                    }
                     ctx.request_repaint();
                 }
             }
@@ -26066,6 +26158,11 @@ impl HandshakeApp {
                 operation_id: self.rename_operation_sequence,
                 entity_key: pending.target.entity_key(),
             };
+            if let Err(error) = pending.prepare_dispatch(&mut self.left_rail.project_tree, &new_title, operation.operation_id) {
+                self.rename_error = Some(error);
+                self.pending_rename = Some(pending);
+                return;
+            }
             pending.operation_id = Some(operation.operation_id);
             match pending.target.clone() {
                 ExplorerRenameTarget::LoomBlock {
@@ -26076,6 +26173,7 @@ impl HandshakeApp {
                     else {
                         self.rename_error =
                             Some("Rename unavailable (no backend runtime/workspace)".to_owned());
+                        self.left_rail.project_tree.cabinet_rename_unstarted(operation.operation_id, self.rename_error.clone().unwrap_or_else(|| "Rename did not start".to_owned()));
                         pending.operation_id = None;
                         self.pending_rename = Some(pending);
                         return;
@@ -26103,6 +26201,7 @@ impl HandshakeApp {
                     let Some(runtime) = self.runtime_handle.clone() else {
                         self.rename_error =
                             Some("Rename unavailable (no backend runtime)".to_owned());
+                        self.left_rail.project_tree.cabinet_rename_unstarted(operation.operation_id, self.rename_error.clone().unwrap_or_else(|| "Rename did not start".to_owned()));
                         pending.operation_id = None;
                         self.pending_rename = Some(pending);
                         return;
@@ -26146,6 +26245,7 @@ impl HandshakeApp {
                     let Some(runtime) = self.runtime_handle.clone() else {
                         self.rename_error =
                             Some("Rename unavailable (no backend runtime)".to_owned());
+                        self.left_rail.project_tree.cabinet_rename_unstarted(operation.operation_id, self.rename_error.clone().unwrap_or_else(|| "Rename did not start".to_owned()));
                         pending.operation_id = None;
                         self.pending_rename = Some(pending);
                         return;
@@ -30754,6 +30854,9 @@ impl HandshakeApp {
             ctx.request_repaint();
         }
 
+        if let Ok(mut tree) = sec.folder_tree.lock() {
+            tree.cabinet_bind_scope(sec.folder_workspace_epoch.load(std::sync::atomic::Ordering::Relaxed), folder_account.as_deref());
+        }
         // Poll create/rename/move/delete. Every successful write is followed by an authoritative list
         // fetch so hierarchy/order/labels come from persisted backend state; failures stay visible.
         {
@@ -30804,6 +30907,9 @@ impl HandshakeApp {
                     if latest.get(&latest_key).copied() == Some(delivered_sequence) {
                         latest.remove(&latest_key);
                     }
+                }
+                if let Ok(mut tree) = sec.folder_tree.lock() {
+                    tree.cabinet_terminal(delivered_epoch, delivered_sequence, result.as_ref().map(|_| ()).map_err(Clone::clone));
                 }
                 // Refetch after both success and failure: a transport failure can follow a committed
                 // write whose response was lost, and only the authoritative list resolves that state.
@@ -30966,6 +31072,7 @@ impl HandshakeApp {
                                 true
                             });
                             if accepted {
+                                t.cabinet_child_terminal(delivered_epoch, delivered_sequence, Ok(()));
                                 t.refresh_child_error_banner();
                             }
                         }
@@ -30978,6 +31085,7 @@ impl HandshakeApp {
                                 true
                             });
                             if accepted {
+                                t.cabinet_child_terminal(delivered_epoch, delivered_sequence, Err(e.clone()));
                                 t.refresh_child_error_banner();
                             }
                         }
@@ -31030,6 +31138,9 @@ impl HandshakeApp {
                         latest.remove(&latest_key);
                     }
                 }
+                if let Ok(mut tree) = sec.folder_tree.lock() {
+                    tree.cabinet_terminal(delivered_epoch, delivered_sequence, result.as_ref().map(|_| ()).map_err(Clone::clone));
+                }
                 authoritative_refetch = true;
                 if let Ok(mut t) = sec.folder_tree.lock() {
                     t.loading = true;
@@ -31072,6 +31183,10 @@ impl HandshakeApp {
             .unwrap_or_default();
         let mut pending_open: Option<(PaneType, String)> = None;
         for event in events {
+            if self.runtime_handle.is_none() && matches!(&event, FolderTreeEvent::CreateFolder { .. } | FolderTreeEvent::RenameFolder { .. } | FolderTreeEvent::MoveFolder { .. } | FolderTreeEvent::DeleteFolder { .. } | FolderTreeEvent::ChangeColor { .. }) {
+                if let Ok(mut tree) = sec.folder_tree.lock() { tree.cabinet_fail_unstarted("Folder operation unavailable: runtime unavailable".to_owned()); }
+                continue;
+            }
             match event {
                 FolderTreeEvent::ExpandFolder { folder_id } => {
                     let sec = &self.editor_mounts.secondary;
@@ -31079,6 +31194,8 @@ impl HandshakeApp {
                         .folder_workspace_epoch
                         .load(std::sync::atomic::Ordering::Relaxed);
                     let sequence = next_async_sequence(&sec.folder_operation_seq);
+
+                    if !sec.folder_tree.lock().map(|tree| tree.cabinet_accepts_disclosure(&folder_id)).unwrap_or(false) { continue; }
                     let needs_fetch = sec
                         .folder_tree
                         .lock()
@@ -31096,6 +31213,16 @@ impl HandshakeApp {
                         })
                         .unwrap_or(false);
                     if needs_fetch {
+                        let admitted = sec.folder_tree.lock().map(|mut tree| tree.cabinet_bind_request(epoch, sequence)).unwrap_or(false);
+                        if !admitted {
+                            if let Ok(mut tree) = sec.folder_tree.lock() {
+                                if let Some(node) = tree.find_folder_mut(&folder_id) {
+                                    if node.complete_child_request(sequence) { node.child_error = Some("Folder expansion did not start: current tree changed".to_owned()); }
+                                }
+                                tree.refresh_child_error_banner();
+                            }
+                            continue;
+                        }
                         if let Some(rt) = self.runtime_handle.clone() {
                             let cell: crate::backend_client::FolderChildrenCell =
                                 Arc::new(Mutex::new(None));
@@ -31123,7 +31250,11 @@ impl HandshakeApp {
                                 }
                             }
                             t.refresh_child_error_banner();
+                            t.cabinet_child_terminal(epoch, sequence, Err("Folder children unavailable: runtime unavailable".to_owned()));
                         }
+                    }
+                    if !needs_fetch {
+                        if let Ok(mut tree) = sec.folder_tree.lock() { tree.cabinet_fail_unstarted("No additional read started while a folder read is pending".to_owned()); }
                     }
                     ctx.request_repaint();
                 }
@@ -31146,6 +31277,7 @@ impl HandshakeApp {
                         .folder_workspace_epoch
                         .load(std::sync::atomic::Ordering::Relaxed);
                     let sequence = next_async_sequence(&sec.folder_operation_seq);
+                    if !sec.folder_tree.lock().map(|tree| tree.cabinet_accepts_open(&folder_id, action_generation)).unwrap_or(false) { continue; }
                     let accepted = sec
                         .folder_tree
                         .lock()
@@ -31162,6 +31294,16 @@ impl HandshakeApp {
                         })
                         .unwrap_or(false);
                     if accepted {
+                        let admitted = sec.folder_tree.lock().map(|mut tree| tree.cabinet_bind_request(epoch, sequence)).unwrap_or(false);
+                        if !admitted {
+                            if let Ok(mut tree) = sec.folder_tree.lock() {
+                                if let Some(node) = tree.find_folder_mut(&folder_id) {
+                                    if node.complete_child_request(sequence) { node.child_error = Some("Folder activation did not start: current tree changed".to_owned()); }
+                                }
+                                tree.refresh_child_error_banner();
+                            }
+                            continue;
+                        }
                         if let Ok(mut latest) = sec.folder_child_latest_seq.lock() {
                             latest.insert(folder_id.clone(), sequence);
                         }
@@ -31188,7 +31330,11 @@ impl HandshakeApp {
                                 }
                             }
                             tree.refresh_child_error_banner();
+                            tree.cabinet_child_terminal(epoch, sequence, Err("Folder children unavailable: runtime unavailable".to_owned()));
                         }
+                    }
+                    if !accepted {
+                        if let Ok(mut tree) = sec.folder_tree.lock() { tree.cabinet_fail_unstarted("Folder activation was superseded before dispatch".to_owned()); }
                     }
                     ctx.request_repaint();
                 }
@@ -31208,6 +31354,7 @@ impl HandshakeApp {
                             .folder_workspace_epoch
                             .load(std::sync::atomic::Ordering::Relaxed);
                         let sequence = next_async_sequence(&sec.folder_operation_seq);
+                        if let Ok(mut tree) = sec.folder_tree.lock() { if !tree.cabinet_bind_request(epoch, sequence) { continue; } }
                         if let Ok(mut latest) = sec.folder_recolor_latest_seq.lock() {
                             latest.insert((workspace.to_owned(), folder_id.clone()), sequence);
                         }
@@ -31244,6 +31391,7 @@ impl HandshakeApp {
                             .folder_workspace_epoch
                             .load(std::sync::atomic::Ordering::Relaxed);
                         let sequence = next_async_sequence(&sec.folder_operation_seq);
+                        if let Ok(mut tree) = sec.folder_tree.lock() { if !tree.cabinet_bind_request(epoch, sequence) { continue; } }
                         if let Ok(mut latest) = sec.folder_write_latest_seq.lock() {
                             latest.insert(
                                 (
@@ -31279,6 +31427,7 @@ impl HandshakeApp {
                             .folder_workspace_epoch
                             .load(std::sync::atomic::Ordering::Relaxed);
                         let sequence = next_async_sequence(&sec.folder_operation_seq);
+                        if let Ok(mut tree) = sec.folder_tree.lock() { if !tree.cabinet_bind_request(epoch, sequence) { continue; } }
                         if let Ok(mut latest) = sec.folder_write_latest_seq.lock() {
                             latest.insert(
                                 (workspace.to_owned(), "rename".to_owned(), folder_id.clone()),
@@ -31313,6 +31462,7 @@ impl HandshakeApp {
                             .folder_workspace_epoch
                             .load(std::sync::atomic::Ordering::Relaxed);
                         let sequence = next_async_sequence(&sec.folder_operation_seq);
+                        if let Ok(mut tree) = sec.folder_tree.lock() { if !tree.cabinet_bind_request(epoch, sequence) { continue; } }
                         if let Ok(mut latest) = sec.folder_write_latest_seq.lock() {
                             latest.insert(
                                 (workspace.to_owned(), "move".to_owned(), folder_id.clone()),
@@ -31344,6 +31494,7 @@ impl HandshakeApp {
                             .folder_workspace_epoch
                             .load(std::sync::atomic::Ordering::Relaxed);
                         let sequence = next_async_sequence(&sec.folder_operation_seq);
+                        if let Ok(mut tree) = sec.folder_tree.lock() { if !tree.cabinet_bind_request(epoch, sequence) { continue; } }
                         if let Ok(mut latest) = sec.folder_write_latest_seq.lock() {
                             latest.insert(
                                 (workspace.to_owned(), "delete".to_owned(), folder_id.clone()),
@@ -31391,7 +31542,10 @@ impl HandshakeApp {
             }
         }
         if let Some((pane_type, content_id)) = pending_open {
-            self.open_content_on_active_pane(pane_type, Some(content_id));
+            let folder_tree = Arc::clone(&sec.folder_tree);
+            if self.open_content_on_active_pane(pane_type, Some(content_id)) {
+                if let Ok(mut tree) = folder_tree.lock() { tree.cabinet_acknowledge_read(); }
+            }
             ctx.request_repaint();
         }
     }
@@ -35804,6 +35958,7 @@ impl HandshakeApp {
             } => {
                 self.rename_error = None;
                 self.pending_rename = Some(PendingRename {
+                    origin: ExplorerRenameOrigin::Loom,
                     target: ExplorerRenameTarget::LoomBlock {
                         block_id,
                         expected_updated_at: None,
@@ -37639,7 +37794,7 @@ impl HandshakeApp {
     /// Apply the active theme's palette to egui, but only when the theme changed since the
     /// last applied frame (CONTROL-1). Returns whether `apply_to_ctx` actually ran.
     fn apply_theme_if_changed(&mut self, ctx: &egui::Context) -> bool {
-        theme::egui_apply::apply_motion_preference(ctx, self.workspace_settings.reduce_motion);
+        motion_preference::apply_motion_preference(ctx, self.workspace_settings.reduce_motion);
         if self.last_applied_theme == Some(self.current_theme) {
             return false;
         }
@@ -37648,66 +37803,6 @@ impl HandshakeApp {
         theme::apply_to_ctx(&palette, ctx);
         self.last_applied_theme = Some(self.current_theme);
         true
-    }
-
-    /// Render the theme toggle as an egui button with a fixed `egui::Id` (value
-    /// `THEME_TOGGLE_NODE_ID`) so its `accesskit::NodeId` is stable for steering. We build
-    /// the interactive widget directly (rather than `ui.add(Button::new(..))`) because
-    /// `Button` does not expose an id override; this is a real egui interactive widget with
-    /// `Role::Button` + `Action::Click`, not a mock.
-    fn theme_toggle(&mut self, ui: &mut egui::Ui) {
-        let label = match self.current_theme {
-            HsTheme::Dark => "Light",
-            HsTheme::Light => "Dark",
-        };
-
-        // Fixed-value Id -> fixed AccessKit NodeId. A single low-entropy id is safe (entropy
-        // only affects IdMap distribution; one fixed widget cannot self-collide).
-        let id = unsafe { egui::Id::from_high_entropy_bits(THEME_TOGGLE_NODE_ID) };
-
-        let galley = ui.painter().layout_no_wrap(
-            label.to_owned(),
-            egui::FontId::proportional(14.0),
-            ui.visuals().text_color(),
-        );
-        let padding = ui.spacing().button_padding;
-        let desired = galley.size() + padding * 2.0;
-        let (_auto, rect) = ui.allocate_space(desired);
-        let response = ui.interact(rect, id, egui::Sense::click());
-
-        if ui.is_rect_visible(rect) {
-            let visuals = ui.style().interact(&response);
-            let hover = ui.ctx().animate_bool_responsive(id.with("hover-fill"), response.hovered());
-            let fill = if !ui.is_enabled() || response.is_pointer_button_down_on() || response.has_focus() {
-                visuals.bg_fill
-            } else {
-                ui.visuals().widgets.inactive.bg_fill.lerp_to_gamma(
-                    ui.visuals().widgets.hovered.bg_fill, hover,
-                )
-            };
-            ui.painter()
-                .rect_filled(rect, visuals.corner_radius, fill);
-            let text_pos = rect.center() - galley.size() * 0.5;
-            ui.painter().galley(text_pos, galley, visuals.text_color());
-        }
-
-        // Emit Role::Button + label + Action::Click into the AccessKit tree for this id.
-        response.widget_info(|| {
-            egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), label)
-        });
-
-        // Attach a stable author_id to the SAME live node egui builds from the widget_info above.
-        // `accesskit_node_builder` (via `emit_interactive_node`) only sets `author_id`, leaving the
-        // Role::Button + Action::Click + Action::Focus that egui derived from `widget_info`/`Sense`
-        // intact — so the toggle becomes addressable by `shell.chrome.theme-toggle` AND still passes
-        // the `assert_no_unnamed_interactive` gate (which flags clickable nodes without an author_id).
-        accessibility::emit_interactive_node(ui.ctx(), id, THEME_TOGGLE_AUTHOR_ID);
-
-        if response.clicked() {
-            self.current_theme = self.current_theme.toggled();
-            // Next frame's apply_theme_if_changed picks up the new palette.
-            ui.ctx().request_repaint();
-        }
     }
 
     /// Render the MT-012 module switcher in the header, returning the clicked module id (if a non-active
@@ -38231,7 +38326,7 @@ impl HandshakeApp {
             self.settings_detached_context.as_ref(),
             self.settings_effect_context.as_ref(),
         ].into_iter().flatten() {
-            theme::egui_apply::apply_motion_preference(motion_ctx, false);
+            motion_preference::apply_motion_preference(motion_ctx, false);
         }
         ctx.data_mut(|data| data.clear());
         let base = self.rich_doc_base_url.clone();
@@ -38771,7 +38866,17 @@ impl HandshakeApp {
                 ui.horizontal(|ui| {
                     self.title_identity(ui);
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        self.theme_toggle(ui);
+                        let label = match self.current_theme {
+                            HsTheme::Dark => "Light",
+                            HsTheme::Light => "Dark",
+                        };
+                        let id = unsafe { egui::Id::from_high_entropy_bits(THEME_TOGGLE_NODE_ID) };
+                        let response = motion_preference::theme_toggle(ui, id, label);
+                        accessibility::emit_interactive_node(ui.ctx(), response.id, THEME_TOGGLE_AUTHOR_ID);
+                        if response.clicked() {
+                            self.current_theme = self.current_theme.toggled();
+                            ui.ctx().request_repaint();
+                        }
                         ui.add_space(12.0);
                         self.module_switcher_ui(ui)
                     })
@@ -38924,6 +39029,19 @@ impl HandshakeApp {
         }
         // Drain any delivered async tree-load result before rendering this frame (non-blocking).
         self.left_rail.project_tree.poll();
+        let active_tree_resource = self.active_pane.as_ref()
+            .and_then(|pane| self.tab_bar_states.get(pane))
+            .and_then(|bar| bar.tabs.get(bar.active_index))
+            .and_then(|tab| tab.content_id.as_deref().and_then(|id| match &tab.pane_type {
+                PaneType::Workspace => Some((format!("rich-document:{id}"), None)),
+                PaneType::AtelierEditor => Some((format!("canvas:{id}"), None)),
+                PaneType::LoomBlock => Some((format!("loom-block:{id}"), Some(id.to_owned()))),
+                _ => None,
+            }));
+        self.left_rail.project_tree.cabinet_reveal_resource(active_tree_resource.as_ref().map(|(key, _)| key.as_str()));
+        if let Ok(mut tree) = self.editor_mounts.secondary.folder_tree.lock() {
+            tree.cabinet_reveal_resource(active_tree_resource.as_ref().and_then(|(_, id)| id.as_deref()));
+        }
 
         let rail_palette = self.current_theme.palette();
         let left_rail_colors = LeftRailColors {

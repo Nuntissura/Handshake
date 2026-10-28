@@ -235,6 +235,15 @@ pub enum FolderTreeEvent {
 /// initial-load state.
 #[derive(Debug, Clone, Default)]
 pub struct LoomFolderTree {
+    cabinet: cabinet_host::State,
+    cabinet_epoch: u64,
+    cabinet_scope: String,
+    cabinet_source_revision: u64,
+    cabinet_dirty: bool,
+    cabinet_folders: Vec<FolderRow>,
+    cabinet_hierarchy_complete: bool,
+    cabinet_active_resource: Option<String>,
+    cabinet_open_identity: Option<(String, u64)>,
     pub workspace_id: String,
     pub root_nodes: Vec<FolderNode>,
     /// True while the INITIAL `GET /loom/folders` is in flight (the top-level spinner). Bounded: the
@@ -250,8 +259,6 @@ pub struct LoomFolderTree {
     /// an operator/model can perceive it; a new mutation or explicit Retry clears it.
     pub operation_error: Option<String>,
     pub selected_folder_id: Option<String>,
-    create_draft: Option<(Option<String>, String)>,
-    rename_draft: Option<(String, String)>,
     /// Folder id, visible title, and the number of descendant folders the SurrealDB store will cascade.
     delete_draft: Option<(String, String, usize)>,
 }
@@ -268,6 +275,10 @@ impl LoomFolderTree {
     /// Install the built forest from a `GET /loom/folders` result (the host calls this when the initial
     /// fetch resolves), clearing loading/error.
     pub fn set_folders(&mut self, rows: &[FolderRow]) {
+        self.cabinet.canonical_refetch();
+        self.cabinet_hierarchy_complete = true;
+        self.cabinet_folders = rows.to_vec();
+        self.cabinet_source_revision = self.cabinet_source_revision.wrapping_add(1);
         self.root_nodes = build_tree(rows);
         if self
             .selected_folder_id
@@ -286,6 +297,7 @@ impl LoomFolderTree {
     pub fn find_folder_mut(&mut self, folder_id: &str) -> Option<&mut FolderNode> {
         for r in &mut self.root_nodes {
             if let Some(found) = r.find_mut(folder_id) {
+                self.cabinet_dirty = true;
                 return Some(found);
             }
         }
@@ -306,17 +318,154 @@ impl LoomFolderTree {
         self.root_nodes.iter().map(FolderNode::folder_count).sum()
     }
 
+    pub(crate) fn cabinet_bind_scope(&mut self, epoch: u64, account: Option<&crate::local_account::AuthenticatedContext>) {
+        let scope = match account {
+            Some(account) => format!("loom-folders:{:?}", [self.workspace_id.as_str(), account.account_id.as_str(), account.principal_id.as_str(), account.session_id.as_str(), account.access_space_id.as_str()]),
+            None => format!("loom-folders:unbound:{:?}", self.workspace_id),
+        };
+        if self.cabinet_epoch != epoch || self.cabinet_scope != scope {
+            self.cabinet = cabinet_host::State::default();
+            self.cabinet_active_resource = None;
+            self.cabinet_open_identity = None;
+            self.cabinet_epoch = epoch;
+            self.cabinet_scope = scope;
+        }
+    }
+
+    fn sync_cabinet(&mut self) -> Result<(), String> {
+        use cabinet::{ChildrenState, Entry, EntryKind};
+        let scope = if self.cabinet_scope.is_empty() { format!("loom-folders:unbound:{:?}", self.workspace_id) } else { self.cabinet_scope.clone() };
+        let legacy_projection = self.cabinet_folders.is_empty() && !self.root_nodes.is_empty();
+        if !legacy_projection && !self.cabinet_dirty && self.cabinet.source_is_current(&scope, self.cabinet_epoch, self.cabinet_source_revision) { return Ok(()); }
+        let mut imported_rows = Vec::new();
+        if legacy_projection {
+            fn import(nodes: &[FolderNode], parent: Option<&str>, rows: &mut Vec<FolderRow>) {
+                for node in nodes {
+                    rows.push(FolderRow::new(&node.folder_id, parent.map(str::to_owned), &node.title, node.color.map(color_to_hex)));
+                    import(&node.child_folders, Some(&node.folder_id), rows);
+                }
+            }
+            import(&self.root_nodes, None, &mut imported_rows);
+        }
+        let folders = if legacy_projection { imported_rows.as_slice() } else { self.cabinet_folders.as_slice() };
+        let mut entries = Vec::new();
+        for (index, row) in folders.iter().enumerate() {
+            let mut entry = Entry::new(folder_entry_id(&row.folder_id), row.parent_folder_id.as_deref().map(folder_entry_id), &row.name, EntryKind::Folder);
+            entry.resource_id = row.folder_id.clone();
+            entry.order = index as i64;
+            entry.color = row.color.as_deref().and_then(parse_hex_color).map(|c| [c.r(), c.g(), c.b()]);
+            entry.capabilities = cabinet_host::capabilities(true, true, true);
+            entry.children = ChildrenState::Unloaded;
+            entries.push(entry);
+        }
+        let folder_index: std::collections::HashMap<String, usize> = folders.iter().enumerate().map(|(index, row)| (row.folder_id.clone(), index)).collect();
+        fn append_members(nodes: &[FolderNode], entries: &mut Vec<Entry>, folder_index: &std::collections::HashMap<String, usize>) {
+            for node in nodes {
+                if let Some(folder) = folder_index.get(&node.folder_id).and_then(|index| entries.get_mut(*index)) {
+                    folder.label = node.title.clone();
+                    folder.color = node.color.map(|color| [color.r(), color.g(), color.b()]);
+                    folder.children = if node.child_blocks.is_some() { ChildrenState::Loaded } else if let Some(error) = &node.child_error { ChildrenState::Failed(error.clone()) } else { ChildrenState::Unloaded };
+                }
+                if let Some(blocks) = &node.child_blocks {
+                    for (index, block) in blocks.iter().enumerate() {
+                        let mut entry = Entry::new(member_entry_id(&node.folder_id, &block.block_id), Some(folder_entry_id(&node.folder_id)), &block.title, EntryKind::Leaf);
+                        entry.resource_id = block.block_id.clone();
+                        entry.order = index as i64;
+                        entry.capabilities = cabinet_host::capabilities(true, false, false);
+                        // Folder moves/deletion affect membership occurrences, never the underlying
+                        // Loom blocks. No independent leaf move/delete action is exposed.
+                        entry.capabilities.delete = true;
+                        entry.capabilities.move_entry = true;
+                        entries.push(entry);
+                    }
+                }
+                append_members(&node.child_folders, entries, folder_index);
+            }
+        }
+        append_members(&self.root_nodes, &mut entries, &folder_index);
+        let initial = self.cabinet.model().is_none();
+        self.cabinet.sync(scope, self.cabinet_epoch, self.cabinet_source_revision, entries, self.cabinet_hierarchy_complete && !legacy_projection)?;
+        self.cabinet_dirty = false;
+        if initial {
+            fn restore(nodes: &[FolderNode], state: &mut cabinet_host::State) {
+                for node in nodes {
+                    if node.expanded { let _ = state.projection_expand(&folder_entry_id(&node.folder_id), true); }
+                    restore(&node.child_folders, state);
+                }
+            }
+            restore(&self.root_nodes, &mut self.cabinet);
+            if let Some(id) = &self.selected_folder_id { let _ = self.cabinet.select(&folder_entry_id(id), cabinet::SelectionModifiers::default()); }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn cabinet_bind_request(&mut self, epoch: u64, sequence: u64) -> bool {
+        if let Err(error) = self.sync_cabinet() { self.cabinet.fail_unstarted(error); return false; }
+        self.cabinet.bind(epoch, sequence)
+    }
+
+    pub(crate) fn cabinet_accepts_open(&self, folder_id: &str, generation: u64) -> bool {
+        match self.cabinet.host_operation() {
+            None => true,
+            Some(cabinet::Operation::LoadChildren { id }) => id == &folder_entry_id(folder_id)
+                && self.cabinet_open_identity.as_ref().is_some_and(|(folder, action)| folder == folder_id && *action == generation),
+            _ => false,
+        }
+    }
+
+    pub(crate) fn cabinet_accepts_disclosure(&self, folder_id: &str) -> bool {
+        match self.cabinet.host_operation() {
+            None => true,
+            // The existing client fetches every canonical membership offset page in one host read.
+            // Cabinet's initial page intention therefore maps to that complete snapshot delivery.
+            Some(cabinet::Operation::LoadChildren { id } | cabinet::Operation::LoadPage { id, cursor: None }) => id == &folder_entry_id(folder_id) && self.cabinet_open_identity.is_none(),
+            _ => false,
+        }
+    }
+
+    pub(crate) fn cabinet_terminal(&mut self, epoch: u64, sequence: u64, result: Result<(), String>) -> bool {
+        if self.cabinet.terminal(epoch, sequence, result) {
+            self.cabinet_source_revision = self.cabinet_source_revision.wrapping_add(1);
+            return true;
+        }
+        false
+    }
+
+    pub(crate) fn cabinet_child_terminal(&mut self, epoch: u64, sequence: u64, result: Result<(), String>) {
+        if !matches!(self.cabinet.bound_operation(epoch, sequence), Some(cabinet::Operation::LoadChildren { .. } | cabinet::Operation::LoadPage { cursor: None, .. })) { return; }
+        if self.cabinet_terminal(epoch, sequence, result) { self.cabinet.canonical_refetch(); }
+    }
+
+    pub(crate) fn cabinet_acknowledge_read(&mut self) { self.cabinet.acknowledge_read(); }
+
+    pub(crate) fn cabinet_fail_unstarted(&mut self, error: String) {
+        self.cabinet.fail_unstarted(error.clone());
+        self.operation_error = Some(error);
+    }
+
+    pub(crate) fn cabinet_reveal_resource(&mut self, resource: Option<&str>) {
+        if resource == self.cabinet_active_resource.as_deref() { return; }
+        let Some(resource) = resource else { self.cabinet_active_resource = None; return; };
+        if self.sync_cabinet().is_err() { return; }
+        let id = self.cabinet.model().and_then(|model| model.snapshot().entries.iter().find(|entry| entry.kind == cabinet::EntryKind::Leaf && entry.resource_id == resource).map(|entry| entry.id.clone()));
+        if let Some(id) = id {
+            if self.cabinet.reveal(&id).is_ok() { self.cabinet_active_resource = Some(resource.to_owned()); }
+        }
+    }
+
     /// Render the tree and return the typed event (if any) this frame produced. The host applies the
     /// event (lazy fetch, recolor PATCH, open). Requests a repaint ONLY for a frame where a genuine
     /// child-load spinner is active (idle-repaint discipline).
     pub fn show(&mut self, ui: &mut egui::Ui, palette: &HsPalette) -> Option<FolderTreeEvent> {
         let mut event: Option<FolderTreeEvent> = None;
         self.refresh_child_error_banner();
+        if let Err(error) = self.sync_cabinet() { self.operation_error = Some(format!("Folder tree unavailable: {error}")); }
+        if let Some(error) = self.cabinet.last_error() { self.operation_error = Some(error.to_owned()); }
 
         let new_folder = ui.button("New folder");
         emit_button_accesskit(ui, new_folder.id, NEW_FOLDER_AUTHOR_ID, "New folder");
         if new_folder.clicked() {
-            self.create_draft = Some((None, String::new()));
+            self.cabinet.begin_create(None);
         }
 
         // ── Error banner (AC8) ─────────────────────────────────────────────────────────────────────
@@ -379,24 +528,43 @@ impl LoomFolderTree {
         }
         let mut folder_choices = Vec::new();
         collect_choices(&self.root_nodes, &mut folder_choices);
-        for i in 0..self.root_nodes.len() {
-            // SAFETY of borrow: render one root subtree at a time with a fresh mutable borrow.
-            let (ev, spin) = render_folder(
-                &mut self.root_nodes[i],
-                ui,
-                palette,
-                0,
-                &self.workspace_id,
-                self.selected_folder_id.as_deref(),
-                &mut self.create_draft,
-                &mut self.rename_draft,
-                &mut self.delete_draft,
-                &folder_choices,
-            );
-            if ev.is_some() {
-                event = ev;
+        let rows = self.cabinet.model().map(|model| model.projected_rows()).unwrap_or_else(|| std::sync::Arc::from([]));
+        for row in rows.iter() {
+            if row.depth > MAX_RENDER_DEPTH { continue; }
+            let entry = self.cabinet.model().and_then(|model| model.entry(&row.id)).cloned();
+            let Some(entry) = entry else { continue; };
+            if entry.kind == cabinet::EntryKind::Folder {
+                let node = self.root_nodes.iter_mut().find_map(|root| root.find_mut(&entry.resource_id));
+                if let Some(node) = node {
+                    let (ev, spin) = render_folder(node, ui, palette, row.depth, &self.workspace_id, self.selected_folder_id.as_deref(), &mut self.cabinet, &mut self.delete_draft, &folder_choices);
+                    if ev.is_some() { event = ev; }
+                    any_spinner |= spin;
+                }
+            } else if let Some(parent) = entry.parent.as_deref().and_then(|id| id.strip_prefix("folder:")) {
+                let node = self.root_nodes.iter_mut().find_map(|root| root.find_mut(parent));
+                if let Some(node) = node {
+                    let leaf = node.child_blocks.as_ref().and_then(|blocks| blocks.iter().find(|block| block.block_id == entry.resource_id)).cloned();
+                    if let Some(leaf) = leaf {
+                        let (ev, response) = render_leaf(&leaf, ui, palette, row.depth);
+                        self.cabinet.row_navigation(ui, &response, &entry.id);
+                        if node.take_reveal_children_once() { response.scroll_to_me(None); }
+                        if let Some(ev) = ev {
+                            if self.cabinet.select_for_open(ui, &response, &entry.id) && self.cabinet.request(cabinet::Operation::Open { id: entry.id }).is_ok() { event = Some(ev); }
+                        }
+                    }
+                }
             }
-            any_spinner |= spin;
+        }
+        for (id, expanded) in self.cabinet.take_navigation_changes() {
+            let Some(folder_id) = id.strip_prefix("folder:") else { continue; };
+            let Some(node) = self.root_nodes.iter_mut().find_map(|root| root.find_mut(folder_id)) else { continue; };
+            node.expanded = expanded;
+            if expanded && node.child_blocks.is_none() {
+                event = Some(FolderTreeEvent::ExpandFolder { folder_id: folder_id.to_owned() });
+            } else if !expanded {
+                node.collapse();
+                event = Some(FolderTreeEvent::CollapseFolder { folder_id: folder_id.to_owned() });
+            }
         }
         if any_spinner {
             // A child-load spinner is genuinely active this frame; advance it (bounded — host clears the
@@ -404,97 +572,15 @@ impl LoomFolderTree {
             ui.ctx().request_repaint();
         }
 
-        if let Some((parent_folder_id, draft)) = &mut self.create_draft {
-            let mut close = false;
-            egui::Window::new("Create folder")
-                .collapsible(false)
-                .resizable(false)
-                .show(ui.ctx(), |ui| {
-                    let name_input =
-                        ui.add(egui::TextEdit::singleline(draft).hint_text("Folder name"));
-                    set_accessible_text_input(
-                        ui,
-                        name_input.id,
-                        CREATE_NAME_INPUT_AUTHOR_ID,
-                        "Folder name",
-                    );
-                    ui.horizontal(|ui| {
-                        let submit =
-                            ui.add_enabled(!draft.trim().is_empty(), egui::Button::new("Create"));
-                        emit_button_accesskit(
-                            ui,
-                            submit.id,
-                            CREATE_SUBMIT_AUTHOR_ID,
-                            "Create folder",
-                        );
-                        if submit.clicked() {
-                            event = Some(FolderTreeEvent::CreateFolder {
-                                parent_folder_id: parent_folder_id.clone(),
-                                name: draft.trim().to_owned(),
-                            });
-                            close = true;
-                        }
-                        let cancel = ui.button("Cancel");
-                        emit_button_accesskit(
-                            ui,
-                            cancel.id,
-                            CREATE_CANCEL_AUTHOR_ID,
-                            "Cancel create folder",
-                        );
-                        if cancel.clicked() {
-                            close = true;
-                        }
-                    });
-                });
-            if close {
-                self.create_draft = None;
-            }
-        }
-        if let Some((folder_id, draft)) = &mut self.rename_draft {
-            let mut close = false;
-            egui::Window::new("Rename folder")
-                .collapsible(false)
-                .resizable(false)
-                .show(ui.ctx(), |ui| {
-                    let name_input =
-                        ui.add(egui::TextEdit::singleline(draft).hint_text("Folder name"));
-                    set_accessible_text_input(
-                        ui,
-                        name_input.id,
-                        RENAME_NAME_INPUT_AUTHOR_ID,
-                        "Folder name",
-                    );
-                    ui.horizontal(|ui| {
-                        let submit =
-                            ui.add_enabled(!draft.trim().is_empty(), egui::Button::new("Rename"));
-                        emit_button_accesskit(
-                            ui,
-                            submit.id,
-                            RENAME_SUBMIT_AUTHOR_ID,
-                            "Rename folder",
-                        );
-                        if submit.clicked() {
-                            event = Some(FolderTreeEvent::RenameFolder {
-                                folder_id: folder_id.clone(),
-                                name: draft.trim().to_owned(),
-                            });
-                            close = true;
-                        }
-                        let cancel = ui.button("Cancel");
-                        emit_button_accesskit(
-                            ui,
-                            cancel.id,
-                            RENAME_CANCEL_AUTHOR_ID,
-                            "Cancel rename folder",
-                        );
-                        if cancel.clicked() {
-                            close = true;
-                        }
-                    });
-                });
-            if close {
-                self.rename_draft = None;
-            }
+        if let Some(request) = render_cabinet_edit(ui, &mut self.cabinet) {
+            event = match request.operation {
+                cabinet::Operation::Create { parent, name, .. } => Some(FolderTreeEvent::CreateFolder {
+                    parent_folder_id: parent.and_then(|id| id.strip_prefix("folder:").map(str::to_owned)),
+                    name,
+                }),
+                cabinet::Operation::Rename { id, name } => id.strip_prefix("folder:").map(|id| FolderTreeEvent::RenameFolder { folder_id: id.to_owned(), name }),
+                _ => None,
+            };
         }
         if let Some((folder_id, title, descendant_count)) = self.delete_draft.clone() {
             let mut close = false;
@@ -522,10 +608,10 @@ impl LoomFolderTree {
                             "Confirm delete folder",
                         );
                         if confirm.clicked() {
-                            event = Some(FolderTreeEvent::DeleteFolder {
-                                folder_id: folder_id.clone(),
-                            });
-                            close = true;
+                            if self.cabinet.request(cabinet::Operation::Delete { ids: vec![folder_entry_id(&folder_id)] }).is_ok() {
+                                event = Some(FolderTreeEvent::DeleteFolder { folder_id: folder_id.clone() });
+                                close = true;
+                            }
                         }
                         let cancel = ui.button("Cancel");
                         emit_button_accesskit(
@@ -546,9 +632,52 @@ impl LoomFolderTree {
         if let Some(FolderTreeEvent::OpenFolder { folder_id, .. }) = &event {
             self.selected_folder_id = Some(folder_id.clone());
         }
+        match &event {
+            Some(FolderTreeEvent::OpenFolder { folder_id, action_generation }) => self.cabinet_open_identity = Some((folder_id.clone(), *action_generation)),
+            Some(_) => self.cabinet_open_identity = None,
+            None => {}
+        }
 
         event
     }
+}
+
+fn folder_entry_id(id: &str) -> String { format!("folder:{id}") }
+
+fn member_entry_id(folder: &str, block: &str) -> String {
+    format!("member:{}:{folder}{block}", folder.len())
+}
+
+fn render_cabinet_edit(ui: &egui::Ui, state: &mut cabinet_host::State) -> Option<cabinet::Request> {
+    use cabinet::interaction::Edit;
+    let (title, input_id, submit_id, cancel_id, submit_label) = match state.edit()? {
+        Edit::Create { .. } => ("Create folder", CREATE_NAME_INPUT_AUTHOR_ID, CREATE_SUBMIT_AUTHOR_ID, CREATE_CANCEL_AUTHOR_ID, "Create"),
+        Edit::Rename { .. } => ("Rename folder", RENAME_NAME_INPUT_AUTHOR_ID, RENAME_SUBMIT_AUTHOR_ID, RENAME_CANCEL_AUTHOR_ID, "Rename"),
+    };
+    let mut submit = false;
+    let mut cancel = false;
+    egui::Window::new(title).collapsible(false).resizable(false).show(ui.ctx(), |ui| {
+        let input = ui.add(egui::TextEdit::singleline(state.edit_text_mut()).hint_text("Folder name"));
+        set_accessible_text_input(ui, input.id, input_id, "Folder name");
+        submit |= input.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+        cancel |= ui.input(|i| i.key_pressed(egui::Key::Escape));
+        ui.horizontal(|ui| {
+            let button = ui.add_enabled(!state.edit_text().trim().is_empty(), egui::Button::new(submit_label));
+            emit_button_accesskit(ui, button.id, submit_id, title);
+            submit |= button.clicked();
+            let button = ui.button("Cancel");
+            emit_button_accesskit(ui, button.id, cancel_id, "Cancel folder edit");
+            cancel |= button.clicked();
+        });
+    });
+    if cancel { state.cancel_edit(); return None; }
+    if submit {
+        return match state.submit_edit() {
+            Ok(request) => request,
+            Err(error) => { state.set_error(error); None }
+        };
+    }
+    None
 }
 
 fn set_accessible_text_input(ui: &egui::Ui, id: egui::Id, author_id: &str, label: &str) {
@@ -571,11 +700,12 @@ fn render_folder(
     depth: usize,
     workspace_id: &str,
     selected_folder_id: Option<&str>,
-    create_draft: &mut Option<(Option<String>, String)>,
-    rename_draft: &mut Option<(String, String)>,
+    cabinet: &mut cabinet_host::State,
     delete_draft: &mut Option<(String, String, usize)>,
     folder_choices: &[(String, String)],
 ) -> (Option<FolderTreeEvent>, bool) {
+    let entry_id = folder_entry_id(&node.folder_id);
+    node.expanded = cabinet.model().is_some_and(|model| model.expanded(&entry_id));
     if depth >= MAX_RENDER_DEPTH {
         ui.horizontal(|ui| {
             ui.add_space(INDENT_PER_LEVEL * depth as f32);
@@ -593,7 +723,7 @@ fn render_folder(
 
         // Disclosure triangle (▸ collapsed / ▾ expanded). Clicking toggles expand/collapse.
         let tri = if node.expanded { "▾" } else { "▸" };
-        let tri_resp = ui.add(egui::Label::new(tri).sense(Sense::click()));
+        let tri_resp = ui.add_enabled(cabinet.navigation_available(), egui::Label::new(tri).sense(Sense::click()));
 
         // Color swatch (12x12 rect) painted with the folder color or the neutral theme token. The swatch
         // is an addressable Button and opens the same explicitly controlled picker as the context menu.
@@ -621,10 +751,8 @@ fn render_folder(
         );
 
         // The folder label (clicking it opens/navigates; the row id is the addressable TreeItem).
-        let label_resp = ui.selectable_label(
-            selected_folder_id == Some(node.folder_id.as_str()),
-            &node.title,
-        );
+        let selected = cabinet.model().is_some_and(|model| model.is_selected(&entry_id));
+        let label_resp = ui.add_enabled_ui(cabinet.navigation_available(), |ui| ui.selectable_label(selected, &node.title)).inner;
 
         // Inline child-load spinner while a genuine fetch is in flight (AC2 / no-perpetual-spinner rule).
         if node.loading {
@@ -635,9 +763,11 @@ fn render_folder(
         (tri_resp, sw_resp, label_resp)
     });
     let (tri_resp, sw_resp, label_resp) = row.inner;
+    cabinet.row_navigation(ui, &label_resp, &entry_id);
 
     let label_clicked = label_resp.clicked();
-    let open_action_generation = if label_clicked {
+    let open_action_generation = if label_clicked && cabinet.select_for_open(ui, &label_resp, &entry_id) && cabinet.load_children_and_expand(&entry_id).is_ok() {
+        label_resp.request_focus();
         // Apply the causal generation in the same frame that consumes the AccessKit Click. The host
         // owns the real child fetch and binds this exact generation to its request sequence.
         Some(node.begin_open_action())
@@ -670,6 +800,7 @@ fn render_folder(
         true,
         completion_value,
     );
+    ui.ctx().accesskit_node_builder(label_resp.id, |item| item.set_disabled(!cabinet.navigation_available()));
     emit_folder_status_accesskit(
         ui,
         label_resp.id.with("status"),
@@ -691,19 +822,19 @@ fn render_folder(
             open_row_picker = true;
         }
         if ui.button("New subfolder").clicked() {
-            *create_draft = Some((Some(node.folder_id.clone()), String::new()));
+            cabinet.begin_create(Some(entry_id.clone()));
             ui.close();
         }
         if ui.button("Rename").clicked() {
-            *rename_draft = Some((node.folder_id.clone(), node.title.clone()));
+            let _ = cabinet.begin_rename(entry_id.clone(), None);
             ui.close();
         }
         if ui.button("Move to root").clicked() {
-            event = Some(FolderTreeEvent::MoveFolder {
+            if cabinet.request(cabinet::Operation::Move { ids: vec![entry_id.clone()], placement: cabinet::Placement::Into(None) }).is_ok() { event = Some(FolderTreeEvent::MoveFolder {
                 folder_id: node.folder_id.clone(),
                 parent_folder_id: None,
                 sort_order: None,
-            });
+            }); }
             ui.close();
         }
         let move_under = ui.menu_button("Move under", |ui| {
@@ -711,7 +842,8 @@ fn render_folder(
                 if target_id == &node.folder_id {
                     continue;
                 }
-                let target = ui.button(target_title);
+                let valid = cabinet.model().is_some_and(|model| model.validate_move(&[entry_id.clone()], &cabinet::Placement::Into(Some(folder_entry_id(target_id)))).is_ok());
+                let target = ui.add_enabled(valid, egui::Button::new(target_title));
                 emit_button_accesskit(
                     ui,
                     target.id,
@@ -719,11 +851,11 @@ fn render_folder(
                     &format!("Move {} under {}", node.title, target_title),
                 );
                 if target.clicked() {
-                    event = Some(FolderTreeEvent::MoveFolder {
+                    if cabinet.request(cabinet::Operation::Move { ids: vec![entry_id.clone()], placement: cabinet::Placement::Into(Some(folder_entry_id(target_id))) }).is_ok() { event = Some(FolderTreeEvent::MoveFolder {
                         folder_id: node.folder_id.clone(),
                         parent_folder_id: Some(target_id.clone()),
                         sort_order: None,
-                    });
+                    }); }
                     ui.close();
                 }
             }
@@ -748,10 +880,10 @@ fn render_folder(
         ui.ctx().request_repaint();
     }
     if let Some(picked) = color_picker_popup_for_id(row_picker_id, &label_resp, current_color) {
-        event = Some(FolderTreeEvent::ChangeColor {
+        if cabinet.request(cabinet::Operation::SetColor { id: entry_id.clone(), color: Some([picked.r(), picked.g(), picked.b()]) }).is_ok() { event = Some(FolderTreeEvent::ChangeColor {
             folder_id: node.folder_id.clone(),
             color: picked,
-        });
+        }); }
     }
 
     // ── Disclosure / label clicks ────────────────────────────────────────────────────────────────────
@@ -771,7 +903,8 @@ fn render_folder(
         None
     };
     if let Some(expanded) = requested_expanded {
-        node.expanded = expanded;
+        let accepted = cabinet.expand(&entry_id, expanded).is_ok();
+        if accepted { node.expanded = expanded;
         if node.expanded {
             // First expand with no cached blocks => host should lazy-fetch (AC2). Re-expanding a folder
             // whose blocks are already cached does NOT re-fetch (the lazy-load caching rule).
@@ -785,7 +918,7 @@ fn render_folder(
             event = Some(FolderTreeEvent::CollapseFolder {
                 folder_id: node.folder_id.clone(),
             });
-        }
+        } }
     }
     if let Some(action_generation) = open_action_generation {
         event = Some(FolderTreeEvent::OpenFolder {
@@ -794,54 +927,13 @@ fn render_folder(
         });
     }
 
-    // ── Children (only when expanded) ────────────────────────────────────────────────────────────────
-    if node.expanded {
-        // Child folders first (the structural tree), then leaf blocks (the lazy membership).
-        for child in &mut node.child_folders {
-            let (ev, spin) = render_folder(
-                child,
-                ui,
-                palette,
-                depth + 1,
-                workspace_id,
-                selected_folder_id,
-                create_draft,
-                rename_draft,
-                delete_draft,
-                folder_choices,
-            );
-            if ev.is_some() {
-                event = ev;
-            }
-            spinner_active |= spin;
-        }
-        let mut reveal_children = node.child_blocks.is_some() && node.take_reveal_children_once();
-        if let Some(blocks) = &node.child_blocks {
-            if blocks.is_empty() {
-                let empty = ui.horizontal(|ui| {
-                    ui.add_space(
-                        INDENT_PER_LEVEL * (depth + 1) as f32 + LEAF_PARENT_CHROME_RESERVE,
-                    );
-                    ui.weak("(empty)");
-                });
-                if reveal_children {
-                    empty.response.scroll_to_me(None);
-                    reveal_children = false;
-                }
-            }
-            for leaf in blocks {
-                let (leaf_event, leaf_response) = render_leaf(leaf, ui, palette, depth + 1);
-                if reveal_children {
-                    leaf_response.scroll_to_me(None);
-                    reveal_children = false;
-                }
-                if let Some(ev) = leaf_event {
-                    event = Some(ev);
-                }
-            }
-        }
+    if node.expanded && node.child_blocks.as_ref().is_some_and(Vec::is_empty) {
+        let empty = ui.horizontal(|ui| {
+            ui.add_space(INDENT_PER_LEVEL * (depth + 1) as f32 + LEAF_PARENT_CHROME_RESERVE);
+            ui.weak("(empty)");
+        });
+        if node.take_reveal_children_once() { empty.response.scroll_to_me(None); }
     }
-
     (event, spinner_active)
 }
 
@@ -1038,6 +1130,151 @@ fn emit_folder_status_accesskit(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cabinet_loom_occurrences_preserve_lazy_membership_and_actual_row_activation() {
+        use egui_kittest::{kittest::NodeT, Harness};
+        use std::sync::{Arc, Mutex};
+        let mut tree = LoomFolderTree::new("workspace-one");
+        tree.cabinet_bind_scope(3, None);
+        tree.set_folders(&rows_fixture());
+        tree.find_folder_mut("folder-001").unwrap().child_blocks = Some(vec![LeafBlock::new("B-1", "Member", "note")]);
+        tree.find_folder_mut("folder-001").unwrap().expanded = true;
+        tree.find_folder_mut("folder-002").unwrap().child_blocks = Some(vec![LeafBlock::new("B-1", "Member", "note")]);
+        tree.sync_cabinet().unwrap();
+        let model = tree.cabinet.model().unwrap();
+        assert_ne!(member_entry_id("folder-001", "B-1"), member_entry_id("folder-002", "B-1"));
+        assert_eq!(model.entry(&member_entry_id("folder-001", "B-1")).unwrap().resource_id, "B-1");
+        assert_eq!(model.entry(&member_entry_id("folder-002", "B-1")).unwrap().resource_id, "B-1");
+        assert_eq!(model.entry(&folder_entry_id("folder-003")).unwrap().children, cabinet::ChildrenState::Unloaded);
+        assert!(model.snapshot().hierarchy_complete);
+        assert!(model.validate_move(&[folder_entry_id("folder-001")], &cabinet::Placement::Into(Some(folder_entry_id("folder-002")))).is_ok());
+
+        let tree = Arc::new(Mutex::new(tree));
+        let event = Arc::new(Mutex::new(None));
+        let ui_tree = Arc::clone(&tree);
+        let ui_event = Arc::clone(&event);
+        let mut harness = Harness::builder().with_size(egui::vec2(500.0, 600.0)).build_ui(move |ui| {
+            if let Some(next) = ui_tree.lock().unwrap().show(ui, &crate::theme::HsTheme::Dark.palette()) {
+                *ui_event.lock().unwrap() = Some(next);
+            }
+        });
+        harness.step();
+        let author = node_author_id("folder-001");
+        let target = harness.root().children_recursive().find_map(|node| {
+            let node = node.accesskit_node();
+            (node.author_id() == Some(author.as_str())).then(|| node.id())
+        }).expect("the existing folder target remains mounted");
+        harness.event(egui::Event::AccessKitActionRequest(egui::accesskit::ActionRequest { action: egui::accesskit::Action::Click, target, data: None }));
+        harness.step();
+        assert!(matches!(&*event.lock().unwrap(), Some(FolderTreeEvent::OpenFolder { folder_id, .. }) if folder_id == "folder-001"));
+        let mut tree = tree.lock().unwrap();
+        assert_eq!(tree.selected_folder_id.as_deref(), Some("folder-001"));
+        assert!(matches!(tree.cabinet.model().unwrap().pending().unwrap().operation, cabinet::Operation::LoadChildren { .. }));
+        tree.cabinet_bind_request(3, 51);
+        tree.cabinet_child_terminal(3, 50, Ok(()));
+        assert!(tree.cabinet.model().unwrap().pending().is_some());
+        tree.cabinet_child_terminal(3, 51, Err("denied".to_owned()));
+        assert_eq!(tree.find_folder_mut("folder-001").unwrap().child_blocks.as_ref().unwrap()[0].block_id, "B-1");
+        tree.cabinet_bind_scope(4, None);
+        assert!(tree.cabinet.model().is_none());
+    }
+
+    #[test]
+    fn cabinet_reexpand_during_owned_read_releases_only_unstarted_intent() {
+        let mut tree = LoomFolderTree::new("workspace-one");
+        tree.cabinet_bind_scope(3, None);
+        tree.set_folders(&rows_fixture());
+        tree.sync_cabinet().unwrap();
+        let id = folder_entry_id("folder-001");
+        tree.cabinet.request(cabinet::Operation::LoadChildren { id: id.clone() }).unwrap();
+        let generation = tree.find_folder_mut("folder-001").unwrap().begin_open_action();
+        assert!(tree.find_folder_mut("folder-001").unwrap().bind_open_request(generation, 51));
+        assert!(tree.cabinet_bind_request(3, 51));
+        tree.cabinet.expand(&id, false).unwrap();
+        tree.find_folder_mut("folder-001").unwrap().collapse();
+        tree.cabinet.expand(&id, true).unwrap();
+        assert!(tree.cabinet_accepts_disclosure("folder-001"));
+        assert!(matches!(tree.cabinet.host_operation(), Some(cabinet::Operation::LoadPage { cursor: None, .. })));
+        assert!(tree.find_folder_mut("folder-001").unwrap().loading);
+        // The host starts no second read while the exact first read is still owned by its node.
+        tree.cabinet_fail_unstarted("No additional read started while a folder read is pending".to_owned());
+        assert!(tree.cabinet.host_operation().is_none());
+        assert!(tree.cabinet.navigation_available());
+        let node = tree.find_folder_mut("folder-001").unwrap();
+        assert!(!node.complete_child_request(52));
+        assert!(node.complete_child_request(51));
+        node.child_blocks = Some(vec![LeafBlock::new("B-1", "Arrived", "note")]);
+        tree.cabinet_child_terminal(3, 51, Ok(()));
+        tree.sync_cabinet().unwrap();
+        assert_eq!(tree.cabinet.model().unwrap().entry(&member_entry_id("folder-001", "B-1")).unwrap().label, "Arrived");
+    }
+
+    #[test]
+    fn cabinet_stale_child_cannot_reconcile_a_write_before_folder_list_refetch() {
+        let mut tree = LoomFolderTree::new("workspace-one");
+        tree.cabinet_bind_scope(3, None);
+        let mut rows = rows_fixture();
+        tree.set_folders(&rows);
+        tree.sync_cabinet().unwrap();
+        tree.cabinet.request(cabinet::Operation::SetColor { id: folder_entry_id("folder-001"), color: Some([0, 0, 255]) }).unwrap();
+        assert!(tree.cabinet_bind_request(3, 81));
+        assert!(tree.cabinet_terminal(3, 81, Ok(())));
+        tree.cabinet_child_terminal(3, 80, Ok(()));
+        tree.cabinet_child_terminal(2, 81, Ok(()));
+        tree.cabinet_child_terminal(3, 81, Ok(()));
+        tree.sync_cabinet().unwrap();
+        assert!(!tree.cabinet.navigation_available());
+        assert_eq!(tree.cabinet.model().unwrap().entry(&folder_entry_id("folder-001")).unwrap().color, Some([255, 0, 0]));
+        rows[0].color = Some("#0000ff".to_owned());
+        tree.set_folders(&rows);
+        tree.sync_cabinet().unwrap();
+        assert!(tree.cabinet.navigation_available());
+        assert_eq!(tree.cabinet.model().unwrap().entry(&folder_entry_id("folder-001")).unwrap().color, Some([0, 0, 255]));
+    }
+
+    #[test]
+    fn cabinet_keyboard_right_emits_real_host_lazy_expansion() {
+        use egui_kittest::{kittest::NodeT, Harness};
+        use std::sync::{Arc, Mutex};
+        let mut tree = LoomFolderTree::new("workspace-one");
+        tree.cabinet_bind_scope(3, None);
+        tree.set_folders(&rows_fixture());
+        let tree = Arc::new(Mutex::new(tree));
+        let event = Arc::new(Mutex::new(None));
+        let ui_tree = Arc::clone(&tree);
+        let ui_event = Arc::clone(&event);
+        let mut harness = Harness::builder().with_size(egui::vec2(500.0, 600.0)).build_ui(move |ui| {
+            if let Some(next) = ui_tree.lock().unwrap().show(ui, &crate::theme::HsTheme::Dark.palette()) {
+                *ui_event.lock().unwrap() = Some(next);
+            }
+        });
+        harness.step();
+        let author = node_author_id("folder-001");
+        let target = harness.root().children_recursive().find_map(|node| {
+            let node = node.accesskit_node();
+            (node.author_id() == Some(author.as_str())).then(|| node.id())
+        }).expect("the actual collapsed folder row is mounted");
+        harness.event(egui::Event::AccessKitActionRequest(egui::accesskit::ActionRequest { action: egui::accesskit::Action::Focus, target, data: None }));
+        harness.step();
+        harness.event(egui::Event::Key { key: egui::Key::ArrowRight, physical_key: None, pressed: true, repeat: false, modifiers: egui::Modifiers::NONE });
+        harness.step();
+        assert!(matches!(&*event.lock().unwrap(), Some(FolderTreeEvent::ExpandFolder { folder_id }) if folder_id == "folder-001"));
+        let mut tree = tree.lock().unwrap();
+        assert!(tree.cabinet_accepts_disclosure("folder-001"));
+        assert!(tree.cabinet.model().unwrap().expanded(&folder_entry_id("folder-001")));
+        assert!(matches!(tree.cabinet.host_operation(), Some(cabinet::Operation::LoadPage { id, cursor: None }) if id == &folder_entry_id("folder-001")));
+        tree.find_folder_mut("folder-001").unwrap().bind_disclosure_request(91);
+        assert!(tree.cabinet_bind_request(3, 91));
+        let node = tree.find_folder_mut("folder-001").unwrap();
+        assert!(node.complete_child_request(91));
+        node.child_blocks = Some(vec![LeafBlock::new("B-1", "Canonical member", "note")]);
+        tree.cabinet_child_terminal(3, 91, Ok(()));
+        tree.sync_cabinet().unwrap();
+        assert!(tree.cabinet.host_operation().is_none());
+        assert!(tree.cabinet.model().unwrap().pending().is_none());
+        assert_eq!(tree.cabinet.model().unwrap().entry(&member_entry_id("folder-001", "B-1")).unwrap().label, "Canonical member");
+    }
 
     /// A flat folder-row fixture: 2 roots, one with a nested child, colors mixed.
     fn rows_fixture() -> Vec<FolderRow> {

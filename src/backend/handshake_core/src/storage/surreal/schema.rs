@@ -12033,6 +12033,46 @@ mod tests {
 
     #[tokio::test]
     async fn mt139_current_schema_info_pin_matches_fresh_mem_catalog() {
+        async fn observe_catalog(database: &SurrealAdminContext<'_>, stage: &'static str) -> Result<ObservedSchema, SurrealStorageError> {
+            let observed = if stage == "BASE" { inspect_schema(database).await? } else { read_schema_catalog(database).await? };
+            let mut db_response = database.query("INFO FOR DB STRUCTURE;").await?;
+            let db_info: SurrealValueData = db_response.take(0)?;
+            eprintln!("MT139_SCHEMA_RAW_INFO {}", serde_json::json!({
+                "schema": "handshake.schema_info_measurement_raw@1", "stage": stage,
+                "scope": "database", "engine_value": &db_info
+            }));
+            let query = observed.table_names.iter()
+                .map(|table| format!("INFO FOR TABLE `{table}` STRUCTURE;"))
+                .collect::<String>();
+            let mut table_responses = database.query(query).await?;
+            let mut tables = BTreeMap::new();
+            for (index, table) in observed.table_names.iter().enumerate() {
+                let info: SurrealValueData = table_responses.take(index)?;
+                eprintln!("MT139_SCHEMA_RAW_INFO {}", serde_json::json!({
+                    "schema": "handshake.schema_info_measurement_raw@1", "stage": stage,
+                    "scope": "table", "table": table, "engine_value": &info
+                }));
+                tables.insert(table.clone(), info);
+            }
+            let raw_fingerprint = canonical_catalog_fingerprint(db_info, tables);
+            if raw_fingerprint != observed.info_fingerprint_sha256 {
+                return Err(SurrealStorageError::TransactionWorker(format!(
+                    "MT139_MEASUREMENT_CATALOG_CHANGED: stage={stage}; observed={}; raw={raw_fingerprint}",
+                    observed.info_fingerprint_sha256)));
+            }
+            eprintln!("MT139_SCHEMA_OBSERVATION {}", serde_json::json!({
+                "schema": "handshake.schema_info_measurement@1", "stage": stage,
+                "schema_version": SCHEMA_VERSION, "schema_revision": SCHEMA_REVISION,
+                "info_sha256": observed.info_fingerprint_sha256,
+                "tables": observed.tables_defined, "fields": observed.fields_defined,
+                "indexes": observed.indexes_defined,
+                "base_generated_sha256": compute_generated_surql_sha256(),
+                "production_source_sha256": production_source_sha256(),
+                "production_catalog_sha256": production_catalog_sha256()?,
+                "qualification": "unqualified_engine_observation"
+            }));
+            Ok(observed)
+        }
         let client = Surreal::new::<Mem>(()).await.expect("open memory store");
         client
             .use_ns(DEFAULT_NAMESPACE)
@@ -12040,43 +12080,45 @@ mod tests {
             .await
             .expect("select memory context");
         let database = SurrealAdminContext { client: &client, config: SurrealStorageConfig::for_data_dir(std::env::temp_dir()).expect("default memory catalog context") };
+        let script = fresh_bootstrap_script(SCHEMA).expect("exact production fresh-bootstrap ordering");
         let schema_result: Result<(), SurrealStorageError> = async {
-            let mut response = database.client.query(SCHEMA)
-                .bind(SurrealValue::into_value(BootstrapBindings {
-                    schema_version: SCHEMA_VERSION.to_owned(),
-                    schema_revision: SCHEMA_REVISION,
-                    namespace: DEFAULT_NAMESPACE.to_owned(),
-                    database: DEFAULT_DATABASE.to_owned(),
-                    source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
-                    generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
-                }))
-                .await?;
-            let mut errors = response.take_errors().into_iter().collect::<Vec<_>>();
-            errors.sort_by_key(|(index, _)| *index);
-            let first_error = errors.first().map(|(_, error)| error.clone());
-            let masked = errors.iter().filter(|(_, error)| matches!(
-                error.query_details(), Some(surrealdb::types::QueryError::NotExecuted | surrealdb::types::QueryError::Cancelled)
-            )).count();
-            eprintln!("MT139_SCHEMA_STATEMENT_ERROR_COUNTS total={} masked={masked}", errors.len());
-            for (index, error) in errors.iter().filter(|(_, error)| !matches!(
-                error.query_details(), Some(surrealdb::types::QueryError::NotExecuted | surrealdb::types::QueryError::Cancelled)
-            )) {
-                eprintln!("MT139_SCHEMA_STATEMENT_ERROR index={index} error={error:?}");
-            }
-            if masked == errors.len() {
-                if let Some((index, error)) = errors.first() {
-                    eprintln!("MT139_SCHEMA_FIRST_MASKED_ERROR index={index} error={error:?}");
+            for (phase, statement) in [("definitions", script.definitions), ("indexes_and_rest", script.indexes_and_rest)] {
+                let mut response = database.client.query(statement)
+                    .bind(SurrealValue::into_value(BootstrapBindings {
+                        schema_version: SCHEMA_VERSION.to_owned(),
+                        schema_revision: SCHEMA_REVISION,
+                        namespace: DEFAULT_NAMESPACE.to_owned(),
+                        database: DEFAULT_DATABASE.to_owned(),
+                        source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                        generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
+                    }))
+                    .await?;
+                let mut errors = response.take_errors().into_iter().collect::<Vec<_>>();
+                errors.sort_by_key(|(index, _)| *index);
+                let first_error = errors.first().map(|(_, error)| error.clone());
+                let masked = errors.iter().filter(|(_, error)| matches!(
+                    error.query_details(), Some(surrealdb::types::QueryError::NotExecuted | surrealdb::types::QueryError::Cancelled)
+                )).count();
+                eprintln!("MT139_SCHEMA_STATEMENT_ERROR_COUNTS phase={phase} total={} masked={masked}", errors.len());
+                for (index, error) in errors.iter().filter(|(_, error)| !matches!(
+                    error.query_details(), Some(surrealdb::types::QueryError::NotExecuted | surrealdb::types::QueryError::Cancelled)
+                )) {
+                    eprintln!("MT139_SCHEMA_STATEMENT_ERROR phase={phase} index={index} error={error:?}");
                 }
+                if masked == errors.len() {
+                    if let Some((index, error)) = errors.first() {
+                        eprintln!("MT139_SCHEMA_FIRST_MASKED_ERROR phase={phase} index={index} error={error:?}");
+                    }
+                }
+                // take_errors removes failures; retain the original first-error outcome.
+                if let Some(error) = first_error { return Err(error.into()); }
+                response.check()?;
             }
-            // take_errors removes failures; retain the original first-error outcome.
-            if let Some(error) = first_error { return Err(error.into()); }
-            response.check()?;
             Ok(())
         }.await;
         schema_result.expect("apply current schema in memory");
-        let observed = inspect_schema(&database)
-            .await
-            .expect("inspect current memory schema");
+        let observed = observe_catalog(&database, "BASE").await
+            .expect("measure actual BASE engine INFO without enrolling or requiring a pin");
         eprintln!(
             "MT139_CURRENT_SCHEMA_INFO_SHA256={}",
             observed.info_fingerprint_sha256
@@ -12086,7 +12128,7 @@ mod tests {
         super::super::install_production_module_schemas(&storage).await
             .expect("apply the exact ordered production module body");
         storage.with_admin_operation(|database| Box::pin(async move {
-            let observed = read_schema_catalog(&database).await?;
+            let observed = observe_catalog(&database, "FINAL").await?;
             eprintln!("MT139_PRODUCTION_SCHEMA_INFO_SHA256={}; fields={}; indexes={}; source={}; inventory={}",
                 observed.info_fingerprint_sha256, observed.fields_defined, observed.indexes_defined,
                 production_source_sha256(), production_catalog_sha256()?);

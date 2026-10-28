@@ -27,6 +27,13 @@ pub trait SwarmLaneDiagnosticsTransport: Send + Sync {
     fn fetch_run(&self, run_id: &str, cell: SwarmLaneDiagnosticsCell);
 }
 
+#[derive(PartialEq, Eq)]
+enum FetchStartOutcome {
+    Queued,
+    Busy,
+    Unavailable,
+}
+
 #[derive(Default)]
 struct DiagnosticsUiState {
     projection: Option<SwarmLaneDiagnosticsProjection>,
@@ -75,23 +82,26 @@ impl SwarmLaneDiagnosticsPaneFactory {
         }
     }
 
-    fn start_fetch(&self, run_id: Option<&str>) {
+    fn start_fetch(&self, run_id: Option<&str>) -> FetchStartOutcome {
         let Some(transport) = &self.transport else {
-            return;
+            return FetchStartOutcome::Unavailable;
         };
-        if let Ok(mut state) = self.state.lock() {
-            if state.pending_fetch {
-                return;
-            }
-            state.pending_fetch = true;
-            state.error = None;
+        let Ok(mut state) = self.state.lock() else {
+            return FetchStartOutcome::Unavailable;
+        };
+        if state.pending_fetch {
+            return FetchStartOutcome::Busy;
         }
+        state.pending_fetch = true;
+        state.error = None;
+        drop(state);
         match run_id {
             Some(id) if !id.trim().is_empty() => {
                 transport.fetch_run(id.trim(), self.delivery.clone())
             }
             _ => transport.fetch_latest(self.delivery.clone()),
         }
+        FetchStartOutcome::Queued
     }
 
     fn drain_delivery(&self) {
@@ -146,6 +156,7 @@ impl PaneFactory for SwarmLaneDiagnosticsPaneFactory {
 
         let pane_id: &str = ctx.record.pane_id.as_ref();
 
+        let refresh_author_id = scoped_author_id(pane_id, REFRESH_AUTHOR_ID);
         let mut fetch_after_render: Option<String> = None;
         ui.vertical(|ui| {
             // Bind the surface landmark to the rendered heading response. Builder-only custom nodes
@@ -168,21 +179,28 @@ impl PaneFactory for SwarmLaneDiagnosticsPaneFactory {
                     node.set_author_id(scoped_author_id(pane_id, RUN_FILTER_AUTHOR_ID));
                     node.set_label("Run filter".to_owned());
                 });
-                let refresh = ui.button("Refresh");
+                let refresh_enabled = self.transport.is_some() && !state.pending_fetch;
+                let refresh = ui
+                    .add_enabled(refresh_enabled, egui::Button::new("Refresh"))
+                    .on_disabled_hover_text(if self.transport.is_none() {
+                        "Diagnostics transport unavailable"
+                    } else {
+                        "Diagnostics request already queued"
+                    });
                 refresh.widget_info(|| {
-                    egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), "Refresh")
+                    egui::WidgetInfo::labeled(
+                        egui::WidgetType::Button,
+                        ui.is_enabled() && refresh_enabled,
+                        "Refresh",
+                    )
                 });
                 ui.ctx().accesskit_node_builder(refresh.id, |node| {
                     node.set_role(accesskit::Role::Button);
                     node.add_action(accesskit::Action::Click);
-                    node.set_author_id(scoped_author_id(pane_id, REFRESH_AUTHOR_ID));
+                    node.set_author_id(refresh_author_id.clone());
                     node.set_label("Refresh".to_owned());
                 });
                 if refresh.clicked() {
-                    crate::mcp::argus::acknowledge_action_effect(
-                        ui.ctx(),
-                        &scoped_author_id(pane_id, REFRESH_AUTHOR_ID),
-                    );
                     fetch_after_render = Some(state.run_filter.clone());
                 }
             });
@@ -272,7 +290,13 @@ impl PaneFactory for SwarmLaneDiagnosticsPaneFactory {
         });
         drop(state);
         if let Some(run_id) = fetch_after_render {
-            self.start_fetch(Some(&run_id));
+            if self.start_fetch(Some(&run_id)) == FetchStartOutcome::Queued {
+                crate::mcp::argus::acknowledge_action_effect_allow_target_transition(
+                    ui.ctx(),
+                    &refresh_author_id,
+                );
+                ui.ctx().request_repaint();
+            }
         }
     }
 

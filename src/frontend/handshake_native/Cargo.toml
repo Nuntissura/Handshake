@@ -52,6 +52,7 @@ installer = "installer/windows/handshake_native.wxs"
 install_payload = ["handshake-native.exe", "handshake_core.exe", "palmistry.exe"]
 
 [package]
+autobins = false
 name = "handshake-native"
 version = "0.1.0"
 edition = "2021"
@@ -108,6 +109,9 @@ wgpu_screenshots = []
 diag-test-seams = []
 
 [dependencies]
+cabinet = { git = "https://github.com/Nuntissura/assets.git", rev = "c56cc9500243d9ad027e20cc291c71352c936a3a", version = "=0.1.0", default-features = false }
+cabinet_host = { path = "../cabinet_host" }
+motion_preference = { path = "motion_preference" }
 handpick = { git = "https://github.com/Nuntissura/assets.git", rev = "6f24d9b16f7675f2193115935ea35ae844828735" }
 kumihimo-core = { git = "https://github.com/Nuntissura/assets.git", rev = "8a97b9ae445872e4143fad1eb92f9ad082017595", version = "=0.3.0", default-features = false }
 kumihimo-content = { git = "https://github.com/Nuntissura/assets.git", rev = "8a97b9ae445872e4143fad1eb92f9ad082017595", version = "=0.2.0", default-features = false }

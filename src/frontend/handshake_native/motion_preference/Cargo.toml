@@ -1,0 +1,8 @@
+[package]
+name = "motion_preference"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+egui = { version = "=0.33.3", default-features = false, features = ["accesskit"] }

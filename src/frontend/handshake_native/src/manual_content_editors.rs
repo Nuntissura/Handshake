@@ -1570,7 +1570,12 @@ fn wiki_projection_body() -> String {
 }
 
 fn folder_tree_body() -> String {
-    "The Folder Tree is the native Obsidian-style folder surface for Loom blocks. Open it from VIEW > Open \
+    "The Folder Tree is the native Obsidian-style folder surface for Loom blocks.\n\n\
+Project Tree and Folders use Cabinet selection. Ctrl/Cmd-click toggles a content or folder row; \
+Shift-click selects a range. Arrow, Home, and End keys navigate the projected rows. Changing the active \
+editor reveals an already-loaded matching occurrence without moving editor focus; unloaded membership \
+remains unloaded. Existing entity-specific open and rename routes remain distinct. Loom folders are \
+organizational overlays, not physical directories.\n\nOpen it from VIEW > Open \
 Folders (menu.view.open-folders), the Command Palette option \
 command-palette.option.hs-view-palette-folders, or command id view.folders. The mounted pane is the real \
 PaneType::Placeholder(\"Folders\") host, backed by LoomFolderTree, not a placeholder. When the Folders pane \
