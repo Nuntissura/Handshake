@@ -104,8 +104,8 @@ mod tests {
                 .expect("evaluate production optional-value function")
                 .check()
                 .expect("optional-value evaluation succeeds");
-            let observed: bool = response.take(0).expect("function returns a boolean");
-            assert_eq!(observed, matches, "actual={actual}, expected={expected}");
+            let observed: Value = response.take(0).expect("decode function result");
+            assert_eq!(observed, Value::Bool(matches), "actual={actual}, expected={expected}");
         }
     }
 }
