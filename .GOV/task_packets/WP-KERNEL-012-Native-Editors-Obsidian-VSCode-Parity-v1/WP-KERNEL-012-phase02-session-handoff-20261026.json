@@ -659,6 +659,14 @@
             "supported_continuation": "Coding owns its actual Notes04 native agent and prepares its own source/API candidate handback to Primary through its supported native ownership channel. That fresh owner handback is distinct from forwarding the failed payload; do not retry or relay that payload through another sender.",
             "limits": "Primary may continue independent capture/binding preparation and consume supported actual handbacks. Routing changes no scope, acceptance, status, permission or pin, and grants no measurement, pin adoption, compiler, runtime retry or cleanup."
           },
+          "review_delivery_scope": {
+            "record_id": "WP012-REVIEW-DELIVERY-SCOPE-20261028-01",
+            "recorded_at_utc": "2026-10-28T15:59:03Z",
+            "decision": { "actor": "01a168a9-05b2-7630-9633-5faac88dd068", "turn": "01a18330-cd22-71a0-85bc-b948c906a119", "evidence": "Codeleader inspected the old rejections and selected-v8 DELIVERY015/016 and PARTNER007/008/009/010/012/014, then retracted the overly broad hold." },
+            "correction": "The removed new-unit gate depended solely on absent CC-to-Coding app-tool delivery. The inspected clauses require genuine named NONAUTHOR and independent scoped partner clearance with exact evidence, pins and stage-specific disposition, not a particular transport receipt before every adoption; direct routine partner coordination remains. The old message denials did not reject Notes04 measurement-v2 or new GUI15/Refresh2 physical Source application, or revoke genuine reviews.",
+            "stopped_actions": "Exact failed CC-to-Coding actions exec-bdd2de38 and exec-e512e39c containing Cabinet extraction02/composition01 and GPUv6 verdicts remain stopped. No retry, forwarding, proxy, substituted destination or permission to relay their blocked content follows.",
+            "limits": "Each new unit still requires its own actual current prerequisites and applicable clearance. This records an existing operational decision only, changes no rule, scope, acceptance, status, permission or pin, selects no execution, and must not block Source work."
+          },
           "directory_worktree_picker": "Existing-law implementation/contract allocation gap under Spec 2.3.13.12.2-5, 3.7, 11.1, DEX-EP-007-020 and HBR privacy; Codeleader routes actual broker/schema/capability/launch owners. A missing code variant, locator or receipt alone is not a human policy decision.",
           "gpu_startup_policy": "Human approved kernel-owned shell startup for login/app-shell Vulkan only; no account-content access or model jobs. Current grants still govern protected account/workspace/module work. Logout stops new protected work, preserves the shell and retains in-flight GPU ownership until actual settlement.",
           "host_policy_ref": "MT-203.json#/operator_authority/pre_account_gpu_startup_20261028",
