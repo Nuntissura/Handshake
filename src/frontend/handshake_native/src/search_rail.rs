@@ -4,7 +4,7 @@
 //!
 //! Public legacy controls retain NodeIds 22 (input), 23 (clear), 24 (Loom) and their
 //! bottom-rail.* author IDs. The nine scope IDs remain reachable through the scope menu.
-//! RailQuerySlot still receives explicit Enter/Loom intents and clears on Clear or context retirement.
+//! RailQuerySlot receives explicit Search/Enter/Loom intents and clears on Clear or context retirement.
 //! Project/file graph providers run off-frame with the authenticated account, session/workspace
 //! fences, cancellation and a post-body active check. Other providers report their missing binding.
 //! Each page supplies loaded rows; the API supplies no canonical total or snapshot revision.
@@ -370,8 +370,8 @@ fn split_operator_values(value: &str) -> Vec<String> {
 pub enum RailOutcome {
     /// No explicit action this frame; the header host observes live input.
     None,
-    /// The user pressed Enter or clicked Loom: EMIT this parsed query as the search intent (the shell
-    /// writes it into the [`RailQuerySlot`]). The rail makes no backend call. The Loom shortcut forces
+    /// Search or Enter emits the selected/typed scope; Loom explicitly searches the whole project.
+    /// The shell writes the intent into [`RailQuerySlot`]. The rail makes no backend call. Loom forces
     /// the `project:` scope.
     Fire(Box<RailQuery>),
     /// The `x` clear button was pressed: reset the rail (the shell writes `None` into the slot).
@@ -424,6 +424,15 @@ struct RailUiState {
     /// The pill-selected scope (overridden by a typed colon-prefix at parse time). Defaults to
     /// [`SearchScope::Project`] (the rail's default scope).
     active_scope: SearchScope,
+    /// A Loom submission overrides typed scope until the next edit, scope choice or generic search.
+    project_shortcut: bool,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RailSubmission {
+    Search,
+    Activate,
+    Loom,
 }
 
 /// The egui-memory key for the rail's transient UI state.
@@ -433,6 +442,10 @@ fn state_id() -> egui::Id {
 
 /// Render the persistent field and legacy controls inside the host header panel.
 pub fn show(ui: &mut egui::Ui, view: RailView) -> RailFrame {
+    show_with_composition(ui, view, false)
+}
+
+fn show_with_composition(ui: &mut egui::Ui, view: RailView, owner_composing: bool) -> RailFrame {
     let mut state: RailUiState = ui
         .ctx()
         .data_mut(|d| d.get_temp::<RailUiState>(state_id()))
@@ -443,10 +456,10 @@ pub fn show(ui: &mut egui::Ui, view: RailView) -> RailFrame {
     let mut composing_frame = false;
     let mut input_changed = false;
     let mut outcome = RailOutcome::None;
-    let mut fire = false;
+    let mut submission = None;
     let mut clear = false;
-    let mut loom = false;
-    let ime_frame = ui.input(|input| input.events.iter().any(|event| matches!(event, egui::Event::Ime(_))));
+    let ime_frame = owner_composing
+        || ui.input(|input| input.events.iter().any(|event| matches!(event, egui::Event::Ime(_))));
 
     let input_egui_id = unsafe { egui::Id::from_high_entropy_bits(RAIL_INPUT_NODE_ID) };
     let clear_egui_id = unsafe { egui::Id::from_high_entropy_bits(RAIL_CLEAR_NODE_ID) };
@@ -457,8 +470,9 @@ pub fn show(ui: &mut egui::Ui, view: RailView) -> RailFrame {
         let menu = ui.menu_button(state.active_scope.to_string(), |ui| {
             for &scope in SearchScope::all() {
                 if scope_pill(ui, scope, state.active_scope == scope, &view.colors).clicked() && !state.composing && !ime_frame {
-                    input_changed |= state.active_scope != scope;
+                    input_changed |= state.active_scope != scope || state.project_shortcut;
                     state.active_scope = scope;
+                    state.project_shortcut = false;
                     ui.close();
                 }
             }
@@ -472,6 +486,18 @@ pub fn show(ui: &mut egui::Ui, view: RailView) -> RailFrame {
         // these fixed-size buttons (egui right_to_left reserves them first â€” so the input is ALWAYS
         // visible regardless of how many pills render to the left â€” RISK-022-B).
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if fixed_id_button(
+                ui,
+                egui::Id::new("handpick.search"),
+                "handpick.search",
+                "Search",
+                "Search selected writing or the field in its selected or typed scope",
+                view.colors.accent,
+                view.colors.inactive_pill_bg,
+            ) {
+                submission = Some(RailSubmission::Search);
+            }
+
             // Loom shortcut at its FIXED id (NodeId 24): forces project: scope + emits (one click from
             // any surface). Uses the codebase's fixed-id button pattern (allocate + interact at the fixed
             // id + manual paint + widget_info + node) so its AccessKit NodeId is stable across frames /
@@ -485,7 +511,7 @@ pub fn show(ui: &mut egui::Ui, view: RailView) -> RailFrame {
                 view.colors.accent,
                 view.colors.inactive_pill_bg,
             ) {
-                loom = true;
+                submission = Some(RailSubmission::Loom);
             }
 
             // Clear (x) button at its FIXED id (NodeId 23).
@@ -507,7 +533,10 @@ pub fn show(ui: &mut egui::Ui, view: RailView) -> RailFrame {
                 .hint_text("Search your workspaceâ€¦")
                 .desired_width(f32::INFINITY);
             let edit_response = ui.add(edit);
-            input_changed |= edit_response.changed();
+            if edit_response.changed() {
+                input_changed = true;
+                state.project_shortcut = false;
+            }
             anchor = edit_response.rect;
             focused = edit_response.gained_focus();
             if edit_response.has_focus() || edit_response.lost_focus() {
@@ -529,36 +558,44 @@ pub fn show(ui: &mut egui::Ui, view: RailView) -> RailFrame {
                 node.add_action(egui::accesskit::Action::SetValue);
             });
             if let Some(replacement) = crate::mcp::accesskit_string_set_value(ui, input_egui_id).filter(|_| !state.composing && !ime_frame) {
-                input_changed |= state.query != replacement;
+                input_changed |= state.query != replacement || state.project_shortcut;
                 state.query = replacement;
+                state.project_shortcut = false;
                 ui.ctx().request_repaint();
             }
-            // Enter emits the search intent (AC-022-3: only Enter or Loom fires).
             if !composing_frame && edit_response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                fire = true;
+                submission = Some(RailSubmission::Activate);
             }
         });
     });
 
-    let select_current = fire && !loom;
-    // â”€â”€ Apply the Loom shortcut: force project: scope, then fire. â”€â”€
-    if loom && !composing_frame {
-        input_changed |= state.active_scope != SearchScope::Project;
-        state.active_scope = SearchScope::Project;
-        fire = true;
+    let submission = submission.filter(|_| !composing_frame);
+    let select_current = submission == Some(RailSubmission::Activate);
+    if let Some(submission) = submission {
+        let project_shortcut = submission == RailSubmission::Loom;
+        input_changed |= state.project_shortcut != project_shortcut;
+        state.project_shortcut = project_shortcut;
+        if project_shortcut {
+            input_changed |= state.active_scope != SearchScope::Project;
+            state.active_scope = SearchScope::Project;
+        }
     }
 
-    // Parse the live query against the active (pill) scope; a typed colon-prefix overrides it.
     let mut parsed = parse_rail_query(&state.query, state.active_scope);
+    if state.project_shortcut {
+        parsed.scope = SearchScope::Project;
+    }
 
     // â”€â”€ Clear: empty the input, reset the scope to default, signal the shell to clear the slot. â”€â”€
     if clear && !composing_frame {
-        input_changed |= !state.query.is_empty() || state.active_scope != SearchScope::default();
+        input_changed |= !state.query.is_empty() || state.active_scope != SearchScope::default()
+            || state.project_shortcut;
         state.query.clear();
         state.active_scope = SearchScope::default();
+        state.project_shortcut = false;
         parsed = parse_rail_query(&state.query, state.active_scope);
         outcome = RailOutcome::Clear;
-    } else if fire {
+    } else if submission.is_some() {
         outcome = RailOutcome::Fire(Box::new(parsed.clone()));
     }
 
@@ -1073,8 +1110,11 @@ impl HandpickHost {
                 if self.observations && frame.input_changed { record_gui_observation(GuiOp::HandpickInput, GuiPhase::Rejected); }
                 return;
             }
+            let mut parsed = parse_rail_query_text(&frame.literal, frame.query.scope, true);
+            // The rail already resolved selected, typed and explicit Loom scope precedence.
+            parsed.scope = frame.query.scope;
             self.query = Some(AdmittedHeaderQuery {
-                parsed: parse_rail_query_text(&frame.literal, frame.query.scope, true),
+                parsed,
                 draft_revision: session.draft_revision(),
             });
         }
@@ -1343,6 +1383,7 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
         ctx.data_mut(|data| {
             let mut state = data.get_temp::<RailUiState>(state_id()).unwrap_or_default();
             state.query = text;
+            state.project_shortcut = false;
             data.insert_temp(state_id(), state);
         });
         host.input_seen = false;
@@ -1350,19 +1391,11 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
         host.lookup_from_notes = true;
         ctx.memory_mut(|memory| memory.request_focus(input_id));
     }
+    host.notes.prepare_search_button(ctx, composing);
     let mut expand_id = None;
     let header = egui::TopBottomPanel::top("handshake_handpick_header")
         .resizable(false).show(ctx, |ui| {
-            if host.notes.has_bookmarks() {
-                egui::ScrollArea::horizontal().id_salt("handpick.bookmarks").show(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        if let Some(account) = host.account.as_ref() {
-                            host.notes.bookmarks(ui, workspace, base, account);
-                        }
-                    });
-                });
-            }
-            egui::Frame::new().fill(view.colors.inactive_pill_bg)
+            let field = egui::Frame::new().fill(view.colors.inactive_pill_bg)
                 .inner_margin(4.0).show(ui, |ui| {
                     let frame = ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let expand = ui.add_enabled(host.account.as_ref().is_some_and(|account| account.is_active()),
@@ -1380,15 +1413,51 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
                                 if attach.clicked() { host.notes.request_attach_current(); ui.close(); }
                             });
                         host.notes.controls(ui, workspace, host.account.as_ref(), base, composing);
-                        show(ui, view)
+                        show_with_composition(ui, view, composing)
                     }).inner;
                     host.notes.body(ui, notes_mount);
                     frame
-                }).inner
+                });
+            if let Some(account) = host.account.as_ref() {
+                let rim = egui::Rect::from_min_max(
+                    egui::pos2(field.inner.anchor.left(), field.response.rect.top()),
+                    egui::pos2(field.inner.anchor.right(), field.inner.anchor.top()),
+                );
+                host.notes.bookmarks_on_rim(ui, rim, workspace, base, account);
+            }
+            field.inner
         });
     let popup_anchor = egui::pos2(header.inner.anchor.left(), header.response.rect.bottom());
     let mut frame = header.inner;
     frame.composing |= composing;
+    let mut writing_search_error = None;
+    if ctx.read_response(egui::Id::new("handpick.search")).is_some_and(|response| response.clicked())
+        && !frame.composing && matches!(&frame.outcome, RailOutcome::Fire(_)) {
+        match host.notes.take_search_button_input(ctx, workspace, host.account.as_ref(), base, composing) {
+            Ok(Some(text)) => {
+                let scope = ctx.data_mut(|data| {
+                    let mut state = data.get_temp::<RailUiState>(state_id()).unwrap_or_default();
+                    state.query = text.clone();
+                    state.project_shortcut = false;
+                    let scope = state.active_scope;
+                    data.insert_temp(state_id(), state);
+                    scope
+                });
+                frame.literal = text;
+                frame.query = parse_rail_query(&frame.literal, scope);
+                frame.input_changed = true;
+                frame.outcome = RailOutcome::Fire(Box::new(frame.query.clone()));
+                host.lookup_from_notes = true;
+                ctx.memory_mut(|memory| memory.request_focus(input_id));
+            }
+            Ok(None) => {}
+            Err(error) => {
+                frame.outcome = RailOutcome::None;
+                frame.input_changed = true;
+                writing_search_error = Some(error);
+            }
+        }
+    }
     if host.notes.space_limited {
         let message = "The attached Notes editor needs more room. Compact Notes or enlarge the window; the editor is retained.";
         if let Some(id) = expand_id {
@@ -1397,6 +1466,11 @@ pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
         }
     }
     host.replace_input(&frame);
+    if let Some(error) = writing_search_error {
+        host.due = None;
+        host.error = Some(error);
+        host.open = true;
+    }
     if let Ok(parsed) = handpick::parse_query(&frame.literal) {
         host.notes.set_query_purpose(parsed.purpose);
     }
@@ -1657,6 +1731,135 @@ async fn fetch_header_page(base: &str, workspace: &str,
 #[cfg(test)]
 mod handpick_boundary_tests {
     use super::*;
+
+    fn rail_input_frame(ctx: &egui::Context, events: Vec<egui::Event>, owner_composing: bool) -> RailFrame {
+        let mut frame = None;
+        let _ = ctx.run(egui::RawInput { focused: true, events, screen_rect: Some(
+            egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(640.0, 480.0))),
+            ..Default::default() }, |ctx| {
+            frame = Some(egui::CentralPanel::default().show(ctx, |ui| {
+                show_with_composition(ui, RailView { has_workspace: true, colors: RailVisuals {
+                    active_pill_bg: egui::Color32::BLUE, inactive_pill_bg: egui::Color32::GRAY,
+                    text: egui::Color32::WHITE, accent: egui::Color32::LIGHT_BLUE,
+                } }, owner_composing)
+            }).inner);
+        });
+        frame.unwrap()
+    }
+
+    fn click_rail_action(ctx: &egui::Context, id: egui::Id, owner_composing: bool) -> RailFrame {
+        rail_input_frame(ctx, Vec::new(), owner_composing);
+        let pos = ctx.read_response(id).expect("the actual rail action is mounted").rect.center();
+        for pressed in [true, false] {
+            let frame = rail_input_frame(ctx, vec![egui::Event::PointerMoved(pos), egui::Event::PointerButton {
+                pos, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE,
+            }], owner_composing);
+            if !pressed { return frame; }
+        }
+        unreachable!()
+    }
+
+    #[test]
+    fn search_button_preserves_all_nine_selected_scopes_and_never_opens_a_selected_result() {
+        for &scope in SearchScope::all() {
+            let ctx = egui::Context::default();
+            ctx.data_mut(|data| data.insert_temp(state_id(), RailUiState {
+                query: "needle tag:tag-1".into(), active_scope: scope, ..Default::default()
+            }));
+            let frame = click_rail_action(&ctx, egui::Id::new("handpick.search"), false);
+            assert!(!frame.select_current, "explicit Search must refresh, not activate a prior selection");
+            assert_eq!(frame.literal, "needle tag:tag-1");
+            assert_eq!(frame.query.scope, scope);
+            assert_eq!(frame.query.tag_ids, vec!["tag-1"]);
+            assert!(matches!(&frame.outcome, RailOutcome::Fire(query) if query.scope == scope));
+
+            let base = "http://127.0.0.1:9911";
+            let mut host = HandpickHost::default();
+            host.bind(&ctx, "workspace", Some(crate::local_account::mock_account_context(base)), base);
+            host.replace_input(&frame);
+            assert_eq!(host.admitted_query(&frame.literal).unwrap().parsed.scope, scope);
+            assert!(host.task.is_none(), "intent admission does not start a provider");
+        }
+    }
+
+    #[test]
+    fn generic_search_honors_typed_scope_after_the_one_click_loom_override() {
+        let ctx = egui::Context::default();
+        ctx.data_mut(|data| data.insert_temp(state_id(), RailUiState {
+            query: "file:needle tag:tag-1".into(), active_scope: SearchScope::Pane, ..Default::default()
+        }));
+        let loom_id = unsafe { egui::Id::from_high_entropy_bits(RAIL_LOOM_NODE_ID) };
+        let loom = click_rail_action(&ctx, loom_id, false);
+        assert_eq!(loom.literal, "file:needle tag:tag-1");
+        assert_eq!(loom.query.scope, SearchScope::Project);
+        assert!(matches!(&loom.outcome, RailOutcome::Fire(query) if query.scope == SearchScope::Project));
+        assert_eq!(rail_input_frame(&ctx, Vec::new(), false).query.scope, SearchScope::Project);
+
+        let base = "http://127.0.0.1:9911";
+        let mut host = HandpickHost::default();
+        host.bind(&ctx, "workspace", Some(crate::local_account::mock_account_context(base)), base);
+        host.replace_input(&loom);
+        assert_eq!(host.admitted_query(&loom.literal).unwrap().parsed.scope, SearchScope::Project);
+        ctx.data_mut(|data| data.insert_temp(state_id(), RailUiState {
+            query: loom.literal.clone(), active_scope: SearchScope::Project, project_shortcut: true,
+            ..Default::default()
+        }));
+        let search = click_rail_action(&ctx, egui::Id::new("handpick.search"), false);
+        assert_eq!(search.literal, loom.literal);
+        assert_eq!(search.query.scope, SearchScope::File);
+        assert!(search.input_changed);
+        assert!(!search.select_current);
+        host.replace_input(&search);
+        assert_eq!(host.admitted_query(&search.literal).unwrap().parsed.scope, SearchScope::File);
+    }
+
+    #[test]
+    fn owner_ime_fences_search_and_loom_before_scope_or_admission_changes() {
+        for id in [egui::Id::new("handpick.search"), unsafe {
+            egui::Id::from_high_entropy_bits(RAIL_LOOM_NODE_ID) } ] {
+            let ctx = egui::Context::default();
+            ctx.data_mut(|data| data.insert_temp(state_id(), RailUiState {
+                query: "needle".into(), active_scope: SearchScope::File, ..Default::default()
+            }));
+            let frame = click_rail_action(&ctx, id, true);
+            assert!(frame.composing);
+            assert_eq!(frame.outcome, RailOutcome::None);
+            assert_eq!(frame.query.scope, SearchScope::File);
+            assert!(!frame.input_changed);
+        }
+    }
+
+    #[test]
+    fn mounted_header_reserves_input_between_actions_at_native_minimum_and_normal_widths() {
+        use crate::editor_pane_factories::{EditorSessionContext, RichEditorPaneMount, RichPaneEvents};
+        use crate::rich_editor::{document_model::node::BlockNode, renderer::rich_editor_widget::RichEditorState};
+        for width in [640.0, 1280.0] {
+            let ctx = egui::Context::default();
+            let state = Arc::new(Mutex::new(RichEditorState::new(BlockNode::doc(Vec::new()))));
+            let mount = RichEditorPaneMount::new(state, Arc::new(Mutex::new(EditorSessionContext::default())),
+                RichPaneEvents::default(), "unbound-component-note");
+            let store = mount.document_store();
+            let base = "http://127.0.0.1:9911";
+            let account = crate::local_account::mock_account_context(base);
+            let mut host = HandpickHost::default();
+            let mut input = egui::Rect::NOTHING;
+            let _ = ctx.run(egui::RawInput { focused: true, screen_rect: Some(
+                egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(width, 480.0))),
+                ..Default::default() }, |ctx| {
+                input = show_header(ctx, RailView { has_workspace: true, colors: RailVisuals {
+                    active_pill_bg: egui::Color32::BLUE, inactive_pill_bg: egui::Color32::GRAY,
+                    text: egui::Color32::WHITE, accent: egui::Color32::LIGHT_BLUE,
+                } }, &mut host, "workspace", Some(account.clone()), None, base, false,
+                    None, &store, &mount).0.anchor;
+            });
+            let clear = ctx.read_response(unsafe { egui::Id::from_high_entropy_bits(RAIL_CLEAR_NODE_ID) }).unwrap().rect;
+            let loom = ctx.read_response(unsafe { egui::Id::from_high_entropy_bits(RAIL_LOOM_NODE_ID) }).unwrap().rect;
+            let search = ctx.read_response(egui::Id::new("handpick.search")).unwrap().rect;
+            assert!(input.width() >= 64.0 && input.left() >= 0.0);
+            assert!(input.right() <= clear.left() && clear.right() <= loom.left());
+            assert!(loom.right() <= search.left() && search.right() <= width);
+        }
+    }
 
     #[test]
     fn short_viewport_withholds_results_and_zero_minimum_stays_within_scroll_budget() {

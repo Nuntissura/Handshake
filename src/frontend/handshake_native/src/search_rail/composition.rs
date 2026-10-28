@@ -20,6 +20,15 @@ struct MountedSurface {
     response: egui::Response,
 }
 
+struct WritingSearchInput {
+    editor: handpick::EditorId,
+    view_id: String,
+    document_id: String,
+    owner: crate::rich_editor::document_owner::DocumentEditOwner,
+    context: crate::rich_editor::document_owner::EditorSaveContext,
+    selection: crate::rich_editor::document_model::selection::Selection,
+}
+
 #[derive(Default)]
 pub(super) struct MountedNotes {
     core: Option<handpick::WritingSession>,
@@ -27,6 +36,7 @@ pub(super) struct MountedNotes {
     composition: Option<handpick::CompositionToken>,
     presented: Option<(handpick::EditorId, u64, String)>,
     surface: Option<MountedSurface>,
+    search_input: Option<Result<WritingSearchInput, String>>,
     pub(super) space_limited: bool,
     released: Vec<(String, String)>,
     bus: Option<Arc<Mutex<crate::interop::InteractionBus>>>,
@@ -53,6 +63,10 @@ impl MountedNotes {
     }
 
     pub(super) fn focused_binding(&self) -> Option<(String, String)> {
+        self.focused_binding_for_search_button(None)
+    }
+
+    fn focused_binding_for_search_button(&self, search_button: Option<egui::Rect>) -> Option<(String, String)> {
         if !self.expanded() { return None; }
         let active = self.active()?;
         let surface = self.surface.as_ref()?;
@@ -61,7 +75,8 @@ impl MountedNotes {
             || !surface.response.has_focus()
             || !surface.response.ctx.content_rect().contains_rect(surface.response.rect)
             || surface.response.ctx.input(|input| input.pointer.any_pressed()
-                && input.pointer.interact_pos().is_none_or(|pos| !surface.response.rect.contains(pos))) {
+                && input.pointer.interact_pos().is_none_or(|pos| !surface.response.rect.contains(pos)
+                    && search_button.is_none_or(|button| !button.contains(pos)))) {
             return None;
         }
         let focused = crate::interop::InteractionBus::with_try_lock(self.bus.as_ref()?, |bus| {
@@ -82,6 +97,7 @@ impl MountedNotes {
         self.composition = None;
         self.presented = None;
         self.surface = None;
+        self.search_input = None;
         self.space_limited = false;
         self.requested = false;
         self.error = None;
@@ -346,7 +362,37 @@ impl MountedNotes {
         Ok(())
     }
 
-    pub(super) fn bookmarks(
+    pub(super) fn bookmarks_on_rim(
+        &mut self,
+        ui: &mut egui::Ui,
+        rim: egui::Rect,
+        workspace: &str,
+        base: &str,
+        account: &Arc<crate::local_account::AuthenticatedContext>,
+    ) {
+        if !self.has_bookmarks() || !rim.is_positive() { return; }
+        // This child shares the field's layer and does not allocate another header row.
+        let mut tabs = ui.new_child(egui::UiBuilder::new()
+            .id_salt("handpick.bookmarks")
+            .max_rect(rim)
+            .layout(egui::Layout::left_to_right(egui::Align::Center)));
+        tabs.set_clip_rect(rim.intersect(ui.clip_rect()));
+        tabs.spacing_mut().button_padding = egui::vec2(3.0, 0.0);
+        tabs.spacing_mut().item_spacing.x = 2.0;
+        tabs.spacing_mut().interact_size.y = 0.0;
+        tabs.style_mut().text_styles.insert(egui::TextStyle::Button,
+            egui::FontId::proportional((rim.height() * 0.65).min(11.0)));
+        egui::ScrollArea::horizontal()
+            .id_salt("overflow")
+            .min_scrolled_height(0.0)
+            .max_height(rim.height())
+            .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysHidden)
+            .show(&mut tabs, |ui| {
+                ui.horizontal(|ui| self.bookmarks(ui, workspace, base, account));
+            });
+    }
+
+    fn bookmarks(
         &mut self,
         ui: &mut egui::Ui,
         workspace: &str,
@@ -364,12 +410,14 @@ impl MountedNotes {
         {
             let response = ui
                 .push_id(pin.id.as_str(), |ui| {
-                    ui.button(format!("Bookmark {}", index + 1))
+                    ui.add(egui::Button::new((index + 1).to_string()).small())
                 })
                 .inner;
             ui.ctx().accesskit_node_builder(response.id, |node| {
                 node.set_author_id(format!("handpick.bookmark.{}", pin.id.as_str()));
+                node.set_label(format!("Bookmark {}", index + 1));
             });
+            if response.has_focus() { response.scroll_to_me(Some(egui::Align::Center)); }
             if response.hovered() || response.has_focus() {
                 let excerpt = self
                     .editors
@@ -406,12 +454,13 @@ impl MountedNotes {
             if !parked {
                 let can_remove = self.can_remove_bookmark(&pin.editor);
                 let remove = ui.push_id(("remove", pin.id.as_str()), |ui| {
-                    ui.add_enabled(can_remove, egui::Button::new("Remove"))
+                    ui.add_enabled(can_remove, egui::Button::new("×").small())
                 }).inner.on_disabled_hover_text("Open or save this note before removing its bookmark; unsaved edits are retained");
                 ui.ctx().accesskit_node_builder(remove.id, |node| {
                     node.set_author_id(format!("handpick.bookmark.remove.{}", pin.id.as_str()));
                     node.set_label(format!("Remove bookmark {}", index + 1));
                 });
+                if remove.has_focus() { remove.scroll_to_me(Some(egui::Align::Center)); }
                 if remove.clicked() {
                     let result = self.core.as_mut().expect("existing Notes session")
                         .remove_bookmark(&pin.id).map_err(|error| error.to_string());
@@ -519,9 +568,106 @@ impl MountedNotes {
 
     pub(super) fn take_selected_query(&self, ctx: &egui::Context, frame_composing: bool) -> Option<String> {
         if frame_composing || self.composing() || self.focused_binding().is_none() { return None; }
+        let requested = ctx.input(|input| input.events.iter().any(|event| matches!(event,
+            egui::Event::Key { key: egui::Key::Enter, modifiers, pressed: true, .. }
+                if modifiers.matches_logically(egui::Modifiers::ALT))));
+        if !requested { return None; }
         let handle = self.active()?;
         let text = handle.editor.lock().ok()?.selected_text_for_stage().filter(|text| !text.trim().is_empty())?;
         ctx.input_mut(|input| input.consume_key(egui::Modifiers::ALT, egui::Key::Enter)).then_some(text)
+    }
+
+    pub(super) fn prepare_search_button(&mut self, ctx: &egui::Context, frame_composing: bool) {
+        if frame_composing || self.composing() || !self.expanded() {
+            self.search_input = None;
+            return;
+        }
+        if self.search_input.is_some() && ctx.input(|input|
+            !input.pointer.primary_pressed() && (input.pointer.primary_down() || input.pointer.primary_released())) {
+            return;
+        }
+        let search_id = egui::Id::new("handpick.search");
+        // Keyboard focus can move directly from Notes onto Search. Retain only metadata until
+        // the button's real clicked response, including Space/Enter and AccessKit, is consumed.
+        if self.search_input.is_some() && ctx.memory(|memory| memory.has_focus(search_id)) {
+            return;
+        }
+        let button = ctx.read_response(search_id).map(|response| response.rect);
+        let targeted_press = ctx.input(|input| input.pointer.primary_pressed()
+            && input.pointer.interact_pos().is_some_and(|pos| button.is_some_and(|rect| rect.contains(pos))));
+        let focused = self.focused_binding_for_search_button(if targeted_press { button } else { None });
+        if focused.is_some() {
+            self.search_input = Some((|| {
+                let active = self.active().ok_or("Notes editor unavailable")?;
+                let state = active.editor.lock().map_err(|_| "Notes editor unavailable")?;
+                let owner = state.document_owner();
+                let context = owner.current_context().map_err(|_| "Notes authority unavailable")?;
+                Ok(WritingSearchInput { editor: self.surface.as_ref().ok_or("Notes view unavailable")?.editor.clone(),
+                    view_id: active.view_id, document_id: active.document_id, owner, context,
+                    selection: state.selection.clone() })
+            })());
+        } else if targeted_press && self.search_input.is_some() {
+            self.search_input = Some(Err("Notes focus changed; search again from the current editor".into()));
+        } else if !ctx.input(|input| input.pointer.primary_down() || input.pointer.primary_released()) {
+            self.search_input = None;
+        } else if ctx.input(|input| input.pointer.any_pressed()) && !targeted_press {
+            self.search_input = None;
+        }
+    }
+
+    pub(super) fn take_search_button_input(&mut self, ctx: &egui::Context, workspace: &str,
+        account: Option<&Arc<crate::local_account::AuthenticatedContext>>, base: &str,
+        frame_composing: bool) -> Result<Option<String>, String> {
+        let Some(input) = self.search_input.take() else { return Ok(None) };
+        let input = input?;
+        let valid = (|| {
+            if frame_composing || self.composing() || !self.expanded() { return None; }
+            let active = self.active()?;
+            let surface = self.surface.as_ref()?;
+            if surface.editor != input.editor || surface.view_id != input.view_id
+                || surface.document_id != input.document_id || active.view_id != input.view_id
+                || active.document_id != input.document_id || surface.response.ctx != *ctx
+                || !ctx.content_rect().contains_rect(surface.response.rect) { return None; }
+            let (owner, selection) = {
+                let state = active.editor.lock().ok()?;
+                (state.document_owner(), state.selection.clone())
+            };
+            let authority = active.authority.lock().ok()?.document_owner();
+            if !owner.same_owner(&input.owner) || !owner.same_owner(&authority)
+                || owner.current_context().ok()? != input.context || selection != input.selection
+                || !account.is_some_and(|account| owner.has_active_binding(workspace, base, account)) {
+                return None;
+            }
+            Some(())
+        })().is_some();
+        if !valid { return Err("Notes selection or authority changed; search again from the current editor".into()); }
+        // Only an explicit clicked Search reaches this read. Idle frames never copy document text.
+        let active = self.active().ok_or("Notes editor unavailable")?;
+        let (owner, text) = {
+            let state = active.editor.lock().map_err(|_| "Notes editor unavailable")?;
+            let owner = state.document_owner();
+            if !owner.same_owner(&input.owner) || state.selection != input.selection
+                || owner.current_context().ok() != Some(input.context) {
+                return Err("Notes selection or authority changed; search again from the current editor".into());
+            }
+            let has_selection = matches!(&state.selection,
+                crate::rich_editor::document_model::selection::Selection::Text { anchor, head } if anchor != head);
+            let text = if has_selection {
+                state.selected_text_for_stage().ok_or("Notes selection unavailable; select the current writing again")?
+            } else {
+                owner.with_document(crate::rich_editor::save::export::export_plain_text)
+                    .map_err(|_| "Notes content unavailable")?
+            };
+            (owner, text)
+        };
+        let authority = active.authority.lock().map_err(|_| "Notes authority unavailable")?.document_owner();
+        if !owner.same_owner(&authority) || owner.current_context().ok() != Some(input.context)
+            || !account.is_some_and(|account| owner.has_active_binding(workspace, base, account)) {
+            return Err("Notes selection or authority changed; search again from the current editor".into());
+        }
+        if text.trim().is_empty() { return Err("Enter text or select writing to search".into()); }
+        if text.len() > 4096 { return Err("Select a shorter phrase for search; the composition is retained".into()); }
+        Ok(Some(text))
     }
 
     pub(super) fn completion_open(&self) -> bool {
@@ -664,6 +810,68 @@ mod tests {
             repeat: false, modifiers }
     }
 
+    #[test]
+    fn bookmark_rim_preserves_header_height_and_accessible_actions() {
+        use super::super::{HandpickHost, RailView, RailVisuals, show_header};
+        use crate::editor_pane_factories::{EditorSessionContext, RichEditorPaneMount, RichPaneEvents};
+        use crate::rich_editor::document_model::node::BlockNode;
+        for width in [640.0, 1280.0] {
+            let ctx = egui::Context::default();
+            ctx.enable_accesskit();
+            let state = Arc::new(Mutex::new(RichEditorState::new(BlockNode::doc(Vec::new()))));
+            let mount = RichEditorPaneMount::new(state,
+                Arc::new(Mutex::new(EditorSessionContext::default())),
+                RichPaneEvents::default(), "unbound-component-note");
+            let store = mount.document_store();
+            let base = "http://127.0.0.1:9911";
+            let account = crate::local_account::mock_account_context(base);
+            let mut host = HandpickHost::default();
+            host.bind(&ctx, "workspace", Some(account.clone()), base);
+            let mut baseline = None;
+            for count in [0, 1, 8] {
+                let mut core = session();
+                for index in 0..count {
+                    core.bind(handpick::EditorId::new(format!("editor-{index}")).unwrap(), 0).unwrap();
+                    core.bookmark(&core.fence().unwrap(),
+                        handpick::PinId::new(format!("pin-{index}")).unwrap()).unwrap();
+                    assert_eq!(core.close_quicknote(&core.fence().unwrap()).unwrap(),
+                        handpick::QuicknoteClose::Closed);
+                }
+                host.notes.core = Some(core);
+                let mut field = egui::Rect::NOTHING;
+                let mut remaining_top = 0.0;
+                let output = ctx.run(egui::RawInput { focused: true,
+                    screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO,
+                        egui::vec2(width, 480.0))), ..Default::default() }, |ctx| {
+                    field = show_header(ctx, RailView { has_workspace: true, colors: RailVisuals {
+                        active_pill_bg: egui::Color32::BLUE, inactive_pill_bg: egui::Color32::GRAY,
+                        text: egui::Color32::WHITE, accent: egui::Color32::LIGHT_BLUE,
+                    } }, &mut host, "workspace", Some(account.clone()), None, base, false,
+                        None, &store, &mount).0.anchor;
+                    remaining_top = ctx.available_rect().top();
+                });
+                let geometry = (field, remaining_top);
+                if let Some(expected) = baseline {
+                    assert_eq!(geometry, expected, "bookmarks must not add a header row or move the input");
+                } else { baseline = Some(geometry); }
+                let tree = output.platform_output.accesskit_update.unwrap();
+                for index in 0..count {
+                    let author = format!("handpick.bookmark.pin-{index}");
+                    let (id, node) = tree.nodes.iter()
+                        .find(|(_, node)| node.author_id() == Some(author.as_str())).unwrap();
+                    assert_eq!(node.label(), Some(format!("Bookmark {}", index + 1).as_str()));
+                    let response = ctx.read_response(unsafe { egui::Id::from_high_entropy_bits(id.0) }).unwrap();
+                    assert!(response.rect.top() >= 0.0 && response.rect.bottom() <= field.top(),
+                        "bookmark hitboxes stay on the rim above the editable text");
+                    assert!(tree.nodes.iter().any(|(_, node)| node.author_id()
+                        == Some(format!("handpick.bookmark.remove.pin-{index}").as_str())));
+                }
+                assert_eq!(host.notes.core.as_ref().unwrap().bookmarks().len(), count);
+                assert!(host.notes.core.as_ref().unwrap().editor().is_none());
+            }
+        }
+    }
+
     fn notes_with_live_surface(ctx: &egui::Context) -> MountedNotes {
         use crate::rich_editor::document_model::node::BlockNode;
         use crate::rich_editor::renderer::rich_editor_widget::RichEditorPaneFactory;
@@ -694,6 +902,203 @@ mod tests {
         notes.surface = Some(MountedSurface { editor: editor_id, view_id: "view".into(), document_id: "note".into(),
             response: surface.unwrap() });
         notes
+    }
+
+    #[test]
+    fn idle_search_metadata_keeps_large_compositions_unexported_until_explicit_dispatch() {
+        let ctx = egui::Context::default();
+        let mut notes = notes_with_live_surface(&ctx);
+        let base = "http://127.0.0.1:9911";
+        let account = crate::local_account::mock_account_context(base);
+        let active = notes.active().unwrap();
+        let owner = active.editor.lock().unwrap().document_owner();
+        owner.bind_context("workspace", "note", base, None, Some(account.clone())).unwrap();
+        owner.edit(owner.current_context().unwrap(), |document, _| {
+            *document = crate::rich_editor::document_model::node::BlockNode::doc(vec![
+                crate::rich_editor::document_model::node::BlockNode::paragraph(&"x".repeat(4097))]);
+            Ok::<_, ()>(())
+        }).unwrap();
+        active.editor.lock().unwrap().selection = crate::rich_editor::document_model::selection::Selection::caret(
+            crate::rich_editor::document_model::position::DocPosition::new(vec![0, 0], 0));
+        let expected = owner.current_context().unwrap();
+        for _ in 0..3 {
+            notes.prepare_search_button(&ctx, false);
+            let input = notes.search_input.as_ref().unwrap().as_ref().expect("idle capture is metadata, not text admission");
+            assert_eq!(input.context, expected);
+            assert!(input.owner.same_owner(&owner));
+        }
+        assert_eq!(owner.current_context().unwrap(), expected);
+        let error = notes.take_search_button_input(&ctx, "workspace", Some(&account), base, false).unwrap_err();
+        assert!(error.contains("shorter phrase"), "the text limit belongs to explicit dispatch");
+        assert_eq!(owner.current_context().unwrap(), expected);
+    }
+
+    #[test]
+    fn stale_search_metadata_is_rejected_before_explicit_text_materialization() {
+        let ctx = egui::Context::default();
+        let mut notes = notes_with_live_surface(&ctx);
+        let base = "http://127.0.0.1:9911";
+        let account = crate::local_account::mock_account_context(base);
+        let active = notes.active().unwrap();
+        let owner = active.editor.lock().unwrap().document_owner();
+        owner.bind_context("workspace", "note", base, None, Some(account.clone())).unwrap();
+        owner.edit(owner.current_context().unwrap(), |document, _| {
+            *document = crate::rich_editor::document_model::node::BlockNode::doc(vec![
+                crate::rich_editor::document_model::node::BlockNode::paragraph(&"x".repeat(4097))]);
+            Ok::<_, ()>(())
+        }).unwrap();
+        active.editor.lock().unwrap().selection = crate::rich_editor::document_model::selection::Selection::caret(
+            crate::rich_editor::document_model::position::DocPosition::new(vec![0, 0], 0));
+        notes.prepare_search_button(&ctx, false);
+        assert!(notes.search_input.as_ref().unwrap().is_ok());
+        owner.advance_context().unwrap();
+        let error = notes.take_search_button_input(&ctx, "workspace", Some(&account), base, false).unwrap_err();
+        assert!(error.contains("selection or authority changed"));
+        assert!(!error.contains("shorter phrase"));
+    }
+
+    #[test]
+    fn keyboard_search_activation_materializes_retained_notes_metadata() {
+        for key in [egui::Key::Space, egui::Key::Enter] {
+            let ctx = egui::Context::default();
+            let mut notes = notes_with_live_surface(&ctx);
+            let base = "http://127.0.0.1:9911";
+            let account = crate::local_account::mock_account_context(base);
+            notes.active().unwrap().editor.lock().unwrap().document_owner()
+                .bind_context("workspace", "note", base, None, Some(account.clone())).unwrap();
+            draw_search_and_notes(&ctx, &mut notes, Vec::new());
+            assert!(notes.search_input.as_ref().unwrap().is_ok());
+            ctx.memory_mut(|memory| memory.request_focus(egui::Id::new("handpick.search")));
+            let clicked = draw_search_and_notes(&ctx, &mut notes, vec![egui::Event::Key {
+                key, physical_key: None, pressed: true, repeat: false, modifiers: egui::Modifiers::NONE,
+            }]);
+            assert!(clicked, "egui keyboard activation must retain the writing intent");
+            assert_eq!(notes.take_search_button_input(&ctx, "workspace", Some(&account), base, false).unwrap(), Some("text".into()));
+        }
+    }
+
+    #[test]
+    fn accesskit_search_activation_materializes_current_notes_metadata() {
+        let ctx = egui::Context::default();
+        let mut notes = notes_with_live_surface(&ctx);
+        let base = "http://127.0.0.1:9911";
+        let account = crate::local_account::mock_account_context(base);
+        notes.active().unwrap().editor.lock().unwrap().document_owner()
+            .bind_context("workspace", "note", base, None, Some(account.clone())).unwrap();
+        draw_search_and_notes(&ctx, &mut notes, Vec::new());
+        let clicked = draw_search_and_notes(&ctx, &mut notes,
+            vec![egui::Event::AccessKitActionRequest(egui::accesskit::ActionRequest {
+                action: egui::accesskit::Action::Click,
+                target: egui::Id::new("handpick.search").value().into(), data: None,
+            })]);
+        assert!(clicked, "the existing AccessKit Click route is an explicit search action");
+        assert_eq!(notes.take_search_button_input(&ctx, "workspace", Some(&account), base, false).unwrap(), Some("text".into()));
+    }
+
+    #[test]
+    fn explicit_search_uses_the_same_owner_selection_or_composition_without_editing_it() {
+        let ctx = egui::Context::default();
+        let mut notes = notes_with_live_surface(&ctx);
+        let base = "http://127.0.0.1:9911";
+        let account = crate::local_account::mock_account_context(base);
+        let active = notes.active().unwrap();
+        let owner = active.editor.lock().unwrap().document_owner();
+        owner.bind_context("workspace", "note", base, None, Some(account.clone())).unwrap();
+        let before = owner.current_context().unwrap();
+        let selection = active.editor.lock().unwrap().selection.clone();
+        notes.prepare_search_button(&ctx, false);
+        assert_eq!(notes.take_search_button_input(&ctx, "workspace", Some(&account), base, false).unwrap(), Some("text".into()));
+        assert_eq!(owner.current_context().unwrap(), before);
+        assert_eq!(active.editor.lock().unwrap().selection, selection);
+
+        active.editor.lock().unwrap().selection = crate::rich_editor::document_model::selection::Selection::caret(crate::rich_editor::document_model::position::DocPosition::new(vec![0, 0], 0));
+        notes.prepare_search_button(&ctx, false);
+        assert_eq!(notes.take_search_button_input(&ctx, "workspace", Some(&account), base, false).unwrap(), Some("text".into()));
+        assert_eq!(owner.current_context().unwrap(), before);
+    }
+
+    #[test]
+    fn explicit_search_rejects_changed_selection_authority_ime_and_omitted_surface() {
+        let ctx = egui::Context::default();
+        let mut notes = notes_with_live_surface(&ctx);
+        let base = "http://127.0.0.1:9911";
+        let account = crate::local_account::mock_account_context(base);
+        let active = notes.active().unwrap();
+        let owner = active.editor.lock().unwrap().document_owner();
+        owner.bind_context("workspace", "note", base, None, Some(account.clone())).unwrap();
+        notes.prepare_search_button(&ctx, false);
+        active.editor.lock().unwrap().selection = crate::rich_editor::document_model::selection::Selection::caret(crate::rich_editor::document_model::position::DocPosition::new(vec![0, 0], 0));
+        assert!(notes.take_search_button_input(&ctx, "workspace", Some(&account), base, false).is_err());
+
+        notes.prepare_search_button(&ctx, false);
+        let other = crate::local_account::mock_account_context(base);
+        assert!(notes.take_search_button_input(&ctx, "workspace", Some(&other), base, false).is_err());
+        notes.prepare_search_button(&ctx, false);
+        assert!(notes.take_search_button_input(&ctx, "workspace", Some(&account), base, true).is_err());
+        notes.prepare_search_button(&ctx, false);
+        notes.surface = None;
+        assert!(notes.take_search_button_input(&ctx, "workspace", Some(&account), base, false).is_err());
+    }
+
+    fn draw_search_and_notes(ctx: &egui::Context, notes: &mut MountedNotes, events: Vec<egui::Event>) -> bool {
+        use crate::rich_editor::renderer::rich_editor_widget::RichEditorPaneFactory;
+        let active = notes.active().unwrap();
+        let factory = RichEditorPaneFactory::new(active.editor);
+        let mut clicked = false;
+        let _ = ctx.run(input(events), |ctx| {
+            notes.prepare_search_button(ctx, false);
+            egui::TopBottomPanel::bottom("search-button-test").show(ctx, |ui| {
+                clicked = super::super::fixed_id_button(ui, egui::Id::new("handpick.search"),
+                    "handpick.search", "Search", "Search", egui::Color32::WHITE, egui::Color32::GRAY);
+            });
+            let response = egui::CentralPanel::default().show(ctx, |ui|
+                factory.render_for_view(ui, Arc::from("view"))).inner;
+            notes.surface.as_mut().unwrap().response = response;
+        });
+        clicked
+    }
+
+    #[test]
+    fn actual_search_pointer_handoff_preserves_the_press_selection_and_rejects_later_changes() {
+        for changed in [false, true] {
+            let ctx = egui::Context::default();
+            let mut notes = notes_with_live_surface(&ctx);
+            let base = "http://127.0.0.1:9911";
+            let account = crate::local_account::mock_account_context(base);
+            let active = notes.active().unwrap();
+            active.editor.lock().unwrap().document_owner()
+                .bind_context("workspace", "note", base, None, Some(account.clone())).unwrap();
+            draw_search_and_notes(&ctx, &mut notes, Vec::new());
+            let pos = ctx.read_response(egui::Id::new("handpick.search")).unwrap().rect.center();
+            assert!(!notes.surface.as_ref().unwrap().response.rect.contains(pos));
+            assert!(notes.focused_binding().is_some());
+            for pressed in [true, false] {
+                if !pressed && changed {
+                    active.editor.lock().unwrap().selection = crate::rich_editor::document_model::selection::Selection::caret(
+                        crate::rich_editor::document_model::position::DocPosition::new(vec![0, 0], 0));
+                }
+                let clicked = draw_search_and_notes(&ctx, &mut notes,
+                    vec![egui::Event::PointerMoved(pos), egui::Event::PointerButton {
+                        pos, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE,
+                    }]);
+                if !pressed {
+                    assert!(clicked);
+                    let result = notes.take_search_button_input(&ctx, "workspace", Some(&account), base, false);
+                    if changed { assert!(result.is_err()); }
+                    else { assert_eq!(result.unwrap(), Some("text".into())); }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn query_focused_search_does_not_reuse_a_stale_notes_selection() {
+        let ctx = egui::Context::default();
+        let mut notes = notes_with_live_surface(&ctx);
+        notes.prepare_search_button(&ctx, false);
+        ctx.memory_mut(|memory| memory.request_focus(egui::Id::new("query")));
+        notes.prepare_search_button(&ctx, false);
+        assert!(notes.take_search_button_input(&ctx, "workspace", None, "base", false).unwrap().is_none());
     }
 
     #[test]
