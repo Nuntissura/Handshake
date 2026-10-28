@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-212",
   "created_at_utc": "2026-10-26T12:53:14.7419363Z",
-  "updated_at_utc": "2026-10-28T11:19:32.087607+00:00",
+  "updated_at_utc": "2026-10-28T15:31:59.018803+00:00",
   "identity": {
     "mt_id": "MT-212",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -177,7 +177,15 @@
       "src/frontend/handshake_native/tests/test_operator_chat_selection_and_transcript_argus.rs",
       "src/frontend/handshake_native/tests/test_app_host_mount.rs",
       "src/frontend/handshake_native/tests/test_settings_dialog.rs",
-      "src/frontend/handshake_native/Cargo.lock"
+      "src/frontend/handshake_native/Cargo.lock",
+      "src/frontend/cabinet_host/Cargo.toml",
+      "src/frontend/cabinet_host/src/lib.rs",
+      "src/frontend/cabinet_host/README.md",
+      "src/frontend/cabinet_host/Cargo.lock",
+      "src/frontend/handshake_native/motion_preference/Cargo.toml",
+      "src/frontend/handshake_native/motion_preference/src/lib.rs",
+      "src/frontend/handshake_native/motion_preference/README.md",
+      "src/frontend/handshake_native_composition_tests/tests/test_swarm_lane_diagnostics_argus.rs"
     ],
     "forbidden_write_paths": [
       "Original MT acceptance/status rewrites",
@@ -201,7 +209,8 @@
       "Substantive missing backend feature routed as an exact worker request to Codeleader",
       "No actual combined source/Codecheck/compiler admission for a Cargo launch"
     ],
-    "path_authority": "These are potential exact host GUI paths from inspected pico owners, not an active write lease. Every application still binds the frozen changed-file allocation and actual Primary/Coding writer; unresolved historical paths and canonical asset/backend dependencies are not authorized host writes."
+    "path_authority": "These are potential exact host GUI paths from inspected pico owners, not an active write lease. Every application still binds the frozen changed-file allocation and actual Primary/Coding writer; unresolved historical paths and canonical asset/backend dependencies are not authorized host writes.",
+    "module_ref": "MT-212.json#/context_capsule/owning_module"
   },
   "proof": {
     "parent_proof_refs": [
@@ -376,7 +385,15 @@
       "src/frontend/handshake_native/src/workspace_settings.rs",
       "src/frontend/handshake_native/tests/test_model_runtime_panel_argus.rs",
       "src/frontend/handshake_native/tests/test_operator_chat_selection_and_transcript_argus.rs",
-      "src/frontend/handshake_native/Cargo.lock"
+      "src/frontend/handshake_native/Cargo.lock",
+      "src/frontend/cabinet_host/Cargo.toml",
+      "src/frontend/cabinet_host/src/lib.rs",
+      "src/frontend/cabinet_host/README.md",
+      "src/frontend/cabinet_host/Cargo.lock",
+      "src/frontend/handshake_native/motion_preference/Cargo.toml",
+      "src/frontend/handshake_native/motion_preference/src/lib.rs",
+      "src/frontend/handshake_native/motion_preference/README.md",
+      "src/frontend/handshake_native_composition_tests/tests/test_swarm_lane_diagnostics_argus.rs"
     ],
     "forbidden_paths": [
       "Original MT acceptance/status rewrites",
@@ -612,7 +629,9 @@
     "module_maintenance_refs": [
       "MT-198.json",
       "MT-199.json",
-      "MT-203.json"
+      "MT-203.json",
+      "MT-212.json#/context_capsule/host_build_units/cabinet_host/maintenance",
+      "MT-212.json#/context_capsule/host_build_units/motion_preference/maintenance"
     ],
     "asset_skill": "C:/Users/iljas/.codex/skills/create-assets/SKILL.md",
     "assets_basis": "Actual owning asset bootstrap reported official e37e61767b4a4a1cce8d8947841ac512b64b2cdd, inventory5573ce92...; unpublished local CSCE catalog and partial parity preserved, no full synchronization claimed",
@@ -627,7 +646,340 @@
       "relevant_source_comparison": "Kumihimo8a97 pinned code/API/manifests unchanged; README only. Handpick6f24 subtree unchanged.",
       "unrelated_drafts_preserved": true
     },
-    "owning_module": "src/frontend/handshake_native host GUI adapters and existing modular frontend dependencies as named by each pico; reusable internals stay with canonical assets"
+    "owning_module": "src/frontend/handshake_native host GUI adapters and existing modular frontend dependencies as named by each pico; reusable internals stay with canonical assets",
+    "host_build_units": {
+      "cabinet_host": {
+        "unit_id": "cabinet_host",
+        "owning_module_ref": "MT-212.json#/context_capsule/owning_module",
+        "kind": "focused_host_adapter_build_unit",
+        "relationship": "Physical crate inside the same existing Native host GUI adapters module. It creates no semantic module, SDK, repository, lifecycle waiver or independent service.",
+        "root": "src/frontend/cabinet_host",
+        "source_paths": [
+          "src/frontend/cabinet_host/Cargo.toml",
+          "src/frontend/cabinet_host/src/lib.rs",
+          "src/frontend/cabinet_host/README.md",
+          "src/frontend/cabinet_host/Cargo.lock"
+        ],
+        "consumer_paths": [
+          "src/frontend/handshake_native/Cargo.toml",
+          "src/frontend/handshake_native/Cargo.lock",
+          "src/frontend/handshake_native/src/project_tree.rs",
+          "src/frontend/handshake_native/src/graph/folder_tree.rs"
+        ],
+        "canonical_source": {
+          "repository": "https://github.com/Nuntissura/Handshake.git",
+          "root": "src/frontend/cabinet_host",
+          "repository_verification": "Current host origin freshly verified by Root; this proposal does not publish source."
+        },
+        "selected_design": {
+          "design": {
+            "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/gui-crate-design-20261028-01/selected/design.json",
+            "sha256": "a793476eed5a3f3d2c0d26573b76c02b466e166f97957dfa76666008bce4e94c",
+            "bytes": 3773,
+            "role": "Actual selected A design and independent-judge comparison; design only, not implementation acceptance."
+          },
+          "types": {
+            "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/gui-crate-design-20261028-01/selected/types.rs",
+            "sha256": "e9b87186b6d27db1d223b13f58cf18b294489e4ba19b7bd465dfb6fa159bb15a",
+            "bytes": 5218,
+            "role": "Selected API/type sketch only; unimplemented sketch is not production code or proof."
+          },
+          "comparison_ref": "gui-crate-design-20261028-01/selected/design.json#/comparison"
+        },
+        "asset_boundary": {
+          "source_repository": "https://github.com/Nuntissura/assets.git",
+          "package": "cabinet",
+          "version": "0.1.0",
+          "revision": "c56cc9500243d9ad027e20cc291c71352c936a3a",
+          "default_features": false,
+          "contract": {
+            "path": "C:/Projects/LLM Projects/.assets/Cabinet/spec/cabinet.contract.json",
+            "sha256": "f2b33eb71be8d1001147edaf05f1b289932041ff792e162a7daab01d91362043",
+            "bytes": 25746,
+            "role": "CAB-001 and CAB-039 retain reusable mechanics in Cabinet; host-specific completion/transport policy stays in Handshake."
+          },
+          "contract_anchors": [
+            "CAB-001",
+            "CAB-039"
+          ],
+          "owner_decision": {
+            "source_thread": "01a17374-1d96-7e02-9aea-77b0f62f20dc",
+            "message_prefix": "Cabinet04 extraction decision from ACTUAL source",
+            "local_receipt_id": null,
+            "verification": "Root verified the actual owning message; this author inspected its pinned contract, source and supplied parity artifact without re-contacting the owner.",
+            "disposition": "State.bind/terminal/canonical_refetch/source_revision are Handshake host policy. No missing Cabinet reusable mechanic or asset extension was identified; exact c56 adoption stays unchanged."
+          },
+          "parity": {
+            "path": "C:/Projects/LLM Projects/.assets/.local/gpu-native-memory-20261027-01/cabinet-boundary-parity.json",
+            "sha256": "0006508f6f52e8685af6ea796d6bbd7bc48ba4678809883410dc8620fb69eebf",
+            "bytes": 7413,
+            "role": "Owning asset invocation parity: no scoped Cabinet findings; global DRIFT and unrelated drafts remain."
+          },
+          "scoped_cabinet_findings": [],
+          "global_parity": "DRIFT_NOT_SYNCHRONIZED",
+          "preservation": "Unpublished catalog/CSCE/generated policy and other asset work remain intact. No whole-repository synchronization claim."
+        },
+        "maintenance": {
+          "contract_id": "MT212-CABINET-HOST-EMBEDDING-001",
+          "version": 1,
+          "basis": [
+            "HBR-MODULE-LIFECYCLE-004",
+            "HBR-COMPART-001",
+            "CX-UNIT-001"
+          ],
+          "owner": "Existing MT-212 Native host GUI adapters module and actual Primary/Coding custody.",
+          "source_author": "Retained /root/cabinet_rename04 external extraction candidate; preserve /root/gui_source_cycle03 source lineage.",
+          "purpose": "Extract the existing host request/binding/terminal/canonical-read and egui focus/navigation policy from nested project_tree::cabinet_host into one focused crate, migrating both tree consumers and deleting the inline owner in the same source candidate.",
+          "source_origin": {
+            "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-trees-04/post/src/frontend/handshake_native/src/project_tree.rs",
+            "sha256": "b43121e7a57e7fa4b2eeb21b9a8c9f7a6f87990ea668c550c35756367cfb7555",
+            "bytes": 102439,
+            "role": "Existing nested cabinet_host State at lines48-369 supplies the extraction source; original source author/history retained."
+          },
+          "dependency_closure": {
+            "cabinet": {
+              "version": "0.1.0",
+              "git_revision": "c56cc9500243d9ad027e20cc291c71352c936a3a",
+              "default_features": false
+            },
+            "egui": {
+              "version": "=0.33.3",
+              "directly_needed_feature": "accesskit"
+            },
+            "standard_library": "std",
+            "forbidden": [
+              "handshake-native reverse dependency",
+              "Core HTTP/auth/storage",
+              "private database or filesystem scanner",
+              "new diagnostics/GPU ownership",
+              "copied Cabinet hierarchy/selection/edit/move mechanics"
+            ]
+          },
+          "host_provided_inputs": [
+            "Canonical Entry snapshots and hierarchy_complete from existing authenticated callers.",
+            "Actual host scope/generation/source_revision and current backend request epoch/sequence.",
+            "Exact terminal Result and subsequent canonical read observations, never optimistic or fabricated completion."
+          ],
+          "provided_contract": "Public State API and affordance mapping with private model/interaction/request/receipt fields. Immutable model inspection and owned edit-text mutation may be exposed; no mutable bypass accessor. Request/expand/select/edit logic consumes Cabinet public APIs.",
+          "authorization_mapping": "Affordance capabilities are UI policy, never backend grants. Actual authentication, domain mutation, I/O, storage, telemetry and retained backend operation custody remain in the existing host callers.",
+          "data_ownership": "State owns only its local Cabinet projection, host request identity/binding/terminal/read receipt and focus/navigation state. Canonical data and backend operation execution stay with their original owners.",
+          "lifecycle": [
+            "Clone returns fresh local state and never copies an in-flight operation ownership.",
+            "Scope/generation reset invalidates projection/callback eligibility while the actual host retains any real backend request until its true terminal.",
+            "Model replacement or terminal alone never releases pending write custody; exact terminal and later canonical-read observation are both required.",
+            "Known-unstarted release, stale callbacks, LoadPage versus LoadChildren and projection-only expansion retain existing distinct semantics."
+          ],
+          "scheduling": "Synchronous host-adapter methods only; no runtime, thread, process, network, watcher or I/O ownership is created. Primary retains all actual build/runtime processes and source custody.",
+          "lock_and_manifest_control": {
+            "generated_locks": [
+              "src/frontend/cabinet_host/Cargo.lock",
+              "src/frontend/handshake_native/Cargo.lock"
+            ],
+            "sole_generator": "Primary01a16f0c-3f8d-7fa2-8769-3e275ddf6005",
+            "constraint": "Allowed-path declarations permit only existing owner-controlled application. Helpers author external source/manifests only; they do not generate or edit standalone/Native locks, physically mutate manifests, operate common Git or launch compilers."
+          },
+          "proof": {
+            "owning_compile_static": {
+              "manifest_path": "src/frontend/cabinet_host/Cargo.toml",
+              "mode": "cargo check --locked --tests",
+              "executor": "Actual Primary under the existing compatible compile/resource batch; no new attempt, slot or target is granted."
+            },
+            "owning_contract_cases": "Public State lifecycle assertions belong once in the owning crate test target. No duplicate helper self-test campaign in both consumers.",
+            "host_conformance": "Preserve the eight original Cabinet host selectors, assertions and behavior, with necessary typed API caller/access and test-setup changes for the private State contract, including .model to .model() and draft access. Do not require literal test-body byte identity. Preserve all original ProjectTree/Loom/auth/menu/ID/telemetry/terminal/refetch/Argus/GUI/persistence/Vulkan acceptance. Module-only static checks cannot replace required host proof.",
+            "manual_inspection_recovery": "README.md documents purpose, exact dependencies, public API use, quiet compile/test entrypoints, host input/output custody, stale/unstarted/unknown handling and context-reset recovery without chat history.",
+            "acceptance": "OPEN_UNPROVEN; schema/allocation/source/compile claims do not grant independent verdicts."
+          }
+        }
+      },
+      "motion_preference": {
+        "unit_id": "motion_preference",
+        "kind": "focused_host_adapter_build_unit",
+        "owning_module_ref": "MT-212.json#/context_capsule/owning_module",
+        "relationship": "Physical package within the existing Native host GUI adapters module; no new semantic module, SDK, asset or repository.",
+        "root": "src/frontend/handshake_native/motion_preference",
+        "source_paths": [
+          "src/frontend/handshake_native/motion_preference/Cargo.toml",
+          "src/frontend/handshake_native/motion_preference/src/lib.rs",
+          "src/frontend/handshake_native/motion_preference/README.md"
+        ],
+        "consumer_paths": [
+          "src/frontend/handshake_native/Cargo.toml",
+          "src/frontend/handshake_native/src/app.rs",
+          "src/frontend/handshake_native/src/theme/egui_apply.rs"
+        ],
+        "selected_shape": {
+          "base": "host-motion-crate-design-01/candidate-a",
+          "design_sha256": "00382fd92bf84ff2fa857bcb9bfa770a4a16fa917ff4c7d73715b3566785e79b",
+          "types_sha256": "8095ff9805d8123dc0ac09d58165f513ac49d7f23020987ad5f5d7bb7692c8b8",
+          "graft_from_b": "Explicit egui=0.33.3, default-features=false, accesskit; keep A single package and two complete public operations."
+        },
+        "maintenance": {
+          "contract_id": "MT212-MOTION-PREFERENCE-EMBEDDING-001",
+          "version": 1,
+          "basis": [
+            "HBR-MODULE-LIFECYCLE-004",
+            "HBR-COMPART-001",
+            "CX-UNIT-001"
+          ],
+          "owner": "Existing MT-212 Native host GUI adapters module; original Motion source author /root retained.",
+          "canonical_source": {
+            "repository": "https://github.com/Nuntissura/Handshake.git",
+            "root": "src/frontend/handshake_native/motion_preference",
+            "source_handoff": {
+              "path": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/host-motion-crate-extraction-03/binding.json",
+              "sha256": "47c11494a4377b0f1fa45f47f71b66cdc450a6484a21ef3fe1c6e062ed96f084",
+              "bytes": 15979,
+              "author": "/root",
+              "status": "FROZEN_EXTERNAL_DERIVATIVE_SOURCE_REVIEW_OPEN_UNAPPLIED_UNCOMPILED_UNRUN",
+              "patch": {
+                "path": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/host-motion-crate-extraction-03/candidate.patch",
+                "sha256": "90f591ce24c71f7f11e1355795cc22397918c8c0ad5fdfa5eccf0fa3a2a75204",
+                "bytes": 19512
+              },
+              "base_boundary": "Native app/Cargo BASE is unapplied cabinet-host-crate-source-01 POST; theme BASE is current Product. This patch is NOT a direct current-Product adoption patch. Cabinet remains independent.",
+              "source_review_state": "SOURCE_CLEAR",
+              "source_reviews": [
+                {
+                  "reviewer": "/root/gui_crate_boundaries",
+                  "finding": "SOURCE_CLEAR",
+                  "scope": "Motion Source03 after all 12 hunks reconstructed to all six POST files and authority pointer correction."
+                },
+                {
+                  "reviewer_chat_id": "01a17387-9d99-7e61-8987-42feab10e18a",
+                  "turn_id": "01a182d3-90f5-7ab1-a8ed-f06a27ade86c",
+                  "finding": "SOURCE_CLEAR",
+                  "scope": "Motion Source03."
+                },
+                {
+                  "reviewer_chat_id": "01a17387-9d99-7e61-8987-42feab10e18a",
+                  "turn_id": "01a182d9-cb88-7d11-90e9-de3bb06cb9bc",
+                  "finding": "SOURCE_CLEAR",
+                  "scope": "Complete 13-path composition; reference only, no new allocation gate."
+                }
+              ],
+              "source_review_provenance": "Actual new own-requested reviewer returns reported by Root in this correction dispatch; no outbound handoff or copied rejected review delivery.",
+              "publication_compile_case_execution": "NONE",
+              "status_scope": "status is the verbatim frozen Source03 binding field; source_review_state records the subsequent reviewer returns. No acceptance or adoption follows."
+            },
+            "status": "FROZEN_EXTERNAL_DERIVATIVE_SOURCE_REVIEW_OPEN_UNAPPLIED_UNCOMPILED_UNRUN",
+            "package_name": "motion_preference",
+            "package_version": "0.1.0",
+            "source_review_state": "SOURCE_CLEAR"
+          },
+          "purpose": "Move private per-context duration capture/restoration and the complete fixed-ID theme widget into one focused package. Native retains settings/CAS/account/theme/palette and real context selection.",
+          "dependency_closure": {
+            "egui": {
+              "version": "=0.33.3",
+              "default_features": false,
+              "features": [
+                "accesskit"
+              ]
+            },
+            "standard_library": "std",
+            "forbidden": [
+              "handshake-native reverse edge",
+              "eframe/WGPU/GPU ownership",
+              "settings/account/HTTP/storage",
+              "new animation engine or context registry"
+            ]
+          },
+          "workspace": {
+            "root_manifest": "src/frontend/handshake_native/Cargo.toml",
+            "membership": "Member of the existing Native workspace via the actual local path dependency.",
+            "no_nested_workspace": true,
+            "no_package_lock": true,
+            "no_package_profiles": true,
+            "shared_lock": "src/frontend/handshake_native/Cargo.lock",
+            "shared_profiles": "Existing Native workspace profiles unchanged.",
+            "exclusions": "Preserve existing diag_ring/workspace_activation exclusions; create no repository-root workspace.",
+            "controls": "Primary alone changes physical manifests, generates the one Native lock, publishes commits and selects the existing compatible target/capture/compiler resources."
+          },
+          "provided_contract": [
+            "apply_motion_preference(&egui::Context, bool) owns private per-context snapshots and transition-only animation clearing.",
+            "theme_toggle(&mut egui::Ui, egui::Id, &str) -> egui::Response owns full existing geometry/interact/paint/WidgetInfo."
+          ],
+          "host_inputs_and_ownership": "Native supplies resolved bool, actual context, fixed Id and label; attaches the same author ID and performs immediate theme action. No auth or I/O authority is transferred.",
+          "lifecycle": [
+            "Keep all four actual context relationships: settings outcome propagation, settings surface, motion before unchanged-theme early return, and account reset restoring every held context before data.clear.",
+            "One private MotionPreference per context; no public state, second store, global context registry, timer or unconditional repaint loop.",
+            "Preserve separate Light/Dark saved durations, uninitialized-false and unchanged-value no-op, transition-only clear and later custom normal durations."
+          ],
+          "migration": "Delete the old Native motion implementation, its three owning tests and the full App theme widget renderer as the internal callers migrate on the split candidate. No forwarding symbols or duplicate test bodies. The two workspace JSON/merge cases stay Native with their existing WinRT/timezone dependency.",
+          "proof": {
+            "owning_compile_static": {
+              "workspace_manifest": "src/frontend/handshake_native/Cargo.toml",
+              "package": "motion_preference",
+              "mode": "cargo check --locked --tests -p motion_preference",
+              "executor": "Actual Primary only in its existing admitted compatible batch/target."
+            },
+            "owning_original_cases": [
+              "reduce_motion_updates_both_themes_and_restores_each_duration",
+              "reduce_motion_is_applied_independently_to_each_context",
+              "account_reset_can_restore_timing_before_context_data_is_discarded"
+            ],
+            "execution_identity": "Bind actual frozen package module selectors/executable/profile/features before execution; no runtime listing or case invocation is claimed.",
+            "native_cases_retained": [
+              "reduce_motion_round_trips_and_retains_local_edits_during_load",
+              "reduce_motion_missing_or_invalid_uses_fallback_but_false_is_valid"
+            ],
+            "conformance": "Preserve stable ID/geometry/AccessKit and immediate focus/pressed/disabled/text/input, all four caller orders, original auth/persistence/Argus/visual/Vulkan acceptance. Package component proof cannot replace host acceptance.",
+            "manual": "README.md documents purpose, public APIs, per-context state and restore-before-context-data-clear ordering, Native ownership, workspace/shared-lock/profile use and test ownership. It contains no execution commands; actual commands remain with Primary's admitted method.",
+            "status": "UNPROVEN_NO_ACCEPTANCE_PROMOTION",
+            "owning_case_binding": {
+              "package": "motion_preference",
+              "selectors": [
+                "motion_tests::reduce_motion_updates_both_themes_and_restores_each_duration",
+                "motion_tests::reduce_motion_is_applied_independently_to_each_context",
+                "motion_tests::account_reset_can_restore_timing_before_context_data_is_discarded"
+              ],
+              "source_binding_sha256": "47c11494a4377b0f1fa45f47f71b66cdc450a6484a21ef3fe1c6e062ed96f084",
+              "whole_test_module_sha256": "5ed7b4fde16188ee6039e98ea97128dca8d5eacb7525c30fd9da70dad502cc40",
+              "whole_test_module_exact_to_old_native": true,
+              "execution": "NOT_RUN_NOT_QUALIFIED",
+              "limit": "Source names/module preservation are not invocation, compile, runtime qualification or adoption."
+            }
+          },
+          "source_and_caller_qualification": {
+            "classification": "Focused physical build unit inside the existing Native host adaptation; no new semantic module/SDK/asset or missing reusable mechanic.",
+            "owning_module_ref": "MT-212.json#/context_capsule/owning_module",
+            "source": "Freeze exact package and caller bytes with original authorship; Primary establishes canonical source, manifests, shared lock and actual execution capture.",
+            "proof": "Qualify the three owning context cases once, then the affected Native callers and original integration/visual/Vulkan/account/diagnostics/Palmistry acceptance on the exact split candidate. Source-only checks do not replace required runtime or independent proof.",
+            "sequencing": "Use focused-to-broad validation when Primary admits execution. This internal host source/caller migration does not create a new intermediate remote-publication or package-test-PASS predecessor before caller source writes.",
+            "preserved_external_gate": "When a separately maintained module or reusable asset really changes, HBR-MODULE-LIFECYCLE-007 and CX-MODULE-LIFECYCLE-002 still require standalone canonical source publication/reread/proof before distinct pinned host adoption; this proposal changes none of that authority.",
+            "authority_refs": [
+              "CX-UNIT-001",
+              "CX-MODULE-LIFECYCLE-001",
+              "CX-MODULE-LIFECYCLE-002",
+              "HBR-MODULE-LIFECYCLE-004",
+              "HBR-MODULE-LIFECYCLE-007",
+              "packet.json#/swarm_production_20261014/coordination/operator_crate_sequencing_20261015"
+            ],
+            "state": "No publication, qualification, caller adoption, compiler or runtime admission claimed.",
+            "package_pins": [
+              {
+                "path": "src/frontend/handshake_native/motion_preference/Cargo.toml",
+                "post_sha256": "c7c831045aa60ee8e02436168d6e67cfa91c840191503ab2e889eb1a5f98e817",
+                "post_bytes": 187
+              },
+              {
+                "path": "src/frontend/handshake_native/motion_preference/src/lib.rs",
+                "post_sha256": "de3ada9a2cb861155fd57f826157f96690ee7c85429856ca847012c943664510",
+                "post_bytes": 5628
+              },
+              {
+                "path": "src/frontend/handshake_native/motion_preference/README.md",
+                "post_sha256": "67a12d982d755ae6d07760814412b3e7b6a2f30392c3c648afb75ec0265a8f51",
+                "post_bytes": 1363
+              }
+            ],
+            "owning_three_case_qualification": "NOT_RUN_NOT_QUALIFIED",
+            "native_caller_adoption": "NOT_ADOPTED",
+            "source_review_state": "SOURCE_CLEAR",
+            "limit": "Primary alone admits physical source/manifest/shared-lock writes and compile/runtime capture. All five Motion cases, Cargo membership, compiler, runtime, adoption and original acceptance remain unproven. No old Native PASS, new intermediate package PASS or remote-publication predecessor is imposed on internal caller source writes; real separately maintained module/asset gates remain intact."
+          }
+        }
+      }
+    }
   },
   "pico_authoring": {
     "state": "AUTHORED_92_PICOS_302_SOURCE_MTS_7_RESERVED_INTENTS_LINK_VALIDATED_IMPLEMENTATION_CONTINUES",
@@ -2536,6 +2888,222 @@
       "original_acceptance": "OPEN",
       "next_owner": "Actual Primary owns safe application, dependency/Cargo.lock resolution, publication and existing capture/resource scheduling after fresh guards. No additional attempt or runtime admission follows from Source clear.",
       "limits": "Cabinet dependency lock is not resolved by this unit; no compiled/native/Vulkan/pixel/persistence/Palmistry/full-MT acceptance. Working-directory/worktree picker and genuine GPU/Notes/provider dependencies remain open. New Handpick05 generic Search is still authoring, with no frozen or applied claim. Journal/equivalent retry hold remains. No scope, lifecycle, acceptance, original requirements or status is changed."
+    },
+    {
+      "candidate": "cabinet-host-crate-allocation-01",
+      "recorded_at_utc": "2026-10-28T12:34:31.810362+00:00",
+      "state": "HOST_BUILD_UNIT_ALLOCATION_SOURCE_AUTHORING_NO_COMPILE_OR_RUNTIME_CREDIT",
+      "author": "/root/gui_record06",
+      "unit_ref": "MT-212.json#/context_capsule/host_build_units/cabinet_host",
+      "owning_module_ref": "MT-212.json#/context_capsule/owning_module",
+      "new_paths": [
+        "src/frontend/cabinet_host/Cargo.toml",
+        "src/frontend/cabinet_host/src/lib.rs",
+        "src/frontend/cabinet_host/README.md",
+        "src/frontend/cabinet_host/Cargo.lock"
+      ],
+      "existing_caller_paths": [
+        "src/frontend/handshake_native/Cargo.toml",
+        "src/frontend/handshake_native/Cargo.lock",
+        "src/frontend/handshake_native/src/project_tree.rs",
+        "src/frontend/handshake_native/src/graph/folder_tree.rs"
+      ],
+      "design_sha256": "a793476eed5a3f3d2c0d26573b76c02b466e166f97957dfa76666008bce4e94c",
+      "types_sha256": "e9b87186b6d27db1d223b13f58cf18b294489e4ba19b7bd465dfb6fa159bb15a",
+      "asset_revision_unchanged": "c56cc9500243d9ad027e20cc291c71352c936a3a",
+      "owner_disposition": "Inspected owning message as verified by Root and CAB-001/CAB-039 keep the transport/presentation policy in Handshake; no asset capability change or copy.",
+      "generated_locks_primary_only": [
+        "src/frontend/cabinet_host/Cargo.lock",
+        "src/frontend/handshake_native/Cargo.lock"
+      ],
+      "source_state": "Retained cabinet_rename04 authors cabinet-host-crate-extraction-01 externally. Physical application waits for actual owner adoption and fresh source guards.",
+      "canonical_product_applied": false,
+      "tests_run": false,
+      "runtime_run": false,
+      "compiler_or_writer_grant": false,
+      "original_acceptance": "OPEN",
+      "limit": "Only the existing module owner anchor, four exact path additions, local maintenance reference/data and this allocation record change. All prior history, picos, requirements, statuses and verdicts remain. No new module/SDK/MT/registry/script/role/gate, asset extension, lock-generation authority or runtime admission."
+    },
+    {
+      "candidate": "host-motion-crate-allocation-02",
+      "recorded_at_utc": "2026-10-28T14:34:17.378266+00:00",
+      "state": "EXTERNAL_FROZEN_MOTION_SOURCE_DERIVATIVE_ALLOCATION_REVIEW_OPEN_UNCOMPILED_UNRUN",
+      "author": "/root/gui_record06",
+      "unit_ref": "MT-212.json#/context_capsule/host_build_units/motion_preference",
+      "new_paths": [
+        "src/frontend/handshake_native/motion_preference/Cargo.toml",
+        "src/frontend/handshake_native/motion_preference/src/lib.rs",
+        "src/frontend/handshake_native/motion_preference/README.md"
+      ],
+      "source_author": "/root",
+      "source_handoff": {
+        "path": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/host-motion-crate-extraction-03/binding.json",
+        "sha256": "47c11494a4377b0f1fa45f47f71b66cdc450a6484a21ef3fe1c6e062ed96f084",
+        "bytes": 15979,
+        "review": "SOURCE_CLEAR",
+        "reviews": [
+          {
+            "reviewer": "/root/gui_crate_boundaries",
+            "finding": "SOURCE_CLEAR",
+            "scope": "Motion Source03 after all 12 hunks reconstructed to all six POST files and authority pointer correction."
+          },
+          {
+            "reviewer_chat_id": "01a17387-9d99-7e61-8987-42feab10e18a",
+            "turn_id": "01a182d3-90f5-7ab1-a8ed-f06a27ade86c",
+            "finding": "SOURCE_CLEAR",
+            "scope": "Motion Source03."
+          },
+          {
+            "reviewer_chat_id": "01a17387-9d99-7e61-8987-42feab10e18a",
+            "turn_id": "01a182d9-cb88-7d11-90e9-de3bb06cb9bc",
+            "finding": "SOURCE_CLEAR",
+            "scope": "Complete 13-path composition; reference only, no new allocation gate."
+          }
+        ],
+        "review_provenance": "Actual new own-requested reviewer returns reported by Root in this correction dispatch; no outbound handoff or copied rejected review delivery."
+      },
+      "future_predecessor": "cabinet-host-crate-allocation-02 POSTc24f09380a9672b34c1c5dfcbc4406125dfdb14689996d7df3db78f7cb22af57",
+      "canonical_applied": false,
+      "tests_run": false,
+      "runtime_run": false,
+      "compiler_or_writer_grant": false,
+      "limit": "Future derivative over Cabinet allocation02 only, not current canonical allocation. Root authored Motion Source03; motion_design_research authored research only. Actual new source reviews are SOURCE_CLEAR; this allocation correction has no independent acceptance verdict. Three owning cases and two retained Native cases are unrun; compiler, Cargo membership, runtime and adoption remain unproven. Primary alone owns physical Product, manifests, shared lock, Git, target and execution admission. Preserve all 22 prior records and original requirements/statuses. Follow the verified operator crate sequence and actual Source03 qualification without an intermediate package PASS/publication predecessor for internal caller writes; preserve separately maintained module/asset source-first gates.",
+      "metadata_correction_author": "/root/gui_record07",
+      "previous_candidate": {
+        "candidate": "host-motion-crate-allocation-01",
+        "binding_sha256": "e45a787be7aa0a3c300840deccafa310c302d4c818020cf23adf2cd29ccc8e90",
+        "post_sha256": "51ae1dcbae7af33775c17e8545684d430ddddb2d3c9d7ee10073ff967c9f196e",
+        "author": "/root/gui_record06",
+        "preserved_immutable": true
+      }
+    },
+    {
+      "candidate": "gui-diagnostics-refresh-01",
+      "recorded_at_utc": "2026-10-28T15:31:59.018803+00:00",
+      "state": "SOURCE_CLEAR_UNAPPLIED_UNCOMPILED_UNRUN_ORIGINAL_ACCEPTANCE_OPEN",
+      "author": "/root/gui_mt172_refresh02",
+      "record_author": "/root/gui_record08",
+      "original_helper_credit": "/root/handpick_independent_proof_route identified the counterexample and retains historical routing authorship; no transfer or release inferred from silence",
+      "pico": "GUI-WP012-172-DIAGNOSTICS",
+      "pico_ref": "MT-212.json#/picotask_plan/items/4",
+      "owning_module_ref": "MT-212.json#/context_capsule/owning_module",
+      "source_binding": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/gui-diagnostics-refresh-01/binding.json",
+        "sha256": "a1f1d76457fd0988835a4d4505cf2e52b9ff285f76f6ba428fb2748c3b7b7752",
+        "bytes": 21139
+      },
+      "source_patch": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/gui-diagnostics-refresh-01/candidate.patch",
+        "sha256": "83641584a2a542890d4cd9d08f28cf7ef0a0a48540528f33794661001ec44fe7",
+        "bytes": 11149
+      },
+      "source_snapshot": {
+        "product_commit": "09de66cdba2172e758d96a36aeee9c4336ed5f09",
+        "kernel_commit": "13fb294a86e80121bc740742f0cd8afb44421abb",
+        "spec_version": "v02.225"
+      },
+      "new_paths": [
+        "src/frontend/handshake_native_composition_tests/tests/test_swarm_lane_diagnostics_argus.rs"
+      ],
+      "already_allocated_paths": [
+        "src/frontend/handshake_native/src/swarm_lane_diagnostics.rs"
+      ],
+      "source_paths": [
+        {
+          "path": "src/frontend/handshake_native/src/swarm_lane_diagnostics.rs",
+          "base": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/gui-diagnostics-refresh-01/BASE/src/frontend/handshake_native/src/swarm_lane_diagnostics.rs",
+            "sha256": "0f975c5c39f44153bc02ae982c6f580144f1d3aa9093e99688dc26fd69cadb6d",
+            "bytes": 34221
+          },
+          "post": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/gui-diagnostics-refresh-01/POST/src/frontend/handshake_native/src/swarm_lane_diagnostics.rs",
+            "sha256": "598a58e4d09695d65bcd51737c5a43c712c3910ea37fdc7c20464ec7452154c0",
+            "bytes": 35120
+          }
+        },
+        {
+          "path": "src/frontend/handshake_native_composition_tests/tests/test_swarm_lane_diagnostics_argus.rs",
+          "base": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/gui-diagnostics-refresh-01/BASE/src/frontend/handshake_native_composition_tests/tests/test_swarm_lane_diagnostics_argus.rs",
+            "sha256": "788bb99f83111da8b82695c20160a31a0e029854d3b8cfb50ab2031bdbf6c8a3",
+            "bytes": 62928
+          },
+          "post": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/gui-diagnostics-refresh-01/POST/src/frontend/handshake_native_composition_tests/tests/test_swarm_lane_diagnostics_argus.rs",
+            "sha256": "3badaf85b39ba9318a5b70df0d5e2eeb02bbf8c3ab81f4ac12c379f9a6a605b1",
+            "bytes": 68601
+          }
+        }
+      ],
+      "source_review": {
+        "nonauthor": {
+          "reviewer": "/root/handpick_independent_proof_route",
+          "finding": "SOURCE_CLEAR",
+          "scope": "Both exact POST files and all 14 dependency pins.",
+          "evidence": "Actual completed nonauthor return reported by Root in this helper assignment. Frozen Source binding retains its earlier pending snapshot."
+        },
+        "affected_same_codecheck": {
+          "reviewer_chat_id": "01a17387-9d99-7e61-8987-42feab10e18a",
+          "turn_id": "01a1831c-a28a-7271-b59a-8908aa8bb512",
+          "finding": "SOURCE_CLEAR",
+          "findings": [],
+          "scope": "Both POST files, six hunks, 14 dependency pins, actual deferred invocation, existing Argus transition fences and disabled AccessKit controls.",
+          "evidence": "New requested Refresh review completed and reported by Root during current assembly. No outbound handoff attempt or copied older rejected Cabinet verdict."
+        },
+        "limits": "Source review only. No compile, case execution, runtime, adoption, publication, MT verdict or acceptance credit."
+      },
+      "recorded_failure": {
+        "kind": "SOURCE_TRACED_COUNTEREXAMPLE_NOT_RUNTIME_REPRODUCTION",
+        "base_locations": [
+          "swarm_lane_diagnostics.rs:78 start_fetch returns early for unavailable/busy",
+          "swarm_lane_diagnostics.rs:181 acknowledges before actual invocation",
+          "swarm_lane_diagnostics.rs:274 actual deferred fetch"
+        ],
+        "effect": "Refresh could emit a handler acknowledgement when no request was queued"
+      },
+      "remediation": [
+        "start_fetch returns explicit Queued, Busy or Unavailable and refuses dispatch if state cannot be acquired",
+        "Queued means the selected transport dispatch invocation returned. Production transport calls Tokio Handle::spawn; it does not mean HTTP success or projection delivery",
+        "Refresh is visibly disabled during a pending fetch or absent transport, with its existing label and scoped author ID retained",
+        "The same-frame run filter and scoped Refresh author remain bound through deferred queue invocation; existing Argus validates the original exact ActionRequest",
+        "Only Queued triggers acknowledge_action_effect_allow_target_transition after actual invocation, followed by repaint for the disabled state",
+        "Initial auto-fetch, typed DTO/decoder, projection validation, stale/error/freshness/filter and selection behavior remain in the existing paths"
+      ],
+      "authored_component_tests": [
+        {
+          "name": "diagnostics_refresh_queues_once_then_disables_until_delivery",
+          "state": "UNRUN",
+          "proves_when_run": "Actual transport receives one initial latest invocation and one idle Refresh run invocation; busy click cannot duplicate it; delivery restores the enabled control"
+        },
+        {
+          "name": "diagnostics_refresh_rejects_initial_busy_and_offline_controls",
+          "state": "UNRUN",
+          "proves_when_run": "Live disabled AccessKit nodes cause public ActionChannel DisabledTarget rejection with no Applied receipt; direct disabled clicks preserve pending/offline state"
+        }
+      ],
+      "compatibility": {
+        "composition_binding": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/gui-cabinet-motion-source-01/binding.json",
+          "sha256": "87e7720bd7223cdaf18a221c24218bb3491e6b7d0eb1b45aad0ef2e45fd6d420",
+          "bytes": 44274
+        },
+        "changed_path_intersection": [],
+        "relationship": "Cabinet/Motion is frozen compatibility context, not an ancestor. Each ready source unit remains independently selectable by actual Primary; neither waits for physical adoption of the other."
+      },
+      "remaining_proof": [
+        "Both authored component cases and retained diagnostics cases remain UNRUN.",
+        "Real production Queued-to-disabled Applied receipt for the exact original Argus ActionRequest remains OPEN.",
+        "Generated producer/native DTO and actual scoped route negatives, stale/denied/malformed paths and exact canonical activity/Flight Recorder cardinality remain OPEN.",
+        "Vulkan/Kumihimo/render/privacy/auth and independent Palmistry survivor/ACK/drain acceptance remain OPEN.",
+        "Only actual Primary selects any physical application, compatible compile/static batch, generated locks, runtime admission or publication."
+      ],
+      "canonical_applied": false,
+      "tests_run": false,
+      "runtime_run": false,
+      "compiler_or_writer_grant": false,
+      "original_acceptance": "OPEN",
+      "limit": "Minimum scope metadata for a bugfix in the existing diagnostics module. One path is appended to each existing path list and one Source record is added. No new module, asset, backend feature, maintenance unit, MT, public command or approval gate. No lease or grant to write, compile or run. All prior owners, picos, statuses, acceptance, HBR and external-module source-first gates remain unchanged."
     }
   ],
   "picotask_plan": {
