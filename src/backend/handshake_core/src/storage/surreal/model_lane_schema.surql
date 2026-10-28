@@ -1508,26 +1508,26 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_consumption_identity($row: o
 };
 
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_read_authority($basis: object, $scope: object) {
-    LET $session = type::record('authenticated_sessions', $basis.session_id);
+    LET $authority_session = type::record('authenticated_sessions', $basis.session_id);
     LET $grant = type::record('resource_grants', $basis.grant_id);
     LET $resource = type::record('protected_resources', $basis.resource_id);
     RETURN $basis.action = 'read' AND $basis.capability_id = 'fs.read'
-        AND $basis.session_id = $scope.authenticated_session_id AND fn::mt109_session_live($session)
-        AND record::id($session.account_id) = $scope.owner_account_id
-        AND record::id($session.principal_id) = $scope.actor_principal_id
-        AND record::id($session.access_space_id) = $scope.access_space_id
-        AND ($session.delegated_capabilities CONTAINS '*' OR $session.delegated_capabilities CONTAINS 'fs.read')
-        AND ($session.principal_id.delegated_capabilities CONTAINS '*' OR $session.principal_id.delegated_capabilities CONTAINS 'fs.read')
+        AND $basis.session_id = $scope.authenticated_session_id AND fn::mt109_session_live($authority_session)
+        AND record::id($authority_session.account_id) = $scope.owner_account_id
+        AND record::id($authority_session.principal_id) = $scope.actor_principal_id
+        AND record::id($authority_session.access_space_id) = $scope.access_space_id
+        AND ($authority_session.delegated_capabilities CONTAINS '*' OR $authority_session.delegated_capabilities CONTAINS 'fs.read')
+        AND ($authority_session.principal_id.delegated_capabilities CONTAINS '*' OR $authority_session.principal_id.delegated_capabilities CONTAINS 'fs.read')
         AND $resource.resource_kind = 'workspace' AND $resource.external_resource_id = $scope.workspace_id
-        AND $resource.owner_account_id = $session.account_id AND $resource.access_space_id = $session.access_space_id
+        AND $resource.owner_account_id = $authority_session.account_id AND $resource.access_space_id = $authority_session.access_space_id
         AND $resource.lifecycle_state = 'active' AND $resource.created_by_principal_id.status = 'enabled'
-        AND $grant.account_id = $session.account_id AND $grant.principal_id = $session.principal_id
-        AND $grant.access_space_id = $session.access_space_id AND $grant.resource_id = $resource
+        AND $grant.account_id = $authority_session.account_id AND $grant.principal_id = $authority_session.principal_id
+        AND $grant.access_space_id = $authority_session.access_space_id AND $grant.resource_id = $resource
         AND $grant.status = 'active' AND $grant.revoked_at = NONE
         AND ($grant.expires_at = NONE OR $grant.expires_at > time::now())
-        AND $grant.grant_version = $basis.grant_version AND $grant.delegation_chain = $session.delegation_chain
+        AND $grant.grant_version = $basis.grant_version AND $grant.delegation_chain = $authority_session.delegation_chain
         AND $grant.actions CONTAINS 'read' AND $grant.capability_ids CONTAINS 'fs.read'
-        AND $resource.policy_version <= $grant.policy_version AND $grant.policy_version <= $session.policy_version;
+        AND $resource.policy_version <= $grant.policy_version AND $grant.policy_version <= $authority_session.policy_version;
 };
 
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_source_identity($row: object) {
@@ -1573,25 +1573,25 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_read_authority_snapshot($exp
         OR $expected.grant_version != $basis.grant_version
         OR !fn::wp012_model_lane_role_read_authority($basis, $scope) { RETURN false; };
     LET $grant = $expected.grant_id;
-    LET $session = $expected.session_id;
+    LET $authority_session = $expected.session_id;
     LET $current = {
         grant_id: $grant, resource_id: $grant.resource_id, account_id: $grant.account_id,
         principal_id: $grant.principal_id, actor_kind: $grant.principal_id.actor_kind,
-        actor_id: $grant.principal_id.actor_id, session_id: $session, access_space_id: $grant.access_space_id,
+        actor_id: $grant.principal_id.actor_id, session_id: $authority_session, access_space_id: $grant.access_space_id,
         grant_version: $grant.grant_version,
         policy_versions: [$grant.policy_version, $grant.resource_id.policy_version, $grant.account_id.policy_version,
-            $grant.principal_id.policy_version, $grant.access_space_id.policy_version, $session.policy_version],
+            $grant.principal_id.policy_version, $grant.access_space_id.policy_version, $authority_session.policy_version],
         revocation_epochs: [$grant.account_id.revocation_epoch, $grant.principal_id.revocation_epoch,
-            $grant.access_space_id.revocation_epoch, $session.account_revocation_epoch,
-            $session.principal_revocation_epoch, $session.space_revocation_epoch],
+            $grant.access_space_id.revocation_epoch, $authority_session.account_revocation_epoch,
+            $authority_session.principal_revocation_epoch, $authority_session.space_revocation_epoch],
         actions: $grant.actions, capability_ids: $grant.capability_ids, delegation_chain: $grant.delegation_chain,
-        session_capabilities: $session.delegated_capabilities,
+        session_capabilities: $authority_session.delegated_capabilities,
         principal_capabilities: $grant.principal_id.delegated_capabilities,
         capability_profile_id: $grant.principal_id.capability_profile_id,
         statuses: [$grant.status, $grant.resource_id.lifecycle_state, $grant.account_id.status,
             $grant.principal_id.status, $grant.access_space_id.status],
         resource_kind: $grant.resource_id.resource_kind, grant_expires_at: $grant.expires_at,
-        session_expires_at: $session.expires_at,
+        session_expires_at: $authority_session.expires_at,
         administration_lifetime: $grant.resource_id.account_administration_lifetime
     };
     RETURN $current = $expected;
@@ -1600,19 +1600,19 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_read_authority_snapshot($exp
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_consumption_authority($body: object) {
     LET $owner = $body.issuer_scope;
     LET $child = $body.exact_consumer_scope;
-    LET $session = type::record('authenticated_sessions', $child.authenticated_session_id);
+    LET $authority_session = type::record('authenticated_sessions', $child.authenticated_session_id);
     IF $owner.owner_account_id != $child.owner_account_id OR $owner.access_space_id != $child.access_space_id
         OR $owner.workspace_id != $child.workspace_id
         OR $body.owner_read.resource_id != $body.child_read.resource_id
-        OR $session.parent_session_id != type::record('authenticated_sessions', $owner.authenticated_session_id)
-        OR !($session.ancestor_session_ids CONTAINS type::record('authenticated_sessions', $owner.authenticated_session_id))
+        OR $authority_session.parent_session_id != type::record('authenticated_sessions', $owner.authenticated_session_id)
+        OR !($authority_session.ancestor_session_ids CONTAINS type::record('authenticated_sessions', $owner.authenticated_session_id))
         OR $body.producer.producer_registered_principal != $child.actor_principal_id
         OR !type::is_string($body.producer.producer_registration_ref) OR string::trim($body.producer.producer_registration_ref) = ''
         OR !type::is_string($body.producer.producer_instance_ref) OR string::trim($body.producer.producer_instance_ref) = ''
         OR $body.producer.producer_spawn_generation <= 0
         OR !fn::wp012_model_lane_role_read_authority($body.owner_read, $owner)
         OR !fn::wp012_model_lane_role_read_authority($body.child_read, $child) { RETURN false; };
-    LET $edges = array::filter($session.delegation_grant_edges, |$edge| {
+    LET $edges = array::filter($authority_session.delegation_grant_edges, |$edge| {
         $edge.child_grant_id = type::record('resource_grants', $body.child_read.grant_id)
         AND $edge.parent_grant_id = type::record('resource_grants', $body.owner_read.grant_id)
     });
@@ -2041,25 +2041,25 @@ DEFINE FUNCTION OVERWRITE fn::wp012_validator_association_snapshot($expected: ob
         OR $expected.access_space_id != $auth.access_space_id OR $expected.resource_kind != 'workspace'
         OR !fn::wp012_model_lane_original_grant($expected.resource_id, $expected.grant_id, $capability, $action) { RETURN false; };
     LET $grant = $expected.grant_id;
-    LET $session = $expected.session_id;
+    LET $authority_session = $expected.session_id;
     LET $current = {
         grant_id: $grant, resource_id: $grant.resource_id, account_id: $grant.account_id,
         principal_id: $grant.principal_id, actor_kind: $grant.principal_id.actor_kind,
-        actor_id: $grant.principal_id.actor_id, session_id: $session, access_space_id: $grant.access_space_id,
+        actor_id: $grant.principal_id.actor_id, session_id: $authority_session, access_space_id: $grant.access_space_id,
         grant_version: $grant.grant_version,
         policy_versions: [$grant.policy_version, $grant.resource_id.policy_version, $grant.account_id.policy_version,
-            $grant.principal_id.policy_version, $grant.access_space_id.policy_version, $session.policy_version],
+            $grant.principal_id.policy_version, $grant.access_space_id.policy_version, $authority_session.policy_version],
         revocation_epochs: [$grant.account_id.revocation_epoch, $grant.principal_id.revocation_epoch,
-            $grant.access_space_id.revocation_epoch, $session.account_revocation_epoch,
-            $session.principal_revocation_epoch, $session.space_revocation_epoch],
+            $grant.access_space_id.revocation_epoch, $authority_session.account_revocation_epoch,
+            $authority_session.principal_revocation_epoch, $authority_session.space_revocation_epoch],
         actions: $grant.actions, capability_ids: $grant.capability_ids, delegation_chain: $grant.delegation_chain,
-        session_capabilities: $session.delegated_capabilities,
+        session_capabilities: $authority_session.delegated_capabilities,
         principal_capabilities: $grant.principal_id.delegated_capabilities,
         capability_profile_id: $grant.principal_id.capability_profile_id,
         statuses: [$grant.status, $grant.resource_id.lifecycle_state, $grant.account_id.status,
             $grant.principal_id.status, $grant.access_space_id.status],
         resource_kind: $grant.resource_id.resource_kind, grant_expires_at: $grant.expires_at,
-        session_expires_at: $session.expires_at
+        session_expires_at: $authority_session.expires_at
     };
     RETURN $current = $expected;
 };
@@ -2916,25 +2916,25 @@ DEFINE FUNCTION OVERWRITE fn::wp012_routing_authority_snapshot($expected: object
         OR fn::wp012_model_lane_resource_domain($expected.resource_id, $scope.workspace_id, 'workspace', $scope.workspace_id) = NONE
         OR !fn::wp012_model_lane_original_grant($expected.resource_id, $expected.grant_id, $capability, $action) { RETURN false; };
     LET $grant = $expected.grant_id;
-    LET $session = $expected.session_id;
+    LET $authority_session = $expected.session_id;
     LET $current = {
         grant_id: $grant, resource_id: $grant.resource_id, account_id: $grant.account_id,
         principal_id: $grant.principal_id, actor_kind: $grant.principal_id.actor_kind,
-        actor_id: $grant.principal_id.actor_id, session_id: $session, access_space_id: $grant.access_space_id,
+        actor_id: $grant.principal_id.actor_id, session_id: $authority_session, access_space_id: $grant.access_space_id,
         grant_version: $grant.grant_version,
         policy_versions: [$grant.policy_version, $grant.resource_id.policy_version, $grant.account_id.policy_version,
-            $grant.principal_id.policy_version, $grant.access_space_id.policy_version, $session.policy_version],
+            $grant.principal_id.policy_version, $grant.access_space_id.policy_version, $authority_session.policy_version],
         revocation_epochs: [$grant.account_id.revocation_epoch, $grant.principal_id.revocation_epoch,
-            $grant.access_space_id.revocation_epoch, $session.account_revocation_epoch,
-            $session.principal_revocation_epoch, $session.space_revocation_epoch],
+            $grant.access_space_id.revocation_epoch, $authority_session.account_revocation_epoch,
+            $authority_session.principal_revocation_epoch, $authority_session.space_revocation_epoch],
         actions: $grant.actions, capability_ids: $grant.capability_ids, delegation_chain: $grant.delegation_chain,
-        session_capabilities: $session.delegated_capabilities,
+        session_capabilities: $authority_session.delegated_capabilities,
         principal_capabilities: $grant.principal_id.delegated_capabilities,
         capability_profile_id: $grant.principal_id.capability_profile_id,
         statuses: [$grant.status, $grant.resource_id.lifecycle_state, $grant.account_id.status,
             $grant.principal_id.status, $grant.access_space_id.status],
         resource_kind: $grant.resource_id.resource_kind, grant_expires_at: $grant.expires_at,
-        session_expires_at: $session.expires_at,
+        session_expires_at: $authority_session.expires_at,
         administration_lifetime: $grant.resource_id.account_administration_lifetime
     };
     RETURN $current = $expected;
@@ -3747,7 +3747,7 @@ DEFINE FUNCTION OVERWRITE fn::wp012_promotion_current_body($body: object, $write
                 workspace_id: $target.workspace_id } }
     });
     IF $body.targets != $expected_targets OR array::len(array::filter($lineage.targets, |$target| {
-        $target = $expected_targets[0] })) != 1 { RETURN false; };
+        ($target = $expected_targets[0]) })) != 1 { RETURN false; };
     IF $write AND (!type::is_string($frame.operator_receipt_json) OR !type::is_string($frame.validator_receipt_json)) { RETURN false; };
     RETURN !$write OR (encoding::json::decode($frame.operator_receipt_json) = encoding::json::decode($operator[0].record_json)
         AND encoding::json::decode($frame.validator_receipt_json) = encoding::json::decode($validator[0].record_json));
