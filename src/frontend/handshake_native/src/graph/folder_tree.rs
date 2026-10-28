@@ -800,7 +800,13 @@ fn render_folder(
         true,
         completion_value,
     );
-    ui.ctx().accesskit_node_builder(label_resp.id, |item| item.set_disabled(!cabinet.navigation_available()));
+    ui.ctx().accesskit_node_builder(label_resp.id, |item| {
+        if cabinet.navigation_available() {
+            item.clear_disabled();
+        } else {
+            item.set_disabled();
+        }
+    });
     emit_folder_status_accesskit(
         ui,
         label_resp.id.with("status"),

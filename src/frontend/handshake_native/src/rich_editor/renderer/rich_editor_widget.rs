@@ -6881,7 +6881,7 @@ mod tests {
             }
             assert!(harness.root().children_recursive().any(|node| {
                 let node = node.accesskit_node();
-                node.author_id() == Some("find-count") && node.value() == Some("2 matches")
+                node.author_id() == Some("find-count") && node.value().as_deref() == Some("2 matches")
             }));
             let click = |harness: &mut egui_kittest::Harness<'_, ()>, author_id: &str| {
                 let node_id = harness.root().children_recursive().find_map(|node| {
@@ -6900,7 +6900,7 @@ mod tests {
             assert_eq!(state.lock().unwrap().find_replace.as_ref().unwrap().active, Some(0));
             assert!(harness.root().children_recursive().any(|node| {
                 let node = node.accesskit_node();
-                node.author_id() == Some("find-count") && node.value() == Some("1 of 2")
+                node.author_id() == Some("find-count") && node.value().as_deref() == Some("1 of 2")
             }));
             click(&mut harness, "replace-one");
             let mut state = state.lock().unwrap();
