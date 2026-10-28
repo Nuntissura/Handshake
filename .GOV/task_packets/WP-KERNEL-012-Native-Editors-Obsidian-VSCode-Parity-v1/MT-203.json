@@ -482,6 +482,17 @@
     "new_attempts_granted": false,
     "current_retry_authority_ref": "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/current_retry_policy",
     "interaction_authority_ref": "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/interaction_policy",
+    "pre_account_gpu_startup_20261028": {
+      "decision_id": "WP012-PREACCOUNT-GPU-POLICY-20261028-01",
+      "status": "APPROVED_HOST_POLICY_NOT_EXECUTION_GRANT",
+      "recorded_at_utc": "2026-10-28T11:19:40Z",
+      "approval_source": "Human selection kernel-owned shell startup (Recommended), request_user_input_async call_f3dc4ab7882f478794ca5fd58feabc0b, relayed by Master 01a17815-783f-71b0-a740-3c48849c43f9.",
+      "startup_scope": "Trusted local kernel may initialize Vulkan solely for the login screen and app shell, with no account-content access or model jobs.",
+      "protected_admission": "Protected account/workspace/module work still requires current grants.",
+      "logout_and_retention": "Logout stops new protected work, preserves the shell and retains in-flight GPU ownership until actual settlement.",
+      "before_use": "The real issuer and registered capability must be implemented and reviewed before use. Actual technical owners choose and validate the representation under this approved boundary; this record invents no capability ID, endpoint, privileged constructor, issuer identity bytes or permission bypass.",
+      "preservation": "Host-policy approval only; no live execution, retry, source/process/compiler/Git release, scope reduction, pin change or acceptance verdict."
+    },
     "shared_gui_requirement_ref": "packet.json#/operator_professional_desktop_ui_20261024/kumihimo_binding"
   },
   "spec_basis": {

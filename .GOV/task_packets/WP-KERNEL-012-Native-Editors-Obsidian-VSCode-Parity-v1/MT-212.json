@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-212",
   "created_at_utc": "2026-10-26T12:53:14.7419363Z",
-  "updated_at_utc": "2026-10-27T02:57:36.8199744Z",
+  "updated_at_utc": "2026-10-28T11:19:32.087607+00:00",
   "identity": {
     "mt_id": "MT-212",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -176,7 +176,8 @@
       "src/frontend/handshake_native/tests/test_model_runtime_panel_argus.rs",
       "src/frontend/handshake_native/tests/test_operator_chat_selection_and_transcript_argus.rs",
       "src/frontend/handshake_native/tests/test_app_host_mount.rs",
-      "src/frontend/handshake_native/tests/test_settings_dialog.rs"
+      "src/frontend/handshake_native/tests/test_settings_dialog.rs",
+      "src/frontend/handshake_native/Cargo.lock"
     ],
     "forbidden_write_paths": [
       "Original MT acceptance/status rewrites",
@@ -374,7 +375,8 @@
       "src/frontend/handshake_native/src/visual_debugger/mod.rs",
       "src/frontend/handshake_native/src/workspace_settings.rs",
       "src/frontend/handshake_native/tests/test_model_runtime_panel_argus.rs",
-      "src/frontend/handshake_native/tests/test_operator_chat_selection_and_transcript_argus.rs"
+      "src/frontend/handshake_native/tests/test_operator_chat_selection_and_transcript_argus.rs",
+      "src/frontend/handshake_native/Cargo.lock"
     ],
     "forbidden_paths": [
       "Original MT acceptance/status rewrites",
@@ -1681,6 +1683,859 @@
         }
       ],
       "limit": "Historical publication boundary only. Earlier Source362a/input06 codegen and CKC22 do not qualify this changed widget or its two new cases. Original MT018 runtime/visual/keyboard/Argus and atomic-replacement acceptance remain open. No later-current compile/runtime assertion is made."
+    },
+    {
+      "candidate": "host-motion-preference-02-joined",
+      "recorded_at_utc": "2026-10-27T04:07:47.096869+00:00",
+      "state": "SOURCE_PUBLISHED_UNCOMPILED_UNRUN",
+      "artifact_root_relative": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/host-motion-preference-02/joined-binding.json",
+      "binding_sha256": "fc2ca704ac8ea8ef002c70213418230e48d48d634188994f1ee411894816debc",
+      "pico_refs": [
+        "GUI-WP012-layout-materials"
+      ],
+      "authors": [
+        "/root",
+        "core_cycle02"
+      ],
+      "source_authors": [
+        {
+          "path": "src/frontend/handshake_native/src/workspace_settings.rs",
+          "author": "/root"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/settings_dialog.rs",
+          "author": "/root"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/app.rs",
+          "author": "/root"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/manual_content_editors.rs",
+          "author": "/root"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/theme/egui_apply.rs",
+          "author": "/root"
+        },
+        {
+          "path": "src/backend/handshake_core/src/user_manual/mod.rs",
+          "author": "core_cycle02"
+        }
+      ],
+      "canonical_applied": true,
+      "tests_run": false,
+      "runtime_run": false,
+      "compiler_or_writer_grant": false,
+      "source_publication": {
+        "commit": "0f18e98de724939574adfa757efd4c3d36c745e0",
+        "tree": "9fddb21b83b39fa9bdbf7b71fd582d1ce45b1a8d",
+        "parent": "035ea8f60acb458d1a94149f7ae84d8c0efd273f",
+        "path_count": 6,
+        "remote_branch_reread": "refs/heads/feat/WP-KERNEL-012",
+        "remote_head_reread": "5dbf038f4df8cb53c1ceb46b30c35835244f27f6",
+        "published_commit_is_ancestor_of_reread_head": true,
+        "verification": "Root independently reread all six canonical raw POSTs and filtered immutable Git blobs. This record author independently inspected immutable commit/tree/parent/exact six-path set, current local HEAD, fresh ls-remote and ancestry.",
+        "original_acceptance": "OPEN"
+      },
+      "core_manual_companion": {
+        "author": "core_cycle02",
+        "path": "src/backend/handshake_core/src/user_manual/mod.rs",
+        "change": "USER_MANUAL_VERSION 2.0.25 to 2.0.26, one byte",
+        "artifact": {
+          "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-172\\recovery-dependencies-20261026-01\\refresh-20261027-01\\manual-editor-settings-version-companion-v1\\candidate.json",
+          "sha256": "a4a8f452809d689449046252a3099778e886c0c29d386983be36399b0fe8057a",
+          "nonauthor": "/root independently inspected all5447 bytes; exact one version byte changed"
+        },
+        "state": "JOINED_AND_PUBLISHED"
+      },
+      "nonauthor_native": {
+        "reviewer": "/root/gui_record_refresh",
+        "verdict": "SOURCE_CLEAR_ONLY_FOR_FIVE_NATIVE_PATHS",
+        "preservation": "Prior01 account-reset/search/manual source findings retained in history; Native repairs inspected in02."
+      },
+      "independent_codecheck": {
+        "thread_id": "01a17387-9d99-7e61-8987-42feab10e18a",
+        "verdict": "SOURCE_CLEAR_ONLY",
+        "scope": "Full joined six-path source unit, as handed back directly to Root before publication; no runtime acceptance."
+      },
+      "cases": [
+        {
+          "selector": "theme::egui_apply::motion_tests::reduce_motion_updates_both_themes_and_restores_each_duration",
+          "status": "AUTHORED_UNRUN"
+        },
+        {
+          "selector": "theme::egui_apply::motion_tests::reduce_motion_is_applied_independently_to_each_context",
+          "status": "AUTHORED_UNRUN"
+        },
+        {
+          "selector": "theme::egui_apply::motion_tests::account_reset_can_restore_timing_before_context_data_is_discarded",
+          "status": "AUTHORED_UNRUN"
+        },
+        {
+          "selector": "workspace_settings::motion_preference_tests::reduce_motion_round_trips_and_retains_local_edits_during_load",
+          "status": "AUTHORED_UNRUN"
+        },
+        {
+          "selector": "workspace_settings::motion_preference_tests::reduce_motion_missing_or_invalid_uses_fallback_but_false_is_valid",
+          "status": "AUTHORED_UNRUN"
+        }
+      ],
+      "artifacts": [
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/host-motion-preference-02/joined-binding.json",
+          "sha256": "fc2ca704ac8ea8ef002c70213418230e48d48d634188994f1ee411894816debc",
+          "bytes": 7112
+        },
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/host-motion-preference-02/joined.patch",
+          "sha256": "52b8032014f08e82b0127e109a49f2514a0952150b14886463db76aed0c92c48",
+          "bytes": 16087
+        }
+      ],
+      "limit": "Published source only. All five new component tests remain unrun. No compile, actual Vulkan/Kumihimo frame, canonical persistence, visual, MT or WP acceptance follows. Immutable joined binding retains its original pre-review/pre-application status as historical preparation metadata; this append records the later observed publication."
+    },
+    {
+      "candidate": "handpick-native-parity-01",
+      "recorded_at_utc": "2026-10-27T04:07:47.096869+00:00",
+      "state": "HISTORICAL_EXTERNAL_SOURCE_HOLD_SEVEN_P2_NOT_ADOPTED",
+      "author": "/root/motion_design_research",
+      "source_commit": "035ea8f60acb458d1a94149f7ae84d8c0efd273f",
+      "pico_refs": [
+        "GUI-WP012-search-handpick"
+      ],
+      "canonical_applied": false,
+      "tests_run": false,
+      "runtime_run": false,
+      "compiler_or_writer_grant": false,
+      "independent_nonauthor": {
+        "reviewer": "/root/handpick_portal_parity",
+        "verdict": "SOURCE_HOLD",
+        "finding_count": 7,
+        "finding_ids": [
+          "P2-1",
+          "P2-2",
+          "P2-3",
+          "P2-4",
+          "P2-5",
+          "P2-6",
+          "P2-7"
+        ],
+        "basis": "Original Root handback and preserved03 parent-candidate/remediation history;01 is frozen and remains unadopted. Later02 remediation review does not rewrite this01 verdict."
+      },
+      "asset_revision": "6f24d9b16f7675f2193115935ea35ae844828735",
+      "asset_changed": false,
+      "artifacts": [
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-native-parity-01/pins.json",
+          "sha256": "1fc0ea5df32c5d875b702c15ab7daf706da6874f4911e1f43beeed89f59fbded",
+          "bytes": 2487
+        },
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-native-parity-01/full.patch",
+          "sha256": "6e4d2f08a3f8113be70b18376ae993dbc3253d070e7c5e8e8591b1addccefa8e",
+          "bytes": 47468
+        },
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-native-parity-01/resources.json",
+          "sha256": "18dc811bb6d765e5a01c2a5518b27bb2db7fd31e0258b71c93bf973bac4ee6f2",
+          "bytes": 4773
+        },
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-native-parity-01/remaining-original-acceptance.json",
+          "sha256": "421cf696af285ba5b2399a368a25f8acb34267a14483ba99fe3f5afefa6b6a7b",
+          "bytes": 5269
+        }
+      ],
+      "original_acceptance": "OPEN",
+      "limit": "Historical rejected source proposal only. No adoption or compile/runtime/visual/full A-to-E parity or original MT acceptance. The subsequent remediation and rebase are separate units."
+    },
+    {
+      "candidate": "handpick-native-parity-03",
+      "recorded_at_utc": "2026-10-27T04:07:47.096869+00:00",
+      "state": "EXTERNAL_SOURCE_HOLD_THREE_P2_AFTER_FIRST_FULL_OPPOSING_REVIEW_NOT_ADOPTABLE",
+      "author": "/root/motion_design_research",
+      "source_commit": "5dbf038f4df8cb53c1ceb46b30c35835244f27f6",
+      "pico_refs": [
+        "GUI-WP012-search-handpick"
+      ],
+      "parent_candidate": "handpick-native-parity-02",
+      "parent_patch_sha256": "da8e73b728a2f26f719945a331cc0d45e5153706bd50c3d70b1540d98701231c",
+      "canonical_applied": false,
+      "tests_run": false,
+      "runtime_run": false,
+      "compiler_or_writer_grant": false,
+      "asset_revision": "6f24d9b16f7675f2193115935ea35ae844828735",
+      "asset_changed": false,
+      "nonauthor_reuse": {
+        "reviewer": "/root/handpick_portal_parity",
+        "verdict": "SOURCE_CLEAR focused seven-P2 remediation",
+        "reviewed_full_patch_sha256": "da8e73b728a2f26f719945a331cc0d45e5153706bd50c3d70b1540d98701231c",
+        "reviewed_remediation_patch_sha256": "efd4fbc5da7b2176f66abc35150826f9bdc406b83dd7eabe49783cf24ecf2a1f",
+        "scope": "Unchanged Handpick source semantics and eight authored unrun tests only. Full A–E and original compile/runtime/pixel acceptance remain open."
+      },
+      "composition_delta": {
+        "kind": "Exact unchanged Handpick hunks rebased onto actual current app/manual preimages",
+        "captured_head": "5dbf038f4df8cb53c1ceb46b30c35835244f27f6",
+        "semantic_changes_from_02": false,
+        "app_hunks": 2,
+        "manual_navigation_hunks": 1,
+        "motion_preserved": "Current app motion changes and manual editor_settings_body Reduce motion text are retained from actual current Source. No host preference/checkbox/theme changes were authored here.",
+        "basis": "Existing frozen03 author metadata; no new functional review or replay is performed by this record author."
+      },
+      "independent_codecheck": {
+        "reviewer_thread": "01a17387-9d99-7e61-8987-42feab10e18a",
+        "state": "FIRST_FULL_SOURCE_REVIEW_HOLD_THREE_P2",
+        "findings": [
+          "Bus focus attribution is stale after query focus or compact; shortcuts need live exact mounted focus plus expanded/current binding.",
+          "ScrollArea default minimum64 defeats remaining max height; bound zero/short viewport and Notes body minimum120.",
+          "Save controls precede body IME admission; current-frame IME fence must accompany persistent owner preedit."
+        ],
+        "other_source_findings": "None reported in the actual full four-path flow review; runtime and all original acceptance remain open."
+      },
+      "core_manual_companion": {
+        "state": "RECEIVED_JOINED_AND_ROOT_PLUS_CODECHECK_FULL_BYTE_VERIFIED_SOURCE_ONLY",
+        "author": "core_cycle03",
+        "joined_binding_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-native-parity-03/joined-binding.json",
+        "joined_binding_sha256": "44c67508bf2a2a1861a341ecc73a1d88d77637c1b6604a45bf1ddc8b463601c2",
+        "joined_binding_bytes": 8461,
+        "joined_patch_sha256": "4373ee9a28f79fb135ef384aeb7e6cbfffe759bb45d2ce1924918a7c23735968",
+        "joined_patch_bytes": 65827,
+        "native_postimages_unchanged": true,
+        "change": "Only Core manual byte5087 ASCII54-to55, version2.0.26 to2.0.27 in5447 bytes; actual Core author preserved.",
+        "limit": "Companion does not clear three Native findings. One version bump only if Handpick/Cabinet publish in the same coherent batch."
+      },
+      "cases": [
+        {
+          "selector": "search_rail::handpick_boundary_tests::settings_query_routes_catalog_action_and_an_edit_retires_it",
+          "status": "AUTHORED_UNRUN"
+        },
+        {
+          "selector": "search_rail::handpick_boundary_tests::unavailable_editor_command_is_visible_but_never_dispatched",
+          "status": "AUTHORED_UNRUN"
+        },
+        {
+          "selector": "search_rail::handpick_boundary_tests::command_terms_are_anded_and_quoted_terms_remain_phrases",
+          "status": "AUTHORED_UNRUN"
+        },
+        {
+          "selector": "search_rail::handpick_boundary_tests::command_modes_never_discard_legacy_facets",
+          "status": "AUTHORED_UNRUN"
+        },
+        {
+          "selector": "search_rail::handpick_boundary_tests::graph_type_is_a_wire_filter_and_quoted_operators_stay_literal",
+          "status": "AUTHORED_UNRUN"
+        },
+        {
+          "selector": "search_rail::handpick_boundary_tests::graph_phrase_is_retained_and_declined_until_canonical_provider_supports_it",
+          "status": "AUTHORED_UNRUN"
+        },
+        {
+          "selector": "search_rail::composition::tests::expand_after_close_requests_the_current_note_again",
+          "status": "AUTHORED_UNRUN"
+        },
+        {
+          "selector": "search_rail::composition::tests::notes_ime_state_remains_active_without_a_new_frame_event",
+          "status": "AUTHORED_UNRUN"
+        }
+      ],
+      "artifacts": [
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-native-parity-03/pins.json",
+          "sha256": "6e66fe65171ec1c3af3fe3632755924b9547cd1c247492726f34841ff921cef8",
+          "bytes": 3586
+        },
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-native-parity-03/resources.json",
+          "sha256": "ffcff5e014857b1fec08d3aaed1fa523b8a031a2d3723d78fd2af93ca9ab80c9",
+          "bytes": 12172
+        },
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-native-parity-03/full.patch",
+          "sha256": "c4c4e62ca8765ca2a8f336eb2e8789e328ab851eb6492c119a5f66cb6199e8f2",
+          "bytes": 65269
+        },
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-native-parity-03/remaining-original-acceptance.json",
+          "sha256": "07f48927fd89c2ce8c019f1a4f77be4de4666534543b8599cc7f491ef65a05ad",
+          "bytes": 6754
+        }
+      ],
+      "original_acceptance": "OPEN",
+      "limit": "Not adoptable because the first full SAME opposing Source review found three P2 defects. Candidate04 repair is ongoing and has no frozen claim here. Prior01HOLD and02NONAUTHORclear remain history. Eight tests unrun; full A-E, generic Search, graph phrases, Notes/source/providers/insertion/preview, native Vulkan/Argus and original acceptance remain open."
+    },
+    {
+      "candidate": "cabinet-native-trees-01",
+      "recorded_at_utc": "2026-10-27T04:07:47.096869+00:00",
+      "state": "EXTERNAL_FROZEN_UNCOMPILED_UNRUN_NONAUTHOR_AND_OPPOSING_REVIEW_PENDING",
+      "author": "/root/gui_source_cycle03",
+      "source_commit": "5dbf038f4df8cb53c1ceb46b30c35835244f27f6",
+      "binding_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-trees-01/binding.json",
+      "binding_sha256": "43df7518f8a69fd0930b03136f896b8086df8603f81f62d84d1ca261037fd486",
+      "binding_bytes": 17063,
+      "patch_sha256": "b41a288637fb8de1d1910145ef95961b4f6ca627e82111de69b014f65de9db1d",
+      "patch_bytes": 89050,
+      "files": [
+        {
+          "path": "src/frontend/handshake_native/Cargo.toml",
+          "base": {
+            "path": "base/src/frontend/handshake_native/Cargo.toml",
+            "sha256": "465eccefb2326d54cb2a226f1b091b98e945d93fe2be274bdca0607b734f700f",
+            "bytes": 39758
+          },
+          "post": {
+            "path": "post/src/frontend/handshake_native/Cargo.toml",
+            "sha256": "1d4623d24131fa41ec6bc29b9217e15a10390b2d7228c8cf8e2bba56974e71a3",
+            "bytes": 39936
+          },
+          "live_base_matches": true
+        },
+        {
+          "path": "src/frontend/handshake_native/src/app.rs",
+          "base": {
+            "path": "base/src/frontend/handshake_native/src/app.rs",
+            "sha256": "8c79f9d4ae25773d1b8781d1e21594aeec4460cd870e9075561927ab45239f50",
+            "bytes": 2156993
+          },
+          "post": {
+            "path": "post/src/frontend/handshake_native/src/app.rs",
+            "sha256": "4ce2129be6ef60589e71085f090938ae09f6a0df34f2f7961be6df5e052498ba",
+            "bytes": 2162114
+          },
+          "live_base_matches": true
+        },
+        {
+          "path": "src/frontend/handshake_native/src/project_tree.rs",
+          "base": {
+            "path": "base/src/frontend/handshake_native/src/project_tree.rs",
+            "sha256": "5d5159968e55c6beb0d035bbcccd8b2f818cf0869875beb76bf31a593f9ec643",
+            "bytes": 69970
+          },
+          "post": {
+            "path": "post/src/frontend/handshake_native/src/project_tree.rs",
+            "sha256": "a52dbe0881a9cf235af0ce6f3b5201dc5f803e7c64a945f84297577d26b30bc0",
+            "bytes": 97279
+          },
+          "live_base_matches": true
+        },
+        {
+          "path": "src/frontend/handshake_native/src/graph/folder_tree.rs",
+          "base": {
+            "path": "base/src/frontend/handshake_native/src/graph/folder_tree.rs",
+            "sha256": "0ab55d0ffc3ba4ff126860c6f81b6baf28e8d08639134a0e6529ac17894ef448",
+            "bytes": 51686
+          },
+          "post": {
+            "path": "post/src/frontend/handshake_native/src/graph/folder_tree.rs",
+            "sha256": "4b51adf4c1294cc8ce8f1232a03c0a48583cf832ed83c1d535349d06235cf421",
+            "bytes": 62502
+          },
+          "live_base_matches": true
+        },
+        {
+          "path": "src/frontend/handshake_native/src/manual_content_editors.rs",
+          "base": {
+            "path": "base/src/frontend/handshake_native/src/manual_content_editors.rs",
+            "sha256": "4f75f35016df73d7d960861d2ba97a225c2b841eb70c8f1d34d78a69925d8164",
+            "bytes": 316542
+          },
+          "post": {
+            "path": "post/src/frontend/handshake_native/src/manual_content_editors.rs",
+            "sha256": "f7f71d4ac2e056f009e57a7d1c6af4b31d624059854cc8d78ec0778380373931",
+            "bytes": 317016
+          },
+          "live_base_matches": true
+        }
+      ],
+      "cases": [
+        {
+          "name": "cabinet_project_rename_waits_for_current_terminal_and_canonical_poll",
+          "selector": "project_tree::tests::cabinet_project_rename_waits_for_current_terminal_and_canonical_poll",
+          "path": "src/frontend/handshake_native/src/project_tree.rs",
+          "status": "AUTHORED_UNRUN",
+          "full_case_byte_range": [
+            79508,
+            81910
+          ],
+          "sha256": "61373813697e9484659e1e9b81a9b7c9655fd44a2e7a4b2f6e6ac3dd14a70f81",
+          "bytes": 2402
+        },
+        {
+          "name": "cabinet_loom_occurrences_preserve_lazy_membership_and_actual_row_activation",
+          "selector": "graph::folder_tree::tests::cabinet_loom_occurrences_preserve_lazy_membership_and_actual_row_activation",
+          "path": "src/frontend/handshake_native/src/graph/folder_tree.rs",
+          "status": "AUTHORED_UNRUN",
+          "full_case_byte_range": [
+            53624,
+            56850
+          ],
+          "sha256": "c3a901847ceef241fa6752feaef2fb46ccbec3575271af028efb6c28fa1e7cf0",
+          "bytes": 3226
+        }
+      ],
+      "canonical_applied": false,
+      "tests_run": false,
+      "runtime_run": false,
+      "compiler_or_writer_grant": false,
+      "original_acceptance": "OPEN",
+      "source_summary": "Both existing logical trees use Cabinet core with supported host rendering; actual app terminal/refetch joins; existing IDs/menus/domain routes; authorized Native autobins=false plus Cabinet c56 pin; folder_tree_body manual hunk only.",
+      "manual_companion": "Actual Core version27 companion is available for the next coherent GUI manual batch; not authored or adopted by this unit.",
+      "limit": "Two cases authored/unrun. NonAuthor and SAME opposing Source review pending. No Cargo.lock write, native runtime, visual, asset-wide synchronization or acceptance. Disabling autobins does not qualify/remove a stale sibling palmistry.exe; real runtime must bind canonical standalone watcher artifact/protocol. Separate canonical folder/worktree picker remains required/open."
+    },
+    {
+      "candidate": "handpick-native-parity-04-joined",
+      "recorded_at_utc": "2026-10-28T11:08:24.969555+00:00",
+      "state": "SOURCE_PUBLISHED_UNCOMPILED_UNRUN",
+      "authors": {
+        "native": "/root/motion_design_research",
+        "core_manual": "core_cycle03"
+      },
+      "source_commit": "5dbf038f4df8cb53c1ceb46b30c35835244f27f6",
+      "binding": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-native-parity-04/joined-binding.json",
+        "sha256": "0832206f5f1fa02f873a09fcee298288a53b2179394a49cedce22952c4973f63",
+        "bytes": 8317
+      },
+      "patch": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-native-parity-04/joined.patch",
+        "sha256": "d469fa524b816466c8cdc51aa46d29834b969afa7f362c9f927f08227397530f",
+        "bytes": 77192
+      },
+      "source_history": [
+        "01 NONAUTHOR HOLD seven P2",
+        "02 NONAUTHOR affected Source CLEAR",
+        "03 first full SAME opposing Source HOLD three P2",
+        "04 affected SAME parent and finding-owner confirmation closes those three at Source only"
+      ],
+      "independent_codecheck": {
+        "reviewer_thread": "01a17387-9d99-7e61-8987-42feab10e18a",
+        "recorded_handback_thread": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+        "recorded_handback_turn": "01a17b94-6b31-7913-9554-c5175b52eae8",
+        "closed_source_findings": [
+          "Exact mounted editor/view/document plus expanded/current binding and live egui focus fence Note shortcuts.",
+          "Zero scroll minimum and explicit insufficient-space behavior bound results and Notes body.",
+          "Current-frame IME and persistent owner preedit fence controls and save before consuming shortcuts."
+        ],
+        "retained_review_history": "Lifecycle owner initially treated first omitted-body-frame input as P2. Parent found no wrong target or explicit fresh-samepass-render requirement; the finding owner later agreed. Preserve that contrary amendment as history.",
+        "unproven_edge": "First-omission same-frame input/layout timing still requires actual runtime qualification."
+      },
+      "component_selection": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-component-case-selection-01.json",
+        "sha256": "de308b935545f61601e48cb3e3ec348813ac0c0827f8a2911cc20f17af0f5768",
+        "bytes": 61564
+      },
+      "cases": {
+        "authored_unrun": 12,
+        "executed": 0,
+        "scope": "Local component assertions only. Real factory and HTTP constructors read proxy environment and conditional Windows platform configuration; no zero-external-read claim."
+      },
+      "canonical_observation": {
+        "captured_at_utc": "2026-10-28T11:08:24.969555+00:00",
+        "product_head": "1095c384a7325412ad2fe2ecffc5c3216c09bf31",
+        "paths": [
+          {
+            "path": "src/frontend/handshake_native/src/search_rail.rs",
+            "sha256": "c5b5d68349d513f383ffa3cd2da183023bc92c3581d5fea18b9a4b799a94cf56",
+            "matches_frozen_base": false,
+            "matches_frozen_post": true
+          },
+          {
+            "path": "src/frontend/handshake_native/src/search_rail/composition.rs",
+            "sha256": "29e7f788ce332b47a781003081be42cc9b49ca464d555140e1e088e518c25b09",
+            "matches_frozen_base": false,
+            "matches_frozen_post": true
+          },
+          {
+            "path": "src/frontend/handshake_native/src/app.rs",
+            "sha256": "4defa68e72ade9568875487452391d91334638a51f966b3cfd4c7d81ec0340da",
+            "matches_frozen_base": false,
+            "matches_frozen_post": true
+          },
+          {
+            "path": "src/frontend/handshake_native/src/manual_content_editors.rs",
+            "sha256": "665f585b52c2461c2cc62f211b84fe65cc0fbc1aca71c6cd8b28759c7d18c8f0",
+            "matches_frozen_base": false,
+            "matches_frozen_post": true
+          },
+          {
+            "path": "src/backend/handshake_core/src/user_manual/mod.rs",
+            "sha256": "0fd63f830c3487f5b0c423ef19f4ac5c2dc92df9ad7a3ff8b6c53541a07626ba",
+            "matches_frozen_base": false,
+            "matches_frozen_post": true
+          }
+        ],
+        "meaning": "Raw preimage/postimage observations only; no publication or acceptance inference."
+      },
+      "source_publication": {
+        "commit": "1095c384a7325412ad2fe2ecffc5c3216c09bf31",
+        "tree": "e2e744cf420d8ee9ce0e8f94b94b76f21ef71297",
+        "parent": "5dbf038f4df8cb53c1ceb46b30c35835244f27f6",
+        "remote_branch": "refs/heads/feat/WP-KERNEL-012",
+        "observed_remote_tip": "1095c384a7325412ad2fe2ecffc5c3216c09bf31",
+        "paths": [
+          "src/backend/handshake_core/src/user_manual/mod.rs",
+          "src/frontend/handshake_native/src/app.rs",
+          "src/frontend/handshake_native/src/editor_pane_factories.rs",
+          "src/frontend/handshake_native/src/manual_content_editors.rs",
+          "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs",
+          "src/frontend/handshake_native/src/search_rail.rs",
+          "src/frontend/handshake_native/src/search_rail/composition.rs"
+        ],
+        "limit": "Five joined Handpick/Core27 postimages match current raw files. The same seven-path commit includes Notes extent changes in editor_pane_factories.rs and rich_editor_widget.rs; publication does not prove whole Notes behavior or acceptance."
+      },
+      "canonical_applied": true,
+      "tests_run": false,
+      "runtime_run": false,
+      "compiler_or_writer_grant": false,
+      "original_acceptance": "OPEN",
+      "limit": "Full A-E, generic scope-preserving Search, exact graph phrases, genuine unsaved Notes/create/save/recovery, source/providers, insertion/preview, native Vulkan/Argus and original acceptance remain open. Core27 companion stays authored by core_cycle03; later Cabinet adoption must bind an actual current-version companion rather than repeat27. Selection artifact retains its historical unapplied labels unchanged. External05 work does not replace this reviewed04 unit or prove any missing behavior."
+    },
+    {
+      "candidate": "cabinet-native-trees-03-source-review-20261028",
+      "recorded_at_utc": "2026-10-28T11:08:24.969555+00:00",
+      "state": "DX_SOURCE_HOLD_ONE_NEW_P2_FULL_SAME_REVIEW_PENDING",
+      "author": "/root/gui_source_cycle03",
+      "source_commit": "5dbf038f4df8cb53c1ceb46b30c35835244f27f6",
+      "binding": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-trees-03/binding.json",
+        "sha256": "dda630b96c496fad02f7ff193d6301bbdc13d4be1990b57704671cabccf19ca9",
+        "bytes": 21556
+      },
+      "patch": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-trees-03/candidate.patch",
+        "sha256": "0fd2bee7bcd294be8596ce522b863af8cb11e4e2541851b7b18ef716f02a882b",
+        "bytes": 106775
+      },
+      "source_history": [
+        "01 NONAUTHOR HOLD four P2",
+        "02 closes rename-custody and stale-child findings; two LoadPage mapping findings remain",
+        "03 original NONAUTHOR finding owner confirms all four repaired at Source; six authored cases remain unrun"
+      ],
+      "independent_diagnostics": {
+        "reviewer_thread": "01a17387-4eb3-7b81-bcc4-87402c80779f",
+        "review_turn": "01a1822a-eeb0-7e81-a35f-4541f1b414d0",
+        "recorded_handback_thread": "01a17387-9d99-7e61-8987-42feab10e18a",
+        "recorded_handback_turn": "01a1822b-c8f2-7fe1-ab59-f9911dc813ef",
+        "verdict": "SOURCE_HOLD",
+        "finding_id": "CABINET-DX-001",
+        "priority": "P2",
+        "finding": "Shared drive_rename unconditionally requires Cabinet ProjectTree membership before dispatch. Existing Loom node Rename admits arbitrary graph nodes, including blocks absent from project bookmarks, and now returns before its authenticated PATCH.",
+        "anchors": [
+          "app.rs26081-26084",
+          "app.rs35875-35887",
+          "project_tree.rs662-664"
+        ],
+        "remediation": "Bind ProjectTree Cabinet admission/custody to actual ProjectTree-origin requests. Preserve graph-node rename, backend authentication, exact operation/entity/generation terminal and subsequent canonical refetch; do not fabricate a bookmark or weaken tree guards.",
+        "checks": "Reviewer matched all five BASE/POST pairs, five live BASEs, nine direct inputs and nine pinned Cabinet source/API/contract/manifests. Original four repaired findings remain closed at Source.",
+        "limit": "Static finding and Source review only; no executed failure or acceptance."
+      },
+      "cases": {
+        "authored_unrun": 6,
+        "executed": 0
+      },
+      "canonical_applied": false,
+      "tests_run": false,
+      "runtime_run": false,
+      "compiler_or_writer_grant": false,
+      "original_acceptance": "OPEN",
+      "limit": "SAME full review remains pending at this snapshot. External04 remediation preserves original author/history; no frozen04 or repair-clear claim is made here. Actual Core manual companion and Primary-owned lock resolution are separate. Native/Vulkan, real account/backend persistence, pixels/layout, working-directory/worktree picker, canonical standalone Palmistry artifact/protocol and original acceptance remain open. autobins=false alone does not qualify or remove a stale watcher binary."
+    },
+    {
+      "candidate": "backend-shared-check-cfg11-output02-20261027",
+      "recorded_at_utc": "2026-10-28T11:08:24.969555+00:00",
+      "state": "FAILED_COMPILE_CAPTURE_QUALIFIED_BY_DX_SAME_QUALIFICATION_PENDING_NO_RUNTIME",
+      "author": "Primary01a16f0c-3f8d-7fa2-8769-3e275ddf6005",
+      "artifacts": [
+        {
+          "ref": "WP-KERNEL-012/MT-172/shared-check-capture-20261027-02/result.json",
+          "sha256": "4c27ad199e5121fd87209007d55fa5d665d3e73383f7240cdb2bec73ac4dac6e",
+          "bytes": 579291
+        },
+        {
+          "ref": "WP-KERNEL-012/MT-172/shared-check-capture-20261027-02/compile.log",
+          "sha256": "3d8dd3efe12fc5f6b2f11c64530f9e9447960f3116250d9fd15cd349bc441cb7",
+          "bytes": 5016830
+        },
+        {
+          "ref": "WP-KERNEL-012/MT-172/shared-check-capture-20261027-02/terminal-handoff.json",
+          "sha256": "ff47bdf645d492a94f982ed65847a2e57700f38119a6936b1f94630105e1cec6",
+          "bytes": 3398
+        },
+        {
+          "ref": "WP-KERNEL-012/MT-172/shared-check-capture-20261027-02/private-job-final.json",
+          "sha256": "2a721e36dd9b7d7caa8a562dc152159d588178e8691f80d075e089556212b4a5",
+          "bytes": 171
+        }
+      ],
+      "cargo_exit": {
+        "exit_code": 101,
+        "observed": true,
+        "parent_pid": 42656,
+        "pid": 21116,
+        "utc": "2026-10-27T04:37:51.272799+00:00"
+      },
+      "normalizer_exit": 101,
+      "compiler_errors": [
+        {
+          "raw_line": 2232,
+          "code": "E0405",
+          "message": "cannot find trait `SurrealValue` in this scope",
+          "primary": [
+            {
+              "file_name": "tests\\model_registry_persistence_tests.rs",
+              "line_start": 871,
+              "column_start": 14
+            }
+          ]
+        },
+        {
+          "raw_line": 2556,
+          "code": "E0609",
+          "message": "no field `recovery_event_id` on type `ModelLaneNavigationScalar`",
+          "primary": [
+            {
+              "file_name": "tests\\model_lane_recovery_surreal_tests.rs",
+              "line_start": 1351,
+              "column_start": 46
+            }
+          ]
+        },
+        {
+          "raw_line": 2557,
+          "code": "E0609",
+          "message": "no field `replay_order_seq` on type `&ModelLaneNavigationScalar`",
+          "primary": [
+            {
+              "file_name": "tests\\model_lane_recovery_surreal_tests.rs",
+              "line_start": 1555,
+              "column_start": 59
+            }
+          ]
+        },
+        {
+          "raw_line": 2558,
+          "code": "E0609",
+          "message": "no field `event_kind` on type `&&ModelLaneNavigationScalar`",
+          "primary": [
+            {
+              "file_name": "tests\\model_lane_recovery_surreal_tests.rs",
+              "line_start": 1556,
+              "column_start": 62
+            }
+          ]
+        },
+        {
+          "raw_line": 2559,
+          "code": "E0609",
+          "message": "no field `replay_order_seq` on type `&ModelLaneNavigationScalar`",
+          "primary": [
+            {
+              "file_name": "tests\\model_lane_recovery_surreal_tests.rs",
+              "line_start": 1569,
+              "column_start": 59
+            }
+          ]
+        },
+        {
+          "raw_line": 2560,
+          "code": "E0609",
+          "message": "no field `event_kind` on type `&&ModelLaneNavigationScalar`",
+          "primary": [
+            {
+              "file_name": "tests\\model_lane_recovery_surreal_tests.rs",
+              "line_start": 1570,
+              "column_start": 62
+            }
+          ]
+        },
+        {
+          "raw_line": 2724,
+          "code": "E0405",
+          "message": "cannot find trait `SurrealValue` in this scope",
+          "primary": [
+            {
+              "file_name": "tests\\model_runtime_registry_api_tests.rs",
+              "line_start": 1389,
+              "column_start": 32
+            }
+          ]
+        }
+      ],
+      "capture_integrity": {
+        "capture_errors": [],
+        "normalizer_capture_errors": [],
+        "source_drift": [],
+        "control_drift": [],
+        "head_unchanged": true,
+        "index_unchanged": true,
+        "inventory_unchanged": true,
+        "topology_unchanged": true,
+        "controls_unchanged": true
+      },
+      "private_job": {
+        "accounting": {
+          "active": 0,
+          "terminated": 0,
+          "total": 503
+        },
+        "deadline_expired": false,
+        "errors": [],
+        "utc": "2026-10-27T04:37:51.378187+00:00"
+      },
+      "primary_owning_handback": {
+        "thread": "01a16f0c-3f8d-7fa2-8769-3e275ddf6005",
+        "turn": "01a18229-9b11-7120-967e-b5ff65e75920",
+        "original_execution": "exec-8a3aaf15-43db-4e8b-80fd-b7eab512bb64",
+        "original_turn": "01a17b8e-c78c-7190-8c6a-8f63a0bbacdf",
+        "actual_settlement": "Primary recovered original persisted command output: producer numeric1, postguard drift[], handles released2026-10-27T04:37:56.4106888Z and five checked outer releases succeeded. Old session20706 unavailability did not itself prove release.",
+        "source_custody": "Primary reports the old capture physically settled; only Primary controls the next physical source batch."
+      },
+      "independent_diagnostics": {
+        "reviewer_thread": "01a17387-4eb3-7b81-bcc4-87402c80779f",
+        "state": "QUALIFIED_FAILED_COMPILE_CAPTURE_NOT_PASS",
+        "same_codecheck": "PENDING_AT_SNAPSHOT"
+      },
+      "tests_run": false,
+      "runtime_run": false,
+      "runtime_verdict": "NOT_ISSUED",
+      "compiler_or_writer_grant": false,
+      "original_acceptance": "OPEN",
+      "limit": "Compile failure and attempt consumption remain history. No body invocation, GUI/Vulkan acceptance, retry, new compiler/runtime admission, cleanup or antivirus bypass is authorized by this record. The held journal command and equivalent retries remain held."
+    },
+    {
+      "candidate": "gui-current-source-handoff-20261028-07",
+      "recorded_at_utc": "2026-10-28T11:19:32.087607+00:00",
+      "state": "CABINET04_CORE28_JOINED_SOURCE_GUARD_CLEAR_UNAPPLIED_UNCOMPILED_UNRUN",
+      "author": "/root/gui_record06",
+      "snapshot": {
+        "product_commit": "09de66cdba2172e758d96a36aeee9c4336ed5f09",
+        "product_tree": "205a546fe21249fe89939b166f2d7e262305d688",
+        "kernel_commit": "7a5a465841c7d30462933b3d9601fc0bf3d20df4",
+        "meaning": "09de contains the published backend three-test repair above1095. Published Handpick04 remains unchanged; this is not GUI compile/runtime credit."
+      },
+      "prior06_pending_dispositions": {
+        "Cabinet03": "The complete SAME Source review confirmed the same one Loom rename regression as Dx. Its original four repaired findings remain closed;04 below repairs the additional origin finding.",
+        "cfg11_output02": "SAME capture qualification completed as FAILED with exactly seven compiler errors. Preserve the original consumed attempt, numeric failure, no bodies and no acceptance credit.",
+        "evidence_kind": "Compact review-state history only. Prior06 pending labels remain immutable snapshots; no older rejected message payload is copied or routed."
+      },
+      "cabinet04": {
+        "binding": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-trees-04/binding.json",
+          "sha256": "64270166ef07f15a4857abfd3452bc7e3cf2bde1ce85e50358d4f1859f452240",
+          "bytes": 28457
+        },
+        "patch": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-trees-04/candidate.patch",
+          "sha256": "6298e5551e567d49536a097b153ebdc0337c7732a663a85be30383ce15453b9d",
+          "bytes": 111247
+        },
+        "authors": {
+          "original_cabinet_author": "/root/gui_source_cycle03",
+          "new_delta_author": "/root/cabinet_rename04",
+          "scope": "New cross-caller rename-origin remediation plus mechanical rebase onto published HP04. Original03 files/cases retained; current app/manual additions preserved outside Cabinet changes.",
+          "predecessor_binding": {
+            "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-212\\cabinet-native-trees-03\\binding.json",
+            "sha256": "dda630b96c496fad02f7ff193d6301bbdc13d4be1990b57704671cabccf19ca9",
+            "bytes": 21556
+          },
+          "predecessor_patch": {
+            "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-212\\cabinet-native-trees-03\\candidate.patch",
+            "sha256": "0fd2bee7bcd294be8596ce522b863af8cb11e4e2541851b7b18ef716f02a882b",
+            "bytes": 106775
+          }
+        },
+        "source_review": "Own author plus retained SAME Codecheck Source CLEAR; named Dx CABINET-DX-001 CLOSED AT SOURCE. Three ProjectTree production origins keep tree admission/custody; independent Loom origin preserves its backend path. Exact cabinet_current gates terminal settlement.",
+        "evidence": {
+          "owner_thread": "01a17387-13d3-7091-951e-c06728fb7e94",
+          "received_in_thread": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+          "received_turn": "01a18228-2e67-7551-a8e5-e2821eb04bfa",
+          "new_complete_handback_id": "fco_01a18238-0b5c-7953-ae37-d3a1ef8d0945",
+          "meaning": "Coding's own new candidate handback, separate from any older denied copy."
+        },
+        "cases_authored_unrun": 8,
+        "preservation": "Six original03 case bodies and published Handpick/Motion functions retained; two new origin regressions remain unrun."
+      },
+      "core_manual28": {
+        "binding": {
+          "ref": "WP-KERNEL-012/MT-172/core-manual-version28-companion-01/candidate.json",
+          "sha256": "f2c8abc81641f5148700c96db43d3bc6c69766e86f2eaef34f5b40e5ca86e0e3",
+          "bytes": 863
+        },
+        "author": "core_cycle04 new mechanical delta; preserves core_cycle03 version27 history",
+        "source_review": "Actual core_cycle04 author plus own NONAUTHOR and affected SAME Codecheck Source CLEAR; core_cycle03 version27 history retained.",
+        "base_sha256": "0fd63f830c3487f5b0c423ef19f4ac5c2dc92df9ad7a3ff8b6c53541a07626ba",
+        "post_sha256": "4fac7a7e766d22355fda83f089a06d06482024a6f309a4e5f9d32c4df23fa200",
+        "full_byte_comparison": "Exactly offset5087 ASCII55-to56 changes in5447 bytes,27-to28; all other bytes identical.",
+        "limit": "Use once with this coherent publication and fresh canonical version; no extra bump or runtime credit."
+      },
+      "six_path_join": {
+        "binding": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-trees-04/joined-binding.json",
+          "sha256": "0494e90f3ec557fecd78b86ca8f0672fc07a600bf92f9bf4e445791d10421ce1",
+          "bytes": 7726
+        },
+        "patch": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/cabinet-native-trees-04/joined.patch",
+          "sha256": "b6f0342e203f6f6676176e01988bd7e16fd86646777f9f6ed6572b1454a6a922",
+          "bytes": 111805
+        },
+        "path_count": 6,
+        "composition": "Five Native Cabinet paths plus the actual Core28 companion.",
+        "source_guard": "Exact path set, BASE/POST pins and byte-for-byte joined composition confirmed by retained SAME Codecheck.",
+        "reviewer_thread": "01a17387-9d99-7e61-8987-42feab10e18a",
+        "review_turn": "01a18239-ac56-7ca1-8b27-5454c4aceaea",
+        "frozen_pending_label": "The joined binding captured a pending guard before that completed result; preserve it as history.",
+        "current_preimage_guards": [
+          {
+            "path": "src/frontend/handshake_native/Cargo.toml",
+            "observed_sha256": "465eccefb2326d54cb2a226f1b091b98e945d93fe2be274bdca0607b734f700f",
+            "matches_joined_base": true
+          },
+          {
+            "path": "src/frontend/handshake_native/src/app.rs",
+            "observed_sha256": "4defa68e72ade9568875487452391d91334638a51f966b3cfd4c7d81ec0340da",
+            "matches_joined_base": true
+          },
+          {
+            "path": "src/frontend/handshake_native/src/project_tree.rs",
+            "observed_sha256": "5d5159968e55c6beb0d035bbcccd8b2f818cf0869875beb76bf31a593f9ec643",
+            "matches_joined_base": true
+          },
+          {
+            "path": "src/frontend/handshake_native/src/graph/folder_tree.rs",
+            "observed_sha256": "0ab55d0ffc3ba4ff126860c6f81b6baf28e8d08639134a0e6529ac17894ef448",
+            "matches_joined_base": true
+          },
+          {
+            "path": "src/frontend/handshake_native/src/manual_content_editors.rs",
+            "observed_sha256": "665f585b52c2461c2cc62f211b84fe65cc0fbc1aca71c6cd8b28759c7d18c8f0",
+            "matches_joined_base": true
+          },
+          {
+            "path": "src/backend/handshake_core/src/user_manual/mod.rs",
+            "observed_sha256": "0fd63f830c3487f5b0c423ef19f4ac5c2dc92df9ad7a3ff8b6c53541a07626ba",
+            "matches_joined_base": true
+          }
+        ],
+        "whitespace_history": "Initial default check rejected two Cargo manifest CRLF lines. The exact unchanged patch subsequently passed cr-at-eol-aware whitespace policy; neither the initial failure nor its configuration is erased."
+      },
+      "handpick_component_preparation": {
+        "selection": {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/handpick-component-case-selection-02.json",
+          "sha256": "53901a112d53220e8299e4fb298bb4270e6c7901a3d8e4154482b6112a91974b",
+          "bytes": 74351
+        },
+        "cases": 12,
+        "observed_status": "NOT_RUN",
+        "meaning": "Selection02 updates published1095 widget dependencies and adds the host-mount pin. It preserves exact twelve bodies/selectors and previous resource footprint; factory-vs-host-mount reachability remains explicit."
+      },
+      "canonical_applied": false,
+      "tests_run": false,
+      "runtime_run": false,
+      "compiler_or_writer_grant": false,
+      "original_acceptance": "OPEN",
+      "next_owner": "Actual Primary owns safe application, dependency/Cargo.lock resolution, publication and existing capture/resource scheduling after fresh guards. No additional attempt or runtime admission follows from Source clear.",
+      "limits": "Cabinet dependency lock is not resolved by this unit; no compiled/native/Vulkan/pixel/persistence/Palmistry/full-MT acceptance. Working-directory/worktree picker and genuine GPU/Notes/provider dependencies remain open. New Handpick05 generic Search is still authoring, with no frozen or applied claim. Journal/equivalent retry hold remains. No scope, lifecycle, acceptance, original requirements or status is changed."
     }
   ],
   "picotask_plan": {
