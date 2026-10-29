@@ -12031,6 +12031,8 @@ mod tests {
         assert_eq!(predecessor_pins[0], PRE_MT109_AUTHORITY_INFO_SHA256);
     }
 
+    include!("schema_revision166_first_pin_tests.rs");
+
     #[tokio::test]
     async fn mt139_current_schema_info_pin_matches_fresh_mem_catalog() {
         async fn observe_catalog(database: &SurrealAdminContext<'_>, stage: &'static str) -> Result<ObservedSchema, SurrealStorageError> {
