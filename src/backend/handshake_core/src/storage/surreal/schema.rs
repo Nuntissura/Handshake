@@ -21,8 +21,8 @@ pub const SCHEMA_VERSION: &str = "wp-kernel-012-surreal-v1";
 pub const SCHEMA_REVISION: i64 = 167;
 
 // A successor INFO pin requires actual independent measurement; revision166 pins stay immutable.
-const ROUTING_SUCCESSOR_PRODUCTION_INFO: Option<(&str, usize, usize)> = None;
-const ROUTING_SUCCESSOR_BASE_INFO: Option<&str> = None;
+const ROUTING_SUCCESSOR_PRODUCTION_INFO: Option<(&str, usize, usize)> = Some(("6feddacdcc766afe31855046c08efd743ccfd7b6a4a7eaf7be4841164436fcaf", 4570, 936));
+const ROUTING_SUCCESSOR_BASE_INFO: Option<&str> = Some("1ee5422cc9dba8b758f634b923c4b5b33b89d3453aaa99cf6ad2b546e103cd92");
 const PRE_ROUTING_REVISION: i64 = 166;
 const PRE_ROUTING_BASE_GENERATED: &str = "c6ead3a5410f93d9fbed16999c0653887560394579ffc0e67b06d2e17eb35ff4";
 const PRE_ROUTING_BASE_CATALOG: &str = "98a95b84422fe742f13b76c4900ce6c0edb4cbadfa2bce22cad9bc7e3c78d067";
@@ -12136,7 +12136,7 @@ mod tests {
         })).await.expect("observe the whole production catalog without enrolling a pin");
         assert_eq!(
             observed.info_fingerprint_sha256,
-            EXPECTED_SCHEMA_INFO_SHA256
+            ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required")
         );
     }
 
