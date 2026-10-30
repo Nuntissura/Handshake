@@ -36,6 +36,8 @@ DEADLINE: first pushed commit within 30 min; then a pushed commit at least every
 
 V4 RULES: mandatory for every builder and remediation agent; read topic `v4-rules` below.
 
+HOST INTEGRATION: mandatory for every lane dispatched after 2026-10-30; read the HOST INTEGRATION rules in `builders/briefs/wave-parity-2-common.md` and record the `host_integration` block in your lane file before READY. Operator decision D1 (2026-10-30): egui is dropped from the product GUI; write no new egui code, keep egui types out of every public signature, and treat the harness window as an asset-local test host only.
+
 FINAL MESSAGE (≤12 lines): commits, capabilities done, test counts, blockers, suggested next slice.
 
 </topic>

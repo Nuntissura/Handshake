@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-WORKSPACE-RULES
 file_kind: builder_workspace_rules
-updated_at: 2026-10-22T21:47:39Z
+updated_at: 2026-10-30T23:53:27Z
 owner: workspace-steward
 ---
 
@@ -41,7 +41,7 @@ owner: workspace-steward
 
 1. Add it in your crate Cargo.toml: `<dep> = { version = "=X.Y.Z", default-features = false, features = [...] }` (`features` always present, even `[]`; renamed: `package = "<real>"`).
 2. Append ONE line to `builders/dep-requests.jsonl`: `{"crate":"hsk-studio-<x>","dep":"<real-name>","version":"X.Y.Z","features":[...],"reason":"<why + research ref>","pure_rust":true}`.
-3. Steward sync pins it before the next round. Native policy: `-sys`/FFI only render-gpu, score-device, score-plugin, reel-native, motion-js; wgpu only render-gpu; egui only controls; ffmpeg-sys-next only reel-native; never handshake_core/handshake_native/surrealdb/rocksdb/eframe/image/libsqlite3-sys; copyleft goes to the lead.
+3. Steward sync pins it before the next round. Native policy: `-sys`/FFI only render-gpu, score-device, score-plugin, reel-native, motion-js; wgpu only render-gpu; egui/eframe/egui-wgpu/egui-winit: NO new use anywhere (Operator decision D1 2026-10-30, drop egui); the existing uses in hsk-studio-harness (asset-local test host) and the hsk-studio-controls egui adapter are quarantined asset-local code until the host Vulkan control layer exists, and no egui type may appear in a public signature; ffmpeg-sys-next only reel-native; never handshake_core/handshake_native/surrealdb/rocksdb/eframe/image/libsqlite3-sys; copyleft goes to the lead.
 
 </topic>
 

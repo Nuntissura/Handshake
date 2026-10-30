@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T23:34:39Z",
+ "updated_at": "2026-10-30T23:53:27Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -14580,6 +14580,7 @@
   "paperwork_plan_ref": "research/integration-direction-paperwork-plan-20261030.json",
   "spec_delta_ref": "spec-enrichment/STUDIO-ENRICHMENT-20261030-HOST-INTEGRATION.json",
   "spec_version": "v02.225",
-  "dispatch": "PAUSED: no new lane until the Operator decides D1 (toolkit under the Vulkan host), D4 (per-MT host_integration record) and D6 (engine-only lanes under phase-0 rules); READY lanes SMB-FIG-GRID-2 825598c6 and SMB-R43-FOLLOWUPS-1 3cf0f149 wait for R45; PAUSED lanes SMB-ID-FRAME-AUTOSIZE-2 and SMB-FIG-GRID-3 keep their local commits"
+  "dispatch": "PAUSED: GUI lanes until D7/D8 and a Handshake non-egui Vulkan UI layer exists; engine-only lanes until the Operator decides D6; READY lanes SMB-FIG-GRID-2 825598c6 and SMB-R43-FOLLOWUPS-1 3cf0f149 wait for R45; PAUSED lanes keep their local commits",
+  "d1": "DECIDED 2026-10-30T23:53:27Z: drop egui (Operator chat). Existing egui code is asset-local test-host only; no new egui code; GUI lanes wait for the shell UI layer (D7) and the Kumihimo decision (D8); engine-only lanes may resume once D6 is decided"
  }
 }

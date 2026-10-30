@@ -4,7 +4,7 @@
  "lane": "Repo Governance: Studio records under .GOV/docs_repo/wp-studio-module-work and the WP-KERNEL-STUDIO packet",
  "generated_at": "2026-10-30T21:50:32Z",
  "by": "Studio lead (KERNEL_BUILDER)",
- "status": "PW-01..15 DONE; PW-16 (dispatch/workspace rules after D1) PROPOSED; PW-17 DEFERRED",
+ "status": "PW-01..16 DONE; PW-17 DEFERRED",
  "inventory_ref": "research/integration-refactor-inventory-20261030.json",
  "principle": "preservation-first: every existing MT, lane, brief and preparation record keeps its content; the direction is added as a typed block or rule, never by rewriting history; machine-readable JSON is the authority, Markdown only projects it",
  "per_mt_record": {
@@ -204,7 +204,7 @@
    "change": "one line: read the HOST INTEGRATION rules in the common brief; WORKSPACE_RULES egui rule extended: egui allowed in controls' adapter and harness-view's host adapter module only, never in a public signature",
    "method": "hand",
    "authority": "lead",
-   "status": "PROPOSED (after D1)"
+   "status": "DONE 2026-10-30T23:53:27Z (D1 = drop egui): WORKSPACE_RULES crates-io-deps native policy: egui only in the asset-local harness test host and the quarantined controls adapter, never a new use, never a public type; DISPATCH_TEMPLATES builder prompt gains the HOST INTEGRATION line; common brief rule (1) strengthened to no new egui code"
   },
   {
    "id": "PW-17",
