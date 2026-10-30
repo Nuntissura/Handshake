@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T17:19:55Z",
+ "updated_at": "2026-10-30T17:25:21Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11919,17 +11919,20 @@
   {
    "lane_id": "SMB-PR-SEQ-EXPORT-UI-1",
    "crate": "hsk-studio-harness-view (timeline/export_media.rs, timeline toolbar) + hsk-studio-harness (export-sequence CLI)",
-   "phase": "D: claim run at the 2f8e13d5 rebase (2026-10-30T17:19:55Z)",
-   "status": null,
+   "phase": "validation (R44)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/medium (GUI lane 1)",
    "lane_file": "builders/lanes/hsk-studio-pr-seq-export-ui-1.json",
    "brief": "builders/briefs/lane-smb-pr-seq-export-ui-1.md",
    "worktree": "wt-studio-lanes/smb-pr-seq-export-ui-1",
    "disk": "lead names it",
-   "candidate": null,
-   "commits": [],
+   "candidate": "ff4ca080",
+   "commits": [
+    "ffc1e65f",
+    "ff4ca080"
+   ],
    "verdicts": [],
-   "note": "From SMB-PR-NEST-2: no window or CLI path builds a sequence export (render queue handles compositions only); wire timeline_export_job_with into the render queue and a CLI flag.; planner: the window has no render queue at all (composition export is API-only); this lane adds the first window export surface (Export Media form) + Viewer::export_sequence + CLI export-sequence; no frame decoder wired -> typed refusal, never black frames. Base 91cb8889."
+   "note": "From SMB-PR-NEST-2: no window or CLI path builds a sequence export (render queue handles compositions only); wire timeline_export_job_with into the render queue and a CLI flag.; planner: the window has no render queue at all (composition export is API-only); this lane adds the first window export surface (Export Media form) + Viewer::export_sequence + CLI export-sequence; no frame decoder wired -> typed refusal, never black frames. Base 91cb8889.; 2026-10-30T17:25:21Z pushed 2f8e13d5..ff4ca080 (ls-remote verified); D: run 385/385 (20 skipped) exit 0, harness-core + harness-view + harness whole suites with desktop + audio-batch (os-encode unit not run) (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-seq-export-ui-1/lane-check-smb-pr-seq-export-ui-1-ff4ca080.log); audio clips without set_export_audio refused audio_sources_missing (never silent); gaps: frames decode on the UI thread, hidden timeline pauses export (toolbar label + resume line, no hide-time status line), sound via set_export_audio not the mixer; compositions export from API only"
   },
   {
    "lane_id": "SMB-FIG-GRID-2",

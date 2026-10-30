@@ -1,20 +1,20 @@
 {
  "crate": "hsk-studio-harness-view (timeline export_media + toolbar/form), hsk-studio-harness (cli.rs export-sequence, tests)",
  "lane": "SMB-PR-SEQ-EXPORT-UI-1",
- "status": "CODE_READY_AWAITING_RUN",
- "phase": "lead answers 2026-10-30 applied; 2 local commits on lane/smb-pr-seq-export-ui-1 (base 91cb8889, not pushed); focused 19/19 green on D:; waiting for SMB-ID-FRAME-AUTOSIZE-1 to push and for the lead to name disk and base",
- "candidate": "64545b52 (local)",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed ff4ca080 to origin/codex/handshake-studio-assets (rebased onto 2f8e13d5 after SMB-ID-FRAME-AUTOSIZE-1; origin re-fetched unchanged before push; ls-remote shows ff4ca080); bundled run green on D:; never claimed PASS",
+ "candidate": "ff4ca080",
  "commits": [
   {
    "slice": "1-2 harness-view",
-   "sha": "ed92881e",
-   "pushed": false,
+   "sha": "ffc1e65f",
+   "pushed": true,
    "summary": "timeline/export_media.rs (export_sequence, set_export_audio, bind_program_media, set_timeline_export_field, timeline_export_wait; paused projection); TimelineCommand::ExportMediaOpen/Run/Cancel; toolbar button + form row; state_json timeline.export; tests/viewer_timeline_export_media.rs 7 (red test commit squashed in: it did not compile)"
   },
   {
    "slice": "3 harness (+ harness-core help)",
-   "sha": "64545b52",
-   "pushed": false,
+   "sha": "ff4ca080",
+   "pushed": true,
    "summary": "cli.rs export-sequence; harness-core manual.rs CommandSpec export-sequence; harness lib.rs DESCRIPTOR consumer usage line; tests/cli_export_sequence.rs 2 (red commit 6c4db036 squashed in per lead: its compile status was unproven)"
   }
  ],
@@ -76,7 +76,7 @@
  },
  "blockers": [],
  "bg_pids": [],
- "updated_at": "2026-10-30T17:14:42Z",
+ "updated_at": "2026-10-30T17:24:48Z",
  "notes": {
   "brief": "builders/briefs/lane-smb-pr-seq-export-ui-1.md; binding builders/briefs/wave-parity-2-common.md",
   "worktree": "wt-studio-lanes/smb-pr-seq-export-ui-1, branch lane/smb-pr-seq-export-ui-1, base 91cb8889",
@@ -115,7 +115,8 @@
    "ui_thread_frames_and_pause": "accepted as current design; recorded under gaps",
    "brief_test_change": "accepted: 'nested sequence the document lacks -> nest_unresolved' is unreachable through Viewer (folio refuses DanglingReference at open); proven instead: nested clip whose inner sound the port lacks -> nest_unresolved naming the parent nested clip and the nested sequence (nested_clip_without_its_sound_is_refused_naming_the_clip)",
    "help_text": "granted and done: hsk-studio-harness-core src/manual.rs one CommandSpec export-sequence (before verify); hsk-studio-harness src/lib.rs DESCRIPTOR consumer string one usage segment export-sequence ... (feature media)",
-   "order": "SMB-ID-FRAME-AUTOSIZE-1 pushes first; wait for disk and base"
+   "order": "SMB-ID-FRAME-AUTOSIZE-1 pushed 2f8e13d5 first; this lane rebased onto it and pushed ff4ca080; SMB-FIG-GRID-2 had not pushed at the re-fetch",
+   "status_line": "accepted: toolbar label, start warning, resume line and state_json paused fields; live status line at hide time stays a gap"
   },
   "gaps": [
    "frames of a window export decode on the UI thread, at most 8 per drawn frame: the program monitor's port is Box<dyn FrameSource> (not Send) in view/mod.rs, not owned; composite/convert/encode/mux run on the worker",
@@ -126,6 +127,20 @@
    "follow-up: Box<dyn FrameSource + Send> in view/mod.rs MonitorState would let frames decode on the worker and remove the hidden-panel pause; a hook in toggle_panel would allow a live 'paused' status line"
   ]
  },
- "next": "after SMB-ID-FRAME-AUTOSIZE-1 pushes and the lead names disk and base: rebase, bundled lane-check run (log lane id + sha), push, READY_FOR_VALIDATION",
- "verdicts": []
+ "next": "validation round judges SMB-PR-SEQ-EXPORT-UI-1 at ff4ca080",
+ "verdicts": [],
+ "pushed_sha": "ff4ca08073100bde97e41bd0192feec6fb1aaf25",
+ "lane_check": {
+  "run": "tools/lane-check.sh --owner smb-pr-seq-export-ui-1 --disk d -- cargo nextest run -p hsk-studio-harness-core -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch,hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch --no-fail-fast (CARGO_BUILD_JOBS=6)",
+  "sha": "ff4ca080",
+  "base": "2f8e13d5",
+  "result": "passed",
+  "exit": 0,
+  "tests": "385 run, 385 passed, 20 skipped (whole harness-core, harness-view, harness suites; features = union of harness-view [viewer], [desktop,audio-batch] and harness [viewer], [desktop,viewer], [media], [audio-batch]; harness os-encode unit not in this run)",
+  "new_tests_in_run": 9,
+  "clippy": "no findings in lane files (foreign: manual_clamp timeline_export/composition.rs, type, observe)",
+  "step0": "clean",
+  "doctests": "no doc examples added",
+  "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-seq-export-ui-1/lane-check-smb-pr-seq-export-ui-1-ff4ca080.log (first line ff4ca080)"
+ }
 }
