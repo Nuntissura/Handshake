@@ -1,0 +1,131 @@
+{
+ "crate": "hsk-studio-harness-view (timeline export_media + toolbar/form), hsk-studio-harness (cli.rs export-sequence, tests)",
+ "lane": "SMB-PR-SEQ-EXPORT-UI-1",
+ "status": "CODE_READY_AWAITING_RUN",
+ "phase": "lead answers 2026-10-30 applied; 2 local commits on lane/smb-pr-seq-export-ui-1 (base 91cb8889, not pushed); focused 19/19 green on D:; waiting for SMB-ID-FRAME-AUTOSIZE-1 to push and for the lead to name disk and base",
+ "candidate": "64545b52 (local)",
+ "commits": [
+  {
+   "slice": "1-2 harness-view",
+   "sha": "ed92881e",
+   "pushed": false,
+   "summary": "timeline/export_media.rs (export_sequence, set_export_audio, bind_program_media, set_timeline_export_field, timeline_export_wait; paused projection); TimelineCommand::ExportMediaOpen/Run/Cancel; toolbar button + form row; state_json timeline.export; tests/viewer_timeline_export_media.rs 7 (red test commit squashed in: it did not compile)"
+  },
+  {
+   "slice": "3 harness (+ harness-core help)",
+   "sha": "64545b52",
+   "pushed": false,
+   "summary": "cli.rs export-sequence; harness-core manual.rs CommandSpec export-sequence; harness lib.rs DESCRIPTOR consumer usage line; tests/cli_export_sequence.rs 2 (red commit 6c4db036 squashed in per lead: its compile status was unproven)"
+  }
+ ],
+ "tests": {
+  "history": [
+   {
+    "sha": "f002c25b content (pre-commit tree)",
+    "scope": "cargo clippy -p hsk-studio-harness-view -p hsk-studio-harness --tests --features harness-view/desktop,harness-view/audio-batch,harness/media (D:)",
+    "exit": 0,
+    "note": "no findings in lane files (foreign: manual_clamp timeline_export/composition.rs:155-156)",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-seq-export-ui-1/focused-1-wip.log"
+   },
+   {
+    "sha": "f002c25b content (pre-commit tree)",
+    "scope": "nextest binary(viewer_timeline_export_media) | binary(cli_export_sequence) (D:)",
+    "exit": 0,
+    "passed": 7,
+    "failed": 0,
+    "note": "first run 6/7: nested_clip test expected the inner clip id; pulse names the parent nested clip, test corrected",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-seq-export-ui-1/focused-2-wip.log"
+   },
+   {
+    "sha": "f002c25b content",
+    "scope": "lane-check.sh --step0-only",
+    "exit": 0,
+    "note": "clean"
+   },
+   {
+    "sha": "64545b52 content (pre-commit tree)",
+    "scope": "cargo clippy -p hsk-studio-harness-core -p hsk-studio-harness-view -p hsk-studio-harness --tests (harness-view desktop,audio-batch; harness media) + nextest binary(viewer_timeline_export_media) | binary(cli_export_sequence) | binary(harness_headless) | binary(harness_batch_cli) (D:)",
+    "exit": 0,
+    "passed": 19,
+    "failed": 0,
+    "note": "clippy: no findings in lane files",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-seq-export-ui-1/focused-3-wip.log"
+   },
+   {
+    "sha": "64545b52",
+    "scope": "lane-check.sh --step0-only",
+    "exit": 0,
+    "note": "clean"
+   }
+  ],
+  "new_tests": {
+   "harness-view tests/viewer_timeline_export_media.rs": [
+    "nested_sequence_exports_through_export_sequence_like_the_program_monitor",
+    "export_without_a_frame_decoder_is_refused_typed",
+    "nested_clip_without_its_sound_is_refused_naming_the_clip",
+    "sequence_with_audio_clips_and_no_sound_is_refused_never_silent",
+    "export_media_form_runs_in_the_background_and_reports_in_state_json",
+    "hidden_timeline_pauses_the_export_and_showing_it_resumes",
+    "export_media_cancel_writes_nothing"
+   ],
+   "harness tests/cli_export_sequence.rs": [
+    "export_sequence_cli_gives_the_receipt_of_the_headless_call",
+    "export_sequence_cli_refuses_bad_arguments_typed"
+   ]
+  }
+ },
+ "blockers": [],
+ "bg_pids": [],
+ "updated_at": "2026-10-30T17:14:42Z",
+ "notes": {
+  "brief": "builders/briefs/lane-smb-pr-seq-export-ui-1.md; binding builders/briefs/wave-parity-2-common.md",
+  "worktree": "wt-studio-lanes/smb-pr-seq-export-ui-1, branch lane/smb-pr-seq-export-ui-1, base 91cb8889",
+  "gap_source": "builders/lanes/hsk-studio-pr-nest-2.json notes.gaps[0]",
+  "spec_basis": [
+   "[STU-VID-030] (module 14 :23543) nested clips are clips: export resolves them via SMB-PR-NEST-2 timeline_export_job_with + NestedDocument (document sequences + audio routing)",
+   "export recipe/preset clauses as SMB-REEL-ENCODE and SMB-D24A-CODEC-DEFAULTS cite them (STU-VID-060..064, STU-IO-125, STU-IO-140); presets only through timeline_export::preset_recipe; no codec behaviour added",
+   "[STU-CMP-110] / [STU-QUIET-005]: export runs on reel's queue on a worker thread; the window form only calls the Viewer path; no focus taken"
+  ],
+  "studio_ids": "TimelineCommand::ExportMediaOpen/Run/Cancel keys export_media_open / export_media_run / export_media_cancel; widgets timeline.export_media, timeline.export_media.{form,preset,in,out,width,height,output,overwrite,export,cancel,progress}; no spec command id claimed; Premiere's Export Media command id and dialog UNVERIFIED (D5)",
+  "declared_readings": [
+   "frames: the program monitor's port (Box<dyn FrameSource>, not Send; mod.rs not owned) is served through a channel proxy: the worker asks, the port's owner thread decodes (caller thread headless, UI thread in the window, at most 8 frames per drawn frame); composite/convert/encode/mux on the worker. Hiding the timeline panel pauses a window export",
+   "sound: the mixer keeps its AudioSources inside its builder closure (mixer.rs not owned) and the timeline Binding is private to timeline::audio, so the export takes the port via Viewer::set_export_audio(sources, extents, rate) (opens the timeline like open_multitrack). No port + an enabled audio media clip (nested included) = audio_sources_missing; no port and no audio clip = the timeline's own silent mix (all presets carry PCM)",
+   "range: request in/out else work area else [0, duration) rounded up to a whole frame; form prefill: program monitor in/out (on this sequence), else work area, else whole; form Out is inclusive like the monitor's out point",
+   "output: relative path resolves against the folder of the save path field, else of the opened file; CLI resolves relative to the current directory",
+   "operation log: status log lines 'export media: ...' (Run has no public op append; harness-core not owned); a failed/canceled export returns Ok with its receipt (outcome inside), refusals before rendering are Err",
+   "nest_unresolved for a nested sequence missing from the document is unreachable through Viewer (folio refuses DanglingReference at open); the test proves the reachable form: nested inner sound missing -> nest_unresolved naming the parent nested clip and the nested sequence",
+   "Viewer::bind_program_media (CLI --media): media files become clip sources sha256:<hex> (source-monitor naming), decoded by reel through MediaFrames"
+  ],
+  "unverified": "Premiere Export Media dialog layout, defaults and command id (D5)",
+  "rule_4a": "bundled run: clippy over harness-core, harness-view, harness; WHOLE suites of harness-view (units [viewer], [desktop,audio-batch]) and harness (media, viewer, os-encode units); harness-core changed (manual.rs) so its whole suite too",
+  "rule_4c": "no drive-letter or profile literal added (test Scratch guards copied from NEST-2); step0-only clean",
+  "rule_4d": "no doc examples added",
+  "rule_4e": "tests/viewer_timeline_export_media.rs is #![cfg(feature = \"viewer\")] with all 7 cases in mod #[cfg(feature = \"media\")]: tests only in round unit harness-view [desktop, audio-batch] (audio-batch implies media), zero in [viewer]; tests/cli_export_sequence.rs #![cfg(feature = \"media\")]: harness unit [media] and the units implying media",
+  "cargo_lock": "not committed; no new dependency or module edge",
+  "out_of_owned_paths": "lead-granted: hsk-studio-harness-core src/manual.rs (one CommandSpec), hsk-studio-harness src/lib.rs (one DESCRIPTOR usage segment)",
+  "run_ui_md_lines_for_lead": [
+   "Timeline > Export Media... (timeline.export_media): pick a preset, In / Out frames (Out included), size and an output path (relative to the save path's folder); Export runs in the background, progress in the timeline toolbar, the result in the status line and state_json timeline.export.last.",
+   "CLI: studio-harness export-sequence PACKAGE --sequence ID --preset ID --output OUT [--in T --out T] [--media FILE]... [--width W --height H] [--overwrite]."
+  ],
+  "remaining": "composition export from the window (API-only); export presets as Folio records; captions in the window export",
+  "overlap": "crate-level with SMB-FIG-GRID-2 (harness-view, harness: disjoint files) and SMB-ID-FRAME-AUTOSIZE-1 (layout upstream): whoever pushes second rebases and re-runs",
+  "lead_answers_20261030": {
+   "red_commit": "6c4db036 squashed into the slice 3 commit (64545b52)",
+   "sound": "audio clips without a set_export_audio port: audio_sources_missing (typed, names the clip); a port lacking a clip's sound: mixdown (root) / nest_unresolved (nested); silence only for a sequence without audio clips; test sequence_with_audio_clips_and_no_sound_is_refused_never_silent",
+   "ui_thread_frames_and_pause": "accepted as current design; recorded under gaps",
+   "brief_test_change": "accepted: 'nested sequence the document lacks -> nest_unresolved' is unreachable through Viewer (folio refuses DanglingReference at open); proven instead: nested clip whose inner sound the port lacks -> nest_unresolved naming the parent nested clip and the nested sequence (nested_clip_without_its_sound_is_refused_naming_the_clip)",
+   "help_text": "granted and done: hsk-studio-harness-core src/manual.rs one CommandSpec export-sequence (before verify); hsk-studio-harness src/lib.rs DESCRIPTOR consumer string one usage segment export-sequence ... (feature media)",
+   "order": "SMB-ID-FRAME-AUTOSIZE-1 pushes first; wait for disk and base"
+  },
+  "gaps": [
+   "frames of a window export decode on the UI thread, at most 8 per drawn frame: the program monitor's port is Box<dyn FrameSource> (not Send) in view/mod.rs, not owned; composite/convert/encode/mux run on the worker",
+   "a window export pauses while the timeline panel is hidden (frames are served from timeline_ui only). Shown as: start status line 'hiding it pauses the export'; state_json timeline.export.running.paused/paused_ms; toolbar label 'Export paused'; status line 'export media: resumed after N ms paused' on the first drawn frame after. A live status line at the moment of hiding needs a hook in shell.rs toggle_panel or view/mod.rs ui (not owned): no code of this lane runs while the panel is hidden",
+   "sound via set_export_audio, not the mixer's port (mixer keeps it inside its builder closure; timeline Binding private to timeline::audio)"
+  ],
+  "for_lead": [
+   "follow-up: Box<dyn FrameSource + Send> in view/mod.rs MonitorState would let frames decode on the worker and remove the hidden-panel pause; a hook in toggle_panel would allow a live 'paused' status line"
+  ]
+ },
+ "next": "after SMB-ID-FRAME-AUTOSIZE-1 pushes and the lead names disk and base: rebase, bundled lane-check run (log lane id + sha), push, READY_FOR_VALIDATION",
+ "verdicts": []
+}
