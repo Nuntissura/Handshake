@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T15:41:16Z",
+ "updated_at": "2026-10-30T15:41:57Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11815,17 +11815,17 @@
   {
    "lane_id": "SMB-AI-ARROWHEADS-1",
    "crate": "hsk-studio-folio (stroke_markers) + hsk-studio-nib (markers.rs) + hsk-studio-composite",
-   "phase": "D: claim run at the bdc15f15 rebase (2026-10-30T15:29:48Z); pushes after LR-EXPORT-GUI-1",
-   "status": null,
+   "phase": "validation (R44)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-ai-arrowheads-1.json",
    "brief": "builders/briefs/lane-smb-ai-arrowheads-1.md",
    "worktree": "wt-studio-lanes/smb-ai-arrowheads-1",
    "disk": "lead names it",
-   "candidate": null,
+   "candidate": "2a60acf3",
    "commits": [],
    "verdicts": [],
-   "note": "Illustrator arrowheads (STU-VEC-146: 26 tokens, scales 1-1000 %, inside/outside align; no shapes in spec: 18 Studio shapes UNVERIFIED, 6 ERD tokens stored but refused). Base 5328a6a2."
+   "note": "Illustrator arrowheads (STU-VEC-146: 26 tokens, scales 1-1000 %, inside/outside align; no shapes in spec: 18 Studio shapes UNVERIFIED, 6 ERD tokens stored but refused). Base 5328a6a2.; 2026-10-30T15:41:57Z pushed c7b8d78e..2a60acf3 (ls-remote verified); claim run at e5e2691a (pre-rebase) 427/427 exit 0: folio 139, nib 83, composite 170, package 35 + clippy over 22 dependents (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-arrowheads-1/smb-ai-arrowheads-1-bundled1-e5e2691a.log); rebase onto c7b8d78e brought only dependents (harness-view, harness), no re-run by the closure rule"
   },
   {
    "lane_id": "SMB-LR-EXPORT-GUI-1",
