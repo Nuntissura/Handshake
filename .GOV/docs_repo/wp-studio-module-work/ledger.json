@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T18:14:26Z",
+ "updated_at": "2026-10-30T21:50:32Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -14364,5 +14364,14 @@
   ],
   "recorded_by": "wp_validator STUDIO-R44",
   "recorded_at": "2026-10-30T20:00:45Z"
+ },
+ "direction": {
+  "recorded_at": "2026-10-30T21:50:32Z",
+  "operator_instruction": "START_LOG.md OPERATOR 2026-10-30 (after the pause): Studio adjusted for Handshake integration; GUI must be Vulkan (refactor); internal_diagnostics, Flight Recorder, Palmistry; Handshake is the memory and GPU manager of all modules; paperwork only tonight",
+  "inventory_ref": "research/integration-refactor-inventory-20261030.json",
+  "paperwork_plan_ref": "research/integration-direction-paperwork-plan-20261030.json",
+  "spec_delta_ref": "spec-enrichment/STUDIO-ENRICHMENT-20261030-HOST-INTEGRATION.json",
+  "spec_version": "v02.225",
+  "dispatch": "PAUSED: no new lane until the Operator decides D1 (toolkit under the Vulkan host), D4 (per-MT host_integration record) and D6 (engine-only lanes under phase-0 rules); READY lanes SMB-FIG-GRID-2 825598c6 and SMB-R43-FOLLOWUPS-1 3cf0f149 wait for R45; PAUSED lanes SMB-ID-FRAME-AUTOSIZE-2 and SMB-FIG-GRID-3 keep their local commits"
  }
 }
