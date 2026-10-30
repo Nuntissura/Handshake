@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T08:25:33Z",
+ "updated_at": "2026-10-30T08:27:41Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11261,6 +11261,22 @@
    "commits": [],
    "verdicts": [],
    "note": "AU-MULTITRACK-1 gaps: (1) data integrity first: trim-in / razor / lift must carry clip volume envelopes (shift, split, remove) so a lifted clip never leaves an envelope that fails routing validation; (2) track volume/pan automation over time: Folio StudioAudioRouting.track_automation + pulse bus_mix reads it instead of a constant (rule 4b package suite); (3) clip pan envelope, master lane row, lanes for disabled bus effects. No AU-14 clause: spec-delta request.",
+   "remediation": null
+  },
+  {
+   "lane_id": "SMB-HDR-MERGE-1",
+   "crate": "hsk-studio-pigment (+ develop slices 3-4)",
+   "phase": "build",
+   "status": null,
+   "owner": "builder opus/high",
+   "lane_file": "builders/lanes/hsk-studio-hdr-merge-1.json",
+   "brief": "builders/briefs/lane-smb-hdr-merge-1.md",
+   "worktree": "wt-studio-lanes/smb-hdr-merge-1",
+   "disk": "C:",
+   "candidate": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "STU-RAS-033 merge bracketed exposures to HDR (radiance merge, MTB alignment, deghost, tone-map 32->16/8) in pigment + Lightroom LR-23 HDR merge entry in develop; optional float DNG (SampleFormat 3). Base c6b3733f; push held for lead release (pigment upstream of composite)",
    "remediation": null
   }
  ],
