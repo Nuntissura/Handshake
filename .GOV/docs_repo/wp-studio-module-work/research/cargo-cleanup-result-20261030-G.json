@@ -1,0 +1,203 @@
+{
+ "schema": "hsk.studio.cleanup_result@2",
+ "file_id": "CARGO-CLEANUP-RESULT-20261030-G",
+ "generated_at": "2026-10-30T12:55:41Z",
+ "plan": "research/cargo-plan-20261024.json",
+ "approval": "lead review 2026-10-30 under the Operator standing grant (START_LOG 2026-10-24 ~600-601: clean Studio's own stale, unused cargo output, check-first, lead-reviewed, guarded script; failed delete -> Recycle Bin + Operator told the size): exactly the six R42 PASS_V1 C: lane targets (rule P2): smb-ae-mask-feather-1, smb-ai-area-type-3, smb-au-multitrack-2, smb-hdr-merge-1, smb-ps-actions-1, smb-r41-followups-1 (STUDIO-R42 PASS_V1 @2bc9103a, kernel 7ef6a0b6, commits on origin)",
+ "why": "rule P2 (lanes PASS in R42) and P3 (C: held 8 lane targets, P3 allows 6); C: Studio tree 320.44 GiB at 2026-10-30T12:46:12Z (cap 360 GiB, grant 372.53 GiB); C: free 332.72 GiB before the run",
+ "keep": "studio-round (never touched), C:/HandshakeBuild/.disk-build-lock (never touched; held by builder smb-view-polish-1, class=builder, one builder ticket queued), lane targets smb-ae-effect-families-2 and smb-view-polish-1 (builders running lane-checks; both in -KeepLanes = forbidden names), C:/HandshakeBuild/WP-KERNEL-STUDIO/.studio-ssd-size (not on the list; left for the lead), nothing on D:",
+ "checks_before_run": {
+  "ledger": "ledger.json lanes[]: all six status PASS_V1, phase 'done (STUDIO-R42 PASS_V1 @2bc9103a)'; KEEP lanes: SMB-AE-EFFECT-FAMILIES-2 HOLD_FOR_RUN, SMB-VIEW-POLISH-1 hold",
+  "round": "validation/round-R42.json lanes[]: all six verdict PASS_V1, decision passed; verdict_counts PASS 264 / FAIL 0 / INCONCLUSIVE 0; candidate 2bc9103a",
+  "origin": "claim tips faa69b97, 815e8571, 2bc9103a, b64650e8, 179dc3d6, cf2e46da are ancestors of origin/codex/handshake-studio-assets (a259a3df) in wt-studio-assets (local tracking ref, no fresh fetch)",
+  "newest_write": "robocopy /L /TS full listing per candidate: 08:56:23Z..09:58:05Z (all > 2.8 h before the run); byte sizes identical to batch F's after-measurement at 10:21:02Z, so untouched since",
+  "processes": "Win32_Process command line + image path scan for each candidate path and its ref_patterns: 0 references each; the running cargo/cargo-nextest/rustc/link processes all belong to the smb-view-polish-1 lane-check (KEEP)",
+  "lock": "C: lock holder class=builder (smb-view-polish-1), queue holds one builder ticket (class 1), no round held or queued",
+  "precheck_script": "precheck.ps1 (read-only) in the cargo-manager-20261030-G scratch; before.txt/after.txt"
+ },
+ "method": "unchanged copy (sha256 026a57ff59c603ba7edfc7c4e88e71cc08838b1d91d376570059daf92a1f1dd5, identical to batch F's) of phase2-guarded-delete.ps1 in the cargo-manager-20261030-G scratch with a new candidate file batchG.json (batchF.json format: keep_slot_release_items C-G01..C-G06, ref_patterns per lane). Parameters: -Disk C -Approve C-G01..C-G06 -ReleaseKeepSlot -AllowLanes -KeepLanes 'smb-ae-effect-families-2|smb-view-polish-1' -MaxFilesPerSec 600 -MaxBytesPerSec 500 MiB -NormalIo (batch F settings). Without -AllowDuringRound: no round held or queued on C:, so the round-wait guard stayed active. Guards unchanged from batch F: allowed root C:/HandshakeBuild/WP-KERNEL-STUDIO/, forbidden names (studio-round, steward-export, sync-export, sccache, ..., locks, .git/.cargo/.rustup, the KEEP lanes), exact listed path + shape studio-team-dev/target/lanes/<owner>, existence/directory/no reparse point/cargo marker, size + newest write re-measured (robocopy /L /TS full listing), skip if written < 60 min ago, process check (command line + image path) twice, own walk that never follows a junction, direct delete then Recycle Bin, log + result JSON.",
+ "dry_run": {
+  "result_file": "phase2-C-dryrun-20261030T124711Z-result.json",
+  "at": "2026-10-30T12:47:25Z",
+  "counts": {
+   "status": "WOULD_DELETE",
+   "n": 6,
+   "gib_deleted": 122.738
+  }
+ },
+ "runs": [
+  {
+   "disk": "C",
+   "batch": "G",
+   "script": "phase2-guarded-delete.ps1 (unchanged copy, cargo-manager-20261030-G scratch)",
+   "result_file": "phase2-C-execute-20261030T124739Z-result.json",
+   "at": "2026-10-30T12:55:41Z",
+   "free_before": [
+    {
+     "drive": "C",
+     "free_gib": 332.72
+    },
+    {
+     "drive": "D",
+     "free_gib": 1480.1
+    }
+   ],
+   "free_after": [
+    {
+     "drive": "C",
+     "free_gib": 453.47
+    },
+    {
+     "drive": "D",
+     "free_gib": 1480.1
+    }
+   ],
+   "rate_limit": {
+    "mib_per_s": 500,
+    "files_per_s": 600
+   },
+   "counts": {
+    "status": "DELETED",
+    "n": 6,
+    "gib_deleted": 122.738
+   },
+   "recycle_bin_gib_for_operator": 0,
+   "log": "the script's .log file holds only the first item: the manager's own tail -f watch on that file blocked the script's later Add-Content log writes (logging only; deletion, re-checks and the result JSON unaffected). The complete stdout of the run is saved as phase2-C-execute-20261030T124739Z.stdout.log beside it; lesson: watch the stdout, never tail the script's own log file"
+  }
+ ],
+ "tree_measure": {
+  "method": "studio_ssd_kib (robocopy /L /S /BYTES /XJ listing of C:/HandshakeBuild/WP-KERNEL-STUDIO; errs high on hardlinks)",
+  "before": {
+   "at": "2026-10-30T12:46:12Z",
+   "gib": 320.44,
+   "studio_round_gib": 176.497
+  },
+  "after": {
+   "at": "2026-10-30T12:56:17Z",
+   "gib": 197.648,
+   "studio_round_gib": 176.497
+  },
+  "note": "the smb-view-polish-1 / smb-ae-effect-families-2 builders write during the run, so before-after differs from gib_deleted",
+  "cap_gib": 360,
+  "grant_gib": 372.53
+ },
+ "lane_targets": {
+  "before": 8,
+  "after": 3,
+  "p3_max": 6,
+  "live_after": [
+   "smb-ae-effect-families-2",
+   "smb-r42-followups-1",
+   "smb-view-polish-1"
+  ],
+  "after_sizes_gib": {
+   "smb-ae-effect-families-2": 0.0,
+   "smb-r42-followups-1": 0.0,
+   "smb-view-polish-1": 21.151
+  },
+  "note": "smb-r42-followups-1 (261 bytes) appeared after the precheck: a new lane started by the lead's builders, not a candidate, not touched; KEEP lanes smb-ae-effect-families-2 and smb-view-polish-1 untouched (builders kept writing)"
+ },
+ "ssd_size_record": "C:/HandshakeBuild/WP-KERNEL-STUDIO/.studio-ssd-size left in place (not on the approved list): it records 335873997 KiB (~320.3 GiB) at epoch 1793364198 (12:43:18Z), now high by the deleted amount until studio-env re-measures; the lead decides whether to remove it",
+ "summary": {
+  "deleted": {
+   "count": 6,
+   "gib": 122.738,
+   "files": 40529
+  },
+  "recycled_remainder_gib": 0,
+  "skipped": []
+ },
+ "recycle_bin_gib_for_operator": 0,
+ "items": [
+  {
+   "id": "C-G01",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-ae-mask-feather-1",
+   "owner": "smb-ae-mask-feather-1",
+   "ledger_status": "PASS_V1 (ledger: done STUDIO-R42 PASS_V1 @2bc9103a; round-R42.json PASS_V1, kernel 7ef6a0b6; commits on origin)",
+   "size_gib_before": 4.12,
+   "files": 6108,
+   "newest_write_utc": "2026-10-30T08:56:50Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 30.8,
+   "gib_deleted": 4.12,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "C-G02",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-ai-area-type-3",
+   "owner": "smb-ai-area-type-3",
+   "ledger_status": "PASS_V1 (ledger: done STUDIO-R42 PASS_V1 @2bc9103a; round-R42.json PASS_V1, kernel 7ef6a0b6; commits on origin)",
+   "size_gib_before": 36.632,
+   "files": 6866,
+   "newest_write_utc": "2026-10-30T09:14:30Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 114.5,
+   "gib_deleted": 36.632,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "C-G03",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-au-multitrack-2",
+   "owner": "smb-au-multitrack-2",
+   "ledger_status": "PASS_V1 (ledger: done STUDIO-R42 PASS_V1 @2bc9103a; round-R42.json PASS_V1, kernel 7ef6a0b6; commits on origin)",
+   "size_gib_before": 22.217,
+   "files": 9035,
+   "newest_write_utc": "2026-10-30T09:58:05Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 85.6,
+   "gib_deleted": 22.217,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "C-G04",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-hdr-merge-1",
+   "owner": "smb-hdr-merge-1",
+   "ledger_status": "PASS_V1 (ledger: done STUDIO-R42 PASS_V1 @2bc9103a; round-R42.json PASS_V1, kernel 7ef6a0b6; commits on origin)",
+   "size_gib_before": 1.683,
+   "files": 5080,
+   "newest_write_utc": "2026-10-30T09:35:36Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 21.4,
+   "gib_deleted": 1.683,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "C-G05",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-ps-actions-1",
+   "owner": "smb-ps-actions-1",
+   "ledger_status": "PASS_V1 (ledger: done STUDIO-R42 PASS_V1 @2bc9103a; round-R42.json PASS_V1, kernel 7ef6a0b6; commits on origin)",
+   "size_gib_before": 20.988,
+   "files": 6365,
+   "newest_write_utc": "2026-10-30T09:31:37Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 73.3,
+   "gib_deleted": 20.988,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "C-G06",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-r41-followups-1",
+   "owner": "smb-r41-followups-1",
+   "ledger_status": "PASS_V1 (ledger: done STUDIO-R42 PASS_V1 @2bc9103a; round-R42.json PASS_V1, kernel 7ef6a0b6; commits on origin)",
+   "size_gib_before": 37.098,
+   "files": 7075,
+   "newest_write_utc": "2026-10-30T08:56:23Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 127.3,
+   "gib_deleted": 37.098,
+   "gib_binned": 0,
+   "result": "deleted"
+  }
+ ]
+}
