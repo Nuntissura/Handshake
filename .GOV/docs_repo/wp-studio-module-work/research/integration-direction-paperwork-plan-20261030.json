@@ -4,7 +4,7 @@
  "lane": "Repo Governance: Studio records under .GOV/docs_repo/wp-studio-module-work and the WP-KERNEL-STUDIO packet",
  "generated_at": "2026-10-30T21:50:32Z",
  "by": "Studio lead (KERNEL_BUILDER)",
- "status": "PROPOSED; items marked DONE_TONIGHT were applied 2026-10-30, every other item waits for Operator approval (decision D4 in the inventory)",
+ "status": "PROPOSED; PW-08 dry run done and PW-14 done on the Operator's instruction; items marked DONE_TONIGHT were applied 2026-10-30, every other item waits for Operator approval (decision D4 in the inventory)",
  "inventory_ref": "research/integration-refactor-inventory-20261030.json",
  "principle": "preservation-first: every existing MT, lane, brief and preparation record keeps its content; the direction is added as a typed block or rule, never by rewriting history; machine-readable JSON is the authority, Markdown only projects it",
  "per_mt_record": {
@@ -16,12 +16,20 @@
    "spec_version": "v02.225",
    "gui_host": "vulkan_shell_client | asset_local_test_host_only | none",
    "gpu": "central_broker_client | via_render_provider_port | none",
-   "diagnostics": {"internal_diagnostics": "producer_through_observe | none", "flight_recorder": "business_event_ids | none", "palmistry": "ring_visible | none"},
+   "diagnostics": {
+    "internal_diagnostics": "producer_through_observe | none",
+    "flight_recorder": "business_event_ids | none",
+    "palmistry": "ring_visible | none"
+   },
    "control_descriptors": "shared_typed_source | none",
    "attribution": "required (actor/session, command, document revision, correlation) for every mutating command",
    "jobs": "bounded_admission_via_job_port | none",
    "settings": "module_tab_feature_subtab | none",
-   "spec_refs": ["GUI-DESKTOP-...", "STU-ARC-...", "GPU-QUOTA-..."],
+   "spec_refs": [
+    "GUI-DESKTOP-...",
+    "STU-ARC-...",
+    "GPU-QUOTA-..."
+   ],
    "refactor_exposure": "none | low | medium | high (from the inventory's RF items that touch this MT's module)",
    "recorded_at": "UTC"
   },
@@ -29,29 +37,182 @@
   "application_method": "one Python pass over the 6204 files (load-modify-dump, indent and newline preserved, keys appended, nothing removed), dry run first with a diff count per module; the same pass appends a host_integration_direction summary to _MT_INDEX.json (counts per field value, direction_ref, spec_version); run by the lead, reviewed by the Operator from the dry-run report before the write",
   "authority_needed": "Operator approval: the packet is under approval ilja091020261912 in state PENDING_NONEXECUTION; adding an active-authority block to every MT contract and to authority_migration changes the contracts",
   "sample": {
-   "MT-35546 (render-gpu foundation)": {"gui_host": "none", "gpu": "central_broker_client", "diagnostics": {"internal_diagnostics": "producer_through_observe", "flight_recorder": "none", "palmistry": "ring_visible"}, "control_descriptors": "none", "jobs": "bounded_admission_via_job_port", "settings": "none", "refactor_exposure": "high"},
-   "MT-36231 (native pane host adoption)": {"gui_host": "vulkan_shell_client", "gpu": "central_broker_client", "diagnostics": {"internal_diagnostics": "producer_through_observe", "flight_recorder": "business_event_ids", "palmistry": "ring_visible"}, "control_descriptors": "shared_typed_source", "jobs": "bounded_admission_via_job_port", "settings": "module_tab_feature_subtab", "refactor_exposure": "high"},
-   "a nib catalogue_row MT": {"gui_host": "none", "gpu": "none", "diagnostics": {"internal_diagnostics": "producer_through_observe", "flight_recorder": "none", "palmistry": "none"}, "control_descriptors": "none", "jobs": "none", "settings": "none", "refactor_exposure": "none"}
+   "MT-35546 (render-gpu foundation)": {
+    "gui_host": "none",
+    "gpu": "central_broker_client",
+    "diagnostics": {
+     "internal_diagnostics": "producer_through_observe",
+     "flight_recorder": "none",
+     "palmistry": "ring_visible"
+    },
+    "control_descriptors": "none",
+    "jobs": "bounded_admission_via_job_port",
+    "settings": "none",
+    "refactor_exposure": "high"
+   },
+   "MT-36231 (native pane host adoption)": {
+    "gui_host": "vulkan_shell_client",
+    "gpu": "central_broker_client",
+    "diagnostics": {
+     "internal_diagnostics": "producer_through_observe",
+     "flight_recorder": "business_event_ids",
+     "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "jobs": "bounded_admission_via_job_port",
+    "settings": "module_tab_feature_subtab",
+    "refactor_exposure": "high"
+   },
+   "a nib catalogue_row MT": {
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+     "internal_diagnostics": "producer_through_observe",
+     "flight_recorder": "none",
+     "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "none"
+   }
   }
  },
  "items": [
-  {"id": "PW-01", "surface": "START_LOG.md", "change": "Operator instruction and briefing recorded verbatim with the lead's reading", "method": "hand", "status": "DONE_TONIGHT"},
-  {"id": "PW-02", "surface": "research/integration-refactor-inventory-20261030.json", "change": "the product refactor inventory (RF-01..11, Handshake prerequisites, phasing, decisions D1-D6)", "method": "hand", "status": "DONE_TONIGHT"},
-  {"id": "PW-03", "surface": "research/integration-direction-paperwork-plan-20261030.json", "change": "this plan", "method": "hand", "status": "DONE_TONIGHT"},
-  {"id": "PW-04", "surface": "HANDOFF.md topics state + operator-items", "change": "direction, pause state, the six decisions; spec version corrected to v02.225", "method": "hand", "status": "DONE_TONIGHT"},
-  {"id": "PW-05", "surface": "ledger.json", "change": "top-level direction block (inventory and plan refs, dispatch paused until D1/D4/D6); no lane rewritten", "method": "python load-modify-dump", "status": "DONE_TONIGHT"},
-  {"id": "PW-06", "surface": "builders/briefs/wave-parity-2-common.md", "change": "HOST INTEGRATION rules for every future lane (decision-independent): no egui type in a new public signature; no new device, instance or budget owner; every new command gets a typed id in the controls Registry and a RUN_COMMANDS row; every new mutating op carries ActorContext from the caller, never default_actor(); terminal outcomes emitted through observe with no text; every new queue goes through the session JobPort; the lane file records its host_integration block", "method": "hand", "status": "DONE_TONIGHT"},
-  {"id": "PW-07", "surface": "spec-enrichment/STUDIO-ENRICHMENT-20261030-HOST-INTEGRATION.json", "change": "PROPOSED delta record listing the spec-delta candidates for the spec owner (no Master Spec edit)", "method": "hand", "status": "DONE_TONIGHT"},
-  {"id": "PW-08", "surface": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-*.json (6204) + _MT_INDEX.json", "change": "host_integration block per MT (schema above) added to active_execution_authority; index summary", "method": "mechanical pass, dry run first", "authority": "Operator D4", "status": "PROPOSED"},
-  {"id": "PW-09", "surface": "host-adoption MTs MT-36189..36233 (45)", "change": "closure_unit.outcome and proof.checks name the concrete targets: Vulkan shell client mount (MT-36231), central GPU owner client (MT-36206, plus MT-36228 admission), internal_diagnostics DiagEventCode producer + Palmistry survivor proof on the Studio pane (MT-36233), 22 FR-EVT-STUDIO-* registration (MT-36230), controls descriptors -> DeclaredIdentity/Argus (MT-36213/36232), harness as asset-local test host only (MT-36215), observe ring-shaped port (MT-36190), kernel-bindings identity fields client_session_id + process birth + correlation (MT-36216); every 'wgpu device' wording becomes 'central GPU owner grant'", "method": "hand per MT, appended as a dated amendment entry, originals preserved", "authority": "Operator D4", "status": "PROPOSED"},
-  {"id": "PW-10", "surface": "new host-adoption MTs", "change": "four missing units: (a) Studio GPU client contract and transient adapter until the owner exists (D3); (b) Studio Settings module tab + Engine Profiles binding; (c) AccessKit/IME/DPI/multiwindow/truthful-states proof for the Studio pane; (d) watcher-survival acceptance on the Studio pane (GUI-DESKTOP-054)", "method": "hand, template MICRO_TASK_CONTRACT_TEMPLATE_V2.json, ids after MT-36233", "authority": "Operator D4", "status": "PROPOSED"},
-  {"id": "PW-11", "surface": "foundation MTs MT-35546 render-gpu, MT-35553 controls, MT-35555 harness, MT-35530 observe, MT-35556 kernel-bindings", "change": "amendment entries: render-gpu is a broker client (no own instance; BackendChoice removed from the public API; Vulkan-first asset-local); controls is descriptor-first with the renderer behind the host adapter; harness is an asset-local test host; observe gains the ring-shaped producer port; kernel-bindings carries client_session_id, process birth and correlation", "method": "hand", "authority": "Operator D4", "status": "PROPOSED"},
-  {"id": "PW-12", "surface": "STUDIO_MODULES.json", "change": "catalog the 21 uncatalogued crates (harness-core, harness-view, worker, interop-affinity/fig-base/fig-native/raster/tiff/vector-core/vector-svg, press-read/write, ps*, web-assets/core) with owner, edges and host_integration_class; bump spec_version from v02.209 to v02.225 with the catalog sha recorded in _MT_INDEX.asset_first_migration", "method": "hand + checksum", "authority": "Operator (catalog is under STUDIO-APPROVAL-SPEC-207)", "status": "PROPOSED"},
-  {"id": "PW-13", "surface": "studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json", "change": "dated amendment entry: direction supersedes 'wgpu device' assumptions; dependency_boundary gains 'no own GPU device in any Studio crate'; known_missing_consumers gains the Vulkan backend and the GPU owner", "method": "hand, append only", "authority": "Operator D4", "status": "PROPOSED"},
-  {"id": "PW-14", "surface": "Codex / HBR", "change": "HBR-INT-009 has three tiers (flight_recorder, internal_diagnostics, palmistry); the direction adds two host obligations with no rule id yet (GUI host = Vulkan shell client; GPU = central owner client); propose one Codex rule id referenced from MT rule_refs instead of policy prose in instance fields (template V2 instance_policy)", "method": "governance-only change, no WP", "authority": "Operator", "status": "PROPOSED"},
-  {"id": "PW-15", "surface": "builders/lanes/*.json for READY, PAUSED and queued lanes (about 40)", "change": "host_integration block mirrored from the MT schema; PASS lanes untouched", "method": "python pass", "authority": "lead, after D4", "status": "PROPOSED"},
-  {"id": "PW-16", "surface": "builders/DISPATCH_TEMPLATES.md builder prompt + WORKSPACE_RULES.md", "change": "one line: read the HOST INTEGRATION rules in the common brief; WORKSPACE_RULES egui rule extended: egui allowed in controls' adapter and harness-view's host adapter module only, never in a public signature", "method": "hand", "authority": "lead", "status": "PROPOSED (after D1)"},
-  {"id": "PW-17", "surface": "research/parity-*.json", "change": "no change now; a future parity rollup gains an 'integration' column once phase 1 lanes exist", "method": "none", "status": "DEFERRED"}
+  {
+   "id": "PW-01",
+   "surface": "START_LOG.md",
+   "change": "Operator instruction and briefing recorded verbatim with the lead's reading",
+   "method": "hand",
+   "status": "DONE_TONIGHT"
+  },
+  {
+   "id": "PW-02",
+   "surface": "research/integration-refactor-inventory-20261030.json",
+   "change": "the product refactor inventory (RF-01..11, Handshake prerequisites, phasing, decisions D1-D6)",
+   "method": "hand",
+   "status": "DONE_TONIGHT"
+  },
+  {
+   "id": "PW-03",
+   "surface": "research/integration-direction-paperwork-plan-20261030.json",
+   "change": "this plan",
+   "method": "hand",
+   "status": "DONE_TONIGHT"
+  },
+  {
+   "id": "PW-04",
+   "surface": "HANDOFF.md topics state + operator-items",
+   "change": "direction, pause state, the six decisions; spec version corrected to v02.225",
+   "method": "hand",
+   "status": "DONE_TONIGHT"
+  },
+  {
+   "id": "PW-05",
+   "surface": "ledger.json",
+   "change": "top-level direction block (inventory and plan refs, dispatch paused until D1/D4/D6); no lane rewritten",
+   "method": "python load-modify-dump",
+   "status": "DONE_TONIGHT"
+  },
+  {
+   "id": "PW-06",
+   "surface": "builders/briefs/wave-parity-2-common.md",
+   "change": "HOST INTEGRATION rules for every future lane (decision-independent): no egui type in a new public signature; no new device, instance or budget owner; every new command gets a typed id in the controls Registry and a RUN_COMMANDS row; every new mutating op carries ActorContext from the caller, never default_actor(); terminal outcomes emitted through observe with no text; every new queue goes through the session JobPort; the lane file records its host_integration block",
+   "method": "hand",
+   "status": "DONE_TONIGHT"
+  },
+  {
+   "id": "PW-07",
+   "surface": "spec-enrichment/STUDIO-ENRICHMENT-20261030-HOST-INTEGRATION.json",
+   "change": "PROPOSED delta record listing the spec-delta candidates for the spec owner (no Master Spec edit)",
+   "method": "hand",
+   "status": "DONE_TONIGHT"
+  },
+  {
+   "id": "PW-08",
+   "surface": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-*.json (6204) + _MT_INDEX.json",
+   "change": "host_integration block per MT (schema above) added to active_execution_authority; index summary",
+   "method": "mechanical pass, dry run first",
+   "authority": "Operator D4",
+   "status": "DRY_RUN_DONE 2026-10-30T22:32:05Z: 6204 would change, 0 errors, 0 skipped; report research/mt-host-integration-dryrun-20261030T222803Z.json; tool tools/mt-host-integration.py; write waits for the Operator review of the report",
+   "dry_run_findings": [
+    "456 MTs (foundations, amendments, host adoption, source contributions) have no authority_migration block: the block is top-level there and active by construction",
+    "128 MTs are single-line JSON; the pass keeps them single-line",
+    "gui_host follows the MT's own owned_gui flag: 2257 MTs land in the shell (incl. MT-35546 render-gpu, whose plan sample said none; the flag wins)",
+    "exposure: high 846 (controls 774, harness 57, render-gpu 8, host 7), medium 1779, low 2355, none 1224"
+   ]
+  },
+  {
+   "id": "PW-09",
+   "surface": "host-adoption MTs MT-36189..36233 (45)",
+   "change": "closure_unit.outcome and proof.checks name the concrete targets: Vulkan shell client mount (MT-36231), central GPU owner client (MT-36206, plus MT-36228 admission), internal_diagnostics DiagEventCode producer + Palmistry survivor proof on the Studio pane (MT-36233), 22 FR-EVT-STUDIO-* registration (MT-36230), controls descriptors -> DeclaredIdentity/Argus (MT-36213/36232), harness as asset-local test host only (MT-36215), observe ring-shaped port (MT-36190), kernel-bindings identity fields client_session_id + process birth + correlation (MT-36216); every 'wgpu device' wording becomes 'central GPU owner grant'",
+   "method": "hand per MT, appended as a dated amendment entry, originals preserved",
+   "authority": "Operator D4",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "PW-10",
+   "surface": "new host-adoption MTs",
+   "change": "four missing units: (a) Studio GPU client contract and transient adapter until the owner exists (D3); (b) Studio Settings module tab + Engine Profiles binding; (c) AccessKit/IME/DPI/multiwindow/truthful-states proof for the Studio pane; (d) watcher-survival acceptance on the Studio pane (GUI-DESKTOP-054)",
+   "method": "hand, template MICRO_TASK_CONTRACT_TEMPLATE_V2.json, ids after MT-36233",
+   "authority": "Operator D4",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "PW-11",
+   "surface": "foundation MTs MT-35546 render-gpu, MT-35553 controls, MT-35555 harness, MT-35530 observe, MT-35556 kernel-bindings",
+   "change": "amendment entries: render-gpu is a broker client (no own instance; BackendChoice removed from the public API; Vulkan-first asset-local); controls is descriptor-first with the renderer behind the host adapter; harness is an asset-local test host; observe gains the ring-shaped producer port; kernel-bindings carries client_session_id, process birth and correlation",
+   "method": "hand",
+   "authority": "Operator D4",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "PW-12",
+   "surface": "STUDIO_MODULES.json",
+   "change": "catalog the 21 uncatalogued crates (harness-core, harness-view, worker, interop-affinity/fig-base/fig-native/raster/tiff/vector-core/vector-svg, press-read/write, ps*, web-assets/core) with owner, edges and host_integration_class; bump spec_version from v02.209 to v02.225 with the catalog sha recorded in _MT_INDEX.asset_first_migration",
+   "method": "hand + checksum",
+   "authority": "Operator (catalog is under STUDIO-APPROVAL-SPEC-207)",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "PW-13",
+   "surface": "studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json",
+   "change": "dated amendment entry: direction supersedes 'wgpu device' assumptions; dependency_boundary gains 'no own GPU device in any Studio crate'; known_missing_consumers gains the Vulkan backend and the GPU owner",
+   "method": "hand, append only",
+   "authority": "Operator D4",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "PW-14",
+   "surface": "Codex / HBR",
+   "change": "HBR-INT-009 has three tiers (flight_recorder, internal_diagnostics, palmistry); the direction adds two host obligations with no rule id yet (GUI host = Vulkan shell client; GPU = central owner client); propose one Codex rule id referenced from MT rule_refs instead of policy prose in instance fields (template V2 instance_policy)",
+   "method": "governance-only change, no WP",
+   "authority": "Operator",
+   "status": "DONE_TONIGHT 2026-10-30T22:32:05Z (Operator: extra rules in the build rules file + the work packet template): HANDSHAKE_BUILD_RULES.json 1.18.0 gains pillar HOST and HBR-HOST-001..008; WORK_PACKET_CONTRACT_TEMPLATE_V2.json and MICRO_TASK_CONTRACT_TEMPLATE_V2.json gain a host_integration block; no Codex rule id needed"
+  },
+  {
+   "id": "PW-15",
+   "surface": "builders/lanes/*.json for READY, PAUSED and queued lanes (about 40)",
+   "change": "host_integration block mirrored from the MT schema; PASS lanes untouched",
+   "method": "python pass",
+   "authority": "lead, after D4",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "PW-16",
+   "surface": "builders/DISPATCH_TEMPLATES.md builder prompt + WORKSPACE_RULES.md",
+   "change": "one line: read the HOST INTEGRATION rules in the common brief; WORKSPACE_RULES egui rule extended: egui allowed in controls' adapter and harness-view's host adapter module only, never in a public signature",
+   "method": "hand",
+   "authority": "lead",
+   "status": "PROPOSED (after D1)"
+  },
+  {
+   "id": "PW-17",
+   "surface": "research/parity-*.json",
+   "change": "no change now; a future parity rollup gains an 'integration' column once phase 1 lanes exist",
+   "method": "none",
+   "status": "DEFERRED"
+  }
  ],
  "not_done_on_purpose": [
   "no MT contract file, _MT_INDEX.json, STUDIO_MODULES.json or embedding preparation record was modified (Operator approval D4)",

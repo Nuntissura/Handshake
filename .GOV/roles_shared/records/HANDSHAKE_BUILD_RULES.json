@@ -1,10 +1,10 @@
 {
   "schema": "handshake.build_rules@1",
   "name": "HANDSHAKE_BUILD_RULES",
-  "version": "1.17.0",
+  "version": "1.18.0",
   "status": "ACTIVE",
   "owner": "KERNEL_BUILDER",
-  "updated_at": "2026-10-14T18:57:41Z",
+  "updated_at": "2026-10-30T22:31:37Z",
   "purpose": "Authority registry for build-time and handoff-time gates that every Handshake product WP must demonstrate. Operationalizes interconnectivity, parallel agent + operator swarm safety, Argus visual + operator-GUI verification, quiet/non-intrusive operation, in-product UserManual currency, UserManual diagnostic linkage, and account-bound ownership/visibility/privacy for every product resource. Does NOT duplicate refinement, enrichment, Codex, AGENTS, or role-protocol authority; cite-only relationships to those surfaces.",
   "scope": {
     "trigger_phase": "build_time_and_handoff_time",
@@ -114,6 +114,11 @@
       "id": "COMPONENT",
       "name": "Canonical Component Mechanics",
       "intent": "Every component is a presentation of a mechanic (scroll, selection, popup, focus and the like) owned once at the lowest owning layer. WPs consume, configure or extend the owner; parallel implementations of an owned capability are a build-rule fail."
+    },
+    {
+      "id": "HOST",
+      "name": "Host Integration: Vulkan Shell, Central GPU/Memory Owner, Wired Diagnostics",
+      "intent": "Every module or asset that reaches the operator does so inside the kernel-owned native Vulkan workbench, through the one Handshake GPU and memory owner, with internal_diagnostics, Flight Recorder and the out-of-process watcher wired from the first slice. A module never owns a window, a device, a budget, a recorder or a watcher of its own. Operator direction 2026-10-30 (Studio Kit integration briefing; Master Spec v02.225 section 15 GUI-DESKTOP-*, GPU-QUOTA-*, NATIVE-RENDER-BOOT-*, 5.8, 6.13, STU-ARC-*)."
     }
   ],
   "rules": [
@@ -2058,22 +2063,50 @@
       "trigger": "host_integration_identifies_missing_reusable_module_or_asset_logic",
       "applicability": {
         "predicate_text": "Host integration identifies required shared behavior missing from a reusable module or asset",
-        "tags": ["module_lifecycle", "standalone_source", "host_adoption"]
+        "tags": [
+          "module_lifecycle",
+          "standalone_source",
+          "host_adoption"
+        ]
       },
       "required_action": "When reusable module or asset logic is missing, update the asset's declared canonical original source files first and expose the added capability through its reusable public contract. Prove and land that standalone change under HBR-MODULE-LIFECYCLE-007 before implementing the capability in the host through a distinct pinned adoption. Preserve the same shared capability for other consuming projects; do not fill the shared-logic gap with a host-local workaround, copied implementation or host-only fork. Host-specific policy and adaptation remain in the host under HBR-MODULE-LIFECYCLE-004.",
       "evidence_kind": "canonical_asset_logic_gap_resolution_and_ordered_pinned_host_adoption",
       "contract_fields": {
-        "wp": ["architecture_binding.module_lifecycle_refs"],
-        "mt": ["execution.module_change_stage", "context_capsule.module_maintenance_refs", "execution.depends_on", "execution.source_adoption"],
-        "module": ["maintenance"]
+        "wp": [
+          "architecture_binding.module_lifecycle_refs"
+        ],
+        "mt": [
+          "execution.module_change_stage",
+          "context_capsule.module_maintenance_refs",
+          "execution.depends_on",
+          "execution.source_adoption"
+        ],
+        "module": [
+          "maintenance"
+        ]
       },
       "citations": [
-        {"kind": "build_rule", "anchor": "HBR-MODULE-LIFECYCLE-007"},
-        {"kind": "build_rule", "anchor": "HBR-MODULE-LIFECYCLE-004"},
-        {"kind": "codex", "anchor": "CX-MODULE-LIFECYCLE-001"},
-        {"kind": "codex", "anchor": "CX-MODULE-LIFECYCLE-002"}
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-MODULE-LIFECYCLE-007"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-MODULE-LIFECYCLE-004"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-MODULE-LIFECYCLE-001"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-MODULE-LIFECYCLE-002"
+        }
       ],
-      "not_applicable_when": ["Pure repo-governance work", "No missing reusable logic is identified; ordinary host-specific adaptation remains governed by HBR-MODULE-LIFECYCLE-004"],
+      "not_applicable_when": [
+        "Pure repo-governance work",
+        "No missing reusable logic is identified; ordinary host-specific adaptation remains governed by HBR-MODULE-LIFECYCLE-004"
+      ],
       "deferred_until": null,
       "provenance": {
         "authored_by": "OPERATOR_INSTRUCTION_2026-10-14",
@@ -2081,6 +2114,367 @@
       },
       "contract_fields_required_if": {
         "mt.execution.source_adoption": "execution.module_change_stage == host_adoption"
+      }
+    },
+    {
+      "id": "HBR-HOST-001",
+      "pillar": "HOST",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP or MT creates, changes or mounts any operator-visible surface (pane, panel, window, dialog, canvas, monitor, timeline)",
+      "applicability": {
+        "predicate_text": "Any product or host-adopted module work whose output is drawn for the operator",
+        "tags": [
+          "gui_host",
+          "vulkan_shell",
+          "pane",
+          "surface",
+          "workbench"
+        ]
+      },
+      "required_action": "The surface mounts inside the kernel-owned native Vulkan shell as a pane or client of the host's registry (Master Spec v02.225 GUI-DESKTOP-020/022, NATIVE-RENDER-BOOT-001; today handshake_native PaneRegistry/PaneFactory/EditorSurface). No module, asset or WP creates its own window, viewport, event loop or renderer in product code, and no GUI toolkit type (egui, eframe, winit, wgpu or successors) appears in a module's public contract. An asset-local test host (for example a harness binary) is permitted for asset proof only and is never acceptance evidence for the product. Proof runs on the real Vulkan path: a DirectX, OpenGL or software fallback is not the Vulkan path and cannot PASS a Vulkan obligation.",
+      "evidence_kind": "host_mounted_surface_proof_on_real_vulkan_path_or_recorded_asset_local_only",
+      "citations": [
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-MODULE-LIFECYCLE-008"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-VIS-001"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-MODULE-LIFECYCLE-002"
+        }
+      ],
+      "not_applicable_when": [
+        "WP touches no operator-visible surface",
+        "the kernel-owned Vulkan shell is not yet shipped at WP creation time (record DEFERRED with the owning MT and keep public contracts toolkit-free meanwhile)"
+      ],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR",
+        "authored_at_utc": "2026-10-30",
+        "origin_incident": "Operator direction 2026-10-30: Studio Kit must be adjusted for Handshake integration (Vulkan GUI, internal_diagnostics, Flight Recorder, Palmistry, Handshake as memory and GPU manager of all modules); recorded by the Studio lead from the pasted GUI direction briefing; inventory .GOV/docs_repo/wp-studio-module-work/research/integration-refactor-inventory-20261030.json"
+      }
+    },
+    {
+      "id": "HBR-HOST-002",
+      "pillar": "HOST",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP or MT adds, renames or rewires any control, command, menu item, shortcut or panel action",
+      "applicability": {
+        "predicate_text": "Any operator- or model-reachable control or action",
+        "tags": [
+          "control_descriptors",
+          "shared_controls",
+          "stable_ids",
+          "accesskit",
+          "argus",
+          "user_manual"
+        ]
+      },
+      "required_action": "Every control and action is declared exactly once in the canonical shared-control descriptor source the host adopts (the Operator briefing names Kumihimo; Studio's own typed source is hsk-studio-controls Registry/MenuBar until adoption) with a stable control/action id. That one declaration feeds the GUI, the structured model tools, AccessKit, the UserManual and Argus; no second vocabulary (per-file id constants, prose manuals, hand-kept command tables) may describe the same control. Operator and model views and selections stay independent; a model never changes operator focus (STU-ARC-014, STU-MDL-002/003/004, GUI-DESKTOP-018/019/041/045).",
+      "evidence_kind": "single_descriptor_source_audit_plus_id_uniqueness_test",
+      "citations": [
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-COMPONENT-001"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-COMPONENT-002"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-VIS-005"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-MAN-001"
+        }
+      ],
+      "not_applicable_when": [
+        "WP adds no control or action"
+      ],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR",
+        "authored_at_utc": "2026-10-30",
+        "origin_incident": "Operator direction 2026-10-30: Studio Kit must be adjusted for Handshake integration (Vulkan GUI, internal_diagnostics, Flight Recorder, Palmistry, Handshake as memory and GPU manager of all modules); recorded by the Studio lead from the pasted GUI direction briefing; inventory .GOV/docs_repo/wp-studio-module-work/research/integration-refactor-inventory-20261030.json"
+      }
+    },
+    {
+      "id": "HBR-HOST-003",
+      "pillar": "HOST",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP or MT performs or schedules any GPU work (render, compute, upload, readback, display)",
+      "applicability": {
+        "predicate_text": "Any product or host-adopted module work that touches a GPU adapter, device, queue, buffer, texture, surface or shader",
+        "tags": [
+          "gpu_owner",
+          "central_broker",
+          "admission",
+          "budget",
+          "retained_memory",
+          "device_loss"
+        ]
+      },
+      "required_action": "All GPU work goes through the one authoritative Handshake GPU owner's typed client contract: admission before work, budgets, and truthful retained-memory accounting attributed to module, client and device (GUI-DESKTOP-025..038, GPU-QUOTA-010..015). No module creates a GPU instance, device, queue, pool, allocator or budget of its own, and no GPU API type crosses a module's public contract (STU-ARC-002/018). Cancellation, logout or a closed pane never releases in-flight ownership before actual settlement; release happens exactly once; device loss rebinds through the owner. An unavailable or lost device is a typed outcome, never a silent CPU fallback and never a PASS. While the owner does not yet exist (WP-KERNEL-012 MT-203), a module proves against a typed client port with a transient in-process adapter and records the result as asset-local evidence, not host acceptance.",
+      "evidence_kind": "gpu_owner_client_proof_with_admission_budget_and_settlement_cases",
+      "citations": [
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-SWARM-001"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-STOP-004"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-MODULE-LIFECYCLE-001"
+        }
+      ],
+      "not_applicable_when": [
+        "WP performs no GPU work",
+        "the GPU owner is not yet shipped (record DEFERRED with MT-203 and prove the client port against the transient adapter)"
+      ],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR",
+        "authored_at_utc": "2026-10-30",
+        "origin_incident": "Operator direction 2026-10-30: Studio Kit must be adjusted for Handshake integration (Vulkan GUI, internal_diagnostics, Flight Recorder, Palmistry, Handshake as memory and GPU manager of all modules); recorded by the Studio lead from the pasted GUI direction briefing; inventory .GOV/docs_repo/wp-studio-module-work/research/integration-refactor-inventory-20261030.json"
+      }
+    },
+    {
+      "id": "HBR-HOST-004",
+      "pillar": "HOST",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP or MT allocates, caches, retains or streams memory for jobs, previews, results, media or documents",
+      "applicability": {
+        "predicate_text": "Any product or host-adopted module work with bounded or unbounded memory growth, queues or retained results",
+        "tags": [
+          "memory_owner",
+          "bounded_allocation",
+          "queues",
+          "retained_results",
+          "overload",
+          "stale_revision"
+        ]
+      },
+      "required_action": "Handshake is the memory manager of every module: allocations, caches, queues and retained results are bounded and accounted to the host's resource owner through typed admission (jobs, bytes, pixels, samples, frames; STU-ARC-008/012/020, GUI-DESKTOP-029/030/033). Every job defines overload, cancellation, deadline, stale-revision and release behavior; previews coalesce as typed superseded results; estimates are kept apart from measurements. Real-time callbacks use preallocated handoff to off-thread aggregation and never allocate, lock or log through the general recorder (HSK-PLG-011, STU-ARC-013).",
+      "evidence_kind": "admission_budget_and_release_tests_with_overload_and_stale_revision_cases",
+      "citations": [
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-SWARM-002"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-QUIET-001"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-INT-009"
+        }
+      ],
+      "not_applicable_when": [
+        "WP allocates nothing beyond stack-local or fixed-size state"
+      ],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR",
+        "authored_at_utc": "2026-10-30",
+        "origin_incident": "Operator direction 2026-10-30: Studio Kit must be adjusted for Handshake integration (Vulkan GUI, internal_diagnostics, Flight Recorder, Palmistry, Handshake as memory and GPU manager of all modules); recorded by the Studio lead from the pasted GUI direction briefing; inventory .GOV/docs_repo/wp-studio-module-work/research/integration-refactor-inventory-20261030.json"
+      }
+    },
+    {
+      "id": "HBR-HOST-005",
+      "pillar": "HOST",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP or MT adds or changes any GUI action, state, error or GPU/renderer failure that an operator or watcher should be able to observe",
+      "applicability": {
+        "predicate_text": "Extends HBR-INT-009 for host-mounted surfaces and GPU work",
+        "tags": [
+          "internal_diagnostics",
+          "diagnostic_producer",
+          "content_free",
+          "correlation",
+          "process_identity",
+          "real_time"
+        ]
+      },
+      "required_action": "GUI actions, states, errors and Vulkan/GPU failures are recorded through the existing internal_diagnostics producer and its typed allowlist (never a module-private recorder, ring or watcher): stable event/control ids, real correlation and session identity, PID plus process birth (GUI-DESKTOP-049/050; Master Spec 5.8.2-5.8.6). Mechanical diagnostics stay content-free: allowed codes, counters, timing and opaque identifiers; no prompts, documents, query text, private paths or credentials. Business outcomes stay on the Flight Recorder: a button acknowledgement or a diagnostic event never proves a committed operation. Module diagnostic ports (Studio: observe) map onto the host producer through one adapter per host (STU-ARC-010, STU-VAL-002).",
+      "evidence_kind": "three_tier_wiring_record_plus_allowlist_and_identity_tests",
+      "citations": [
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-INT-009"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-PRIV-001"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-981"
+        }
+      ],
+      "not_applicable_when": [
+        "WP introduces no observable runtime behavior"
+      ],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR",
+        "authored_at_utc": "2026-10-30",
+        "origin_incident": "Operator direction 2026-10-30: Studio Kit must be adjusted for Handshake integration (Vulkan GUI, internal_diagnostics, Flight Recorder, Palmistry, Handshake as memory and GPU manager of all modules); recorded by the Studio lead from the pasted GUI direction briefing; inventory .GOV/docs_repo/wp-studio-module-work/research/integration-refactor-inventory-20261030.json"
+      }
+    },
+    {
+      "id": "HBR-HOST-006",
+      "pillar": "HOST",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP or MT claims acceptance of any host-mounted surface, long-running job or GPU workload",
+      "applicability": {
+        "predicate_text": "Acceptance of any work whose freeze or crash matters to the operator",
+        "tags": [
+          "palmistry",
+          "watcher_survival",
+          "freeze",
+          "crash",
+          "survivor_record",
+          "acceptance"
+        ]
+      },
+      "required_action": "Acceptance includes the independent out-of-process watcher (Palmistry) surviving a controlled, owned freeze and a controlled, owned crash of the real application with the surface mounted, and producing a survivor record with genuine process and session identity; the watcher is passive, attaches to the shared diagnostic ring, cannot depend on a responsive app, is not terminated because its parent closes, and holds no restart or recovery-execution authority (GUI-DESKTOP-051..055; Master Spec 6.13). Compilation, component tests, prototypes and asset-local hosts do not substitute for this proof; ingestion of survivor records into the Flight Recorder after recovery is recorded as WIRED or as a named open dependency.",
+      "evidence_kind": "owned_freeze_and_crash_survivor_records_on_the_real_application",
+      "citations": [
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-INT-009"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-VIS-002"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-VAL-005"
+        }
+      ],
+      "not_applicable_when": [
+        "WP adds no host-mounted surface, long-running job or GPU workload"
+      ],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR",
+        "authored_at_utc": "2026-10-30",
+        "origin_incident": "Operator direction 2026-10-30: Studio Kit must be adjusted for Handshake integration (Vulkan GUI, internal_diagnostics, Flight Recorder, Palmistry, Handshake as memory and GPU manager of all modules); recorded by the Studio lead from the pasted GUI direction briefing; inventory .GOV/docs_repo/wp-studio-module-work/research/integration-refactor-inventory-20261030.json"
+      }
+    },
+    {
+      "id": "HBR-HOST-007",
+      "pillar": "HOST",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP or MT dispatches, records or replays any command, history step, receipt or visual receipt",
+      "applicability": {
+        "predicate_text": "Any mutating command path and any Argus or business-event receipt",
+        "tags": [
+          "attribution",
+          "actor_session",
+          "command_id",
+          "document_revision",
+          "correlation",
+          "argus_receipt",
+          "business_event_identity"
+        ]
+      },
+      "required_action": "Every command carries actor/session, command id, document revision and trace/correlation identity end to end; correlation never grants permission (GUI-DESKTOP-029/041/047/048/050, STU-ARC-015). Agent labels reconcile with client session ids through one adapter; hard-coded or default actors are forbidden in product paths. Argus visual receipts identify the actual revision, renderer, frame/region, color profile and resource grant. Registered business-event identities (Studio: the FR-EVT-STUDIO-* family) are emitted by the binding with actor, client session, correlation and causation, delivered durably and reconciled; generic diagnostic messages never substitute for them (STU-CON-013/014).",
+      "evidence_kind": "attribution_round_trip_tests_plus_receipt_field_audit",
+      "citations": [
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-PRIV-001"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-SWARM-003"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-INT-001"
+        }
+      ],
+      "not_applicable_when": [
+        "WP mutates nothing and records nothing"
+      ],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR",
+        "authored_at_utc": "2026-10-30",
+        "origin_incident": "Operator direction 2026-10-30: Studio Kit must be adjusted for Handshake integration (Vulkan GUI, internal_diagnostics, Flight Recorder, Palmistry, Handshake as memory and GPU manager of all modules); recorded by the Studio lead from the pasted GUI direction briefing; inventory .GOV/docs_repo/wp-studio-module-work/research/integration-refactor-inventory-20261030.json"
+      }
+    },
+    {
+      "id": "HBR-HOST-008",
+      "pillar": "HOST",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP or MT ships or changes a workbench surface, a settings surface or a search surface",
+      "applicability": {
+        "predicate_text": "Any pane, settings tab, engine-profile selection or in-product search",
+        "tags": [
+          "workbench",
+          "docking",
+          "keyboard",
+          "focus",
+          "ime",
+          "accesskit",
+          "dpi",
+          "multiwindow",
+          "recovery",
+          "states",
+          "settings",
+          "engine_profiles",
+          "handpick"
+        ]
+      },
+      "required_action": "Docked panes touch shared edges and share resize dividers by pointer and keyboard with minimum sizes; geometry stays valid across persistence, DPI change and multiwindow; keyboard navigation, focus, IME, AccessKit, DPI, multiwindow behavior and recovery are preserved; loading, empty, denied and error states are truthful and usable (GUI-DESKTOP-007..012, 022..024). Settings covers every module and feature as tabs and subtabs with stable ids; Engine Profiles lives inside Settings with complete-profile selection and dispatch, immutable revision identity and current authorization; search uses canonical Handpick, with native mount, keyboard, focus and dismissal proved (GUI-DESKTOP-013..019).",
+      "evidence_kind": "workbench_state_matrix_proof_screens_readable_controls_discoverable",
+      "citations": [
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-VIS-001"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-MAN-002"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-COMPONENT-002"
+        },
+        {
+          "kind": "global",
+          "anchor": "GLOBAL-BUILD-026"
+        }
+      ],
+      "not_applicable_when": [
+        "WP ships no workbench, settings or search surface"
+      ],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR",
+        "authored_at_utc": "2026-10-30",
+        "origin_incident": "Operator direction 2026-10-30: Studio Kit must be adjusted for Handshake integration (Vulkan GUI, internal_diagnostics, Flight Recorder, Palmistry, Handshake as memory and GPU manager of all modules); recorded by the Studio lead from the pasted GUI direction briefing; inventory .GOV/docs_repo/wp-studio-module-work/research/integration-refactor-inventory-20261030.json"
       }
     }
   ],
@@ -2217,6 +2611,11 @@
       "version": "1.17.0",
       "at_utc": "2026-10-14T18:57:41Z",
       "change": "Operator-directed HBR-MODULE-LIFECYCLE-008: resolve missing shared asset logic in canonical original source first, grow its reusable public capability, then adopt the proven pinned revision in the host. Existing rule IDs and in-flight pins preserved; no new checker or proof suite."
+    },
+    {
+      "version": "1.18.0",
+      "at_utc": "2026-10-30T22:31:37Z",
+      "change": "Operator-directed HOST pillar and HBR-HOST-001..008 (Vulkan shell as the only GUI host, one shared-control descriptor source, one Handshake GPU owner with admission/budgets/retained-memory accounting, Handshake as memory manager with bounded jobs, internal_diagnostics producer discipline, Palmistry survival acceptance, end-to-end attribution and business-event identities, workbench/settings/Handpick states). Cite-only to Codex and HBR; Master Spec v02.225 clause ids named in text because citation_kinds has no spec kind. Existing rule ids, deferred pillars (UI/SMP/COST) and in-flight pins preserved; the WP and MT contract templates V2 gain a host_integration block in the same change; no new checker."
     }
   ]
 }

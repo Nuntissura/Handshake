@@ -1,0 +1,423 @@
+{
+ "schema": "hsk.studio_mt_host_integration_report@1",
+ "mode": "dry_run",
+ "generated_at": "2026-10-30T22:28:03Z",
+ "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+ "spec_version": "v02.225",
+ "index_entries": 6204,
+ "would_change": 6204,
+ "skipped_already_recorded": 0,
+ "errors": [],
+ "files_without_authority_migration_block_is_top_level": 456,
+ "single_line_files": 128,
+ "counts": {
+  "gui_host": {
+   "none": 3890,
+   "vulkan_shell_client": 2257,
+   "asset_local_test_host_only": 57
+  },
+  "gpu": {
+   "none": 3397,
+   "via_render_provider_port": 2796,
+   "central_broker_client": 11
+  },
+  "control_descriptors": {
+   "none": 3835,
+   "shared_typed_source": 2369
+  },
+  "jobs": {
+   "none": 5418,
+   "bounded_admission_via_job_port": 786
+  },
+  "settings": {
+   "none": 3931,
+   "module_tab_feature_subtab": 2273
+  },
+  "refactor_exposure": {
+   "none": 1224,
+   "medium": 1779,
+   "high": 846,
+   "low": 2355
+  },
+  "diagnostics.internal_diagnostics": {
+   "none": 28,
+   "producer_through_observe": 6176
+  },
+  "diagnostics.flight_recorder": {
+   "business_event_ids": 1252,
+   "none": 4952
+  },
+  "diagnostics.palmistry": {
+   "none": 3620,
+   "ring_visible": 2584
+  }
+ },
+ "exposure_by_module": {
+  "STUDIO-MODULE-ACCORD": {
+   "low": 13,
+   "none": 40,
+   "medium": 31
+  },
+  "STUDIO-MODULE-CHRONICLE": {
+   "medium": 38
+  },
+  "STUDIO-MODULE-COMPONENTS": {
+   "medium": 409,
+   "none": 17
+  },
+  "STUDIO-MODULE-COMPOSITE": {
+   "medium": 109,
+   "low": 1065
+  },
+  "STUDIO-MODULE-CONTROLS": {
+   "high": 774
+  },
+  "STUDIO-MODULE-DEVELOP": {
+   "low": 81,
+   "medium": 25
+  },
+  "STUDIO-MODULE-FOLIO": {
+   "medium": 41,
+   "none": 31,
+   "low": 11
+  },
+  "STUDIO-MODULE-HARNESS": {
+   "high": 57
+  },
+  "STUDIO-MODULE-INTEROP_FIG": {
+   "medium": 1,
+   "none": 13
+  },
+  "STUDIO-MODULE-INTEROP_LAYOUT": {
+   "none": 8,
+   "medium": 1
+  },
+  "STUDIO-MODULE-INTEROP_LRCAT": {
+   "medium": 1,
+   "none": 6
+  },
+  "STUDIO-MODULE-INTEROP_MEDIA": {
+   "medium": 1,
+   "low": 1,
+   "none": 5
+  },
+  "STUDIO-MODULE-INTEROP_PSD": {
+   "none": 10,
+   "medium": 1
+  },
+  "STUDIO-MODULE-INTEROP_VECTOR": {
+   "none": 10,
+   "medium": 1
+  },
+  "STUDIO-MODULE-KERNEL_BINDINGS": {
+   "medium": 287
+  },
+  "STUDIO-MODULE-LAYOUT": {
+   "medium": 63,
+   "none": 220,
+   "low": 1
+  },
+  "STUDIO-MODULE-MOTION": {
+   "low": 238,
+   "medium": 10
+  },
+  "STUDIO-MODULE-MOTION_JS": {
+   "low": 13
+  },
+  "STUDIO-MODULE-NIB": {
+   "medium": 85,
+   "none": 408,
+   "low": 3
+  },
+  "STUDIO-MODULE-OBSERVE": {
+   "medium": 22
+  },
+  "STUDIO-MODULE-PACKAGE": {
+   "none": 114,
+   "medium": 7,
+   "low": 3
+  },
+  "STUDIO-MODULE-PIGMENT": {
+   "medium": 86,
+   "low": 363
+  },
+  "STUDIO-MODULE-PRESS": {
+   "medium": 2,
+   "none": 24
+  },
+  "STUDIO-MODULE-PRISM": {
+   "medium": 39,
+   "low": 374
+  },
+  "STUDIO-MODULE-PULSE": {
+   "low": 114,
+   "medium": 58
+  },
+  "STUDIO-MODULE-REEL": {
+   "medium": 1,
+   "low": 5
+  },
+  "STUDIO-MODULE-REEL_NATIVE": {
+   "medium": 1,
+   "low": 7
+  },
+  "STUDIO-MODULE-RENDER_CPU": {
+   "medium": 1,
+   "low": 7
+  },
+  "STUDIO-MODULE-RENDER_GPU": {
+   "high": 8
+  },
+  "STUDIO-MODULE-SCORE": {
+   "low": 31,
+   "medium": 142
+  },
+  "STUDIO-MODULE-SCORE_DEVICE": {
+   "medium": 1,
+   "low": 8
+  },
+  "STUDIO-MODULE-SCORE_PLUGIN": {
+   "medium": 2,
+   "low": 15
+  },
+  "STUDIO-MODULE-SESSION": {
+   "medium": 68
+  },
+  "STUDIO-MODULE-TYPE": {
+   "medium": 24,
+   "none": 291
+  },
+  "STUDIO-MODULE-WEB": {
+   "medium": 181,
+   "none": 4
+  },
+  "STUDIO-WORKSPACE": {
+   "none": 23,
+   "low": 2,
+   "medium": 2
+  },
+  "handshake_core::flight_recorder": {
+   "high": 1
+  },
+  "handshake_core::mex": {
+   "medium": 1
+  },
+  "handshake_core::studio": {
+   "medium": 8,
+   "high": 1
+  },
+  "handshake_native::studio": {
+   "medium": 29,
+   "high": 5
+  }
+ },
+ "samples": {
+  "MT-001": {
+   "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+   "spec_version": "v02.225",
+   "gui_host": "none",
+   "gpu": "none",
+   "diagnostics": {
+    "internal_diagnostics": "none",
+    "flight_recorder": "business_event_ids",
+    "palmistry": "none"
+   },
+   "control_descriptors": "none",
+   "jobs": "none",
+   "settings": "none",
+   "refactor_exposure": "none",
+   "derived_from": {
+    "module_ref": "STUDIO-WORKSPACE",
+    "unit_kind": "legacy_patched",
+    "owned_gui": false,
+    "queue_or_inflight": false,
+    "collaborative_state": true
+   },
+   "recorded_at": "2026-10-30T22:28:03Z"
+  },
+  "MT-560": {
+   "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+   "spec_version": "v02.225",
+   "gui_host": "none",
+   "gpu": "none",
+   "diagnostics": {
+    "internal_diagnostics": "producer_through_observe",
+    "flight_recorder": "none",
+    "palmistry": "none"
+   },
+   "control_descriptors": "shared_typed_source",
+   "jobs": "none",
+   "settings": "none",
+   "refactor_exposure": "none",
+   "derived_from": {
+    "module_ref": "STUDIO-MODULE-ACCORD",
+    "unit_kind": "legacy_patched",
+    "owned_gui": false,
+    "queue_or_inflight": false,
+    "collaborative_state": false
+   },
+   "recorded_at": "2026-10-30T22:28:03Z"
+  },
+  "MT-30042": {
+   "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+   "spec_version": "v02.225",
+   "gui_host": "none",
+   "gpu": "via_render_provider_port",
+   "diagnostics": {
+    "internal_diagnostics": "producer_through_observe",
+    "flight_recorder": "none",
+    "palmistry": "none"
+   },
+   "control_descriptors": "none",
+   "jobs": "none",
+   "settings": "none",
+   "refactor_exposure": "low",
+   "derived_from": {
+    "module_ref": "STUDIO-MODULE-PIGMENT",
+    "unit_kind": "catalogue_row",
+    "owned_gui": false,
+    "queue_or_inflight": false,
+    "collaborative_state": false
+   },
+   "recorded_at": "2026-10-30T22:28:03Z"
+  },
+  "MT-30639": {
+   "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+   "spec_version": "v02.225",
+   "gui_host": "vulkan_shell_client",
+   "gpu": "none",
+   "diagnostics": {
+    "internal_diagnostics": "producer_through_observe",
+    "flight_recorder": "none",
+    "palmistry": "ring_visible"
+   },
+   "control_descriptors": "shared_typed_source",
+   "jobs": "none",
+   "settings": "module_tab_feature_subtab",
+   "refactor_exposure": "medium",
+   "derived_from": {
+    "module_ref": "STUDIO-MODULE-NIB",
+    "unit_kind": "command_table",
+    "owned_gui": true,
+    "queue_or_inflight": false,
+    "collaborative_state": false
+   },
+   "recorded_at": "2026-10-30T22:28:03Z"
+  },
+  "MT-35546": {
+   "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+   "spec_version": "v02.225",
+   "gui_host": "vulkan_shell_client",
+   "gpu": "central_broker_client",
+   "diagnostics": {
+    "internal_diagnostics": "producer_through_observe",
+    "flight_recorder": "none",
+    "palmistry": "ring_visible"
+   },
+   "control_descriptors": "shared_typed_source",
+   "jobs": "bounded_admission_via_job_port",
+   "settings": "module_tab_feature_subtab",
+   "refactor_exposure": "high",
+   "derived_from": {
+    "module_ref": "STUDIO-MODULE-RENDER_GPU",
+    "unit_kind": "asset_foundation",
+    "owned_gui": true,
+    "queue_or_inflight": true,
+    "collaborative_state": false
+   },
+   "recorded_at": "2026-10-30T22:28:03Z"
+  },
+  "MT-35553": {
+   "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+   "spec_version": "v02.225",
+   "gui_host": "vulkan_shell_client",
+   "gpu": "none",
+   "diagnostics": {
+    "internal_diagnostics": "producer_through_observe",
+    "flight_recorder": "none",
+    "palmistry": "ring_visible"
+   },
+   "control_descriptors": "shared_typed_source",
+   "jobs": "none",
+   "settings": "module_tab_feature_subtab",
+   "refactor_exposure": "high",
+   "derived_from": {
+    "module_ref": "STUDIO-MODULE-CONTROLS",
+    "unit_kind": "asset_foundation",
+    "owned_gui": true,
+    "queue_or_inflight": false,
+    "collaborative_state": false
+   },
+   "recorded_at": "2026-10-30T22:28:03Z"
+  },
+  "MT-35555": {
+   "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+   "spec_version": "v02.225",
+   "gui_host": "asset_local_test_host_only",
+   "gpu": "none",
+   "diagnostics": {
+    "internal_diagnostics": "producer_through_observe",
+    "flight_recorder": "none",
+    "palmistry": "ring_visible"
+   },
+   "control_descriptors": "shared_typed_source",
+   "jobs": "bounded_admission_via_job_port",
+   "settings": "module_tab_feature_subtab",
+   "refactor_exposure": "high",
+   "derived_from": {
+    "module_ref": "STUDIO-MODULE-HARNESS",
+    "unit_kind": "asset_foundation",
+    "owned_gui": true,
+    "queue_or_inflight": true,
+    "collaborative_state": false
+   },
+   "recorded_at": "2026-10-30T22:28:03Z"
+  },
+  "MT-36231": {
+   "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+   "spec_version": "v02.225",
+   "gui_host": "vulkan_shell_client",
+   "gpu": "central_broker_client",
+   "diagnostics": {
+    "internal_diagnostics": "producer_through_observe",
+    "flight_recorder": "business_event_ids",
+    "palmistry": "ring_visible"
+   },
+   "control_descriptors": "shared_typed_source",
+   "jobs": "none",
+   "settings": "module_tab_feature_subtab",
+   "refactor_exposure": "high",
+   "derived_from": {
+    "module_ref": "handshake_native::studio",
+    "unit_kind": "host_adoption",
+    "owned_gui": false,
+    "queue_or_inflight": false,
+    "collaborative_state": false
+   },
+   "recorded_at": "2026-10-30T22:28:03Z"
+  },
+  "MT-36233": {
+   "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+   "spec_version": "v02.225",
+   "gui_host": "vulkan_shell_client",
+   "gpu": "none",
+   "diagnostics": {
+    "internal_diagnostics": "producer_through_observe",
+    "flight_recorder": "business_event_ids",
+    "palmistry": "ring_visible"
+   },
+   "control_descriptors": "shared_typed_source",
+   "jobs": "none",
+   "settings": "module_tab_feature_subtab",
+   "refactor_exposure": "high",
+   "derived_from": {
+    "module_ref": "handshake_native::studio",
+    "unit_kind": "host_adoption",
+    "owned_gui": false,
+    "queue_or_inflight": false,
+    "collaborative_state": false
+   },
+   "recorded_at": "2026-10-30T22:28:03Z"
+  }
+ }
+}

@@ -10,7 +10,8 @@
     "mt_plan.clusters fold into microtask_graph.parallel_groups; build_target stays inside architecture_binding for the single-crate reality.",
     "Placeholders are REPLACE_ME or empty arrays; scope_waivers keep 012's waivers_granted names as aliases under _v1_alias.",
     "gameplan_ref names the WP gameplan .GOV/task_packets/<WP_ID>/gameplan.yaml, created and edited only with the gameplan skill; MT gameplans under gameplans/<MT_ID>.yaml inherit from it (CX-GP-001).",
-    "Module lifecycle is mandatory for future product authoring; module_lifecycle_refs resolves each owning module maintenance contract. Fill task-specific methods and proof; declarations do not prove standalone or host behavior. Preserve active pins."
+    "Module lifecycle is mandatory for future product authoring; module_lifecycle_refs resolves each owning module maintenance contract. Fill task-specific methods and proof; declarations do not prove standalone or host behavior. Preserve active pins.",
+    "host_integration (added 2026-10-30, Operator direction): the WP-level host obligation under HBR-HOST-001..008; MT contracts carry the same block (hsk.studio_mt_host_integration@1); 'none' values need a not_applicable reason."
   ],
   "instance_policy": {
     "omit_empty_optional_fields": true,
@@ -332,6 +333,74 @@
     ],
     "argus_targets": [],
     "not_applicable_reason": null
+  },
+  "host_integration": {
+    "_note": "Host integration obligation (Operator direction 2026-10-30; HBR-HOST-001..008). Every value is declared at hydration and re-proved at closure; 'none' needs a reason in the matching not_applicable field of hbr.",
+    "schema_id": "hsk.wp_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "gui_host": "REPLACE_ME",
+    "_gui_host_enum": [
+      "vulkan_shell_client",
+      "asset_local_test_host_only",
+      "none"
+    ],
+    "gpu": "REPLACE_ME",
+    "_gpu_enum": [
+      "central_broker_client",
+      "via_render_provider_port",
+      "none"
+    ],
+    "memory": "REPLACE_ME",
+    "_memory_enum": [
+      "bounded_admission_via_resource_owner",
+      "none"
+    ],
+    "diagnostics": {
+      "internal_diagnostics": "REPLACE_ME",
+      "flight_recorder": "REPLACE_ME",
+      "palmistry": "REPLACE_ME",
+      "_internal_diagnostics_enum": [
+        "producer_through_host_allowlist",
+        "producer_through_observe",
+        "none"
+      ],
+      "_flight_recorder_enum": [
+        "business_event_ids",
+        "none"
+      ],
+      "_palmistry_enum": [
+        "ring_visible",
+        "survival_acceptance",
+        "none"
+      ]
+    },
+    "control_descriptors": "REPLACE_ME",
+    "_control_descriptors_enum": [
+      "shared_typed_source",
+      "none"
+    ],
+    "attribution": "required",
+    "jobs": "REPLACE_ME",
+    "_jobs_enum": [
+      "bounded_admission_via_job_port",
+      "none"
+    ],
+    "settings": "REPLACE_ME",
+    "_settings_enum": [
+      "module_tab_feature_subtab",
+      "none"
+    ],
+    "hbr_host_rule_refs": [],
+    "spec_refs": [],
+    "refactor_exposure": "REPLACE_ME",
+    "_refactor_exposure_enum": [
+      "none",
+      "low",
+      "medium",
+      "high"
+    ],
+    "vulkan_proof_refs": [],
+    "watcher_survival_proof_refs": []
   },
   "auth_binding": {
     "applicability": "REPLACE_ME",

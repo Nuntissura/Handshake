@@ -16,7 +16,8 @@
     "Proof binding (CX-VAL-009): verdicts[].test_run names the round candidate_commit, started_at and completed_at and one artifact_ref per failure; a failed decision needs at least one product failure_kind for this MT in that test_run; lifecycle.invalidated_by_commit records the round candidate whose diff intersected proof.relevant_input_paths and returned a passed MT to ready_for_validation. Every proof run uses the HBR test_entrypoint command and config only (CX-VAL-007).",
     "Retry routes and counters: a released claim clears lifecycle.claim_ref (phase ready); a blocked verdict with blocker kind dependency sets blocked_on_mt_ref and lifecycle.blocked_on (CX-STATUS-002); attempt_budget.max_fix_rounds_per_mt failed verdicts, then a fix_budget_exhausted blocker and an Operator decision before a new claim (CX-EXEC-015). submissions[].final_status is the implementer's status, never a verdict.",
     "The closure-loop fields (remediation, diagnosis, diagnosis_ref, test_run binding, invalidated_by_commit) are checked by agents by hand until Handshake exists.",
-    "Every product MT resolves nonempty module_maintenance_refs and one module_change_stage. Keep source changes and host adoption in distinct MTs, preserving original acceptance in explicit stage-specific fields. Author task-specific inputs, steps, outputs and proof instead of generic policy boilerplate; add no new check suite."
+    "Every product MT resolves nonempty module_maintenance_refs and one module_change_stage. Keep source changes and host adoption in distinct MTs, preserving original acceptance in explicit stage-specific fields. Author task-specific inputs, steps, outputs and proof instead of generic policy boilerplate; add no new check suite.",
+    "host_integration (added 2026-10-30, Operator direction): per-MT host obligation under HBR-HOST-001..008; listed in authority_migration.active_execution_authority where that block exists."
   ],
   "instance_policy": {
     "omit_empty_optional_fields": true,
@@ -262,6 +263,36 @@
     "location": null,
     "reason": null,
     "not_applicable_reason": null
+  },
+  "host_integration": {
+    "_note": "Per-MT host integration obligation (Operator direction 2026-10-30; HBR-HOST-001..008); derived mechanically for the WP-KERNEL-STUDIO corpus by .GOV/docs_repo/wp-studio-module-work/tools/mt-host-integration.py and authored by hand for new MTs.",
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "REPLACE_ME",
+    "spec_version": "REPLACE_ME",
+    "gui_host": "REPLACE_ME",
+    "_gui_host_enum": [
+      "vulkan_shell_client",
+      "asset_local_test_host_only",
+      "none"
+    ],
+    "gpu": "REPLACE_ME",
+    "_gpu_enum": [
+      "central_broker_client",
+      "via_render_provider_port",
+      "none"
+    ],
+    "diagnostics": {
+      "internal_diagnostics": "REPLACE_ME",
+      "flight_recorder": "REPLACE_ME",
+      "palmistry": "REPLACE_ME"
+    },
+    "control_descriptors": "REPLACE_ME",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "REPLACE_ME",
+    "settings": "REPLACE_ME",
+    "spec_refs": [],
+    "refactor_exposure": "REPLACE_ME",
+    "recorded_at": "REPLACE_ME"
   },
   "red_team": {
     "required": true,
