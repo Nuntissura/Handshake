@@ -1,0 +1,211 @@
+{
+ "crate": "hsk-studio-pigment, hsk-studio-harness-view, hsk-studio-harness (test only)",
+ "lane": "SMB-PS-GRADIENT-BUCKET-1",
+ "status": "IN_PROGRESS",
+ "phase": "code complete in 8 local commits on lane/smb-ps-gradient-bucket-1 (base d208bc0e), nothing pushed; lead dedupe done (3a83e851); focused tests green on D:; waiting: runs last after SMB-AU-MULTITRACK-3, lead names disk + base",
+ "candidate": null,
+ "commits": [
+  {
+   "slice": "1 red",
+   "sha": "f8587882",
+   "pushed": false,
+   "summary": "pigment fill_tools API skeleton + tests/fill_tools.rs gradient tests (red)"
+  },
+  {
+   "slice": 1,
+   "sha": "c77675d7",
+   "pushed": false,
+   "summary": "pigment fill_tools::gradient_fill: independent colour/transparency stop lists, midpoints, drag-line linear/reflected/radial/angle/diamond, reverse, seeded dither, blend; style.rs gradient_sample pub(crate)"
+  },
+  {
+   "slice": "2 red",
+   "sha": "d7aaf479",
+   "pushed": false,
+   "summary": "tests/fill_tools.rs bucket + Edit > Fill tests (red)"
+  },
+  {
+   "slice": 2,
+   "sha": "f2fde248",
+   "pushed": false,
+   "summary": "pigment fill_tools::flood_fill (magic_wand region) and fill_selection; colour or pattern tile content"
+  },
+  {
+   "slice": "3 red",
+   "sha": "17c96a72",
+   "pushed": false,
+   "summary": "harness tests/viewer_fill_tools.rs (red: viewer API absent)"
+  },
+  {
+   "slice": "3 and 4",
+   "sha": "c21af8eb",
+   "pushed": false,
+   "summary": "harness-view view/fill_tools.rs: Tool::Gradient / Tool::FloodFill, fill_gradient / flood_fill / fill_selection one chronicle tiles step each, fill_drag / fill_click, option row fill.*, hover, state_json edit.fill; slice 4 document pattern tiles offered to the bucket (pattern_unavailable otherwise)"
+  },
+  {
+   "slice": "3 test fix",
+   "sha": "3785dc0e",
+   "pushed": false,
+   "summary": "viewer_fill_tools clippy cloned_ref_to_slice_refs"
+  },
+  {
+   "slice": "lead dedupe",
+   "sha": "3a83e851",
+   "pushed": false,
+   "summary": "view/fill_tools.rs reuses brush_mix plane/put/tile_view/Quiet/BYTE_LIMIT (pub(super)) and Prism DisplayEncoding::Srgb.encode"
+  }
+ ],
+ "tests": {
+  "history": [
+   {
+    "sha": "f8587882",
+    "scope": "nextest -p hsk-studio-pigment --test fill_tools (D:)",
+    "exit": 100,
+    "passed": 0,
+    "failed": 4,
+    "note": "red slice 1",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-gradient-bucket-1/focused-smb-ps-gradient-bucket-1-f8587882-red-s1.log"
+   },
+   {
+    "sha": "f8587882 (pre-commit tree of c77675d7)",
+    "scope": "same",
+    "exit": 100,
+    "passed": 3,
+    "failed": 1,
+    "note": "own cause: diamond expectations wrong in the test (v = (2,0) at pixel (6,4), not 1.5); test recomputed",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-gradient-bucket-1/focused-smb-ps-gradient-bucket-1-f8587882-s1-wip.log"
+   },
+   {
+    "sha": "f8587882 (tree = c77675d7)",
+    "scope": "same",
+    "exit": 0,
+    "passed": 4,
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-gradient-bucket-1/focused-smb-ps-gradient-bucket-1-f8587882-s1-wip2.log"
+   },
+   {
+    "sha": "d7aaf479",
+    "scope": "same",
+    "exit": 100,
+    "passed": 4,
+    "failed": 4,
+    "note": "red slice 2 (the 4 bucket tests)",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-gradient-bucket-1/focused-smb-ps-gradient-bucket-1-d7aaf479-red-s2.log"
+   },
+   {
+    "sha": "d7aaf479 (tree = f2fde248)",
+    "scope": "same",
+    "exit": 0,
+    "passed": 8,
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-gradient-bucket-1/focused-smb-ps-gradient-bucket-1-d7aaf479-s2-wip.log"
+   },
+   {
+    "sha": "17c96a72",
+    "scope": "nextest -p hsk-studio-harness --features viewer --test viewer_fill_tools (D:)",
+    "exit": 101,
+    "note": "red slice 3: compile errors (viewer fill API absent)",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-gradient-bucket-1/focused-smb-ps-gradient-bucket-1-17c96a72-red-s3.log"
+   },
+   {
+    "sha": "17c96a72 (tree = c21af8eb)",
+    "scope": "same",
+    "exit": 0,
+    "passed": 4,
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-gradient-bucket-1/focused-smb-ps-gradient-bucket-1-17c96a72-s3-wip.log"
+   },
+   {
+    "sha": "17c96a72 (tree = c21af8eb)",
+    "scope": "nextest -p hsk-studio-harness-view --features viewer --lib -E test(fill_tools)",
+    "exit": 0,
+    "passed": 1,
+    "failed": 0,
+    "note": "slice 4 unit test; no separate red run (slices 3 and 4 share one commit)",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-gradient-bucket-1/focused-smb-ps-gradient-bucket-1-17c96a72-s4-unit.log"
+   },
+   {
+    "sha": "c21af8eb",
+    "scope": "clippy -p pigment -p harness-view -p harness --features harness-view/viewer,harness/viewer --tests (D:)",
+    "exit": 0,
+    "note": "one lane warning (viewer_fill_tools cloned_ref_to_slice_refs) fixed in 3785dc0e; others foreign",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-gradient-bucket-1/focused-smb-ps-gradient-bucket-1-c21af8eb-clippy.log"
+   },
+   {
+    "sha": "3785dc0e",
+    "scope": "nextest -p hsk-studio-pigment (whole suite, D:)",
+    "exit": 0,
+    "passed": 254,
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-gradient-bucket-1/focused-smb-ps-gradient-bucket-1-3785dc0e-pigment-suite.log"
+   },
+   {
+    "sha": "3785dc0e (tree = 3a83e851)",
+    "scope": "clippy -p harness-view -p harness --features harness-view/viewer,harness/viewer --tests (D:)",
+    "exit": 0,
+    "note": "no lane findings",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-gradient-bucket-1/focused-smb-ps-gradient-bucket-1-3785dc0e-dedupe-clippy.log"
+   },
+   {
+    "sha": "3785dc0e (tree = 3a83e851)",
+    "scope": "nextest harness + harness-view (viewer): binary(viewer_fill_tools|viewer_edit|viewer_brush_parity) + fill_tools::tests (D:)",
+    "exit": 0,
+    "passed": 9,
+    "failed": 0,
+    "note": "an earlier run with a test()-only filter missed the viewer_fill_tools binary (9 brush-named tests passed); rerun with binary() filter",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-gradient-bucket-1/focused-smb-ps-gradient-bucket-1-3785dc0e-dedupe-tests2.log"
+   }
+  ],
+  "step0": "lane-check --step0-only at c21af8eb: clean"
+ },
+ "blockers": [],
+ "bg_pids": [],
+ "updated_at": "2026-10-30T14:31:24Z",
+ "notes": {
+  "worktree": "wt-studio-lanes/smb-ps-gradient-bucket-1 (branch lane/smb-ps-gradient-bucket-1, base d208bc0e)",
+  "brief": "builders/briefs/lane-smb-ps-gradient-bucket-1.md",
+  "spec_basis": [
+   "v02.225 [STU-RAS-025] bucket/flood fill by tolerance and anti-alias with a colour or StudioPattern; gradient tool; geometries Linear, Radial, Angle, Reflected, Diamond; foreground/background fill commands",
+   "v02.225 [STU-RAS-160] independent colour and transparency stop lists; stop.location 0..4096; stop.midpoint 0..100 default 50; transparency_stop.opacity 0..100; interpolation 4096; form stops|noise; geometry incl. shape_burst (normative, not dropped); reverse, dither",
+   "v02.225 [STU-RAS-161] StudioPattern: tile bitmap RGB/grayscale/indexed, 1x1 legal, id authoritative, name a label",
+   "v02.225 [STU-RAS-119] anti_alias default true; contiguous default true",
+   "v02.225 [STU-RAS-170] / [STU-RAS-117] no pixel edit on non-pixel layers without explicit rasterize",
+   "v02.225 [STU-SHL-155] tool catalogue rows flood_fill and gradient (family fill_color)"
+  ],
+  "studio_readings_unverified_d5": [
+   "drag-line geometry: linear v.d/L^2, reflected |v.d|/L^2, radial |v|/L, diamond (|v.u|+|v.n|)/L, angle counter-clockwise on screen from the drag, one turn = 1",
+   "midpoint curve piecewise linear (f = m gives 0.5); a stop's midpoint governs the segment to the next stop",
+   "dither +-0.5/255 per channel from blend_math::site_unit (seeded, deterministic), colour only",
+   "bucket tolerance metric and anti-alias kernel = the magic wand's (Chebyshev on premultiplied RGBA in 8-bit display levels; 3x3 box on the boundary)",
+   "viewer works on sRGB-encoded values (interpolation, tolerance, blend) and decodes the replacement to the linear tiles; foreground = brush colour; default gradient foreground to transparent; pattern tiled from the document origin at 100 %"
+  ],
+  "reuse": "gradient segment interpolation = effect_math::style::gradient_sample (made pub(crate)); flood region = select_tools::wand::magic_wand; blend = blend_math::composite_over (+ behind / clear here); pattern lookup = PatternOverlayOp::sample_at; viewer reuses edit.rs tile_rects / new_tile_profile / new_tile / canvas / CELL consts (made pub(super)) and brush_mix::{MixTarget, BLOCK}",
+  "copies_for_lead": "Removed (3a83e851): fill_tools.rs window/put/tile-view/sink copies (now brush_mix's) and the sRGB encode (now hsk_studio_prism::DisplayEncoding::Srgb.encode). Kept, exact mismatch: (1) the masked_replace request in fill_tools::replace_block: brush_mix::replace_block(target, tile, block, colour, alpha, rgb: [f32; 3], mask) builds its replacement inside from ONE colour (paint_replacement(block, rgb, ..)) and has no parameter for per-pixel replacement planes; reuse needs a behaviour change there (a planes-taking core that replace_block wraps). (2) the sRGB decode: Prism exposes only the encode (DisplayEncoding::encode); the viewer's own edit::linear takes u8 and would quantize the replacement to 8 bits",
+  "folio": "no Folio field added or needed (destructive fills write pixels)",
+  "masks": "gradients on layer masks not offered: the viewer has no mask edit target (remaining, STU-RAS-025)",
+  "rule_4a": "bundled run to cover the whole suites of hsk-studio-pigment, hsk-studio-harness-view, hsk-studio-harness with the round's viewer features; clippy over pigment and its direct dependents",
+  "rule_4b": "no Folio field; pigment public API additive (new module fill_tools, style::gradient_sample pub(crate) only); no signature change for develop (SMB-LR-EXPORT-SIZING-1)",
+  "rule_4c": "step 0 clean; no drive-letter or user-profile literal",
+  "rule_4d": "no doc examples added",
+  "rule_4e": "tests/viewer_fill_tools.rs is #![cfg(feature = \"viewer\")]; .config/round-features.toml has hsk-studio-harness [\"viewer\"]; the harness-view unit view::fill_tools::tests is under feature viewer, round unit hsk-studio-harness-view [\"viewer\"] exists",
+  "cargo_lock": "not committed; no new dependency or module edge",
+  "run_ui_md_lines_for_lead": [
+   "Gradient (tool.gradient, lane SMB-PS-GRADIENT-BUCKET-1): select a raster layer, drag across the canvas: a gradient from the brush colour to transparent along the drag, clipped to the selection; geometry (linear, radial, angle, reflected, diamond), mode, opacity, reverse and dither in the option row; one undo step.",
+   "Bucket fill (tool.flood_fill): click a raster layer to fill the similar contiguous colour with the brush colour (tolerance, contiguous, anti-alias, all layers in the option row; a document pattern when one resolves); Fill selection fills the selection (or the whole layer). Vector, text, group, fill and placed layers are refused (rasterize first). The vector Paint bucket (tool.paint_bucket) is unchanged."
+  ],
+  "not_proven": [
+   "NOT_PROVEN: Photoshop parity of the gradient mapping, midpoint curve, dither pattern, tolerance metric and anti-alias kernel (no D5 oracle case)",
+   "NOT_PROVEN: a real desktop window drag/click (headless egui; canvas actions fill_drag / fill_click driven directly)",
+   "NOT_PROVEN: pattern content end to end in the window (resolver unit-tested; pigment pattern fill tested; no fixture document with a resolved pattern_tile in the harness tests)"
+  ],
+  "own_causes": [
+   "slice 1 wip run: diamond test expectations miscomputed (pixel centre 6.5 - 4.5 = 2, not 1.5); fixed in the test, the code was right"
+  ],
+  "scope_extension": {
+   "edit_rs (lead grant 2026-10-30)": "EditState.fill field + Default; edit_json \"fill\" line; pub(super) on CELL, COLOUR_CELL, ALPHA_CELL, tile_rects, new_tile_profile, new_tile, Viewer::canvas (visibility instead of copies)",
+   "brush_mix_rs (lead grant 2026-10-30, visibility only)": "pub(super) on BYTE_LIMIT, Quiet, plane, put, tile_view",
+   "mod_rs (brief-listed)": "module line, gradient drag arm, bucket click block, gradient preview line arm, hover arm, option-row call"
+  }
+ },
+ "next": "await lead message: disk + base for the bundled run (rebase onto the named base, run once, push, READY per slice)",
+ "verdicts": []
+}

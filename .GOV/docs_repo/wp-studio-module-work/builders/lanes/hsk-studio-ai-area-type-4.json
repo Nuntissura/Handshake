@@ -1,63 +1,109 @@
 {
  "crate": "hsk-studio-type (src/area_text.rs, tests/area_text_shapes.rs, tests/ai_area_text.rs tolerance) + hsk-studio-harness-view (tests/viewer_view_polish.rs only)",
  "lane": "SMB-AI-AREA-TYPE-4",
- "status": "IN_PROGRESS",
- "phase": "fix coded and committed locally (78688e5a, b32420ad on base d208bc0e, not pushed); focused type suite green on D:; waiting for the lead's go (disk + base) for the bundled run",
- "candidate": null,
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed ae6452c4 on origin/codex/handshake-studio-assets (rebased onto 61bb4d58, no conflict); bundled run green at pre-rebase 8bf652bb; READY_FOR_VALIDATION at ae6452c4 (claim = d8092514, d75e9621, ae6452c4)",
+ "candidate": "ae6452c4",
  "commits": [
   {
-   "sha": "78688e5a",
+   "sha": "d8092514",
+   "pre_rebase": "78688e5a",
    "slice": "1 (engine fix + engine tests)",
    "subject": "type: area text skips a narrowed band only when a later band holds the word (look-ahead down the run's leading chain, counted against max_bands; else break between glyphs here); tests/area_text_shapes.rs; ai_area_text circle-inset tolerance slope-aware"
   },
   {
-   "sha": "b32420ad",
+   "sha": "d75e9621",
+   "pre_rebase": "b32420ad",
    "slice": "2 (viewer test)",
    "subject": "harness-view: one_corner_drag_to_a_slanted_frame_places_more_and_echoes restored next to the rectangle version (VIEW-POLISH-1's d208bc0e test kept)"
+  },
+  {
+   "sha": "ae6452c4",
+   "pre_rebase": "8bf652bb",
+   "slice": "lead condition",
+   "subject": "type: circle inset tolerance derivation (delta r / hw) and cap (hw >= 12.5 asserted, tolerance <= 0.4)"
   }
  ],
  "capabilities_done": [
   "type area_text.rs compose: on an empty line whose word does not fit a band narrower than the container's inset bbox, look ahead down the leading chain of the word's run (its first glyph starts every later band) to the inset bottom; skip the band only if a later band holds the word, otherwise break the word between glyphs in this band (as on a full-width band); a narrowed band holding not one glyph is skipped; full-width bands unchanged (a glyph wider than the box still stops the layout). Look-ahead bands count against max_bands; caches fits_at (glyph, fit baseline) and unfit (run, baseline, widest later band) keep the walk linear while lines keep starting with that run. band_interval factored out of compose (same 5-scanline rule)."
  ],
  "tests": {
-  "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 STUDIO_LANE_CHECK_NO_DEPENDENTS=1 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-ai-area-type-4 --disk d -- cargo nextest run -p hsk-studio-type --features hsk-studio-type/harfrust --no-fail-fast",
+  "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-ai-area-type-4 --disk ssd -- cargo nextest run -p hsk-studio-type -p hsk-studio-layout -p hsk-studio-composite -p hsk-studio-render-cpu -p hsk-studio-render-gpu -p hsk-studio-interop-fig -p hsk-studio-interop-fig-native -p hsk-studio-interop-layout -p hsk-studio-harness -p hsk-studio-harness-view --features hsk-studio-type/harfrust,hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast (clippy over those crates + dependent hsk-studio-pulse)",
   "exit": 0,
-  "sha": "b32420ad",
-  "passed": 62,
+  "sha": "8bf652bb",
+  "passed": 950,
   "failed": 0,
   "history": [
-   {"sha": "d208bc0e", "run": "red proof", "exit": 100, "passed": 3, "failed": 3, "failures": "one_corner_drag_quadrilateral_places_the_story (lines [] = 0 placed; the rectangle in the same test gave 4 placed / 28 overset), parallelogram long word (lines []), triangle tip (no broken word at 104)", "log": "scratchpad/smb-ai-area-type-4/smb-ai-area-type-4-red-d208bc0e.log"},
-   {"sha": "d208bc0e+uncommitted fix", "run": "focused 1", "exit": 100, "passed": 61, "failed": 1, "failures": "ai_area_text area_text_wraps_inside_a_circle_container:118 inset check: NEW bottom line at baseline 186 (band 19.8 pt now holds a broken word) off by 0.06 > 0.05; measured: the kappa Bezier circle lies 0.098 pt outside the true circle at y = 198 (radial error 0.027 x slope r/hw 5.03), flattening 0.039 back; tolerance made 0.05 r / hw (unchanged ~0.05 where the edge is near-vertical)", "log": "scratchpad/smb-ai-area-type-4/smb-ai-area-type-4-focus1-d208bc0e.log"},
-   {"sha": "b32420ad", "run": "focused 2", "exit": 0, "passed": 62, "failed": 0, "log": "scratchpad/smb-ai-area-type-4/smb-ai-area-type-4-focus2-b32420ad.log (header HEAD=b32420ad)"}
+   {
+    "sha": "d208bc0e",
+    "run": "red proof",
+    "exit": 100,
+    "passed": 3,
+    "failed": 3,
+    "failures": "one_corner_drag_quadrilateral_places_the_story (lines [] = 0 placed; the rectangle in the same test gave 4 placed / 28 overset), parallelogram long word (lines []), triangle tip (no broken word at 104)",
+    "log": "scratchpad/smb-ai-area-type-4/smb-ai-area-type-4-red-d208bc0e.log"
+   },
+   {
+    "sha": "d208bc0e+uncommitted fix",
+    "run": "focused 1",
+    "exit": 100,
+    "passed": 61,
+    "failed": 1,
+    "failures": "ai_area_text area_text_wraps_inside_a_circle_container:118 inset check: NEW bottom line at baseline 186 (band 19.8 pt now holds a broken word) off by 0.06 > 0.05; measured: the kappa Bezier circle lies 0.098 pt outside the true circle at y = 198 (radial error 0.027 x slope r/hw 5.03), flattening 0.039 back; tolerance made 0.05 r / hw (unchanged ~0.05 where the edge is near-vertical)",
+    "log": "scratchpad/smb-ai-area-type-4/smb-ai-area-type-4-focus1-d208bc0e.log"
+   },
+   {
+    "sha": "b32420ad",
+    "run": "focused 2",
+    "exit": 0,
+    "passed": 62,
+    "failed": 0,
+    "log": "scratchpad/smb-ai-area-type-4/smb-ai-area-type-4-focus2-b32420ad.log (header HEAD=b32420ad)"
+   },
+   {
+    "sha": "8bf652bb",
+    "run": "bundled 1 (C:, lead go)",
+    "exit": 0,
+    "passed": 950,
+    "failed": 0,
+    "skipped": 20,
+    "started": "2026-10-30T13:53:16Z",
+    "ended": "2026-10-30T14:39:09Z",
+    "log": "scratchpad/smb-ai-area-type-4/smb-ai-area-type-4-bundled1-8bf652bb.log (header HEAD=8bf652bb)"
+   }
   ],
-  "bundled_runs": 0,
+  "bundled_runs": 1,
   "lane_tests": [
    "type area_text_shapes: one_corner_drag_quadrilateral_places_the_story (viewer quad + concave dart, hand-computed first and second intervals), parallelogram_sets_every_line_and_breaks_a_word_wider_than_every_band, trapezoid_widens_downward_and_a_word_skips_to_the_first_band_that_holds_it, concave_l_shape_uses_the_arm_then_the_foot, triangle_with_a_narrow_tip_reports_overset_and_drops_nothing, look_ahead_is_bounded_by_the_band_budget",
-   "harness-view viewer_view_polish: one_corner_drag_to_a_slanted_frame_places_more_and_echoes (NOT RUN yet: needs the bundled run with feature viewer)"
+   "harness-view viewer_view_polish: one_corner_drag_to_a_slanted_frame_places_more_and_echoes (PASS in bundled 1, features harness desktop+audio-batch -> harness-view viewer+desktop+audio-batch)"
   ],
-  "red_on_base": "d208bc0e: one_corner_drag_quadrilateral_places_the_story, parallelogram_sets_every_line_and_breaks_a_word_wider_than_every_band, triangle_with_a_narrow_tip_reports_overset_and_drops_nothing fail"
+  "red_on_base": "d208bc0e: one_corner_drag_quadrilateral_places_the_story, parallelogram_sets_every_line_and_breaks_a_word_wider_than_every_band, triangle_with_a_narrow_tip_reports_overset_and_drops_nothing fail",
+  "skipped": 20
  },
  "blockers": [],
  "bg_pids": [],
- "next": "bundled run on the lead's disk and base: type whole suite (harfrust) + direct dependents (composite at least; vector_text_lowering triangle/ring area cases) + harness-view whole suite with viewer (rule 4a/4e); then rebase, push, READY",
- "updated_at": "2026-10-30T13:51:33Z",
+ "next": "validation (R43)",
+ "updated_at": "2026-10-30T14:40:05Z",
  "notes": {
   "spec_basis": "STU-TYP-002 area = closed container with overflow/overset state (the band rule for concave shapes is a spec gap, declared in SMB-AI-AREA-TYPE-1)",
   "root_cause": "hsk-studio-type/src/area_text.rs compose at d208bc0e lines 617-620: an empty line that cannot hold the word skips the band whenever avail < full (bbox width - 2 inset), with no check that any later band can hold it. Viewer frame after one direct drag of anchor (40,30) -> (90,60): convex quad 10,10 / 40,10 / 90,60 / 10,30 (no self-intersection, area 1150, bbox 80 pt wide). Ubuntu-Light 12 pt: 'Overset' = 42.468 pt; bands: [10,40] 30 pt, [20.38,54.4] 34.02 pt, [58.78,68.8] 10.02 pt, the 4th ends at 62.69 > 60. Every band is narrower than the bbox and than the word, so all were skipped and 0 of 32 placed; the 30 pt rectangle is full-width, so it broke the word (4 placed). Not the cause (checked): viewer drag geometry (valid convex quad), inset (0), flattening (straight edges), auto-size (off), first baseline (19.312 as in the rectangle).",
   "declared_readings": "a word no later band holds breaks between glyphs in the FIRST band it does not fit (not in the widest band); look-ahead follows the leading chain of the word's run",
   "UNVERIFIED_D5": "Illustrator area-type band rule for slanted/concave containers and where an over-wide word breaks",
   "test_changes_to_pass_lanes": [
-   "SMB-AI-AREA-TYPE-1 (PASS_V1 R41 / PASS_V2 R42; re-judge per CX-VAL-009): hsk-studio-type tests/ai_area_text.rs area_text_wraps_inside_a_circle_container, inset loop: tolerance 0.05 -> min(0.05 r / hw, 0.4) with assert hw >= 12.5 (78688e5a, derivation + cap 8bf652bb). Derivation in the test comment: a radial container error delta (Bezier circle < 0.03 + flattening 0.01 = 0.05) moves an interval end by delta r / hw along x at half-width hw (dx/dr = r / hw); a placed line holds at least one 5 pt glyph, so hw - 10 >= 2.5, hw >= 12.5, tolerance <= 0.4. Reason measured: the bottom band at 186 (19.8 pt) now holds a broken word; the kappa circle lies 0.098 pt outside the true circle at y = 198 (r / hw = 5.03); observed deviation 0.06. Accepted by the lead 2026-10-30 with the derivation/cap condition.",
-   "SMB-VIEW-POLISH-1: tests/viewer_view_polish.rs gains one_corner_drag_to_a_slanted_frame_places_more_and_echoes (b32420ad); its rectangle version from d208bc0e is unchanged"
+   "SMB-AI-AREA-TYPE-1 (PASS_V1 R41 / PASS_V2 R42; re-judge per CX-VAL-009): hsk-studio-type tests/ai_area_text.rs area_text_wraps_inside_a_circle_container, inset loop: tolerance 0.05 -> min(0.05 r / hw, 0.4) with assert hw >= 12.5 (pushed d8092514, derivation + cap ae6452c4; pre-rebase 78688e5a, 8bf652bb). Derivation in the test comment: a radial container error delta (Bezier circle < 0.03 + flattening 0.01 = 0.05) moves an interval end by delta r / hw along x at half-width hw (dx/dr = r / hw); a placed line holds at least one 5 pt glyph, so hw - 10 >= 2.5, hw >= 12.5, tolerance <= 0.4. Reason measured: the bottom band at 186 (19.8 pt) now holds a broken word; the kappa circle lies 0.098 pt outside the true circle at y = 198 (r / hw = 5.03); observed deviation 0.06. Accepted by the lead 2026-10-30 with the derivation/cap condition.",
+   "SMB-VIEW-POLISH-1: tests/viewer_view_polish.rs gains one_corner_drag_to_a_slanted_frame_places_more_and_echoes (pushed d75e9621, pre-rebase b32420ad); its rectangle version from d208bc0e is unchanged"
   ],
   "viewer_story_measurement": "advances from Ubuntu-Light hmtx (epaint_default_fonts 0.33.3 font file, read with fontTools) x 12/1000; fl ligature 631 units = f + l; harfrust kerning not applied in the engine test",
-  "rule_4a": "pending bundled run: type whole suite + dependents + harness-view whole suite",
+  "rule_4a": "bundled 1: type whole suite + every direct dependent of type (layout, composite, render-cpu, render-gpu, interop-fig, interop-fig-native, interop-layout, harness, harness-view) in one unified unit, harness-view with viewer+desktop+audio-batch; clippy also over pulse",
   "rule_4b": "no Folio record field",
-  "rule_4c": "lane-check step 0 clean (red, focus1, focus2)",
+  "rule_4c": "lane-check step 0 clean (red, focus1, focus2, bundled 1)",
   "rule_4d": "no doc examples",
   "rule_4e": "area_text_shapes.rs has no cfg(feature) (round unit hsk-studio-type = [harfrust]); viewer_view_polish.rs needs harness-view [viewer], which round-features.toml has",
   "cargo_lock": "not committed; no new dependency or crate edge",
-  "process": "focused runs on D: only (--disk d, STUDIO_LANE_CHECK_NO_DEPENDENTS=1, type crate only); bundled run waits for the lead's go; nothing pushed"
+  "process": "focused runs on D:, bundled run on C: after the lead's go; push guarded (non-empty sha, &&), exit 0, origin == ae6452c4 verified by fetch; Cargo.lock not committed",
+  "waiver_HBR_STOP_005": "Lead waiver (disclosed): no re-run after rebasing onto origin. Pre-rebase green log scratchpad/smb-ai-area-type-4/smb-ai-area-type-4-bundled1-8bf652bb.log at 8bf652bb (950/950); rebased pushed sha ae6452c4. The waiver named 6f005d28 (SMB-R42-FOLLOWUPS-1 harness-core refused-entry path + corpus row, layout licence texts). At fetch, origin was 61bb4d58: also 8 SMB-LR-EXPORT-SIZING-1 commits in hsk-studio-develop (additive per their messages), which is in harness-view's dependency closure and was NOT named by the waiver; the waiver's re-run triggers did not fire (no conflict in this lane's files; accord / observe unchanged; diff --stat origin..HEAD lists only this lane's 4 paths). R43 runs the combined sha.",
+  "log_copy": "lead 2026-10-30T14:40:51Z: run log copied from the session scratchpad to Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-area-type-4/smb-ai-area-type-4-bundled1-8bf652bb.log (HSK-ART-001); content unchanged, first line HEAD=8bf652bb",
+  "lead_waiver_extended": "lead 2026-10-30T14:40:51Z: the HBR-STOP-005 waiver also covers the 61bb4d58 develop commits the rebase brought (additive module + ExportError::Stage; develop dependents compiled in SMB-LR-EXPORT-SIZING-1 clippy; harness-view suite runs in the R43 full union at the combined sha)"
  },
  "verdicts": []
 }
