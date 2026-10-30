@@ -1,0 +1,213 @@
+{
+ "crate": "hsk-studio-interop-fig-base (src/nodes.rs + tests/fig_grid_decode.rs) + hsk-studio-interop-fig-native (src/native.rs + tests/fig_grid.rs) + hsk-studio-harness-view (new src/view/design/auto_layout.rs, src/view/design.rs pub mod line, src/view/mod.rs one properties_ui hunk; lead-approved extensions: src/view/vector/style.rs, src/view/design/instance.rs one json key, src/view/design/fig_import.rs auto-layout carry) + hsk-studio-harness (new tests/viewer_design_auto_layout.rs)",
+ "lane": "SMB-FIG-GRID-2",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed 91038884 on origin/codex/handshake-studio-assets (rebased onto ff4ca080, clean); bundled 2 green at 91038884 (435/435 on D:); push exit 0, ls-remote = 91038884; READY_FOR_VALIDATION at 91038884 (claim = 7b15c7a6, bad09877, 562d8f8e, 3340855b, bf5bc476, 7bb8e781, e64ea833, 91038884)",
+ "base": "91cb8889",
+ "candidate": "91038884",
+ "commits": [
+  {
+   "sha": "7b15c7a6",
+   "slice": "1 red",
+   "subject": "interop-fig-base test: GRID decode tests; grid fields declared, decode stubbed",
+   "pre_rebase": "dc9aabb7"
+  },
+  {
+   "sha": "bad09877",
+   "slice": "1",
+   "subject": "interop-fig-base: decode GRID container and child fields",
+   "pre_rebase": "1ccdf568"
+  },
+  {
+   "sha": "562d8f8e",
+   "slice": "2 red",
+   "subject": "interop-fig-native test: GRID mapping tests",
+   "pre_rebase": "15abedb9"
+  },
+  {
+   "sha": "3340855b",
+   "slice": "2",
+   "subject": "interop-fig-native: map .fig GRID frames to Folio grid records",
+   "pre_rebase": "4efb5926"
+  },
+  {
+   "sha": "bf5bc476",
+   "slice": "3+4 red",
+   "subject": "harness-view + harness test: window auto-layout tests; command surface declared, every command refused",
+   "pre_rebase": "f5c78741"
+  },
+  {
+   "sha": "7bb8e781",
+   "slice": "3+4",
+   "subject": "harness-view: auto layout and GRID in the window (+ vector/style.rs scope-extension condition)",
+   "pre_rebase": "9bbbe90d"
+  },
+  {
+   "sha": "e64ea833",
+   "slice": "1-2 lint",
+   "subject": "interop-fig-base, interop-fig-native: type aliases for clippy type_complexity",
+   "pre_rebase": "9a8cc0f5"
+  },
+  {
+   "sha": "91038884",
+   "pre_rebase": "1488d822",
+   "slice": "gap closures",
+   "subject": "harness-view: restyle keeps grid anchors; imported auto layout reaches the window"
+  }
+ ],
+ "capabilities_done": [
+  "interop-fig-base: AutoLayout::grid (FigGrid: rows/columns tracks in fractional-index order with min/max sizing per track id, gaps, gridAutoTracks, gridReflowEnabled) and per-child FigGridChild (anchors = track ids, spans, alignments) attached to the parent's FigGrid::children in child order; the six child fields join COMMON_NODE_FIELDS; typed losses grid_track_duplicate_id, grid_track_incomplete, grid_track_size_orphan, grid_track_size_duplicate, grid_track_size_incomplete, grid_child_without_grid_parent",
+  "interop-fig-native: GRID -> StudioAutoLayout::grid + children's grid_child (on the node standing for the child: an instance's expansion group); background layer ABSOLUTE + STRETCH; malformed/out-of-range -> native.auto_layout.grid auto_layout_grid_{missing,count,track_size_missing,track_value,track_type_unknown,gap,auto_tracks_unknown,anchor_unresolved,anchor_missing,span,child_align_unknown} with fallback to no auto layout (never grid: None under GRID); declared-reading losses auto_layout_grid_{items_positioning_default,reflow_not_mapped,track_min_dropped,child_horizontal_align_not_mapped,fields_on_non_grid_frame}",
+  "harness-view: Viewer::set_auto_layout_mode, set_auto_layout_spacing, set_grid_tracks, set_grid_gaps, set_grid_options, set_grid_child, set_child_sizing, grid_append_child_at, grid_reorder_rows, grid_reorder_columns (components commands), auto_layout_view, auto_layout_control(widget, value); each edits the vector entry's design records, Folio-validates, re-solves the frame (solve_auto_layout), translates children, resizes only rectangles / frames with a rectangle background (else auto_layout_resize_unsupported:<kind>), commits ONE undo step via Run::set_vector_paths_and_entry; Properties section design.auto_layout.* (mode, flow spacing/padding, grid counts, per-track type/value, gaps, auto tracks, items positioning, reorder buttons, child anchor/span/sizing, inline typed error); state_json()[\"design\"][\"auto_layout\"]",
+  "gap closures (lead 2026-10-30): vector/style.rs set_fill_ref keeps a layer entry's auto/child layout when its paint style changes (set_fill, apply_graphic_style, appearance edits; effective_design adds the legacy style to an entry without a fill ref); design/fig_import.rs carries a group's auto-layout record and its children's child layouts (absolute children with constraints) into the vector entry's design, so imported flow and GRID frames show in the section; a text layer in a re-laid-out subtree is the typed refusal auto_layout_text_layer_unsupported"
+ ],
+ "tests": {
+  "history": [
+   {
+    "sha": "dc9aabb7",
+    "run": "interop-fig-base red (D:): fig_grid_decode",
+    "exit": 100,
+    "passed": 1,
+    "failed": 2,
+    "failures": "the two GRID tests (decode stubbed: grid fields absent)",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-2/smb-fig-grid-2-base-red-dc9aabb7.log"
+   },
+   {
+    "sha": "1ccdf568",
+    "run": "interop-fig-base green (D:): fig_grid_decode",
+    "exit": 0,
+    "passed": 3,
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-2/smb-fig-grid-2-base-green-1ccdf568.log"
+   },
+   {
+    "sha": "91cb8889",
+    "run": "pin run (D:): non_grid_files_import_byte_identically with interop-fig-base and interop-fig-native at 91cb8889 (test file only uncommitted) -> the three to_native digests pinned in tests/fig_grid.rs",
+    "exit": 100,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-2/smb-fig-grid-2-native-pin-91cb8889.log"
+   },
+   {
+    "sha": "15abedb9",
+    "run": "interop-fig-native red (D:): fig_grid",
+    "exit": 100,
+    "passed": 1,
+    "failed": 3,
+    "failures": "three GRID tests: to_native NativeRejected(MissingField) (GRID unmapped); non_grid passes with slice 1 decode (byte-identical)",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-2/smb-fig-grid-2-native-red-15abedb9.log"
+   },
+   {
+    "sha": "4efb5926",
+    "run": "interop-fig-native green (D:): fig_grid",
+    "exit": 0,
+    "passed": 5,
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-2/smb-fig-grid-2-native-green-4efb5926.log"
+   },
+   {
+    "sha": "f5c78741",
+    "run": "harness red (D:): --features viewer viewer_design_auto_layout (the working tree also held the uncommitted vector/style.rs condition, which the stubbed commands never reach)",
+    "exit": 100,
+    "passed": 0,
+    "failed": 6,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-2/smb-fig-grid-2-view-red-f5c78741.log"
+   },
+   {
+    "sha": "9bbbe90d",
+    "run": "harness green (D:): --features viewer viewer_design_auto_layout",
+    "exit": 0,
+    "passed": 6,
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-2/smb-fig-grid-2-view-green-9bbbe90d.log"
+   },
+   {
+    "sha": "9a8cc0f5",
+    "run": "clippy --tests (D:) -p interop-fig-base -p interop-fig-native -p harness-view -p harness --features hsk-studio-harness/viewer: no warning in lane files (four type_complexity warnings fixed in 9bbbe90d/9a8cc0f5)",
+    "exit": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-2/smb-fig-grid-2-clippy-9a8cc0f5.log"
+   },
+   {
+    "sha": "9a8cc0f5",
+    "run": "focused (D:): binary(fig_grid_decode) | binary(fig_grid) | binary(viewer_design_auto_layout), harness --features viewer",
+    "exit": 0,
+    "passed": 14,
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-2/smb-fig-grid-2-focus-9a8cc0f5.log"
+   },
+   {
+    "sha": "1488d822",
+    "run": "focused (D:): viewer_design_auto_layout + viewer_fig_edit + viewer_fig_edit_persist + viewer_vector_styles + viewer_illustrator_tools, --features hsk-studio-harness/viewer",
+    "exit": 0,
+    "passed": 33,
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-2/smb-fig-grid-2-gaps-1488d822.log"
+   },
+   {
+    "sha": "91038884",
+    "run": "bundled 1 (D:, lead go, base ff4ca080): started 17:34:44Z, before the lane-check.sh edit at 17:35:30Z; bash read the edited script mid-run (syntax error line 207, test step repeated, exit 2) -> infrastructure (CX-VAL-005), not counted; its two test passes were 435/435",
+    "exit": 2,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-2/smb-fig-grid-2-bundled1-infra-91038884.log"
+   },
+   {
+    "sha": "91038884",
+    "run": "bundled 2 (D:, re-run once after the infra fault): step 0 clean; clippy --tests over interop-fig-base, interop-fig-native, interop-fig, harness-view, harness (desktop + audio-batch, which carries viewer), no warning in lane files; whole suites interop-fig-base 3, interop-fig-native 10, interop-fig 55, harness-view 133, harness 232 (20 #[ignore] corpus tests skipped)",
+    "exit": 0,
+    "passed": 435,
+    "failed": 0,
+    "skipped": 20,
+    "started": "2026-10-30T17:42:37Z",
+    "ended": "2026-10-30T17:43:27Z",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-2/smb-fig-grid-2-bundled2-91038884.log (first line HEAD=91038884 lane=smb-fig-grid-2)"
+   }
+  ],
+  "bundled_runs": 2,
+  "lane_tests": [
+   "interop-fig-base tests/fig_grid_decode.rs: grid_container_and_child_fields_decode_under_the_fixture_schema_names, malformed_grid_fields_are_typed_losses, fixtures_without_grid_fields_decode_without_grid",
+   "interop-fig-native tests/fig_grid.rs: grid_frame_imports_with_counts_sizes_gaps_and_anchors, malformed_or_hostile_grid_fields_fall_back_to_none_with_typed_losses (V4-02: 1001 columns, span u32::MAX), solved_child_rects_match_the_geometry_figma_stored (FIXTURE_PROVEN flow), grid_frame_solves_from_its_imported_records (prints NOT_PROVEN: Figma GRID parity), non_grid_files_import_byte_identically",
+   "harness tests/viewer_design_auto_layout.rs (#![cfg(feature = \"viewer\")]): switching_a_three_child_frame_to_grid_places_the_cells_in_one_undo_step, a_flex_column_and_gaps_recompute_the_positions, a_span_past_the_count_is_refused_by_folio_and_changes_nothing, reordering_rows_moves_the_anchored_children_with_their_rows, a_fill_rectangle_is_resized_and_a_fill_path_is_refused, the_section_ids_drive_the_commands_and_a_frame_without_records_has_no_section, restyling_a_grid_child_keeps_its_anchor, an_imported_flow_frame_shows_its_records_in_the_section"
+  ],
+  "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-fig-grid-2 --disk d -- cargo nextest run -p hsk-studio-interop-fig-base -p hsk-studio-interop-fig-native -p hsk-studio-interop-fig -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
+  "exit": 0,
+  "sha": "91038884",
+  "passed": 435,
+  "failed": 0
+ },
+ "blockers": [],
+ "bg_pids": [],
+ "next": "validation",
+ "updated_at": "2026-10-30T17:43:48Z",
+ "notes": {
+  "spec_basis": "master-spec-v02.225 module 14 per the brief: STU-DS-144..150 (container, track, child, command contracts; bounds and readings of SMB-FIG-GRID-1), STU-DS-001 and STU-IO-006 row 35 (import losses typed), STU-DS-160 (properties bound to the selection), STU-CMP-110 (headless Viewer path per control)",
+  "kiwi_schema_grid_fields": "read from the embedded kiwi schema of all three Operator fixtures (fig-basic-shapes, fig-components-autolayout, fig-prototype-pages; 653 definitions each, identical grid fields): NodeChange.stackMode : StackMode (GRID = 3); NodeChange.gridRows / gridColumns : GUIDPositionMap {entries: GUIDPositionMapEntry[] {id: GUID, position: string}} (435/436); gridRowGap / gridColumnGap : float (437/438); gridRowAnchor / gridColumnAnchor : GUID (439/440, child side, a track id); gridRowSpan / gridColumnSpan : uint (441/442, child side); gridColumnsSizing / gridRowsSizing : GUIDGridTrackSizeMap {entries: GUIDGridTrackSizeMapEntry[] {id: GUID, trackSize: GridTrackSize {minSizing, maxSizing: GridTrackSizingFunction {type: GridTrackSizingType FLEX=0|FIXED=1|HUG=2, value: float}}}} (474/475); gridChildVerticalAlign / gridChildHorizontalAlign : GridChildAlign AUTO|MIN|CENTER|MAX (476/477, child side); gridAutoTracks : GridAutoTracks NONE|ROWS (555); gridReflowEnabled : bool (556). No explicit row/column COUNT field and no items-positioning field exist in the schema. No fixture node uses GRID (all three decoded: no stackMode GRID, no grid* field present). Tests build GRID frames by patching fixture frames in the decoded value tree with names, field ids and enum values read from the fixture's schema summary (the builder panics on any name the schema does not declare)",
+  "UNVERIFIED_D5": "Figma grid behaviour is UNVERIFIED (D5): no Operator fixture holds a GRID frame, so solved-vs-stored GRID geometry is NOT_PROVEN (test grid_frame_solves_from_its_imported_records prints NOT_PROVEN). Parity evidence that exists: the flow frame fixture-button (HORIZONTAL, padding 24, spacing 24) of fig-components-autolayout, solved by the components solver from the imported records, places its two children at Figma's stored (24, 24) and (141, 24) within 0.01 px (FIXTURE_PROVEN, test solved_child_rects_match_the_geometry_figma_stored). A GRID .fig fixture from the Operator would turn the GRID comparison into evidence",
+  "studio_readings": "decode: counts = track list lengths; mapping: a track's size is maxSizing (else minSizing; a different minSizing is the loss auto_layout_grid_track_min_dropped), FLEX without value = factor 1 (STU-DS-147 default), absent gaps 0, items positioning ROW_AUTO_FLOW (no kiwi field; typed loss), gridReflowEnabled not mapped (typed loss), child vertical align -> layout_align (AUTO = INHERIT), non-AUTO horizontal align typed loss; window: frame background = first child vector layer whose bounds contain every sibling (absolute + stretched in the solver input only, not written); a group's rect = background bounds else union of children; switching to GRID without a grid record sizes the default grid ceil(sqrt(n)) columns x ceil(n/columns) rows of HUG tracks (n = in-flow children); new auto-layout records use FIXED/FIXED axis sizing (as the .fig mapping); NONE removes the frame's record and its children's child layouts; set_child_sizing keeps STRETCH exactly when vertical is FILL; only the container's direct children are re-placed (nested containers move rigidly); a size change is applied to rectangles (one closed 4-corner axis-aligned contour without handles) and frames with such a background only",
+  "deviation_child_side_field": "the brief asks for a child-side Option<FigGridChild> on the node payload; FigNode, FigDocument and the NodePayload variants are built by struct literal in hsk-studio-interop-fig tests/fig_instances_frames.rs (not a lane path), so a new field would break them; the placements are attached instead to the parent's FigGrid::children (their anchors are the parent's track ids, so mapping needs the parent anyway) (accepted by the lead 2026-10-30)",
+  "gaps": [
+   "imported frames whose subtree holds text layers (all auto-layout frames of the Operator fixtures: the components hold TEXT) show their records in the section, but a re-layout is the typed refusal auto_layout_text_layer_unsupported: a text layer's position lives in the text entry and Run::set_vector_paths_and_entry carries one entry per undo step; closing it needs a two-entry undo step in hsk-studio-harness-core (not a lane path)",
+   "hsk-studio-harness-view src/view/vector/recolor.rs still replaces a recoloured layer's design entry (retain + push), so recolour drops a grid child's anchor; one-line fix: call style::set_fill_ref there (not granted in this lane)",
+   "interop-fig DESCRIPTOR (hsk-studio-interop-fig/src/descriptor.rs) still lists the decoded frame fields without the grid fields (not a lane path)",
+   "no Operator GRID .fig fixture: Figma GRID parity stays NOT_PROVEN (D5)"
+  ],
+  "run_ui_md_lines": "proposed RUN-UI.md section (not edited by this lane): '## Auto layout and grid (lane SMB-FIG-GRID-2)' Select a frame (a group layer) in a document whose vector entry holds design records (an imported .fig, a styled document, or after any auto-layout command) and Properties adds an Auto layout section: Mode NONE / HORIZONTAL / VERTICAL / GRID; flow: Spacing, Padding top/right/bottom/left; GRID: Rows, Columns, per track FIXED / FLEX / HUG and its value, < and > reorder buttons, Row gap, Column gap, Auto tracks NONE / ROWS, Items ROW_AUTO_FLOW / MANUAL. Select a child of an auto-layout frame: Width / Height FIXED / HUG / FILL and, in a grid, Anchored with Row, Column, Row span, Column span. Every change is one Undo step; refusals (Folio, solver, unsupported resize) show inline and in the status log and change nothing. Models: Viewer::set_auto_layout_mode, set_auto_layout_spacing, set_grid_tracks, set_grid_gaps, set_grid_options, set_grid_child, set_child_sizing, grid_append_child_at, grid_reorder_rows, grid_reorder_columns, auto_layout_view, auto_layout_control(widget, value); widget names design.auto_layout, design.auto_layout.mode.<MODE>, .spacing, .padding.<side>, .grid.rows, .grid.columns, .grid.<row|column>.<i>.<type|value|earlier|later>, .grid.row_gap, .grid.column_gap, .grid.auto_tracks, .grid.items_positioning, .child.anchored, .child.<row|column|row_span|column_span>, .child.sizing.<horizontal|vertical>, .error; state_json()['design']['auto_layout']: selected {node, frame, auto_layout, child_layout, parent}, last",
+  "rule_4a": "bundled 2 ran the whole suites of every changed crate (interop-fig-base, interop-fig-native, harness-view, harness) plus interop-fig",
+  "rule_4b": "no Folio record field added or renamed; package suite not required (folio untouched); public API change: interop-fig-base AutoLayout gains `grid` (built only in nodes.rs; no struct literal elsewhere in the workspace, grep)",
+  "rule_4c": "lane-check step 0 clean at 91038884",
+  "rule_4d": "no doc examples added or changed",
+  "rule_4e": "tests/viewer_design_auto_layout.rs (#![cfg(feature = \"viewer\")]) is compiled by the harness [\"viewer\"] round unit; the bundled run used harness desktop + audio-batch (carries viewer; harness-view desktop + audio-batch = its second round unit); the harness-view [\"viewer\"]-only unit was not run separately",
+  "v4_01": "#![deny(clippy::arithmetic_side_effects)] already on interop-fig-base nodes.rs and interop-fig-native native.rs (new code uses checked/saturating integer math); new harness-view auto_layout.rs carries it",
+  "v4_02": "decode: track lists come from the bounded kiwi value tree (Limits); mapping: counts checked against GRID_COUNT_MAX before any track list is built (test: 1001 columns), spans by checked_add (test: span u32::MAX); window: a typed count past 1000 is written to the record without building a list (Folio refuses it), subtree budget 4096 layers / depth 32",
+  "cargo_lock": "not committed; no new dependency; no new crate edge (interop-fig-native already depends on components and package; harness-view on components under viewer)",
+  "concurrent_lanes": "SMB-ID-FRAME-AUTOSIZE-1 (layout) and SMB-PR-SEQ-EXPORT-UI-1 (timeline files, cli.rs) paths untouched; the lane diff 91cb8889..9a8cc0f5 lists only the 10 lane paths (incl. the two scope-extension files)",
+  "process": "rebased onto ff4ca080 (lead go), clean; fetched again after the green run: origin still ff4ca080; diff --stat origin..HEAD = 11 lane paths; push guarded (full sha non-empty, ancestor check, &&), exit 0, ls-remote = 91038884; Cargo.lock not committed; kernel not committed",
+  "scope_extensions": {
+   "accepted_by": "lead, 2026-10-30 (message to this builder)",
+   "paths": [
+    "hsk-studio-harness-view src/view/vector/style.rs validate_entry_styles: an entry design node without style refs is admitted when it carries auto_layout or child_layout (saved auto-layout records load); plus the granted restyle hunk set_fill_ref (a restyled grid child keeps its anchor) used by apply_graphic_style, the appearance restyle and effective_design",
+    "hsk-studio-harness-view src/view/design/instance.rs design_json: one key \"auto_layout\" (state_json()[\"design\"][\"auto_layout\"])",
+    "hsk-studio-harness-view src/view/design/fig_import.rs: carries imported auto-layout and child-layout records into the vector entry's design (small hunk, the lead's gap 2)"
+   ],
+   "concurrent_lanes": "none of these files is touched by SMB-PR-SEQ-EXPORT-UI-1 or SMB-ID-FRAME-AUTOSIZE-1 (rebase onto ff4ca080 clean)"
+  },
+  "red_commits": "7b15c7a6, 562d8f8e and bf5bc476 each compile alone and fail their new tests (logs at their pre-rebase shas dc9aabb7, 15abedb9, f5c78741); no squash needed"
+ },
+ "verdicts": []
+}
