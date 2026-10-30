@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T04:08:54Z",
+ "updated_at": "2026-10-30T04:09:44Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -10874,6 +10874,21 @@
    "commits": [
     "9ee2b546 harness-view slice 1: viewer shaped_story + bind_live_text"
    ]
+  },
+  {
+   "lane_id": "SMB-AI-AREA-TYPE-3",
+   "status": null,
+   "phase": "build",
+   "candidate": "",
+   "owner_paths": [
+    "crates/hsk-studio-harness-view/src/view/{vector,text,path_text,interop,pdf_export,separations}.rs",
+    "hosted.rs/shell.rs vector-type command hunks",
+    "crates/hsk-studio-harness-core/src/harness.rs (additive step API if needed)"
+   ],
+   "brief": "builders/briefs/lane-smb-ai-area-type-3.md",
+   "dispatched_at": "2026-10-30T04:09:44Z",
+   "model": "opus/medium",
+   "note": "AREA-TYPE-2 gaps: window UI to create path/area bindings and point<->area, Create Outlines one-step command, exports carry live text, status-line report, path_text doc; worktree wt-studio-lanes/smb-ai-area-type-3 at 9ee2b546; GUI lane 2 of max 2 (with SMB-AU-MULTITRACK-1)"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
