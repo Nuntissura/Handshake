@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-24T12:45:14Z",
+ "updated_at": "2026-10-30T03:11:13Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -10798,18 +10798,24 @@
   {
    "lane_id": "SMB-PS-INFO-HISTOGRAM-1",
    "crate": "hsk-studio-pigment (new diagnostics.rs) + harness-view (new view/info.rs, shell.rs/view/mod.rs hunks) + session source.rs 'info' token + RUN-UI.md",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "blocked_on": null,
    "owner": "builder (Opus/medium), lead dispatch 2026-10-24T12:45:14Z",
    "lane_file": "builders/lanes/hsk-studio-ps-info-histogram-1.json",
    "brief": "builders/briefs/lane-smb-ps-info-histogram-1.md",
    "worktree": "wt-studio-lanes/smb-ps-info-histogram-1 (lane/smb-ps-info-histogram-1 @bfb5843c, created by the lead)",
    "disk": "D: (CARGO_BUILD_JOBS=6) while R40 holds C:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "ce5df74c",
+   "commits": [
+    "675e7367 pigment tonal diagnostics",
+    "fbeb688c Info panel, samplers, eyedropper, session token info, RUN-UI.md",
+    "d11b80bb side panel width checks",
+    "0e0df7e2 width test: Info minimum only where the window has room",
+    "ce5df74c width test: drop the window-sum assertion"
+   ],
    "verdicts": [],
-   "note": "Photoshop PS-30 histogram, info readout, colour sampler (Info panel, Ctrl+Shift+F4); right Properties/Develop panel narrowing check with view/wrap.rs",
+   "note": "Photoshop PS-30 histogram, info readout, colour sampler (Info panel, Ctrl+Shift+F4); right Properties/Develop panel narrowing check with view/wrap.rs; READY 2026-10-30 on ce5df74c: 531 passed / 0 failed / 20 skipped on C:, step 0 clean; product fix: histogram with no document is null, not an error; the lane loosened two of its OWN new width assertions (R41 validator to review); shortcut Ctrl+Shift+F1 (F4 clashes with Develop in the unmodified-key uniqueness test); right panel: no narrowing reproduced; Properties opens at 445 px vs 300 px default (cause UNVERIFIED); CMYK readout unmanaged; Photoshop numerics UNVERIFIED (D5)",
    "remediation": null
   }
  ],

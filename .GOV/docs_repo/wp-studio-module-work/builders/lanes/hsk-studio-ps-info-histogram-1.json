@@ -1,0 +1,55 @@
+{
+ "crate": "hsk-studio-pigment, hsk-studio-harness-view, hsk-studio-session (source.rs token), hsk-studio-harness (RUN-UI.md)",
+ "lane": "SMB-PS-INFO-HISTOGRAM-1",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed ce5df74c to origin/codex/handshake-studio-assets (rebased on 88c7eb6f); bundled run green on C: (ssd) 531/531",
+ "commits": [
+  {"sha": "675e7367", "subject": "pigment: tonal diagnostics (histogram per channel and luminosity with bin and clip counts, averaged samples for the seven sizes, coverage bounds, RGB/HSB/Lab/CMYK readouts)"},
+  {"sha": "fbeb688c", "subject": "harness-view: Info panel (WORKSPACE > Panels > Info, Ctrl+Shift+F1): histogram with clip counts, pointer readout, selection bounds, colour samplers and eyedropper with size and scope; state_json info; session token info; RUN-UI.md"},
+  {"sha": "d11b80bb", "subject": "harness-view: right side panel width checks (Properties, Develop, Info; 20 frames after 3 warm-up; 1400x900 and 900x700)"},
+  {"sha": "0e0df7e2", "subject": "harness-view: side panel check: Info minimum width only where the window has room for every default"},
+  {"sha": "ce5df74c", "subject": "harness-view: side panel check: drop the window-sum assertion"}
+ ],
+ "capabilities_done": [
+  "pigment::diagnostics: histogram (256 bins per luminosity/R/G/B/alpha, clip_low/clip_high, mean/std_dev/median, coverage region), sample (point..101x101, in-bounds edge averaging, alpha-weighted colour), coverage_bounds, readout (RGB, HSB, Lab via prism, CMYK unmanaged); hostile planes refused before work",
+  "Info panel: Panel::Info (25th entry, key info, label Info, Ctrl+Shift+F1), own right SidePanel; histogram of the displayed composite or the selection, cached per frame generation and selection; pointer readout (position, pixel, RGBA, model readout), document size in pixels, selection bounds",
+  "colour samplers (up to 10, spec floor 4) and eyedropper into the brush colour with sample size and scope current_layer / current_and_below / all_layers (scope = render-cpu render of a document copy with out-of-scope layers hidden); typed Viewer::info_command / info_eyedropper / info_set_pick; canvas placement while picking",
+  "session document entry `info` (hsk.studio.harness.info@1, hostile decoder on set and read); each change one undo step; save/reopen keeps it",
+  "state_json()[\"info\"] carries every number (bin and clip counts, samplers, pointer, selection, eyedropper, canvas mapping); RUN-UI.md Info section"
+ ],
+ "tests": {
+  "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-ps-info-histogram-1 --disk ssd -- cargo nextest run -p hsk-studio-pigment -p hsk-studio-session -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
+  "exit": 0,
+  "sha": "ce5df74c",
+  "passed": 531,
+  "failed": 0,
+  "skipped": 20,
+  "history": [
+   {"sha": "675e7367", "scope": "pigment only, --disk d", "exit": 0, "passed": 221, "failed": 0},
+   {"sha": "22c96693 + working tree (pre-commit)", "scope": "bundled, --disk d", "exit": 100, "passed": 529, "failed": 2, "failures": "info_opens_from_the_workspace_menu_and_shortcut (histogram reported an error object with nothing open; fixed: null without a frame); info_panel_width_is_stable (test called the eyedropper before the first render; fixed in the test)"},
+   {"sha": "96c3a348", "scope": "bundled, --disk d", "exit": 100, "passed": 530, "failed": 1, "failures": "info_panel_width_is_stable at 900x700 with a document: Info 215 px < 240 bound, stable from frame 3 (egui clamps the inner panel to the space left by Layers 240 + Properties 445); test bound fixed, not a creep"}
+  ]
+ },
+ "blockers": [],
+ "lock_wait_s": null,
+ "bg_pids": [],
+ "next": "validation round",
+ "updated_at": "2026-10-30T03:10:23Z",
+ "notes": {
+  "spec_basis": "v02.225 spec-modules/14-studio-creative-suite.md [STU-RAS-049] (line 1840), [STU-RAS-163] (line 1845), panel registry row `| Info | info | always_relevant | Inspect Dock |` (31892), spine panel list (31827)",
+  "spec_deltas": [
+   "v02.225 re-grep (2026-10-30): STU-RAS-049, STU-RAS-163 and the Info registry row are textually unchanged since v02.222; v02.224 (shell renderer policy, WP-012) and v02.225 (WP-012 device mapping) change nothing this lane cites",
+   "key binding: spec declares none for info; Studio choice Ctrl+Shift+F1 (brief said Ctrl+Shift+F4: hsk-studio-harness tests/viewer_panels.rs every_hosted_panel_has_a_unique_key_shortcut... maps shell panels as plain (key,false,false), so key F4 would collide with Develop F4; F1 is the free key and keeps the Ctrl+Shift+F-key family)",
+   "Studio readings (UNVERIFIED vs Photoshop, D5): luminosity weights 299/587/114 per mille; bin = v*bins/256; clip = samples equal to 0/255; transparent pixels counted, not binned in colour channels; samples alpha-weighted, edges average in-bounds pixels; samplers and pointer use the entry's sample size; samplers read the composite; MAX_SAMPLERS 10; CMYK readout unmanaged (no profile); transparent eyedropper sample leaves the swatch unchanged"
+  ],
+  "right_panel_measurement": "tests/viewer_side_panels.rs, PanelState rect widths, 3 warm-up + 20 frames, 1400x900 and 900x700: NO narrowing or creep reproduced (checked, not reproduced). Properties: 300.0 px stable with nothing open; 445.0 px stable with a document open (frame 1 444.6, then 445.0) - the panel opens WIDER than its 300 px default because of a fixed-width row in its content (controls-descriptor panel or the import-receipt grid; site not isolated: UNVERIFIED), stable thereafter. Develop (+properties, and alone): stable, >= 280 px. Info: 317.4 px (nothing open) / 318.0 px (document) stable at 1400x900, wider than its 260 px default (an unwrapped row ~300 px; UNVERIFIED which); at 900x700 with a document Info is clamped by egui to the space left (215 px), stable. No fix applied (no narrowing found; the Properties widening is a fixed-width row outside the wrap helpers' scope, reported for a follow-up)",
+  "rule_4a": "whole suites of pigment, session, harness-view, harness (desktop, audio-batch) in the bundled run",
+  "rule_4b": "no Folio record field added: package suite not required",
+  "rule_4c": "lane-check step 0 clean (V4-03, V4-05)",
+  "rule_4d": "no doc examples added",
+  "rule_4e": "tests/viewer_info.rs and tests/viewer_side_panels.rs start #![cfg(feature = \"viewer\")]; .config/round-features.toml enables viewer for harness-view: covered",
+  "wrap_rule": "Info rows use view/wrap.rs wrap_item (buttons) and wrap_measured (combos); no new push_id in horizontal_wrapped; wrap.rs unchanged",
+  "not_proven": ["equality with Photoshop Histogram/Info/samplers (no D5 case for PS-30)", "GPU shared-device display path (panel reads the render-cpu read-back)", "real desktop window"],
+  "cargo_lock": "not committed; no new dependency or crate edge"
+ }
+}
