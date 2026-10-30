@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T14:40:51Z",
+ "updated_at": "2026-10-30T14:49:00Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11711,17 +11711,22 @@
   {
    "lane_id": "SMB-AU-MULTITRACK-3",
    "crate": "hsk-studio-pulse + hsk-studio-harness-view (+ folio additive)",
-   "phase": "claim run on D: at the ae6452c4 rebase (2026-10-30T14:40:51Z); R43 holds C:",
-   "status": null,
+   "phase": "validation (R44: R43 froze ae6452c4 before this push)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high (GUI lane 2)",
    "lane_file": "builders/lanes/hsk-studio-au-multitrack-3.json",
    "brief": "builders/briefs/lane-smb-au-multitrack-3.md",
    "worktree": "wt-studio-lanes/smb-au-multitrack-3",
    "disk": "C: or D: (lead names it)",
-   "candidate": null,
-   "commits": [],
+   "candidate": "5328a6a2",
+   "commits": [
+    "71fbcc9d",
+    "126a99c2",
+    "0d619798",
+    "5328a6a2"
+   ],
    "verdicts": [],
-   "note": "Audition AU-14 slice 3: clip pan envelope in pulse TimelineMixStream, master row (StudioAudioMaster volume + effect lanes), automated-fader state in the mixer. Base a259a3df; pulse depends on composite, so it runs after AE-17 pushes.; 2026-10-30T13:13:57Z local 2c38798f (folio clip_pans + master.volume_automation, pulse with_clip_envelopes), 8c05fa58 (Clip Pan lane, master row, mixer AUTO; fader on automated track writes a point at the playhead, no playhead -> fader_automated_no_playhead), 38e94ab6 (panned/unpanned and mono/stereo crossfades refused by name, strip_crossfade_mismatch); clip pan then track balance is a Studio reading, Audition UNVERIFIED; 2026-10-30T14:16:45Z claim run 1 at e7c62712 574/575 (all 10 new green; viewer_timeline_audio lane-cycle pin extended with ClipPan, 225ac4c9, outside owned paths); re-run 2 stopped before taking the lock; rebased clean on 6f005d28"
+   "note": "Audition AU-14 slice 3: clip pan envelope in pulse TimelineMixStream, master row (StudioAudioMaster volume + effect lanes), automated-fader state in the mixer. Base a259a3df; pulse depends on composite, so it runs after AE-17 pushes.; 2026-10-30T13:13:57Z local 2c38798f (folio clip_pans + master.volume_automation, pulse with_clip_envelopes), 8c05fa58 (Clip Pan lane, master row, mixer AUTO; fader on automated track writes a point at the playhead, no playhead -> fader_automated_no_playhead), 38e94ab6 (panned/unpanned and mono/stereo crossfades refused by name, strip_crossfade_mismatch); clip pan then track balance is a Studio reading, Audition UNVERIFIED; 2026-10-30T14:16:45Z claim run 1 at e7c62712 574/575 (all 10 new green; viewer_timeline_audio lane-cycle pin extended with ClipPan, 225ac4c9, outside owned paths); re-run 2 stopped before taking the lock; rebased clean on 6f005d28; 2026-10-30T14:49:00Z pushed ae6452c4..5328a6a2 (ls-remote verified); D: claim run 585/585 (20 skipped) exit 0 (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-au-multitrack-3/lane-check-smb-au-multitrack-3-5328a6a2.log, first line the sha); spec deltas: clip/track pan composition, master automation and master row, fader on automated tracks, no AU-14 clause set"
   },
   {
    "lane_id": "SMB-AI-AREA-TYPE-4",
@@ -11745,7 +11750,7 @@
   {
    "lane_id": "SMB-PS-GRADIENT-BUCKET-1",
    "crate": "hsk-studio-pigment + hsk-studio-harness-view (+ harness test)",
-   "phase": "code ready locally, runs after AU-MULTITRACK-3 pushes (2026-10-30T14:40:51Z)",
+   "phase": "claim run on D: at the 5328a6a2 rebase (2026-10-30T14:49:00Z); R43 holds C:",
    "status": null,
    "owner": "builder opus/high (GUI lane 2)",
    "lane_file": "builders/lanes/hsk-studio-ps-gradient-bucket-1.json",

@@ -1,32 +1,32 @@
 {
  "crate": "hsk-studio-harness-view",
  "lane": "SMB-AU-MULTITRACK-3",
- "status": "IN_PROGRESS",
- "phase": "rebased onto 6f005d28 (R42-FOLLOWUPS-1 harness-core; VIEW-POLISH-1 d208bc0e), clean, HEAD 225ac4c9, unpushed; run 1 at e7c62712 EXIT 100 (one cycle pin, fixed); re-run 2 at c39cc659 stopped while queued (never held the lock, no result); waiting for the lead's go (AREA-TYPE-4 + LR-EXPORT-SIZING-1 pushed, disk named, expect D:)",
- "candidate": null,
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed 5328a6a2 to origin/codex/handshake-studio-assets (base ae6452c4, fetched and re-read); claim run on D: at 5328a6a2 EXIT 0: 585/585, 20 skipped; never claimed PASS",
+ "candidate": "5328a6a2",
  "commits": [
   {
    "slice": "1-2 engine",
-   "sha": "f9f4ae3e",
-   "pushed": false,
+   "sha": "71fbcc9d",
+   "pushed": true,
    "summary": "folio clip_pans + master.volume_automation; pulse with_clip_envelopes, bus_mix panned-mono strip and master lane; tests pulse clip_pan.rs, folio audio_routing_records new test"
   },
   {
    "slice": "1-3 view",
-   "sha": "43893052",
-   "pushed": false,
+   "sha": "126a99c2",
+   "pushed": true,
    "summary": "timeline Clip Pan lane + envelope follow, master row and lanes, mixer AUTO state + fader writes lane at playhead; tests viewer_timeline_audio_3.rs"
   },
   {
    "slice": "lead answer 2",
-   "sha": "27a7bb40",
-   "pushed": false,
+   "sha": "0d619798",
+   "pushed": true,
    "summary": "panned/unpanned mono crossfade keeps audio_unsupported; strip_crossfade_mismatch names the case; mixer error carries it"
   },
   {
    "slice": "run 1 fix",
-   "sha": "225ac4c9",
-   "pushed": false,
+   "sha": "5328a6a2",
+   "pushed": true,
    "summary": "viewer_timeline_audio lane cycle pin includes Clip Pan"
   }
  ],
@@ -63,14 +63,30 @@
     "exit": null,
     "note": "stale after origin moved to 6f005d28 (lead); stopped (TaskStop + TERM of own lane-check pids 73022/73098) while queued, never acquired the lock; its dead queue ticket ...-73098-... is left for the protocol's dead-ticket removal by live waiters (locks not touched)",
     "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-au-multitrack-3/lane-check-smb-au-multitrack-3-c39cc659.log"
+   },
+   {
+    "sha": "5328a6a2",
+    "scope": "claim run, bundled lane-check on D: (same crates and features)",
+    "exit": 0,
+    "passed": 585,
+    "failed": 0,
+    "skipped": 20,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-au-multitrack-3/lane-check-smb-au-multitrack-3-5328a6a2.log",
+    "step0": "clean"
    }
   ],
-  "argv": "planned: cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-au-multitrack-3 --disk <lead> -- cargo nextest run -p hsk-studio-folio -p hsk-studio-pulse -p hsk-studio-package -p hsk-studio-harness-core -p hsk-studio-harness -p hsk-studio-harness-view -p hsk-studio-interop-media --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch,hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch --no-fail-fast",
-  "new_tests": "pulse tests/clip_pan.rs (3); folio audio_routing_records::clip_pans_and_master_automation_validate_round_trip_and_refuse_typed; harness-view tests/viewer_timeline_audio_3.rs (6)"
+  "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-au-multitrack-3 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-pulse -p hsk-studio-package -p hsk-studio-harness-core -p hsk-studio-harness -p hsk-studio-harness-view -p hsk-studio-interop-media --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch,hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch --no-fail-fast",
+  "new_tests": "pulse clip_pan 3/3; folio audio_routing_records::clip_pans_and_master_automation_validate_round_trip_and_refuse_typed; harness-view viewer_timeline_audio_3 6/6; viewer_timeline_audio cycle pin updated",
+  "exit": 0,
+  "sha": "5328a6a2",
+  "passed": 585,
+  "failed": 0,
+  "skipped": 20,
+  "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-au-multitrack-3/lane-check-smb-au-multitrack-3-5328a6a2.log"
  },
  "blockers": [],
  "bg_pids": [],
- "updated_at": "2026-10-30T14:15:16Z",
+ "updated_at": "2026-10-30T14:48:34Z",
  "notes": {
   "worktree": "wt-studio-lanes/smb-au-multitrack-3 (branch lane/smb-au-multitrack-3, base a259a3df)",
   "spec_basis": [
@@ -124,6 +140,6 @@
    "PulseError is a Copy unit enum without a detail field: the case is reported through strip_crossfade_mismatch, not inside the error value"
   ]
  },
- "next": "on the lead's go: fetch, rebase, ONE claim run on the named disk (expect --disk d), fetch again, push with PUSH SAFETY, READY",
+ "next": "validation round judges SMB-AU-MULTITRACK-3 at 5328a6a2",
  "verdicts": []
 }
