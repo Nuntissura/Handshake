@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T08:27:41Z",
+ "updated_at": "2026-10-30T08:57:36Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11161,8 +11161,8 @@
   },
   {
    "lane_id": "SMB-AI-AREA-TYPE-3",
-   "status": "READY_FOR_VALIDATION",
-   "phase": "validation",
+   "status": null,
+   "phase": "build (remediation)",
    "candidate": "c719b1dc",
    "owner_paths": [
     "crates/hsk-studio-harness-view/src/view/{vector,text,path_text,interop,pdf_export,separations}.rs",
@@ -11172,7 +11172,7 @@
    "brief": "builders/briefs/lane-smb-ai-area-type-3.md",
    "dispatched_at": "2026-10-30T04:09:44Z",
    "model": "opus/medium",
-   "note": "AREA-TYPE-2 gaps: window UI to create path/area bindings and point<->area, Create Outlines one-step command, exports carry live text, status-line report, path_text doc; worktree wt-studio-lanes/smb-ai-area-type-3 at 9ee2b546; GUI lane 2 of max 2 (with SMB-AU-MULTITRACK-1); READY 2026-10-30 on c719b1dc (for R42; R41 froze c2422d23): run 1 282/3 failed (wrong fixture, two tests read the wrong status line; fixed in tests), run 2 285/0/20 over whole harness-view + harness + harness-core; window: Path Operations (Shift+F8) Type section: Type on Path / Area Type, Convert Point/Area, Create Outlines (point + live text), each one undo step; SVG/PDF/separations exports carry live text, unshapeable story reported vector_text_not_provided; gaps: no Type-tool click on a path, Create Outlines has no menu entry/shortcut, status echo only on bind/convert, outline keeps container path and area->point removes container (lane choices, Illustrator UNVERIFIED D5); RUN-UI lines in lane notes",
+   "note": "AREA-TYPE-2 gaps: window UI to create path/area bindings and point<->area, Create Outlines one-step command, exports carry live text, status-line report, path_text doc; worktree wt-studio-lanes/smb-ai-area-type-3 at 9ee2b546; GUI lane 2 of max 2 (with SMB-AU-MULTITRACK-1); READY 2026-10-30 on c719b1dc (for R42; R41 froze c2422d23): run 1 282/3 failed (wrong fixture, two tests read the wrong status line; fixed in tests), run 2 285/0/20 over whole harness-view + harness + harness-core; window: Path Operations (Shift+F8) Type section: Type on Path / Area Type, Convert Point/Area, Create Outlines (point + live text), each one undo step; SVG/PDF/separations exports carry live text, unshapeable story reported vector_text_not_provided; gaps: no Type-tool click on a path, Create Outlines has no menu entry/shortcut, status echo only on bind/convert, outline keeps container path and area->point removes container (lane choices, Illustrator UNVERIFIED D5); RUN-UI lines in lane notes; 2026-10-30T08:39:31Z READY claim withdrawn by the lead: its own test viewer_vector_text_tools::create_outlines_replaces_live_and_point_text_as_one_undo_step fails at :130 (150 of 150 pixels differ) in two independent bundled runs from c719b1dc (AU-MULTITRACK 1c57c17a 287/288; R41-FOLLOWUPS b4aab141 391/392); original builder resumed to fix (rebase after R41-FOLLOWUPS push)",
    "commits": [
     "b5b8d0b6 harness-core Run::restructure_and_entry (one undo step: layer change + entry write)",
     "4802e2b3 harness-view slices 1-3 + status echo",
@@ -11183,17 +11183,22 @@
   {
    "lane_id": "SMB-R41-FOLLOWUPS-1",
    "crate": "hsk-studio-layout + hsk-studio-harness-view",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/medium",
    "lane_file": "builders/lanes/hsk-studio-r41-followups-1.json",
    "brief": "builders/briefs/lane-smb-r41-followups-1.md",
    "worktree": "wt-studio-lanes/smb-r41-followups-1",
    "disk": "C:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "cf2e46da",
+   "commits": [
+    "6ab51188",
+    "abc24619",
+    "128c3509",
+    "cf2e46da"
+   ],
    "verdicts": [],
-   "note": "R41 findings: F-R41-1 (MEDIUM) CJK W3C licence citation in layout NOTICE/cjk.rs/DESCRIPTOR; F-R41-3 Info min width at 900 px; F-R41-4 NOT_PROVEN prints (viewer_info, cjk_kinsoku); F-R41-5 residual text-entry decode error. Base c719b1dc. F-R41-2 (sha2 for folio) deferred to the next steward change (root input: would force a canary).",
+   "note": "R41 findings: F-R41-1 (MEDIUM) CJK W3C licence citation in layout NOTICE/cjk.rs/DESCRIPTOR; F-R41-3 Info min width at 900 px; F-R41-4 NOT_PROVEN prints (viewer_info, cjk_kinsoku); F-R41-5 residual text-entry decode error. Base c719b1dc. F-R41-2 (sha2 for folio) deferred to the next steward change (root input: would force a canary).; READY at cf2e46da: F-R41-1 W3C SW&Doc licences (JLREQ 2015, CLREQ 2023) with dated URIs/status/years in NOTICE, cjk.rs, DESCRIPTOR + pin test; F-R41-3 fallback (Info clamp asserted at 900x700, doc narrowed; wide row probably receipt_ui loss grid in src/view/mod.rs, by reading, not measured); F-R41-4 NOT_PROVEN prints (cjk_kinsoku 5, viewer_info 4); F-R41-5 render paths name the decode error (exports routed to AREA-TYPE-3 remediation). Runs on C:: run1 391/1/20 (layout+harness-view+harness), runs 2-3 after rebases 288/1/20; the 1 failure each time is AREA-TYPE-3 create_outlines (not this lane). Red-first by construction, not run.",
    "remediation": null
   },
   {

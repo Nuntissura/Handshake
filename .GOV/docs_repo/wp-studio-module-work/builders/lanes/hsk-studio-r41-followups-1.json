@@ -1,0 +1,104 @@
+{
+ "crate": "hsk-studio-layout, hsk-studio-harness-view",
+ "lane": "SMB-R41-FOLLOWUPS-1",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed cf2e46da to origin/codex/handshake-studio-assets (rebased on c6b3733f); own tests green; the one failing test is the known create_outlines_replaces_live_and_point_text_as_one_undo_step (not this lane's, lead routing)",
+ "commits": [
+  {
+   "sha": "6ab51188",
+   "finding": "F-R41-1 (+F-R41-4 layout)",
+   "subject": "layout: CJK sources cite the W3C Software and Document licences with dated URIs, status, copyright lines; pin test; cjk_kinsoku NOT_PROVEN lines"
+  },
+  {
+   "sha": "abc24619",
+   "finding": "F-R41-3",
+   "subject": "harness-view: side panels test asserts Info's clamp at 900x700, doc narrowed (fallback)"
+  },
+  {
+   "sha": "128c3509",
+   "finding": "F-R41-4",
+   "subject": "harness-view: viewer_info prints NOT_PROVEN lines"
+  },
+  {
+   "sha": "cf2e46da",
+   "finding": "F-R41-5",
+   "subject": "harness-view: corrupt text entry names its decode error in the unshaped reason"
+  }
+ ],
+ "capabilities_done": [
+  "F-R41-1: NOTICE, cjk.rs module doc and DESCRIPTOR cjk.sources cite JLREQ (WG Note 2020-08-11, W3C Software and Document Notice and License 2015) and CLREQ (Group Note Draft 2026-10-07, W3C Software and Document License 2023) with dated URIs, status and copyright lines; pinned by cjk_sources_cite_the_w3c_software_and_document_licences",
+  "F-R41-3 (fallback): viewer_side_panels asserts Info's clamp at 900x700 (layers + properties + info = window, info below default); doc narrowed",
+  "F-R41-4: NOT_PROVEN lines printed from tests/cjk_kinsoku.rs (5) and tests/viewer_info.rs (4)",
+  "F-R41-5: render paths in src/view/vector.rs report text_entry_unavailable: <decode error>; test viewer_vector_text_entry corrupt_text_entry_names_its_decode_error"
+ ],
+ "tests": {
+  "run1": {
+   "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-r41-followups-1 --disk ssd -- cargo nextest run -p hsk-studio-layout -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch,hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch --no-fail-fast",
+   "sha": "b4aab141 (base c719b1dc + the four slices)",
+   "disk": "C: ssd",
+   "clippy": "clean (layout, harness-view, harness + dependent hsk-studio-interop-layout)",
+   "passed": 391,
+   "failed": 1,
+   "skipped": 20,
+   "exit": 100,
+   "failed_tests": [
+    "hsk-studio-harness-view::viewer_vector_text_tools create_outlines_replaces_live_and_point_text_as_one_undo_step: panicked at crates/hsk-studio-harness-view/tests/viewer_vector_text_tools.rs:130:5: '150 of 150 pixels differ' (known, lead heads-up: came in with SMB-AI-AREA-TYPE-3 c719b1dc, also fails on 1c57c17a; not this lane's; no fix attempt per lead)"
+   ],
+   "new_or_changed_passed": [
+    "layout cjk_kinsoku (8 incl. cjk_sources_cite_the_w3c_software_and_document_licences)",
+    "harness-view viewer_side_panels (3)",
+    "harness-view viewer_info (8)",
+    "harness-view viewer_vector_text_entry corrupt_text_entry_names_its_decode_error"
+   ],
+   "passed_note": "layout suite from run1 reused: rebases onto 1c57c17a and c6b3733f touched harness-view and nib only (layout does not depend on either)"
+  },
+  "run2": {
+   "argv": "lane-check --owner smb-r41-followups-1 --disk ssd -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch,hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch --no-fail-fast",
+   "sha": "853b6aa4 (on 1c57c17a)",
+   "passed": 288,
+   "failed": 1,
+   "skipped": 20,
+   "exit": 100,
+   "failed_tests": [
+    "viewer_vector_text_tools create_outlines_replaces_live_and_point_text_as_one_undo_step: viewer_vector_text_tools.rs:130:5 '150 of 150 pixels differ' (known)"
+   ]
+  },
+  "run3": {
+   "argv": "same as run2 (rebase onto c6b3733f touched hsk-studio-nib, a dependency of harness-view/harness: additive pub mod simplify + one descriptor entry)",
+   "sha": "cf2e46da",
+   "disk": "C: ssd",
+   "clippy": "clean",
+   "passed": 288,
+   "failed": 1,
+   "skipped": 20,
+   "exit": 100,
+   "failed_tests": [
+    "viewer_vector_text_tools create_outlines_replaces_live_and_point_text_as_one_undo_step: viewer_vector_text_tools.rs:130:5 '150 of 150 pixels differ' (known, not this lane's)"
+   ]
+  }
+ },
+ "blockers": [],
+ "lock_wait_s": null,
+ "bg_pids": [],
+ "next": "validation round",
+ "updated_at": "2026-10-30T08:57:12Z",
+ "notes": {
+  "spec_basis": "repair of validation/round-R41.json findings_not_failures F-R41-1, F-R41-3, F-R41-4, F-R41-5 (brief builders/briefs/lane-smb-r41-followups-1.md); no new product capability, no spec clause added",
+  "F-R41-1": "done (950629e2). Fetched 2026-10-30 (WebFetch): JLREQ https://www.w3.org/TR/jlreq/ = W3C Working Group Note 11 August 2020, this version https://www.w3.org/TR/2020/NOTE-jlreq-20200811/, notice 'Copyright (c) 2020 W3C(R) (MIT, ERCIM, Keio, Beihang). W3C liability, trademark and permissive document license rules apply.', licence link https://www.w3.org/Consortium/Legal/2015/copyright-software-and-document (page 'Software and Document license - 2015 version', in effect 13 May 2015 to 31 December 2022, now also at /copyright/software-license-2015/); CLREQ https://www.w3.org/TR/clreq/ = W3C Group Note Draft 07 October 2026, this version https://www.w3.org/TR/2026/DNOTE-clreq-20261007/, notice 'Copyright (c) 2015-2026 World Wide Web Consortium. W3C(R) liability, trademark and permissive document license rules apply.', licence link https://www.w3.org/copyright/software-license-2023/ ('Software and Document license - 2023 version', in effect since 1 January 2023). Carried in NOTICE, src/cjk.rs module doc and DESCRIPTOR cjk.sources: licence name + link (brief option; full licence text not reproduced), each document's notice with its years, dated version URI, status; (c)/(R) written in ASCII (files are ASCII). Claim kept: data only, no code copied. Pin test tests/cjk_kinsoku.rs cjk_sources_cite_the_w3c_software_and_document_licences checks all three places and that the W3C Document License is cited nowhere.",
+  "F-R41-3": "FALLBACK taken (6a71f83e). Bounded search: with a document open and no layer selected the Properties panel draws only 'Select a layer.' (wraps) and receipt_ui; the only non-wrapping row there is the import receipt's loss egui::Grid (path/kind/code labels; Grid cells do not wrap) in src/view/mod.rs receipt_ui (about line 1104 at c719b1dc). Site identified by reading, not measured: UNVERIFIED. Not wrapped: src/view/mod.rs is excluded for this lane (SMB-AU-MULTITRACK-1 registration hunk; lead: do not touch). tests/viewer_side_panels.rs now asserts at 900x700 with a document: in every settled frame layers + properties + info = window width (+-0.5 px) and info in 95..240 px (clamped below its default, egui 0.33.3 SidePanel width.at_most(available_rect.width()) with panels allocated from the space left); file doc narrowed to that. Follow-up for the mod.rs owner: wrap or bound the receipt loss grid, then restore INFO_MIN at 900 px.",
+  "F-R41-4": "done (950629e2 layout, 3c34fab5 harness-view). println!(\"NOT_PROVEN: ...\") in tests/cjk_kinsoku.rs (InDesign shipped kinsoku sets; push-in/push-out tie rules; hanging width; aki values of InDesign's 17 mojikumi sets; real-shaper CJK path, no checked-in CJK-capable test font) and tests/viewer_info.rs (Photoshop Info readout, Histogram panel, colour samplers: no D5 case for PS-30; Info GPU shared-device display path and real desktop window). Wording from the two lanes' notes; no new gaps claimed.",
+  "F-R41-5": "done (b4aab141). src/view/vector.rs: LiveTextAssets carries text_error; live_text_assets takes the Result of text_entry(); render_folio_vectors, prepared_vectors_with_text (window render, vector_text_reports, state_json live_texts) and Create Outlines on live text report 'text_entry_unavailable: <decode error>' (typed, no panic). Test tests/viewer_vector_text_entry.rs corrupt_text_entry_names_its_decode_error (junk bytes -> text_entry_json, foreign schema -> text_entry_schema; written via Run::set_document_entry, saved, reopened). Residual (not owned): the exports src/view/vector/interop.rs:426, pdf_export.rs:293, separations.rs:297 still read text_entry().ok(), so their loss line keeps plain text_entry_unavailable.",
+  "red_first": "not run red (one bundled run per push); by construction both new assertions fail at c719b1dc: the old unshaped reason is exactly text_entry_unavailable (no decode error), the old sources lack the dated URIs and cite the W3C Document License",
+  "rule_4a": "bundled run covers the whole suites of hsk-studio-layout, hsk-studio-harness-view and hsk-studio-harness (features harness desktop + audio-batch, harness-view desktop + audio-batch: viewer on); clippy over their direct dependents via lane-check",
+  "rule_4b": "no Folio record field added",
+  "rule_4c": "lane-check --step0-only clean; new literals are https W3C URLs only",
+  "rule_4d": "no doc examples added or changed",
+  "rule_4e": "new tests/viewer_vector_text_entry.rs starts #![cfg(feature = \"viewer\")]; .config/round-features.toml enables viewer for hsk-studio-harness-view: covered; layout tests default-feature",
+  "public_api": "no public signature changes (LiveTextAssets and live_text_assets are private); layout dependents not required",
+  "cargo_lock": "not committed; no new dependency or crate edge",
+  "shared_files": "no hunks of other lanes; src/view/shell.rs, src/view/mod.rs and src/view/timeline* untouched",
+  "known_failure_create_outlines": "FAILED in all three of this lane's runs (run1 b4aab141 = c719b1dc + this lane's slices; run2 on 1c57c17a; run3 on c6b3733f): crates/hsk-studio-harness-view/tests/viewer_vector_text_tools.rs:130:5 '150 of 150 pixels differ'. So c719b1dc is NOT green with this lane on top; this lane's vector.rs change is a no-op when the text entry decodes (text Some, text_error None, as before). No fix attempted (lead: routed to the SMB-AI-AREA-TYPE-3 author)."
+ },
+ "verdicts": [],
+ "candidate": "cf2e46da"
+}
