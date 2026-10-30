@@ -1,0 +1,58 @@
+{
+ "crate": "hsk-studio-type (src/result.rs Run::cap_height_pt/x_height_pt, src/engine.rs + src/provider/harfrust.rs Run construction, tests/run_face_metrics.rs new), hsk-studio-layout (src/paragraph.rs from_type, src/threaded_reflow.rs refusal, src/lib.rs LayoutError variant + DESCRIPTOR, tests/frame_autosize.rs pins), hsk-studio-interop-layout (src/idml_decode.rs auto_size_rows, src/folio_export.rs auto_size_rows + loss, src/descriptor.rs frame_autosize entry, tests/layout_reflow_folio_export.rs pin, tests/idml_frame_autosize.rs new)",
+ "lane": "SMB-ID-FRAME-AUTOSIZE-2",
+ "status": "PAUSED",
+ "phase": "paused by the lead (Operator realignment) after a green focused run at bcba0af5; 6 local commits, NOTHING pushed; no bundled run started; no background work running",
+ "candidate": null,
+ "worktree": "wt-studio-lanes/smb-id-frame-autosize-2 (branch lane/smb-id-frame-autosize-2, base ff4ca080; working tree clean)",
+ "commits": [
+  {"sha": "3777714d", "slice": "1 red", "pushed": false, "subject": "type: Run::cap_height_pt/x_height_pt stubs (None) + tests/run_face_metrics.rs"},
+  {"sha": "e2626f3f", "slice": "2 red", "pushed": false, "subject": "layout: LayoutError::FirstBaselineMetricUnavailable(FirstBaselineUnavailable) + pins in tests/frame_autosize.rs and interop-layout tests/layout_reflow_folio_export.rs"},
+  {"sha": "37690096", "slice": "3 red", "pushed": false, "subject": "interop-layout: tests/idml_frame_autosize.rs (amended locally before any push: Result alias compile fix + V4-08 escape/decoy cases)"},
+  {"sha": "fb78104b", "slice": "1", "pushed": false, "subject": "type: Run::cap_height_pt / x_height_pt from OS/2 (both providers)"},
+  {"sha": "c160868f", "slice": "2", "pushed": false, "subject": "layout: typed first-baseline refusal; from_type takes Type metrics; DESCRIPTOR"},
+  {"sha": "bcba0af5", "slice": "3", "pushed": false, "subject": "interop-layout: IDML auto-size rows mapped to Studio readings (import losses, export readings); DESCRIPTOR frame_autosize"}
+ ],
+ "capabilities_done": [
+  "type: Run::cap_height_pt() / x_height_pt() -> Option<f64> = OS/2 sCapHeight / sxHeight (existing private ttf parser, MVAR cpht/xhgt at the run's axes) x font size / unitsPerEm; None without OS/2, below v2, or OS/2 shorter than its version needs; not estimated from outlines (type has no outline estimate; harness-view src/view/text.rs:428 passes a glyph-top estimate to area text, a host estimate outside type)",
+  "layout: from_type fills cap_height_pt / x_height_pt from the first run (hosts need no with_face_metrics); reflow refusal for a missing first-baseline metric is LayoutError::FirstBaselineMetricUnavailable, code first_baseline_metric_unavailable:<kind>, failure code Unsupported (was unsupported_composition)",
+  "interop-layout: IDML import compares AutoSizingReferencePoint, Use/MinimumHeightForAutoSizing, Use/MinimumWidthForAutoSizing, UseNoLineBreaksForAutoSizing with the AUTOSIZE-1 readings for auto-sizing frames (Approximated losses auto_sizing_reference_point_not_stored, auto_sizing_minimum_not_stored, auto_sizing_line_breaks_not_stored; unknown values frame_preference_value_unknown); Off frames and absent rows not reported; export_folio writes UseMinimumHeight/WidthForAutoSizing=false and the kind's UseNoLineBreaksForAutoSizing for auto-sizing frames (Off unchanged) and reports auto_sizing_reference_point_not_exported"
+ ],
+ "tests": {
+  "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 STUDIO_LANE_CHECK_NO_DEPENDENTS=1 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-id-frame-autosize-2 --disk d --tests run_metrics_are,missing_face_metric_refuses_typed,reflow_overset_per_thread_and_typed_refusals,type_shaped_paragraphs_carry,absent_or_moot_auto_size,auto_size_attributes_map,folio_export_states,first_baseline_six_kinds,hostile_first_baseline_metrics,harfrust -- cargo nextest run -p hsk-studio-type -p hsk-studio-layout -p hsk-studio-interop-layout --features hsk-studio-type/harfrust --no-fail-fast",
+  "exit": 0,
+  "sha": "bcba0af5",
+  "passed": 11,
+  "failed": 0,
+  "skipped": 222,
+  "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-frame-autosize-2/smb-id-frame-autosize-2-focus1-bcba0af5.log (first line HEAD=bcba0af5)",
+  "history": [
+   {"sha": "618a491f (pre-amend)", "run": "red 1", "exit": 101, "note": "tests/idml_frame_autosize.rs did not compile (crate Result alias); fixed and amended before any push", "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-frame-autosize-2/smb-id-frame-autosize-2-red1-618a491f.log"},
+   {"sha": "37690096", "run": "red 2", "exit": 100, "passed": 2, "failed": 6, "note": "each failure for the intended reason (None metrics, UnsupportedComposition, no loss, no export rows); the two passes are the None and moot cases", "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-frame-autosize-2/smb-id-frame-autosize-2-red2-37690096.log"},
+   {"sha": "bcba0af5", "run": "focused 1 (D:, harfrust feature on, clippy over the 3 crates without dependents)", "exit": 0, "passed": 11, "failed": 0, "started": "2026-10-30T18:01:59Z", "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-frame-autosize-2/smb-id-frame-autosize-2-focus1-bcba0af5.log"}
+  ],
+  "bundled_runs": 0,
+  "lane_tests": [
+   "type tests/run_face_metrics.rs: run_metrics_are_the_face_os2_values_scaled (Inter 96/11 and 72/11 pt at 12 pt; Noto Sans SC and variable Inter default instance vs test-side big-endian reader), run_metrics_are_none_without_os2_v2_fields (OS/2 v1; hostile v4 with directory length 86)",
+   "layout tests/frame_autosize.rs missing_face_metric_refuses_typed: pins now the typed variant and code",
+   "interop-layout tests/idml_frame_autosize.rs: type_shaped_paragraphs_carry_first_baseline_metrics (Inter 11 pt: cap 8 / x 6 / em 11 baselines via from_type; fixture shaper refused typed), absent_or_moot_auto_size_attributes_import_identically, auto_size_attributes_map_to_studio_readings_or_typed_loss (16 cases incl. V4-08 escape, decoy name, case/whitespace), folio_export_states_the_auto_size_readings",
+   "interop-layout tests/layout_reflow_folio_export.rs reflow_overset_per_thread_and_typed_refusals: cap-height pin (lines 258-276) changed to the new variant/code"
+  ]
+ },
+ "blockers": [],
+ "bg_pids": [],
+ "next": "on resume (lead names disk and base): rebase onto origin, bundled run = whole suites of hsk-studio-type (default and harfrust units), hsk-studio-layout, hsk-studio-interop-layout + clippy over their dependents (rule 4a/4b); then push with PUSH SAFETY and set READY_FOR_VALIDATION",
+ "updated_at": "2026-10-30T18:09:51Z",
+ "notes": {
+  "other_lane_test_change": "hsk-studio-interop-layout tests/layout_reflow_folio_export.rs (cap-height pin in reflow_overset_per_thread_and_typed_refusals): Err(UnsupportedComposition)/'unsupported_composition' -> Err(FirstBaselineMetricUnavailable(CapHeight))/'first_baseline_metric_unavailable:cap_height' (brief item 2)",
+  "idml_names_source": "Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/indesign/ID-03__para_hyph_w240.idml Resources/Styles.xml + Preferences.xml TextFramePreference: AutoSizingType=Off AutoSizingReferencePoint=CenterPoint UseMinimumHeightForAutoSizing=false MinimumHeightForAutoSizing=0 UseMinimumWidthForAutoSizing=false MinimumWidthForAutoSizing=0 UseNoLineBreaksForAutoSizing=false; no other reference-point value is attested, so export writes none (loss) and import treats any present value on an auto-sizing frame as a loss",
+  "already_present": "AutoSizingType import (idml_decode AS table) and export (folio_export) existed before this lane; unknown AutoSizingType stays frame_preference_value_unknown",
+  "declared_readings": "UseNoLineBreaksForAutoSizing reading: true for width_only and height_and_width (layout sets lines unwrapped), false for proportional (lines break at the scaled width), moot for height_only; minimum gates moot on an axis the kind does not size; all UNVERIFIED (D5)",
+  "rule_4b": "public API: Run gains 2 accessors (fields pub(crate)); LayoutError gains 1 variant (no exhaustive match on LayoutError outside layout found by grep in interop-layout, harness, harness-view); no Folio field; dependents still to be proven by the bundled clippy",
+  "rule_4e": "type has round unit [harfrust]: focused run compiled with --features hsk-studio-type/harfrust; bundled run must cover default and harfrust",
+  "v4": "V4-01: idml_decode.rs already carries deny(arithmetic_side_effects); V4-07: doc claim weakened ('Not estimated from outlines'); V4-08: escape, decoy and case/whitespace cases in auto_size_attributes_map_to_studio_readings_or_typed_loss",
+  "warnings": "run_face_metrics test reports 1 warning shared with glyph_render/harfrust_spike/foundation_contract (from the included support/mod.rs, pre-existing); check in the bundled run that no new clippy warning comes from lane code",
+  "follow_ups": "Folio record for the six STU-LAY-118 rows folio does not store (folio decision; SMB-R43-FOLLOWUPS-1 is changing folio); the layout window committing reflow_autosize bounds (GUI)"
+ },
+ "verdicts": []
+}
