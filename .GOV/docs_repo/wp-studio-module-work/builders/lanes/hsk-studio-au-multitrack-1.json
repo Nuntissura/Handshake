@@ -1,0 +1,133 @@
+{
+ "crate": "hsk-studio-harness-view",
+ "lane": "SMB-AU-MULTITRACK-1",
+ "status": "IN_PROGRESS",
+ "phase": "code done and committed locally on lane/smb-au-multitrack-1 (rebased on origin c719b1dc); bundled run 2 green 285/285 at d05c2d07 (pre-rebase); confirming run after the c719b1dc rebase (harness-core + harness-view moved) cancelled while queued per lead pause for R41; push after the lead's go and a green confirming run",
+ "candidate": null,
+ "commits": [
+  {
+   "sha": "e74013c5",
+   "subject": "slice 1: timeline multitrack model (lane rows in the layout, clip volume / bus keyframe lanes as typed undoable routing-entry commands, clip gain, waveform overviews from the peak path, mixer follows edits; mixer_rebuild pub(crate))",
+   "pushed": false
+  },
+  {
+   "sha": "35cf3a08",
+   "subject": "slice 2: panel draws waveforms in audio clips, lane buttons, automation lanes (click adds, drag moves, right click deletes), Waveforms / Clip Gain toolbar",
+   "pushed": false
+  },
+  {
+   "sha": "1037aabb",
+   "subject": "slice 3: headless multitrack tests",
+   "pushed": false
+  },
+  {
+   "sha": "1c57c17a",
+   "subject": "slice 3 fix: fixture sequence duration; settle without unwrap (clippy)",
+   "pushed": false
+  }
+ ],
+ "capabilities_done": [
+  "Viewer::open_multitrack(rate, block, sources, extents): opens the timeline (if closed) and the mixer on its sequence with the SAME AudioSources port; the mixer's pulse bus stream is the one playback/mixdown path (no second mixer); timeline_audio_follow rebuilds it at its play position whenever the document revision or the audio_routing entry changes (timeline edits, lane edits, undo/redo)",
+  "waveform overviews in audio clip blocks: per source one min/max overview via waveform::peaks_of over score WaveBuffer (>=256 samples/column, <=65536 columns, <=256 sources, sources <= 2^27 frames), folded per drawn pixel column of the visible source window; Viewer::timeline_clip_peaks; toolbar Waveforms toggle; widget timeline.clip.<id>.waveform",
+  "automation lanes: header button A (timeline.track.<id>.lane) cycles a lane row (LANE_PX 44) under audio/submix tracks: Clip Volume (Folio StudioClipGainEnvelope per clip, dB, linear in dB, held outside), Volume / Pan (static track values drawn flat; edits refused track_automation_not_stored), bus effect parameters of a submix track (Folio effect-instance keyframes for every key EffectSpec::automation_index admits); layout_with_lanes + TimelineLayout.lanes",
+  "typed commands Viewer::multitrack_command(AutomationCommand::{ShowLane, CycleLane, AddPoint, MovePoint, DeletePoint, ClipGain, ToggleWaveforms}); point edits and clip gain are ONE entry-only history step of audio_session::AUDIO_ROUTING_ENTRY (Run::set_tiles_and_entry, as the mixer's routing edits), Folio-validated before storing; EDIT > Undo undoes them; saved with the package",
+  "GUI: click in an editable lane adds a point at the nearest frame and the clicked value; dragging a handle (timeline.lane.<track>.point.<clip|seq>.<offset>) moves it; right click deletes; AccessKit labels on lane rows and handles; Clip Gain -1 dB / +1 dB on the selected audio clip",
+  "state_json()['timeline']['audio'] = {bound_rate, waveforms, lanes[{track_id, lane, editable, range, points, error}], mixer_open}; drawn.lanes count",
+  "hostile input: non-finite / out-of-range values, unknown track/clip/effect/point, lane not offered by the track kind, bus keyframes off the sample grid (not_sample_aligned), move onto an existing point (point_exists), clip gain pushing any point past the range (whole step refused); drawing bounded (MAX_DRAWN_POINTS 4096 per lane, 16384 peak columns per frame)"
+ ],
+ "tests": {
+  "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-au-multitrack-1 --disk ssd -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
+  "exit": 0,
+  "sha": "d05c2d07 (same lane commits before the rebase onto c719b1dc)",
+  "passed": 285,
+  "failed": 0,
+  "skipped": 20,
+  "clippy": "no findings in lane files (same lock hold)",
+  "new_tests": "tests/viewer_timeline_audio.rs 5/5: audio_clips_show_the_overview_of_their_source_window, clip_gain_and_volume_points_play_through_the_mixer_and_undo, lane_clicks_and_drags_edit_points_at_their_pixels, bus_effect_parameter_keyframes_automate_the_submix, hostile_lane_commands_are_refused_without_a_step",
+  "history": [
+   {
+    "sha": "37302e3d",
+    "scope": "bundled",
+    "exit": 100,
+    "passed": 276,
+    "failed": 5,
+    "failures": "all 5 new tests: fixture sequence duration 60 frames != last clip end 50 (Folio InvalidField seq-main/duration); fixed in the test fixture"
+   },
+   {
+    "sha": "pre-rebase of 1c57c17a",
+    "scope": "focused, binary(viewer_timeline_audio)",
+    "exit": 0,
+    "passed": 5,
+    "failed": 0
+   },
+   {
+    "sha": "d05c2d07",
+    "scope": "bundled",
+    "exit": 0,
+    "passed": 285,
+    "failed": 0
+   },
+   {
+    "sha": "1c57c17a",
+    "scope": "bundled, after rebase onto c719b1dc",
+    "exit": null,
+    "note": "cancelled while queued (lead pause for R41); runs after the lead's go"
+   }
+  ]
+ },
+ "blockers": [
+  {
+   "error": "lead pause: no C: lane-check until R41 finishes; push waits for the confirming run",
+   "attempts": 0
+  }
+ ],
+ "lock_wait_s": 5400,
+ "bg_pids": [],
+ "next": "after the lead's R41 message: bundled run at HEAD, push, READY_FOR_VALIDATION with the pushed candidate",
+ "updated_at": "2026-10-30T06:03:49Z",
+ "notes": {
+  "worktree": "wt-studio-lanes/smb-au-multitrack-1 (branch lane/smb-au-multitrack-1)",
+  "owned_paths": "crates/hsk-studio-harness-view/src/view/timeline.rs, src/view/timeline_ui.rs (additive hunks), NEW src/view/timeline/audio.rs, NEW src/view/timeline/audio_ui.rs, NEW tests/viewer_timeline_audio.rs",
+  "outside_owned_paths": "src/view/mixer.rs: ONE token, `fn mixer_rebuild` -> `pub(crate) fn mixer_rebuild` (the timeline must rebuild the mixer's bus stream after its edits; the method was private to module mixer). No shell.rs / mod.rs / design / RUN-UI.md / engine change.",
+  "spec_basis": [
+   "v02.225 [STU-FX-137] Audio routing is a first-class part of the document, not an effect property ... Track | Carries channel_type, volume (default 1.0, linear gain), pan (default 0), mute, solo, locked, sync_locked, targeted, is_submix, keyframe_mode, an ordered send list",
+   "v02.225 [STU-FX-135] An audio processor applied to a clip or a track is an ordered entry in that object's StudioEffectStack, re-editable ... There is no 'render audio to apply' step",
+   "v02.225 [STU-VID-036] Track display state ... display switches are: ... audio waveforms (with logarithmic or dynamic scaling, and a rectified option) ... audio and video keyframes",
+   "v02.225 [STU-VID-022] the clip timeline (unit StudioClip, vertical axis StudioTrack) and [STU-VID-040] one reversible StudioHistoryEntry per operation (as cited by lanes SMB-TIMELINE-UI-1 / TRIM-1)"
+  ],
+  "spec_deltas": [
+   "module 14 has no Audition multitrack-editor clause: nothing defines automation lanes, point editing, GUI clip volume envelopes, envelope interpolation, lane selection or clip gain as a UI operation (request: an AU-14 clause set)",
+   "[STU-FX-137] names a per-track keyframe_mode but no time-varying track volume/pan record exists in Folio (StudioTrack.volume/pan are single values) or in pulse/score timeline mixing (AutomationLane::constant)",
+   "[STU-VID-036] waveform scaling (logarithmic / dynamic / rectified) not built: overview is linear min/max; display switches are not persisted per sequence (waveforms toggle is panel state)"
+  ],
+  "engine_gaps_for_lead": [
+   "track volume / pan automation over time (blocks the brief's 'automation lanes per track for volume and pan'): needs e.g. folio `pub struct StudioTrackAutomation { pub track_id: String, pub param: StudioTrackParam /* Volume | Pan */, pub points: Vec<StudioAutomationPoint> }` with `StudioAutomationPoint { offset_ticks: u64, value: f64 }` in `StudioAudioRouting.track_automation: Vec<StudioTrackAutomation>` (validated like clip_gains), and pulse bus_mix.rs (lines ~213-235) building score `AutomationLane::new(points, Linear, range)` instead of `AutomationLane::constant(db(track.volume))` / `constant(track.pan)`; this lane's TrackVolume/TrackPan lanes then become editable through the same commands",
+   "clip pan envelope: no Folio record (clip gain only)",
+   "master effect parameter lanes: engine supports master keyframes; the timeline has no master row, so none are drawn (master reachable through the mixer only)",
+   "timeline edits do not maintain envelopes: TrimIn moves timeline_start so offsets shift against the audio; razor gives the right part no envelope; lift/ripple delete of a clip with an envelope leaves a dangling clip_gains entry that validate_audio_routing then refuses for the whole routing (from reading folio audio_routing.rs; UNVERIFIED by test). Needs a hook that edits the routing entry in the same history step as the sequence edit (Run has no combined sequence+entry submit)",
+   "disabled bus effects offer no lanes (EffectSpec::from_preset_instance returns None for disabled instances)"
+  ],
+  "unverified_D5": [
+   "Audition point shapes (hold / bezier), lane colours, default lane, click-to-add, drag constraints (here moves may cross neighbours; collision refused), right-click delete, 1 dB clip gain step, clip volume linear in dB (Folio/pulse choice), overview resolution",
+   "Audition clip volume vs clip envelope separation: here clip gain shifts the one envelope"
+  ],
+  "run_ui_md_lines_for_lead": [
+   "Multitrack (lane SMB-AU-MULTITRACK-1, feature audio-batch): Viewer::open_multitrack binds an audio source port to the timeline; audio clips then show their waveform (toolbar Waveforms hides it) and the mixer opens on the same sequence: playback and mixdown are the mixer's bus stream, rebuilt after every timeline or lane edit, undo and redo.",
+   "Click A in an audio or submix track header to open its automation lane; clicking again cycles Clip Volume / Volume / Pan / bus effect parameters / none. In Clip Volume and bus parameter lanes a click adds a point, dragging moves it, right click deletes it; each is one undo step. Volume and Pan lanes are display only (the document stores one value; edit it in the Mixer, F8).",
+   "Clip Gain -1 dB / +1 dB (toolbar) shifts the selected audio clip's volume envelope by one dB (refused if any point would leave -96..+12 dB)."
+  ],
+  "not_proven": [
+   "NOT_PROVEN: real desktop window and real audio device (headless egui, mixer_render samples only)",
+   "NOT_PROVEN: Audition parity of any interaction (no oracle)"
+  ],
+  "rule_4a": "whole harness-view and harness suites (desktop, audio-batch) in the bundled run",
+  "rule_4b": "no Folio record field added: package suite not required",
+  "rule_4c": "lane-check step 0 clean (V4-03, V4-05); no drive-letter or user-profile literal in source or tests",
+  "rule_4d": "no doc examples added",
+  "rule_4e": "tests/viewer_timeline_audio.rs is #![cfg(feature = \"audio-batch\")]; .config/round-features.toml harness-view unit [\"desktop\", \"audio-batch\"] compiles and runs it; the [\"viewer\"] unit compiles the lane code without audio-batch (cargo check --features viewer --tests EXIT 0)",
+  "cargo_lock": "not committed; no new dependency",
+  "own_causes": [
+   "run 1: test fixture sequence duration did not equal the last clip end (Folio seq-main/duration)"
+  ]
+ }
+}

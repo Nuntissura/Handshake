@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T05:52:25Z",
+ "updated_at": "2026-10-30T07:49:46Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11173,6 +11173,22 @@
     "0fc326b7 path_text.rs doc",
     "ace9990c + c719b1dc test fixes after run 1"
    ]
+  },
+  {
+   "lane_id": "SMB-R41-FOLLOWUPS-1",
+   "crate": "hsk-studio-layout + hsk-studio-harness-view",
+   "phase": "build",
+   "status": null,
+   "owner": "builder opus/medium",
+   "lane_file": "builders/lanes/hsk-studio-r41-followups-1.json",
+   "brief": "builders/briefs/lane-smb-r41-followups-1.md",
+   "worktree": "wt-studio-lanes/smb-r41-followups-1",
+   "disk": "C:",
+   "candidate": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "R41 findings: F-R41-1 (MEDIUM) CJK W3C licence citation in layout NOTICE/cjk.rs/DESCRIPTOR; F-R41-3 Info min width at 900 px; F-R41-4 NOT_PROVEN prints (viewer_info, cjk_kinsoku); F-R41-5 residual text-entry decode error. Base c719b1dc. F-R41-2 (sha2 for folio) deferred to the next steward change (root input: would force a canary).",
+   "remediation": null
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
