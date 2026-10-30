@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T16:33:36Z",
+ "updated_at": "2026-10-30T16:40:15Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11898,17 +11898,23 @@
   {
    "lane_id": "SMB-FIG-GRID-1",
    "crate": "hsk-studio-folio (autolayout grid) + hsk-studio-components (grid solver)",
-   "phase": "D: claim run at the 8780b3e9 rebase (2026-10-30T16:33:36Z); last of the wave",
-   "status": null,
+   "phase": "validation (R44)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-fig-grid-1.json",
    "brief": "builders/briefs/lane-smb-fig-grid-1.md",
    "worktree": "wt-studio-lanes/smb-fig-grid-1",
    "disk": "lead names it",
-   "candidate": null,
-   "commits": [],
+   "candidate": "91cb8889",
+   "commits": [
+    "b38ae2e7",
+    "06ee1eab",
+    "7cbb04dd",
+    "61541481",
+    "91cb8889"
+   ],
    "verdicts": [],
-   "note": "Figma GRID auto layout (STU-DS-146/147/150): additive folio grid fields on StudioAutoLayout / StudioChildLayout (8 + 2 literals updated), components grid solver (simplified CSS Grid reading, Figma track sizing UNVERIFIED) and three STU-DS-146 commands; .fig GRID import out of scope. Base 2a60acf3."
+   "note": "Figma GRID auto layout (STU-DS-146/147/150): additive folio grid fields on StudioAutoLayout / StudioChildLayout (8 + 2 literals updated), components grid solver (simplified CSS Grid reading, Figma track sizing UNVERIFIED) and three STU-DS-146 commands; .fig GRID import out of scope. Base 2a60acf3.; 2026-10-30T16:40:15Z pushed 8780b3e9..91cb8889 (ls-remote verified, no Cargo.toml/lock change); D: run 272/272 exit 0: folio 144, components 33, interop-fig-native 5, interop-fig 55, package 35 + clippy over 18 dependents (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-1/smb-fig-grid-1-bundled1-91cb8889.log); changed expected results in folio design_records_contract (SMB-FOLIO-ENG-4) and components auto_layout (SMB-COMPONENTS / SMB-COMPONENTS-FOLIO-MIGRATE); scope extension folio records.rs hook + components lib.rs; out of scope: .fig GRID import, SLOT, layout grids, BASELINE"
   },
   {
    "lane_id": "SMB-PR-SEQ-EXPORT-UI-1",
