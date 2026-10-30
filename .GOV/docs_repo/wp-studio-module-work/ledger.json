@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T09:15:44Z",
+ "updated_at": "2026-10-30T09:33:11Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11206,17 +11206,23 @@
   {
    "lane_id": "SMB-PS-ACTIONS-1",
    "crate": "hsk-studio-harness-core (+ harness src/cli.rs slice 4)",
-   "phase": "hold",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-ps-actions-1.json",
    "brief": "builders/briefs/lane-smb-ps-actions-1.md",
    "worktree": "wt-studio-lanes/smb-ps-actions-1",
    "disk": "C:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "179dc3d6",
+   "commits": [
+    "4356b72d",
+    "4ef25682",
+    "b8c273eb",
+    "6fec4e67",
+    "179dc3d6"
+   ],
    "verdicts": [],
-   "note": "Photoshop PS-31 actions (STU-RAS-169, STU-AUT-106/109/010): record the Run command stream, replay as one undo step, batch over documents with receipts; serves Affinity AF-12; push held for lead release (upstream of running harness-view lanes) (planner opus/high 2026-10-30, base c719b1dc); 2026-10-30T08:58:19Z slices 1-3 green locally be8dbe7c (b5ef8e70, 2f1bf5f5, 3505f115, be8dbe7c): harness-core whole suite 21/21 exit 0; lead requires harness + harness-view suites before READY (private HistoryStep gained group field: undo internals); slice 4 CLI being built; HOLD until AREA-TYPE-3 pushes. Spec-delta: STU-AUT-106/178 seven vs eight value types; STU-AUT-105 should cite STU-AUT-136; STU-AUT-128 action by id without a library (inline record).; slice 4 CLI (batch JOB.json / action check SET.json) committed c79067a4, unbuilt until release run",
+   "note": "Photoshop PS-31 actions (STU-RAS-169, STU-AUT-106/109/010): record the Run command stream, replay as one undo step, batch over documents with receipts; serves Affinity AF-12; push held for lead release (upstream of running harness-view lanes) (planner opus/high 2026-10-30, base c719b1dc); 2026-10-30T08:58:19Z slices 1-3 green locally be8dbe7c (b5ef8e70, 2f1bf5f5, 3505f115, be8dbe7c): harness-core whole suite 21/21 exit 0; lead requires harness + harness-view suites before READY (private HistoryStep gained group field: undo internals); slice 4 CLI being built; HOLD until AREA-TYPE-3 pushes. Spec-delta: STU-AUT-106/178 seven vs eight value types; STU-AUT-105 should cite STU-AUT-136; STU-AUT-128 action by id without a library (inline record).; slice 4 CLI (batch JOB.json / action check SET.json) committed c79067a4, unbuilt until release run; 2026-10-30T09:32:33Z READY at 179dc3d6 (rebased on 815e8571): release lane-check exit 0, harness-core + harness + harness-view whole suites with desktop+audio-batch 314/314 (20 skipped); log scratchpad/smb-ps-actions-1/lanecheck-smb-ps-actions-1-179dc3d6-release.log. Slice 4 CLI batch / action check + manual entries.",
    "remediation": null
   },
   {
@@ -11241,17 +11247,22 @@
   {
    "lane_id": "SMB-AE-MASK-FEATHER-1",
    "crate": "hsk-studio-folio + hsk-studio-composite (+ render-cpu test, package hunk if needed)",
-   "phase": "hold",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-ae-mask-feather-1.json",
    "brief": "builders/briefs/lane-smb-ae-mask-feather-1.md",
    "worktree": "wt-studio-lanes/smb-ae-mask-feather-1",
    "disk": "C:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "faa69b97",
+   "commits": [
+    "46e65390",
+    "66902283",
+    "b13b2c99",
+    "faa69b97"
+   ],
    "verdicts": [],
-   "note": "After Effects AE-13 composition mask feather/opacity/expansion (STU-CMP-025/025a), static and animated; rule 4b package suite; SMB-AE-PARTICLES-2 and AE-17 effect families sequenced after this lane; push held for lead release (planner opus/high 2026-10-30, base c719b1dc); 2026-10-30T08:58:19Z green locally f59b775a (e7dce0c9, 7a4cb16c, 2c643900, f59b775a test-oracle fix: polygon corner reference, nib 0.1 px flattening too coarse for 1/255): folio+composite+package whole suites + render-cpu mask tests 327/327 exit 0; HOLD_FOR_RELEASE (order AREA-TYPE-3 -> PS-ACTIONS -> MASK-FEATHER -> HDR-MERGE). Follow-up: re-applying a planar track resets feather/opacity/expansion to absent (as it reset inverted). NOT_PROVEN: AE maths parity, variable-width feather (ADBE Mask Interp), GPU, 3D-plane mask site untested.",
+   "note": "After Effects AE-13 composition mask feather/opacity/expansion (STU-CMP-025/025a), static and animated; rule 4b package suite; SMB-AE-PARTICLES-2 and AE-17 effect families sequenced after this lane; push held for lead release (planner opus/high 2026-10-30, base c719b1dc); 2026-10-30T08:58:19Z green locally f59b775a (e7dce0c9, 7a4cb16c, 2c643900, f59b775a test-oracle fix: polygon corner reference, nib 0.1 px flattening too coarse for 1/255): folio+composite+package whole suites + render-cpu mask tests 327/327 exit 0; HOLD_FOR_RELEASE (order AREA-TYPE-3 -> PS-ACTIONS -> MASK-FEATHER -> HDR-MERGE). Follow-up: re-applying a planar track resets feather/opacity/expansion to absent (as it reset inverted). NOT_PROVEN: AE maths parity, variable-width feather (ADBE Mask Interp), GPU, 3D-plane mask site untested.; 2026-10-30T09:33:11Z READY at faa69b97 (rebased on 179dc3d6, nothing in its closure changed since c6b3733f: green run 327/327 at content-identical f59b775a reused, log scratchpad/smb-ae-mask-feather-1/run3.log)",
    "remediation": null
   },
   {

@@ -1,37 +1,37 @@
 {
  "crate": "hsk-studio-harness-core, hsk-studio-harness (slice 4 cli.rs)",
  "lane": "SMB-PS-ACTIONS-1",
- "status": "HOLD_FOR_RELEASE",
- "phase": "slices 1-3 green on be8dbe7c; slice 4 committed locally c79067a4 (not yet built: lead said do not run before RELEASE); waiting for RELEASE after SMB-AI-AREA-TYPE-3 pushes",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-4 pushed at 179dc3d6 (origin was 815e8571); release lane-check green",
  "commits": [
   {
-   "sha": "b5ef8e70",
+   "sha": "4356b72d",
    "slice": 1,
-   "pushed": false,
+   "pushed": true,
    "subject": "harness-core (SMB-PS-ACTIONS-1 slice 1): action records, strict portable artifact, validators, Run command corpus"
   },
   {
-   "sha": "2f1bf5f5",
+   "sha": "4ef25682",
    "slice": 2,
-   "pushed": false,
+   "pushed": true,
    "subject": "harness-core (SMB-PS-ACTIONS-1 slice 2): record the Run command stream, replay as one undo step"
   },
   {
-   "sha": "3505f115",
+   "sha": "b8c273eb",
    "slice": 3,
-   "pushed": false,
+   "pushed": true,
    "subject": "harness-core (SMB-PS-ACTIONS-1 slice 3): batch runner over documents"
   },
   {
-   "sha": "be8dbe7c",
+   "sha": "6fec4e67",
    "slice": 3,
-   "pushed": false,
+   "pushed": true,
    "subject": "harness-core (SMB-PS-ACTIONS-1 slice 3): action_batch test names its job-mutation type (clippy type_complexity)"
   },
   {
-   "sha": "c79067a4",
+   "sha": "179dc3d6",
    "slice": 4,
-   "pushed": false,
+   "pushed": true,
    "subject": "harness + harness-core (SMB-PS-ACTIONS-1 slice 4): CLI batch / action check, manual entries"
   }
  ],
@@ -42,34 +42,34 @@
   "slice 4 CLI `batch JOB.json`, `action check SET.json`, manual COMMANDS entries + automation vocabulary (built, not yet run)"
  ],
  "tests": {
-  "argv": "cd <lane>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --disk ssd --owner smb-ps-actions-1 -- cargo nextest run -p hsk-studio-harness-core",
+  "argv": "cd <lane>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --disk ssd --owner smb-ps-actions-1 -- cargo nextest run -p hsk-studio-harness-core -p hsk-studio-harness -p hsk-studio-harness-view --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch,hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch",
   "exit": 0,
-  "sha": "be8dbe7c",
-  "passed": 21,
+  "sha": "179dc3d6",
+  "passed": 314,
   "failed": 0,
-  "skipped": 0,
-  "clippy": "harness-core + dependents harness, harness-view: no warnings in owned crates (2 pre-existing hsk-studio-observe too_many_arguments warnings, not owned)",
-  "runs": [
+  "skipped": 20,
+  "log": "lane scratch lanecheck-smb-ps-actions-1-179dc3d6-release.log",
+  "clippy": "no warnings in owned files; warnings present only in non-owned crates/tests (observe, interop-psd, type, render-cpu, harness-view lib, harness tests timeline_captions and viewer_media)",
+  "earlier_runs": [
    {
-    "run": 1,
     "sha": "3505f115",
     "exit": 0,
     "passed": 21,
-    "note": "clippy type_complexity warning in tests/action_batch.rs, fixed in be8dbe7c"
+    "scope": "harness-core only"
    },
    {
-    "run": 2,
     "sha": "be8dbe7c",
     "exit": 0,
-    "passed": 21
+    "passed": 21,
+    "scope": "harness-core only"
    }
   ]
  },
  "blockers": [],
  "lock_wait_s": null,
  "bg_pids": [],
- "next": "on RELEASE: git fetch + rebase onto origin; ONE bundled lane-check on C: (ssd, CARGO_BUILD_JOBS=6): cargo nextest run -p hsk-studio-harness-core -p hsk-studio-harness -p hsk-studio-harness-view --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch,hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch (covers harness-view units [viewer] and [desktop,audio-batch] of .config/round-features.toml and the harness viewer/desktop/media/audio-batch units; whole suites, no filter); then diff --stat check, guarded push, READY_FOR_VALIDATION",
- "updated_at": "2026-10-30T09:00:39Z",
+ "next": "validation round; harness [\"viewer\"] round unit is covered by the release run's desktop feature set (viewer on)",
+ "updated_at": "2026-10-30T09:32:19Z",
  "notes": {
   "brief": "builders/briefs/lane-smb-ps-actions-1.md; binding builders/briefs/wave-parity-2-common.md",
   "push_hold": "lead instruction: commit slices locally, after first green bundled run write HOLD_FOR_RELEASE with the green local sha; push only after RELEASE. Lead 08:2x: rebase before the first bundled run (done: onto origin c6b3733f).",
@@ -97,7 +97,8 @@
   "red_first": "not run red separately (one bundled run per push); every new test exercises APIs that do not exist at c719b1dc (modules action/batch, Run::start_recording/play_action), so each is red by construction at the base",
   "not_proven_lines": "tests print NOT_PROVEN: lines (action_records corpus test x8, action_record_replay x4, action_batch x6); nextest captures stdout of passing tests",
   "lead_2026-10-30": "lead: push order downstream-first (AREA-TYPE-3 -> this lane -> AE-MASK-FEATHER-1 -> HDR-MERGE-1); HistoryStep group field touches undo/redo internals harness and harness-view lean on, so the harness and harness-view suites run before READY (supersedes the earlier history_paths judgement that they were not needed)",
-  "slice4": "cli.rs: batch / action subcommands (no window, process, network or env API; harness_batch_cli.rs also scans action.rs and batch.rs for those tokens); manual.rs: COMMANDS batch + action, manual_json automation key (dialog options, value types, unit tokens, overwrite and error policies, source kinds, template tokens, validator codes, RUN_COMMANDS corpus), manual_text AUTOMATION section"
+  "slice4": "cli.rs: batch / action subcommands (no window, process, network or env API; harness_batch_cli.rs also scans action.rs and batch.rs for those tokens); manual.rs: COMMANDS batch + action, manual_json automation key (dialog options, value types, unit tokens, overwrite and error policies, source kinds, template tokens, validator codes, RUN_COMMANDS corpus), manual_text AUTOMATION section",
+  "push": "SHA=$(git rev-parse HEAD) && [ -n \"$SHA\" ] && git push origin \"$SHA:refs/heads/codex/handshake-studio-assets\": exit 0, 815e8571..179dc3d6, fast-forward; origin re-read = 179dc3d6; diff --stat origin..HEAD before push listed only owned paths (10 files)"
  },
  "verdicts": []
 }

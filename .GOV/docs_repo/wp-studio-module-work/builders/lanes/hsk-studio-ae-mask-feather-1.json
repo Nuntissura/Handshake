@@ -1,28 +1,28 @@
 {
  "crate": "hsk-studio-folio, hsk-studio-composite, hsk-studio-render-cpu (test only)",
  "lane": "SMB-AE-MASK-FEATHER-1",
- "status": "HOLD_FOR_RELEASE",
- "phase": "green bundled run 3 at local f59b775a (base origin c6b3733f); PUSH HOLD until the lead's RELEASE",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed faa69b97 to origin/codex/handshake-studio-assets (rebased onto 179dc3d6 after RELEASE; no closure file changed since c6b3733f, green run 3 reused)",
  "commits": [
   {
-   "sha": "e7dce0c9",
+   "sha": "46e65390",
    "slice": 1,
-   "subject": "folio: composition masks carry optional keyframable feather [x, y] px, opacity (stored 0..1) and expansion px streams; validate_mask; track_apply literal"
+   "subject": "folio: composition mask feather/opacity/expansion streams, validate_mask, track_apply literal"
   },
   {
-   "sha": "7a4cb16c",
+   "sha": "66902283",
    "slice": 2,
-   "subject": "composite: mask_paths::mask_coverage_shaped + MaskShape (expansion, feather, invert, opacity, combine); identity bit-identical"
+   "subject": "composite: mask_paths::mask_coverage_shaped + MaskShape"
   },
   {
-   "sha": "2c643900",
+   "sha": "b13b2c99",
    "slice": 3,
-   "subject": "composite: temporal LayerMasks carries the streams, 2D matte / 3D plane / effect-stack sites use shaped coverage; composite + render-cpu tests"
+   "subject": "composite: temporal wiring (2D matte, 3D plane, effect stack) + composite/render-cpu tests"
   },
   {
-   "sha": "f59b775a",
+   "sha": "faa69b97",
    "slice": 2,
-   "subject": "composite: mask_shape round-corner oracle is a fine polygon; two test clippy warnings"
+   "subject": "composite: mask_shape round-corner oracle fine polygon; test clippy lints"
   }
  ],
  "capabilities_done": [
@@ -34,15 +34,15 @@
  "tests": {
   "argv": "lane-check.sh --owner smb-ae-mask-feather-1 --disk ssd -- cargo nextest run -p hsk-studio-folio -p hsk-studio-composite -p hsk-studio-package -p hsk-studio-render-cpu --features hsk-studio-composite/motion -E 'package(folio)|package(composite)|package(package)|(package(render-cpu)&(binary(composition_mask_shape)|binary(composition_mask_paths)))' --no-fail-fast",
   "exit": 0,
-  "sha": "f59b775a",
+  "sha": "f59b775a (content-identical to pushed faa69b97 for the closure)",
   "passed": 327,
   "failed": 0
  },
  "blockers": [],
  "lock_wait_s": null,
  "bg_pids": [],
- "next": "on RELEASE: git fetch + rebase onto origin/codex/handshake-studio-assets (origin at cf2e46da = harness-view only since c6b3733f: no re-run needed unless the rebase touches folio/composite/render-cpu/package or their dependencies), diff --stat check, push with PUSH SAFETY, then READY_FOR_VALIDATION",
- "updated_at": "2026-10-30T08:57:12Z",
+ "next": "validation round",
+ "updated_at": "2026-10-30T09:32:55Z",
  "notes": {
   "base": "origin c719b1dc, lane worktree wt-studio-lanes/smb-ae-mask-feather-1, branch lane/smb-ae-mask-feather-1",
   "spec_basis": "module 14 v02.225: STU-CMP-025 (:29388 'mask feather (edge softness, with an optional variable-width feather along the path), mask opacity, and mask expansion (a positive or negative offset of the path outward or inward ...)', all keyframable), STU-CMP-025a (:29396 seven modes, combined in order, independent inverted), STU-CMP-026 (:29403 opacity stored normalised 0..1, presented 0..100), STU-CMP-027 (:29413 mask geometry is the same StudioVectorPath primitive), STU-CMP-010 step 2 (:29278 masks combine before effects), STU-MOT-095 table (:27893-27899 ADBE Mask Feather = uniform feather, ADBE Mask Offset = expansion, ADBE Mask Opacity; ADBE Mask Interp variable-width feather = declared gap)",
@@ -62,7 +62,9 @@
   "rebase": "local slices rebased onto origin c6b3733f before the first bundled run (lead coordination note); nib diff c719b1dc..c6b3733f is additive (simplify.rs, descriptor, lib.rs mod line), edit::offset_path unchanged. Run 1 (old base, still in clippy) stopped: TaskStop of its shell and taskkill of its orphaned cargo-clippy tree (PIDs 44900/63628/57656/71916, target lanes/smb-ae-mask-feather-1 only); lock released by the studio-env EXIT trap path; no lock touched by hand",
   "run2": "2c643900 (base c6b3733f): clippy clean for this lane's code except two test-only lints in mask_shape.rs (useless_vec, cloned_ref_to_slice_refs; fixed in f59b775a); other warnings pre-existing (render-cpu display.rs duplicated_attributes, composition_scenes.rs large_enum_variant). Dependents clippy pass compiled composite with default features (no composite lib warning) = default-build check. Tests 326/327: FAIL mask_shape expansion_grows_with_round_corners_and_shrinks corner max |delta| 4.7e-2 (12/255); cause: the oracle's cubic-arc rounded rect went through mask_coverage, whose nib rasterize flattens curves at the default 0.1 px tolerance (chord sagitta up to 0.1 px), while the expansion polygon is flattened at 1e-3; inside/outside exactness held. Fix: oracle = 128-chord-per-quarter polygon (sagitta ~6e-5 px). Product code unchanged. Loop cap: run 3 is the one re-run for this failure",
   "run3": "f59b775a, 2026-10-30T08:45:24Z-08:57:02Z on C: ssd: clippy (4 crates, composite with motion) + dependents pass clean for this lane's code; nextest 327/327 PASS (folio 131 incl. composition_mask_properties 4, composite incl. mask_shape 6 and composition_mask_shape 3 under motion, package 35, render-cpu composition_mask_shape + composition_mask_paths); LANE_CHECK_EXIT 0",
-  "hold_for_release": "local green sha f59b775a (lane branch lane/smb-ae-mask-feather-1); not pushed"
+  "hold_for_release": "local green sha f59b775a (lane branch lane/smb-ae-mask-feather-1); not pushed",
+  "release": "RELEASE from lead; origin 179dc3d6; git diff --stat c6b3733f..179dc3d6 lists only crates/hsk-studio-harness, harness-core, layout (layout is not a dependency of folio/composite/pigment/prism/nib/type/render-cpu/package/accord/observe/motion; no Cargo.toml/Cargo.lock/.config change), so no re-run; rebase clean; diff --stat origin..HEAD = 10 owned paths only; push guarded SHA=$(git rev-parse HEAD) && [ -n $SHA ] && git push origin $SHA:refs/heads/codex/handshake-studio-assets, exit 0, 179dc3d6..faa69b97",
+  "run_log": "lane smb-ae-mask-feather-1, green run at f59b775a: <scratchpad>/smb-ae-mask-feather-1/run3.log = C:/Users/ILJASM~1/AppData/Local/Temp/claude/D--Projects-LLM-projects-Handshake-Handshake-Worktrees-wt-gov-kernel/78736d01-8cca-4de4-921a-e3cf98762f72/scratchpad/smb-ae-mask-feather-1/run3.log"
  },
  "verdicts": []
 }
