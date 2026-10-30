@@ -1,7 +1,7 @@
 ---
 file_id: LANE-SMB-R42-FOLLOWUPS-1
 file_kind: lane_brief
-updated_at: 2026-10-30T15:40:00Z
+updated_at: 2026-10-30T12:45:00Z
 wp: WP-KERNEL-STUDIO
 lane: SMB-R42-FOLLOWUPS-1
 lane_file: builders/lanes/hsk-studio-r42-followups-1.json

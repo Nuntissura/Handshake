@@ -1,7 +1,7 @@
 ---
 file_id: LANE-SMB-AU-MULTITRACK-3
 file_kind: lane_brief
-updated_at: 2026-10-30T15:40:00Z
+updated_at: 2026-10-30T12:45:00Z
 wp: WP-KERNEL-STUDIO
 lane: SMB-AU-MULTITRACK-3
 lane_file: builders/lanes/hsk-studio-au-multitrack-3.json
