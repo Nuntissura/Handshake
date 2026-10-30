@@ -68,6 +68,8 @@
   "determinism": "sin_cos only for non-quadrant directional angles and spin samples (platform binary64 libm, as brush/liquify/style already use); sqrt is IEEE",
   "machine_paths": "none (step 0 clean on both shas)"
  },
- "verdicts": [],
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "status_change": "PASS_V1", "included_by": "READY claim in candidate", "prior_status": "READY_FOR_VALIDATION", "failures": [], "remediation": null, "blocker": null, "not_proven": ["hsk-studio-pigment hsk-studio-pigment::hdr_merge::merge_recovers_known_radiance_from_synthetic_brackets (default): Photoshop Merge to HDR Pro / Lightroom HDR merge parity (no D5 oracle; weights and thresholds are Studio readings)", "hsk-studio-pigment hsk-studio-pigment::hdr_merge::merge_recovers_known_radiance_from_synthetic_brackets (default): real camera brackets (all brackets in tests/hdr_merge.rs are synthesised from one scene)"], "note": null, "idempotency_key": "STUDIO-R43:SMB-PIGMENT-AE-KERNELS-1:ae6452c428ec:PASS_V1", "claim_scope": "pigment blur_math box_kernel (<= 6001 taps), blur_window_axis, directional_blur_window (length 0..6000), radial_blur_window (Spin | Zoom, amount 0..=1000: spin arc 0.36 amount degrees, zoom 1 +- amount/2000, <= 2*256+1 samples per pixel), filter_math find_edges_window (premultiplied 3x3 Sobel, replicated border), BlurError::Parameter; Studio readings, After Effects/Photoshop maths UNVERIFIED (D5), class Approximate. radial_blur_window_cost walks every output pixel before any budget check (F-R43-3).", "round": "STUDIO-R43", "lane": "SMB-PIGMENT-AE-KERNELS-1", "candidate": "ae6452c428ec3cb48277c011db669a5467b8a33e", "tree": "bc57bb3d2ad2217d45ecd479fd8f23954ec19cf4", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R43", "started_at": "2026-10-30T14:47:14Z", "completed_at": "2026-10-30T17:29:49Z"}
+ ],
  "pushed_sha": "a259a3df"
 }
