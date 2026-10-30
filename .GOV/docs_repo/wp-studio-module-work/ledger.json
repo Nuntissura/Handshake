@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T10:54:44Z",
+ "updated_at": "2026-10-30T12:34:15Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11639,8 +11639,8 @@
   {
    "lane_id": "SMB-AE-EFFECT-FAMILIES-2",
    "crate": "hsk-studio-composite (+ folio only if needed)",
-   "phase": "hold (no C: runs during R42)",
-   "status": null,
+   "phase": "hold for one bundled C: run after R42 (R42 recorded 7ef6a0b6)",
+   "status": "HOLD_FOR_RUN",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-ae-effect-families-2.json",
    "brief": "builders/briefs/lane-smb-ae-effect-families-2.md",
@@ -11649,7 +11649,7 @@
    "candidate": null,
    "commits": [],
    "verdicts": [],
-   "note": "After Effects AE-17: blur / glow / colour families in the per-layer effect stack via pigment kernels; entry blend modes (STU-FX-008), entry mask reference (STU-FX-004), adjustment layers (STU-CMP-015) if one slice allows. Base 09a57c06; run waits behind R42 on C:.; 2026-10-30T10:36:21Z slices 1-4 coded, one local commit 4319b6c3 (rebased on 169d082c), unbuilt (run cancelled for R42); refused: Curves (no data schema), Brightness & Contrast / Camera Lens Blur (no records), one-axis blur, directional/radial blur amounts, Find Edges, some Glow ops, Invert HLS/YIQ/alpha, adjustment layers; pigment kernel gaps in lane file -> SMB-PIGMENT-AE-KERNELS-1 queued",
+   "note": "After Effects AE-17: blur / glow / colour families in the per-layer effect stack via pigment kernels; entry blend modes (STU-FX-008), entry mask reference (STU-FX-004), adjustment layers (STU-CMP-015) if one slice allows. Base 09a57c06; run waits behind R42 on C:.; 2026-10-30T10:36:21Z slices 1-4 coded, one local commit 4319b6c3 (rebased on 169d082c), unbuilt (run cancelled for R42); refused: Curves (no data schema), Brightness & Contrast / Camera Lens Blur (no records), one-axis blur, directional/radial blur amounts, Find Edges, some Glow ops, Invert HLS/YIQ/alpha, adjustment layers; pigment kernel gaps in lane file -> SMB-PIGMENT-AE-KERNELS-1 queued; 2026-10-30T12:34:15Z rebased on a259a3df (PIGMENT-AE-KERNELS-1): local 7af83dd0 (slices 1-4) + 2832b1d0 (refusals lifted onto pigment kernels: one-direction gaussian/glow, directional blur, radial spin/zoom, find edges, box weights from pigment), unbuilt; Directional Blur angle reading (clockwise from up, pigment angle = 90 - Direction) UNVERIFIED; still refused: radius >1000 / Fast Box >6001 taps, several Glow ops and Color Phase, Invert Alpha/HLS/YIQ, entry blend Dissolve, Curves (no blob schema), Brightness & Contrast / Camera Lens Blur (no records), adjustment layers",
    "remediation": null
   },
   {

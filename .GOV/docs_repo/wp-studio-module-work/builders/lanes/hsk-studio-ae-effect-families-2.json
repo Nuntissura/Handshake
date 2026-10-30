@@ -2,11 +2,16 @@
  "crate": "hsk-studio-folio (composition/effects.rs kinds, boolean kind, entry blend_mode + mask_id; composition.rs one call-site line), hsk-studio-composite (composition/effect_stack.rs Blur/Glow/Colour/Composite kernels, composition.rs re-export hunk, temporal/composition/effects.rs lowering, temporal/composition.rs two lines: COMPOSITION_EFFECT_KERNEL re-export + read_effects blend_space argument, lib.rs DESCRIPTOR key composition_effect_stack, NEW tests/effect_families_2.rs)",
  "lane": "SMB-AE-EFFECT-FAMILIES-2",
  "status": "HOLD_FOR_RUN",
- "phase": "slices 1-4 committed locally as 4319b6c3 (rebased on origin 169d082c), NOT pushed; bundled run 1 cancelled by lead order 2026-10-30 (R42 starved on the C: lock) before it acquired the lock: no clippy or tests ran",
+ "phase": "rebased onto origin a259a3df (SMB-PIGMENT-AE-KERNELS-1 pushed): 7af83dd0 (slices 1-4) + 2832b1d0 (kernel refusals lifted onto pigment kernels), local, NOT pushed, NOT built; waiting for the lead message after R42 (no C: run before it)",
  "commits": [
   {
-   "sha": "4319b6c3",
-   "subject": "Studio AE-17 (SMB-AE-EFFECT-FAMILIES-2 slices 1-4): blur, glow and colour effect families and entry blend mode / effect mask in the composition effect stack",
+   "sha": "7af83dd0",
+   "subject": "Studio AE-17 (SMB-AE-EFFECT-FAMILIES-2 slices 1-4): blur, glow and colour effect families and entry blend mode / effect mask in the composition effect stack (was 4319b6c3)",
+   "pushed": false
+  },
+  {
+   "sha": "2832b1d0",
+   "subject": "Studio AE-17 (SMB-AE-EFFECT-FAMILIES-2): lift the kernel refusals onto pigment's SMB-PIGMENT-AE-KERNELS-1 kernels",
    "pushed": false
   }
  ],
@@ -14,18 +19,19 @@
   "slice 1 blur: Gaussian Blur (pigment LayerBlur::taps, blurriness = pigment radius, sigma r/2, <= 1000) and Fast Box Blur (box_taps: iterated normalised box, half-width and iterations rounded half up, <= 6001 taps) through pigment blur_math::blur_window on the straight pre-entry buffer; Repeat Edge Pixels pads the source by its border texels over the support; taps [1.0] = identity bit for bit; Directional Blur (length 0), Radial Blur (amount 0), Find Edges (blend 1) lower to the identity, else refused composition_effect_kernel",
   "slice 2 glow: bright pass by pigment AdjustmentOp::Threshold on colour or alpha (threshold v/255; 0 passes all, 255 none), blur_window, intensity in premultiplied form, Original or A&B colours (sawtooth/triangle looping, loops, midpoint), Composite Original Behind (composite_over with the Glow Operation mapped to pigment modes) / On Top / None",
   "slice 3 colour: Levels, Hue/Saturation (master or colorize), Exposure (master or individual channels, linearize 2.2 on encoded plans unless bypass), Color Balance, Tint and Tritone (pigment gradient map + blend), Invert RGB/R/G/B, all through pigment adjust_math on straight colour, alpha kept, transparent texels unchanged",
-  "slice 4 entry semantics: Folio StudioCompositionEffect.blend_mode (canonical discriminant, default 2, pass-through/tool-only refused InvalidField .../blend_mode) and mask_id (a layer mask id, else InvalidField .../mask_id); lowered to SceneEffect::Composite: non-normal mode = W3C blended source colour Cs' = (1-ab)Cs + ab B(Cb,Cs) via pigment blend_rgb, alpha of the result; mask = coverage of the named mask alone (mode add, own inversion/feather/opacity/expansion through mask_paths::mask_coverage_shaped) multiplying the entry mix; normal without mask never wrapped (stack-1 bytes unchanged); dissolve and modes without a pigment formula refused composition_effect_option"
+  "slice 4 entry semantics: Folio StudioCompositionEffect.blend_mode (canonical discriminant, default 2, pass-through/tool-only refused InvalidField .../blend_mode) and mask_id (a layer mask id, else InvalidField .../mask_id); lowered to SceneEffect::Composite: non-normal mode = W3C blended source colour Cs' = (1-ab)Cs + ab B(Cb,Cs) via pigment blend_rgb, alpha of the result; mask = coverage of the named mask alone (mode add, own inversion/feather/opacity/expansion through mask_paths::mask_coverage_shaped) multiplying the entry mix; normal without mask never wrapped (stack-1 bytes unchanged); dissolve and modes without a pigment formula refused composition_effect_option",
+  "kernel lift (2832b1d0): Blur/Glow Dimensions Horizontal|Vertical via pigment blur_window_axis (SceneEffect::Blur.axis, GlowEffect.axis); Directional Blur via directional_blur_window (pigment angle = 90 - AE Direction, Direction clockwise from screen-up, Studio reading; Blur Length = segment px); Radial Blur Spin|Zoom via radial_blur_window (Amount 1:1, Center layer point; Antialiasing and Random Seed do not change the kernel); Find Edges via find_edges_window (invert row) with Blend With Original mixed premultiplied; Fast Box Blur taps from pigment box_kernel (composite box_taps removed); length 0 / amount 0 / blend 1 identity bit for bit"
  ],
  "tests": {
   "file": "crates/hsk-studio-composite/tests/effect_families_2.rs (#![cfg(feature = \"motion\")], round unit hsk-studio-composite+motion): blur_family_runs_pigment_kernels_with_edges_and_dimensions, blur_radius_zero_is_identity, animated_effect_parameters_evaluate_per_frame, glow_builds_from_threshold_blur_and_blend, colour_family_maps_onto_pigment_adjustments, entry_blend_modes_and_masks_compose_like_layers (prints the two NOT_PROVEN lines)",
   "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --disk ssd --owner smb-ae-effect-families-2 -- cargo nextest run -p hsk-studio-composite -p hsk-studio-folio -p hsk-studio-package --features hsk-studio-composite/motion",
-  "step0": "lane-check --step0-only: clean (exit 0)",
+  "step0": "clean at 2832b1d0 (exit 0)",
   "run_1": "CANCELLED before lock acquisition (lead pause for R42): own lane-check processes stopped (TERM), own queue ticket removed (rm of the ticket file, as dbl_acquire does on cancel), no other entry or the lock touched; log Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-effect-families-2/run1-4319b6c3.log"
  },
  "blockers": [],
  "bg_pids": [],
- "next": "on the lead message after R42 verdicts: fetch + rebase onto origin/codex/handshake-studio-assets, one bundled lane-check (argv in tests.argv, log run<N>-<sha>.log), fix all visible failures in one commit and re-run once if red; when green: diff --stat check, guarded push, READY_FOR_VALIDATION",
- "updated_at": "2026-10-30T14:40:00Z",
+ "next": "on the lead message after R42: fetch + rebase, ONE bundled lane-check (tests.argv; log run2-<sha>.log; pigment changed on origin so composite/folio/package suites cover it), fix all visible failures in one commit and re-run once if red; when green: diff --stat check, guarded push, READY_FOR_VALIDATION",
+ "updated_at": "2026-10-30T15:10:00Z",
  "notes": {
   "spec_basis (v02.225 module 14)": {
    "STU-FX-004": "\"A `StudioLiveFilter` entry MAY host its own `StudioMask` ... The effect is applied only where the mask is opaque, feathered by the mask's own falloff.\"",
@@ -40,21 +46,18 @@
    "every kernel mapping is a Studio reading: Blurriness = pigment radius (sigma r/2); box half-width/iterations rounding; glow threshold v/255, intensity in premultiplied form, Composite Original semantics, A&B ramp looping and midpoint; Levels per-channel records identity and Channel: a panel selector; Hue/Saturation Channel Control a panel selector; Exposure 2.2 linearisation stand-in; Tint/Tritone as W3C-Lum gradient maps; entry blend Cs' formula",
    "unnamed CHECKBOX rows keyed by the After Effects control they are read as: repeat_edge_pixels (Gaussian row 3, Fast Box row 4), invert (Find Edges row 1), preserve_luminosity (Color Balance row 10), bypass_linear_light_conversion (Exposure row 22), colorize (Hue/Saturation row 7)",
    "Directional Blur Direction hard pair 0..-1.5e-05 read as the no-range encoding (soft 0..7936 kept, declared_soft_only); Hue/Saturation Master/Colorize Hue 0..0 read as Twirl Angle",
-   "blurred layers do not grow beyond the content rect (output clipped)"
+   "blurred layers do not grow beyond the content rect (output clipped)",
+   "Directional Blur Direction mapping (AE 0 = vertical blur read as clockwise from screen-up), Radial Blur amount unit and quality modes, Find Edges Sobel reading (pigment declared readings)"
   ],
   "refused_effects": {
    "not kinds": "Curves (only value row ARBITRARY_DATA without schema id), Brightness & Contrast and Camera Lens Blur (no STU-FX-131 record, STU-FX-146)",
-   "composition_effect_kernel": "Blur/Glow Dimensions Horizontal or Vertical; Directional Blur length > 0; Radial Blur amount > 0 (spin and zoom); Find Edges blend < 1; Gaussian blurriness or glow radius > 1000; Fast Box kernel > 6001 taps",
+   "composition_effect_kernel": "Gaussian blurriness or glow radius > 1000 (pigment MAX_BLUR_RADIUS_PX); Fast Box kernel > 6001 taps (pigment box_kernel BlurError::Parameter)",
    "composition_effect_option": "Glow Operation None / Dissolve / Stencil / Silhouette / Luminescent Premultiply / Alpha Add; Glow Colors Arbitrary Map; Color Phase other than its default; Invert channels HLS/Hue/Lightness/Saturation/YIQ/Luminance/In Phase/Quadrature/Alpha; values outside pigment domains (Levels input_black >= input_white or gamma < 0.1, Exposure stops beyond +-20, offset beyond +-0.5, gamma 10); entry blend dissolve",
    "composition_effect_content": "effects on adjustment layers (STU-CMP-015) and collapsed precomps, unchanged"
   },
   "pigment_kernel_gaps": [
-   "blur_math::blur_window_axis(range: SampleRange, src: &[[f32; 4]], src_rect: Rect, out: Rect, taps: &[f32], axis: BlurAxis /* Horizontal | Vertical */, limits: BlurLimits) -> Result<Vec<[f32; 4]>, BlurError> (Blur/Glow Dimensions 2/3)",
-   "blur_math::directional_blur_window(range: SampleRange, src: &[[f32; 4]], src_rect: Rect, out: Rect, angle_deg: f32, length_px: f32, limits: BlurLimits) -> Result<Vec<[f32; 4]>, BlurError> (Directional Blur)",
-   "blur_math::radial_blur_window(range: SampleRange, src: &[[f32; 4]], src_rect: Rect, out: Rect, centre: [f32; 2], amount: f32, kind: RadialBlurKind /* Spin | Zoom */, limits: BlurLimits) -> Result<Vec<[f32; 4]>, BlurError> (Radial Blur)",
-   "filter_math::find_edges_window(src: &[[f32; 4]], src_rect: Rect, out: Rect, invert: bool, limits: FilterLimits) -> Result<Vec<[f32; 4]>, FilterError> (Find Edges)",
-   "blur_math::box_kernel(half_width_px: u32, iterations: u32) -> Result<Vec<f32>, BlurError> (to take ownership of the box tap vector composite builds in box_taps)",
-   "Camera Lens Blur: an iris-shaped bokeh kernel (no record either)"
+   "resolved by SMB-PIGMENT-AE-KERNELS-1 (a259a3df): box_kernel, blur_window_axis, directional_blur_window, radial_blur_window, find_edges_window",
+   "open: Camera Lens Blur iris/bokeh kernel (no STU-FX-131 record either)"
   ],
   "spec_delta_requests": [
    "STU-FX-131 Curves (ADBE CurvesCustom): a declared schema id for the Curves ARBITRARY_DATA blob (STU-FX-112) so its points can be stored typed",
