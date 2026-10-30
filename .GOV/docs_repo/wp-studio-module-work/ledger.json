@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T17:44:44Z",
+ "updated_at": "2026-10-30T17:52:12Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -12223,17 +12223,17 @@
   {
    "lane_id": "SMB-FIG-GRID-2",
    "crate": "hsk-studio-interop-fig-base + interop-fig-native (GRID import) + hsk-studio-harness-view (design/auto_layout.rs panel)",
-   "phase": "READY at 91038884; recolour anchor fix (granted recolor.rs one-liner) in progress (2026-10-30T17:44:44Z)",
+   "phase": "validation (R45)",
    "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high (GUI lane 2)",
    "lane_file": "builders/lanes/hsk-studio-fig-grid-2.json",
    "brief": "builders/briefs/lane-smb-fig-grid-2.md",
    "worktree": "wt-studio-lanes/smb-fig-grid-2",
    "disk": "lead names it",
-   "candidate": "91038884",
+   "candidate": "825598c6",
    "commits": [],
    "verdicts": [],
-   "note": "Figma GRID end to end: .fig GRID fields decoded from the embedded kiwi schema (no guessed names; stop if no fixture declares them) and mapped to FIG-GRID-1 folio fields; first window auto-layout panel with re-solve on edit (one undo step); only frame/rectangle children resized, vector size changes refused typed; solved vs stored .fig geometry as GRID parity evidence. Base 91cb8889.; 2026-10-30T17:44:44Z pushed ff4ca080..91038884; D: run 2 435/435 (bundled1 broken by the lead editing lane-check.sh mid-run: infrastructure); restyle keeps grid anchors; fig_import carries imported auto-layout into window records; imported frames with text children refused auto_layout_text_layer_unsupported (needs a harness-core second-entry undo step); GRID parity NOT_PROVEN (no GRID fixture)"
+   "note": "Figma GRID end to end: .fig GRID fields decoded from the embedded kiwi schema (no guessed names; stop if no fixture declares them) and mapped to FIG-GRID-1 folio fields; first window auto-layout panel with re-solve on edit (one undo step); only frame/rectangle children resized, vector size changes refused typed; solved vs stored .fig geometry as GRID parity evidence. Base 91cb8889.; 2026-10-30T17:44:44Z pushed ff4ca080..91038884; D: run 2 435/435 (bundled1 broken by the lead editing lane-check.sh mid-run: infrastructure); restyle keeps grid anchors; fig_import carries imported auto-layout into window records; imported frames with text children refused auto_layout_text_layer_unsupported (needs a harness-core second-entry undo step); GRID parity NOT_PROVEN (no GRID fixture); 2026-10-30T17:52:12Z recolour keeps grid anchors: 8dd54d12 (red) + 825598c6 pushed (ls-remote verified); D: run 3 368/368 harness-view + harness (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-2/smb-fig-grid-2-bundled3-825598c6.log)"
   },
   {
    "lane_id": "SMB-ID-FRAME-AUTOSIZE-1",
@@ -12273,7 +12273,7 @@
    "candidate": null,
    "commits": [],
    "verdicts": [],
-   "note": "From SMB-ID-FRAME-AUTOSIZE-1: type Run::cap_height_pt() / x_height_pt() -> Option<f64> from OS/2 so from_type fills cap/x height; switch the reflow refusal to first_baseline_metric_unavailable:<kind> and update interop-layout tests/layout_reflow_folio_export.rs:268-271; host path commits reflow_autosize bounds; IDML auto-size attribute mapping; Folio record for the six STU-LAY-118 rows not stored.; scope at dispatch: type Run::cap_height_pt/x_height_pt (OS/2), layout from_type, refusal code first_baseline_metric_unavailable:<kind> + interop-layout pin, IDML auto-size mapping; folio STU-LAY-118 record and window commit of bounds stay follow-ups. Base ff4ca080."
+   "note": "From SMB-ID-FRAME-AUTOSIZE-1: type Run::cap_height_pt() / x_height_pt() -> Option<f64> from OS/2 so from_type fills cap/x height; switch the reflow refusal to first_baseline_metric_unavailable:<kind> and update interop-layout tests/layout_reflow_folio_export.rs:268-271; host path commits reflow_autosize bounds; IDML auto-size attribute mapping; Folio record for the six STU-LAY-118 rows not stored.; scope at dispatch: type Run::cap_height_pt/x_height_pt (OS/2), layout from_type, refusal code first_baseline_metric_unavailable:<kind> + interop-layout pin, IDML auto-size mapping; folio STU-LAY-118 record and window commit of bounds stay follow-ups. Base ff4ca080.; 2026-10-30T17:52:12Z origin now 825598c6 (FIG-GRID-2 done)"
   },
   {
    "lane_id": "SMB-R43-FOLLOWUPS-1",
@@ -12288,7 +12288,7 @@
    "candidate": null,
    "commits": [],
    "verdicts": [],
-   "note": "F-R43-3 pigment radial blur refuses area x sample bytes / work before the per-pixel walk; F-R43-4 lead decision: STU-FX-118 profile-honest colour parameters (folio StudioColorProfile reference on colour effect parameters, composite converts through prism, missing reference refused typed). Base ff4ca080."
+   "note": "F-R43-3 pigment radial blur refuses area x sample bytes / work before the per-pixel walk; F-R43-4 lead decision: STU-FX-118 profile-honest colour parameters (folio StudioColorProfile reference on colour effect parameters, composite converts through prism, missing reference refused typed). Base ff4ca080.; 2026-10-30T17:52:12Z origin now 825598c6 (FIG-GRID-2 done)"
   },
   {
    "lane_id": "SMB-FIG-GRID-3",
