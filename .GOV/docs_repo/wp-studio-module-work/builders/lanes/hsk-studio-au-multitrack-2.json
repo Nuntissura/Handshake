@@ -1,0 +1,91 @@
+{
+ "crate": "hsk-studio-harness-view",
+ "lane": "SMB-AU-MULTITRACK-2",
+ "status": "HOLD_FOR_RUN",
+ "phase": "HOLD_FOR_RUN: slices 1-3 + source-monitor scope extension committed locally (deda171a, base cf2e46da), unpushed; focused cargo check EXIT 0; waiting for CHAIN-LANDED, then rebase + ONE bundled lane-check on C: + push",
+ "candidate": "deda171a",
+ "commits": [
+  {
+   "slice": 1,
+   "sha": "3ed23b66",
+   "pushed": false,
+   "summary": "clip envelopes follow timeline edits in the same history step; harness-core Run::submit_sequence_and_entry; tests viewer_timeline_audio_2 (7 envelope tests)"
+  },
+  {
+   "slice": 2,
+   "sha": "80551ce9",
+   "pushed": false,
+   "summary": "folio StudioAudioRouting.track_automation + pulse bus_mix Linear lanes; tests audio_routing_records::track_automation_validates_round_trips_and_refuses_typed, bus_mix::track_volume_and_pan_lanes_automate_the_mixdown"
+  },
+  {
+   "slice": 3,
+   "sha": "b7304a01",
+   "pushed": false,
+   "summary": "timeline Volume / Pan lanes editable; 3 tests in viewer_timeline_audio_2; viewer_timeline_audio hostile cases updated"
+  },
+  {
+   "slice": "scope extension (lead grant 2026-10-30)",
+   "sha": "deda171a",
+   "pushed": false,
+   "summary": "source monitor insert/overwrite maintain clip envelopes via timeline/envelopes.rs + submit_sequence_and_entry; remnant matching by source window (insert-shifted right part); test source_monitor_insert_splits_the_envelope_of_a_sync_locked_clip"
+  }
+ ],
+ "tests": {
+  "argv_planned": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-au-multitrack-2 --disk ssd -- cargo nextest run -p hsk-studio-folio -p hsk-studio-pulse -p hsk-studio-package -p hsk-studio-harness-core -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
+  "history": [
+   {
+    "sha": "b7304a01 (pre-commit tree)",
+    "scope": "cargo check --tests folio, pulse, harness-core, harness-view (desktop, audio-batch); harness-view (viewer)",
+    "exit": 0,
+    "note": "compile only, no tests run"
+   },
+   {
+    "sha": "deda171a (pre-commit tree)",
+    "scope": "cargo check --tests harness-view (desktop, audio-batch) and (viewer)",
+    "exit": 0,
+    "note": "compile only; waited 61 s on the C: lock held by smb-hdr-merge-1"
+   }
+  ],
+  "step0": "lane-check --step0-only EXIT 0"
+ },
+ "blockers": [],
+ "bg_pids": [],
+ "updated_at": "2026-10-30T13:05:00Z",
+ "notes": {
+  "worktree": "wt-studio-lanes/smb-au-multitrack-2 (branch lane/smb-au-multitrack-2, base origin cf2e46da)",
+  "spec_basis": [
+   "v02.225 [STU-FX-137] Audio routing is a first-class part of the document, not an effect property ... Track | Carries channel_type, volume (default 1.0, linear gain), pan (default 0), mute, solo, locked, sync_locked, targeted, is_submix, keyframe_mode",
+   "v02.225 [STU-VID-040] Every operation in this sub-section is one reversible StudioHistoryEntry (14.19). A trim is one step, not one step per frame dragged."
+  ],
+  "one_step_api": "harness-core src/harness.rs (outside action.rs/batch.rs/recording hunks): NEW pub fn Run::submit_sequence_and_entry(op, write, token, bytes) modelled on restructure_and_entry (refused entry write undoes the sequence step); history_step's timeline branch now swaps step.entry after submit_timeline and carries the replaced entry to the opposite stack (before: entry None). Additive; no signature change.",
+  "envelope_rules_declared": "module harness-view timeline/envelopes.rs: points anchored to the source sample (s = source_in + offset*rate; reversed: source_out - offset*rate), remapped into the edited clip, floor to tick; points outside 0..=duration dropped with a linear-in-dB interpolated edge point; a clip that did not exist before (razor right part, overwrite remnant) inherits from the old clip on the same audio track with the same source and speed whose span and source window contain it; removed clips lose theirs; rewritten set validated by Folio against the edited document (refusal refuses the edit: routing_invalid); entry absent / no envelope changed -> plain submit_sequence (entry byte-identical); entry invalid before the edit -> left as is, noted on the status line. Hooked in Viewer::timeline_commit (every timeline edit: trims, slip, slide, roll, razor, lift, ripple delete, move, nudges, trim session, rate stretch, speed/duration). Premiere/Audition behaviour UNVERIFIED (D5).",
+  "track_automation_declared": "Folio StudioTrackAutomation {track_id, param volume|pan, points [{offset_ticks from sequence start, value}]}, volume linear 0..=MAX_AUDIO_LEVEL, pan -1..=1, bounded MAX_TRACK_AUTOMATION_POINTS 4096, one lane per (track, param); unknown/non-audio/submix track InvalidId; absent list not serialized. Pulse: lane replaces the static volume/pan (volume linear in dB between points, held outside; muted submix stays at the floor; an audio track at static volume 0 with a volume lane plays). Track automation stays on the sequence timeline through clip edits (not rippled; UNVERIFIED vs Premiere/Audition).",
+  "outside_owned_paths": "harness-view src/view/source_monitor.rs (scope extension, lead grant); harness-core harness.rs one-step API (brief-allowed); viewer_timeline_audio.rs two hostile cases (pinned behaviour changed: track_automation_not_stored -> value_out_of_range / outside_sequence)",
+  "engine_gaps_for_lead": [
+   "mixer faders (src/view/mixer.rs) edit the static track volume/pan; on a track with an automation lane the mix follows the lane, so a fader move is inaudible there (no UI hint yet)",
+   "clip pan envelope (slice 4) needs pulse src/audio.rs (TimelineMixStream per-clip pan lane), outside owned paths: not built",
+   "master row with master effect parameter lanes (slice 4): timeline layout has no master row type (TrackKind has no master); not built"
+  ],
+  "spec_deltas": [
+   "[STU-FX-137] keyframe_mode named but no clause defines track automation records, point interpolation (linear in dB here) or whether automation replaces or multiplies the fader (replaces here)",
+   "no clause defines how clip keyframes/envelopes follow trim, slip, razor or rate stretch (declared reading above) nor whether track automation ripples with clips (it does not here)",
+   "module 14 still has no AU-14 multitrack clause set (carried from SMB-AU-MULTITRACK-1)"
+  ],
+  "run_ui_md_lines_for_lead": [
+   "Multitrack (lane SMB-AU-MULTITRACK-2): the Volume and Pan lanes of audio and submix tracks are editable like Clip Volume: click adds a point, drag moves it, right click deletes it, one undo step each; volume is drawn in dB. Where a track has a lane, playback and mixdown follow the lane instead of the mixer fader / pan.",
+   "Timeline edits keep clip volume envelopes on their audio: trimming, slipping or rolling shifts or cuts the envelope (an edge point keeps the gain at the new edge), razor gives both parts their part of the envelope, lift and ripple delete remove it; undo restores clip and envelope together."
+  ],
+  "not_proven": [
+   "NOT_PROVEN: real desktop window and real audio device (headless egui, mixer_render samples only)",
+   "NOT_PROVEN: Audition / Premiere parity of envelope-follow and track automation behaviour (no oracle, D5)",
+   "NOT_PROVEN until the bundled run: every test of this lane (only compiled so far)"
+  ],
+  "rule_4a": "bundled run will cover whole suites of folio, pulse, package, harness-core, harness-view, harness (desktop, audio-batch)",
+  "rule_4b": "Folio record field added (StudioAudioRouting.track_automation): hsk-studio-package suite in the bundled run; no reference-vocabulary property names added",
+  "rule_4c": "step 0 clean; no drive-letter or user-profile literal",
+  "rule_4d": "no doc examples added",
+  "rule_4e": "tests/viewer_timeline_audio_2.rs is #![cfg(feature = \"audio-batch\")] like viewer_timeline_audio.rs, run by the harness-view [desktop, audio-batch] unit; envelopes.rs is ungated (viewer-only build checked EXIT 0)",
+  "cargo_lock": "not committed; no new dependency or edge",
+  "scope_extension": "Lead grant 2026-10-30 (data integrity): src/view/source_monitor.rs Viewer::source_edit now commits through Viewer::envelopes_for + Run::submit_sequence_and_entry (typed refusal envelopes_refused); timeline.rs `mod envelopes` -> `pub(super) mod envelopes`; envelopes.rs remnant rule changed from timeline containment to source-window containment + disjoint from the surviving part (an insert splits a sync-locked audio clip and shifts its right part). Test viewer_timeline_audio_2::source_monitor_insert_splits_the_envelope_of_a_sync_locked_clip."
+ }
+}

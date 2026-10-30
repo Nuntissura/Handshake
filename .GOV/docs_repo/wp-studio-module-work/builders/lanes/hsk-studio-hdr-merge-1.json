@@ -1,32 +1,32 @@
 {
  "crate": "hsk-studio-pigment",
  "lane": "SMB-HDR-MERGE-1",
- "status": "HOLD_FOR_RELEASE",
- "phase": "HOLD_FOR_RELEASE; slices 1-3 green at aabca209; da3867d8 (test-file clippy fixes) committed locally, proven by the release run",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-3 pushed at b64650e8 (rebased onto faa69b97); slice 4 out of lane (follow-up)",
  "commits": [
   {
    "slice": 1,
-   "sha": "b69543bc",
-   "pushed": false,
+   "sha": "ec43c82c",
+   "pushed": true,
    "summary": "pigment hdr_merge radiance merge + merge depth capability"
   },
   {
    "slice": 2,
-   "sha": "4985cb90",
-   "pushed": false,
+   "sha": "732ee7ce",
+   "pushed": true,
    "summary": "pigment MTB alignment, deghost, tone-map 32->16/8, capability table, descriptor"
   },
   {
    "slice": 3,
-   "sha": "aabca209",
-   "pushed": false,
-   "summary": "develop merge_raw_brackets (camera-space merge through develop demosaic, reference stage A)"
+   "sha": "194ee14d",
+   "pushed": true,
+   "summary": "develop merge_raw_brackets"
   },
   {
    "slice": "1-3 fix",
-   "sha": "da3867d8",
-   "pushed": false,
-   "summary": "tests/hdr_merge.rs clippy warnings (div_ceil, needless_range_loop); unproven until the release run"
+   "sha": "b64650e8",
+   "pushed": true,
+   "summary": "test-file clippy warnings"
   }
  ],
  "capabilities_done": [
@@ -57,8 +57,8 @@
  "blockers": [],
  "lock_wait_s": null,
  "bg_pids": [],
- "next": "on RELEASE (push order AREA-TYPE-3 -> PS-ACTIONS -> AE-MASK-FEATHER -> this lane): rebase onto origin, ONE bundled lane-check on C: over whole pigment + develop suites (needed: AE-MASK-FEATHER changes folio, a pigment dependency), diff --stat check, PUSH SAFETY push, READY_FOR_VALIDATION",
- "updated_at": "2026-10-30T11:20:00Z",
+ "next": "validation round; follow-up lane for slice 4 (dng_from_hdr + float LinearRaw reader in src/dng.rs)",
+ "updated_at": "2026-10-30T12:00:00Z",
  "notes": {
   "brief": "builders/briefs/lane-smb-hdr-merge-1.md; binding builders/briefs/wave-parity-2-common.md",
   "spec_basis": "STU-RAS-033 (merge bracketed exposures to HDR with ghost removal and tone-mapping; tone-mapping 32/16/8; 32-bit beyond display range), STU-RAS-149 (depth capability metadata; typed refusal naming depth and supported set; no silent promotion), STU-RAS-044 (native on-device offline), STU-RAW-129 (names only; HDR edit mode not in this lane)",
@@ -78,11 +78,14 @@
  "green_local_sha": "aabca2091c3a978db4e918ca6f2ad90683be6d50",
  "lane_check": {
   "run": "tools/lane-check.sh --owner smb-hdr-merge-1 --disk ssd -- cargo nextest run -p hsk-studio-pigment -p hsk-studio-develop --no-fail-fast",
-  "sha": "aabca209",
+  "sha": "b64650e8",
+  "base": "faa69b97",
   "result": "passed",
   "exit": 0,
-  "tests": "380 run, 380 passed, 19 skipped (whole pigment + develop suites; 11 new hdr_merge tests passed)",
-  "clippy": "pigment, develop + dependents [composite, harness, harness-core, harness-view, interop-fig, interop-layout, interop-lrcat, interop-psd, pulse, render-cpu, render-gpu] no errors; 3 warnings in the lane test files (pigment tests/hdr_merge.rs:449 manual div_ceil; develop tests/hdr_merge.rs:204,235 needless_range_loop), left to avoid a re-run; fixed in da3867d8 per lead",
-  "step0": "clean"
- }
+  "tests": "380 run, 380 passed, 19 skipped (whole pigment + develop suites; 11 hdr_merge tests passed)",
+  "clippy": "pigment, develop + dependents: no errors, no warnings in lane files",
+  "step0": "clean",
+  "log": "C:/Users/ILJASM~1/AppData/Local/Temp/claude/D--Projects-LLM-projects-Handshake-Handshake-Worktrees-wt-gov-kernel/78736d01-8cca-4de4-921a-e3cf98762f72/scratchpad/lane-check-smb-hdr-merge-1-b64650e8.log"
+ },
+ "pushed_sha": "b64650e83bfc729d79ea0036644e114315c3eceb"
 }
