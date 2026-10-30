@@ -4,7 +4,7 @@
  "lane": "Repo Governance: Studio records under .GOV/docs_repo/wp-studio-module-work and the WP-KERNEL-STUDIO packet",
  "generated_at": "2026-10-30T21:50:32Z",
  "by": "Studio lead (KERNEL_BUILDER)",
- "status": "PW-01..08 and PW-14 DONE; PW-09..13, PW-15..16 PROPOSED (Operator D4 scope beyond the mechanical block); PW-17 DEFERRED",
+ "status": "PW-01..09, PW-11, PW-14 DONE; PW-10 (four new host-adoption MTs), PW-12 (module catalog), PW-13 (embedding preparation record), PW-15 (lane files), PW-16 (dispatch/workspace rules) PROPOSED; PW-17 DEFERRED",
  "inventory_ref": "research/integration-refactor-inventory-20261030.json",
  "principle": "preservation-first: every existing MT, lane, brief and preparation record keeps its content; the direction is added as a typed block or rule, never by rewriting history; machine-readable JSON is the authority, Markdown only projects it",
  "per_mt_record": {
@@ -148,7 +148,7 @@
    "change": "closure_unit.outcome and proof.checks name the concrete targets: Vulkan shell client mount (MT-36231), central GPU owner client (MT-36206, plus MT-36228 admission), internal_diagnostics DiagEventCode producer + Palmistry survivor proof on the Studio pane (MT-36233), 22 FR-EVT-STUDIO-* registration (MT-36230), controls descriptors -> DeclaredIdentity/Argus (MT-36213/36232), harness as asset-local test host only (MT-36215), observe ring-shaped port (MT-36190), kernel-bindings identity fields client_session_id + process birth + correlation (MT-36216); every 'wgpu device' wording becomes 'central GPU owner grant'",
    "method": "hand per MT, appended as a dated amendment entry, originals preserved",
    "authority": "Operator D4",
-   "status": "PROPOSED"
+   "status": "DONE 2026-10-30T22:52:37Z (Operator \"Yes, amend them\"; kernel 3f22cdff): tools/mt-host-amendments.py appended closure_unit.amendments[HOST-AMEND-001], AC-HOST-INT rows and one HOST-INT proof check per MT; 50 MTs, 190 rows; originals untouched, superseded wording recorded not rewritten; verified against HEAD as strict extensions; report research/mt-host-amendments-write-20261030T225210Z.json"
   },
   {
    "id": "PW-10",
@@ -164,7 +164,7 @@
    "change": "amendment entries: render-gpu is a broker client (no own instance; BackendChoice removed from the public API; Vulkan-first asset-local); controls is descriptor-first with the renderer behind the host adapter; harness is an asset-local test host; observe gains the ring-shaped producer port; kernel-bindings carries client_session_id, process birth and correlation",
    "method": "hand",
    "authority": "Operator D4",
-   "status": "PROPOSED"
+   "status": "DONE 2026-10-30T22:52:37Z (Operator \"Yes, amend them\"; kernel 3f22cdff): tools/mt-host-amendments.py appended closure_unit.amendments[HOST-AMEND-001], AC-HOST-INT rows and one HOST-INT proof check per MT; 50 MTs, 190 rows; originals untouched, superseded wording recorded not rewritten; verified against HEAD as strict extensions; report research/mt-host-amendments-write-20261030T225210Z.json"
   },
   {
    "id": "PW-12",
