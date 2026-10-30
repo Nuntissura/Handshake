@@ -1,0 +1,57 @@
+{
+ "crate": "hsk-studio-harness-view (src/view/vector.rs, src/view/text.rs, tests/viewer_vector_text.rs)",
+ "lane": "SMB-AI-AREA-TYPE-2",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 pushed: 9ee2b546 on origin/codex/handshake-studio-assets (rebased on c4a1ecff); slice 2 not built (see gaps)",
+ "candidate": "9ee2b546",
+ "commits": [
+  {"sha": "9ee2b546", "subject": "harness-view slice 1: live path and area text in the window: the viewer shapes the story of every StudioPathText/StudioAreaText binding for composite (VectorAssets::shaped_story) with the text layers' font resolution and shaping; unshaped stories keep vector_text_not_provided with the reason (Viewer::vector_text_reports, state_json edit.vector.live_texts); Viewer::bind_live_text(_with_font) writes the story and the binding as one undo step"}
+ ],
+ "capabilities_done": [
+  "slice 1: LiveTextAssets in view/vector.rs wraps EntryAssets and implements VectorAssets::shaped_story for the window's render path (prepared_vectors, render_folio_vectors): the story comes from the document's `text` entry and is shaped by text::shaped_story, which resolves every character range's font/size/fill through the same helper text layers now use (text::character, factored out of shape_layers; no second font resolution) and shapes through text::shaped_glyphs (Type TextEngine, same limits/errors); glyph outlines from that font; one paint row per distinct range fill",
+  "an unshapeable story (missing, stored content, unknown or broken font, mixed faces, Type refusal) stays None: composite draws the layer without it and reports vector_text_not_provided; the viewer keeps the reason (Viewer::vector_text_reports -> VectorTextStatus{report, unshaped}; state_json()[edit][vector][live_texts], computed only when the entry has bindings)",
+  "Viewer::bind_live_text / bind_live_text_with_font(layer, text, LiveTextKind::Path | Area{inset_pt}): Folio story (text_kind path/area, styles as place_text: text_size_pt, brush colour) in the text entry, then ONE entry-only undo step writing StudioPathText (whole first path, default options) or StudioAreaText (inset, first baseline ascent, auto-size off); one live binding per layer (a new one replaces the old); refused: open path for area text, empty/multi-line/oversized text, unregistered font, non-finite or out-of-range inset, non-vector layer"
+ ],
+ "tests": {
+  "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-ai-area-type-2 --disk ssd -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
+  "exit": 0,
+  "sha": "9ee2b546",
+  "passed": 279,
+  "failed": 0,
+  "skipped": 20,
+  "history": [
+   {"sha": "ab89e51d (pre-rebase, same tree for harness-view)", "scope": "bundled, ssd", "exit": 0, "passed": 279, "failed": 0},
+   {"sha": "9ee2b546", "scope": "bundled re-run after the rebase onto c4a1ecff (hsk-studio-layout, a harness-view dependency, changed)", "exit": 0, "passed": 279, "failed": 0}
+  ],
+  "lane_tests": ["harness-view viewer_vector_text: area_text_renders_inside_its_container_and_undoes, path_text_renders_along_its_path, unshapeable_story_keeps_the_report_and_hostile_bindings_are_refused"],
+  "red_on_base": "on c951bbf7 the window draws no live text (EntryAssets keeps the default shaped_story None -> vector_text_not_provided); the new test file does not compile there (bind_live_text and vector_text_reports are new API), so red is by construction, not by a run"
+ },
+ "blockers": [],
+ "lock_wait_s": 240,
+ "bg_pids": [],
+ "next": "validation; lead decision on slice 2 placement (hosted.rs/shell.rs) and the export path",
+ "updated_at": "2026-10-30T05:00:00Z",
+ "notes": {
+  "spec_basis": "v02.225 spec-modules/14-studio-creative-suite.md: [STU-TYP-002] (line 9393) area = text reflowed inside a closed container with overflow/overset state, path = text along an open or closed path; [STU-TYP-004] (9401) text-on-path binds a path story to a StudioVectorPath; [STU-TYP-120] (7994) path-text geometry start_t/end_t segment-relative; [STU-VEC-038] (4993) a vector path is usable as a typographic baseline and a text-frame boundary, text owned by the Typography engine",
+  "declared_readings": "one font and size per live story; run metrics = ink extents of the story's glyphs (Type exposes no font vertical metrics to the harness, as view/vector/path_text.rs), cap/x height = that ascent; leading = character style line height (auto = 120% of size); alignment from the first paragraph style (justified -> left); space/tab clusters are break opportunities, LF/U+2029 end a paragraph (bind refuses LF); glyph x/y offsets not carried (composite ShapedGlyph has none); path binding spans the whole first contour (end_t = its segment count); story/style ids derive from the layer uuid (character style flips the RFC variant nibble)",
+  "UNVERIFIED_D5": "Illustrator area-type and type-on-path rendering, auto leading, default options; no oracle case",
+  "run_ui_md_lines": [
+   "Live text on a vector path (API only, no menu yet): Viewer::bind_live_text(layer, text, LiveTextKind::Path | Area { inset_pt }) binds text to the layer's first path; the window draws it live and redraws on path or story edits; Edit > Undo removes the binding.",
+   "state_json()[\"edit\"][\"vector\"][\"live_texts\"] lists each binding: placed / overset glyphs and the area container, or code vector_text_not_provided with the viewer's unshaped reason."
+  ],
+  "gaps": [
+   "slice 2 (Create Outlines for point/area/path text as one typed undoable command) NOT built: the viewer lists vector commands in view/hosted.rs (PanelAction, e.g. OutlineStroke) and shell.rs, neither is an owned path of this lane; and replacing a binding with an outline layer as ONE undo step needs the structure transaction and the vector entry write in one session step (store_entry is not undoable, commit_entry is entry-only). Needs a lead decision on paths/API; composite::vector_text::create_text_outlines is the ready proposal for path/area; point text has no composite proposal",
+   "exports (vector/interop.rs, pdf_export.rs, separations.rs) still pass plain EntryAssets to expand_vectors, so exported files carry no live text (not owned paths; one-line change each to the LiveTextAssets constructor); expand_vectors also drops the report (composite gap from AREA-TYPE-1)",
+   "status-line surface: render_if_dirty (view/mod.rs, not owned) does not echo vector_text_not_provided; the report surface is vector_text_reports / state_json live_texts",
+   "no window UI to author bindings (Type tool on path / area type tool); the binding API is typed only",
+   "view/vector/path_text.rs module doc still says live path text is not drawn by the viewer (stale; not an owned path)"
+  ],
+  "rule_4a": "whole harness-view and harness suites (desktop, audio-batch) in the bundled run",
+  "rule_4b": "no Folio record field added: package suite not required",
+  "rule_4c": "lane-check step 0 clean (V4-03, V4-05); the test uses Scratch temp dirs and the bundled font, no path literals",
+  "rule_4d": "no doc examples added",
+  "rule_4e": "tests/viewer_vector_text.rs starts #![cfg(feature = \"viewer\")]; .config/round-features.toml enables viewer for harness-view: covered",
+  "lead_command_deviation": "the bundled run omitted --tests so the WHOLE suites ran (brief proof + rule 4a); the three lane tests ran inside it",
+  "cargo_lock": "not committed; no new dependency or crate edge"
+ }
+}
