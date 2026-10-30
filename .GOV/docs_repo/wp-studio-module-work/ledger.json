@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T03:25:14Z",
+ "updated_at": "2026-10-30T03:37:42Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -10764,18 +10764,22 @@
   {
    "lane_id": "SMB-ID-CJK-KINSOKU-1",
    "crate": "hsk-studio-layout (new cjk.rs + paragraph.rs/folio_input.rs/lib.rs hunks) + hsk-studio-folio (new cjk_composition.rs + lib.rs) + package tests/externals.rs",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "blocked_on": null,
    "owner": "builder (Opus/high), lead dispatch 2026-10-24T12:45:14Z",
    "lane_file": "builders/lanes/hsk-studio-id-cjk-kinsoku-1.json",
    "brief": "builders/briefs/lane-smb-id-cjk-kinsoku-1.md",
    "worktree": "wt-studio-lanes/smb-id-cjk-kinsoku-1 (lane/smb-id-cjk-kinsoku-1 @bfb5843c, created by the lead)",
    "disk": "D: (CARGO_BUILD_JOBS=6) while R40 holds C:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "c4a1ecff",
+   "commits": [
+    "88c7eb6f folio cjk_composition@1 record set",
+    "40baad6d layout kinsoku + mojikumi composer, reflow_cjk",
+    "c4a1ecff layout fix: 17 base sets distinct"
+   ],
    "verdicts": [],
-   "note": "InDesign ID-11 horizontal kinsoku + mojikumi spacing (declared JLREQ/CLREQ tables with attribution; spec names the 17 sets without values); Folio slice pushed first",
+   "note": "InDesign ID-11 horizontal kinsoku + mojikumi spacing (declared JLREQ/CLREQ tables with attribution; spec names the 17 sets without values); Folio slice pushed first; READY 2026-10-30 on c4a1ecff: bundled layout+folio+package 268/268 on C:, clippy and step 0 clean, re-run green after rebase onto c951bbf7; one failed run (two base sets identical) fixed in c4a1ecff; declared readings from JLREQ/CLREQ (17 set values unpublished), kinsoku tables JLREQ 3.1.7, attribution in module docs + layout NOTICE; lead waiver HBR-STOP-005: additive edit of layout threaded_reflow.rs and new layout/NOTICE outside the brief paths (same owned crate, no public shape change) accepted; gaps: use_cid_mojikumi refused, vertical text, IDML import of the tables, leading model STU-TYP-139, no real-shaper CJK test; InDesign parity UNVERIFIED (D5)",
    "remediation": null
   },
   {

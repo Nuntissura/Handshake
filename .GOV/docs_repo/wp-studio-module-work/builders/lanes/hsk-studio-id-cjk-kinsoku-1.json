@@ -1,0 +1,62 @@
+{
+  "crate": "hsk-studio-folio, hsk-studio-layout, hsk-studio-package (tests/externals.rs)",
+  "lane": "SMB-ID-CJK-KINSOKU-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-4 pushed: folio 88c7eb6f, layout 40baad6d + c4a1ecff (origin tip c4a1ecff) after green bundled lane-check on C: (ssd)",
+  "commits": [
+    {
+      "sha": "88c7eb6f",
+      "subject": "folio: hsk.studio.cjk_composition@1 record set (STU-TYP-136/137/138); package externals schema line"
+    },
+    {
+      "sha": "40baad6d",
+      "subject": "layout: CJK kinsoku + mojikumi composition in the item model, 17 base sets + JLREQ hard/soft kinsoku as data, reflow_cjk composer wiring (single_line / every_line); non-CJK unchanged"
+    },
+    {
+      "sha": "c4a1ecff",
+      "subject": "layout: unfixed (no_float) line-end aki compresses for full stops too (17 base sets distinct)"
+    }
+  ],
+  "capabilities_done": [
+    "STU-TYP-136/137/138 Folio record set hsk.studio.cjk_composition@1: kinsoku tables (4 char sets), mojikumi tables over all 17 base sets + aki overrides + use_cid_mojikumi, named composers (scope, engine, tables), paragraph-style bindings with kinsoku_type/kinsoku_hang_type/bunri_kinshi/rensuuji/burasagari_type/kinsoku_order; unresolvable names DanglingReference",
+    "STU-TYP-137 kinsoku in the Knuth-Plass item model: cant_begin/cant_end/cant_be_separated, bunri_kinshi (+U+2025/U+2026/U+2E40), rensuuji, kinsoku_type push-in/push-out/push-out-only/prioritize-adjustment (kinsoku_order tie), hanging punctuation burasagari/kinsoku_hang (optional/forced); shipped hard_kinsoku/soft_kinsoku from W3C JLREQ",
+    "STU-TYP-138 mojikumi: JLREQ classes by codepoint, half-width punctuation boxes + class-pair aki glue (line-end/line-start parts), all 17 base sets shipped as distinct data, aki_override_list incl. line_start/line_end, use_cid_mojikumi refused unsupported_composition",
+    "STU-TYP-136 composer wiring: reflow_cjk resolves style -> binding -> named composer -> tables (unresolvable = invalid_input, non-latin_cjk engine = unsupported_composition), composes single_line and every_line, paragraph composition_scope overrides the composer; CJK line spacing returned as gaps; non-CJK paragraphs byte-identical to reflow_flow"
+  ],
+  "tests": {
+    "argv": "lane-check.sh --owner smb-id-cjk-kinsoku-1 --disk ssd -- cargo nextest run -p hsk-studio-layout -p hsk-studio-folio -p hsk-studio-package --no-fail-fast",
+    "exit": 0,
+    "sha": "c4a1ecff",
+    "passed": 268,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": null,
+  "bg_pids": [],
+  "next": "validation round; follow-ups: IDML import of kinsoku/mojikumi (interop-layout), vertical composition, CID mojikumi, real-shaper CJK test with a checked-in CJK font",
+  "updated_at": "2026-10-30T03:37:18Z",
+  "notes": {
+    "spec_basis_recheck_v02_225": "STU-TYP-132 and STU-TYP-135..140 re-grepped in master-spec-v02.225/spec-modules/14-studio-creative-suite.md: text identical to v02.222 (awk clause extract + diff, 2026-10-30)",
+    "spec_basis": "v02.225 spec-modules/14-studio-creative-suite.md STU-TYP-132, 135, 136, 137, 138, 140 (text identical to v02.222; re-grepped 2026-10-30)",
+    "run_history": [
+      "run1 D: folio+package green 159/159 at 0ab2eb03 (pushed as 88c7eb6f)",
+      "run2 C: layout+folio+package 265/266: all_seventeen_base_sets_are_shipped_and_distinct (period_one_em == uke_one_half_em: unfixed full-stop line-end aki equalled full-width) -> fix c4a1ecff",
+      "run3 C: 266/266 green; rebase onto c951bbf7 touched type+folio -> run4 C: 268/268 green at c4a1ecff"
+    ],
+    "out_of_brief_paths": "crates/hsk-studio-layout/src/threaded_reflow.rs (additive: reflow_core with CJK paragraphs, compose_flow CJK param/branch, Composition.cjk; Line/TypesetOptions/ShapedParagraph public shapes unchanged) and crates/hsk-studio-layout/NOTICE (W3C attribution). Needed because the reflow loop owns item building, breaking and line finishing; waiver requested from the lead. paragraph.rs and folio_input.rs not touched (build_items kept for Latin; CJK resolution lives in cjk.rs).",
+    "spec_deltas": [
+      "STU-TYP-138 gives no aki values: Japanese sets from JLREQ 3.1.4/3.2.2/3.8 (half-width bracket/comma/full-stop boxes + 1/2 em aki, middle dots 1/4 em each side, consecutive punctuation shares one aki, ideograph letter-spacing stretch 1/4 em, CJK-western 1/4 em natural 0..1/2), Chinese defaults from CLREQ 3.1 (full-width, simplified compresses at line end, traditional never)",
+      "set-name readings: indent none|one_em|one_or_one_half_em (1 em; +1/2 em before a paragraph-initial opening bracket); groups uke = closing brackets + commas, period = full stops, all = both; one_half_em = half-width at line end, one_em = full-width fixed, no_float = unfixed (1/2 em compressible to none); unnamed groups: uke_one_half_em keeps full stops unfixed, uke_no_float sets full stops half-width, period_one_em sets uke half-width; Chinese defaults indent 2 em",
+      "STU-TYP-137 gives no default contents: shipped hard_kinsoku/soft_kinsoku from JLREQ 3.1.7 (hard: cl-02..07, 09..11 cannot begin; soft: cl-02, 04..07; both: cl-01 cannot end, cl-08 inseparable, comma + full stop hang)",
+      "bunri_kinshi characters read as U+2025, U+2026, U+2E40",
+      "kinsoku_hang_type and burasagari_type map to one hang mode (none / optional / forced, stronger wins); kinsoku_order used only as the prioritize_adjustment tie rule in single_line scope",
+      "kinsoku_type in every_line scope is a penalty bias (KINSOKU_BIAS 50) on the disfavoured break, push_out_only removes aki shrink; HANG_COST 100 for optional hangs",
+      "paragraph kinsoku attributes stored on per-paragraph-style bindings (no local paragraph override); composer without a kinsoku table = no kinsoku; without a mojikumi table = nothing",
+      "CJK paragraphs are not hyphenated; western runs inside them break at UAX #14 opportunities; the Adobe-parity Latin constants are not applied to CJK",
+      "use_cid_mojikumi refused (unsupported_composition): no glyph-CID class mapping",
+      "leading model STU-TYP-139 not stored"
+    ],
+    "unverified_D5": "InDesign shipped kinsoku sets and the aki values of its 17 mojikumi sets, push-in/push-out tie rules, hanging width: NOT_PROVEN (no InDesign CJK oracle case); no real-shaper CJK test (no checked-in CJK-capable test font found in the corpus; not searched beyond the brief)",
+    "round_parity": "step 0 clean; no doc examples added (no doctest run needed); all tests default-feature; no new deps or edges; Cargo.lock untouched"
+  }
+}
