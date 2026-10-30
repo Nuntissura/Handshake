@@ -1,0 +1,116 @@
+{
+ "crate": "hsk-studio-harness-view (develop export files), hsk-studio-harness (tests, CLI flags)",
+ "lane": "SMB-LR-EXPORT-GUI-1",
+ "status": "IN_PROGRESS",
+ "phase": "CODE_READY_FOR_RUN: head 7e69b83d on lane/smb-lr-export-gui-1 (base e1e06156), focused 10/10 on D:, step 0 clean; waiting for the lead's disk + base (after SMB-PR-NEST-1). At push: rebase, squash 905ad603 (slice 1 red, does not compile) into b51109bd; 2a917910 and 8b30cc3d compile and fail their tests (kept as red-first)",
+ "candidate": "",
+ "commits": [
+  {
+   "slice": "pins",
+   "sha": "",
+   "pushed": false,
+   "summary": "digests of today's develop exports captured at e1e06156 with an uncommitted capture test (log pins-e1e06156.log); not a commit"
+  },
+  {
+   "slice": "1 red",
+   "sha": "905ad603",
+   "pushed": false,
+   "summary": "tests/viewer_develop_export_stage.rs slice 1 tests (do not compile before the API; local only, squash before push per RED COMMITS)"
+  },
+  {
+   "slice": "1",
+   "sha": "b51109bd",
+   "pushed": false,
+   "summary": "export stage as DevelopDoc state beside DevelopExport (unchanged, Copy); staged PNG/JPEG/TIFF, DNG ignores the stage; receipt in report, status log and state_json; new view/develop/export_dialog.rs"
+  },
+  {
+   "slice": "2 red",
+   "sha": "2a917910",
+   "pushed": false,
+   "summary": "dialog tests (preview, invalid percentage, TIFF/DNG buttons, text watermark)"
+  },
+  {
+   "slice": "2",
+   "sha": "d8ecf4c9",
+   "pushed": false,
+   "summary": "develop panel draws the export dialog (STU-IO-135 groups, every EXPORT_STAGE_KEYS row with class and default source, W x H preview, inline typed error) and Export developed TIFF / Export DNG; PNG/JPEG/TIFF disabled while the stage is invalid"
+  },
+  {
+   "slice": "3 red",
+   "sha": "1914c53f",
+   "pushed": false,
+   "summary": "cli_stage_flags_build_the_same_stage_as_the_dialog"
+  },
+  {
+   "slice": "3",
+   "sha": "321e0739",
+   "pushed": false,
+   "summary": "develop CLI --export-set KEY VALUE, --long-edge N, --sharpen media:amount, --watermark FILE through the dialog's field path"
+  },
+  {
+   "slice": "2 fix",
+   "sha": "caee6352",
+   "pushed": false,
+   "summary": "short stage switch label (panel width)"
+  },
+  {
+   "slice": "defaults red",
+   "sha": "8b30cc3d",
+   "pushed": false,
+   "summary": "switching_on_with_no_group_enabled_exports_byte_identically_to_the_empty_stage; resize tests turn constrain_size on (compiles, fails)"
+  },
+  {
+   "slice": "defaults",
+   "sha": "7e69b83d",
+   "pushed": false,
+   "summary": "dialog_start (develop defaults, every group off: constrain_size false; Studio reading, Lightroom UNVERIFIED); any_group_on false = unstaged entries (byte-identical), report reason no_group_enabled; CLI --long-edge sets constrain_size; harness src/lib.rs DESCRIPTOR develop usage line (lead grant)"
+  }
+ ],
+ "focused_runs": {
+  "dir": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-lr-export-gui-1/",
+  "logs": [
+   "pins-e1e06156.log (base digests)",
+   "focused-1-2a917910-wip.log (8/8)",
+   "focused-2-321e0739.log (9/9 tests/viewer_develop_export_stage.rs)",
+   "focused-3-side-panels-wip.log (harness-view viewer_side_panels + viewer_develop_spot 10/10 at 321e0739 + the caee6352 label change)",
+   "focused-4-8b30cc3d-wip.log (10/10 with the group-off change, committed unchanged as 7e69b83d)"
+  ],
+  "step0": "lane-check --step0-only clean at 321e0739"
+ },
+ "tests": {
+  "harness tests/viewer_develop_export_stage.rs (#![cfg(feature = \"viewer\")], round unit hsk-studio-harness [\"viewer\"])": [
+   "empty_stage_exports_stay_byte_identical_to_the_pinned_digests",
+   "switching_on_with_no_group_enabled_exports_byte_identically_to_the_empty_stage",
+   "long_edge_64_gives_the_hand_computed_size_in_the_header_and_the_report",
+   "sharpen_screen_standard_changes_pixels_and_reports_the_engine_row",
+   "watermark_2x2_lands_at_the_anchor_rect_the_receipt_reports",
+   "dialog_fields_drive_the_size_preview",
+   "invalid_percentage_shows_the_typed_error_and_disables_export",
+   "export_tiff_and_dng_buttons_write_files_whose_headers_parse",
+   "text_watermark_is_refused_typed_and_a_graphic_file_is_placed",
+   "cli_stage_flags_build_the_same_stage_as_the_dialog"
+  ]
+ },
+ "blockers": [],
+ "bg_pids": [],
+ "updated_at": "2026-10-30T15:21:13Z",
+ "notes": {
+  "brief": "builders/briefs/lane-smb-lr-export-gui-1.md (LR-33 of research/parity-20261023-adobe-print.json); binding builders/briefs/wave-parity-2-common.md; engine lane builders/lanes/hsk-studio-lr-export-sizing-1.json",
+  "worktree": "wt-studio-lanes/smb-lr-export-gui-1, branch lane/smb-lr-export-gui-1, base e1e06156",
+  "spec_basis": "module 14 (master-spec-v02.225): STU-IO-134 (:21057) per key stored setting vs surface-only, never promoted (dialog shows develop's KeyStorage per row: stored_setting / unclassified); STU-IO-135 (:21059) group order image_sizing, watermarking, output_sharpening (dialog order); STU-IO-136/137 domains and bounds are develop's (no restatement, no clamp in the view); STU-IO-138 studio_declared label shown per row from EXPORT_STAGE_KEYS.default_source",
+  "group_order_question": "RESOLVED (lead 2026-10-30): the spec wins. Brief error: it states 'Image Sizing, Output Sharpening, Watermarking' as STU-IO-135, but STU-IO-135 (:21059) lists image_sizing, watermarking, output_sharpening; the dialog follows the spec.",
+  "design": "the stage lives in DevelopDoc (develop.rs) as Option<ExportStage>: None (default) = unstaged entries (byte-identical, pinned); switching on starts from export_dialog::dialog_start() = ExportStage::default() with constrain_size false (every group off; lead answer 2, Studio reading, Lightroom UNVERIFIED; engine defaults unchanged); a set stage with no group on exports through the unstaged entries (byte-identical, test switching_on_with_no_group_enabled...). Stage state is per opened raw (reset on open). Viewer::set_develop_export_stage(ExportStage) / clear_develop_export_stage() / develop_export_stage() / set_develop_export_field(id, text) / load_develop_watermark(path). Size preview source = develop window (prepared.window) of the raw.",
+  "receipt_and_log": "report key export_stage = ExportStageReceipt (applied, source/output size, fit rule, scale, resized, filter, resolution_ppi, sharpening row, sharpen_out_of_range, watermark rect/anchor/rotation/opacity, out_of_range); null when no stage; DNG {applied:false, reason: dng_preview_not_staged}. Operation log = the viewer status log line of export_develop (no chronicle op: exports commit nothing).",
+  "tiff_dpi": "staged TIFF writes the stage resolution as dpi (develop tiff_from_staged_output); the report's dpi field stays the requested setting (None for the button); a requested dpi that differs is develop's resolution_conflict",
+  "watermark_graphic": "PNG/JPEG decoded by interop-raster with max_dimension = develop MAX_WATERMARK_SIDE and an aggregate budget, then pre-checked against MAX_WATERMARK_PIXELS before conversion; samples read as sRGB-encoded (MarkTransfer::SrgbTrc), embedded profile not applied (Studio reading, UNVERIFIED)",
+  "file_dialog": "the graphic button opens its own FileDialog (Purpose::Open) only while the shell's dialog is closed (shared widget ids dialog.*); no shell.rs or file_dialog.rs change",
+  "unverified": "Lightroom export dialog layout and every Studio reading of develop's stage (D5)",
+  "out_of_owned_paths": "none. hsk-studio-harness src/lib.rs one usage line (granted, see help_text); RUN-UI.md lines to add: 'Develop panel > Apply export settings: Image Sizing / Watermarking / Output Sharpening rows (ids develop.export.<key>), W x H preview, typed error disables PNG/JPEG/TIFF' and 'Export developed TIFF (develop.export.tiff) / Export DNG (develop.export.dng), files <save path>.develop.tif / .develop.dng'",
+  "remaining": "export presets (STU-IO-134 stored export setting needs a Folio record; later lane); text watermarks (engine refusal, shown typed); file-size limit; DNG preview not staged (engine)",
+  "shell_mod_hunks": "none: no shell.rs or mod.rs registration needed (dialog ids in its own widget module)",
+  "rule_4e": "tests/viewer_develop_export_stage.rs is #![cfg(feature = \"viewer\")]; .config/round-features.toml has hsk-studio-harness [\"viewer\"]: compiled in rounds",
+  "step0": "no drive-letter or profile literals in lane hunks (tests use Scratch tempdirs); lane-check --step0-only to run before the bundled run",
+  "help_text": "lead grant 2026-10-30: one-line edit of the develop usage in hsk-studio-harness src/lib.rs DESCRIPTOR (adds [--long-edge N] [--sharpen screen|glossy|matte:low|standard|high] [--watermark FILE] [--export-set KEY VALUE]...); the second develop 'cli' string in the same DESCRIPTOR and harness-core manual.rs not edited"
+ },
+ "next": "wait for the lead's disk + base; then rebase, squash the non-compiling red commits, bundled lane-check (clippy harness-view + harness, whole harness-view suites [viewer] and [desktop,audio-batch], harness viewer units), push, READY_FOR_VALIDATION"
+}

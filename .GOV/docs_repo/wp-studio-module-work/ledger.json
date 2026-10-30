@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T15:00:13Z",
+ "updated_at": "2026-10-30T15:29:48Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11793,22 +11793,29 @@
   {
    "lane_id": "SMB-PR-NEST-1",
    "crate": "hsk-studio-pulse + hsk-studio-harness-core (one Run step) + hsk-studio-harness-view (timeline)",
-   "phase": "coding (dispatched 2026-10-30T14:56:13Z)",
-   "status": null,
+   "phase": "validation (R44)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high (GUI lane 2)",
    "lane_file": "builders/lanes/hsk-studio-pr-nest-1.json",
    "brief": "builders/briefs/lane-smb-pr-nest-1.md",
    "worktree": "wt-studio-lanes/smb-pr-nest-1",
    "disk": "lead names it",
-   "candidate": null,
-   "commits": [],
+   "candidate": "bdc15f15",
+   "commits": [
+    "6e0f393b",
+    "b1e05e51",
+    "1d2c5f12",
+    "e6390919",
+    "90f778e2",
+    "bdc15f15"
+   ],
    "verdicts": [],
-   "note": "Premiere PR-08 Nest / Make Subsequence (STU-VID-030) with nested video/audio/trim playback (pulse playback does not follow nested sequences today). Base 5328a6a2; STU-VID-030a keep-frame-rate/resolution booleans deferred (MAY clause, folio collision with ARROWHEADS)."
+   "note": "Premiere PR-08 Nest / Make Subsequence (STU-VID-030) with nested video/audio/trim playback (pulse playback does not follow nested sequences today). Base 5328a6a2; STU-VID-030a keep-frame-rate/resolution booleans deferred (MAY clause, folio collision with ARROWHEADS).; 2026-10-30T15:29:48Z pushed e1e06156..bdc15f15 (ls-remote verified); D: run 432/432 (20 skipped) exit 0, pulse + harness-core + harness-view + harness + interop-media (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nest-1/lane-check-smb-pr-nest-1-bdc15f15.log); history labels sequence.nest / sequence.make_subsequence, RUN_COMMANDS document.submit_sequence_edits (session receipt stays multicam.step); export refuses nested clips (nest_unresolved: TimelineExport carries no document); nesting clips with routing envelopes refused (nest_clip_envelopes_unsupported); scope extensions mixer.rs + timeline_export.rs"
   },
   {
    "lane_id": "SMB-AI-ARROWHEADS-1",
    "crate": "hsk-studio-folio (stroke_markers) + hsk-studio-nib (markers.rs) + hsk-studio-composite",
-   "phase": "coding (dispatched 2026-10-30T14:56:13Z); pushes last of the wave (folio upstream of all)",
+   "phase": "D: claim run at the bdc15f15 rebase (2026-10-30T15:29:48Z); pushes after LR-EXPORT-GUI-1",
    "status": null,
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-ai-arrowheads-1.json",
@@ -11823,7 +11830,7 @@
   {
    "lane_id": "SMB-LR-EXPORT-GUI-1",
    "crate": "hsk-studio-harness-view (develop export dialog) + hsk-studio-harness (cli flags, test)",
-   "phase": "coding (dispatched 2026-10-30T15:00:13Z); runs after SMB-PR-NEST-1 pushes",
+   "phase": "D: claim run at the bdc15f15 rebase (2026-10-30T15:29:48Z)",
    "status": null,
    "owner": "builder opus/medium (GUI)",
    "lane_file": "builders/lanes/hsk-studio-lr-export-gui-1.json",
@@ -11834,6 +11841,21 @@
    "commits": [],
    "verdicts": [],
    "note": "Window export dialog for SMB-LR-EXPORT-SIZING-1 (resize, sharpening, watermark) plus Export TIFF / DNG buttons; empty stage byte-identical to today.; base e1e06156"
+  },
+  {
+   "lane_id": "SMB-PR-NEST-2",
+   "crate": "hsk-studio-pulse + hsk-studio-harness-view (timeline_export, monitor sync)",
+   "phase": "queued (follow-up of SMB-PR-NEST-1)",
+   "status": null,
+   "owner": "builder opus/high",
+   "lane_file": null,
+   "brief": null,
+   "worktree": null,
+   "disk": null,
+   "candidate": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "From SMB-PR-NEST-1 gaps: export resolves nested sequence clips (TimelineExport gains the document or a resolver; today refused nest_unresolved); nesting clips that carry routing envelopes (today refused nest_clip_envelopes_unsupported); program monitor resolves nested clips without a prior timeline sync."
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

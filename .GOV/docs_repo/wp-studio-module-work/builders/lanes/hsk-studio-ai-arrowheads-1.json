@@ -1,0 +1,136 @@
+{
+ "crate": "hsk-studio-folio (src/vector.rs, src/vector_markers.rs, src/lib.rs, tests/vector_markers.rs, src/paint.rs one doc line) + hsk-studio-nib (src/markers.rs, src/lib.rs, tests/markers.rs) + hsk-studio-composite (src/vector.rs, tests/vector_markers.rs)",
+ "lane": "SMB-AI-ARROWHEADS-1",
+ "status": "CODE_READY_AWAITING_BUNDLED_RUN",
+ "phase": "slices 1-3 + follow-up green on focused D: runs, 7 local commits (base 5328a6a2), nothing pushed; order: SMB-PR-NEST-1, then SMB-LR-EXPORT-GUI-1 push first; this lane waits for the lead's disk + base",
+ "candidate": "d5f83f81 (local, pre-rebase)",
+ "commits": [
+  {
+   "sha": "f6013459",
+   "slice": "1 red",
+   "subject": "folio test: stroke_markers record tests; stub validator and swap"
+  },
+  {
+   "sha": "c80b76a4",
+   "slice": "1",
+   "subject": "folio: StudioVectorRecords::stroke_markers (STU-VEC-146)"
+  },
+  {
+   "sha": "5c64dd68",
+   "slice": "2 red",
+   "subject": "nib test: markers module; marker_outlines stubbed"
+  },
+  {
+   "sha": "8dd87038",
+   "slice": "2",
+   "subject": "nib: markers::marker_outlines"
+  },
+  {
+   "sha": "97448a91",
+   "slice": "3 red",
+   "subject": "composite test: stroke marker rendering tests; REFUSE_MARKER_* constants"
+  },
+  {
+   "sha": "45d6c7c4",
+   "slice": "3",
+   "subject": "composite: stroke arrowheads in the Folio adapter"
+  },
+  {
+   "sha": "d5f83f81",
+   "slice": "follow-up (lead answers a/b)",
+   "subject": "composite test: vector_marker_network refusal pinned; folio paint.rs module note (one doc line)"
+  }
+ ],
+ "capabilities_done": [
+  "folio: StudioVectorRecords::stroke_markers (StudioStrokeMarkers per Stroke row: start/end tokens verbatim from the 26-token StudioArrowhead catalogue, scales percent hard 1..=1000, alignment inside/outside path), validated with typed codes, swap_markers, DESCRIPTOR sentence; absent member byte-identical",
+  "nib: markers::marker_outlines (18 shapes, end-tangent orientation with degenerate fallback, inside_path trim by arc length, outside_path extension, closed/consumed subpaths reported, typed MarkerError codes, ERD marker_shape_unbuilt)",
+  "composite: Folio adapter unions marker outlines into the stroke row's coverage (StrokeGeometry row), trimmed stroke under inside_path, dashes never dash markers, typed refusals; supersampled keeps vector_stroke_not_rendered"
+ ],
+ "tests": {
+  "history": [
+   {
+    "sha": "f6013459",
+    "run": "folio red (D:)",
+    "exit": 100,
+    "passed": 2,
+    "failed": 2,
+    "failures": "hostile_marker_entries_are_refused_with_typed_codes, swap_exchanges_the_ends_and_their_scales (byte identity and round trip pass on the stub record shape)",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-arrowheads-1/smb-ai-arrowheads-1-folio-red-f6013459.log"
+   },
+   {
+    "sha": "c80b76a4",
+    "run": "folio focused (D:)",
+    "exit": 0,
+    "passed": 4,
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-arrowheads-1/smb-ai-arrowheads-1-folio-green-c80b76a4.log"
+   },
+   {
+    "sha": "5c64dd68",
+    "run": "nib red (D:)",
+    "exit": 100,
+    "passed": 0,
+    "failed": 5,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-arrowheads-1/smb-ai-arrowheads-1-nib-red-5c64dd68.log"
+   },
+   {
+    "sha": "8dd87038",
+    "run": "clippy nib+folio --tests, then nib markers + folio vector_markers (D:)",
+    "exit": 0,
+    "passed": 9,
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-arrowheads-1/smb-ai-arrowheads-1-nib-green-8dd87038.log"
+   },
+   {
+    "sha": "97448a91",
+    "run": "composite red (D:, --features motion)",
+    "exit": 100,
+    "passed": 0,
+    "failed": 4,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-arrowheads-1/smb-ai-arrowheads-1-composite-red-97448a91.log"
+   },
+   {
+    "sha": "45d6c7c4",
+    "run": "clippy composite --features motion --tests, then composite vector_markers (D:)",
+    "exit": 0,
+    "passed": 4,
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-arrowheads-1/smb-ai-arrowheads-1-composite-green-45d6c7c4.log"
+   },
+   {
+    "sha": "d5f83f81",
+    "run": "clippy composite --features motion --tests, then composite + folio vector_markers (D:)",
+    "exit": 0,
+    "passed": 8,
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-arrowheads-1/smb-ai-arrowheads-1-focus2-d5f83f81.log"
+   }
+  ],
+  "bundled_runs": 0,
+  "lane_tests": [
+   "folio tests/vector_markers.rs: a_record_set_without_markers_is_byte_identical, stroke_markers_round_trip_through_wire_json, hostile_marker_entries_are_refused_with_typed_codes, swap_exchanges_the_ends_and_their_scales",
+   "nib tests/markers.rs: triangle_on_a_horizontal_line_inside_and_outside_the_path, triangle_on_a_thirty_degree_line, scale_sets_the_marker_size_at_each_end, closed_subpaths_report_no_ends, hostile_marker_input_is_refused_typed",
+   "composite tests/vector_markers.rs: a_triangle_marker_adds_its_analytic_area_to_the_stroke_plane, pixels_away_from_the_marker_match_the_unmarked_render, erd_terminators_and_unsupported_combinations_are_refused_typed, a_dashed_stroke_leaves_the_marker_solid (erd test pins every marker refusal: marker_shape_unbuilt, vector_stroke_not_rendered in supersampled, vector_marker_width_profile, vector_marker_brush, vector_marker_network)"
+  ]
+ },
+ "blockers": [],
+ "bg_pids": [],
+ "next": "lead names disk + base -> rebase, bundled run (clippy folio+nib+composite+dependents; whole suites folio, nib, composite[motion], package)",
+ "updated_at": "2026-10-30T15:18:25Z",
+ "notes": {
+  "spec_basis": "STU-VEC-146 (master-spec-v02.225 14-studio-creative-suite.md:3986): 26-token union catalogue (layout suite 12, collaborative suite 8, ERD extension 6), arrow_start_scale / arrow_end_scale percent hard 1..1000 (soft, default, precision unknown), arrow_alignment {arrow_align.inside_path, arrow_align.outside_path} ('whether the marker tip sits at the path end or beyond it'), independent start/end fields and scales, a swap command; STU-VEC-020 (:3936) stroke entry carries STU-VEC-143..148, no captured attribute dropped; STU-VEC-106 live-effect head_arrow/tail_arrow indices not mapped; STU-VEC-043 (:3152) direction governs arrowhead start/end",
+  "UNVERIFIED_D5": "Illustrator / InDesign / Figma marker shapes, proportions, default scale and the meaning of 'align' (inside_path/outside_path) are Studio readings",
+  "spec_delta_request": "STU-VEC-146 needs (1) marker shape geometry/proportions per token (Studio reading in hsk_studio_nib::markers table), (2) a default for arrow_start_scale/arrow_end_scale (spec: unknown; Studio declares 100, studio_declared), (3) the meaning of Illustrator's arrowhead 'align' (Studio reading: inside_path = tip at the path end and the stroke trimmed by a per-shape depth; outside_path = marker starts at the end), (4) ERD terminator shapes (refused marker_shape_unbuilt), (5) network endpoint markers (STU-VEC-062; composite refuses vector_marker_network); network endpoint markers per STU-VEC-062 added at the lead's request",
+  "declared_readings": "marker size = stroke weight * scale / 100; orientation by the end tangent (degenerate: p3-p2, p3-p1, p3-p0; zero-length end segments skipped); trims by arc length (kurbo for curves); markers on brushed rows and width-profiled paths refused (no defined size)",
+  "red_first": "every slice committed red first (compiles, new tests fail): folio 2/4 fail (the byte-identity and round-trip tests pass on the stub record shape by construction), nib 5/5, composite 4/4",
+  "rule_4b": "Folio record field added (stroke_markers; entry fields style_id/row/start/end/start_scale/end_scale/alignment contain no externals.rs VOCAB word): the hsk-studio-package suite runs in the bundled run; no externals.rs change expected",
+  "rule_4c": "lane-check --step0-only clean at 45d6c7c4",
+  "rule_4d": "no doc examples added or changed",
+  "rule_4e": "no cfg(feature) test files; composite tests run with the round unit motion",
+  "cargo_lock": "not committed; no new dependency (nib uses kurbo 0.13.1 already pinned); no new crate edge",
+  "outside_path_line": "folio src/paint.rs line 25 (module note): arrowheads removed from the not-stored list, pointer to vector_markers.rs; the one outside-path line, approved by the lead 2026-10-30",
+  "accepted_refusals": "lead 2026-10-30: typed refusals for markers on network strokes, brushed rows and width-profiled paths accepted; one test assertion per code",
+  "red_commits": "f6013459, 5c64dd68, 97448a91 each compile and fail their new tests: may stay unsquashed (RED COMMITS rule; lead 2026-10-30)"
+ },
+ "verdicts": []
+}

@@ -1,0 +1,159 @@
+{
+ "crate": "hsk-studio-pulse",
+ "lane": "SMB-PR-NEST-1",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed bdc15f15 to origin/codex/handshake-studio-assets (base e1e06156, fetched and re-read); claim run on D: at bdc15f15 EXIT 0: 432/432, 20 skipped; never claimed PASS",
+ "candidate": "bdc15f15",
+ "commits": [
+  {
+   "slice": "3 red",
+   "sha": "6e0f393b",
+   "pushed": true,
+   "summary": "harness-core corpus row assertion (red, compiles)"
+  },
+  {
+   "slice": "1-2",
+   "sha": "b1e05e51",
+   "pushed": true,
+   "summary": "pulse nest.rs + tests/nest.rs (red test commit squashed in)"
+  },
+  {
+   "slice": "3 harness-core",
+   "sha": "1d2c5f12",
+   "pushed": true,
+   "summary": "Run::submit_sequence_edits, HistoryStep.sequences + undo/redo arm, RUN_COMMANDS row"
+  },
+  {
+   "slice": "3 view",
+   "sha": "e6390919",
+   "pushed": true,
+   "summary": "timeline/nest.rs, toolbar/keys/double-click, monitor + mixer + bus_stream nested resolution, tests/viewer_timeline_nest.rs (red test commit squashed in)"
+  },
+  {
+   "slice": "lead Q2 red",
+   "sha": "90f778e2",
+   "pushed": true,
+   "summary": "tests: nest_refuses_a_clip_with_a_routing_envelope, export_refuses_a_nested_clip_typed"
+  },
+  {
+   "slice": "lead Q2",
+   "sha": "bdc15f15",
+   "pushed": true,
+   "summary": "timeline_export.rs: nested clip refused nest_unresolved naming the clip (lead-granted hunk, refusal variant: the export job holds no document)"
+  }
+ ],
+ "tests": {
+  "history": [
+   {
+    "sha": "3f104776 (pre-commit tree)",
+    "scope": "cargo clippy -p hsk-studio-pulse --tests on D:",
+    "exit": 0,
+    "note": "one needless_lifetimes warning in nest.rs, fixed before commit",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nest-1/check-pulse-1.log"
+   },
+   {
+    "sha": "3f104776 (pre-commit tree)",
+    "scope": "cargo nextest run -p hsk-studio-pulse --test nest on D:",
+    "exit": 0,
+    "passed": 5,
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nest-1/test-pulse-nest-1.log"
+   },
+   {
+    "sha": "909ab30b (pre-commit tree)",
+    "scope": "cargo clippy -p hsk-studio-harness-core -p hsk-studio-harness-view --tests --features hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch on D:",
+    "exit": 0,
+    "note": "no findings in lane files (foreign: 2 manual_clamp in timeline_export/composition.rs)",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nest-1/check-view-2.log"
+   },
+   {
+    "sha": "909ab30b (pre-commit tree)",
+    "scope": "nextest -p harness-core -p harness-view (desktop, audio-batch): corpus_lists_every_run_operation_with_recordability + binary(viewer_timeline_nest) on D:",
+    "exit": 0,
+    "passed": 6,
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nest-1/test-view-nest-1.log"
+   },
+   {
+    "sha": "909ab30b",
+    "scope": "lane-check.sh --step0-only",
+    "exit": 0,
+    "note": "step 0 policy clean"
+   },
+   {
+    "sha": "bdc15f15",
+    "scope": "claim run, bundled lane-check on D: (pulse, harness-core, harness-view, harness, interop-media; harness + harness-view desktop+audio-batch; dependents all in the tested set)",
+    "exit": 0,
+    "passed": 432,
+    "failed": 0,
+    "skipped": 20,
+    "step0": "clean",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nest-1/lane-check-smb-pr-nest-1-bdc15f15.log",
+    "clippy": "no findings in lane files (foreign: manual_clamp timeline_export/composition.rs, harness tests timeline_captions.rs / viewer_media.rs)"
+   }
+  ],
+  "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-pr-nest-1 --disk d -- cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-core -p hsk-studio-harness-view -p hsk-studio-harness -p hsk-studio-interop-media --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch,hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch --no-fail-fast",
+  "sha": "bdc15f15",
+  "exit": 0,
+  "passed": 432,
+  "failed": 0,
+  "skipped": 20,
+  "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nest-1/lane-check-smb-pr-nest-1-bdc15f15.log",
+  "new_tests": "pulse nest 5/5; harness-core corpus row; harness-view viewer_timeline_nest 7/7"
+ },
+ "blockers": [],
+ "bg_pids": [],
+ "updated_at": "2026-10-30T15:29:12Z",
+ "notes": {
+  "worktree": "wt-studio-lanes/smb-pr-nest-1 (branch lane/smb-pr-nest-1, base 5328a6a2)",
+  "spec_basis": [
+   "[STU-VID-030] Nest replaces a selection with a single clip whose source is a newly created sequence containing that selection; Make subsequence creates a sequence from a selection or from the in-to-out range without replacing it; a nested sequence clip is opaque to timeline operations; re-entered by an explicit reveal command; recursive with no fixed depth limit; a cycle is a validation error",
+   "[STU-VID-030a] preserve nested frame rate / resolution: deferred (no Folio field; StudioSequence has no frame size)",
+   "[STU-VID-040] every operation is one reversible StudioHistoryEntry",
+   "STU-VID-041 command ids: cmd.clip.nestify, cmd.sequence.makesubsequence (Shift+U), cmd.sequence.makesubsequencefromintoout, cmd.tlnav.reveal.nested.sequence (Ctrl+Alt+F)"
+  ],
+  "declared_readings": [
+   "selection = named clips plus their whole link groups",
+   "new sequence: parent frame_rate; mirrors only the tracks holding selected clips (kind, per-kind order, name, enabled, muted, sync_locked, targeted, volume, pan; locked/soloed off); clips re-based to 0 from the selection start, floored to the frame grid when video is selected",
+   "Nest: one nested clip per kind present on the lowest-index selected track of that kind, spanning re-base point to selection end, source [0, span) unit speed, linked by the caller's group when more than one; clips move with their ids, markers and transitions; unplayable transitions pruned and listed",
+   "Make Subsequence: copies with fresh clip and record ids, link groups kept; range = targeted tracks (all when none targeted) cut at the edges; locked tracks refuse Nest only",
+   "nested video weight multiplies inner layer weights (group-opacity approximation)",
+   "nested audio = the nested sequence's plain timeline mix (not its bus routing); unrenderable nested sequence plays silent AND is reported (mixer status + mixer_json nest_reports; bus_stream export path refuses instead)",
+   "history label: op sequence.nest / sequence.make_subsequence; the session receipt provider stays multicam.step (session's only multi-sequence step reused unchanged with records passed through; not renamed in session)"
+  ],
+  "unverified": "Premiere receiving track, track mirroring, subsequence range cut and playhead mapping on Open Nested UNVERIFIED (D5)",
+  "spec_deltas": [
+   "STU-VID-030a needs an additive Folio side record (per nested sequence: preserve_frame_rate, preserve_resolution) and StudioSequence frame size; package suite in the lane that adds it (rule 4b)",
+   "no clause defines which track receives the nested clip, how tracks are mirrored, or the subsequence range cut",
+   "no clause defines how a nested clip's clip gain / pan envelopes move with it (this lane refuses nest_clip_envelopes_unsupported)"
+  ],
+  "rule_4c": "no drive-letter or user-profile literal added",
+  "rule_4e": "tests/viewer_timeline_nest.rs is #![cfg(feature = \"viewer\")] (toolbar test also #[cfg(feature = \"desktop\")]); round-features runs harness-view [viewer] and [desktop, audio-batch]",
+  "cargo_lock": "not committed; no new dependency or module edge",
+  "outside_owned_paths": "harness-core tests/action_records.rs (corpus row assertion, the brief's 'test rows in the existing corpus test'); harness-view mixer.rs: Builder type, MixerState.nest_reports and mixer_json nest_reports key (needed to surface silent nested audio, V4-03), beyond the strict 'AudioSources site' wording; shell.rs untouched (mixer extents built in open_mixer's builder)",
+  "run_ui_md_lines_for_lead": [
+   "Nest (lane SMB-PR-NEST-1): select a clip and press Nest in the timeline toolbar: the clip and its linked clips become one nested sequence clip (one undo step).",
+   "Make Subsequence (Shift+U) copies the selected clip, or the program monitor's in-to-out range, into a new sequence and leaves the open sequence unchanged (one undo step).",
+   "Open Nested (Ctrl+Alt+F or double-click a nested clip) shows the nested sequence in the timeline and program monitor; Back to Parent returns; the toolbar shows the nesting path."
+  ],
+  "gaps": [
+   "clip gain/pan envelopes do not follow a nest (refused nest_clip_envelopes_unsupported)",
+   "STU-VID-030a booleans deferred (Folio record shape in spec_deltas)",
+   "export of a sequence with a nested clip is refused nest_unresolved (resolution needs a document on TimelineExport; follow-up)",
+   "program monitor resolves nested clips once the timeline has synced the document (nest_sync_monitor)"
+  ],
+  "scope_extensions": [
+   "mixer.rs (lead-accepted Q1): Builder type takes document sequences and returns nest reports; MixerState.nest_reports; mixer_json key nest_reports",
+   "timeline_export.rs (lead-granted Q2): typed refusal nest_unresolved for an enabled nested sequence clip; resolution did not fit a small hunk (TimelineExport has no document field and is built by struct literals in hsk-studio-harness tests)"
+  ],
+  "lead_answers_20261030": {
+   "q1": "mixer hunks accepted as scope extension",
+   "q2_envelopes": "keep nest_clip_envelopes_unsupported typed with a test (nest_refuses_a_clip_with_a_routing_envelope); lead opens a follow-up lane",
+   "q2_export": "export must not drop nested clips silently: refusal variant implemented with test export_refuses_a_nested_clip_typed"
+  },
+  "rule_4a": "whole suites of pulse, harness-core, harness-view, harness, interop-media (direct dependents of pulse and harness-core)",
+  "rule_4d": "no doc examples added"
+ },
+ "next": "validation round judges SMB-PR-NEST-1 at bdc15f15",
+ "verdicts": []
+}
