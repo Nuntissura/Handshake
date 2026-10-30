@@ -176,6 +176,8 @@ if [ -n "$tests" ]; then
   for n in "${names[@]}"; do [ -n "$n" ] && expr+="${expr:+ | }test(${n})"; done
   run_args+=(-E "$expr")
 fi
+# First output line names the built tree so a log can cite it (F-R43-5): HEAD sha, owner, dirty flag, UTC start.
+echo "HEAD=$(git rev-parse --short=8 HEAD 2>/dev/null || echo unknown) lane=$owner$( [ -n "$(git status --porcelain --untracked-files=no 2>/dev/null)" ] && echo ' dirty') started=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 lane_step0 "$PWD" || exit $?
 case "$disk" in ssd) export STUDIO_BUILD_DISK=ssd ;; d|D) export STUDIO_BUILD_DISK=d ;; *) echo "lane-check: --disk ssd|d" >&2; exit 2 ;; esac
 export STUDIO_OWNER=$owner
