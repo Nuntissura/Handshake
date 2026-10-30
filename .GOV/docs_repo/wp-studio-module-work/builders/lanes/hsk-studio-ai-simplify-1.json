@@ -1,0 +1,54 @@
+{
+ "crate": "hsk-studio-nib",
+ "lane": "SMB-AI-SIMPLIFY-1",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed c6b3733f to origin/codex/handshake-studio-assets (push exit 0, origin re-read = c6b3733f) after rebase onto 1c57c17a (harness-view timeline + mixer.rs only, outside nib and its dependencies: no re-run, lead RELEASE); run result: bundled lane-check run 1 on D: exit 0 at pre-rebase 1eede893 (step 0 clean, clippy nib + 10 dependents, nextest hsk-studio-nib 78/78 passed)",
+ "commits": [
+  {
+   "sha": "11a832ce",
+   "slice": "1-3",
+   "subject": "nib: simplify (STU-VEC-114), smooth (STU-VEC-007), simplify_owned; tests/vector_simplify.rs",
+   "local_pre_rebase": "2908e078"
+  },
+  {
+   "sha": "c6b3733f",
+   "slice": "3",
+   "subject": "nib: descriptor simplify entry",
+   "local_pre_rebase": "1eede893"
+  }
+ ],
+ "capabilities_done": [
+  "nib::simplify::simplify (STU-VEC-114 table, exact mode, subset refit within reported tolerance, angle-threshold corners, straight lines, display-only flags)",
+  "nib::simplify::smooth + SMOOTH_TOOL_DEFAULT 20 (STU-VEC-007)",
+  "nib::simplify::simplify_owned (OwnedPath entry)",
+  "descriptor simplify entry"
+ ],
+ "tests": {
+  "tests/vector_simplify.rs": "13/13 passed (a-i, smoothing x2, owned quad, NOT_PROVEN lines)",
+  "hsk-studio-nib whole suite": "78/78 passed"
+ },
+ "blockers": [],
+ "lock_wait_s": null,
+ "bg_pids": [],
+ "next": "validation round",
+ "updated_at": "2026-10-30T13:00:00Z",
+ "notes": {
+  "spec_basis": "module 14 v02.225: STU-VEC-114 (:3216) Simplify table curve_precision/angle_threshold/smoothing percent|deg precision 2, hard bounds unknown, defaults 0/0/0/false, show_original_path=false and preview=true display-only MUST NOT alter the result, smooth tool smoothing default 20; STU-VEC-100 (:2969) unknown bound = accept any value, MUST NOT clamp, MUST NOT invent a limit; STU-VEC-102 (:2990) soft range UI only; STU-VEC-103 (:2997) step = 10^-precision DERIVED; STU-VEC-106 (:3037) observed values never bounds; STU-VEC-007 (:3270) smooth tool",
+  "owned_paths": "nib src/simplify.rs (new), src/lib.rs (pub mod simplify), src/descriptor.rs (simplify entry), tests/vector_simplify.rs (new); no other nib module touched; no pub(crate) hunk needed (helpers written in-module; infer_mirroring, smooth_curvature, sin_cos_deg are already pub)",
+  "readings": "see src/simplify.rs module doc and descriptor simplify.readings: carry round(v*100)/100 (|v|>=1e13 as given), echoed unclamped; tolerance (100-p)/100*sample-bbox-diagonal*0.05, >=100 exact mode, <0 continues, overflow saturates f64::MAX; exact mode removes duplicates on zero-length straight segments, on-chord anchors between straight segments (1e-9, no backtracking), de Casteljau split anchors (merged cubic within 1e-9); fit keeps a subset of original anchors (ends, closed anchor 0 + farthest, protected corners, every 64th), refits each run with one cubic on the original one-sided tangents (least squares + 4 Newton passes, 32 samples/segment), splits at the anchor nearest the worst sample; angle_threshold protects interior angle < threshold (record unchanged), <=0 none, >180 all; convert_to_straight_lines = chord fit, zero handles, NONE, no smoothing; smoothing after fit toward Catmull-Rom (next-prev)/6 by smoothing/100 on non-protected anchors; display flags never read; kurbo simplify not used (atan2/hypot)",
+  "red_first": "not run red separately (one bundled run per push); by construction every test fails at c719b1dc: module hsk_studio_nib::simplify and descriptor key simplify do not exist",
+  "rule_4a": "bundled run = whole hsk-studio-nib nextest suite; clippy over nib + direct dependents via lane-check",
+  "rule_4b": "no Folio change",
+  "rule_4c": "lane-check --step0-only exit 0; no path literals",
+  "rule_4d": "no doc examples added (no code blocks in simplify.rs docs)",
+  "rule_4e": "nib has no features; tests/vector_simplify.rs is not feature-gated",
+  "public_api": "additive only: new module nib::simplify; no existing signature changed",
+  "cargo_lock": "untouched; no new dependency or crate edge",
+  "slice_4_blend": "not built: lead decision (no parity gain while AI-27 lacks image trace/repeat/intertwine)",
+  "spec_delta_requests": "STU-VEC-103: fine_step = step/10 rounded to the parameter's precision gives 0 for precision-2 parameters (0.001 -> 0.00); descriptor simplify.parameters.steps records fine_step 0.001 unrounded pending a spec ruling",
+  "not_proven": "Illustrator Simplify parity (no D5 oracle case); window Simplify command (no GUI lane)",
+  "diff_stat": "origin 1c57c17a..c6b3733f: nib src/descriptor.rs +1, src/lib.rs +1, src/simplify.rs +782, tests/vector_simplify.rs +417 only"
+ },
+ "verdicts": [],
+ "pushed_sha": "c6b3733f"
+}

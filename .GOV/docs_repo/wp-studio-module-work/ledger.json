@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T08:10:05Z",
+ "updated_at": "2026-10-30T08:25:33Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11215,17 +11215,20 @@
   {
    "lane_id": "SMB-AI-SIMPLIFY-1",
    "crate": "hsk-studio-nib",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/medium",
    "lane_file": "builders/lanes/hsk-studio-ai-simplify-1.json",
    "brief": "builders/briefs/lane-smb-ai-simplify-1.md",
    "worktree": "wt-studio-lanes/smb-ai-simplify-1",
    "disk": "D:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "c6b3733f",
+   "commits": [
+    "11a832ce",
+    "c6b3733f"
+   ],
    "verdicts": [],
-   "note": "Illustrator AI-09 Simplify (STU-VEC-114) in nib, in-crate deterministic algorithm (no kurbo simplify); optional Blend geometry (STU-VEC-032/173); limited single-crate build on D: per placement policy; push held for lead release (planner opus/high 2026-10-30, base c719b1dc)",
+   "note": "Illustrator AI-09 Simplify (STU-VEC-114) in nib, in-crate deterministic algorithm (no kurbo simplify); optional Blend geometry (STU-VEC-032/173); limited single-crate build on D: per placement policy; push held for lead release (planner opus/high 2026-10-30, base c719b1dc); READY at c6b3733f: simplify / smooth (SMOOTH_TOOL_DEFAULT 20) / simplify_owned in-crate, IEEE-exact ops, descriptor entry; lane-check on D: exit 0, nib 78/78 (13 vector_simplify) at pre-rebase 1eede893, rebase onto 1c57c17a touched nothing in nib closure (no re-run). Blend slice not built (lead: no parity gain). NOT_PROVEN: Illustrator Simplify parity (no D5 case), window command. Spec-delta: STU-VEC-103 fine_step rounds 0.001 to 0 at precision 2.",
    "remediation": null
   },
   {
