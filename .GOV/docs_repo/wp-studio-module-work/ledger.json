@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T10:03:38Z",
+ "updated_at": "2026-10-30T10:36:58Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11365,7 +11365,7 @@
   {
    "lane_id": "SMB-AE-EFFECT-FAMILIES-2",
    "crate": "hsk-studio-composite (+ folio only if needed)",
-   "phase": "build",
+   "phase": "hold (no C: runs during R42)",
    "status": null,
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-ae-effect-families-2.json",
@@ -11375,7 +11375,7 @@
    "candidate": null,
    "commits": [],
    "verdicts": [],
-   "note": "After Effects AE-17: blur / glow / colour families in the per-layer effect stack via pigment kernels; entry blend modes (STU-FX-008), entry mask reference (STU-FX-004), adjustment layers (STU-CMP-015) if one slice allows. Base 09a57c06; run waits behind R42 on C:.",
+   "note": "After Effects AE-17: blur / glow / colour families in the per-layer effect stack via pigment kernels; entry blend modes (STU-FX-008), entry mask reference (STU-FX-004), adjustment layers (STU-CMP-015) if one slice allows. Base 09a57c06; run waits behind R42 on C:.; 2026-10-30T10:36:21Z slices 1-4 coded, one local commit 4319b6c3 (rebased on 169d082c), unbuilt (run cancelled for R42); refused: Curves (no data schema), Brightness & Contrast / Camera Lens Blur (no records), one-axis blur, directional/radial blur amounts, Find Edges, some Glow ops, Invert HLS/YIQ/alpha, adjustment layers; pigment kernel gaps in lane file -> SMB-PIGMENT-AE-KERNELS-1 queued",
    "remediation": null
   },
   {
@@ -11392,6 +11392,22 @@
    "commits": [],
    "verdicts": [],
    "note": "F-R41-3 Properties wide row measured + wrapped, INFO_MIN restored; Text tool click on open path -> path text, inside closed path -> area text; Create Outlines Type menu leaf + key; overset echo after path edits + Path Operations live-text summary. Base 169d082c.",
+   "remediation": null
+  },
+  {
+   "lane_id": "SMB-PIGMENT-AE-KERNELS-1",
+   "crate": "hsk-studio-pigment",
+   "phase": "build",
+   "status": null,
+   "owner": "builder opus/high",
+   "lane_file": "builders/lanes/hsk-studio-pigment-ae-kernels-1.json",
+   "brief": "lead dispatch prompt 2026-10-30T10:36:58Z (signatures from SMB-AE-EFFECT-FAMILIES-2 lane notes)",
+   "worktree": "wt-studio-lanes/smb-pigment-ae-kernels-1",
+   "disk": "D:",
+   "candidate": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "pigment kernels requested by SMB-AE-EFFECT-FAMILIES-2 (signatures in its lane file): blur_window_axis (one-axis), directional_blur_window, radial_blur_window (spin/zoom), find_edges_window, box_kernel (move Fast Box Blur taps from composite); then composite lifts the typed refusals. Also serves Photoshop filters.; dispatched 2026-10-30T10:36:58Z at 169d082c on D: (R42 holds C:); push held until lead release",
    "remediation": null
   }
  ],
