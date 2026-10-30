@@ -5,15 +5,15 @@
   "phase": "pushed 09b4f637 to origin/codex/handshake-studio-assets after diagnosis smb-lr-healing-2-1 fix; slices 1-4 + layout fix green",
   "commits": [
     {
-      "sha": "79719fc1",
+      "sha": "5860934e",
       "subject": "harness-view (slices 1-2): enable wiring, typed spot ops, develop.spot.* controls, Develop panel spot section (pushed; was 574047ff)"
     },
     {
-      "sha": "2c6251b4",
+      "sha": "c5d617ee",
       "subject": "interop-lrcat (slice 3): crs:RetouchAreas write-back, circle masks decode, gradient masks a named loss (pushed; was 3a1a3c28)"
     },
     {
-      "sha": "321dba0b",
+      "sha": "4bcd5fc4",
       "subject": "develop (slice 4): SettingsGroup::SpotRemoval copy/sync (pushed; was 80ea5c88)"
     },
     {

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T03:11:13Z",
+ "updated_at": "2026-10-30T03:17:33Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -10817,6 +10817,21 @@
    "verdicts": [],
    "note": "Photoshop PS-30 histogram, info readout, colour sampler (Info panel, Ctrl+Shift+F4); right Properties/Develop panel narrowing check with view/wrap.rs; READY 2026-10-30 on ce5df74c: 531 passed / 0 failed / 20 skipped on C:, step 0 clean; product fix: histogram with no document is null, not an error; the lane loosened two of its OWN new width assertions (R41 validator to review); shortcut Ctrl+Shift+F1 (F4 clashes with Develop in the unmodified-key uniqueness test); right panel: no narrowing reproduced; Properties opens at 445 px vs 300 px default (cause UNVERIFIED); CMYK readout unmanaged; Photoshop numerics UNVERIFIED (D5)",
    "remediation": null
+  },
+  {
+   "lane_id": "SMB-R40-FOLLOWUPS-1",
+   "status": null,
+   "phase": "build",
+   "candidate": "",
+   "owner_paths": [
+    "crates/hsk-studio-motion-js",
+    "crates/hsk-studio-harness-view/src/view/design",
+    "crates/hsk-studio-folio/src/layout_rules.rs"
+   ],
+   "brief": "builders/briefs/lane-smb-r40-followups-1.md",
+   "dispatched_at": "2026-10-30T03:17:33Z",
+   "model": "opus/medium",
+   "note": "R40 code findings: F-R40-2 motion-js host-poll vs kernel-limit kill proof (DESCRIPTOR V4-07), F-R40-5 fig-edit undo result, F-R40-6 folio layout_rules fingerprints sha256 + typed serialization error; worktree wt-studio-lanes/smb-r40-followups-1 at ce5df74c; F-R40-4 lane-file shas fixed by the lead (patch-ids verified)"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
