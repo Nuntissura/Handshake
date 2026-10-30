@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T04:09:44Z",
+ "updated_at": "2026-10-30T04:16:42Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -10830,9 +10830,9 @@
   },
   {
    "lane_id": "SMB-R40-FOLLOWUPS-1",
-   "status": null,
-   "phase": "build",
-   "candidate": "",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
+   "candidate": "c2422d23",
    "owner_paths": [
     "crates/hsk-studio-motion-js",
     "crates/hsk-studio-harness-view/src/view/design",
@@ -10841,7 +10841,12 @@
    "brief": "builders/briefs/lane-smb-r40-followups-1.md",
    "dispatched_at": "2026-10-30T03:17:33Z",
    "model": "opus/medium",
-   "note": "R40 code findings: F-R40-2 motion-js host-poll vs kernel-limit kill proof (DESCRIPTOR V4-07), F-R40-5 fig-edit undo result, F-R40-6 folio layout_rules fingerprints sha256 + typed serialization error; worktree wt-studio-lanes/smb-r40-followups-1 at ce5df74c; F-R40-4 lane-file shas fixed by the lead (patch-ids verified)"
+   "note": "R40 code findings: F-R40-2 motion-js host-poll vs kernel-limit kill proof (DESCRIPTOR V4-07), F-R40-5 fig-edit undo result, F-R40-6 folio layout_rules fingerprints sha256 + typed serialization error; worktree wt-studio-lanes/smb-r40-followups-1 at ce5df74c; F-R40-4 lane-file shas fixed by the lead (patch-ids verified); READY 2026-10-30 on c2422d23: bundled motion-js+harness-view+folio+package+layout 368/0/0 on C:, step 0 clean, post-rebase re-runs layout+folio 236/236, harness-view 82/82; F-R40-6: folio has no sha2 dependency and the workspace-probe allow-list refuses it, so folio carries its own SHA-256 (NIST known-answer tests) -- validator to judge this duplicate-capability choice; fingerprint/state() now return Result; legacy 16-hex FNV values read StaleFingerprint, sync rewrites as sha256; lead waiver HBR-STOP-005: 6 lines layout/src/alternate.rs + 5 assertions tests/alternate_layout.rs forced by the signature change (direct dependent, suite run) accepted; red-first reasoned from code, not run (UNVERIFIED); no test forces a kernel-limit-only kill",
+   "commits": [
+    "61abf23b motion-js F-R40-2 host-poll vs kernel-limit kill counters",
+    "8ca547ae harness-view F-R40-5 undo result in save-failure error",
+    "c2422d23 folio F-R40-6 sha256 fingerprints + typed error + StaleFingerprint for legacy FNV"
+   ]
   },
   {
    "lane_id": "SMB-AU-MULTITRACK-1",

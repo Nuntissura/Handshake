@@ -1,0 +1,94 @@
+{
+ "crate": "hsk-studio-motion-js, hsk-studio-harness-view, hsk-studio-folio, hsk-studio-layout (call sites of the changed folio signature only)",
+ "lane": "SMB-R40-FOLLOWUPS-1",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed c2422d23 to origin/codex/handshake-studio-assets (rebased on 9ee2b546); bundled run green on C: (ssd) 368/368 after the first rebase; layout+folio 236/236 and harness-view 82/82 re-run after two further rebases",
+ "candidate": "c2422d23",
+ "commits": [
+  {
+   "sha": "61abf23b",
+   "finding": "F-R40-2",
+   "subject": "motion-js: count host-poll CPU kills apart from kernel-limit kills and assert the host-poll path"
+  },
+  {
+   "sha": "8ca547ae",
+   "finding": "F-R40-5",
+   "subject": "harness-view: a failed design-state save names a failed rollback undo"
+  },
+  {
+   "sha": "c2422d23",
+   "finding": "F-R40-6",
+   "subject": "folio: SHA-256 link fingerprints with typed serialization errors; legacy FNV values read stale (+ hsk-studio-layout call sites)"
+  }
+ ],
+ "capabilities_done": [
+  "F-R40-2: WorkerStats.killed_os_cpu_host_poll / killed_os_cpu_kernel_limit (parts of killed_os_cpu; host poll = Waited::CpuCap from hsk-studio-worker, kernel = END_OF_PROCESS_TIME notice reclassifying an already dead worker); tests/os_caps.rs job_cpu_cap_gives_typed_budget_and_is_rearmed_per_request asserts (1, 0); wall guard 300 ms..9 s unchanged; DESCRIPTOR os_caps.windows cites the split counters and states the 3.77 s / 408 ms figures were measured once and are not asserted",
+  "F-R40-5: instance.rs checks the rollback undo result; rollback_error says the redraw was undone only on success, otherwise names the undo failure (op_error) and that the document keeps the unsaved redraw",
+  "F-R40-6: linked_story_fingerprint / linked_page_item_fingerprint return Result<String> (InvalidField at <id>/fingerprint on serialization failure), SHA-256 64-hex; StudioLinkedStory/StudioLinkedPageItem::state return Result<StudioLinkState>; new StudioLinkState::StaleFingerprint; pub consts LINK_FINGERPRINT_HEX / LEGACY_FINGERPRINT_HEX; folio DESCRIPTOR and module docs updated"
+ ],
+ "tests": {
+  "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-r40-followups-1 --disk ssd -- cargo nextest run -p hsk-studio-motion-js -p hsk-studio-harness-view -p hsk-studio-folio -p hsk-studio-package -p hsk-studio-layout --features hsk-studio-motion-js/quickjs,hsk-studio-motion-js/test-faults,hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch --no-fail-fast",
+  "exit": 0,
+  "sha": "9b4357a6 (same three commits before the last two rebases)",
+  "passed": 368,
+  "failed": 0,
+  "skipped": 0,
+  "added": [
+   "hsk-studio-motion-js tests/os_caps.rs job_cpu_cap_gives_typed_budget_and_is_rearmed_per_request (host-poll vs kernel-limit assertion added)",
+   "hsk-studio-harness-view view::design::instance::tests::rollback_error_names_a_failed_undo_and_never_claims_the_redraw_was_undone",
+   "hsk-studio-folio layout_rules::fingerprint_tests::fingerprint_serialization_failure_is_a_typed_error",
+   "hsk-studio-folio layout_rules::sha256::tests::sha256_known_answers (FIPS 180-4: empty, abc, two-block, one million a)",
+   "hsk-studio-folio tests/layout_rule_records.rs link_fingerprints_are_sha256_and_legacy_fnv_values_read_stale"
+  ],
+  "history": [
+   {
+    "sha": "f9d8e0c2 (on ce5df74c)",
+    "scope": "bundled, full suites, ssd",
+    "exit": 0,
+    "passed": 366,
+    "failed": 0
+   },
+   {
+    "sha": "9b4357a6 (rebased on c951bbf7, folio vector records changed upstream)",
+    "scope": "bundled, full suites, ssd",
+    "exit": 0,
+    "passed": 368,
+    "failed": 0
+   },
+   {
+    "sha": "rebased on c4a1ecff (CJK layout commits)",
+    "scope": "layout + folio suites (+ dependents clippy), ssd",
+    "exit": 0,
+    "passed": 236,
+    "failed": 0
+   },
+   {
+    "sha": "c2422d23 (rebased on 9ee2b546, harness-view text/vector)",
+    "scope": "harness-view suite (desktop, audio-batch), dependents clippy skipped, ssd",
+    "exit": 0,
+    "passed": 82,
+    "failed": 0
+   }
+  ]
+ },
+ "blockers": [],
+ "lock_wait_s": null,
+ "bg_pids": [],
+ "next": "validation round",
+ "updated_at": "2026-10-30T04:16:20Z",
+ "notes": {
+  "red_evidence": "UNVERIFIED by run (no scratch build on ce5df74c); red by construction: F-R40-2 the new assertion reads WorkerStats fields absent at ce5df74c (compile red), and at ce5df74c a kernel-limit stop (3.77 s) also passed the 300 ms..9 s guard. F-R40-5 at ce5df74c `let _ = self.run.undo()` discarded a false result and the message always said the redraw was undone. F-R40-6 at ce5df74c a serialization error hashed zero bytes (fnv1a of empty = cbf29ce484222325, a valid 16-hex fingerprint) and a stored FNV value compared equal to the current one; the new tests assert a typed InvalidField error, 64-hex output and StaleFingerprint for a matching legacy FNV value (StaleFingerprint absent at ce5df74c: compile red)",
+  "decision_f_r40_2": "repaired by counting, not by weakening the DESCRIPTOR; no new edge (Waited::CpuCap already reaches motion-js from hsk-studio-worker)",
+  "decision_f_r40_6_dependency": "the brief assumed folio already depends on sha2; it does not (deps: accord, schemars, serde, serde_json) and tools/workspace-probe.rs APPROVED limits folio's direct libraries to schemars/serde/serde_json, so a sha2 edge would fail the probe. Chose an in-crate FIPS 180-4 SHA-256 (private module layout_rules::sha256, wrapping arithmetic, NIST known answers). Not a frozen-duplicate site (.config/duplicate-fingerprints.toml has no sha256 entry; step 0 clean). If the lead/steward prefers a sha2 approval for folio, replace the module; the tests stay",
+  "decision_f_r40_6_legacy": "hsk.studio.layout_rules@1 records persist synced_parent_fingerprint. Contract kept at @1: validation accepts lowercase 64-hex (current) and 16-hex (legacy FNV); any other length stays InvalidField. A legacy value is never compared: state() returns StaleFingerprint, which hsk-studio-layout update_linked_* treat as changed (auto_update/accept recomputes and writes SHA-256; warn_on_change warns). New values are always 64-hex",
+  "out_of_owned_paths": "hsk-studio-layout src/alternate.rs (6 lines: `?` on the now-fallible fingerprint/state calls through the existing From<Diagnostic> for LayoutRuleError) and tests/alternate_layout.rs (5 assertions wrapped in Ok(..)); required to keep the workspace compiling after the folio signature change; waiver requested from the lead",
+  "public_api_changes": "folio: linked_story_fingerprint, linked_page_item_fingerprint, StudioLinkedStory::state, StudioLinkedPageItem::state now return Result; StudioLinkState gains StaleFingerprint; new pub consts LINK_FINGERPRINT_HEX, LEGACY_FINGERPRINT_HEX. Only hsk-studio-layout uses them (workspace grep); clippy --tests over all folio dependents passed. motion-js: WorkerStats gains two pub fields (no external struct literals)",
+  "rule_4a": "whole suites of motion-js (quickjs+test-faults), harness-view (desktop+audio-batch), folio, package, layout in the bundled run",
+  "rule_4b": "no Folio record field added or renamed (accepted value format of an existing field widened); package suite run anyway per brief",
+  "rule_4c": "lane-check step 0 clean in all four runs",
+  "rule_4d": "no doc examples added or changed",
+  "rule_4e": "motion-js tests/os_caps.rs is cfg(feature quickjs): round-features.toml has motion-js [quickjs] and [quickjs, test-faults]; the harness-view unit test needs feature viewer: covered by the [viewer] and [desktop, audio-batch] units",
+  "warnings": "clippy warnings in the logs are pre-existing (harness-view timeline_export/composition.rs manual_clamp, vendored type shaping code); none in changed files",
+  "gaps": "no test forces the kernel-limit-only path (killed_os_cpu_kernel_limit > 0 needs the host poll disabled); the 3.77 s figure stays a one-time measurement, stated as such in the DESCRIPTOR"
+ }
+}
