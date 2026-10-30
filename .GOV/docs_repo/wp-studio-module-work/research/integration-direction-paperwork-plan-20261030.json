@@ -4,7 +4,7 @@
  "lane": "Repo Governance: Studio records under .GOV/docs_repo/wp-studio-module-work and the WP-KERNEL-STUDIO packet",
  "generated_at": "2026-10-30T21:50:32Z",
  "by": "Studio lead (KERNEL_BUILDER)",
- "status": "PW-01..09, PW-11, PW-14 DONE; PW-10 (four new host-adoption MTs), PW-12 (module catalog), PW-13 (embedding preparation record), PW-15 (lane files), PW-16 (dispatch/workspace rules) PROPOSED; PW-17 DEFERRED",
+ "status": "PW-01..11, PW-14 DONE; PW-12 (module catalog), PW-13 (embedding preparation record), PW-15 (lane files), PW-16 (dispatch/workspace rules after D1) PROPOSED; PW-17 DEFERRED",
  "inventory_ref": "research/integration-refactor-inventory-20261030.json",
  "principle": "preservation-first: every existing MT, lane, brief and preparation record keeps its content; the direction is added as a typed block or rule, never by rewriting history; machine-readable JSON is the authority, Markdown only projects it",
  "per_mt_record": {
@@ -156,7 +156,7 @@
    "change": "four missing units: (a) Studio GPU client contract and transient adapter until the owner exists (D3); (b) Studio Settings module tab + Engine Profiles binding; (c) AccessKit/IME/DPI/multiwindow/truthful-states proof for the Studio pane; (d) watcher-survival acceptance on the Studio pane (GUI-DESKTOP-054)",
    "method": "hand, template MICRO_TASK_CONTRACT_TEMPLATE_V2.json, ids after MT-36233",
    "authority": "Operator D4",
-   "status": "PROPOSED"
+   "status": "DONE 2026-10-30T23:07:25Z (Operator \"Yes, create them\"): MT-36248 GPU client contract + transient adapter (handshake_core::studio, D2/D3), MT-36249 Settings tab + Engine Profiles (handshake_native::studio, D1), MT-36250 pane workbench proof (docking/keyboard/focus/IME/AccessKit/DPI/multiwindow/states), MT-36251 watcher-survival acceptance (freeze + crash on the real app with the pane mounted); V2 host-adoption shape cloned from MT-36233; 23 AC rows; index 6208 entries, host_adoption 49, host_stage_count 49; embedding preparation grouped_host_tasks not updated (PW-13)"
   },
   {
    "id": "PW-11",
