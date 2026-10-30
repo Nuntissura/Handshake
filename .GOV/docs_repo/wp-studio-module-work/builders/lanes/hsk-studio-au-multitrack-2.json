@@ -1,37 +1,42 @@
 {
  "crate": "hsk-studio-harness-view",
  "lane": "SMB-AU-MULTITRACK-2",
- "status": "HOLD_FOR_RUN",
- "phase": "HOLD_FOR_RUN: slices 1-3 + source-monitor scope extension committed locally (deda171a, base cf2e46da), unpushed; focused cargo check EXIT 0; waiting for CHAIN-LANDED, then rebase + ONE bundled lane-check on C: + push",
- "candidate": "deda171a",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed 2bc9103a to origin/codex/handshake-studio-assets (base b64650e8, fetched and re-read); bundled run 2 at 2bc9103a EXIT 0: 557/557, 20 skipped; never claimed PASS",
+ "candidate": "2bc9103a",
  "commits": [
   {
    "slice": 1,
-   "sha": "3ed23b66",
-   "pushed": false,
+   "sha": "2387603d",
+   "pushed": true,
    "summary": "clip envelopes follow timeline edits in the same history step; harness-core Run::submit_sequence_and_entry; tests viewer_timeline_audio_2 (7 envelope tests)"
   },
   {
    "slice": 2,
-   "sha": "80551ce9",
-   "pushed": false,
+   "sha": "9688bb72",
+   "pushed": true,
    "summary": "folio StudioAudioRouting.track_automation + pulse bus_mix Linear lanes; tests audio_routing_records::track_automation_validates_round_trips_and_refuses_typed, bus_mix::track_volume_and_pan_lanes_automate_the_mixdown"
   },
   {
    "slice": 3,
-   "sha": "b7304a01",
-   "pushed": false,
+   "sha": "94bef36a",
+   "pushed": true,
    "summary": "timeline Volume / Pan lanes editable; 3 tests in viewer_timeline_audio_2; viewer_timeline_audio hostile cases updated"
   },
   {
    "slice": "scope extension (lead grant 2026-10-30)",
-   "sha": "deda171a",
-   "pushed": false,
+   "sha": "b6df88e0",
+   "pushed": true,
    "summary": "source monitor insert/overwrite maintain clip envelopes via timeline/envelopes.rs + submit_sequence_and_entry; remnant matching by source window (insert-shifted right part); test source_monitor_insert_splits_the_envelope_of_a_sync_locked_clip"
+  },
+  {
+   "slice": "1 test fix",
+   "sha": "2bc9103a",
+   "pushed": true,
+   "summary": "slip test slips -2 frames (+2 needs program-monitor extents)"
   }
  ],
  "tests": {
-  "argv_planned": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-au-multitrack-2 --disk ssd -- cargo nextest run -p hsk-studio-folio -p hsk-studio-pulse -p hsk-studio-package -p hsk-studio-harness-core -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
   "history": [
    {
     "sha": "b7304a01 (pre-commit tree)",
@@ -44,13 +49,42 @@
     "scope": "cargo check --tests harness-view (desktop, audio-batch) and (viewer)",
     "exit": 0,
     "note": "compile only; waited 61 s on the C: lock held by smb-hdr-merge-1"
+   },
+   {
+    "sha": "b6df88e0",
+    "scope": "bundled lane-check (folio, pulse, package, harness-core, harness, harness-view; desktop+audio-batch)",
+    "exit": 100,
+    "passed": 556,
+    "failed": 1,
+    "skipped": 20,
+    "failures": "viewer_timeline_audio_2::slip_shifts_the_envelope_with_the_audio: source_extent_unknown (slip +2 needs a later source out; the program monitor binds no source extents in the fixture)",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-au-multitrack-2/lane-check-smb-au-multitrack-2-b6df88e0.log",
+    "clippy": "no findings in lane files (2 foreign warnings in timeline_export/composition.rs)"
+   },
+   {
+    "sha": "2bc9103a",
+    "scope": "bundled lane-check (same argv)",
+    "exit": 0,
+    "passed": 557,
+    "failed": 0,
+    "skipped": 20,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-au-multitrack-2/lane-check-smb-au-multitrack-2-2bc9103a.log"
    }
   ],
-  "step0": "lane-check --step0-only EXIT 0"
+  "step0": "lane-check --step0-only EXIT 0",
+  "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-au-multitrack-2 --disk ssd -- cargo nextest run -p hsk-studio-folio -p hsk-studio-pulse -p hsk-studio-package -p hsk-studio-harness-core -p hsk-studio-harness -p hsk-studio-harness-view --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch,hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch --no-fail-fast",
+  "exit": 0,
+  "sha": "2bc9103a",
+  "passed": 557,
+  "failed": 0,
+  "skipped": 20,
+  "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-au-multitrack-2/lane-check-smb-au-multitrack-2-2bc9103a.log",
+  "clippy": "no findings in lane files (foreign: 2 manual_clamp warnings in harness-view timeline_export/composition.rs, harness test warnings)",
+  "new_tests": "viewer_timeline_audio_2 11/11; folio audio_routing_records::track_automation_validates_round_trips_and_refuses_typed; pulse bus_mix::track_volume_and_pan_lanes_automate_the_mixdown"
  },
  "blockers": [],
  "bg_pids": [],
- "updated_at": "2026-10-30T13:05:00Z",
+ "updated_at": "2026-10-30T14:05:00Z",
  "notes": {
   "worktree": "wt-studio-lanes/smb-au-multitrack-2 (branch lane/smb-au-multitrack-2, base origin cf2e46da)",
   "spec_basis": [
@@ -77,8 +111,7 @@
   ],
   "not_proven": [
    "NOT_PROVEN: real desktop window and real audio device (headless egui, mixer_render samples only)",
-   "NOT_PROVEN: Audition / Premiere parity of envelope-follow and track automation behaviour (no oracle, D5)",
-   "NOT_PROVEN until the bundled run: every test of this lane (only compiled so far)"
+   "NOT_PROVEN: Audition / Premiere parity of envelope-follow and track automation behaviour (no oracle, D5)"
   ],
   "rule_4a": "bundled run will cover whole suites of folio, pulse, package, harness-core, harness-view, harness (desktop, audio-batch)",
   "rule_4b": "Folio record field added (StudioAudioRouting.track_automation): hsk-studio-package suite in the bundled run; no reference-vocabulary property names added",
@@ -86,6 +119,10 @@
   "rule_4d": "no doc examples added",
   "rule_4e": "tests/viewer_timeline_audio_2.rs is #![cfg(feature = \"audio-batch\")] like viewer_timeline_audio.rs, run by the harness-view [desktop, audio-batch] unit; envelopes.rs is ungated (viewer-only build checked EXIT 0)",
   "cargo_lock": "not committed; no new dependency or edge",
-  "scope_extension": "Lead grant 2026-10-30 (data integrity): src/view/source_monitor.rs Viewer::source_edit now commits through Viewer::envelopes_for + Run::submit_sequence_and_entry (typed refusal envelopes_refused); timeline.rs `mod envelopes` -> `pub(super) mod envelopes`; envelopes.rs remnant rule changed from timeline containment to source-window containment + disjoint from the surviving part (an insert splits a sync-locked audio clip and shifts its right part). Test viewer_timeline_audio_2::source_monitor_insert_splits_the_envelope_of_a_sync_locked_clip."
- }
+  "scope_extension": "Lead grant 2026-10-30 (data integrity): src/view/source_monitor.rs Viewer::source_edit now commits through Viewer::envelopes_for + Run::submit_sequence_and_entry (typed refusal envelopes_refused); timeline.rs `mod envelopes` -> `pub(super) mod envelopes`; envelopes.rs remnant rule changed from timeline containment to source-window containment + disjoint from the surviving part (an insert splits a sync-locked audio clip and shifts its right part). Test viewer_timeline_audio_2::source_monitor_insert_splits_the_envelope_of_a_sync_locked_clip.",
+  "own_causes": [
+   "run 1: slip test slipped +2 frames; needs source extents the fixture's program monitor does not have"
+  ]
+ },
+ "next": "validation round R42 judges SMB-AU-MULTITRACK-2 at 2bc9103a"
 }

@@ -1,0 +1,49 @@
+{
+ "crate": "hsk-studio-develop",
+ "lane": "SMB-HDR-MERGE-2",
+ "status": "HOLD_FOR_RELEASE",
+ "phase": "slice green locally at b0738a6d (base b64650e8); push waits for SMB-AU-MULTITRACK-2 on origin (not there at fetch 2026-10-30)",
+ "commits": [
+  {
+   "slice": 1,
+   "sha": "b0738a6d",
+   "pushed": false,
+   "summary": "dng_from_hdr float LinearRaw writer + decode_linear_float reader + tests/hdr_dng.rs"
+  }
+ ],
+ "capabilities_done": [
+  "dng_from_hdr: DNG 1.4 floating-point LinearRaw (SampleFormat 3, 32-bit, uncompressed) of the merged camera-space radiance, power-of-two scale into 0..1 with BaselineExposure + scale_stops",
+  "decode_linear_float: develop reader for float LinearRaw (strips/tiles, both byte orders), bit-exact read-back self-check; decode() unchanged"
+ ],
+ "tests": {
+  "develop tests/hdr_dng.rs": [
+   "integer_dng_output_is_byte_identical",
+   "hdr_dng_round_trips_bit_exact_through_develops_reader",
+   "hdr_dng_refuses_unsupported_settings_and_hostile_files"
+  ]
+ },
+ "blockers": [],
+ "lock_wait_s": null,
+ "bg_pids": [],
+ "next": "when SMB-AU-MULTITRACK-2 is on origin: rebase, re-run only if the rebase touched develop closure, PUSH SAFETY push, READY_FOR_VALIDATION",
+ "updated_at": "2026-10-30T13:10:00Z",
+ "notes": {
+  "brief": "lead message 2026-10-30 (slice 4 of SMB-HDR-MERGE-1 as its own lane); binding builders/briefs/wave-parity-2-common.md",
+  "spec_basis": "STU-RAS-033 (32-bit HDR storage beyond display range); Adobe DNG Specification 1.4.0.0 (Sept 2012), read this lane: SampleFormat 3 with BitsPerSample 16/24/32 for floating point, Compression 1 allowed (8 deflate optional), WhiteLevel default 1.0 for floating point, Compatibility Issue 8: DNGBackwardVersion >= 1.4.0.0 when the main image IFD uses floating point, LinearRaw 34892 for demosaiced data, chapter 5 rescaled values clip to 0..1",
+  "push_rule": "push only after SMB-AU-MULTITRACK-2 is on origin; rebase first; re-run only if the rebase touched develop's closure",
+  "baseline_capture": "one focused run of tests/hdr_dng.rs integer_dng_output_is_byte_identical on the unchanged src (placeholder pins, expected to fail and print the digests) to pin the pre-change integer DNG bytes; the pins are then committed with the src change; done: C:/Users/ILJASM~1/AppData/Local/Temp/claude/D--Projects-LLM-projects-Handshake-Handshake-Worktrees-wt-gov-kernel/78736d01-8cca-4de4-921a-e3cf98762f72/scratchpad/lane-check-smb-hdr-merge-2-baseline-b64650e8.log (exit 100 by design, placeholder pin); uncompressed digest c3a0726f... pinned; the LosslessJpeg digest was not printed (the loop stopped at the first assert), so only the uncompressed integer output is pinned; lossless-JPEG path untouched (diff is additions only)",
+  "readings_declared": "float DNG holds merged.camera (camera-space radiance) scaled by 2^-k, k = least stops putting the largest sample <= 1.0 (DNG chapter 5 clips rescaled values to 0..1), BaselineExposure = source + k; WhiteLevel omitted (float default 1.0), BlackLevel omitted (0); colour tags, model, orientation from the reference bracket; uncompressed and preview-less only (hdr_compression_unsupported, hdr_preview_unsupported); Lightroom HDR DNG layout UNVERIFIED (D5)"
+ },
+ "verdicts": [],
+ "green_local_sha": "b0738a6d",
+ "lane_check": {
+  "run": "STUDIO_LANE_CHECK_NO_DEPENDENTS=1 tools/lane-check.sh --owner smb-hdr-merge-2 --disk d -- cargo nextest run -p hsk-studio-develop --no-fail-fast",
+  "sha": "b0738a6d",
+  "result": "passed",
+  "exit": 0,
+  "tests": "154 run, 154 passed, 19 skipped (whole develop suite)",
+  "clippy": "develop: no errors; only pre-existing too_many_arguments warnings outside lane hunks; dependents skipped (additive API, lead: limited single-crate build)",
+  "step0": "clean",
+  "log": "C:/Users/ILJASM~1/AppData/Local/Temp/claude/D--Projects-LLM-projects-Handshake-Handshake-Worktrees-wt-gov-kernel/78736d01-8cca-4de4-921a-e3cf98762f72/scratchpad/lane-check-smb-hdr-merge-2-b0738a6d.log"
+ }
+}
