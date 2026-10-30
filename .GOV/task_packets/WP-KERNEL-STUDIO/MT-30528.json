@@ -2442,7 +2442,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2994,7 +2995,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `blend.normal` with the exact meaning the spec states: `0` | `blend.darken` | `8`. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -3029,7 +3032,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `blend.multiply` with the exact meaning the spec states: `1` | `blend.lighten` | `9`. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -3064,7 +3069,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `blend.screen` with the exact meaning the spec states: `2` | `blend.difference` | `10`. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -3099,7 +3106,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `blend.overlay` with the exact meaning the spec states: `3` | `blend.exclusion` | `11`. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -3134,7 +3143,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `blend.soft_light` with the exact meaning the spec states: `4` | `blend.hue` | `12`. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -3169,7 +3180,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `blend.hard_light` with the exact meaning the spec states: `5` | `blend.saturation` | `13`. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -3204,7 +3217,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `blend.color_dodge` with the exact meaning the spec states: `6` | `blend.color` | `14`. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -3239,7 +3254,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `blend.color_burn` with the exact meaning the spec states: `7` | `blend.luminosity` | `15`. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -3323,5 +3340,39 @@
     "CX-VERIFY-001",
     "CX-VERIFY-002",
     "CX-VERIFY-003"
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-NIB",
+      "unit_kind": "enumeration",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

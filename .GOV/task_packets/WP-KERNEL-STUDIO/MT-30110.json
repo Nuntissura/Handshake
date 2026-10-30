@@ -139,7 +139,9 @@
   },
   "gameplan_ref": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml",
   "context_capsule": {
-    "module_maintenance_refs": [".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/5/maintenance"],
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/5/maintenance"
+    ],
     "specification_anchor_refs": [
       {
         "id": "STU-RAS-132",
@@ -2000,7 +2002,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2301,5 +2304,45 @@
       "criterion": "SCATTER AND DUAL TIP.** Scatter and dual tip are two sub-engines, each gated by its own boolean, each with its own parameters, and the dual tip carries a complete second tip and its own scatter. Collapsing the dual tip into a \"secondary texture\" is forbidden; 138 of 643 shipped presets in one library depend on it. *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | observed | classification | |---|---|---|---|---|---|---|---|---|---| | `scatter_enabled` | — | — | — | — | false | none | — | true in 65 of 643 | boolean | | `scatter_both_axes` | — | — | — | — | false | none | — | true in 30 of 65 | boolean | | `scatter_count` | 1 | unknown | 1 | 16 | 1 | count | 0 | 1 .. 8 | `observed` | | `dual_tip_enabled` | — | — | — | — | false | none | — | true in 138 of 643 | boolean | | `dual_tip` | — | — | — | — | absent | none | — | — | a complete `StudioBrushTip` per [STU-RAS-127] | | `dual_tip_blend_mode` | enum | enum | — | — | `multiply` | none | — | multiply, colour burn, darken, overlay, hard mix, linear burn observed | a `StudioBlendMode` value (§12) | | `dual_tip_count` | 1 | unknown | 1 | 16 | 1 | count | 0 | 1 .. 10 | `observed` | | `dual_tip_flip` | — | — | — | — | false | none | — | true in 8 of 138 | boolean | | `dual [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-PIGMENT",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

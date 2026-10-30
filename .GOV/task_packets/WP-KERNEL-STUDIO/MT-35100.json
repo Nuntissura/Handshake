@@ -33,7 +33,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "operator_shell",
   "scope": {
-    "summary": "Five disclosure levels (normative, closed).** Studio has exactly five tooltip levels. Each has a distinct trigger and a distinct content contract. A surface MUST NOT invent a sixth. | Level | Name | Trigger | Content | |---|---|---|---| | L0 | Name chip | ~400ms hover dwell | `display_name` and `shortcut_display`. ONE LINE. Never prose. | | L1 | Extended tip | ~900ms dwell, or immediately if an L0 tip is already warm from a sibling | see [STU-SHL-232] | | L2 | What does this do | the `?` glyph in the L1 corner, `F1` on the focused control, or `Shift`+hover | opens the UserManual anchor for that EXACT element in an in-Studio side sheet, never a browser ([STU-SHL-233]) | | L3 | Rich tip | opt-in preference, OFF by default | a 2\u20134 second looping demo of the tool's gesture, for the ~120 core-set tools only, never all 362. Existence is an open question; 120 demo clips is a content-production task, not a code task | | L-status | Hintline | ALWAYS, while a tool is active | the current gesture's modifier map, in the status bar |",
+    "summary": "Five disclosure levels (normative, closed).** Studio has exactly five tooltip levels. Each has a distinct trigger and a distinct content contract. A surface MUST NOT invent a sixth. | Level | Name | Trigger | Content | |---|---|---|---| | L0 | Name chip | ~400ms hover dwell | `display_name` and `shortcut_display`. ONE LINE. Never prose. | | L1 | Extended tip | ~900ms dwell, or immediately if an L0 tip is already warm from a sibling | see [STU-SHL-232] | | L2 | What does this do | the `?` glyph in the L1 corner, `F1` on the focused control, or `Shift`+hover | opens the UserManual anchor for that EXACT element in an in-Studio side sheet, never a browser ([STU-SHL-233]) | | L3 | Rich tip | opt-in preference, OFF by default | a 2–4 second looping demo of the tool's gesture, for the ~120 core-set tools only, never all 362. Existence is an open question; 120 demo clips is a content-production task, not a code task | | L-status | Hintline | ALWAYS, while a tool is active | the current gesture's modifier map, in the status bar |",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -1271,7 +1271,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -2064,7 +2064,7 @@
       "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
       "domain": "operator_shell",
       "scope": {
-        "summary": "Five disclosure levels (normative, closed).** Studio has exactly five tooltip levels. Each has a distinct trigger and a distinct content contract. A surface MUST NOT invent a sixth. | Level | Name | Trigger | Content | |---|---|---|---| | L0 | Name chip | ~400ms hover dwell | `display_name` and `shortcut_display`. ONE LINE. Never prose. | | L1 | Extended tip | ~900ms dwell, or immediately if an L0 tip is already warm from a sibling | see [STU-SHL-232] | | L2 | What does this do | the `?` glyph in the L1 corner, `F1` on the focused control, or `Shift`+hover | opens the UserManual anchor for that EXACT element in an in-Studio side sheet, never a browser ([STU-SHL-233]) | | L3 | Rich tip | opt-in preference, OFF by default | a 2\u20134 second looping demo of the tool's gesture, for the ~120 core-set tools only, never all 362. Existence is an open question; 120 demo clips is a content-production task, not a code task | | L-status | Hintline | ALWAYS, while a tool is active | the current gesture's modifier map, in the status bar |",
+        "summary": "Five disclosure levels (normative, closed).** Studio has exactly five tooltip levels. Each has a distinct trigger and a distinct content contract. A surface MUST NOT invent a sixth. | Level | Name | Trigger | Content | |---|---|---|---| | L0 | Name chip | ~400ms hover dwell | `display_name` and `shortcut_display`. ONE LINE. Never prose. | | L1 | Extended tip | ~900ms dwell, or immediately if an L0 tip is already warm from a sibling | see [STU-SHL-232] | | L2 | What does this do | the `?` glyph in the L1 corner, `F1` on the focused control, or `Shift`+hover | opens the UserManual anchor for that EXACT element in an in-Studio side sheet, never a browser ([STU-SHL-233]) | | L3 | Rich tip | opt-in preference, OFF by default | a 2–4 second looping demo of the tool's gesture, for the ~120 core-set tools only, never all 362. Existence is an open question; 120 demo clips is a content-production task, not a code task | | L-status | Hintline | ALWAYS, while a tool is active | the current gesture's modifier map, in the status bar |",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "acceptance_criteria": [
@@ -2146,7 +2146,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2344,7 +2345,7 @@
         }
       ],
       "original_scope": {
-        "summary": "Five disclosure levels (normative, closed).** Studio has exactly five tooltip levels. Each has a distinct trigger and a distinct content contract. A surface MUST NOT invent a sixth. | Level | Name | Trigger | Content | |---|---|---|---| | L0 | Name chip | ~400ms hover dwell | `display_name` and `shortcut_display`. ONE LINE. Never prose. | | L1 | Extended tip | ~900ms dwell, or immediately if an L0 tip is already warm from a sibling | see [STU-SHL-232] | | L2 | What does this do | the `?` glyph in the L1 corner, `F1` on the focused control, or `Shift`+hover | opens the UserManual anchor for that EXACT element in an in-Studio side sheet, never a browser ([STU-SHL-233]) | | L3 | Rich tip | opt-in preference, OFF by default | a 2\u20134 second looping demo of the tool's gesture, for the ~120 core-set tools only, never all 362. Existence is an open question; 120 demo clips is a content-production task, not a code task | | L-status | Hintline | ALWAYS, while a tool is active | the current gesture's modifier map, in the status bar |",
+        "summary": "Five disclosure levels (normative, closed).** Studio has exactly five tooltip levels. Each has a distinct trigger and a distinct content contract. A surface MUST NOT invent a sixth. | Level | Name | Trigger | Content | |---|---|---|---| | L0 | Name chip | ~400ms hover dwell | `display_name` and `shortcut_display`. ONE LINE. Never prose. | | L1 | Extended tip | ~900ms dwell, or immediately if an L0 tip is already warm from a sibling | see [STU-SHL-232] | | L2 | What does this do | the `?` glyph in the L1 corner, `F1` on the focused control, or `Shift`+hover | opens the UserManual anchor for that EXACT element in an in-Studio side sheet, never a browser ([STU-SHL-233]) | | L3 | Rich tip | opt-in preference, OFF by default | a 2–4 second looping demo of the tool's gesture, for the ~120 core-set tools only, never all 362. Existence is an open question; 120 demo clips is a content-production task, not a code task | | L-status | Hintline | ALWAYS, while a tool is active | the current gesture's modifier map, in the status bar |",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -2415,5 +2416,51 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00"
+  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

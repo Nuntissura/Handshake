@@ -2072,7 +2072,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -3259,5 +3260,48 @@
       "criterion": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "bounded_admission_via_job_port",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "STU-ARC-008",
+      "STU-ARC-012",
+      "STU-ARC-013",
+      "GUI-DESKTOP-033",
+      "GPU-QUOTA-015",
+      "STU-CON-013",
+      "STU-CON-014",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-ACCORD",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": true,
+      "collaborative_state": true
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

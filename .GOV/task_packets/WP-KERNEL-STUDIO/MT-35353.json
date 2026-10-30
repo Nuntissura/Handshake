@@ -1975,7 +1975,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2269,5 +2270,41 @@
       "criterion": "Derivation rule (NORMATIVE).** The automation microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **recorded-automation record shape** ([STU-AUT-102], [STU-AUT-103], [STU-AUT-104], [STU-AUT-111], [STU-AUT-114]), a **closed enumeration or value-type vocabulary** ([STU-AUT-105], [STU-AUT-106], [STU-AUT-107], [STU-AUT-113], [STU-AUT-118], [STU-AUT-127], [STU-AUT-128], [STU-AUT-131], [STU-AUT-134], [STU-AUT-135], [STU-AUT-142], [STU-AUT-143], [STU-AUT-144], [STU-AUT-150], [STU-AUT-157], [STU-AUT-158], [STU-AUT-164], [STU-AUT-165]), an **object-model record shape** ([STU-AUT-116], [STU-AUT-117], [STU-AUT-119], [STU-AUT-120], [STU-AUT-121], [STU-AUT-123], [STU-AUT-124]), a **command-contract rule** ([STU-AUT-101], [STU-AUT-109], [STU-AUT-110], [STU-AUT-112], [STU-AUT-147], [STU-AUT-148], [STU-AUT-152], [STU-AUT-153], [STU-AUT-154], [STU-AUT-151]), a **batch or data-driven policy** ([STU-AUT-126], [STU-AUT-129], [STU-AUT-130], [STU-AUT-132], [STU-AUT-133], [STU-AUT-136], [STU-AUT-137], [STU-AUT-138], [STU-AUT-139], [STU-AUT-140], [STU-AUT-145], [STU-AUT-146], [STU-AUT-141]), a **plugin contract** ([STU-AUT-156], [STU-AUT-159], [STU-AUT-160], [STU-AUT-161], [STU-AUT-162]), an **inspect or handoff record** ([STU-AUT-166], [STU-AUT-167], [STU-AUT-168]) [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "STU-CON-013",
+      "STU-CON-014"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": true
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

@@ -1902,7 +1902,9 @@
   "authority_migration": {
     "approval": "ilja091020261912",
     "template_ref": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json",
-    "active_execution_authority": [],
+    "active_execution_authority": [
+      "host_integration"
+    ],
     "historical_fields": [
       "clause",
       "spec_anchor",
@@ -2104,5 +2106,41 @@
       "criterion": "Yields index (NORMATIVE).** The counts below are the derivation surface of this module under [STU-ASSET-029]. They are not estimates: they are the measured output of applying that rule to this module's text, and every row states which unit kinds it contributes. | Unit group | Clauses | Units by kind | Yields | |---|---|---|---| | The binding | [STU-ASSET-001]-[STU-ASSET-004] | 4 clause | 4 | | Consumption: how Studio reads assets | [STU-ASSET-005]-[STU-ASSET-011] | 7 clause, 1 enumeration | 8 | | Publication: how Studio writes back | [STU-ASSET-012]-[STU-ASSET-016] | 5 clause | 5 | | Closures: what Studio builds instead | [STU-ASSET-017]-[STU-ASSET-024] | 8 clause | 8 | | Declared gaps | [STU-ASSET-025]-[STU-ASSET-028] | 4 clause | 4 | | Clauses yielding nothing | 5 clauses, listed in [STU-ASSET-029] | — | 0 | | **Module total** | | **33 clauses** | **29** | Of this module's 33 clauses, 5 yield nothing and 28 yield at least one unit; tables inside yielding clauses contribute the remainder. The module total is **29**. The last numeric column is the yields count.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "STU-CON-013",
+      "STU-CON-014"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

@@ -1581,7 +1581,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-WEB scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-WEB scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -2056,7 +2056,7 @@
             "range_kind": "normative_clause"
           }
         ],
-        "complete_clause_body": "**[STU-WEB-144] Yields index (NORMATIVE).** The counts below are the derivation surface of this module under [STU-WEB-141]. They are not estimates: they are the measured output of applying that rule to this module's text, and every row states which unit kinds it contributes.\n\n| Unit group | Clauses | Units by kind | Yields |\n|---|---|---|---|\n| 28.0 Scope, posture and dedup | [STU-WEB-001]-[STU-WEB-010] | 9 clause | 9 |\n| 28.1 Document types, tag libraries and the attribute vocabulary | [STU-WEB-011]-[STU-WEB-029] | 19 clause, 2 enumeration | 21 |\n| 28.2 Contextual property-panel binding (Studio-wide contract) | [STU-WEB-030]-[STU-WEB-044] | 15 clause | 15 |\n| 28.3 Code intelligence | [STU-WEB-045]-[STU-WEB-059] | 15 clause, 1 enumeration | 16 |\n| 28.4 The CSS property surface | [STU-WEB-060]-[STU-WEB-075] | 16 clause, 2 enumeration, 2 parameter table | 20 |\n| 28.5 Responsive authoring: media queries and breakpoints | [STU-WEB-076]-[STU-WEB-089] | 14 clause, 2 enumeration, 2 parameter table | 18 |\n| 28.6 Templates, library items and snippets | [STU-WEB-090]-[STU-WEB-099] | 10 clause, 1 enumeration | 11 |\n| 28.7 The Insert catalogue, behaviours and the event model | [STU-WEB-100]-[STU-WEB-112] | 13 clause | 13 |\n| 28.8 Site definition, transports and server models | [STU-WEB-113]-[STU-WEB-127] | 15 clause, 1 enumeration | 16 |\n| 28.9 Views, commands and obligations | [STU-WEB-128]-[STU-WEB-140] | 13 clause | 13 |\n| 28.11 Validation Descriptor Catalogue | [STU-WEB-146]-[STU-WEB-167] | 22 validator | 22 |\n| Clauses yielding nothing | 6 clauses, listed in [STU-WEB-141] | \u2014 | 0 |\n| **Module total** | | **167 clauses** | **174** |\n\nOf this module's 167 clauses, 6 yield nothing and 161 yield at least one unit; tables inside yielding clauses contribute the remainder. The module total is **174**. The last numeric column is the yields count.\n",
+        "complete_clause_body": "**[STU-WEB-144] Yields index (NORMATIVE).** The counts below are the derivation surface of this module under [STU-WEB-141]. They are not estimates: they are the measured output of applying that rule to this module's text, and every row states which unit kinds it contributes.\n\n| Unit group | Clauses | Units by kind | Yields |\n|---|---|---|---|\n| 28.0 Scope, posture and dedup | [STU-WEB-001]-[STU-WEB-010] | 9 clause | 9 |\n| 28.1 Document types, tag libraries and the attribute vocabulary | [STU-WEB-011]-[STU-WEB-029] | 19 clause, 2 enumeration | 21 |\n| 28.2 Contextual property-panel binding (Studio-wide contract) | [STU-WEB-030]-[STU-WEB-044] | 15 clause | 15 |\n| 28.3 Code intelligence | [STU-WEB-045]-[STU-WEB-059] | 15 clause, 1 enumeration | 16 |\n| 28.4 The CSS property surface | [STU-WEB-060]-[STU-WEB-075] | 16 clause, 2 enumeration, 2 parameter table | 20 |\n| 28.5 Responsive authoring: media queries and breakpoints | [STU-WEB-076]-[STU-WEB-089] | 14 clause, 2 enumeration, 2 parameter table | 18 |\n| 28.6 Templates, library items and snippets | [STU-WEB-090]-[STU-WEB-099] | 10 clause, 1 enumeration | 11 |\n| 28.7 The Insert catalogue, behaviours and the event model | [STU-WEB-100]-[STU-WEB-112] | 13 clause | 13 |\n| 28.8 Site definition, transports and server models | [STU-WEB-113]-[STU-WEB-127] | 15 clause, 1 enumeration | 16 |\n| 28.9 Views, commands and obligations | [STU-WEB-128]-[STU-WEB-140] | 13 clause | 13 |\n| 28.11 Validation Descriptor Catalogue | [STU-WEB-146]-[STU-WEB-167] | 22 validator | 22 |\n| Clauses yielding nothing | 6 clauses, listed in [STU-WEB-141] | — | 0 |\n| **Module total** | | **167 clauses** | **174** |\n\nOf this module's 167 clauses, 6 yield nothing and 161 yield at least one unit; tables inside yielding clauses contribute the remainder. The module total is **174**. The last numeric column is the yields count.\n",
         "method_operands": "Exact fields, tables, ordered vocabularies and defaults in complete_clause_body; missing pinned assets remain prerequisites",
         "source_revision_precondition": "One immutable document/configuration/source revision; external authority accessed only through published granted ports",
         "unit_kind": "clause",
@@ -2364,7 +2364,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2677,5 +2678,51 @@
       "criterion": "Yields index (NORMATIVE).** The counts below are the derivation surface of this module under [STU-WEB-141]. They are not estimates: they are the measured output of applying that rule to this module's text, and every row states which unit kinds it contributes. | Unit group | Clauses | Units by kind | Yields | |---|---|---|---| | 28.0 Scope, posture and dedup | [STU-WEB-001]-[STU-WEB-010] | 9 clause | 9 | | 28.1 Document types, tag libraries and the attribute vocabulary | [STU-WEB-011]-[STU-WEB-029] | 19 clause, 2 enumeration | 21 | | 28.2 Contextual property-panel binding (Studio-wide contract) | [STU-WEB-030]-[STU-WEB-044] | 15 clause | 15 | | 28.3 Code intelligence | [STU-WEB-045]-[STU-WEB-059] | 15 clause, 1 enumeration | 16 | | 28.4 The CSS property surface | [STU-WEB-060]-[STU-WEB-075] | 16 clause, 2 enumeration, 2 parameter table | 20 | | 28.5 Responsive authoring: media queries and breakpoints | [STU-WEB-076]-[STU-WEB-089] | 14 clause, 2 enumeration, 2 parameter table | 18 | | 28.6 Templates, library items and snippets | [STU-WEB-090]-[STU-WEB-099] | 10 clause, 1 enumeration | 11 | | 28.7 The Insert catalogue, behaviours and the event model | [STU-WEB-100]-[STU-WEB-112] | 13 clause | 13 | | 28.8 Site definition, transports and server models | [STU-WEB-113]-[STU-WEB-127] | 15 clause, 1 enumeration | 16 | | 28.9 Views, commands and obligations | [STU-WEB-128]-[STU-WEB-140] [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-WEB",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

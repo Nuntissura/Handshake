@@ -2062,7 +2062,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2411,5 +2412,53 @@
       "criterion": "Explicit supersessions.** The following v02.205 clauses are narrowed or corrected here: | v02.205 clause | Disposition | Replacement | |---|---|---| | [STU-DS-005] asset-browser surface | NARROWED | The design-system asset browser lists components, styles and variable collections ONLY. It is not a file or media catalog; media and file assets resolve through CKC per [STU-ASSET-004]. | | [STU-DS-013] \"Exposed nested\" listed as a component property TYPE | CORRECTED | Exposed-nested is not a member of the component-property type enumeration ([STU-DS-110]); it is an instance-level flag (`is_exposed_instance`) plus a derived read-only projection ([STU-DS-118]). | | [STU-DS-022] four variable types | EXTENDED | The resolved type set is six ([STU-DS-125]); the stored type set is eight ([STU-DS-126]). | | [STU-DS-036] grid flow \"with per-child row/column span\" | EXTENDED | Grid flow carries its own eleven-member contract ([STU-DS-146]); span is expressed on the child, not the container. | | [STU-DS-046a]/[STU-DS-046b] constraint value lists | CORRECTED | Both axes take the SAME five-member enumeration ([STU-DS-150]); the v02.205 lists used different display words for the same members. | | [STU-DS-050] design-system analytics | UNCHANGED in intent, bounded here by [STU-DS-172]. | --- ### 1. The component object contract",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "STU-CON-013",
+      "STU-CON-014",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-COMPONENTS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": true
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

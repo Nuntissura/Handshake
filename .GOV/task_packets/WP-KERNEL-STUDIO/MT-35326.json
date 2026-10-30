@@ -2062,7 +2062,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2411,5 +2412,53 @@
       "criterion": "Derivation rule (NORMATIVE).** The design-system microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **stored record contract** ([STU-DS-103], [STU-DS-104], [STU-DS-105], [STU-DS-111], [STU-DS-117], [STU-DS-121], [STU-DS-122], [STU-DS-127], [STU-DS-135], [STU-DS-147], [STU-DS-152], [STU-DS-154], [STU-DS-155], [STU-DS-158]), a **closed enumeration** ([STU-DS-110], [STU-DS-115], [STU-DS-125], [STU-DS-126], [STU-DS-128], [STU-DS-129], [STU-DS-130], [STU-DS-131], [STU-DS-134], [STU-DS-136], [STU-DS-137], [STU-DS-140], [STU-DS-142], [STU-DS-144], [STU-DS-148], [STU-DS-151], [STU-DS-153], [STU-DS-157], [STU-DS-159]), a **parameter contract table** ([STU-DS-106], [STU-DS-123], [STU-DS-145], [STU-DS-146], [STU-DS-149], [STU-DS-150]), a **resolution algorithm** ([STU-DS-109], [STU-DS-116], [STU-DS-119], [STU-DS-132], [STU-DS-143], [STU-DS-163], [STU-DS-164]), or a **required command set** ([STU-DS-107], [STU-DS-112], [STU-DS-133], [STU-DS-138]), where that clause can be implemented and proven independently of its siblings. 2. Each **validation-descriptor clause** in sub-section 14, [STU-DS-173] through [STU-DS-187]. Each of the 15 descriptors named in [STU-DS-165] is stated as its own clause precisely so it yields its own microtask: a check is a unit o [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "STU-CON-013",
+      "STU-CON-014",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-COMPONENTS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": true
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

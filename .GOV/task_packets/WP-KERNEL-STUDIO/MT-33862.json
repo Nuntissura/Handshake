@@ -1942,7 +1942,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2243,5 +2244,45 @@
       "criterion": "The property tree topology below is normative as SHAPE.** Thirteen property-group topics are declared on composition layers, and each layer kind exposes the subset that applies to it. The identity keys are import keys ([STU-FX-103]) and never Studio-facing names. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Topic | Root key | Applies to | Owned by | |---|---|---|---| | Transform | `ADBE Transform Group` | every layer | [STU-MOT-013] | | 3D material options | `ADBE Material Options Group` | 3D layers | [STU-MOT-014] | | 3D geometry options | `ADBE Extrsn Options Group`, `ADBE Plane Options Group` | 3D layers under a 3D renderer | [STU-MOT-014] | | Camera options | `ADBE Camera Options Group` | camera layers | 14.27 ([STU-CMP-040]) | | Light options | `ADBE Light Options Group` | light layers | 14.27 ([STU-CMP-045]) | | Audio | `ADBE Audio Group` | audio-bearing layers | [STU-MOT-016] | | Masks | `ADBE Mask Parade` / `ADBE Mask Atom` | every raster-bounded layer | 14.27 ([STU-CMP-025]) | | Effects | `ADBE Effect Parade` | every layer | [STU-MOT-017] | | Layer styles | `ADBE Layer Styles` | every layer | 14.9 ([STU-FX-132]) | | Time remap | `ADBE Time Remapping` | footage and composition layers | [STU-MOT-045] | | Text | `ADBE Text Properties` | text layers | [STU-MOT-090] | | Shape | `ADBE Root Vec [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-MOTION",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

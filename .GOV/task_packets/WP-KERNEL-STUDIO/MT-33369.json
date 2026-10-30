@@ -2077,7 +2077,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2372,5 +2373,53 @@
       "criterion": "Export parameter record (normative shape).** Every export parameter Studio exposes carries: | Field | Required | Semantics | |---|---|---| | `identifier` | yes | stable machine identifier, never reused | | `label` | yes | human label | | `description` | no | tooltip text | | `type_code` | yes | a member of [STU-IO-103] | | `facet` | yes | a member of [STU-IO-104] | | `group_path` | yes | ordered path of container identifiers naming where this parameter sits in its surface | | `hard_min` | yes or explicitly `unknown` | the value the encoder will accept | | `hard_max` | yes or explicitly `unknown` | | | `soft_min` | yes or explicitly `absent` | the range the control presents | | `soft_max` | yes or explicitly `absent` | | | `default` | yes | | | `unit` | yes or explicitly `dimensionless` | the real unit token, never a guess | | `precision` | yes | declared decimal places | | `step` / `coarse_step` / `fine_step` | yes | scrub increments | | `enumerated_values` | when `type_code` is enumerated | ordered value list | | `is_slider` | yes | whether the control presents as a slider | | `is_hidden` | yes | whether the parameter is hidden in the default surface | | `used_by_formats` | yes | the container formats that carry it |",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "STU-CON-013",
+      "STU-CON-014",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-PACKAGE",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": true
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

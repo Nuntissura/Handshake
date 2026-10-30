@@ -1972,7 +1972,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2364,5 +2365,45 @@
       "criterion": "The normative composition settings record.** Every bound and default below is read from the shipped composition-settings surface and carries the full [STU-FX-103] parameter contract, with the seven fields SEPARATE as [STU-FX-105] requires. *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Field | Kind | hard_min | hard_max | soft_min | soft_max | default | unit | precision | Contract | |---|---|---|---|---|---|---|---|---|---| | `name` | string | -- | -- | -- | -- | -- | -- | -- | Required, unique within its parent folder. | | `width` | integer | 4 | 30000 | -- | -- | 720 | pixels | -- | | | `height` | integer | 4 | 30000 | -- | -- | 480 | pixels | -- | | | `lock_aspect_ratio` | boolean | -- | -- | -- | -- | false | -- | -- | When true, editing one dimension scales the other by the locked ratio. | | `pixel_aspect_ratio` | rational | -- | -- | -- | -- | 1:1 | ratio | -- | Rational, never a float ([STU-VID-011]). | | `frame_rate` | scalar | 1 | 999 | -- | -- | 29.97 | fps | -- | Presented alongside a preset picker offering 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60, 120. Stored per [STU-MOT-020]. | | `drop_frame` | enum | -- | -- | -- | -- | -- | -- | -- | Members: `drop_frame` \\| `non_drop_frame`. Display only ([STU-VID-012c]). No default declared. | | `resolution` | enum | -- | -- | -- | -- | [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-MOTION",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

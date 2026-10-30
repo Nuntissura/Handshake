@@ -1969,7 +1969,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2273,5 +2274,45 @@
       "criterion": "What this module does NOT fix about the ACES release.** Stated so an implementer does not read a version number into a contract that does not carry one. This module fixes the ROLE BINDINGS, the DISPLAY TARGETS and the PROVENANCE RECORD. It does NOT fix an ACES release number, and `aces_version` is recorded from what the configuration declares rather than asserted by Studio, for a reason recorded in [STU-COL-340]: at the time this module was written the current release was documented by the publishing project's own changelog and announcement but was not marked by a corresponding repository release tag, so the release identifier is a fact to be READ from a configuration and never a constant to be COMPILED IN. A build that hardcodes a version string here will be wrong within one release cycle and will be wrong silently. --- ### 14.8.22 Colour Accuracy Metric and Reference Patch Sets",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-PRISM",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

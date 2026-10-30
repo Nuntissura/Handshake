@@ -2077,7 +2077,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2372,5 +2373,41 @@
       "criterion": "Export constraint record (normative).** `{type, value}` where `type` ∈ {`SCALE`, `WIDTH`, `HEIGHT`}. Contract for `value`: | Field | `SCALE` | `WIDTH` / `HEIGHT` | |---|---|---| | hard_min | > 0 | 1 | | hard_max | NOT DECLARED IN SOURCE; Studio declares 100 | NOT DECLARED IN SOURCE; Studio declares 100000 | | soft_min | 0.25 | 16 | | soft_max | 4 | 8192 | | default | 1 | the node's intrinsic dimension | | unit | ratio (dimensionless) | pixels | | precision | 4 decimal places | 0 decimal places | | step / coarse_step / fine_step | 0.25 / 1 / 0.05 | 1 / 100 / 1 | Multi-scale variants (1x, 2x, 3x) are N settings each with `type: SCALE` and its own `suffix`, not one setting with a list.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "STU-CON-013",
+      "STU-CON-014"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-PACKAGE",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": true
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

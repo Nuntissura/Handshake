@@ -2124,7 +2124,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2443,5 +2444,53 @@
       "criterion": "Interactive-document object class enumerated.** [STU-PRO-033], as redefined in this module, obliges Studio to support the interactive-document object class that a professional page-layout and publishing tool exposes, and names that class by capability rather than after the application that inspired it, per [STU-SECTION-003]. This clause enumerates that class so no implementer has to infer its membership. It is exactly the eight object kinds below; each is already obliged in detail by the sibling clause its row names, so this enumeration adds no object kind that [STU-PRO-033] did not already require and removes none that it did. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own, because every row's object kind is already obliged by the sibling clause named in that row and splitting the table would count each of them twice.* | Interactive object kind | Already obliged by | What the object carries | |---|---|---| | Hyperlink | [STU-PRO-041a] | URL, file, email, page-with-zoom, text-anchor and shared-destination targets, with configurable appearance and highlight, plus automatic URL detection | | Bookmark | [STU-PRO-041a] | a nested, sortable navigation entry emitted into PDF output | | Generated code graphic | [STU-PRO-041a] | a QR code over web, text, SMS, email or business-card payloads, editable after gen [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "STU-CON-013",
+      "STU-CON-014",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-COMPONENTS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": true
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

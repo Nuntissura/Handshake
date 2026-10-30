@@ -139,7 +139,9 @@
   },
   "gameplan_ref": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml",
   "context_capsule": {
-    "module_maintenance_refs": [".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/5/maintenance"],
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/5/maintenance"
+    ],
     "specification_anchor_refs": [
       {
         "id": "STU-RAS-100",
@@ -2003,7 +2005,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2313,5 +2316,57 @@
       "criterion": "REPLACEMENT DECLARATION.** This module replaces the v02.205 bodies of 14.4 and 14.12 in full. The superseded text was authored from vendor documentation; this text is authored from behaviour parsed out of the installed applications themselves — type libraries, resource-compiled dialog layouts, binary preset containers, develop-engine settings serializations, and shipped colour and lens profile corpora. Where this module and any older Section 14 statement disagree about observable behaviour, this module wins and the older statement is a defect to repair, not a source to reconcile against. The derivation record for every clause in this module lives in the companion provenance sidecar named in this module's frontmatter; that sidecar is audit metadata and carries no normative content. This module stands alone as authority, per [STU-SECTION-002].",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-PIGMENT",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

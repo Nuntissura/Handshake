@@ -33,7 +33,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "tooltips_and_manual",
   "scope": {
-    "summary": "CI gates (normative).** All ten MUST run in continuous integration and all ten MUST fail the build when violated, except the last, which fails without a recorded waiver. | Gate | |---| | 1. Every widget call site's `author_id` exists in the descriptor set \u2014 enforced by the generated enum, so this is a compile error | | 2. Every descriptor has a non-empty `display_name` | | 3. Every descriptor's `manual_anchor` resolves to a real UserManual section | | 4. Every UserManual section is referenced by at least one descriptor \u2014 NO ORPHAN DOCUMENTATION | | 5. No literal string may reach the tooltip or the AccessKit API: the helper signatures accept the id enum, not `&str` ([STU-SHL-245]) | | 6. For every `kind == param` descriptor: hard bounds present OR `bounds_unknown` explicitly true | | 7. For every `kind == param` descriptor: `format(accessible_value) == rendered_text` ([STU-MDL-113]) | | 8. For every `kind == param` descriptor: `soft_min` and `soft_max` are PRESENT AS FIELDS even where they equal the hard bounds ([STU-SHL-172]) | | 9. For every descriptor: `extraction_method` is present and drawn from the closed set ([STU-SHL-241]) | | 10. **The `tooltip-gaps.json` count does not INCREASE between builds without an explicit recorded waiver** | Gate 10 is the gate that keeps the coverage honest. It permits a 42% cold start and forbids the gap from silently growing, which is the rea [...]",
+    "summary": "CI gates (normative).** All ten MUST run in continuous integration and all ten MUST fail the build when violated, except the last, which fails without a recorded waiver. | Gate | |---| | 1. Every widget call site's `author_id` exists in the descriptor set — enforced by the generated enum, so this is a compile error | | 2. Every descriptor has a non-empty `display_name` | | 3. Every descriptor's `manual_anchor` resolves to a real UserManual section | | 4. Every UserManual section is referenced by at least one descriptor — NO ORPHAN DOCUMENTATION | | 5. No literal string may reach the tooltip or the AccessKit API: the helper signatures accept the id enum, not `&str` ([STU-SHL-245]) | | 6. For every `kind == param` descriptor: hard bounds present OR `bounds_unknown` explicitly true | | 7. For every `kind == param` descriptor: `format(accessible_value) == rendered_text` ([STU-MDL-113]) | | 8. For every `kind == param` descriptor: `soft_min` and `soft_max` are PRESENT AS FIELDS even where they equal the hard bounds ([STU-SHL-172]) | | 9. For every descriptor: `extraction_method` is present and drawn from the closed set ([STU-SHL-241]) | | 10. **The `tooltip-gaps.json` count does not INCREASE between builds without an explicit recorded waiver** | Gate 10 is the gate that keeps the coverage honest. It permits a 42% cold start and forbids the gap from silently growing, which is the rea [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -1271,7 +1271,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1827,10 +1827,10 @@
         "declared_table_keys": [
           "Gate",
           "---",
-          "1. Every widget call site's `author_id` exists in the descriptor set \u2014 enforced by the generated enum, so this is a compile error",
+          "1. Every widget call site's `author_id` exists in the descriptor set — enforced by the generated enum, so this is a compile error",
           "2. Every descriptor has a non-empty `display_name`",
           "3. Every descriptor's `manual_anchor` resolves to a real UserManual section",
-          "4. Every UserManual section is referenced by at least one descriptor \u2014 NO ORPHAN DOCUMENTATION",
+          "4. Every UserManual section is referenced by at least one descriptor — NO ORPHAN DOCUMENTATION",
           "5. No literal string may reach the tooltip or the AccessKit API: the helper signatures accept the id enum, not `&str` ([STU-SHL-245])",
           "6. For every `kind == param` descriptor: hard bounds present OR `bounds_unknown` explicitly true",
           "7. For every `kind == param` descriptor: `format(accessible_value) == rendered_text` ([STU-MDL-113])",
@@ -1869,7 +1869,7 @@
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Implement Controls-owned CI gates (normative) typed projection/action boundary from exact STU-MAN-112; source fields/tokens=author_id, display_name, manual_anchor, &str, kind == param, bounds_unknown, format(accessible_value) == rendered_text, soft_min, soft_max, extraction_method, tooltip-gaps.json, declared row keys=[\"Gate\",\"1. Every widget call site's `author_id` exists in the descriptor set \u2014 enforced by the generated enum, so this is a compile error\",\"2. Every descriptor has a non-empty `display_name`\",\"3. Every descriptor's `manual_anchor` resolves to a real UserManual section\",\"4. Every UserManual section is referenced by at least one descriptor \u2014 NO ORPHAN DOCUMENTATION\",\"5. No literal string may reach the tooltip or the AccessKit API: the helper signatures accept the id enum, not `&str` ([STU-SHL-245])\",\"6. For every `kind == param` descriptor: hard bounds present OR `bounds_unknown` explicitly true\",\"7. For every `kind == param` descriptor: `format(accessible_value) == rendered_text` ([STU-MDL-113])\",\"8. For every `kind == param` descriptor: `soft_min` and `soft_max` are PRESENT AS FIELDS even where they equal the hard bounds ([STU-SHL-172])\",\"9. For every descriptor: `extraction_method` is present and drawn from the closed set ([STU-SHL-241])\",\"10. **The `tooltip-gaps.json` count does not INCREASE between builds without an explicit recorded waiver**\"]. Reuse existing primitive/command/inspection owner and publish only this requirement's behavior."
+        "step": "Implement Controls-owned CI gates (normative) typed projection/action boundary from exact STU-MAN-112; source fields/tokens=author_id, display_name, manual_anchor, &str, kind == param, bounds_unknown, format(accessible_value) == rendered_text, soft_min, soft_max, extraction_method, tooltip-gaps.json, declared row keys=[\"Gate\",\"1. Every widget call site's `author_id` exists in the descriptor set — enforced by the generated enum, so this is a compile error\",\"2. Every descriptor has a non-empty `display_name`\",\"3. Every descriptor's `manual_anchor` resolves to a real UserManual section\",\"4. Every UserManual section is referenced by at least one descriptor — NO ORPHAN DOCUMENTATION\",\"5. No literal string may reach the tooltip or the AccessKit API: the helper signatures accept the id enum, not `&str` ([STU-SHL-245])\",\"6. For every `kind == param` descriptor: hard bounds present OR `bounds_unknown` explicitly true\",\"7. For every `kind == param` descriptor: `format(accessible_value) == rendered_text` ([STU-MDL-113])\",\"8. For every `kind == param` descriptor: `soft_min` and `soft_max` are PRESENT AS FIELDS even where they equal the hard bounds ([STU-SHL-172])\",\"9. For every descriptor: `extraction_method` is present and drawn from the closed set ([STU-SHL-241])\",\"10. **The `tooltip-gaps.json` count does not INCREASE between builds without an explicit recorded waiver**\"]. Reuse existing primitive/command/inspection owner and publish only this requirement's behavior."
       },
       {
         "n": 2,
@@ -1897,7 +1897,7 @@
       }
     ],
     "expected_outputs": [
-      "Implement Controls-owned CI gates (normative) typed projection/action boundary from exact STU-MAN-112; source fields/tokens=author_id, display_name, manual_anchor, &str, kind == param, bounds_unknown, format(accessible_value) == rendered_text, soft_min, soft_max, extraction_method, tooltip-gaps.json, declared row keys=[\"Gate\",\"1. Every widget call site's `author_id` exists in the descriptor set \u2014 enforced by the generated enum, so this is a compile error\",\"2. Every descriptor has a non-empty `display_name`\",\"3. Every descriptor's `manual_anchor` resolves to a real UserManual section\",\"4. Every UserManual section is referenced by at least one descriptor \u2014 NO ORPHAN DOCUMENTATION\",\"5. No literal string may reach the tooltip or the AccessKit API: the helper signatures accept the id enum, not `&str` ([STU-SHL-245])\",\"6. For every `kind == param` descriptor: hard bounds present OR `bounds_unknown` explicitly true\",\"7. For every `kind == param` descriptor: `format(accessible_value) == rendered_text` ([STU-MDL-113])\",\"8. For every `kind == param` descriptor: `soft_min` and `soft_max` are PRESENT AS FIELDS even where they equal the hard bounds ([STU-SHL-172])\",\"9. For every descriptor: `extraction_method` is present and drawn from the closed set ([STU-SHL-241])\",\"10. **The `tooltip-gaps.json` count does not INCREASE between builds without an explicit recorded waiver**\"]. Reuse existing primitive/command/inspection owner and publish only this requirement's behavior.",
+      "Implement Controls-owned CI gates (normative) typed projection/action boundary from exact STU-MAN-112; source fields/tokens=author_id, display_name, manual_anchor, &str, kind == param, bounds_unknown, format(accessible_value) == rendered_text, soft_min, soft_max, extraction_method, tooltip-gaps.json, declared row keys=[\"Gate\",\"1. Every widget call site's `author_id` exists in the descriptor set — enforced by the generated enum, so this is a compile error\",\"2. Every descriptor has a non-empty `display_name`\",\"3. Every descriptor's `manual_anchor` resolves to a real UserManual section\",\"4. Every UserManual section is referenced by at least one descriptor — NO ORPHAN DOCUMENTATION\",\"5. No literal string may reach the tooltip or the AccessKit API: the helper signatures accept the id enum, not `&str` ([STU-SHL-245])\",\"6. For every `kind == param` descriptor: hard bounds present OR `bounds_unknown` explicitly true\",\"7. For every `kind == param` descriptor: `format(accessible_value) == rendered_text` ([STU-MDL-113])\",\"8. For every `kind == param` descriptor: `soft_min` and `soft_max` are PRESENT AS FIELDS even where they equal the hard bounds ([STU-SHL-172])\",\"9. For every descriptor: `extraction_method` is present and drawn from the closed set ([STU-SHL-241])\",\"10. **The `tooltip-gaps.json` count does not INCREASE between builds without an explicit recorded waiver**\"]. Reuse existing primitive/command/inspection owner and publish only this requirement's behavior.",
       "Drive the actual source-defined input/action or serialization consumer and inspect its declared output/state transition. The complete normative excerpt and qualified acceptance identify the semantic oracle; descriptor metadata is insufficient wherever a source clause requires invocation or editable behavior.",
       "Unknown member/address, denied resource, stale revision, cancelled request or missing consumer returns explicit typed failure while preserving accepted state; retain each source-specific exception/recovery condition. No new router/manual/DB/job/telemetry authority or invented native proof.",
       "Drive each distinct violation and valid case; gap increase requires actual recorded waiver, no fabricated approval or component-only host proof.",
@@ -2075,7 +2075,7 @@
       "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
       "domain": "tooltips_and_manual",
       "scope": {
-        "summary": "CI gates (normative).** All ten MUST run in continuous integration and all ten MUST fail the build when violated, except the last, which fails without a recorded waiver. | Gate | |---| | 1. Every widget call site's `author_id` exists in the descriptor set \u2014 enforced by the generated enum, so this is a compile error | | 2. Every descriptor has a non-empty `display_name` | | 3. Every descriptor's `manual_anchor` resolves to a real UserManual section | | 4. Every UserManual section is referenced by at least one descriptor \u2014 NO ORPHAN DOCUMENTATION | | 5. No literal string may reach the tooltip or the AccessKit API: the helper signatures accept the id enum, not `&str` ([STU-SHL-245]) | | 6. For every `kind == param` descriptor: hard bounds present OR `bounds_unknown` explicitly true | | 7. For every `kind == param` descriptor: `format(accessible_value) == rendered_text` ([STU-MDL-113]) | | 8. For every `kind == param` descriptor: `soft_min` and `soft_max` are PRESENT AS FIELDS even where they equal the hard bounds ([STU-SHL-172]) | | 9. For every descriptor: `extraction_method` is present and drawn from the closed set ([STU-SHL-241]) | | 10. **The `tooltip-gaps.json` count does not INCREASE between builds without an explicit recorded waiver** | Gate 10 is the gate that keeps the coverage honest. It permits a 42% cold start and forbids the gap from silently growing, which is the rea [...]",
+        "summary": "CI gates (normative).** All ten MUST run in continuous integration and all ten MUST fail the build when violated, except the last, which fails without a recorded waiver. | Gate | |---| | 1. Every widget call site's `author_id` exists in the descriptor set — enforced by the generated enum, so this is a compile error | | 2. Every descriptor has a non-empty `display_name` | | 3. Every descriptor's `manual_anchor` resolves to a real UserManual section | | 4. Every UserManual section is referenced by at least one descriptor — NO ORPHAN DOCUMENTATION | | 5. No literal string may reach the tooltip or the AccessKit API: the helper signatures accept the id enum, not `&str` ([STU-SHL-245]) | | 6. For every `kind == param` descriptor: hard bounds present OR `bounds_unknown` explicitly true | | 7. For every `kind == param` descriptor: `format(accessible_value) == rendered_text` ([STU-MDL-113]) | | 8. For every `kind == param` descriptor: `soft_min` and `soft_max` are PRESENT AS FIELDS even where they equal the hard bounds ([STU-SHL-172]) | | 9. For every descriptor: `extraction_method` is present and drawn from the closed set ([STU-SHL-241]) | | 10. **The `tooltip-gaps.json` count does not INCREASE between builds without an explicit recorded waiver** | Gate 10 is the gate that keeps the coverage honest. It permits a 42% cold start and forbids the gap from silently growing, which is the rea [...]",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "acceptance_criteria": [
@@ -2157,7 +2157,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2355,7 +2356,7 @@
         }
       ],
       "original_scope": {
-        "summary": "CI gates (normative).** All ten MUST run in continuous integration and all ten MUST fail the build when violated, except the last, which fails without a recorded waiver. | Gate | |---| | 1. Every widget call site's `author_id` exists in the descriptor set \u2014 enforced by the generated enum, so this is a compile error | | 2. Every descriptor has a non-empty `display_name` | | 3. Every descriptor's `manual_anchor` resolves to a real UserManual section | | 4. Every UserManual section is referenced by at least one descriptor \u2014 NO ORPHAN DOCUMENTATION | | 5. No literal string may reach the tooltip or the AccessKit API: the helper signatures accept the id enum, not `&str` ([STU-SHL-245]) | | 6. For every `kind == param` descriptor: hard bounds present OR `bounds_unknown` explicitly true | | 7. For every `kind == param` descriptor: `format(accessible_value) == rendered_text` ([STU-MDL-113]) | | 8. For every `kind == param` descriptor: `soft_min` and `soft_max` are PRESENT AS FIELDS even where they equal the hard bounds ([STU-SHL-172]) | | 9. For every descriptor: `extraction_method` is present and drawn from the closed set ([STU-SHL-241]) | | 10. **The `tooltip-gaps.json` count does not INCREASE between builds without an explicit recorded waiver** | Gate 10 is the gate that keeps the coverage honest. It permits a 42% cold start and forbids the gap from silently growing, which is the rea [...]",
+        "summary": "CI gates (normative).** All ten MUST run in continuous integration and all ten MUST fail the build when violated, except the last, which fails without a recorded waiver. | Gate | |---| | 1. Every widget call site's `author_id` exists in the descriptor set — enforced by the generated enum, so this is a compile error | | 2. Every descriptor has a non-empty `display_name` | | 3. Every descriptor's `manual_anchor` resolves to a real UserManual section | | 4. Every UserManual section is referenced by at least one descriptor — NO ORPHAN DOCUMENTATION | | 5. No literal string may reach the tooltip or the AccessKit API: the helper signatures accept the id enum, not `&str` ([STU-SHL-245]) | | 6. For every `kind == param` descriptor: hard bounds present OR `bounds_unknown` explicitly true | | 7. For every `kind == param` descriptor: `format(accessible_value) == rendered_text` ([STU-MDL-113]) | | 8. For every `kind == param` descriptor: `soft_min` and `soft_max` are PRESENT AS FIELDS even where they equal the hard bounds ([STU-SHL-172]) | | 9. For every descriptor: `extraction_method` is present and drawn from the closed set ([STU-SHL-241]) | | 10. **The `tooltip-gaps.json` count does not INCREASE between builds without an explicit recorded waiver** | Gate 10 is the gate that keeps the coverage honest. It permits a 42% cold start and forbids the gap from silently growing, which is the rea [...]",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -2426,5 +2427,51 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00"
+  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

@@ -33,7 +33,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "operator_shell",
   "scope": {
-    "summary": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu \u2192 Open Studio Manual, Search Manual\u2026, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides\u2026 - `Full Command Index\u2026` | item \u2014 menu-only - `Keyboard Shortcut Reference\u2026` | item - `Diagnostics` | submenu \u2192 Render Harness\u2026, Visual Debugger, Flight Recorder, Validation Report\u2026, System Report\u2026, GPU Report\u2026, Accessibility Tree Snapshot\u2026 \u2014 menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
+    "summary": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu → Open Studio Manual, Search Manual…, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides… - `Full Command Index…` | item — menu-only - `Keyboard Shortcut Reference…` | item - `Diagnostics` | submenu → Render Harness…, Visual Debugger, Flight Recorder, Validation Report…, System Report…, GPU Report…, Accessibility Tree Snapshot… — menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [],
@@ -1264,7 +1264,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1686,7 +1686,7 @@
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
-        "text": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu \u2192 Open Studio Manual, Search Manual\u2026, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides\u2026 - `Full Command Index\u2026` | item \u2014 menu-only - `Keyboard Shortcut Reference\u2026` | item - `Diagnostics` | submenu \u2192 Render Harness\u2026, Visual Debugger, Flight Recorder, Validation Report\u2026, System Report\u2026, GPU Report\u2026, Accessibility Tree Snapshot\u2026 \u2014 menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
+        "text": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu → Open Studio Manual, Search Manual…, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides… - `Full Command Index…` | item — menu-only - `Keyboard Shortcut Reference…` | item - `Diagnostics` | submenu → Render Harness…, Visual Debugger, Flight Recorder, Validation Report…, System Report…, GPU Report…, Accessibility Tree Snapshot… — menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
         "fulfillment_ref": "MT-34458#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -1816,12 +1816,12 @@
         "requirement_refs": [
           "STU-SHL-037"
         ],
-        "current_normative_instructions": "**[STU-SHL-037] HELP (extends the shell HELP menu).** - `Studio Manual` | submenu \u2192 Open Studio Manual, Search Manual\u2026, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides\u2026 - `Full Command Index\u2026` | item \u2014 menu-only - `Keyboard Shortcut Reference\u2026` | item - `Diagnostics` | submenu \u2192 Render Harness\u2026, Visual Debugger, Flight Recorder, Validation Report\u2026, System Report\u2026, GPU Report\u2026, Accessibility Tree Snapshot\u2026 \u2014 menu-only - `About Studio` | item",
+        "current_normative_instructions": "**[STU-SHL-037] HELP (extends the shell HELP menu).** - `Studio Manual` | submenu → Open Studio Manual, Search Manual…, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides… - `Full Command Index…` | item — menu-only - `Keyboard Shortcut Reference…` | item - `Diagnostics` | submenu → Render Harness…, Visual Debugger, Flight Recorder, Validation Report…, System Report…, GPU Report…, Accessibility Tree Snapshot… — menu-only - `About Studio` | item",
         "declared_table_keys": [],
         "source_fields": [
           "Studio Manual",
-          "Full Command Index\u2026",
-          "Keyboard Shortcut Reference\u2026",
+          "Full Command Index…",
+          "Keyboard Shortcut Reference…",
           "Diagnostics",
           "About Studio"
         ],
@@ -1843,7 +1843,7 @@
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Author the HELP (extends the shell HELP menu) Controls UiDescriptor/menu contribution from exact STU-SHL-037 source. Encode source labels/node kinds/command IDs, menu ordering and registry-expansion boundaries; source identifiers include Studio Manual, Full Command Index\u2026, Keyboard Shortcut Reference\u2026, Diagnostics, About Studio. Existing shell command registry is sole command owner."
+        "step": "Author the HELP (extends the shell HELP menu) Controls UiDescriptor/menu contribution from exact STU-SHL-037 source. Encode source labels/node kinds/command IDs, menu ordering and registry-expansion boundaries; source identifiers include Studio Manual, Full Command Index…, Keyboard Shortcut Reference…, Diagnostics, About Studio. Existing shell command registry is sole command owner."
       },
       {
         "n": 2,
@@ -1871,7 +1871,7 @@
       }
     ],
     "expected_outputs": [
-      "Author the HELP (extends the shell HELP menu) Controls UiDescriptor/menu contribution from exact STU-SHL-037 source. Encode source labels/node kinds/command IDs, menu ordering and registry-expansion boundaries; source identifiers include Studio Manual, Full Command Index\u2026, Keyboard Shortcut Reference\u2026, Diagnostics, About Studio. Existing shell command registry is sole command owner.",
+      "Author the HELP (extends the shell HELP menu) Controls UiDescriptor/menu contribution from exact STU-SHL-037 source. Encode source labels/node kinds/command IDs, menu ordering and registry-expansion boundaries; source identifiers include Studio Manual, Full Command Index…, Keyboard Shortcut Reference…, Diagnostics, About Studio. Existing shell command registry is sole command owner.",
       "Fold published descriptors into menu/operator/model projections and dispatch the same registered command, never a private per-leaf enum or duplicate table. For each source row verify exact label/kind/path/command and source availability/remedy behavior. Actual provider invocation must yield its published state/proposal, not a registration-only success label.",
       "Inject missing menu path/unknown command, duplicate author_id, wrong expansion source, denied/stale target and cancelled dispatch. Reject or show explicit disabled reason/remedy as the source requires while retaining document and operator focus. Expansion counts are resolved from the canonical registry, not invented placeholders.",
       "Open Help for This Command from a real registered command and inspect matching manual anchor; diagnostics produce structured accessibility/tree or recorder/validation output through bound source-only providers.",
@@ -1936,13 +1936,13 @@
           "Independent actual output"
         ],
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
-        "expected": "Actual HELP (extends the shell HELP menu) output obeys HELP (extends the shell HELP menu).** - `Studio Manual` | submenu \u2192 Open Studio Manual, Search Manual\u2026, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides\u2026 - `Full Command Index\u2026` | item \u2014 menu-only - `Keyboard Shortcut Reference\u2026` | item - `Diagnostics` | submenu \u2192 Render Harness\u2026, Visual Debugger, Flight Recorder, Validation Report\u2026, System Report\u2026, GPU Report\u2026, Accessibility Tree Snapshot\u2026 \u2014 menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
+        "expected": "Actual HELP (extends the shell HELP menu) output obeys HELP (extends the shell HELP menu).** - `Studio Manual` | submenu → Open Studio Manual, Search Manual…, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides… - `Full Command Index…` | item — menu-only - `Keyboard Shortcut Reference…` | item - `Diagnostics` | submenu → Render Harness…, Visual Debugger, Flight Recorder, Validation Report…, System Report…, GPU Report…, Accessibility Tree Snapshot… — menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu \u2192 Open Studio Manual, Search Manual\u2026, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides\u2026 - `Full Command Index\u2026` | item \u2014 menu-only - `Keyboard Shortcut Reference\u2026` | item - `Diagnostics` | submenu \u2192 Render Harness\u2026, Visual Debugger, Flight Recorder, Validation Report\u2026, System Report\u2026, GPU Report\u2026, Accessibility Tree Snapshot\u2026 \u2014 menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability Open Help for This Command from a real registered command and inspect matching manual anchor; diagnostics produce structured accessibility/tree or recorder/validation output through bound source-only providers.",
+          "consumer_assertion": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu → Open Studio Manual, Search Manual…, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides… - `Full Command Index…` | item — menu-only - `Keyboard Shortcut Reference…` | item - `Diagnostics` | submenu → Render Harness…, Visual Debugger, Flight Recorder, Validation Report…, System Report…, GPU Report…, Accessibility Tree Snapshot… — menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability Open Help for This Command from a real registered command and inspect matching manual anchor; diagnostics produce structured accessibility/tree or recorder/validation output through bound source-only providers.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Unavailable diagnostic/provider/manual anchor returns a typed missing/remedy result without claiming native/GPU proof or launching foreground windows.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
@@ -2049,7 +2049,7 @@
       "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
       "domain": "operator_shell",
       "scope": {
-        "summary": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu \u2192 Open Studio Manual, Search Manual\u2026, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides\u2026 - `Full Command Index\u2026` | item \u2014 menu-only - `Keyboard Shortcut Reference\u2026` | item - `Diagnostics` | submenu \u2192 Render Harness\u2026, Visual Debugger, Flight Recorder, Validation Report\u2026, System Report\u2026, GPU Report\u2026, Accessibility Tree Snapshot\u2026 \u2014 menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
+        "summary": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu → Open Studio Manual, Search Manual…, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides… - `Full Command Index…` | item — menu-only - `Keyboard Shortcut Reference…` | item - `Diagnostics` | submenu → Render Harness…, Visual Debugger, Flight Recorder, Validation Report…, System Report…, GPU Report…, Accessibility Tree Snapshot… — menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "acceptance_criteria": [],
@@ -2124,7 +2124,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2275,7 +2276,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu \u2192 Open Studio Manual, Search Manual\u2026, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides\u2026 - `Full Command Index\u2026` | item \u2014 menu-only - `Keyboard Shortcut Reference\u2026` | item - `Diagnostics` | submenu \u2192 Render Harness\u2026, Visual Debugger, Flight Recorder, Validation Report\u2026, System Report\u2026, GPU Report\u2026, Accessibility Tree Snapshot\u2026 \u2014 menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
+        "semantic_fulfillment": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu → Open Studio Manual, Search Manual…, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides… - `Full Command Index…` | item — menu-only - `Keyboard Shortcut Reference…` | item - `Diagnostics` | submenu → Render Harness…, Visual Debugger, Flight Recorder, Validation Report…, System Report…, GPU Report…, Accessibility Tree Snapshot… — menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34458-ASSET-CONTROLS"
@@ -2285,7 +2286,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu \u2192 Open Studio Manual, Search Manual\u2026, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides\u2026 - `Full Command Index\u2026` | item \u2014 menu-only - `Keyboard Shortcut Reference\u2026` | item - `Diagnostics` | submenu \u2192 Render Harness\u2026, Visual Debugger, Flight Recorder, Validation Report\u2026, System Report\u2026, GPU Report\u2026, Accessibility Tree Snapshot\u2026 \u2014 menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
+            "required_behavior": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu → Open Studio Manual, Search Manual…, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides… - `Full Command Index…` | item — menu-only - `Keyboard Shortcut Reference…` | item - `Diagnostics` | submenu → Render Harness…, Visual Debugger, Flight Recorder, Validation Report…, System Report…, GPU Report…, Accessibility Tree Snapshot… — menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
             "only_owner_root_may_change": true
           }
         ],
@@ -2294,13 +2295,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu \u2192 Open Studio Manual, Search Manual\u2026, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides\u2026 - `Full Command Index\u2026` | item \u2014 menu-only - `Keyboard Shortcut Reference\u2026` | item - `Diagnostics` | submenu \u2192 Render Harness\u2026, Visual Debugger, Flight Recorder, Validation Report\u2026, System Report\u2026, GPU Report\u2026, Accessibility Tree Snapshot\u2026 \u2014 menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability Open Help for This Command from a real registered command and inspect matching manual anchor; diagnostics produce structured accessibility/tree or recorder/validation output through bound source-only providers.",
+          "consumer_assertion": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu → Open Studio Manual, Search Manual…, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides… - `Full Command Index…` | item — menu-only - `Keyboard Shortcut Reference…` | item - `Diagnostics` | submenu → Render Harness…, Visual Debugger, Flight Recorder, Validation Report…, System Report…, GPU Report…, Accessibility Tree Snapshot… — menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability Open Help for This Command from a real registered command and inspect matching manual anchor; diagnostics produce structured accessibility/tree or recorder/validation output through bound source-only providers.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Unavailable diagnostic/provider/manual anchor returns a typed missing/remedy result without claiming native/GPU proof or launching foreground windows.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-34458-KERNEL-ASSET-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu \u2192 Open Studio Manual, Search Manual\u2026, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides\u2026 - `Full Command Index\u2026` | item \u2014 menu-only - `Keyboard Shortcut Reference\u2026` | item - `Diagnostics` | submenu \u2192 Render Harness\u2026, Visual Debugger, Flight Recorder, Validation Report\u2026, System Report\u2026, GPU Report\u2026, Accessibility Tree Snapshot\u2026 \u2014 menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu → Open Studio Manual, Search Manual…, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides… - `Full Command Index…` | item — menu-only - `Keyboard Shortcut Reference…` | item - `Diagnostics` | submenu → Render Harness…, Visual Debugger, Flight Recorder, Validation Report…, System Report…, GPU Report…, Accessibility Tree Snapshot… — menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36213"
@@ -2313,7 +2314,7 @@
       "all_original_acceptance_refs": [],
       "original_acceptance": [],
       "original_scope": {
-        "summary": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu \u2192 Open Studio Manual, Search Manual\u2026, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides\u2026 - `Full Command Index\u2026` | item \u2014 menu-only - `Keyboard Shortcut Reference\u2026` | item - `Diagnostics` | submenu \u2192 Render Harness\u2026, Visual Debugger, Flight Recorder, Validation Report\u2026, System Report\u2026, GPU Report\u2026, Accessibility Tree Snapshot\u2026 \u2014 menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
+        "summary": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu → Open Studio Manual, Search Manual…, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides… - `Full Command Index…` | item — menu-only - `Keyboard Shortcut Reference…` | item - `Diagnostics` | submenu → Render Harness…, Visual Debugger, Flight Recorder, Validation Report…, System Report…, GPU Report…, Accessibility Tree Snapshot… — menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -2328,7 +2329,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu \u2192 Open Studio Manual, Search Manual\u2026, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides\u2026 - `Full Command Index\u2026` | item \u2014 menu-only - `Keyboard Shortcut Reference\u2026` | item - `Diagnostics` | submenu \u2192 Render Harness\u2026, Visual Debugger, Flight Recorder, Validation Report\u2026, System Report\u2026, GPU Report\u2026, Accessibility Tree Snapshot\u2026 \u2014 menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
+          "semantic_fulfillment": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu → Open Studio Manual, Search Manual…, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides… - `Full Command Index…` | item — menu-only - `Keyboard Shortcut Reference…` | item - `Diagnostics` | submenu → Render Harness…, Visual Debugger, Flight Recorder, Validation Report…, System Report…, GPU Report…, Accessibility Tree Snapshot… — menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34458-ASSET-CONTROLS"
@@ -2338,7 +2339,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu \u2192 Open Studio Manual, Search Manual\u2026, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides\u2026 - `Full Command Index\u2026` | item \u2014 menu-only - `Keyboard Shortcut Reference\u2026` | item - `Diagnostics` | submenu \u2192 Render Harness\u2026, Visual Debugger, Flight Recorder, Validation Report\u2026, System Report\u2026, GPU Report\u2026, Accessibility Tree Snapshot\u2026 \u2014 menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
+              "required_behavior": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu → Open Studio Manual, Search Manual…, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides… - `Full Command Index…` | item — menu-only - `Keyboard Shortcut Reference…` | item - `Diagnostics` | submenu → Render Harness…, Visual Debugger, Flight Recorder, Validation Report…, System Report…, GPU Report…, Accessibility Tree Snapshot… — menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
               "only_owner_root_may_change": true
             }
           ],
@@ -2347,13 +2348,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu \u2192 Open Studio Manual, Search Manual\u2026, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides\u2026 - `Full Command Index\u2026` | item \u2014 menu-only - `Keyboard Shortcut Reference\u2026` | item - `Diagnostics` | submenu \u2192 Render Harness\u2026, Visual Debugger, Flight Recorder, Validation Report\u2026, System Report\u2026, GPU Report\u2026, Accessibility Tree Snapshot\u2026 \u2014 menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
+            "consumer_assertion": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu → Open Studio Manual, Search Manual…, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides… - `Full Command Index…` | item — menu-only - `Keyboard Shortcut Reference…` | item - `Diagnostics` | submenu → Render Harness…, Visual Debugger, Flight Recorder, Validation Report…, System Report…, GPU Report…, Accessibility Tree Snapshot… — menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-34458-KERNEL-ASSET-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu \u2192 Open Studio Manual, Search Manual\u2026, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides\u2026 - `Full Command Index\u2026` | item \u2014 menu-only - `Keyboard Shortcut Reference\u2026` | item - `Diagnostics` | submenu \u2192 Render Harness\u2026, Visual Debugger, Flight Recorder, Validation Report\u2026, System Report\u2026, GPU Report\u2026, Accessibility Tree Snapshot\u2026 \u2014 menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu → Open Studio Manual, Search Manual…, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides… - `Full Command Index…` | item — menu-only - `Keyboard Shortcut Reference…` | item - `Diagnostics` | submenu → Render Harness…, Visual Debugger, Flight Recorder, Validation Report…, System Report…, GPU Report…, Accessibility Tree Snapshot… — menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ],
@@ -2364,7 +2365,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu \u2192 Open Studio Manual, Search Manual\u2026, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides\u2026 - `Full Command Index\u2026` | item \u2014 menu-only - `Keyboard Shortcut Reference\u2026` | item - `Diagnostics` | submenu \u2192 Render Harness\u2026, Visual Debugger, Flight Recorder, Validation Report\u2026, System Report\u2026, GPU Report\u2026, Accessibility Tree Snapshot\u2026 \u2014 menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
+          "semantic_fulfillment": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu → Open Studio Manual, Search Manual…, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides… - `Full Command Index…` | item — menu-only - `Keyboard Shortcut Reference…` | item - `Diagnostics` | submenu → Render Harness…, Visual Debugger, Flight Recorder, Validation Report…, System Report…, GPU Report…, Accessibility Tree Snapshot… — menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34458-ASSET-CONTROLS"
@@ -2374,7 +2375,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu \u2192 Open Studio Manual, Search Manual\u2026, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides\u2026 - `Full Command Index\u2026` | item \u2014 menu-only - `Keyboard Shortcut Reference\u2026` | item - `Diagnostics` | submenu \u2192 Render Harness\u2026, Visual Debugger, Flight Recorder, Validation Report\u2026, System Report\u2026, GPU Report\u2026, Accessibility Tree Snapshot\u2026 \u2014 menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
+              "required_behavior": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu → Open Studio Manual, Search Manual…, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides… - `Full Command Index…` | item — menu-only - `Keyboard Shortcut Reference…` | item - `Diagnostics` | submenu → Render Harness…, Visual Debugger, Flight Recorder, Validation Report…, System Report…, GPU Report…, Accessibility Tree Snapshot… — menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
               "only_owner_root_may_change": true
             }
           ],
@@ -2383,13 +2384,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu \u2192 Open Studio Manual, Search Manual\u2026, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides\u2026 - `Full Command Index\u2026` | item \u2014 menu-only - `Keyboard Shortcut Reference\u2026` | item - `Diagnostics` | submenu \u2192 Render Harness\u2026, Visual Debugger, Flight Recorder, Validation Report\u2026, System Report\u2026, GPU Report\u2026, Accessibility Tree Snapshot\u2026 \u2014 menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
+            "consumer_assertion": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu → Open Studio Manual, Search Manual…, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides… - `Full Command Index…` | item — menu-only - `Keyboard Shortcut Reference…` | item - `Diagnostics` | submenu → Render Harness…, Visual Debugger, Flight Recorder, Validation Report…, System Report…, GPU Report…, Accessibility Tree Snapshot… — menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-34458-KERNEL-ASSET-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu \u2192 Open Studio Manual, Search Manual\u2026, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides\u2026 - `Full Command Index\u2026` | item \u2014 menu-only - `Keyboard Shortcut Reference\u2026` | item - `Diagnostics` | submenu \u2192 Render Harness\u2026, Visual Debugger, Flight Recorder, Validation Report\u2026, System Report\u2026, GPU Report\u2026, Accessibility Tree Snapshot\u2026 \u2014 menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu → Open Studio Manual, Search Manual…, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides… - `Full Command Index…` | item — menu-only - `Keyboard Shortcut Reference…` | item - `Diagnostics` | submenu → Render Harness…, Visual Debugger, Flight Recorder, Validation Report…, System Report…, GPU Report…, Accessibility Tree Snapshot… — menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ],
@@ -2415,8 +2416,54 @@
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
-      "criterion": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu \u2192 Open Studio Manual, Search Manual\u2026, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides\u2026 - `Full Command Index\u2026` | item \u2014 menu-only - `Keyboard Shortcut Reference\u2026` | item - `Diagnostics` | submenu \u2192 Render Harness\u2026, Visual Debugger, Flight Recorder, Validation Report\u2026, System Report\u2026, GPU Report\u2026, Accessibility Tree Snapshot\u2026 \u2014 menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
+      "criterion": "HELP (extends the shell HELP menu).** - `Studio Manual` | submenu → Open Studio Manual, Search Manual…, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides… - `Full Command Index…` | item — menu-only - `Keyboard Shortcut Reference…` | item - `Diagnostics` | submenu → Render Harness…, Visual Debugger, Flight Recorder, Validation Report…, System Report…, GPU Report…, Accessibility Tree Snapshot… — menu-only - `About Studio` | item #### 1.4 Expansion nodes, tool shape, and menu-only capability",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

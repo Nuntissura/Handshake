@@ -33,13 +33,13 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "operator_shell",
   "scope": {
-    "summary": "MOTION (Studio module menu).** - `Playback` | submenu \u2192 Play / Pause, Play In to Out, Play Around Playhead, Loop, Shuttle Left / Right, Step Forward 1 Frame, Step Back 1 Frame, Playback Resolution\u2026, Playback Options\u2026 - `Go To` | submenu \u2192 Start of Timeline, End of Timeline, Next Edit Point, Previous Edit Point, Next Keyframe, Previous Keyframe, Next Marker, Previous Marker, In Point, Out Point, Time\u2026 - `Keyframes` | expansion | `studio.motion.keyframe` \u2014 includes Set Keyframe, Toggle Hold Keyframe, Interpolation *(6-member enumeration: Linear, Bezier, Continuous Bezier, Auto Bezier, Hold, Current Settings)*, Keyframe Velocity\u2026, Keyframe Assistant, Ease In, Ease Out, Ease Both, Nudge Earlier / Later, Select All Visible Keyframes, Deselect All Keyframes, Separate Dimensions - `Expression` | submenu | `studio.motion.expression` \u2192 Add Expression, Toggle Expression, Convert Expression to Keyframes, Show Expression Errors, Pick Whip\u2026, Expression Editor Panel. *(`Copy Expression Only` and the two property-link copies are clipboard verbs and live in EDIT.)* - `Markers` | expansion | `studio.motion.marker` - `In & Out` | submenu \u2192 Mark In, Mark Out, Mark Clip, Mark Selection, Clear In, Clear Out, Clear In and Out - `Edit Actions` | submenu \u2192 Insert, Overwrite, Extract, Lift, Ripple Delete, Add Edit, Add Edit to All Tracks, Split at Playhead, Join Through Edits, Trim In / Out, Roll Edit [...]",
+    "summary": "MOTION (Studio module menu).** - `Playback` | submenu → Play / Pause, Play In to Out, Play Around Playhead, Loop, Shuttle Left / Right, Step Forward 1 Frame, Step Back 1 Frame, Playback Resolution…, Playback Options… - `Go To` | submenu → Start of Timeline, End of Timeline, Next Edit Point, Previous Edit Point, Next Keyframe, Previous Keyframe, Next Marker, Previous Marker, In Point, Out Point, Time… - `Keyframes` | expansion | `studio.motion.keyframe` — includes Set Keyframe, Toggle Hold Keyframe, Interpolation *(6-member enumeration: Linear, Bezier, Continuous Bezier, Auto Bezier, Hold, Current Settings)*, Keyframe Velocity…, Keyframe Assistant, Ease In, Ease Out, Ease Both, Nudge Earlier / Later, Select All Visible Keyframes, Deselect All Keyframes, Separate Dimensions - `Expression` | submenu | `studio.motion.expression` → Add Expression, Toggle Expression, Convert Expression to Keyframes, Show Expression Errors, Pick Whip…, Expression Editor Panel. *(`Copy Expression Only` and the two property-link copies are clipboard verbs and live in EDIT.)* - `Markers` | expansion | `studio.motion.marker` - `In & Out` | submenu → Mark In, Mark Out, Mark Clip, Mark Selection, Clear In, Clear Out, Clear In and Out - `Edit Actions` | submenu → Insert, Overwrite, Extract, Lift, Ripple Delete, Add Edit, Add Edit to All Tracks, Split at Playhead, Join Through Edits, Trim In / Out, Roll Edit [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu \u2192 Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components\u2026, Interactive Document Settings\u2026 - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` \u2014 a document-level toggle read by [STU-SHL-202]",
+      "criterion": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu → Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components…, Interactive Document Settings… - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` — a document-level toggle read by [STU-SHL-202]",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-SHL-032"
     }
@@ -1271,7 +1271,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1693,7 +1693,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu \u2192 Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components\u2026, Interactive Document Settings\u2026 - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` \u2014 a document-level toggle read by [STU-SHL-202]",
+        "text": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu → Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components…, Interactive Document Settings… - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` — a document-level toggle read by [STU-SHL-202]",
         "fulfillment_ref": "MT-34453#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -1823,7 +1823,7 @@
         "requirement_refs": [
           "STU-SHL-032"
         ],
-        "current_normative_instructions": "**[STU-SHL-032] MOTION (Studio module menu).** - `Playback` | submenu \u2192 Play / Pause, Play In to Out, Play Around Playhead, Loop, Shuttle Left / Right, Step Forward 1 Frame, Step Back 1 Frame, Playback Resolution\u2026, Playback Options\u2026 - `Go To` | submenu \u2192 Start of Timeline, End of Timeline, Next Edit Point, Previous Edit Point, Next Keyframe, Previous Keyframe, Next Marker, Previous Marker, In Point, Out Point, Time\u2026 - `Keyframes` | expansion | `studio.motion.keyframe` \u2014 includes Set Keyframe, Toggle Hold Keyframe, Interpolation *(6-member enumeration: Linear, Bezier, Continuous Bezier, Auto Bezier, Hold, Current Settings)*, Keyframe Velocity\u2026, Keyframe Assistant, Ease In, Ease Out, Ease Both, Nudge Earlier / Later, Select All Visible Keyframes, Deselect All Keyframes, Separate Dimensions - `Expression` | submenu | `studio.motion.expression` \u2192 Add Expression, Toggle Expression, Convert Expression to Keyframes, Show Expression Errors, Pick Whip\u2026, Expression Editor Panel. *(`Copy Expression Only` and the two property-link copies are clipboard verbs and live in EDIT.)* - `Markers` | expansion | `studio.motion.marker` - `In & Out` | submenu \u2192 Mark In, Mark Out, Mark Clip, Mark Selection, Clear In, Clear Out, Clear In and Out - `Edit Actions` | submenu \u2192 Insert, Overwrite, Extract, Lift, Ripple Delete, Add Edit, Add Edit to All Tracks, Split at Playhead, Join Through Edits, Trim In / Out, Roll Edit, Slip, Slide, Close Gap, Trim Mode\u2026 - `Tracks` | submenu \u2192 Add Track\u2026, Delete Track\u2026, Add Tracks to Match Source, Track Height, Lock Track, Sync Lock, Target Track, Mute / Solo, Track Output Toggle - `Transitions` | submenu \u2192 Apply Default Video Transition, Apply Default Audio Transition, Apply Transition to Selection, Transition Duration\u2026, Set Default Transition\u2026, Transition Presets\u2026 - `Speed & Time` | submenu \u2192 Speed / Duration\u2026, Time Remap, Reverse, Freeze Frame\u2026, Frame Blending, Optical Flow, Time Stretch\u2026 - `Audio` | submenu \u2192 Audio Gain\u2026, Normalise\u2026, Audio Channels\u2026, Generate Audio Waveform, Auto-Ducking\u2026, Add Submix Track, Mute, Solo, Loudness Report\u2026 - `Captions` | submenu \u2192 New Caption Track\u2026, Import Captions\u2026, Export Captions\u2026, Caption Settings\u2026, Merge Captions, Split Caption, Transcribe\u2026, Caption Sidecar Settings\u2026 - `Tracking` | submenu | `studio.motion.tracking` \u2192 Track Motion, Track Camera, Track Mask, Track This Property, Stabilise, Tracker Panel, Mask Tracking Options\u2026 - `Render & Preview` | submenu \u2192 Render In to Out, Render Effects in Work Area, Render Audio, Render Entire Timeline, Delete Render Files, Preview Quality\u2026, Cache Settings\u2026, Render Queue Panel - `Motion Presets` | submenu \u2192 Apply Animation Style\u2026, Save Animation Style\u2026, Manage Motion Presets\u2026, Install Motion Template\u2026, Browse Presets\u2026, Recent Animation Presets - `Motion Aids` | submenu \u2192 Onion Skin, Onion Skin Options\u2026, Motion Blur, Motion Path Display, Ghosting\u2026 - `Reveal` | submenu | `studio.motion.reveal` \u2192 Reveal Properties with Keyframes, Reveal All Modified Properties, Reveal Effects, Reveal Expressions, Extend Reveal to Selection. Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu \u2192 Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components\u2026, Interactive Document Settings\u2026 - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` \u2014 a document-level toggle read by [STU-SHL-202]",
+        "current_normative_instructions": "**[STU-SHL-032] MOTION (Studio module menu).** - `Playback` | submenu → Play / Pause, Play In to Out, Play Around Playhead, Loop, Shuttle Left / Right, Step Forward 1 Frame, Step Back 1 Frame, Playback Resolution…, Playback Options… - `Go To` | submenu → Start of Timeline, End of Timeline, Next Edit Point, Previous Edit Point, Next Keyframe, Previous Keyframe, Next Marker, Previous Marker, In Point, Out Point, Time… - `Keyframes` | expansion | `studio.motion.keyframe` — includes Set Keyframe, Toggle Hold Keyframe, Interpolation *(6-member enumeration: Linear, Bezier, Continuous Bezier, Auto Bezier, Hold, Current Settings)*, Keyframe Velocity…, Keyframe Assistant, Ease In, Ease Out, Ease Both, Nudge Earlier / Later, Select All Visible Keyframes, Deselect All Keyframes, Separate Dimensions - `Expression` | submenu | `studio.motion.expression` → Add Expression, Toggle Expression, Convert Expression to Keyframes, Show Expression Errors, Pick Whip…, Expression Editor Panel. *(`Copy Expression Only` and the two property-link copies are clipboard verbs and live in EDIT.)* - `Markers` | expansion | `studio.motion.marker` - `In & Out` | submenu → Mark In, Mark Out, Mark Clip, Mark Selection, Clear In, Clear Out, Clear In and Out - `Edit Actions` | submenu → Insert, Overwrite, Extract, Lift, Ripple Delete, Add Edit, Add Edit to All Tracks, Split at Playhead, Join Through Edits, Trim In / Out, Roll Edit, Slip, Slide, Close Gap, Trim Mode… - `Tracks` | submenu → Add Track…, Delete Track…, Add Tracks to Match Source, Track Height, Lock Track, Sync Lock, Target Track, Mute / Solo, Track Output Toggle - `Transitions` | submenu → Apply Default Video Transition, Apply Default Audio Transition, Apply Transition to Selection, Transition Duration…, Set Default Transition…, Transition Presets… - `Speed & Time` | submenu → Speed / Duration…, Time Remap, Reverse, Freeze Frame…, Frame Blending, Optical Flow, Time Stretch… - `Audio` | submenu → Audio Gain…, Normalise…, Audio Channels…, Generate Audio Waveform, Auto-Ducking…, Add Submix Track, Mute, Solo, Loudness Report… - `Captions` | submenu → New Caption Track…, Import Captions…, Export Captions…, Caption Settings…, Merge Captions, Split Caption, Transcribe…, Caption Sidecar Settings… - `Tracking` | submenu | `studio.motion.tracking` → Track Motion, Track Camera, Track Mask, Track This Property, Stabilise, Tracker Panel, Mask Tracking Options… - `Render & Preview` | submenu → Render In to Out, Render Effects in Work Area, Render Audio, Render Entire Timeline, Delete Render Files, Preview Quality…, Cache Settings…, Render Queue Panel - `Motion Presets` | submenu → Apply Animation Style…, Save Animation Style…, Manage Motion Presets…, Install Motion Template…, Browse Presets…, Recent Animation Presets - `Motion Aids` | submenu → Onion Skin, Onion Skin Options…, Motion Blur, Motion Path Display, Ghosting… - `Reveal` | submenu | `studio.motion.reveal` → Reveal Properties with Keyframes, Reveal All Modified Properties, Reveal Effects, Reveal Expressions, Extend Reveal to Selection. Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu → Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components…, Interactive Document Settings… - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` — a document-level toggle read by [STU-SHL-202]",
         "declared_table_keys": [],
         "source_fields": [
           "Playback",
@@ -1956,7 +1956,7 @@
           "AC-001"
         ],
         "command_or_method": "Planned target: cargo test --locked -p hsk-studio-controls --no-default-features --test mt_34453 source_contract_consumer -- --exact. Independent validator drives source-specific cases in steps for STU-SHL-032/AC-001 against actual reducer/projection/record output, including declared negative/recovery cases. Implementer separately cargo check --locked -p hsk-studio-controls --no-default-features --tests. Actual candidate/lock/actor/artifact roots activation-bound; no execution claimed. Exact source-specific refinement: Invoke frame-step, keyframe interpolation and document auto-keyframe toggle through actual timeline state. All five Reveal leaves provide untimed equivalents; expression clipboard copies stay EDIT. Invalid time/locked track, missing caption/tracking provider and cancelled render preserve timeline/selection; registered Reveal actions remain keyboard/menu/model accessible without requiring timed double taps.",
-        "expected": "Actual MOTION (Studio module menu) output obeys Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu \u2192 Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components\u2026, Interactive Document Settings\u2026 - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` \u2014 a document-level toggle read by [STU-SHL-202]; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
+        "expected": "Actual MOTION (Studio module menu) output obeys Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu → Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components…, Interactive Document Settings… - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` — a document-level toggle read by [STU-SHL-202]; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1969,7 +1969,7 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu \u2192 Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components\u2026, Interactive Document Settings\u2026 - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` \u2014 a document-level toggle read by [STU-SHL-202] Invoke frame-step, keyframe interpolation and document auto-keyframe toggle through actual timeline state. All five Reveal leaves provide untimed equivalents; expression clipboard copies stay EDIT.",
+          "consumer_assertion": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu → Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components…, Interactive Document Settings… - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` — a document-level toggle read by [STU-SHL-202] Invoke frame-step, keyframe interpolation and document auto-keyframe toggle through actual timeline state. All five Reveal leaves provide untimed equivalents; expression clipboard copies stay EDIT.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Invalid time/locked track, missing caption/tracking provider and cancelled render preserve timeline/selection; registered Reveal actions remain keyboard/menu/model accessible without requiring timed double taps.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
@@ -2077,13 +2077,13 @@
       "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
       "domain": "operator_shell",
       "scope": {
-        "summary": "MOTION (Studio module menu).** - `Playback` | submenu \u2192 Play / Pause, Play In to Out, Play Around Playhead, Loop, Shuttle Left / Right, Step Forward 1 Frame, Step Back 1 Frame, Playback Resolution\u2026, Playback Options\u2026 - `Go To` | submenu \u2192 Start of Timeline, End of Timeline, Next Edit Point, Previous Edit Point, Next Keyframe, Previous Keyframe, Next Marker, Previous Marker, In Point, Out Point, Time\u2026 - `Keyframes` | expansion | `studio.motion.keyframe` \u2014 includes Set Keyframe, Toggle Hold Keyframe, Interpolation *(6-member enumeration: Linear, Bezier, Continuous Bezier, Auto Bezier, Hold, Current Settings)*, Keyframe Velocity\u2026, Keyframe Assistant, Ease In, Ease Out, Ease Both, Nudge Earlier / Later, Select All Visible Keyframes, Deselect All Keyframes, Separate Dimensions - `Expression` | submenu | `studio.motion.expression` \u2192 Add Expression, Toggle Expression, Convert Expression to Keyframes, Show Expression Errors, Pick Whip\u2026, Expression Editor Panel. *(`Copy Expression Only` and the two property-link copies are clipboard verbs and live in EDIT.)* - `Markers` | expansion | `studio.motion.marker` - `In & Out` | submenu \u2192 Mark In, Mark Out, Mark Clip, Mark Selection, Clear In, Clear Out, Clear In and Out - `Edit Actions` | submenu \u2192 Insert, Overwrite, Extract, Lift, Ripple Delete, Add Edit, Add Edit to All Tracks, Split at Playhead, Join Through Edits, Trim In / Out, Roll Edit [...]",
+        "summary": "MOTION (Studio module menu).** - `Playback` | submenu → Play / Pause, Play In to Out, Play Around Playhead, Loop, Shuttle Left / Right, Step Forward 1 Frame, Step Back 1 Frame, Playback Resolution…, Playback Options… - `Go To` | submenu → Start of Timeline, End of Timeline, Next Edit Point, Previous Edit Point, Next Keyframe, Previous Keyframe, Next Marker, Previous Marker, In Point, Out Point, Time… - `Keyframes` | expansion | `studio.motion.keyframe` — includes Set Keyframe, Toggle Hold Keyframe, Interpolation *(6-member enumeration: Linear, Bezier, Continuous Bezier, Auto Bezier, Hold, Current Settings)*, Keyframe Velocity…, Keyframe Assistant, Ease In, Ease Out, Ease Both, Nudge Earlier / Later, Select All Visible Keyframes, Deselect All Keyframes, Separate Dimensions - `Expression` | submenu | `studio.motion.expression` → Add Expression, Toggle Expression, Convert Expression to Keyframes, Show Expression Errors, Pick Whip…, Expression Editor Panel. *(`Copy Expression Only` and the two property-link copies are clipboard verbs and live in EDIT.)* - `Markers` | expansion | `studio.motion.marker` - `In & Out` | submenu → Mark In, Mark Out, Mark Clip, Mark Selection, Clear In, Clear Out, Clear In and Out - `Edit Actions` | submenu → Insert, Overwrite, Extract, Lift, Ripple Delete, Add Edit, Add Edit to All Tracks, Split at Playhead, Join Through Edits, Trim In / Out, Roll Edit [...]",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "acceptance_criteria": [
         {
           "id": "AC-001",
-          "criterion": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu \u2192 Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components\u2026, Interactive Document Settings\u2026 - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` \u2014 a document-level toggle read by [STU-SHL-202]",
+          "criterion": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu → Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components…, Interactive Document Settings… - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` — a document-level toggle read by [STU-SHL-202]",
           "evidence_kind": "runtime_assertion",
           "source": "14-studio-creative-suite.md STU-SHL-032"
         }
@@ -2159,7 +2159,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2307,10 +2308,10 @@
       {
         "acceptance_id": "AC-001",
         "original_pointer": "#/preserved_original/payload/acceptance_criteria/0",
-        "original_text": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu \u2192 Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components\u2026, Interactive Document Settings\u2026 - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` \u2014 a document-level toggle read by [STU-SHL-202]",
+        "original_text": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu → Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components…, Interactive Document Settings… - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` — a document-level toggle read by [STU-SHL-202]",
         "original_row_sha256": "a28f7c3b8e5f1c62b6588d31797a2c95f883837a861f4ba7f3a7531545561df6",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu \u2192 Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components\u2026, Interactive Document Settings\u2026 - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` \u2014 a document-level toggle read by [STU-SHL-202]",
+        "semantic_fulfillment": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu → Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components…, Interactive Document Settings… - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` — a document-level toggle read by [STU-SHL-202]",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34453-ASSET-CONTROLS"
@@ -2320,7 +2321,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu \u2192 Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components\u2026, Interactive Document Settings\u2026 - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` \u2014 a document-level toggle read by [STU-SHL-202]",
+            "required_behavior": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu → Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components…, Interactive Document Settings… - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` — a document-level toggle read by [STU-SHL-202]",
             "only_owner_root_may_change": true
           }
         ],
@@ -2329,13 +2330,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu \u2192 Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components\u2026, Interactive Document Settings\u2026 - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` \u2014 a document-level toggle read by [STU-SHL-202] Invoke frame-step, keyframe interpolation and document auto-keyframe toggle through actual timeline state. All five Reveal leaves provide untimed equivalents; expression clipboard copies stay EDIT.",
+          "consumer_assertion": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu → Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components…, Interactive Document Settings… - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` — a document-level toggle read by [STU-SHL-202] Invoke frame-step, keyframe interpolation and document auto-keyframe toggle through actual timeline state. All five Reveal leaves provide untimed equivalents; expression clipboard copies stay EDIT.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Invalid time/locked track, missing caption/tracking provider and cancelled render preserve timeline/selection; registered Reveal actions remain keyboard/menu/model accessible without requiring timed double taps.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-34453-KERNEL-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu \u2192 Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components\u2026, Interactive Document Settings\u2026 - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` \u2014 a document-level toggle read by [STU-SHL-202] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu → Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components…, Interactive Document Settings… - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` — a document-level toggle read by [STU-SHL-202] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36213"
@@ -2351,13 +2352,13 @@
       "original_acceptance": [
         {
           "id": "AC-001",
-          "criterion": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu \u2192 Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components\u2026, Interactive Document Settings\u2026 - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` \u2014 a document-level toggle read by [STU-SHL-202]",
+          "criterion": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu → Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components…, Interactive Document Settings… - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` — a document-level toggle read by [STU-SHL-202]",
           "evidence_kind": "runtime_assertion",
           "source": "14-studio-creative-suite.md STU-SHL-032"
         }
       ],
       "original_scope": {
-        "summary": "MOTION (Studio module menu).** - `Playback` | submenu \u2192 Play / Pause, Play In to Out, Play Around Playhead, Loop, Shuttle Left / Right, Step Forward 1 Frame, Step Back 1 Frame, Playback Resolution\u2026, Playback Options\u2026 - `Go To` | submenu \u2192 Start of Timeline, End of Timeline, Next Edit Point, Previous Edit Point, Next Keyframe, Previous Keyframe, Next Marker, Previous Marker, In Point, Out Point, Time\u2026 - `Keyframes` | expansion | `studio.motion.keyframe` \u2014 includes Set Keyframe, Toggle Hold Keyframe, Interpolation *(6-member enumeration: Linear, Bezier, Continuous Bezier, Auto Bezier, Hold, Current Settings)*, Keyframe Velocity\u2026, Keyframe Assistant, Ease In, Ease Out, Ease Both, Nudge Earlier / Later, Select All Visible Keyframes, Deselect All Keyframes, Separate Dimensions - `Expression` | submenu | `studio.motion.expression` \u2192 Add Expression, Toggle Expression, Convert Expression to Keyframes, Show Expression Errors, Pick Whip\u2026, Expression Editor Panel. *(`Copy Expression Only` and the two property-link copies are clipboard verbs and live in EDIT.)* - `Markers` | expansion | `studio.motion.marker` - `In & Out` | submenu \u2192 Mark In, Mark Out, Mark Clip, Mark Selection, Clear In, Clear Out, Clear In and Out - `Edit Actions` | submenu \u2192 Insert, Overwrite, Extract, Lift, Ripple Delete, Add Edit, Add Edit to All Tracks, Split at Playhead, Join Through Edits, Trim In / Out, Roll Edit [...]",
+        "summary": "MOTION (Studio module menu).** - `Playback` | submenu → Play / Pause, Play In to Out, Play Around Playhead, Loop, Shuttle Left / Right, Step Forward 1 Frame, Step Back 1 Frame, Playback Resolution…, Playback Options… - `Go To` | submenu → Start of Timeline, End of Timeline, Next Edit Point, Previous Edit Point, Next Keyframe, Previous Keyframe, Next Marker, Previous Marker, In Point, Out Point, Time… - `Keyframes` | expansion | `studio.motion.keyframe` — includes Set Keyframe, Toggle Hold Keyframe, Interpolation *(6-member enumeration: Linear, Bezier, Continuous Bezier, Auto Bezier, Hold, Current Settings)*, Keyframe Velocity…, Keyframe Assistant, Ease In, Ease Out, Ease Both, Nudge Earlier / Later, Select All Visible Keyframes, Deselect All Keyframes, Separate Dimensions - `Expression` | submenu | `studio.motion.expression` → Add Expression, Toggle Expression, Convert Expression to Keyframes, Show Expression Errors, Pick Whip…, Expression Editor Panel. *(`Copy Expression Only` and the two property-link copies are clipboard verbs and live in EDIT.)* - `Markers` | expansion | `studio.motion.marker` - `In & Out` | submenu → Mark In, Mark Out, Mark Clip, Mark Selection, Clear In, Clear Out, Clear In and Out - `Edit Actions` | submenu → Insert, Overwrite, Extract, Lift, Ripple Delete, Add Edit, Add Edit to All Tracks, Split at Playhead, Join Through Edits, Trim In / Out, Roll Edit [...]",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -2369,10 +2370,10 @@
         {
           "acceptance_id": "AC-001",
           "original_pointer": "#/preserved_original/payload/acceptance_criteria/0",
-          "original_text": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu \u2192 Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components\u2026, Interactive Document Settings\u2026 - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` \u2014 a document-level toggle read by [STU-SHL-202]",
+          "original_text": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu → Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components…, Interactive Document Settings… - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` — a document-level toggle read by [STU-SHL-202]",
           "original_row_sha256": "a28f7c3b8e5f1c62b6588d31797a2c95f883837a861f4ba7f3a7531545561df6",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu \u2192 Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components\u2026, Interactive Document Settings\u2026 - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` \u2014 a document-level toggle read by [STU-SHL-202]",
+          "semantic_fulfillment": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu → Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components…, Interactive Document Settings… - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` — a document-level toggle read by [STU-SHL-202]",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34453-ASSET-CONTROLS"
@@ -2382,7 +2383,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu \u2192 Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components\u2026, Interactive Document Settings\u2026 - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` \u2014 a document-level toggle read by [STU-SHL-202]",
+              "required_behavior": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu → Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components…, Interactive Document Settings… - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` — a document-level toggle read by [STU-SHL-202]",
               "only_owner_root_may_change": true
             }
           ],
@@ -2391,13 +2392,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu \u2192 Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components\u2026, Interactive Document Settings\u2026 - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` \u2014 a document-level toggle read by [STU-SHL-202]",
+            "consumer_assertion": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu → Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components…, Interactive Document Settings… - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` — a document-level toggle read by [STU-SHL-202]",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-34453-KERNEL-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu \u2192 Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components\u2026, Interactive Document Settings\u2026 - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` \u2014 a document-level toggle read by [STU-SHL-202] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Every leaf here is the UNTIMED equivalent of a double-tap reveal gesture and MUST exist ([STU-SHL-109]). - `Prototype` | submenu → Flows, Connections, Triggers, Actions, Animation, Overlays & Scroll, Presentation, Interactive Components…, Interactive Document Settings… - `Enable Auto-Keyframe` | item | `studio.motion.auto_keyframe` — a document-level toggle read by [STU-SHL-202] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ],
@@ -2419,5 +2420,51 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00"
+  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

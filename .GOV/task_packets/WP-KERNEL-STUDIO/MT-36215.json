@@ -709,7 +709,7 @@
           "MT-35618/AC-001",
           "MT-33638/ASSET-AC-001"
         ],
-      "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_harness_host -- host_adoption_behavior --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize host_adoption_behavior in owning target as individually keyed original-criterion cases, not one facade assertion. Input: Pinned module contract conformance cases and original AC/source digests. Method: Use Harness published case descriptors as inputs to actual host adapters/native driver; do not import transient fake authority into host proof Host provider implementation stays outside handshake_core; only typed proposal/artifact/diagnostic ports cross to shared backend binding.. Canonical positive oracle: every original-case actual host output, canonical re-read and current native evidence. Negative assertions: Host result must include canonical row/read and current native evidence; portable-only pass remains unproved host acceptance. Re-read canonical head/events/current grants after success and denial; each original qualified AC records its own requested feature output.",
+        "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_harness_host -- host_adoption_behavior --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize host_adoption_behavior in owning target as individually keyed original-criterion cases, not one facade assertion. Input: Pinned module contract conformance cases and original AC/source digests. Method: Use Harness published case descriptors as inputs to actual host adapters/native driver; do not import transient fake authority into host proof Host provider implementation stays outside handshake_core; only typed proposal/artifact/diagnostic ports cross to shared backend binding.. Canonical positive oracle: every original-case actual host output, canonical re-read and current native evidence. Negative assertions: Host result must include canonical row/read and current native evidence; portable-only pass remains unproved host acceptance. Re-read canonical head/events/current grants after success and denial; each original qualified AC records its own requested feature output.",
         "expected": "Host result must include canonical row/read and current native evidence; portable-only pass remains unproved host acceptance",
         "timeout_seconds": 1800,
         "on_timeout": "record_timeout",
@@ -725,8 +725,8 @@
         "claim_refs": [
           "MT-36215/AC-HOST-003"
         ],
-      "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_harness_host -- host_adoption_compatibility --exact --nocapture; cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_harness_host -- host_adoption_rollback --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize both named tests in the same owning target. Compatibility: run prior and candidate immutable module releases with the identical task inputs; independently compare every original-case actual host output, canonical re-read and current native evidence and source-qualified identity/loss semantics. Inject incompatible schema/API/ABI or missing dependency/provider pin and assert denial before authority mutation. Rollback: settle accepted work/cancel and checkpoint in-flight every original-case actual host output, canonical re-read and current native evidence, restore the exact prior admitted manifest+locks+release pins, reopen/replay the same host case and independently compare every original-case actual host output, canonical re-read and current native evidence plus canonical accepted head/history/EventLedger. No rewrite of accepted authority, silent data loss or success through missing provider.",
-      "expected": "Prior/candidate compatible release preserves every original-case actual host output, canonical re-read and current native evidence; incompatible candidate is denied before authority mutation; rollback reopens/replays prior every original-case actual host output, canonical re-read and current native evidence with accepted authority and provenance intact.",
+        "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_harness_host -- host_adoption_compatibility --exact --nocapture; cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_harness_host -- host_adoption_rollback --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize both named tests in the same owning target. Compatibility: run prior and candidate immutable module releases with the identical task inputs; independently compare every original-case actual host output, canonical re-read and current native evidence and source-qualified identity/loss semantics. Inject incompatible schema/API/ABI or missing dependency/provider pin and assert denial before authority mutation. Rollback: settle accepted work/cancel and checkpoint in-flight every original-case actual host output, canonical re-read and current native evidence, restore the exact prior admitted manifest+locks+release pins, reopen/replay the same host case and independently compare every original-case actual host output, canonical re-read and current native evidence plus canonical accepted head/history/EventLedger. No rewrite of accepted authority, silent data loss or success through missing provider.",
+        "expected": "Prior/candidate compatible release preserves every original-case actual host output, canonical re-read and current native evidence; incompatible candidate is denied before authority mutation; rollback reopens/replays prior every original-case actual host output, canonical re-read and current native evidence with accepted authority and provenance intact.",
         "timeout_seconds": 1800,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -819,7 +819,7 @@
           "MT-35618/AC-001",
           "MT-33638/ASSET-AC-001"
         ],
-      "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_harness_host -- host_adoption_pillars --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize host_adoption_pillars in owning target: INT same typed command and every original-case actual host output, canonical re-read and current native evidence for operator/model; SWARM two agents/operator current-grant revision isolation; VIS current native frame/revision/grant readback; QUIET small/large/error layouts and no focus steal; actual three-tier freeze/crash/stall plus authenticated faithful Palmistry ingestion, missing production route remains BLOCKED; MAN same-change canonical manual for Adopt pinned hsk-studio-harness through native Handshake services failure/recovery; STOP cancel before acceptance leaves head unchanged, cancel after acceptance retains receipt and drains; PRIV revoked/cross-account action denies; COMPART source/host owners separate; COMPONENT selected locked package closure only.",
+        "command_or_method": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_studio_harness_host -- host_adoption_pillars --exact --nocapture. PLANNED NOT RUN / TARGET NOT CREATED. From separately activated host root; before any run publish this exact natural selector in HBR test_entrypoint and freeze its config_files, owning Cargo.toml/Cargo.lock, toolchain, selected source/schema/provider pins, per-case managed SurrealDB record-user namespace/database and artifact isolation. Current HBR entrypoint remains REPLACE_ME, so no execution authorization. Native GPU targets require cross-binary serialization and actual current renderer/device; runtime prerequisite absence blocks. Materialize host_adoption_pillars in owning target: INT same typed command and every original-case actual host output, canonical re-read and current native evidence for operator/model; SWARM two agents/operator current-grant revision isolation; VIS current native frame/revision/grant readback; QUIET small/large/error layouts and no focus steal; actual three-tier freeze/crash/stall plus authenticated faithful Palmistry ingestion, missing production route remains BLOCKED; MAN same-change canonical manual for Adopt pinned hsk-studio-harness through native Handshake services failure/recovery; STOP cancel before acceptance leaves head unchanged, cancel after acceptance retains receipt and drains; PRIV revoked/cross-account action denies; COMPART source/host owners separate; COMPONENT selected locked package closure only.",
         "expected": "Applicable nine-pillar behavior evidenced on exact host candidate; missing renderer/device/production route remains blocked",
         "timeout_seconds": 1800,
         "on_timeout": "record_timeout",
@@ -980,5 +980,53 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "created_at_utc": "2026-10-10T00:00:00Z",
-  "updated_at_utc": "2026-10-10T00:00:00Z"
+  "updated_at_utc": "2026-10-10T00:00:00Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "STU-CON-013",
+      "STU-CON-014",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "handshake_native::studio",
+      "unit_kind": "host_adoption",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

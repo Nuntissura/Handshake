@@ -1868,7 +1868,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2075,5 +2076,45 @@
       "criterion": "THE NON-YIELDING SET IS CLOSED.** A clause or table in the following four categories yields no microtask, and nothing outside these four categories may be treated as non-yielding: 1. **Pure cross-references.** A clause whose entire content points at where the contract actually lives rather than stating one. There are exactly two in this module: the fill-versus-layer-opacity pointer at [STU-RAS-010], whose contract is [STU-RAS-115], and the content-aware pointer at [STU-RAS-030], whose contract is [STU-RAS-143]. Both are retained because they hold their v02.205 anchors; neither is cut into work twice. 2. **Restatements of an obligation that attaches to every microtask.** The GUI-control, typed-command, Argus-observability, UserManual, headless-and-quiet, determinism and visual-verifiability obligations attach to every unit derived from this module. A clause or sentence restating one of them adds no unit of its own; it is an acceptance criterion inside every unit. 3. **Supersession and disposition rows.** The replacement declaration, the anchor-disposition table and the spec-completeness rule of §0 record what happened to the v02.205 text. They are bookkeeping about the spec, not work on the product. 4. **This derivation sub-section itself** — all seven of its clause definitions and every table inside it, this list included. Of the 181 clause definitions in this module, 12 yield [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-DEVELOP",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

@@ -33,13 +33,13 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "operator_shell",
   "scope": {
-    "summary": "Merge law.** A consolidation that only works given an unbuilt capability is not a consolidation, it is deferred debt. A merge is permitted ONLY where the merged panel is usable AS-IS. The operational test: does the merge require two of its members to be VISIBLE AT THE SAME TIME? If yes, the merge is REJECTED. Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces \u2192 one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline \u2192 one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces \u2192 one panel | **REJECTED** and redecomposed: properties \u2192 the inspector slot by binding; styles \u2192 `text-styles`; tools \u2192 the Tool Rail; actions \u2192 `align-distribute`; the on-canvas editor \u2192 a Viewport editing mode; the template browser \u2192 `graphics-templates` | a category error: three of the five are not panels at all | | the graph editor \u2192 a mode of the keyframe timeline | **PERMITTED** | the graph replaces the keyframe strip for the SAME properties at the same time; the two views are alternatives, never simultaneous | | 34 control-panel variants \u2192 the `context-bar` slot | **PERMITTED** | 34 alternative layouts of ONE slot chosen by selection; only one selection exists at a time | | 60 property inspectors \u2192 one `properties` panel plus 60 bindings [...]",
+    "summary": "Merge law.** A consolidation that only works given an unbuilt capability is not a consolidation, it is deferred debt. A merge is permitted ONLY where the merged panel is usable AS-IS. The operational test: does the merge require two of its members to be VISIBLE AT THE SAME TIME? If yes, the merge is REJECTED. Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces → one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline → one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces → one panel | **REJECTED** and redecomposed: properties → the inspector slot by binding; styles → `text-styles`; tools → the Tool Rail; actions → `align-distribute`; the on-canvas editor → a Viewport editing mode; the template browser → `graphics-templates` | a category error: three of the five are not panels at all | | the graph editor → a mode of the keyframe timeline | **PERMITTED** | the graph replaces the keyframe strip for the SAME properties at the same time; the two views are alternatives, never simultaneous | | 34 control-panel variants → the `context-bar` slot | **PERMITTED** | 34 alternative layouts of ONE slot chosen by selection; only one selection exists at a time | | 60 property inspectors → one `properties` panel plus 60 bindings [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces \u2192 one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline \u2192 one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces \u2192 one panel | **REJECTED** and redecomposed: properties \u2192 the inspector slot by binding; styles \u2192 `text-styles`; tools \u2192 the Tool Rail; actions \u2192 `align-distribute`; the on-canvas editor \u2192 a Viewport editing mode; the template browser \u2192 `graphics-templates` | a cate [...]",
+      "criterion": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces → one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline → one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces → one panel | **REJECTED** and redecomposed: properties → the inspector slot by binding; styles → `text-styles`; tools → the Tool Rail; actions → `align-distribute`; the on-canvas editor → a Viewport editing mode; the template browser → `graphics-templates` | a cate [...]",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-SHL-080"
     }
@@ -1271,7 +1271,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1693,7 +1693,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces \u2192 one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline \u2192 one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces \u2192 one panel | **REJECTED** and redecomposed: properties \u2192 the inspector slot by binding; styles \u2192 `text-styles`; tools \u2192 the Tool Rail; actions \u2192 `align-distribute`; the on-canvas editor \u2192 a Viewport editing mode; the template browser \u2192 `graphics-templates` | a cate [...]",
+        "text": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces → one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline → one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces → one panel | **REJECTED** and redecomposed: properties → the inspector slot by binding; styles → `text-styles`; tools → the Tool Rail; actions → `align-distribute`; the on-canvas editor → a Viewport editing mode; the template browser → `graphics-templates` | a cate [...]",
         "fulfillment_ref": "MT-34516#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -1827,15 +1827,15 @@
         "declared_table_keys": [
           "Merge",
           "---",
-          "twelve preset surfaces \u2192 one preset library",
-          "the clip timeline and the keyframe timeline \u2192 one panel with a mode switch",
-          "five titling surfaces \u2192 one panel",
-          "the graph editor \u2192 a mode of the keyframe timeline",
-          "34 control-panel variants \u2192 the `context-bar` slot",
-          "60 property inspectors \u2192 one `properties` panel plus 60 bindings",
-          "motion-sketch + smoother + wiggler \u2192 `keyframe-assistant`",
-          "several mutually exclusive print previews \u2192 `print-preview`",
-          "several scope kinds \u2192 one `scopes` panel",
+          "twelve preset surfaces → one preset library",
+          "the clip timeline and the keyframe timeline → one panel with a mode switch",
+          "five titling surfaces → one panel",
+          "the graph editor → a mode of the keyframe timeline",
+          "34 control-panel variants → the `context-bar` slot",
+          "60 property inspectors → one `properties` panel plus 60 bindings",
+          "motion-sketch + smoother + wiggler → `keyframe-assistant`",
+          "several mutually exclusive print previews → `print-preview`",
+          "several scope kinds → one `scopes` panel",
           "source viewer and program viewer"
         ],
         "source_fields": [
@@ -1866,7 +1866,7 @@
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Implement Controls-owned Merge law typed projection/action boundary from exact STU-SHL-080; source fields/tokens=text-styles, align-distribute, graphics-templates, context-bar, properties, keyframe-assistant, print-preview, scopes, declared row keys=[\"Merge\",\"twelve preset surfaces \u2192 one preset library\",\"the clip timeline and the keyframe timeline \u2192 one panel with a mode switch\",\"five titling surfaces \u2192 one panel\",\"the graph editor \u2192 a mode of the keyframe timeline\",\"34 control-panel variants \u2192 the `context-bar` slot\",\"60 property inspectors \u2192 one `properties` panel plus 60 bindings\",\"motion-sketch + smoother + wiggler \u2192 `keyframe-assistant`\",\"several mutually exclusive print previews \u2192 `print-preview`\",\"several scope kinds \u2192 one `scopes` panel\",\"source viewer and program viewer\"]. Reuse existing primitive/command/inspection owner and publish only this requirement's behavior."
+        "step": "Implement Controls-owned Merge law typed projection/action boundary from exact STU-SHL-080; source fields/tokens=text-styles, align-distribute, graphics-templates, context-bar, properties, keyframe-assistant, print-preview, scopes, declared row keys=[\"Merge\",\"twelve preset surfaces → one preset library\",\"the clip timeline and the keyframe timeline → one panel with a mode switch\",\"five titling surfaces → one panel\",\"the graph editor → a mode of the keyframe timeline\",\"34 control-panel variants → the `context-bar` slot\",\"60 property inspectors → one `properties` panel plus 60 bindings\",\"motion-sketch + smoother + wiggler → `keyframe-assistant`\",\"several mutually exclusive print previews → `print-preview`\",\"several scope kinds → one `scopes` panel\",\"source viewer and program viewer\"]. Reuse existing primitive/command/inspection owner and publish only this requirement's behavior."
       },
       {
         "n": 2,
@@ -1894,7 +1894,7 @@
       }
     ],
     "expected_outputs": [
-      "Implement Controls-owned Merge law typed projection/action boundary from exact STU-SHL-080; source fields/tokens=text-styles, align-distribute, graphics-templates, context-bar, properties, keyframe-assistant, print-preview, scopes, declared row keys=[\"Merge\",\"twelve preset surfaces \u2192 one preset library\",\"the clip timeline and the keyframe timeline \u2192 one panel with a mode switch\",\"five titling surfaces \u2192 one panel\",\"the graph editor \u2192 a mode of the keyframe timeline\",\"34 control-panel variants \u2192 the `context-bar` slot\",\"60 property inspectors \u2192 one `properties` panel plus 60 bindings\",\"motion-sketch + smoother + wiggler \u2192 `keyframe-assistant`\",\"several mutually exclusive print previews \u2192 `print-preview`\",\"several scope kinds \u2192 one `scopes` panel\",\"source viewer and program viewer\"]. Reuse existing primitive/command/inspection owner and publish only this requirement's behavior.",
+      "Implement Controls-owned Merge law typed projection/action boundary from exact STU-SHL-080; source fields/tokens=text-styles, align-distribute, graphics-templates, context-bar, properties, keyframe-assistant, print-preview, scopes, declared row keys=[\"Merge\",\"twelve preset surfaces → one preset library\",\"the clip timeline and the keyframe timeline → one panel with a mode switch\",\"five titling surfaces → one panel\",\"the graph editor → a mode of the keyframe timeline\",\"34 control-panel variants → the `context-bar` slot\",\"60 property inspectors → one `properties` panel plus 60 bindings\",\"motion-sketch + smoother + wiggler → `keyframe-assistant`\",\"several mutually exclusive print previews → `print-preview`\",\"several scope kinds → one `scopes` panel\",\"source viewer and program viewer\"]. Reuse existing primitive/command/inspection owner and publish only this requirement's behavior.",
       "Drive the actual source-defined input/action or serialization consumer and inspect its declared output/state transition. The complete normative excerpt and qualified acceptance identify the semantic oracle; descriptor metadata is insufficient wherever a source clause requires invocation or editable behavior.",
       "Unknown member/address, denied resource, stale revision, cancelled request or missing consumer returns explicit typed failure while preserving accepted state; retain each source-specific exception/recovery condition. No new router/manual/DB/job/telemetry authority or invented native proof.",
       "Inspect actual simultaneous surfaces and alternative views; scopes must ship internal N-up grid in same implementation unit,source/program viewers are existing distinct editor groups.",
@@ -1951,7 +1951,7 @@
           "AC-001"
         ],
         "command_or_method": "Planned target: cargo test --locked -p hsk-studio-controls --no-default-features --test mt_34516 source_contract_consumer -- --exact. Independent validator drives source-specific cases in steps for STU-SHL-080/AC-001 against actual reducer/projection/record output, including declared negative/recovery cases. Implementer separately cargo check --locked -p hsk-studio-controls --no-default-features --tests. Actual candidate/lock/actor/artifact roots activation-bound; no execution claimed. Exact source-specific refinement: Inspect actual simultaneous surfaces and alternative views; scopes must ship internal N-up grid in same implementation unit,source/program viewers are existing distinct editor groups. A merge relying on unbuilt capability or losing simultaneous visibility fails; no dropping old panel scope or replacing needed panes with hidden mode switch.",
-        "expected": "Actual Merge law output obeys Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces \u2192 one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline \u2192 one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces \u2192 one panel | **REJECTED** and redecomposed: properties \u2192 the inspector slot by binding; styles \u2192 `text-styles`; tools \u2192 the Tool Rail; actions \u2192 `align-distribute`; the on-canvas editor \u2192 a Viewport editing mode; the template browser \u2192 `graphics-templates` | a cate [...]; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
+        "expected": "Actual Merge law output obeys Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces → one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline → one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces → one panel | **REJECTED** and redecomposed: properties → the inspector slot by binding; styles → `text-styles`; tools → the Tool Rail; actions → `align-distribute`; the on-canvas editor → a Viewport editing mode; the template browser → `graphics-templates` | a cate [...]; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1964,7 +1964,7 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces \u2192 one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline \u2192 one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces \u2192 one panel | **REJECTED** and redecomposed: properties \u2192 the inspector slot by binding; styles \u2192 `text-styles`; tools \u2192 the Tool Rail; actions \u2192 `align-distribute`; the on-canvas editor \u2192 a Viewport editing mode; the template browser \u2192 `graphics-templates` | a cate [...] Inspect actual simultaneous surfaces and alternative views; scopes must ship internal N-up grid in same implementation unit,source/program viewers are existing distinct editor groups.",
+          "consumer_assertion": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces → one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline → one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces → one panel | **REJECTED** and redecomposed: properties → the inspector slot by binding; styles → `text-styles`; tools → the Tool Rail; actions → `align-distribute`; the on-canvas editor → a Viewport editing mode; the template browser → `graphics-templates` | a cate [...] Inspect actual simultaneous surfaces and alternative views; scopes must ship internal N-up grid in same implementation unit,source/program viewers are existing distinct editor groups.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. A merge relying on unbuilt capability or losing simultaneous visibility fails; no dropping old panel scope or replacing needed panes with hidden mode switch.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
@@ -2072,13 +2072,13 @@
       "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
       "domain": "operator_shell",
       "scope": {
-        "summary": "Merge law.** A consolidation that only works given an unbuilt capability is not a consolidation, it is deferred debt. A merge is permitted ONLY where the merged panel is usable AS-IS. The operational test: does the merge require two of its members to be VISIBLE AT THE SAME TIME? If yes, the merge is REJECTED. Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces \u2192 one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline \u2192 one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces \u2192 one panel | **REJECTED** and redecomposed: properties \u2192 the inspector slot by binding; styles \u2192 `text-styles`; tools \u2192 the Tool Rail; actions \u2192 `align-distribute`; the on-canvas editor \u2192 a Viewport editing mode; the template browser \u2192 `graphics-templates` | a category error: three of the five are not panels at all | | the graph editor \u2192 a mode of the keyframe timeline | **PERMITTED** | the graph replaces the keyframe strip for the SAME properties at the same time; the two views are alternatives, never simultaneous | | 34 control-panel variants \u2192 the `context-bar` slot | **PERMITTED** | 34 alternative layouts of ONE slot chosen by selection; only one selection exists at a time | | 60 property inspectors \u2192 one `properties` panel plus 60 bindings [...]",
+        "summary": "Merge law.** A consolidation that only works given an unbuilt capability is not a consolidation, it is deferred debt. A merge is permitted ONLY where the merged panel is usable AS-IS. The operational test: does the merge require two of its members to be VISIBLE AT THE SAME TIME? If yes, the merge is REJECTED. Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces → one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline → one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces → one panel | **REJECTED** and redecomposed: properties → the inspector slot by binding; styles → `text-styles`; tools → the Tool Rail; actions → `align-distribute`; the on-canvas editor → a Viewport editing mode; the template browser → `graphics-templates` | a category error: three of the five are not panels at all | | the graph editor → a mode of the keyframe timeline | **PERMITTED** | the graph replaces the keyframe strip for the SAME properties at the same time; the two views are alternatives, never simultaneous | | 34 control-panel variants → the `context-bar` slot | **PERMITTED** | 34 alternative layouts of ONE slot chosen by selection; only one selection exists at a time | | 60 property inspectors → one `properties` panel plus 60 bindings [...]",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "acceptance_criteria": [
         {
           "id": "AC-001",
-          "criterion": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces \u2192 one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline \u2192 one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces \u2192 one panel | **REJECTED** and redecomposed: properties \u2192 the inspector slot by binding; styles \u2192 `text-styles`; tools \u2192 the Tool Rail; actions \u2192 `align-distribute`; the on-canvas editor \u2192 a Viewport editing mode; the template browser \u2192 `graphics-templates` | a cate [...]",
+          "criterion": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces → one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline → one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces → one panel | **REJECTED** and redecomposed: properties → the inspector slot by binding; styles → `text-styles`; tools → the Tool Rail; actions → `align-distribute`; the on-canvas editor → a Viewport editing mode; the template browser → `graphics-templates` | a cate [...]",
           "evidence_kind": "runtime_assertion",
           "source": "14-studio-creative-suite.md STU-SHL-080"
         }
@@ -2154,7 +2154,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2302,10 +2303,10 @@
       {
         "acceptance_id": "AC-001",
         "original_pointer": "#/preserved_original/payload/acceptance_criteria/0",
-        "original_text": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces \u2192 one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline \u2192 one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces \u2192 one panel | **REJECTED** and redecomposed: properties \u2192 the inspector slot by binding; styles \u2192 `text-styles`; tools \u2192 the Tool Rail; actions \u2192 `align-distribute`; the on-canvas editor \u2192 a Viewport editing mode; the template browser \u2192 `graphics-templates` | a cate [...]",
+        "original_text": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces → one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline → one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces → one panel | **REJECTED** and redecomposed: properties → the inspector slot by binding; styles → `text-styles`; tools → the Tool Rail; actions → `align-distribute`; the on-canvas editor → a Viewport editing mode; the template browser → `graphics-templates` | a cate [...]",
         "original_row_sha256": "ef6a0f0966881d50b163048d201c13d7b2595b945786653d81edb6ae4d34e876",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces \u2192 one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline \u2192 one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces \u2192 one panel | **REJECTED** and redecomposed: properties \u2192 the inspector slot by binding; styles \u2192 `text-styles`; tools \u2192 the Tool Rail; actions \u2192 `align-distribute`; the on-canvas editor \u2192 a Viewport editing mode; the template browser \u2192 `graphics-templates` | a cate [...]",
+        "semantic_fulfillment": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces → one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline → one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces → one panel | **REJECTED** and redecomposed: properties → the inspector slot by binding; styles → `text-styles`; tools → the Tool Rail; actions → `align-distribute`; the on-canvas editor → a Viewport editing mode; the template browser → `graphics-templates` | a cate [...]",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34516-ASSET-CONTROLS"
@@ -2315,7 +2316,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces \u2192 one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline \u2192 one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces \u2192 one panel | **REJECTED** and redecomposed: properties \u2192 the inspector slot by binding; styles \u2192 `text-styles`; tools \u2192 the Tool Rail; actions \u2192 `align-distribute`; the on-canvas editor \u2192 a Viewport editing mode; the template browser \u2192 `graphics-templates` | a cate [...]",
+            "required_behavior": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces → one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline → one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces → one panel | **REJECTED** and redecomposed: properties → the inspector slot by binding; styles → `text-styles`; tools → the Tool Rail; actions → `align-distribute`; the on-canvas editor → a Viewport editing mode; the template browser → `graphics-templates` | a cate [...]",
             "only_owner_root_may_change": true
           }
         ],
@@ -2324,13 +2325,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces \u2192 one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline \u2192 one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces \u2192 one panel | **REJECTED** and redecomposed: properties \u2192 the inspector slot by binding; styles \u2192 `text-styles`; tools \u2192 the Tool Rail; actions \u2192 `align-distribute`; the on-canvas editor \u2192 a Viewport editing mode; the template browser \u2192 `graphics-templates` | a cate [...] Inspect actual simultaneous surfaces and alternative views; scopes must ship internal N-up grid in same implementation unit,source/program viewers are existing distinct editor groups.",
+          "consumer_assertion": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces → one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline → one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces → one panel | **REJECTED** and redecomposed: properties → the inspector slot by binding; styles → `text-styles`; tools → the Tool Rail; actions → `align-distribute`; the on-canvas editor → a Viewport editing mode; the template browser → `graphics-templates` | a cate [...] Inspect actual simultaneous surfaces and alternative views; scopes must ship internal N-up grid in same implementation unit,source/program viewers are existing distinct editor groups.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. A merge relying on unbuilt capability or losing simultaneous visibility fails; no dropping old panel scope or replacing needed panes with hidden mode switch.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-34516-KERNEL-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces \u2192 one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline \u2192 one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces \u2192 one panel | **REJECTED** and redecomposed: properties \u2192 the inspector slot by binding; styles \u2192 `text-styles`; tools \u2192 the Tool Rail; actions \u2192 `align-distribute`; the on-canvas editor \u2192 a Viewport editing mode; the template browser \u2192 `graphics-templates` | a cate [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces → one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline → one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces → one panel | **REJECTED** and redecomposed: properties → the inspector slot by binding; styles → `text-styles`; tools → the Tool Rail; actions → `align-distribute`; the on-canvas editor → a Viewport editing mode; the template browser → `graphics-templates` | a cate [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36213"
@@ -2346,13 +2347,13 @@
       "original_acceptance": [
         {
           "id": "AC-001",
-          "criterion": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces \u2192 one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline \u2192 one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces \u2192 one panel | **REJECTED** and redecomposed: properties \u2192 the inspector slot by binding; styles \u2192 `text-styles`; tools \u2192 the Tool Rail; actions \u2192 `align-distribute`; the on-canvas editor \u2192 a Viewport editing mode; the template browser \u2192 `graphics-templates` | a cate [...]",
+          "criterion": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces → one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline → one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces → one panel | **REJECTED** and redecomposed: properties → the inspector slot by binding; styles → `text-styles`; tools → the Tool Rail; actions → `align-distribute`; the on-canvas editor → a Viewport editing mode; the template browser → `graphics-templates` | a cate [...]",
           "evidence_kind": "runtime_assertion",
           "source": "14-studio-creative-suite.md STU-SHL-080"
         }
       ],
       "original_scope": {
-        "summary": "Merge law.** A consolidation that only works given an unbuilt capability is not a consolidation, it is deferred debt. A merge is permitted ONLY where the merged panel is usable AS-IS. The operational test: does the merge require two of its members to be VISIBLE AT THE SAME TIME? If yes, the merge is REJECTED. Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces \u2192 one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline \u2192 one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces \u2192 one panel | **REJECTED** and redecomposed: properties \u2192 the inspector slot by binding; styles \u2192 `text-styles`; tools \u2192 the Tool Rail; actions \u2192 `align-distribute`; the on-canvas editor \u2192 a Viewport editing mode; the template browser \u2192 `graphics-templates` | a category error: three of the five are not panels at all | | the graph editor \u2192 a mode of the keyframe timeline | **PERMITTED** | the graph replaces the keyframe strip for the SAME properties at the same time; the two views are alternatives, never simultaneous | | 34 control-panel variants \u2192 the `context-bar` slot | **PERMITTED** | 34 alternative layouts of ONE slot chosen by selection; only one selection exists at a time | | 60 property inspectors \u2192 one `properties` panel plus 60 bindings [...]",
+        "summary": "Merge law.** A consolidation that only works given an unbuilt capability is not a consolidation, it is deferred debt. A merge is permitted ONLY where the merged panel is usable AS-IS. The operational test: does the merge require two of its members to be VISIBLE AT THE SAME TIME? If yes, the merge is REJECTED. Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces → one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline → one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces → one panel | **REJECTED** and redecomposed: properties → the inspector slot by binding; styles → `text-styles`; tools → the Tool Rail; actions → `align-distribute`; the on-canvas editor → a Viewport editing mode; the template browser → `graphics-templates` | a category error: three of the five are not panels at all | | the graph editor → a mode of the keyframe timeline | **PERMITTED** | the graph replaces the keyframe strip for the SAME properties at the same time; the two views are alternatives, never simultaneous | | 34 control-panel variants → the `context-bar` slot | **PERMITTED** | 34 alternative layouts of ONE slot chosen by selection; only one selection exists at a time | | 60 property inspectors → one `properties` panel plus 60 bindings [...]",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -2364,10 +2365,10 @@
         {
           "acceptance_id": "AC-001",
           "original_pointer": "#/preserved_original/payload/acceptance_criteria/0",
-          "original_text": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces \u2192 one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline \u2192 one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces \u2192 one panel | **REJECTED** and redecomposed: properties \u2192 the inspector slot by binding; styles \u2192 `text-styles`; tools \u2192 the Tool Rail; actions \u2192 `align-distribute`; the on-canvas editor \u2192 a Viewport editing mode; the template browser \u2192 `graphics-templates` | a cate [...]",
+          "original_text": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces → one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline → one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces → one panel | **REJECTED** and redecomposed: properties → the inspector slot by binding; styles → `text-styles`; tools → the Tool Rail; actions → `align-distribute`; the on-canvas editor → a Viewport editing mode; the template browser → `graphics-templates` | a cate [...]",
           "original_row_sha256": "ef6a0f0966881d50b163048d201c13d7b2595b945786653d81edb6ae4d34e876",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces \u2192 one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline \u2192 one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces \u2192 one panel | **REJECTED** and redecomposed: properties \u2192 the inspector slot by binding; styles \u2192 `text-styles`; tools \u2192 the Tool Rail; actions \u2192 `align-distribute`; the on-canvas editor \u2192 a Viewport editing mode; the template browser \u2192 `graphics-templates` | a cate [...]",
+          "semantic_fulfillment": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces → one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline → one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces → one panel | **REJECTED** and redecomposed: properties → the inspector slot by binding; styles → `text-styles`; tools → the Tool Rail; actions → `align-distribute`; the on-canvas editor → a Viewport editing mode; the template browser → `graphics-templates` | a cate [...]",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34516-ASSET-CONTROLS"
@@ -2377,7 +2378,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces \u2192 one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline \u2192 one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces \u2192 one panel | **REJECTED** and redecomposed: properties \u2192 the inspector slot by binding; styles \u2192 `text-styles`; tools \u2192 the Tool Rail; actions \u2192 `align-distribute`; the on-canvas editor \u2192 a Viewport editing mode; the template browser \u2192 `graphics-templates` | a cate [...]",
+              "required_behavior": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces → one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline → one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces → one panel | **REJECTED** and redecomposed: properties → the inspector slot by binding; styles → `text-styles`; tools → the Tool Rail; actions → `align-distribute`; the on-canvas editor → a Viewport editing mode; the template browser → `graphics-templates` | a cate [...]",
               "only_owner_root_may_change": true
             }
           ],
@@ -2386,13 +2387,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces \u2192 one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline \u2192 one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces \u2192 one panel | **REJECTED** and redecomposed: properties \u2192 the inspector slot by binding; styles \u2192 `text-styles`; tools \u2192 the Tool Rail; actions \u2192 `align-distribute`; the on-canvas editor \u2192 a Viewport editing mode; the template browser \u2192 `graphics-templates` | a cate [...]",
+            "consumer_assertion": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces → one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline → one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces → one panel | **REJECTED** and redecomposed: properties → the inspector slot by binding; styles → `text-styles`; tools → the Tool Rail; actions → `align-distribute`; the on-canvas editor → a Viewport editing mode; the template browser → `graphics-templates` | a cate [...]",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-34516-KERNEL-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces \u2192 one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline \u2192 one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces \u2192 one panel | **REJECTED** and redecomposed: properties \u2192 the inspector slot by binding; styles \u2192 `text-styles`; tools \u2192 the Tool Rail; actions \u2192 `align-distribute`; the on-canvas editor \u2192 a Viewport editing mode; the template browser \u2192 `graphics-templates` | a cate [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces → one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline → one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces → one panel | **REJECTED** and redecomposed: properties → the inspector slot by binding; styles → `text-styles`; tools → the Tool Rail; actions → `align-distribute`; the on-canvas editor → a Viewport editing mode; the template browser → `graphics-templates` | a cate [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ],
@@ -2414,5 +2415,51 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00"
+  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

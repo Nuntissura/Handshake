@@ -1969,7 +1969,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2273,5 +2274,45 @@
       "criterion": "Materialisation and application are two paths with two different determinism obligations (CLOSING A DEFECT IN [STU-COL-143]).** [STU-COL-143] as originally written required \"the materialised transform\" to be bit-identical on every host, and a reader could take that to govern the whole engine including per-pixel evaluation. Under that reading the clause is unsatisfiable: every colour-evaluation implementation in the field dispatches at runtime on the vector instruction sets it finds - the several x86 generations, and the equivalents on other architectures - and none of them states a bit-exactness guarantee across those paths. A requirement no implementation can meet is not a strict requirement, it is a dead one, because it gets quietly waived the first time it fails. Studio therefore splits the engine on the line [STU-COL-142] already draws, and each half carries the obligation it can actually satisfy. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Path | What it does | Its determinism obligation | Who owns it | |---|---|---|---| | Materialisation | Turns profile bytes plus the key of [STU-COL-142] into the matrix-and-curve chain or the baked LUT, once per cache key | BIT-IDENTICAL across hosts, architectures and instruction-set availability ([STU-COL-351]). This is the artefact that gets cached, co [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-PRISM",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

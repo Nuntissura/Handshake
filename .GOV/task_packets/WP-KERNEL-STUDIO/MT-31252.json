@@ -1971,7 +1971,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2275,5 +2276,45 @@
       "criterion": "Gradient geometry.** `StudioGradient` (schema id `hsk.studio.gradient@1`) is one primitive discriminated by geometry. SEVEN geometries, all required: *Derivation: catalogue table, splits per row; yields 7 microtasks, one per gradient geometry.* | Gradient geometry | Structure | |---|---| | `linear` | Axis with angle, origin and length. | | `radial` | Centre, radius, aspect ratio, plus a highlight offset (`hilite_angle`, `hilite_length`). | | `elliptical` | Radial with independent axes. | | `angular` | Sweep around a centre. | | `diamond` | Rhombic distance field from a centre. | | `freeform` | Free-placed colour points or colour lines, not bound to an axis. | | `mesh` | An editable grid of mesh points interpolating across patches. | `diamond` was absent from the superseded [STU-COL-010] and is present in the captured design-tool paint model alongside linear, radial and angular. `bitmap` is NOT a gradient geometry; an image fill is a distinct paint kind ([STU-COL-197]).",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-PRISM",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

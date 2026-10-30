@@ -2048,7 +2048,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2349,5 +2350,45 @@
       "criterion": "The normative render settings record.** 104 controls recovered; the 18 that carry a value are reproduced with their complete option lists, because a render setting whose members are unknown cannot be implemented. *Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members.* | Setting | Members | |---|---| | `quality` | `current_settings`, `best`, `draft`, `wireframe` | | `resolution` | `current_settings`, `full`, `half`, `third`, `quarter`, `custom` (custom takes an explicit divisor pair) | | `disk_cache` | `current_settings`, `read_only` | | `proxy_use` | `current_settings`, `use_all_proxies`, `use_comp_proxies_only`, `use_no_proxies` | | `effects` | `current_settings`, `all_on`, `all_off` | | `solo_switches` | `current_settings`, `all_off` | | `guide_layers` | `current_settings`, `all_off` | | `color_depth` | `current_settings`, `8_bits_per_channel`, `16_bits_per_channel`, `32_bits_per_channel` | | `frame_blending` | `current_settings`, `on_for_checked_layers`, `off_for_all_layers` | | `field_render` | `off`, `upper_field_first`, `lower_field_first` | | `pulldown_3_2` | `off`, `WSSWW`, `SSWWW`, `SWWWS`, `WWWSS`, `WWSSW` (the five phase choices; each letter is a whole or split frame) | | `motion_blur` | `current_settings`, `on_for_checked_layers`, `off_for_all_layers` | | `time_span` | `length_of_comp`, `work_area_only`, `custom` | [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-MOTION",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

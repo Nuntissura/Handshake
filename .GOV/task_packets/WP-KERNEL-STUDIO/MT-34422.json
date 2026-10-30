@@ -166,8 +166,8 @@
       {
         "id": "STU-SHL-002",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:30820",
-        "verbatim": "**[STU-SHL-002] One vocabulary (normative, closed).** Every Studio artefact \u2014 spec clause, work packet, microtask, command id, panel id, test name, manual entry \u2014 MUST use the canonical name in the left column and MUST NOT use any name in the right column. Using a superseded name is a conformance defect, not a style preference.",
-        "heading": "## 14.30 Operator Shell \u2014 Menu, Availability, Docks, and Gesture Arbitration",
+        "verbatim": "**[STU-SHL-002] One vocabulary (normative, closed).** Every Studio artefact — spec clause, work packet, microtask, command id, panel id, test name, manual entry — MUST use the canonical name in the left column and MUST NOT use any name in the right column. Using a superseded name is a conformance defect, not a style preference.",
+        "heading": "## 14.30 Operator Shell — Menu, Availability, Docks, and Gesture Arbitration",
         "section": "14.30",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
         "verified_source_ranges": [
@@ -1237,7 +1237,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1732,7 +1732,7 @@
           "AC-001"
         ],
         "command_or_method": "Planned target: cargo test --locked -p hsk-studio-controls --no-default-features --test mt_34422 contract_consumer -- --exact. Independent validator invokes actual descriptor/action/conformance consumers against cases in execution steps; source oracle .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:30820. Implementer separately cargo check --locked -p hsk-studio-controls --no-default-features --tests; exact lock/actor/external roots activation-bound. No execution/target existence claimed.",
-        "expected": "Observed output satisfies One vocabulary (normative, closed).** Every Studio artefact \u2014 spec clause, work packet, microtask, command id, panel id, test name, manual entry \u2014 MUST use the canonical name in the left column and MUST NOT use any name in the right column. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
+        "expected": "Observed output satisfies One vocabulary (normative, closed).** Every Studio artefact — spec clause, work packet, microtask, command id, panel id, test name, manual entry — MUST use the canonical name in the left column and MUST NOT use any name in the right column. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1745,7 +1745,7 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-          "consumer_assertion": "Observed output satisfies One vocabulary (normative, closed).** Every Studio artefact \u2014 spec clause, work packet, microtask, command id, panel id, test name, manual entry \u2014 MUST use the canonical name in the left column and MUST NOT use any name in the right column. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
+          "consumer_assertion": "Observed output satisfies One vocabulary (normative, closed).** Every Studio artefact — spec clause, work packet, microtask, command id, panel id, test name, manual entry — MUST use the canonical name in the left column and MUST NOT use any name in the right column. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
           "negative_path": "Exact cases in MT-34422#/execution/implementation_steps",
           "oracle": "Independent actual outputs specified by MT-34422-ASSET-AC-001; unavailable provider means NOT_PROVEN."
         },
@@ -1960,7 +1960,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2041,8 +2042,8 @@
             "anchor": "STU-SHL-002",
             "line": 30820,
             "section": "14.30",
-            "heading": "## 14.30 Operator Shell \u2014 Menu, Availability, Docks, and Gesture Arbitration",
-            "verbatim": "**[STU-SHL-002] One vocabulary (normative, closed).** Every Studio artefact \u2014 spec clause, work packet, microtask, command id, panel id, test name, manual entry \u2014 MUST use the canonical name in the left column and MUST NOT use any name in the right column. Using a superseded name is a conformance defect, not a style preference.",
+            "heading": "## 14.30 Operator Shell — Menu, Availability, Docks, and Gesture Arbitration",
+            "verbatim": "**[STU-SHL-002] One vocabulary (normative, closed).** Every Studio artefact — spec clause, work packet, microtask, command id, panel id, test name, manual entry — MUST use the canonical name in the left column and MUST NOT use any name in the right column. Using a superseded name is a conformance defect, not a style preference.",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2110,10 +2111,10 @@
       {
         "acceptance_id": "AC-001",
         "original_pointer": "#/preserved_original/payload/acceptance_criteria/0",
-        "original_text": "One vocabulary (normative, closed).** Every Studio artefact \u2014 spec clause, work packet, microtask, command id, panel id, test name, manual entry \u2014 MUST use the canonical name in the left column and MUST NOT use any name in the right column.",
+        "original_text": "One vocabulary (normative, closed).** Every Studio artefact — spec clause, work packet, microtask, command id, panel id, test name, manual entry — MUST use the canonical name in the left column and MUST NOT use any name in the right column.",
         "original_row_sha256": "9d55a4cb8658d5c9df71bbfcadcdfd4d5213da7c65ccc81dec457e313a0d7155",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "One vocabulary (normative, closed).** Every Studio artefact \u2014 spec clause, work packet, microtask, command id, panel id, test name, manual entry \u2014 MUST use the canonical name in the left column and MUST NOT use any name in the right column.",
+        "semantic_fulfillment": "One vocabulary (normative, closed).** Every Studio artefact — spec clause, work packet, microtask, command id, panel id, test name, manual entry — MUST use the canonical name in the left column and MUST NOT use any name in the right column.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34422-ASSET-CONTROLS"
@@ -2123,7 +2124,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "One vocabulary (normative, closed).** Every Studio artefact \u2014 spec clause, work packet, microtask, command id, panel id, test name, manual entry \u2014 MUST use the canonical name in the left column and MUST NOT use any name in the right column.",
+            "required_behavior": "One vocabulary (normative, closed).** Every Studio artefact — spec clause, work packet, microtask, command id, panel id, test name, manual entry — MUST use the canonical name in the left column and MUST NOT use any name in the right column.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2132,13 +2133,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-          "consumer_assertion": "Observed output satisfies One vocabulary (normative, closed).** Every Studio artefact \u2014 spec clause, work packet, microtask, command id, panel id, test name, manual entry \u2014 MUST use the canonical name in the left column and MUST NOT use any name in the right column. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
+          "consumer_assertion": "Observed output satisfies One vocabulary (normative, closed).** Every Studio artefact — spec clause, work packet, microtask, command id, panel id, test name, manual entry — MUST use the canonical name in the left column and MUST NOT use any name in the right column. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
           "negative_path": "Exact cases in MT-34422#/execution/implementation_steps",
           "oracle": "Independent actual outputs specified by MT-34422-ASSET-AC-001; unavailable provider means NOT_PROVEN."
         },
         "later_embedding_ref": "MT-36213",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Qualified source MT-34422/AC-001; actual host adoption MT-36213 independently proves: One vocabulary (normative, closed).** Every Studio artefact \u2014 spec clause, work packet, microtask, command id, panel id, test name, manual entry \u2014 MUST use the canonical name in the left column and MUST NOT use any name in the right column.",
+        "later_embedding_assertion": "Qualified source MT-34422/AC-001; actual host adoption MT-36213 independently proves: One vocabulary (normative, closed).** Every Studio artefact — spec clause, work packet, microtask, command id, panel id, test name, manual entry — MUST use the canonical name in the left column and MUST NOT use any name in the right column.",
         "status": "PENDING"
       },
       {
@@ -2186,7 +2187,7 @@
       "original_acceptance": [
         {
           "id": "AC-001",
-          "criterion": "One vocabulary (normative, closed).** Every Studio artefact \u2014 spec clause, work packet, microtask, command id, panel id, test name, manual entry \u2014 MUST use the canonical name in the left column and MUST NOT use any name in the right column.",
+          "criterion": "One vocabulary (normative, closed).** Every Studio artefact — spec clause, work packet, microtask, command id, panel id, test name, manual entry — MUST use the canonical name in the left column and MUST NOT use any name in the right column.",
           "evidence_kind": "runtime_assertion",
           "source": "14-studio-creative-suite.md STU-SHL-002"
         },
@@ -2198,7 +2199,7 @@
         }
       ],
       "original_scope": {
-        "summary": "One vocabulary (normative, closed).** Every Studio artefact \u2014 spec clause, work packet, microtask, command id, panel id, test name, manual entry \u2014 MUST use the canonical name in the left column and MUST NOT use any name in the right column. Using a superseded name is a conformance defect, not a style preference. | Canonical Studio name | Meaning | Superseded names that MUST NOT be used | |---|---|---| | **Layout Preset** | a named arrangement of docks, Tool Rail order and search bias that gates NOTHING | task mode, workspace, named preset, persona | | **document profile** | the declared shape of a document: a set of container kinds plus a set of feature flags | document type enum, document_capability_profile, context vector, document_types | | **profile signature** | the sorted set of a document's declared container kinds; the layout persistence key | document_type (as a persistence key) | | **availability predicate** | the single three-valued evaluation deciding whether an element applies right now | requires/disabled two-valued gate, can_bind veto (as a standalone gate) | | **availability_state** | the predicate's result: `AVAILABLE`, `INAPPLICABLE_HERE`, `NOT_IN_THIS_DOCUMENT` | enabled/disabled, hidden | | **slot resolver** | the ranking that decides which AVAILABLE candidate occupies a single-occupant slot | contextual_binding_rule, properties_panel dispatch | | **Context [...]",
+        "summary": "One vocabulary (normative, closed).** Every Studio artefact — spec clause, work packet, microtask, command id, panel id, test name, manual entry — MUST use the canonical name in the left column and MUST NOT use any name in the right column. Using a superseded name is a conformance defect, not a style preference. | Canonical Studio name | Meaning | Superseded names that MUST NOT be used | |---|---|---| | **Layout Preset** | a named arrangement of docks, Tool Rail order and search bias that gates NOTHING | task mode, workspace, named preset, persona | | **document profile** | the declared shape of a document: a set of container kinds plus a set of feature flags | document type enum, document_capability_profile, context vector, document_types | | **profile signature** | the sorted set of a document's declared container kinds; the layout persistence key | document_type (as a persistence key) | | **availability predicate** | the single three-valued evaluation deciding whether an element applies right now | requires/disabled two-valued gate, can_bind veto (as a standalone gate) | | **availability_state** | the predicate's result: `AVAILABLE`, `INAPPLICABLE_HERE`, `NOT_IN_THIS_DOCUMENT` | enabled/disabled, hidden | | **slot resolver** | the ranking that decides which AVAILABLE candidate occupies a single-occupant slot | contextual_binding_rule, properties_panel dispatch | | **Context [...]",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -2210,10 +2211,10 @@
         {
           "acceptance_id": "AC-001",
           "original_pointer": "#/preserved_original/payload/acceptance_criteria/0",
-          "original_text": "One vocabulary (normative, closed).** Every Studio artefact \u2014 spec clause, work packet, microtask, command id, panel id, test name, manual entry \u2014 MUST use the canonical name in the left column and MUST NOT use any name in the right column.",
+          "original_text": "One vocabulary (normative, closed).** Every Studio artefact — spec clause, work packet, microtask, command id, panel id, test name, manual entry — MUST use the canonical name in the left column and MUST NOT use any name in the right column.",
           "original_row_sha256": "9d55a4cb8658d5c9df71bbfcadcdfd4d5213da7c65ccc81dec457e313a0d7155",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "One vocabulary (normative, closed).** Every Studio artefact \u2014 spec clause, work packet, microtask, command id, panel id, test name, manual entry \u2014 MUST use the canonical name in the left column and MUST NOT use any name in the right column.",
+          "semantic_fulfillment": "One vocabulary (normative, closed).** Every Studio artefact — spec clause, work packet, microtask, command id, panel id, test name, manual entry — MUST use the canonical name in the left column and MUST NOT use any name in the right column.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34422-ASSET-CONTROLS"
@@ -2223,7 +2224,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "One vocabulary (normative, closed).** Every Studio artefact \u2014 spec clause, work packet, microtask, command id, panel id, test name, manual entry \u2014 MUST use the canonical name in the left column and MUST NOT use any name in the right column.",
+              "required_behavior": "One vocabulary (normative, closed).** Every Studio artefact — spec clause, work packet, microtask, command id, panel id, test name, manual entry — MUST use the canonical name in the left column and MUST NOT use any name in the right column.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2232,13 +2233,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-            "consumer_assertion": "Observed output satisfies One vocabulary (normative, closed).** Every Studio artefact \u2014 spec clause, work packet, microtask, command id, panel id, test name, manual entry \u2014 MUST use the canonical name in the left column and MUST NOT use any name in the right column. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
+            "consumer_assertion": "Observed output satisfies One vocabulary (normative, closed).** Every Studio artefact — spec clause, work packet, microtask, command id, panel id, test name, manual entry — MUST use the canonical name in the left column and MUST NOT use any name in the right column. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
             "negative_path": "Exact cases in MT-34422#/execution/implementation_steps",
             "oracle": "Independent actual outputs specified by MT-34422-ASSET-AC-001; unavailable provider means NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36213",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Qualified source MT-34422/AC-001; actual host adoption MT-36213 independently proves: One vocabulary (normative, closed).** Every Studio artefact \u2014 spec clause, work packet, microtask, command id, panel id, test name, manual entry \u2014 MUST use the canonical name in the left column and MUST NOT use any name in the right column.",
+          "later_embedding_assertion": "Qualified source MT-34422/AC-001; actual host adoption MT-36213 independently proves: One vocabulary (normative, closed).** Every Studio artefact — spec clause, work packet, microtask, command id, panel id, test name, manual entry — MUST use the canonical name in the left column and MUST NOT use any name in the right column.",
           "status": "PENDING"
         },
         {
@@ -2286,5 +2287,51 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00"
+  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

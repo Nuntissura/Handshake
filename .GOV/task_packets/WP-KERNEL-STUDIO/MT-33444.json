@@ -2077,7 +2077,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2372,5 +2373,41 @@
       "criterion": "The following matrix is NORMATIVE. Each row is one format family with its Studio support direction and a fidelity note. Direction tokens: **I** = import, **EP** = edit-preserve, **X** = export, **RT** = round-trip. Fidelity tokens: **preserved** (structure kept as editable Studio primitives), **transformed** (converted to the nearest Studio primitive with a documented mapping), **rasterized** (flattened to pixels), **preservation-blob** (opaque vendor-private data carried and re-emitted), **unsupported** (declared out, receipt emitted). Posture: **NRT** = native/local round-trip target; **SOX** = source-observable import/export target; **ADPT** = optional provider/cloud adapter or omitted. Every claimed direction is fixture-gated per [STU-IO-004]. | # | Format (Studio row) | Ext / family | Category | Direction | Fidelity note | Posture | |---|---|---|---|---|---|---| | 1 | Layered raster document | `.psd` | Raster | I·EP·X·RT | Layers, groups, masks, adjustment/live-filter layers, linked/embedded objects, blend modes preserved; unrepresentable features baked with receipt | NRT | | 2 | Large layered raster document | `.psb` | Raster | I·EP·X·RT | As row 1 beyond standard raster/size ceilings; large-document container preserved | NRT | | 3 | Tagged image raster | `.tif`/`.tiff` | Raster | I·EP·X·RT | Multi-layer (where present), alpha, high bit-depth, embedded ICC preserved; per- [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "STU-CON-013",
+      "STU-CON-014"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-PACKAGE",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": true
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

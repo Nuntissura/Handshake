@@ -312528,7 +312528,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -312853,5 +312854,45 @@
       "criterion": "Reading convention: `hard_min`/`hard_max` are the engine's acceptance range; `soft_min`/`soft_max` are the control's presented range; `--` means the source declares nothing and Studio declares nothing. `precision` `--` means null per [STU-FX-109]. The `flags` column carries the [STU-FX-113] source bits; `CANNOT_TIME_VARY` maps to `animatable = false` and `CANNOT_INTERP` to `interpolable = false`. #### Blur & Sharpen **Fast Radial Blur** -- `CC Radial Fast Blur` *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | # | Parameter | Kind | hard_min | hard_max | soft_min | soft_max | default | unit | precision | flags | |---|---|---|---|---|---|---|---|---|---|---| | 0 | _(unnamed)_ | LAYER | -- | -- | -- | -- | -- | -- | -- | CANNOT_TIME_VARY | | 1 | Center | POINT | -- | -- | -- | -- | (50%, 50%) of layer | -- | -- | -- | | 2 | Amount | FIX_SLIDER | 0 | 100 | 0 | 100 | 50 | -- | 1 | -- | | 3 | Zoom | POPUP | -- | -- | -- | -- | index 1 | -- | -- | -- | Enumerated options for `Zoom` (1-based, default index 1): 1=Standard; 2=Brightest; 3=Darkest **Channel Blur** -- `ADBE Channel Blur` (GPU-accelerated) *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | # | Parameter | Kind | hard_min | hard_max | soft_min | soft_max | default | unit [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-COMPOSITE",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

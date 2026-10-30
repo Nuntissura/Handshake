@@ -33,7 +33,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "web_authoring",
   "scope": {
-    "summary": "Linter rule sets (normative, three languages with shipped defaults).** Studio MUST ship a configurable linter per language with these exact shipped default configurations. Every rule is operator-overridable per site and per document. - **CSS \u2014 35 rules.** Enabled by default: `duplicate-properties`, `floats`, `vendor-prefix`. Disabled by default (32): `important`, `adjoining-classes`, `known-properties`, `box-sizing`, `box-model`, `overqualified-elements`, `display-property-grouping`, `bulletproof-font-face`, `compatible-vendor-prefixes`, `regex-selectors`, `errors`, `duplicate-background-images`, `empty-rules`, `selector-max-approaching`, `gradients`, `fallback-colors`, `font-sizes`, `font-faces`, `star-property-hack`, `outline-none`, `import`, `ids`, `underscore-property-hack`, `rules-count`, `qualified-headings`, `selector-max`, `shorthand`, `text-indent`, `unique-headings`, `universal-selector`, `unqualified-attributes`, `zero-units`. - **Markup \u2014 23 rules.** Enabled by default (8): `tagname-lowercase`, `attr-value-double-quotes`, `attr-no-duplication`, `doctype-first`, `tag-pair`, `spec-char-escape`, `id-unique`, `src-not-empty`, `alt-require`. Disabled by default (15): `attr-lowercase`, `attr-value-not-empty`, `tag-self-close`, `title-require`, `head-script-disabled`, `doctype-html5`, `id-class-value`, `style-disabled`, `inline-style-disabled`, `inline-script-disabled`, `s [...]",
+    "summary": "Linter rule sets (normative, three languages with shipped defaults).** Studio MUST ship a configurable linter per language with these exact shipped default configurations. Every rule is operator-overridable per site and per document. - **CSS — 35 rules.** Enabled by default: `duplicate-properties`, `floats`, `vendor-prefix`. Disabled by default (32): `important`, `adjoining-classes`, `known-properties`, `box-sizing`, `box-model`, `overqualified-elements`, `display-property-grouping`, `bulletproof-font-face`, `compatible-vendor-prefixes`, `regex-selectors`, `errors`, `duplicate-background-images`, `empty-rules`, `selector-max-approaching`, `gradients`, `fallback-colors`, `font-sizes`, `font-faces`, `star-property-hack`, `outline-none`, `import`, `ids`, `underscore-property-hack`, `rules-count`, `qualified-headings`, `selector-max`, `shorthand`, `text-indent`, `unique-headings`, `universal-selector`, `unqualified-attributes`, `zero-units`. - **Markup — 23 rules.** Enabled by default (8): `tagname-lowercase`, `attr-value-double-quotes`, `attr-no-duplication`, `doctype-first`, `tag-pair`, `spec-char-escape`, `id-unique`, `src-not-empty`, `alt-require`. Disabled by default (15): `attr-lowercase`, `attr-value-not-empty`, `tag-self-close`, `title-require`, `head-script-disabled`, `doctype-html5`, `id-class-value`, `style-disabled`, `inline-style-disabled`, `inline-script-disabled`, `s [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -1588,7 +1588,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-WEB scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-WEB scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -2063,7 +2063,7 @@
             "range_kind": "normative_clause"
           }
         ],
-        "complete_clause_body": "**[STU-WEB-056] Linter rule sets (normative, three languages with shipped defaults).** Studio MUST ship a configurable linter per language with these exact shipped default configurations. Every rule is operator-overridable per site and per document.\n\n- **CSS \u2014 35 rules.** Enabled by default: `duplicate-properties`, `floats`, `vendor-prefix`. Disabled by default (32): `important`, `adjoining-classes`, `known-properties`, `box-sizing`, `box-model`, `overqualified-elements`, `display-property-grouping`, `bulletproof-font-face`, `compatible-vendor-prefixes`, `regex-selectors`, `errors`, `duplicate-background-images`, `empty-rules`, `selector-max-approaching`, `gradients`, `fallback-colors`, `font-sizes`, `font-faces`, `star-property-hack`, `outline-none`, `import`, `ids`, `underscore-property-hack`, `rules-count`, `qualified-headings`, `selector-max`, `shorthand`, `text-indent`, `unique-headings`, `universal-selector`, `unqualified-attributes`, `zero-units`.\n- **Markup \u2014 23 rules.** Enabled by default (9): `tagname-lowercase`, `attr-value-double-quotes`, `attr-no-duplication`, `doctype-first`, `tag-pair`, `spec-char-escape`, `id-unique`, `src-not-empty`, `alt-require`. Disabled by default (14): `attr-lowercase`, `attr-value-not-empty`, `tag-self-close`, `title-require`, `head-script-disabled`, `doctype-html5`, `id-class-value`, `style-disabled`, `inline-style-disabled`, `inline-script-disabled`, `space-tab-mixed-disabled`, `id-class-ad-disabled`, `href-abs-or-rel`, `attr-unsafe-chars`.\n- **Script \u2014 69 options.** Numeric defaults: `maxerr` = 50, `indent` = 4. Enforcing options true by default: `bitwise`, `curly`, `eqeqeq`, `forin`, `freeze`, `noarg`, `nonbsp`, `undef`, `unused`, `strict`. Environment options true by default: `browser`, `devel`, `worker`, `jquery` and `mocha`. Every remaining boolean option is false by default, and the five limit options (`maxparams`, `maxdepth`, `maxstatements`, `maxcomplexity`, `maxlen`) are unset rather than zero \u2014 unset means \"no limit\", and zero means \"limit of zero\", which are different.\n\nThe following closed 69-key default record is normative. `null` for the five limit options means unset/no limit; it is not zero. `globals` is the declared map, initially empty, rather than a boolean option. Native false limit sentinels are normalized only to this unset representation.\n\n```json\n{\n  \"maxerr\": 50,\n  \"bitwise\": true,\n  \"camelcase\": false,\n  \"curly\": true,\n  \"eqeqeq\": true,\n  \"forin\": true,\n  \"freeze\": true,\n  \"immed\": false,\n  \"indent\": 4,\n  \"latedef\": false,\n  \"newcap\": false,\n  \"noarg\": true,\n  \"noempty\": false,\n  \"nonbsp\": true,\n  \"nonew\": false,\n  \"plusplus\": false,\n  \"quotmark\": false,\n  \"undef\": true,\n  \"unused\": true,\n  \"strict\": true,\n  \"maxparams\": null,\n  \"maxdepth\": null,\n  \"maxstatements\": null,\n  \"maxcomplexity\": null,\n  \"maxlen\": null,\n  \"asi\": false,\n  \"boss\": false,\n  \"debug\": false,\n  \"eqnull\": false,\n  \"es5\": false,\n  \"esnext\": false,\n  \"moz\": false,\n  \"evil\": false,\n  \"expr\": false,\n  \"funcscope\": false,\n  \"globalstrict\": false,\n  \"iterator\": false,\n  \"lastsemic\": false,\n  \"laxbreak\": false,\n  \"laxcomma\": false,\n  \"loopfunc\": false,\n  \"multistr\": false,\n  \"noyield\": false,\n  \"notypeof\": false,\n  \"proto\": false,\n  \"scripturl\": false,\n  \"shadow\": false,\n  \"sub\": false,\n  \"supernew\": false,\n  \"validthis\": false,\n  \"browser\": true,\n  \"browserify\": false,\n  \"couch\": false,\n  \"devel\": true,\n  \"dojo\": false,\n  \"jasmine\": false,\n  \"jquery\": true,\n  \"mocha\": true,\n  \"mootools\": false,\n  \"node\": false,\n  \"nonstandard\": false,\n  \"prototypejs\": false,\n  \"qunit\": false,\n  \"rhino\": false,\n  \"shelljs\": false,\n  \"worker\": true,\n  \"wsh\": false,\n  \"yui\": false,\n  \"globals\": {}\n}\n```",
+        "complete_clause_body": "**[STU-WEB-056] Linter rule sets (normative, three languages with shipped defaults).** Studio MUST ship a configurable linter per language with these exact shipped default configurations. Every rule is operator-overridable per site and per document.\n\n- **CSS — 35 rules.** Enabled by default: `duplicate-properties`, `floats`, `vendor-prefix`. Disabled by default (32): `important`, `adjoining-classes`, `known-properties`, `box-sizing`, `box-model`, `overqualified-elements`, `display-property-grouping`, `bulletproof-font-face`, `compatible-vendor-prefixes`, `regex-selectors`, `errors`, `duplicate-background-images`, `empty-rules`, `selector-max-approaching`, `gradients`, `fallback-colors`, `font-sizes`, `font-faces`, `star-property-hack`, `outline-none`, `import`, `ids`, `underscore-property-hack`, `rules-count`, `qualified-headings`, `selector-max`, `shorthand`, `text-indent`, `unique-headings`, `universal-selector`, `unqualified-attributes`, `zero-units`.\n- **Markup — 23 rules.** Enabled by default (9): `tagname-lowercase`, `attr-value-double-quotes`, `attr-no-duplication`, `doctype-first`, `tag-pair`, `spec-char-escape`, `id-unique`, `src-not-empty`, `alt-require`. Disabled by default (14): `attr-lowercase`, `attr-value-not-empty`, `tag-self-close`, `title-require`, `head-script-disabled`, `doctype-html5`, `id-class-value`, `style-disabled`, `inline-style-disabled`, `inline-script-disabled`, `space-tab-mixed-disabled`, `id-class-ad-disabled`, `href-abs-or-rel`, `attr-unsafe-chars`.\n- **Script — 69 options.** Numeric defaults: `maxerr` = 50, `indent` = 4. Enforcing options true by default: `bitwise`, `curly`, `eqeqeq`, `forin`, `freeze`, `noarg`, `nonbsp`, `undef`, `unused`, `strict`. Environment options true by default: `browser`, `devel`, `worker`, `jquery` and `mocha`. Every remaining boolean option is false by default, and the five limit options (`maxparams`, `maxdepth`, `maxstatements`, `maxcomplexity`, `maxlen`) are unset rather than zero — unset means \"no limit\", and zero means \"limit of zero\", which are different.\n\nThe following closed 69-key default record is normative. `null` for the five limit options means unset/no limit; it is not zero. `globals` is the declared map, initially empty, rather than a boolean option. Native false limit sentinels are normalized only to this unset representation.\n\n```json\n{\n  \"maxerr\": 50,\n  \"bitwise\": true,\n  \"camelcase\": false,\n  \"curly\": true,\n  \"eqeqeq\": true,\n  \"forin\": true,\n  \"freeze\": true,\n  \"immed\": false,\n  \"indent\": 4,\n  \"latedef\": false,\n  \"newcap\": false,\n  \"noarg\": true,\n  \"noempty\": false,\n  \"nonbsp\": true,\n  \"nonew\": false,\n  \"plusplus\": false,\n  \"quotmark\": false,\n  \"undef\": true,\n  \"unused\": true,\n  \"strict\": true,\n  \"maxparams\": null,\n  \"maxdepth\": null,\n  \"maxstatements\": null,\n  \"maxcomplexity\": null,\n  \"maxlen\": null,\n  \"asi\": false,\n  \"boss\": false,\n  \"debug\": false,\n  \"eqnull\": false,\n  \"es5\": false,\n  \"esnext\": false,\n  \"moz\": false,\n  \"evil\": false,\n  \"expr\": false,\n  \"funcscope\": false,\n  \"globalstrict\": false,\n  \"iterator\": false,\n  \"lastsemic\": false,\n  \"laxbreak\": false,\n  \"laxcomma\": false,\n  \"loopfunc\": false,\n  \"multistr\": false,\n  \"noyield\": false,\n  \"notypeof\": false,\n  \"proto\": false,\n  \"scripturl\": false,\n  \"shadow\": false,\n  \"sub\": false,\n  \"supernew\": false,\n  \"validthis\": false,\n  \"browser\": true,\n  \"browserify\": false,\n  \"couch\": false,\n  \"devel\": true,\n  \"dojo\": false,\n  \"jasmine\": false,\n  \"jquery\": true,\n  \"mocha\": true,\n  \"mootools\": false,\n  \"node\": false,\n  \"nonstandard\": false,\n  \"prototypejs\": false,\n  \"qunit\": false,\n  \"rhino\": false,\n  \"shelljs\": false,\n  \"worker\": true,\n  \"wsh\": false,\n  \"yui\": false,\n  \"globals\": {}\n}\n```",
         "method_operands": "Exact fields, ordered vocabularies, tables, numeric provenance and defaults in complete_clause_body; missing upstream assets remain gaps",
         "source_revision_precondition": "One immutable source text/document revision; grants and external resources supplied by published ports",
         "unit_kind": "clause",
@@ -2453,7 +2453,7 @@
       "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
       "domain": "web_authoring",
       "scope": {
-        "summary": "Linter rule sets (normative, three languages with shipped defaults).** Studio MUST ship a configurable linter per language with these exact shipped default configurations. Every rule is operator-overridable per site and per document. - **CSS \u2014 35 rules.** Enabled by default: `duplicate-properties`, `floats`, `vendor-prefix`. Disabled by default (32): `important`, `adjoining-classes`, `known-properties`, `box-sizing`, `box-model`, `overqualified-elements`, `display-property-grouping`, `bulletproof-font-face`, `compatible-vendor-prefixes`, `regex-selectors`, `errors`, `duplicate-background-images`, `empty-rules`, `selector-max-approaching`, `gradients`, `fallback-colors`, `font-sizes`, `font-faces`, `star-property-hack`, `outline-none`, `import`, `ids`, `underscore-property-hack`, `rules-count`, `qualified-headings`, `selector-max`, `shorthand`, `text-indent`, `unique-headings`, `universal-selector`, `unqualified-attributes`, `zero-units`. - **Markup \u2014 23 rules.** Enabled by default (8): `tagname-lowercase`, `attr-value-double-quotes`, `attr-no-duplication`, `doctype-first`, `tag-pair`, `spec-char-escape`, `id-unique`, `src-not-empty`, `alt-require`. Disabled by default (15): `attr-lowercase`, `attr-value-not-empty`, `tag-self-close`, `title-require`, `head-script-disabled`, `doctype-html5`, `id-class-value`, `style-disabled`, `inline-style-disabled`, `inline-script-disabled`, `s [...]",
+        "summary": "Linter rule sets (normative, three languages with shipped defaults).** Studio MUST ship a configurable linter per language with these exact shipped default configurations. Every rule is operator-overridable per site and per document. - **CSS — 35 rules.** Enabled by default: `duplicate-properties`, `floats`, `vendor-prefix`. Disabled by default (32): `important`, `adjoining-classes`, `known-properties`, `box-sizing`, `box-model`, `overqualified-elements`, `display-property-grouping`, `bulletproof-font-face`, `compatible-vendor-prefixes`, `regex-selectors`, `errors`, `duplicate-background-images`, `empty-rules`, `selector-max-approaching`, `gradients`, `fallback-colors`, `font-sizes`, `font-faces`, `star-property-hack`, `outline-none`, `import`, `ids`, `underscore-property-hack`, `rules-count`, `qualified-headings`, `selector-max`, `shorthand`, `text-indent`, `unique-headings`, `universal-selector`, `unqualified-attributes`, `zero-units`. - **Markup — 23 rules.** Enabled by default (8): `tagname-lowercase`, `attr-value-double-quotes`, `attr-no-duplication`, `doctype-first`, `tag-pair`, `spec-char-escape`, `id-unique`, `src-not-empty`, `alt-require`. Disabled by default (15): `attr-lowercase`, `attr-value-not-empty`, `tag-self-close`, `title-require`, `head-script-disabled`, `doctype-html5`, `id-class-value`, `style-disabled`, `inline-style-disabled`, `inline-script-disabled`, `s [...]",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "acceptance_criteria": [
@@ -2535,7 +2535,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2780,7 +2781,7 @@
         }
       ],
       "original_scope": {
-        "summary": "Linter rule sets (normative, three languages with shipped defaults).** Studio MUST ship a configurable linter per language with these exact shipped default configurations. Every rule is operator-overridable per site and per document. - **CSS \u2014 35 rules.** Enabled by default: `duplicate-properties`, `floats`, `vendor-prefix`. Disabled by default (32): `important`, `adjoining-classes`, `known-properties`, `box-sizing`, `box-model`, `overqualified-elements`, `display-property-grouping`, `bulletproof-font-face`, `compatible-vendor-prefixes`, `regex-selectors`, `errors`, `duplicate-background-images`, `empty-rules`, `selector-max-approaching`, `gradients`, `fallback-colors`, `font-sizes`, `font-faces`, `star-property-hack`, `outline-none`, `import`, `ids`, `underscore-property-hack`, `rules-count`, `qualified-headings`, `selector-max`, `shorthand`, `text-indent`, `unique-headings`, `universal-selector`, `unqualified-attributes`, `zero-units`. - **Markup \u2014 23 rules.** Enabled by default (8): `tagname-lowercase`, `attr-value-double-quotes`, `attr-no-duplication`, `doctype-first`, `tag-pair`, `spec-char-escape`, `id-unique`, `src-not-empty`, `alt-require`. Disabled by default (15): `attr-lowercase`, `attr-value-not-empty`, `tag-self-close`, `title-require`, `head-script-disabled`, `doctype-html5`, `id-class-value`, `style-disabled`, `inline-style-disabled`, `inline-script-disabled`, `s [...]",
+        "summary": "Linter rule sets (normative, three languages with shipped defaults).** Studio MUST ship a configurable linter per language with these exact shipped default configurations. Every rule is operator-overridable per site and per document. - **CSS — 35 rules.** Enabled by default: `duplicate-properties`, `floats`, `vendor-prefix`. Disabled by default (32): `important`, `adjoining-classes`, `known-properties`, `box-sizing`, `box-model`, `overqualified-elements`, `display-property-grouping`, `bulletproof-font-face`, `compatible-vendor-prefixes`, `regex-selectors`, `errors`, `duplicate-background-images`, `empty-rules`, `selector-max-approaching`, `gradients`, `fallback-colors`, `font-sizes`, `font-faces`, `star-property-hack`, `outline-none`, `import`, `ids`, `underscore-property-hack`, `rules-count`, `qualified-headings`, `selector-max`, `shorthand`, `text-indent`, `unique-headings`, `universal-selector`, `unqualified-attributes`, `zero-units`. - **Markup — 23 rules.** Enabled by default (8): `tagname-lowercase`, `attr-value-double-quotes`, `attr-no-duplication`, `doctype-first`, `tag-pair`, `spec-char-escape`, `id-unique`, `src-not-empty`, `alt-require`. Disabled by default (15): `attr-lowercase`, `attr-value-not-empty`, `tag-self-close`, `title-require`, `head-script-disabled`, `doctype-html5`, `id-class-value`, `style-disabled`, `inline-style-disabled`, `inline-script-disabled`, `s [...]",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -2839,5 +2840,51 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T02:58:55.671201+00:00"
+  "updated_at_utc": "2026-10-10T02:58:55.671201+00:00",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-WEB",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

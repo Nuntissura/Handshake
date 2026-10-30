@@ -423,7 +423,9 @@
   },
   "gameplan_ref": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml",
   "context_capsule": {
-    "module_maintenance_refs": [".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/12/maintenance"],
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/12/maintenance"
+    ],
     "specification_anchor_refs": [
       {
         "id": "STU-FX-136b",
@@ -2309,9 +2311,9 @@
         "claim_refs": [
           "AC-001"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `accuracy` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=10, hard_max=8192, soft_min=--, soft_max=--, default=999.997454, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -2322,15 +2324,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `accuracy` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=10, hard_max=8192, soft_min=--, soft_max=--, default=999.997454, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2345,9 +2349,9 @@
         "claim_refs": [
           "AC-002"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `gain` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-64, hard_max=64, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -2358,15 +2362,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `gain` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-64, hard_max=64, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2381,9 +2387,9 @@
         "claim_refs": [
           "AC-003"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `range` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=1.5, hard_max=120, soft_min=--, soft_max=--, default=47.808615, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -2394,15 +2400,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `range` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=1.5, hard_max=120, soft_min=--, soft_max=--, default=47.808615, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2417,9 +2425,9 @@
         "claim_refs": [
           "AC-004"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `amp1` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -2430,15 +2438,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `amp1` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2453,9 +2463,9 @@
         "claim_refs": [
           "AC-005"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `amp2` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -2466,15 +2476,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `amp2` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2489,9 +2501,9 @@
         "claim_refs": [
           "AC-006"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `amp3` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -2502,15 +2514,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `amp3` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2525,9 +2539,9 @@
         "claim_refs": [
           "AC-007"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `amp4` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -2538,15 +2552,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `amp4` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2561,9 +2577,9 @@
         "claim_refs": [
           "AC-008"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `amp5` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -2574,15 +2590,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `amp5` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2597,9 +2615,9 @@
         "claim_refs": [
           "AC-009"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `amp6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -2610,15 +2628,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `amp6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2633,9 +2653,9 @@
         "claim_refs": [
           "AC-010"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `amp7` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -2646,15 +2666,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `amp7` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2669,9 +2691,9 @@
         "claim_refs": [
           "AC-011"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `amp8` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -2682,15 +2704,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `amp8` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2705,9 +2729,9 @@
         "claim_refs": [
           "AC-012"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `amp9` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -2718,15 +2742,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `amp9` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2741,9 +2767,9 @@
         "claim_refs": [
           "AC-013"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `amp10` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -2754,15 +2780,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `amp10` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2777,9 +2805,9 @@
         "claim_refs": [
           "AC-014"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `amp11` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -2790,15 +2818,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `amp11` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2813,9 +2843,9 @@
         "claim_refs": [
           "AC-015"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `amp12` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -2826,15 +2856,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `amp12` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2849,9 +2881,9 @@
         "claim_refs": [
           "AC-016"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `amp13` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -2862,15 +2894,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `amp13` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2885,9 +2919,9 @@
         "claim_refs": [
           "AC-017"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `amp14` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -2898,15 +2932,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `amp14` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2921,9 +2957,9 @@
         "claim_refs": [
           "AC-018"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `amp15` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -2934,15 +2970,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `amp15` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2957,9 +2995,9 @@
         "claim_refs": [
           "AC-019"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `amp16` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -2970,15 +3008,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `amp16` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2993,9 +3033,9 @@
         "claim_refs": [
           "AC-020"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `amp17` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -3006,15 +3046,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `amp17` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -3029,9 +3071,9 @@
         "claim_refs": [
           "AC-021"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `amp18` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -3042,15 +3084,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `amp18` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -3065,9 +3109,9 @@
         "claim_refs": [
           "AC-022"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `amp19` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -3078,15 +3122,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `amp19` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -3101,9 +3147,9 @@
         "claim_refs": [
           "AC-023"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32630 --exact",
         "expected": "The parameter `amp20` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-      "timeout_seconds": 60,
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Exact owned candidate/input closure",
@@ -3114,15 +3160,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32630 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Scalar representation/per-mapping float tolerance unbound;source units/precision/soft ranges cannot be guessed."
+          ],
           "consumer_assertion": "The parameter `amp20` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-70, hard_max=70, soft_min=--, soft_max=--, default=0, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
-        "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
-        "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
+          "negative_path": "Inputs normalised0/0.5/1/source default;boolean0.499999/0.5/0.500001;rates32000/48000 Hz. Negative NaN/Inf,unknown slot,missing rate,wrong derived value,stale revision,cancel. No seed;decimal lexemes retained.",
+          "oracle": "Independent decimal/rational evaluation and emitted-record decode of GraphicEQ20Bands exact rows,dual defaults and absence states. Float representation/tolerance explicitly bound before runtime. Parameter proof never certifies GraphicEQ20Bands DSP/proprietary waveform parity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -3568,7 +3616,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -4519,8 +4568,80 @@
       }
     ],
     "later_kernel": {
-      "host_adoption_mt_refs": ["MT-36201"],
-      "qualified_ac_to_host_adoption_mts": {"MT-32630/AC-001":["MT-36201"],"MT-32630/AC-002":["MT-36201"],"MT-32630/AC-003":["MT-36201"],"MT-32630/AC-004":["MT-36201"],"MT-32630/AC-005":["MT-36201"],"MT-32630/AC-006":["MT-36201"],"MT-32630/AC-007":["MT-36201"],"MT-32630/AC-008":["MT-36201"],"MT-32630/AC-009":["MT-36201"],"MT-32630/AC-010":["MT-36201"],"MT-32630/AC-011":["MT-36201"],"MT-32630/AC-012":["MT-36201"],"MT-32630/AC-013":["MT-36201"],"MT-32630/AC-014":["MT-36201"],"MT-32630/AC-015":["MT-36201"],"MT-32630/AC-016":["MT-36201"],"MT-32630/AC-017":["MT-36201"],"MT-32630/AC-018":["MT-36201"],"MT-32630/AC-019":["MT-36201"],"MT-32630/AC-020":["MT-36201"],"MT-32630/AC-021":["MT-36201"],"MT-32630/AC-022":["MT-36201"],"MT-32630/AC-023":["MT-36201"]},
+      "host_adoption_mt_refs": [
+        "MT-36201"
+      ],
+      "qualified_ac_to_host_adoption_mts": {
+        "MT-32630/AC-001": [
+          "MT-36201"
+        ],
+        "MT-32630/AC-002": [
+          "MT-36201"
+        ],
+        "MT-32630/AC-003": [
+          "MT-36201"
+        ],
+        "MT-32630/AC-004": [
+          "MT-36201"
+        ],
+        "MT-32630/AC-005": [
+          "MT-36201"
+        ],
+        "MT-32630/AC-006": [
+          "MT-36201"
+        ],
+        "MT-32630/AC-007": [
+          "MT-36201"
+        ],
+        "MT-32630/AC-008": [
+          "MT-36201"
+        ],
+        "MT-32630/AC-009": [
+          "MT-36201"
+        ],
+        "MT-32630/AC-010": [
+          "MT-36201"
+        ],
+        "MT-32630/AC-011": [
+          "MT-36201"
+        ],
+        "MT-32630/AC-012": [
+          "MT-36201"
+        ],
+        "MT-32630/AC-013": [
+          "MT-36201"
+        ],
+        "MT-32630/AC-014": [
+          "MT-36201"
+        ],
+        "MT-32630/AC-015": [
+          "MT-36201"
+        ],
+        "MT-32630/AC-016": [
+          "MT-36201"
+        ],
+        "MT-32630/AC-017": [
+          "MT-36201"
+        ],
+        "MT-32630/AC-018": [
+          "MT-36201"
+        ],
+        "MT-32630/AC-019": [
+          "MT-36201"
+        ],
+        "MT-32630/AC-020": [
+          "MT-36201"
+        ],
+        "MT-32630/AC-021": [
+          "MT-36201"
+        ],
+        "MT-32630/AC-022": [
+          "MT-36201"
+        ],
+        "MT-32630/AC-023": [
+          "MT-36201"
+        ]
+      },
       "host_allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/qualified_ac_to_host_adoption_mts",
       "phase": "SEPARATE_LATER_EMBEDDING",
       "status": "PENDING",
@@ -5630,5 +5751,52 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00"
+  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "bounded_admission_via_job_port",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018",
+      "STU-ARC-008",
+      "STU-ARC-012",
+      "STU-ARC-013",
+      "GUI-DESKTOP-033",
+      "GPU-QUOTA-015",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-SCORE",
+      "unit_kind": "parameter_table",
+      "owned_gui": false,
+      "queue_or_inflight": true,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

@@ -1963,7 +1963,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2257,5 +2258,39 @@
       "criterion": "EVENT VARIANTS. Canonical `KernelEventType` additions (wire `STUDIO_*` SCREAMING_SNAKE_CASE): `STUDIO_DOCUMENT_CREATED`, `STUDIO_DOCUMENT_PROMOTED`, `STUDIO_LAYER_CREATED`, `STUDIO_LAYER_MUTATED`, `STUDIO_SELECTION_CHANGED`, `STUDIO_MASK_APPLIED`, `STUDIO_ADJUSTMENT_APPLIED`, `STUDIO_EFFECT_APPLIED`, `STUDIO_VECTOR_PATH_EDITED`, `STUDIO_TEXT_EDITED`, `STUDIO_STYLE_APPLIED`, `STUDIO_COMPONENT_PUBLISHED`, `STUDIO_VARIABLE_SET`, `STUDIO_PROTOTYPE_EDITED`, `STUDIO_RAW_DEVELOPED`, `STUDIO_EXPORT_RENDERED`, `STUDIO_IMPORT_COMPLETED`, `STUDIO_EDIT_PROPOSAL_RECORDED`, `STUDIO_EDIT_PROMOTED`, `STUDIO_EDIT_REJECTED`, `STUDIO_HISTORY_UNDONE`, `STUDIO_HISTORY_REDONE`. The Flight Recorder business-event family is `FR-EVT-STUDIO-*` (14.24). Every variant registers in `required_first_slice_events()`.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-ACCORD",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

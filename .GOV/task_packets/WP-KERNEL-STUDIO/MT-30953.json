@@ -1966,7 +1966,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2270,5 +2271,39 @@
       "criterion": "Warichu, tatechuyoko and shatai.** Warichu (inline multi-line note): `warichu` (bool), `warichu_lines`, `warichu_size`, `warichu_line_spacing`, `warichu_chars_before_break`, `warichu_chars_after_break`, and `warichu_alignment` (eight-value enumeration: `auto`, `left_align`, `center_align`, `right_align`, `fully_justified`, `left_justified`, `center_justified`, `right_justified`). Tatechuyoko (horizontal-in-vertical): `tatechuyoko` (bool), `tatechuyoko_x_offset`, `tatechuyoko_y_offset`. Shatai (oblique lens): `shatai_degree_angle`, `shatai_magnification`, `shatai_adjust_rotation` (bool), `shatai_adjust_tsume` (bool). *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | |---|---|---|---|---|---|---|---| | `warichu_lines` | 1 | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | count | 0 | | `warichu_size` | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | percent | UNKNOWN | | `warichu_line_spacing` | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | points | UNKNOWN | | `warichu_chars_before_break` | 0 | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | count | 0 | | `warichu_chars_after_break` | 0 | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | count | 0 | | `tatechuyoko_x_offset` | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | points | UNKNO [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-TYPE",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

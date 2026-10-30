@@ -1883,7 +1883,9 @@
   "authority_migration": {
     "approval": "ilja091020261912",
     "template_ref": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json",
-    "active_execution_authority": [],
+    "active_execution_authority": [
+      "host_integration"
+    ],
     "historical_fields": [
       "clause",
       "spec_anchor",
@@ -3703,5 +3705,39 @@
     "authority_reference_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35346"
   },
   "updated_at_utc": "2026-10-10T00:06:00.613Z",
-  "rule_refs": null
+  "rule_refs": null,
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-PRESS",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

@@ -26,20 +26,20 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "Rule 8 \u2014 arbitration is OBSERVABLE",
+  "clause": "Rule 8 — arbitration is OBSERVABLE",
   "spec_anchor": [
     "STU-SHL-108"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "operator_shell",
   "scope": {
-    "summary": "Rule 8 \u2014 arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`. A test asserting \"a drag that began inside a field did not move the panel\" is then two string reads, not a screenshot comparison. Without this node, arbitration is inferable but not assertable, and every gesture test becomes a proof by absence of effect.",
+    "summary": "Rule 8 — arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`. A test asserting \"a drag that began inside a field did not move the panel\" is then two string reads, not a screenshot comparison. Without this node, arbitration is inferable but not assertable, and every gesture test becomes a proof by absence of effect.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Rule 8 \u2014 arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.",
+      "criterion": "Rule 8 — arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-SHL-108"
     }
@@ -141,7 +141,7 @@
   "identity": {
     "mt_id": "MT-34639",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "Rule 8 \u2014 arbitration is OBSERVABLE",
+    "title": "Rule 8 — arbitration is OBSERVABLE",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 4
@@ -160,7 +160,7 @@
       {
         "id": "STU-SHL-108",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31661",
-        "verbatim": "**[STU-SHL-108] Rule 8 \u2014 arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`. A test asserting \"a drag that began inside a field did not move the panel\" is then two string reads, not a screenshot comparison. Without this node, arbitration is inferable but not assertable, and every gesture test becomes a proof by absence of effect.",
+        "verbatim": "**[STU-SHL-108] Rule 8 — arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`. A test asserting \"a drag that began inside a field did not move the panel\" is then two string reads, not a screenshot comparison. Without this node, arbitration is inferable but not assertable, and every gesture test becomes a proof by absence of effect.",
         "heading": "### 6. Pointer gesture arbitration",
         "section": "14.30",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -1271,7 +1271,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1693,7 +1693,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Rule 8 \u2014 arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.",
+        "text": "Rule 8 — arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.",
         "fulfillment_ref": "MT-34639#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -1823,7 +1823,7 @@
         "requirement_refs": [
           "STU-SHL-108"
         ],
-        "current_normative_instructions": "**[STU-SHL-108] Rule 8 \u2014 arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`. A test asserting \"a drag that began inside a field did not move the panel\" is then two string reads, not a screenshot comparison. Without this node, arbitration is inferable but not assertable, and every gesture test becomes a proof by absence of effect.",
+        "current_normative_instructions": "**[STU-SHL-108] Rule 8 — arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`. A test asserting \"a drag that began inside a field did not move the panel\" is then two string reads, not a screenshot comparison. Without this node, arbitration is inferable but not assertable, and every gesture test becomes a proof by absence of effect.",
         "declared_table_keys": [],
         "source_fields": [
           "studio.gesture.active",
@@ -1848,7 +1848,7 @@
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Extend shared Controls gesture arbitration for Rule 8 \u2014 arbitration is OBSERVABLE under STU-SHL-108; source participants/ownership fields are studio.gesture.active, author_id, {scrub, tab-drag, panel-drag, splitter, pan, none}. Capture pointer ownership at the source-defined event and route later motion/release/cancel to that owner; no competing per-panel recognizers."
+        "step": "Extend shared Controls gesture arbitration for Rule 8 — arbitration is OBSERVABLE under STU-SHL-108; source participants/ownership fields are studio.gesture.active, author_id, {scrub, tab-drag, panel-drag, splitter, pan, none}. Capture pointer ownership at the source-defined event and route later motion/release/cancel to that owner; no competing per-panel recognizers."
       },
       {
         "n": 2,
@@ -1876,7 +1876,7 @@
       }
     ],
     "expected_outputs": [
-      "Extend shared Controls gesture arbitration for Rule 8 \u2014 arbitration is OBSERVABLE under STU-SHL-108; source participants/ownership fields are studio.gesture.active, author_id, {scrub, tab-drag, panel-drag, splitter, pan, none}. Capture pointer ownership at the source-defined event and route later motion/release/cancel to that owner; no competing per-panel recognizers.",
+      "Extend shared Controls gesture arbitration for Rule 8 — arbitration is OBSERVABLE under STU-SHL-108; source participants/ownership fields are studio.gesture.active, author_id, {scrub, tab-drag, panel-drag, splitter, pan, none}. Capture pointer ownership at the source-defined event and route later motion/release/cancel to that owner; no competing per-panel recognizers.",
       "Drive a real headless event sequence of press->move->release and press->move->cancel, including overlapping panel chrome/interactive content and source boundary conditions. Inspect claimed owner, event consumption, cursor/drag result and one gesture transaction outcome against exact source rules.",
       "Test movement outside panel/window bounds, conflicting claimant and stale document/grant. No double-dispatch, lost panel or repeated undo commit; cancellation returns captured before-state. Background actor cannot inject OS input or warp operator cursor/focus.",
       "Observe actual accessibility node throughout each gesture and after release.",
@@ -1933,7 +1933,7 @@
           "AC-001"
         ],
         "command_or_method": "Planned target: cargo test --locked -p hsk-studio-controls --no-default-features --test mt_34639 source_contract_consumer -- --exact. Independent validator drives source-specific cases in steps for STU-SHL-108/AC-001 against actual reducer/projection/record output, including declared negative/recovery cases. Implementer separately cargo check --locked -p hsk-studio-controls --no-default-features --tests. Actual candidate/lock/actor/artifact roots activation-bound; no execution claimed. Exact source-specific refinement: Observe actual accessibility node throughout each gesture and after release. No absent owner, invented kind or stale active gesture after completion.",
-        "expected": "Actual Rule 8 \u2014 arbitration is OBSERVABLE output obeys Rule 8 \u2014 arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
+        "expected": "Actual Rule 8 — arbitration is OBSERVABLE output obeys Rule 8 — arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1946,7 +1946,7 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Rule 8 \u2014 arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`. Observe actual accessibility node throughout each gesture and after release.",
+          "consumer_assertion": "Rule 8 — arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`. Observe actual accessibility node throughout each gesture and after release.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. No absent owner, invented kind or stale active gesture after completion.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
@@ -2047,20 +2047,20 @@
         "active": false,
         "validator_verdict": "PENDING"
       },
-      "clause": "Rule 8 \u2014 arbitration is OBSERVABLE",
+      "clause": "Rule 8 — arbitration is OBSERVABLE",
       "spec_anchor": [
         "STU-SHL-108"
       ],
       "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
       "domain": "operator_shell",
       "scope": {
-        "summary": "Rule 8 \u2014 arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`. A test asserting \"a drag that began inside a field did not move the panel\" is then two string reads, not a screenshot comparison. Without this node, arbitration is inferable but not assertable, and every gesture test becomes a proof by absence of effect.",
+        "summary": "Rule 8 — arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`. A test asserting \"a drag that began inside a field did not move the panel\" is then two string reads, not a screenshot comparison. Without this node, arbitration is inferable but not assertable, and every gesture test becomes a proof by absence of effect.",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "acceptance_criteria": [
         {
           "id": "AC-001",
-          "criterion": "Rule 8 \u2014 arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.",
+          "criterion": "Rule 8 — arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.",
           "evidence_kind": "runtime_assertion",
           "source": "14-studio-creative-suite.md STU-SHL-108"
         }
@@ -2136,7 +2136,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2217,7 +2218,7 @@
             "line": 31661,
             "section": "14.30",
             "heading": "### 6. Pointer gesture arbitration",
-            "verbatim": "**[STU-SHL-108] Rule 8 \u2014 arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`. A test asserting \"a drag that began inside a field did not move the panel\" is then two string reads, not a screenshot comparison. Without this node, arbitration is inferable but not assertable, and every gesture test becomes a proof by absence of effect.",
+            "verbatim": "**[STU-SHL-108] Rule 8 — arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`. A test asserting \"a drag that began inside a field did not move the panel\" is then two string reads, not a screenshot comparison. Without this node, arbitration is inferable but not assertable, and every gesture test becomes a proof by absence of effect.",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2284,10 +2285,10 @@
       {
         "acceptance_id": "AC-001",
         "original_pointer": "#/preserved_original/payload/acceptance_criteria/0",
-        "original_text": "Rule 8 \u2014 arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.",
+        "original_text": "Rule 8 — arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.",
         "original_row_sha256": "12ce20c55c0691c632abc02aaeeb4176a19110c11b30e07c453355268a125fc3",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Rule 8 \u2014 arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.",
+        "semantic_fulfillment": "Rule 8 — arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34639-ASSET-CONTROLS"
@@ -2297,7 +2298,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "Rule 8 \u2014 arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.",
+            "required_behavior": "Rule 8 — arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2306,13 +2307,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Rule 8 \u2014 arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`. Observe actual accessibility node throughout each gesture and after release.",
+          "consumer_assertion": "Rule 8 — arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`. Observe actual accessibility node throughout each gesture and after release.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. No absent owner, invented kind or stale active gesture after completion.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-34639-KERNEL-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Rule 8 \u2014 arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Rule 8 — arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36213"
@@ -2328,13 +2329,13 @@
       "original_acceptance": [
         {
           "id": "AC-001",
-          "criterion": "Rule 8 \u2014 arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.",
+          "criterion": "Rule 8 — arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.",
           "evidence_kind": "runtime_assertion",
           "source": "14-studio-creative-suite.md STU-SHL-108"
         }
       ],
       "original_scope": {
-        "summary": "Rule 8 \u2014 arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`. A test asserting \"a drag that began inside a field did not move the panel\" is then two string reads, not a screenshot comparison. Without this node, arbitration is inferable but not assertable, and every gesture test becomes a proof by absence of effect.",
+        "summary": "Rule 8 — arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`. A test asserting \"a drag that began inside a field did not move the panel\" is then two string reads, not a screenshot comparison. Without this node, arbitration is inferable but not assertable, and every gesture test becomes a proof by absence of effect.",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -2346,10 +2347,10 @@
         {
           "acceptance_id": "AC-001",
           "original_pointer": "#/preserved_original/payload/acceptance_criteria/0",
-          "original_text": "Rule 8 \u2014 arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.",
+          "original_text": "Rule 8 — arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.",
           "original_row_sha256": "12ce20c55c0691c632abc02aaeeb4176a19110c11b30e07c453355268a125fc3",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Rule 8 \u2014 arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.",
+          "semantic_fulfillment": "Rule 8 — arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34639-ASSET-CONTROLS"
@@ -2359,7 +2360,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "Rule 8 \u2014 arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.",
+              "required_behavior": "Rule 8 — arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2368,13 +2369,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Rule 8 \u2014 arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.",
+            "consumer_assertion": "Rule 8 — arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-34639-KERNEL-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Rule 8 \u2014 arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Rule 8 — arbitration is OBSERVABLE.** `studio.gesture.active` MUST be an AccessKit node whose value is the `author_id` of the widget owning the pointer plus the gesture kind, drawn from the closed set `{scrub, tab-drag, panel-drag, splitter, pan, none}`. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "MT-36213"
@@ -2405,5 +2406,51 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00"
+  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

@@ -1940,7 +1940,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2145,5 +2146,39 @@
       "criterion": "Yields index (NORMATIVE).** The counts below are the derivation surface of this module under [STU-IO-168]. They are not estimates: they are the measured output of applying that rule to this module's text, and every row states which unit kinds it contributes. | Unit group | Clauses | Units by kind | Yields | |---|---|---|---| | The export parameter model | [STU-IO-101]-[STU-IO-110] | 10 clause | 10 | | Node-render settings (the per-node export surface) | [STU-IO-111]-[STU-IO-117] | 7 clause | 7 | | Document PDF export | [STU-IO-125]-[STU-IO-133] | 9 clause, 1 enumeration, 1 parameter table | 11 | | Still-image export | [STU-IO-134]-[STU-IO-139] | 6 clause, 1 enumeration, 1 parameter table | 8 | | Professional video export | [STU-IO-140]-[STU-IO-148] | 9 clause | 9 | | Preset and library import | [STU-IO-150]-[STU-IO-154] | 5 clause | 5 | | Obligations | [STU-IO-160]-[STU-IO-167] | 8 clause | 8 | | Validation Descriptor Catalogue | [STU-IO-173]-[STU-IO-185] | 13 validator | 13 | | Clauses yielding nothing | 6 clauses, listed in [STU-IO-168] | — | 0 | | **Module total** | | **73 clauses** | **71** | Of this module's 73 clauses, 6 yield nothing and 67 yield at least one unit; tables inside yielding clauses contribute the remainder. The module total is **71**. The last numeric column is the yields count.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-PACKAGE",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

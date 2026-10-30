@@ -1967,7 +1967,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2269,5 +2270,39 @@
       "criterion": "Ruler-guide contract.** *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | |---|---|---|---|---|---|---|---| | `guide_view_threshold` (per guide) | 5.0 | 4000.0 | unknown | unknown | unknown | `percent` | unknown | | `ruler_guides_view_threshold` (document default) | 5 | 4000 | unknown | unknown | unknown | `percent` | unknown | | `guide_snap_to_zone` | 1 | 36 | unknown | unknown | unknown | `px` | 0 | plus per guide: `orientation`, `location`, `guide_colour`, `guide_type` ([STU-LAY-111]), `guide_zone`, `fit_to_page` (boolean), `page_index`, `locked`, and the parent-item override fields (`overridden`, `allow_overrides`, `overridden_page_item_props`, `item_layer`) so a guide authored on a parent page behaves like any other parent item. Document-scoped: `guides_shown`, `guides_locked`, `guides_snap_to`, `guides_in_back`, `ruler_guides_colour`. Guides support copy and paste across pages, select-all and delete-all-on-spread.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-LAYOUT",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

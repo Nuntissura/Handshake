@@ -153,7 +153,7 @@
       {
         "id": "STU-SHL-118",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31865",
-        "verbatim": "**[STU-SHL-118] An open item still yields a microtask.** A clause that declares an open operator decision, a blocked dependency or a carried capture gap STILL yields a microtask. Its FIRST acceptance criterion is resolving that dependency \u2014 obtaining the operator decision, running the named closing action, or recording the waiver \u2014 and its remaining criteria are the work the resolution unblocks. Nothing declared here may silently disappear from the derived set because it is unresolved. A microtask derived from a debt item is BLOCKED, not absent, and carries its blocking dependency in its own body. SHL-P-14 in particular is derived and BLOCKED on [STU-SHL-130]; it is never omitted. A BUDGETED expansion-node row is likewise derived, with list recovery as its first acceptance criterion ([STU-SHL-038]).",
+        "verbatim": "**[STU-SHL-118] An open item still yields a microtask.** A clause that declares an open operator decision, a blocked dependency or a carried capture gap STILL yields a microtask. Its FIRST acceptance criterion is resolving that dependency — obtaining the operator decision, running the named closing action, or recording the waiver — and its remaining criteria are the work the resolution unblocks. Nothing declared here may silently disappear from the derived set because it is unresolved. A microtask derived from a debt item is BLOCKED, not absent, and carries its blocking dependency in its own body. SHL-P-14 in particular is derived and BLOCKED on [STU-SHL-130]; it is never omitted. A BUDGETED expansion-node row is likewise derived, with list recovery as its first acceptance criterion ([STU-SHL-038]).",
         "heading": "### 11. Microtask Derivation",
         "section": "14.30",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -1755,7 +1755,9 @@
   "authority_migration": {
     "approval": "ilja091020261912",
     "template_ref": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json",
-    "active_execution_authority": [],
+    "active_execution_authority": [
+      "host_integration"
+    ],
     "historical_fields": [
       "clause",
       "spec_anchor",
@@ -1801,7 +1803,7 @@
             "line": 31865,
             "section": "14.30",
             "heading": "### 11. Microtask Derivation",
-            "verbatim": "**[STU-SHL-118] An open item still yields a microtask.** A clause that declares an open operator decision, a blocked dependency or a carried capture gap STILL yields a microtask. Its FIRST acceptance criterion is resolving that dependency \u2014 obtaining the operator decision, running the named closing action, or recording the waiver \u2014 and its remaining criteria are the work the resolution unblocks. Nothing declared here may silently disappear from the derived set because it is unresolved. A microtask derived from a debt item is BLOCKED, not absent, and carries its blocking dependency in its own body. SHL-P-14 in particular is derived and BLOCKED on [STU-SHL-130]; it is never omitted. A BUDGETED expansion-node row is likewise derived, with list recovery as its first acceptance criterion ([STU-SHL-038]).",
+            "verbatim": "**[STU-SHL-118] An open item still yields a microtask.** A clause that declares an open operator decision, a blocked dependency or a carried capture gap STILL yields a microtask. Its FIRST acceptance criterion is resolving that dependency — obtaining the operator decision, running the named closing action, or recording the waiver — and its remaining criteria are the work the resolution unblocks. Nothing declared here may silently disappear from the derived set because it is unresolved. A microtask derived from a debt item is BLOCKED, not absent, and carries its blocking dependency in its own body. SHL-P-14 in particular is derived and BLOCKED on [STU-SHL-130]; it is never omitted. A BUDGETED expansion-node row is likewise derived, with list recovery as its first acceptance criterion ([STU-SHL-038]).",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -1834,7 +1836,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31863; **[STU-SHL-117] Clauses that yield NO microtask.** Exactly one class, and it is deliberately narrow: the four clauses of this derivation sub-section itself \u2014 [STU-SHL-116], [STU-SHL-117], [STU-SHL-118] and [STU-SHL-119] \u2014 because they describe how the spec is read rather than what Studio does. **Every other clause in this sub-section yields.** An earlier revision of this clause declared a much larger non-yielding set covering cross-references, universal obligations and framing statements; that was wrong in the dangerous direction, because a clause declared non-yielding drops out of the derived set silently. A clause that only points elsewhere still yields the work of making the pointer true, and an obligation that attaches to every microtask still yields the work of proving it holds. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
+        "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31863; **[STU-SHL-117] Clauses that yield NO microtask.** Exactly one class, and it is deliberately narrow: the four clauses of this derivation sub-section itself — [STU-SHL-116], [STU-SHL-117], [STU-SHL-118] and [STU-SHL-119] — because they describe how the spec is read rather than what Studio does. **Every other clause in this sub-section yields.** An earlier revision of this clause declared a much larger non-yielding set covering cross-references, universal obligations and framing statements; that was wrong in the dangerous direction, because a clause declared non-yielding drops out of the derived set silently. A clause that only points elsewhere still yields the work of making the pointer true, and an obligation that attaches to every microtask still yields the work of proving it holds. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
         "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_REFERENCE",
         "asset_contribution_refs": [
           ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31863"
@@ -1860,7 +1862,7 @@
       "all_original_acceptance_refs": [],
       "original_acceptance": [],
       "original_scope": {
-        "summary": "An open item still yields a microtask.** A clause that declares an open operator decision, a blocked dependency or a carried capture gap STILL yields a microtask. Its FIRST acceptance criterion is resolving that dependency \u2014 obtaining the operator decision, running the named closing action, or recording the waiver \u2014 and its remaining criteria are the work the resolution unblocks. Nothing declared here may silently disappear from the derived set because it is unresolved. A microtask derived from a debt item is BLOCKED, not absent, and carries its blocking dependency in its own body. SHL-P-14 in particular is derived and BLOCKED on [STU-SHL-130]; it is never omitted. A BUDGETED expansion-node row is likewise derived, with list recovery as its first acceptance criterion ([STU-SHL-038]).",
+        "summary": "An open item still yields a microtask.** A clause that declares an open operator decision, a blocked dependency or a carried capture gap STILL yields a microtask. Its FIRST acceptance criterion is resolving that dependency — obtaining the operator decision, running the named closing action, or recording the waiver — and its remaining criteria are the work the resolution unblocks. Nothing declared here may silently disappear from the derived set because it is unresolved. A microtask derived from a debt item is BLOCKED, not absent, and carries its blocking dependency in its own body. SHL-P-14 in particular is derived and BLOCKED on [STU-SHL-130]; it is never omitted. A BUDGETED expansion-node row is likewise derived, with list recovery as its first acceptance criterion ([STU-SHL-038]).",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -1875,7 +1877,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31863; **[STU-SHL-117] Clauses that yield NO microtask.** Exactly one class, and it is deliberately narrow: the four clauses of this derivation sub-section itself \u2014 [STU-SHL-116], [STU-SHL-117], [STU-SHL-118] and [STU-SHL-119] \u2014 because they describe how the spec is read rather than what Studio does. **Every other clause in this sub-section yields.** An earlier revision of this clause declared a much larger non-yielding set covering cross-references, universal obligations and framing statements; that was wrong in the dangerous direction, because a clause declared non-yielding drops out of the derived set silently. A clause that only points elsewhere still yields the work of making the pointer true, and an obligation that attaches to every microtask still yields the work of proving it holds. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
+          "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31863; **[STU-SHL-117] Clauses that yield NO microtask.** Exactly one class, and it is deliberately narrow: the four clauses of this derivation sub-section itself — [STU-SHL-116], [STU-SHL-117], [STU-SHL-118] and [STU-SHL-119] — because they describe how the spec is read rather than what Studio does. **Every other clause in this sub-section yields.** An earlier revision of this clause declared a much larger non-yielding set covering cross-references, universal obligations and framing statements; that was wrong in the dangerous direction, because a clause declared non-yielding drops out of the derived set silently. A clause that only points elsewhere still yields the work of making the pointer true, and an obligation that attaches to every microtask still yields the work of proving it holds. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
           "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_REFERENCE",
           "asset_contribution_refs": [
             ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31863"
@@ -1902,7 +1904,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "An open item still yields a microtask.** A clause that declares an open operator decision, a blocked dependency or a carried capture gap STILL yields a microtask. Its FIRST acceptance criterion is resolving that dependency \u2014 obtaining the operator decision, running the named closing action, or recording the waiver \u2014 and its remaining criteria are the work the resolution unblocks. Nothing declared here may silently disappear from the derived set because it is unresolved. A microtask derived from a debt item is BLOCKED, not absent, and carries its blocking dependency in its own body. SHL-P-14 in particular is derived and BLOCKED on [STU-SHL-130]; it is never omitted. A BUDGETED expansion-node row is likewise derived, with list recovery as its first acceptance criterion ([STU-SHL-038]).",
+          "semantic_fulfillment": "An open item still yields a microtask.** A clause that declares an open operator decision, a blocked dependency or a carried capture gap STILL yields a microtask. Its FIRST acceptance criterion is resolving that dependency — obtaining the operator decision, running the named closing action, or recording the waiver — and its remaining criteria are the work the resolution unblocks. Nothing declared here may silently disappear from the derived set because it is unresolved. A microtask derived from a debt item is BLOCKED, not absent, and carries its blocking dependency in its own body. SHL-P-14 in particular is derived and BLOCKED on [STU-SHL-130]; it is never omitted. A BUDGETED expansion-node row is likewise derived, with list recovery as its first acceptance criterion ([STU-SHL-038]).",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-35414-ASSET-CONTROLS"
@@ -1912,7 +1914,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "An open item still yields a microtask.** A clause that declares an open operator decision, a blocked dependency or a carried capture gap STILL yields a microtask. Its FIRST acceptance criterion is resolving that dependency \u2014 obtaining the operator decision, running the named closing action, or recording the waiver \u2014 and its remaining criteria are the work the resolution unblocks. Nothing declared here may silently disappear from the derived set because it is unresolved. A microtask derived from a debt item is BLOCKED, not absent, and carries its blocking dependency in its own body. SHL-P-14 in particular is derived and BLOCKED on [STU-SHL-130]; it is never omitted. A BUDGETED expansion-node row is likewise derived, with list recovery as its first acceptance criterion ([STU-SHL-038]).",
+              "required_behavior": "An open item still yields a microtask.** A clause that declares an open operator decision, a blocked dependency or a carried capture gap STILL yields a microtask. Its FIRST acceptance criterion is resolving that dependency — obtaining the operator decision, running the named closing action, or recording the waiver — and its remaining criteria are the work the resolution unblocks. Nothing declared here may silently disappear from the derived set because it is unresolved. A microtask derived from a debt item is BLOCKED, not absent, and carries its blocking dependency in its own body. SHL-P-14 in particular is derived and BLOCKED on [STU-SHL-130]; it is never omitted. A BUDGETED expansion-node row is likewise derived, with list recovery as its first acceptance criterion ([STU-SHL-038]).",
               "only_owner_root_may_change": true
             }
           ],
@@ -1921,13 +1923,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "An open item still yields a microtask.** A clause that declares an open operator decision, a blocked dependency or a carried capture gap STILL yields a microtask. Its FIRST acceptance criterion is resolving that dependency \u2014 obtaining the operator decision, running the named closing action, or recording the waiver \u2014 and its remaining criteria are the work the resolution unblocks. Nothing declared here may silently disappear from the derived set because it is unresolved. A microtask derived from a debt item is BLOCKED, not absent, and carries its blocking dependency in its own body. SHL-P-14 in particular is derived and BLOCKED on [STU-SHL-130]; it is never omitted. A BUDGETED expansion-node row is likewise derived, with list recovery as its first acceptance criterion ([STU-SHL-038]).",
+            "consumer_assertion": "An open item still yields a microtask.** A clause that declares an open operator decision, a blocked dependency or a carried capture gap STILL yields a microtask. Its FIRST acceptance criterion is resolving that dependency — obtaining the operator decision, running the named closing action, or recording the waiver — and its remaining criteria are the work the resolution unblocks. Nothing declared here may silently disappear from the derived set because it is unresolved. A microtask derived from a debt item is BLOCKED, not absent, and carries its blocking dependency in its own body. SHL-P-14 in particular is derived and BLOCKED on [STU-SHL-130]; it is never omitted. A BUDGETED expansion-node row is likewise derived, with list recovery as its first acceptance criterion ([STU-SHL-038]).",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-35414-KERNEL-ASSET-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "An open item still yields a microtask.** A clause that declares an open operator decision, a blocked dependency or a carried capture gap STILL yields a microtask. Its FIRST acceptance criterion is resolving that dependency \u2014 obtaining the operator decision, running the named closing action, or recording the waiver \u2014 and its remaining criteria are the work the resolution unblocks. Nothing declared here may silently disappear from the derived set because it is unresolved. A microtask derived from a debt item is BLOCKED, not absent, and carries its blocking dependency in its own body. SHL-P-14 in particular is derived and BLOCKED on [STU-SHL-130]; it is never omitted. A BUDGETED expansion-node row is likewise derived, with list recovery as its first acceptance criterion ([STU-SHL-038]). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "An open item still yields a microtask.** A clause that declares an open operator decision, a blocked dependency or a carried capture gap STILL yields a microtask. Its FIRST acceptance criterion is resolving that dependency — obtaining the operator decision, running the named closing action, or recording the waiver — and its remaining criteria are the work the resolution unblocks. Nothing declared here may silently disappear from the derived set because it is unresolved. A microtask derived from a debt item is BLOCKED, not absent, and carries its blocking dependency in its own body. SHL-P-14 in particular is derived and BLOCKED on [STU-SHL-130]; it is never omitted. A BUDGETED expansion-node row is likewise derived, with list recovery as its first acceptance criterion ([STU-SHL-038]). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ]
@@ -1948,5 +1950,49 @@
       "criterion": "An open item still yields a microtask.** A clause that declares an open operator decision, a blocked dependency or a carried capture gap STILL yields a microtask. Its FIRST acceptance criterion is resolving that dependency — obtaining the operator decision, running the named closing action, or recording the waiver — and its remaining criteria are the work the resolution unblocks. Nothing declared here may silently disappear from the derived set because it is unresolved. A microtask derived from a debt item is BLOCKED, not absent, and carries its blocking dependency in its own body. SHL-P-14 in particular is derived and BLOCKED on [STU-SHL-130]; it is never omitted. A BUDGETED expansion-node row is likewise derived, with list recovery as its first acceptance criterion ([STU-SHL-038]).",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

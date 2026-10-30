@@ -1963,7 +1963,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2257,5 +2258,39 @@
       "criterion": "TABLES. Canonical `studio_*` SurrealDB `SCHEMAFULL` tables (all preserving the specified prefixed domain ids, all with a required typed `event_ledger_event_id` record reference, all protected by authenticated record-user and field permissions plus `ResourceBroker`, and all evolved through SurrealKit): `studio_documents` (SDOC-), `studio_layers` (SLYR-), `studio_artboards` (SART-), `studio_page_spreads` (SPGS-), `studio_masks` (SMSK-), `studio_vector_paths` (SVPT-), `studio_text_stories` (STXT-), `studio_type_styles` (STYS-), `studio_color_profiles` (SCPF-), `studio_swatches` (SSWT-), `studio_effect_stacks` (SEFX-), `studio_components` (SCMP-), `studio_component_instances` (SCIN-), `studio_variables` (SVAR-), `studio_variable_collections` (SVCL-), `studio_style_registries` (SSTY-), `studio_prototype_flows` (SPTF-), `studio_motion_timelines` (SMTL-), `studio_export_recipes` (SXPR-), `studio_import_profiles` (SIMP-), `studio_history_entries` (SHIS-), `studio_edit_proposals` (SEPR-). Typed field definitions, assertions, indexes, permissions, and rollout manifests are authored here as each table's implementing MT lands.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-ACCORD",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

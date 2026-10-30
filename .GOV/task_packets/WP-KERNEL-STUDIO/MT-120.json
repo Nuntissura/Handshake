@@ -2691,7 +2691,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -3297,7 +3298,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "Align/distribute Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -3332,7 +3335,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "Guides Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -3367,7 +3372,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "Snap Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -3402,7 +3409,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "Pixel-snap Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -3437,7 +3446,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "Isolation Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -3472,7 +3483,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "Distribute-along-path Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -3507,7 +3520,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "Author_ids Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -3542,7 +3557,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "Manual entry Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -3625,5 +3642,39 @@
     "CX-VERIFY-001",
     "CX-VERIFY-002",
     "CX-VERIFY-003"
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-NIB",
+      "unit_kind": "legacy_patched",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

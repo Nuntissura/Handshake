@@ -8228,7 +8228,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -8514,5 +8515,45 @@
       "criterion": "**The tables in this group are the normative Studio effect set for the compositing and motion domain.** Each row is ONE Studio effect. The `GPU` column states `Req` where a GPU registration exists for that effect and `--` where none does; per [STU-FX-125] a Studio build declares its own requirement, and `Req` here means \"the field implementation is GPU-backed and a CPU fallback must be proven promotion-equivalent before it is claimed\". The `Typed params` column is the number of parameter records recovered; a row showing `--` is covered by [STU-FX-128]. The `Import key` column is provenance for round-trip only and is never a Studio-facing name. **Blur & Sharpen** (21 effects) *Derivation: catalogue table, splits per row; yields 20 microtasks, one per Studio effect.* | Studio effect | GPU | Typed params | Behaviour (from capture) | Import key (provenance) | |---|---|---|---|---| | Bilateral Blur | -- | -- | _no vendor description recovered_ | `ADBE Bilateral` | | Box Blur | -- | -- | _no vendor description recovered_ | `ADBE Box Blur` | | Camera Lens Blur | -- | -- | _no vendor description recovered_ | `ADBE Camera Lens Blur` | | Camera-Shake Deblur | -- | -- | _no vendor description recovered_ | `ADBE CameraShakeDeblur` | | Cross Blur | -- | -- | _no vendor description recovered_ | `CS CrossBlur` | | Radial Blur (Alternate Engine) | -- | -- | _no vendor description recovered_ | [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-COMPOSITE",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

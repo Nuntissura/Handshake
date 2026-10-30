@@ -1966,7 +1966,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2270,5 +2271,39 @@
       "criterion": "Paragraph rules.** Rule-above and rule-below are two independent records with identical shape, THIRTEEN fields each: `on` (bool), `colour`, `tint`, `overprint`, `gap_colour`, `gap_tint`, `gap_overprint`, `type` (stroke style), `line_weight`, `offset`, `left_indent`, `right_indent`, `width_basis` (`text_width` | `column_width`). Rule-above additionally carries `keep_rule_above_in_frame` (bool). *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | |---|---|---|---|---|---|---|---| | `rule_line_weight` | 0 | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | points | UNKNOWN | | `rule_offset` | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | points | UNKNOWN | | `rule_left_indent` | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | points | UNKNOWN | | `rule_right_indent` | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | points | UNKNOWN | | `rule_tint` | 0 | 100 | UNKNOWN | UNKNOWN | UNKNOWN | percent | UNKNOWN | | `rule_gap_tint` | 0 | 100 | UNKNOWN | UNKNOWN | UNKNOWN | percent | UNKNOWN | Rule-above offsets from the baseline of the paragraph's FIRST line; rule-below offsets from the baseline of its LAST line.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-TYPE",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

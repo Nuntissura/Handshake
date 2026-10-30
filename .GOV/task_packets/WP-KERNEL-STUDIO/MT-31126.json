@@ -1966,7 +1966,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2270,5 +2271,39 @@
       "criterion": "Paragraph attributes are stored per paragraph. The normative paragraph control set is: - **Alignment** — left / center / right horizontal alignment plus, for vertical/CJK text, top / center / bottom; vertical-in-box alignment (top/middle/bottom/justified) is a container property (provenance: PS/AI/ID/AF/Figma; Affinity text-frame vertical justification). - **Justification (full H&J)** — justify-last-left / -center / -right and justify-all, with minimum / desired / maximum ranges for word spacing, letter spacing, and glyph scaling, plus auto-leading percentage and single-word-justification policy ([STU-TYP-016]). - **Indents** — left, right, and first-line indent; last-line indent where applicable (provenance: PS/AI/ID/Figma). - **Space** — space-before and space-after paragraph; \"space-between-same-style\" where supported (provenance: PS/AI/ID). - **Drop caps** — drop-cap line count and character count, optional bound character style, align-left-edge, and scale-for-descenders (provenance: InDesign drop caps). - **Hyphenation** — automatic hyphenation with minimum word length, letters-after-first, letters-before-last, consecutive-hyphen limit, hyphenation zone, better-spacing/fewer-hyphens bias, and toggles for capitalized words, last word, and across-column/frame hyphenation, resolved against the per-range language dictionary ([STU-TYP-031]) (provenance: PS/AI/ID/AF, deduped). - [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-TYPE",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

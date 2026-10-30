@@ -1963,7 +1963,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2257,5 +2258,39 @@
       "criterion": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-ACCORD",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

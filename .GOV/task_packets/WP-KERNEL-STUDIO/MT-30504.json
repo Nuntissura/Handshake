@@ -2100,7 +2100,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2427,7 +2428,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "Spot and swatch library contract.** Studio MUST ship a swatch/colour system whose captured shipped inventory is: 118 swatch library files holding 3,155 named swatch entries plus 10,011 colour-book colours across 14 binary colour books and 6 legacy XML colour books, and 659 gradient entries and 382 pattern entries carried inside those same libraries. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2462,7 +2465,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "Studio's normative requirement is NOT to ship those specific colour books -- their contents are third-party licensed data -- but to implement the CONTRACT they demonstrate: a swatch library is a named, importable, exportable container of typed swatch entries; a colour book is a read-only container of named spot colours carrying raw component values plus a declared colour space; a swatch group is an ordered named subset of a library; and a swatch entry's kind is one of the captured kinds above and MUST be carried explicitly rather than inferred from the value shape. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2497,7 +2502,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "Colour-book components are captured as RAW BYTES that were not scaled to a colour space; an importer MUST therefore require an explicit space declaration and MUST NOT guess. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2566,5 +2573,39 @@
     "CX-VERIFY-001",
     "CX-VERIFY-002",
     "CX-VERIFY-003"
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-NIB",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

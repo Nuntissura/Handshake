@@ -139,7 +139,9 @@
   },
   "gameplan_ref": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml",
   "context_capsule": {
-    "module_maintenance_refs": [".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/15/maintenance"],
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/15/maintenance"
+    ],
     "specification_anchor_refs": [
       {
         "id": "STU-CMP-055",
@@ -2001,7 +2003,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2311,5 +2314,45 @@
       "criterion": "**Immersive compositing is projection-aware, and that is what distinguishes it from applying the same effect to an equirectangular image.** 21 recovered immersive capabilities divide into three roles: Each is computed in the SPHERICAL domain so that the result has no seam at the wrap and no distortion at the poles. Applying the flat version of any of these to an equirectangular frame produces a visible seam, which is precisely why they exist as separate capabilities and must not be deduped into their flat counterparts ([STU-SECTION-003] dedups identical capabilities, not similarly-named different ones). 20 of the 21 are named below; the twenty-first is recovered as a count and not as a name, which is an open item under [STU-CMP-123]. *Derivation: catalogue table, splits per row; yields 20 microtasks, one per immersive capability.* | Studio capability | Role | Contract | |---|---|---| | Projection convert | conversion | Converts between declared projection formats. Members of the projection-type enumeration are a declared gap ([STU-CMP-106]). | | Plane to sphere | conversion | Maps a flat plane into a position on the sphere. | | Sphere to plane | conversion | Maps a region of the sphere back to a flat plane. | | Sphere rotate | conversion | Rotates the sphere about the three axes, which is how horizon and heading are set. | | Mobius zoom | conversion | A projection transform tha [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-COMPOSITE",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

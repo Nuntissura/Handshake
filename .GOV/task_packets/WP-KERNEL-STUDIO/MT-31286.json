@@ -1975,7 +1975,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2279,5 +2280,45 @@
       "criterion": "Camera profile scale and shape (for sizing and for defaulting).** The captured corpus was 4,373 profiles, 895 MB, covering 1,429 distinct camera models under 129 profile names. Tag presence across it: `unique_camera_model`, `color_matrix_1`, `color_matrix_2`, `calibration_illuminant_1`, `calibration_illuminant_2`, `profile_name` and `profile_embed_policy` on 100 percent; `profile_look_table_dims`/`data` on 99.89 percent; `forward_matrix_1`/`2` on 99.68 percent; `profile_calibration_signature` on 99.52 percent; `profile_copyright` on 96.52 percent; `profile_tone_curve` on 67.62 percent; `profile_look_table_encoding` and `default_black_render` on 57.19 percent; `baseline_exposure_offset` on 51.70 percent; `profile_hue_sat_map_dims`/`data_1` on 26.48 percent; `hue_sat_map_data_2` on 26.39 percent; `profile_dynamic_range` on 0.02 percent. The dominant illuminant pair is (standard light A, D65) on 4,365 of 4,373 profiles; five other pairs occur, including (A, flash), (D65, A), (D55, D75) and (flash, tungsten), so an implementation that hard-codes A/D65 is wrong on 8 profiles. The dominant hue/sat lattice is 90 x 30 x 1 (hue x saturation x value) on 1,116 of the 1,158 profiles that carry one; an 8 x 2 x 1 lattice occurs on 22. Profile payloads are BULK BINARY and belong in content-addressed artifact storage with SurrealDB holding the record and reference ([STU-SDB-002]); a 895 MB pro [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-PRISM",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

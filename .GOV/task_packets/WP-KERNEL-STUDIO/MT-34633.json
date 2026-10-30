@@ -26,14 +26,14 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "Rule 2 \u2014 panel and tab drags start from designated chrome ONLY",
+  "clause": "Rule 2 — panel and tab drags start from designated chrome ONLY",
   "spec_anchor": [
     "STU-SHL-102"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "operator_shell",
   "scope": {
-    "summary": "Rule 2 \u2014 panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
+    "summary": "Rule 2 — panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [],
@@ -134,7 +134,7 @@
   "identity": {
     "mt_id": "MT-34633",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "Rule 2 \u2014 panel and tab drags start from designated chrome ONLY",
+    "title": "Rule 2 — panel and tab drags start from designated chrome ONLY",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 4
@@ -153,7 +153,7 @@
       {
         "id": "STU-SHL-102",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31649",
-        "verbatim": "**[STU-SHL-102] Rule 2 \u2014 panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
+        "verbatim": "**[STU-SHL-102] Rule 2 — panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
         "heading": "### 6. Pointer gesture arbitration",
         "section": "14.30",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -1264,7 +1264,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1686,7 +1686,7 @@
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
-        "text": "Rule 2 \u2014 panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
+        "text": "Rule 2 — panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
         "fulfillment_ref": "MT-34633#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -1816,7 +1816,7 @@
         "requirement_refs": [
           "STU-SHL-102"
         ],
-        "current_normative_instructions": "**[STU-SHL-102] Rule 2 \u2014 panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
+        "current_normative_instructions": "**[STU-SHL-102] Rule 2 — panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
         "declared_table_keys": [],
         "source_fields": [],
         "feature_selection": "--no-default-features; Controls+Accord+Observe+approved egui0.33 headless; published provider ports only",
@@ -1837,7 +1837,7 @@
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Extend shared Controls gesture arbitration for Rule 2 \u2014 panel and tab drags start from designated chrome ONLY under STU-SHL-102; source participants/ownership fields are . Capture pointer ownership at the source-defined event and route later motion/release/cancel to that owner; no competing per-panel recognizers."
+        "step": "Extend shared Controls gesture arbitration for Rule 2 — panel and tab drags start from designated chrome ONLY under STU-SHL-102; source participants/ownership fields are . Capture pointer ownership at the source-defined event and route later motion/release/cancel to that owner; no competing per-panel recognizers."
       },
       {
         "n": 2,
@@ -1865,7 +1865,7 @@
       }
     ],
     "expected_outputs": [
-      "Extend shared Controls gesture arbitration for Rule 2 \u2014 panel and tab drags start from designated chrome ONLY under STU-SHL-102; source participants/ownership fields are . Capture pointer ownership at the source-defined event and route later motion/release/cancel to that owner; no competing per-panel recognizers.",
+      "Extend shared Controls gesture arbitration for Rule 2 — panel and tab drags start from designated chrome ONLY under STU-SHL-102; source participants/ownership fields are . Capture pointer ownership at the source-defined event and route later motion/release/cancel to that owner; no competing per-panel recognizers.",
       "Drive a real headless event sequence of press->move->release and press->move->cancel, including overlapping panel chrome/interactive content and source boundary conditions. Inspect claimed owner, event consumption, cursor/drag result and one gesture transaction outcome against exact source rules.",
       "Test movement outside panel/window bounds, conflicting claimant and stale document/grant. No double-dispatch, lost panel or repeated undo commit; cancellation returns captured before-state. Background actor cannot inject OS input or warp operator cursor/focus.",
       "Press and move in panel body then actual header; inspect distinct ownership.",
@@ -1930,13 +1930,13 @@
           "Independent actual output"
         ],
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
-        "expected": "Actual Rule 2 \u2014 panel and tab drags start from designated chrome ONLY output obeys Rule 2 \u2014 panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
+        "expected": "Actual Rule 2 — panel and tab drags start from designated chrome ONLY output obeys Rule 2 — panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Rule 2 \u2014 panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does. Press and move in panel body then actual header; inspect distinct ownership.",
+          "consumer_assertion": "Rule 2 — panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does. Press and move in panel body then actual header; inspect distinct ownership.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Body controls cannot accidentally drag panel or tab.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
@@ -2036,14 +2036,14 @@
         "active": false,
         "validator_verdict": "PENDING"
       },
-      "clause": "Rule 2 \u2014 panel and tab drags start from designated chrome ONLY",
+      "clause": "Rule 2 — panel and tab drags start from designated chrome ONLY",
       "spec_anchor": [
         "STU-SHL-102"
       ],
       "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
       "domain": "operator_shell",
       "scope": {
-        "summary": "Rule 2 \u2014 panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
+        "summary": "Rule 2 — panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "acceptance_criteria": [],
@@ -2118,7 +2118,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2199,7 +2200,7 @@
             "line": 31649,
             "section": "14.30",
             "heading": "### 6. Pointer gesture arbitration",
-            "verbatim": "**[STU-SHL-102] Rule 2 \u2014 panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
+            "verbatim": "**[STU-SHL-102] Rule 2 — panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2269,7 +2270,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "Rule 2 \u2014 panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
+        "semantic_fulfillment": "Rule 2 — panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34633-ASSET-CONTROLS"
@@ -2279,7 +2280,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "Rule 2 \u2014 panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
+            "required_behavior": "Rule 2 — panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2288,13 +2289,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Rule 2 \u2014 panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does. Press and move in panel body then actual header; inspect distinct ownership.",
+          "consumer_assertion": "Rule 2 — panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does. Press and move in panel body then actual header; inspect distinct ownership.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Body controls cannot accidentally drag panel or tab.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-34633-KERNEL-ASSET-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Rule 2 \u2014 panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Rule 2 — panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36213"
@@ -2307,7 +2308,7 @@
       "all_original_acceptance_refs": [],
       "original_acceptance": [],
       "original_scope": {
-        "summary": "Rule 2 \u2014 panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
+        "summary": "Rule 2 — panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -2322,7 +2323,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Rule 2 \u2014 panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
+          "semantic_fulfillment": "Rule 2 — panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34633-ASSET-CONTROLS"
@@ -2332,7 +2333,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "Rule 2 \u2014 panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
+              "required_behavior": "Rule 2 — panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2341,13 +2342,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Rule 2 \u2014 panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
+            "consumer_assertion": "Rule 2 — panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-34633-KERNEL-ASSET-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Rule 2 \u2014 panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Rule 2 — panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "MT-36213"
@@ -2367,7 +2368,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Rule 2 \u2014 panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
+          "semantic_fulfillment": "Rule 2 — panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34633-ASSET-CONTROLS"
@@ -2377,7 +2378,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "Rule 2 \u2014 panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
+              "required_behavior": "Rule 2 — panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2386,13 +2387,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Rule 2 \u2014 panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
+            "consumer_assertion": "Rule 2 — panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-34633-KERNEL-ASSET-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Rule 2 \u2014 panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Rule 2 — panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ],
@@ -2418,8 +2419,54 @@
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
-      "criterion": "Rule 2 \u2014 panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
+      "criterion": "Rule 2 — panel and tab drags start from designated chrome ONLY.** A panel drag or a tab drag may START only from the tab, the group title strip or the panel header. Never from the panel body. This removes the conflict structurally rather than dynamically, and it is what every captured vendor does.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

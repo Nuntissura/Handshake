@@ -1948,7 +1948,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2249,5 +2250,45 @@
       "criterion": "Reading convention for the table above, and why every `soft_min`/`soft_max` cell is empty.** `--` means the source declares nothing and Studio declares nothing, exactly as [STU-FX-131a] defines it for the effect parameter records. The composition-settings surface declares a VALID range only; it declares no separate control range, so `soft_min` and `soft_max` are UNKNOWN for every row and are carried as empty rather than as a copy of the hard bound. Setting a soft bound equal to its hard twin here would assert something the source never said and would be unrecoverable without re-deriving from the capture ([STU-FX-105], [STU-FX-106]). `precision` is likewise undeclared on this surface; an integer `Kind` constrains the stored value but is not a declared decimal count. An implementer who needs a control range chooses one, records it as `soft_bound_source = \"implementation\"`, and never promotes it to `hard_*`.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-MOTION",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

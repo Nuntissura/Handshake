@@ -1963,7 +1963,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2257,5 +2258,41 @@
       "criterion": "Additional step kinds (normative, closed, five members beyond a plain command step).** | Step kind | Fields | Behaviour | |---|---|---| | `message_stop` | `message` (string), `allow_continue` (boolean, default true) | pauses playback and shows the message; when `allow_continue` is false, playback ends | | `path_literal` | the exact vector-path geometry as a `StudioVectorPath` value | recreates the path on playback so geometry is not re-derived | | `tool_stroke` | the captured stroke sample stream for a painting tool | replays the stroke; capture is opt-in per recording session | | `conditional_branch` | `condition` (a predicate over document state), `then_action_id`, `else_action_id` (nullable) | branches to another action; the predicate domain is [STU-AUT-113] | | `conditional_mode_change` | `source_modes[]` (set of colour-mode tokens), `target_mode` | converts colour mode only when the document's mode is in `source_modes`; otherwise the step is a no-op. This is the batch-safety step: an unconditional mode change corrupts documents that are already in the target mode |",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "STU-CON-013",
+      "STU-CON-014"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": true
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

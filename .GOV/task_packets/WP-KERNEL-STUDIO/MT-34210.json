@@ -2010,7 +2010,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2462,5 +2463,53 @@
       "criterion": "**OPEN DECISION: whether Studio's compositing document model is layer-based only, or layer-based with a node-graph surface, or node-based with a layer projection.** The decision is named, it is open, and it is NOT taken in this sub-section. What is recorded: 1. **Why it is not decided from evidence.** No captured application provides a node-graph reference. The green room parsed installed applications, and the compositing application it parsed is layer-based. A node model would need its own reference basis, gathered deliberately, and inventing one here would be exactly the speculation this specification forbids. 2. **Handshake already has node-graph precedent, and this is the argument for taking the question seriously rather than deferring it forever.** The Loom graph surface and the canvas board exist in the current shell, with an addressing scheme (`loom://` over workspace and block identity) that already treats every document, rich-text block, canvas node and graph node as an addressable node. Studio would not be introducing graph infrastructure from nothing; it would be reusing a primitive the product already has, which changes the cost calculation substantially. 3. **The closest open-source field reference is a Rust, node-based, GPU-rendered 2D graphics editor** (Graphite, node-based, Vello-rendered), which is architecturally adjacent to Studio's own stack and is the natur [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "STU-CON-013",
+      "STU-CON-014",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-FOLIO",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": true
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

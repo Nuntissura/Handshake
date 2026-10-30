@@ -2126,7 +2126,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2445,5 +2446,53 @@
       "criterion": "Action record shapes (normative).** | Type | Required fields | Optional fields | |---|---|---| | `BACK` | none | none | | `CLOSE` | none | none | | `URL` | `url` (string) | `open_in_new_tab` (boolean, default true) | | `NODE` | `destination_id` (node id or null), `navigation` ([STU-PRO-111]), `transition` ([STU-PRO-116]) or null, `preserve_scroll_position` (boolean, default false) | `overlay_relative_position` `{x, y}` (required when `navigation = OVERLAY` and the destination frame's `overlay_position_type = MANUAL`), `reset_video_position`, `reset_scroll_position`, `reset_interactive_components` (all boolean, default false) | | `SET_VARIABLE` | `variable_id` (`SVAR-*`), `variable_value` (a value record per [STU-DS-127]) | none | | `SET_VARIABLE_MODE` | `variable_collection_id` (`SVCL-*`), `variable_mode_id` | none | | `CONDITIONAL` | `conditional_blocks` (ordered array of `{condition?, actions[]}`) | none | | `UPDATE_MEDIA_RUNTIME` | `media_action` (one of the nine media members), `destination_id` (node id or null; null means \"the media layer this reaction is authored on\") | `amount_to_skip` (required for `SKIP_FORWARD` / `SKIP_BACKWARD`), `new_timestamp` (required for `SKIP_TO`) |",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "STU-CON-013",
+      "STU-CON-014",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-COMPONENTS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": true
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

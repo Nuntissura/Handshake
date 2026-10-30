@@ -33,7 +33,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "web_authoring",
   "scope": {
-    "summary": "Template document contract.** A template document is a `StudioDocument` of a template document type ([STU-WEB-013] rows 23, 33\u201339). It declares regions that instance documents may edit; everything else is locked in the instance. Studio MUST support nested templates: a template may itself be based on another template, and region locking composes.",
+    "summary": "Template document contract.** A template document is a `StudioDocument` of a template document type ([STU-WEB-013] rows 23, 33–39). It declares regions that instance documents may edit; everything else is locked in the instance. Studio MUST support nested templates: a template may itself be based on another template, and region locking composes.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -157,7 +157,7 @@
       {
         "id": "STU-WEB-090",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:30390",
-        "verbatim": "**[STU-WEB-090] Template document contract.** A template document is a `StudioDocument` of a template document type ([STU-WEB-013] rows 23, 33\u201339). It declares regions that instance documents may edit; everything else is locked in the instance. Studio MUST support nested templates: a template may itself be based on another template, and region locking composes.",
+        "verbatim": "**[STU-WEB-090] Template document contract.** A template document is a `StudioDocument` of a template document type ([STU-WEB-013] rows 23, 33–39). It declares regions that instance documents may edit; everything else is locked in the instance. Studio MUST support nested templates: a template may itself be based on another template, and region locking composes.",
         "heading": "### 14.28.6 Templates, library items and snippets",
         "section": "14.28",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -1588,7 +1588,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-WEB scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-WEB scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -2063,7 +2063,7 @@
             "range_kind": "normative_clause"
           }
         ],
-        "complete_clause_body": "**[STU-WEB-090] Template document contract.** A template document is a `StudioDocument` of a template document type ([STU-WEB-013] rows 23, 33\u201339). It declares regions that instance documents may edit; everything else is locked in the instance. Studio MUST support nested templates: a template may itself be based on another template, and region locking composes.\n",
+        "complete_clause_body": "**[STU-WEB-090] Template document contract.** A template document is a `StudioDocument` of a template document type ([STU-WEB-013] rows 23, 33–39). It declares regions that instance documents may edit; everything else is locked in the instance. Studio MUST support nested templates: a template may itself be based on another template, and region locking composes.\n",
         "method_operands": "Exact fields, ordered vocabularies, tables, numeric provenance and defaults in complete_clause_body; missing upstream assets remain gaps",
         "source_revision_precondition": "One immutable source text/document revision; grants and external resources supplied by published ports",
         "unit_kind": "clause",
@@ -2294,7 +2294,7 @@
       "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
       "domain": "web_authoring",
       "scope": {
-        "summary": "Template document contract.** A template document is a `StudioDocument` of a template document type ([STU-WEB-013] rows 23, 33\u201339). It declares regions that instance documents may edit; everything else is locked in the instance. Studio MUST support nested templates: a template may itself be based on another template, and region locking composes.",
+        "summary": "Template document contract.** A template document is a `StudioDocument` of a template document type ([STU-WEB-013] rows 23, 33–39). It declares regions that instance documents may edit; everything else is locked in the instance. Studio MUST support nested templates: a template may itself be based on another template, and region locking composes.",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "acceptance_criteria": [
@@ -2376,7 +2376,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2457,7 +2458,7 @@
             "line": 30390,
             "section": "14.28",
             "heading": "### 14.28.6 Templates, library items and snippets",
-            "verbatim": "**[STU-WEB-090] Template document contract.** A template document is a `StudioDocument` of a template document type ([STU-WEB-013] rows 23, 33\u201339). It declares regions that instance documents may edit; everything else is locked in the instance. Studio MUST support nested templates: a template may itself be based on another template, and region locking composes.",
+            "verbatim": "**[STU-WEB-090] Template document contract.** A template document is a `StudioDocument` of a template document type ([STU-WEB-013] rows 23, 33–39). It declares regions that instance documents may edit; everything else is locked in the instance. Studio MUST support nested templates: a template may itself be based on another template, and region locking composes.",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2576,7 +2577,7 @@
         }
       ],
       "original_scope": {
-        "summary": "Template document contract.** A template document is a `StudioDocument` of a template document type ([STU-WEB-013] rows 23, 33\u201339). It declares regions that instance documents may edit; everything else is locked in the instance. Studio MUST support nested templates: a template may itself be based on another template, and region locking composes.",
+        "summary": "Template document contract.** A template document is a `StudioDocument` of a template document type ([STU-WEB-013] rows 23, 33–39). It declares regions that instance documents may edit; everything else is locked in the instance. Studio MUST support nested templates: a template may itself be based on another template, and region locking composes.",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -2635,5 +2636,51 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T01:30:49.066879+00:00"
+  "updated_at_utc": "2026-10-10T01:30:49.066879+00:00",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-WEB",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

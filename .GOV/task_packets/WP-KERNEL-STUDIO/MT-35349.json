@@ -1983,7 +1983,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2277,5 +2278,53 @@
       "criterion": "Baseline preservation and supersession.** Clauses [STU-AUT-001] through [STU-AUT-027] of v02.205 remain in force as the architectural frame of this domain: one typed command contract, the four admissibility properties, the promotion lifecycle, command batches, capability namespacing, the object-model exposure rule, the descriptor path, stable-id addressing, the modal-gate rule, and the plugin and inspect postures. Clauses [STU-AUT-100] and above add the record shapes, enumerations, bounds and scale contracts those clauses assumed. Explicit corrections: | v02.205 clause | Disposition | Replacement | |---|---|---| | [STU-AUT-010] \"a recorded macro is a persisted `StudioCommandBatch`\" | CORRECTED | A recorded action is a persisted ACTION record with a step list ([STU-AUT-103]); a `StudioCommandBatch` is the transactional envelope it replays INSIDE. Conflating the two loses per-step enable/disable, per-step dialog policy, and per-step re-parameterisation. | | [STU-AUT-011] macro control table | EXTENDED | Each control row is now a field on the action or step record ([STU-AUT-103], [STU-AUT-104]) with a declared domain. | | [STU-AUT-025] native asset browser | SUPERSEDED IN OWNERSHIP | See [STU-ASSET-017]: the capability is preserved, the owner is CKC, and Studio holds no catalog state. | | [STU-AUT-006] \"the scripting DOM equivalent\" | EXTENDED | The object model's shape, its type [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "STU-CON-013",
+      "STU-CON-014",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": true
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

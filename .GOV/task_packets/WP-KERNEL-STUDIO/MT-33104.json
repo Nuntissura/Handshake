@@ -2025,7 +2025,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2409,5 +2410,53 @@
       "criterion": "Auto-layout child fields (normative, closed set of three, plus two sizing fields).** A child participating in auto layout carries: | Field | Type / domain | Default | Semantics | |---|---|---|---| | `layout_align` | `MIN` \\| `CENTER` \\| `MAX` \\| `STRETCH` \\| `INHERIT` | `INHERIT` | cross-axis alignment override for this child | | `layout_grow` | number, hard_min 0, hard_max 1, soft range 0..1, default 0, precision 0 (integer 0 or 1 in practice), unit dimensionless | 0 | 1 = grow to fill remaining primary-axis space | | `layout_positioning` | `AUTO` \\| `ABSOLUTE` | `AUTO` | `ABSOLUTE` is the ignore-auto-layout escape of [STU-DS-044]; an `ABSOLUTE` child falls back to `StudioConstraint` ([STU-DS-048]) | | `layout_sizing_horizontal` | `FIXED` \\| `HUG` \\| `FILL` | `FIXED` | the per-axis resizing mode of [STU-DS-042] | | `layout_sizing_vertical` | `FIXED` \\| `HUG` \\| `FILL` | `FIXED` | |",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "STU-CON-013",
+      "STU-CON-014",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-COMPONENTS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": true
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

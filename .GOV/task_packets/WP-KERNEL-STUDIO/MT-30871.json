@@ -1968,7 +1968,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2272,5 +2273,39 @@
       "criterion": "Typographic unit table (NORMATIVE).** Extends [STU-TYP-051]. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Quantity | Studio unit | Note | |---|---|---| | Type size, leading, baseline shift, indents, spacing, tab position, rule weight, offsets | `points` | Stored as points regardless of the document ruler unit. | | Tracking, kerning | `em/1000` | Signed thousandths of an em. Illustrator names this \"thousandths of an em\" on `CharacterAttributes.Tracking` and \"milli-ems\" on `TextRange.Kerning`; Studio uses ONE unit token for both. | | Horizontal/vertical scale, glyph scaling, letter spacing, word spacing, tsume, small-cap size, super/subscript size and position, ruby/kenten/warichu scaling, tint | `percent` | 100 = 100%. | | Auto-leading amount | `percent` | Percentage of type size. | | Character rotation, shatai angle, gradient angle on text fill | `degrees` | | | Aki (leading aki, left/right aki) | `em` | Em fraction, not percent. | | Hyphenation minimums, keep-line counts, drop-cap counts, warichu line counts, list levels, jidori, gyoudori | `count` | Integer. | | Hyphenation zone | `points` | | | Optical margin size | `points` | | | Text-frame geometry, insets, gutters, column widths | `document_unit` | The unit declared by the `StudioDocument` per [STU-DOC-003], carried on the field. | Conversi [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-TYPE",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

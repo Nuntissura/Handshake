@@ -139,7 +139,9 @@
   },
   "gameplan_ref": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml",
   "context_capsule": {
-    "module_maintenance_refs": [".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/15/maintenance"],
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/15/maintenance"
+    ],
     "specification_anchor_refs": [
       {
         "id": "STU-CMP-095",
@@ -2006,7 +2008,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2316,5 +2319,57 @@
       "criterion": "**The seven enumerations recovered by content signature, reproduced verbatim as the completeness check on this sub-section and on 14.26.** Each was located in a shipped binary by matching a known member set, so the recovery is evidence-based rather than name-based. Each list includes one menu-title row that is NOT a member; the counts below state both figures so the distinction is not lost. Where a Studio clause above states a normative member set, that clause wins; this appendix records what was read. **layer_blending_modes** -- Layer blending mode (Mode column). 39 recovered rows, 38 after removing the menu-title row. Values: Add; Alpha Add; Classic Color Burn; Classic Color Dodge; Classic Difference; Color Burn; Color Dodge; Color; Dancing Dissolve; Darken; Darker Color; Difference; Dissolve; Divide; Exclusion; Hard Light; Hard Mix; Hue; Lighten; Lighter Color; Linear Burn; Linear Dodge; Linear Light; Luminescent Premul; Luminosity; Multiply; Normal; Overlay; Pin Light; Saturation; Screen; Silhouette Alpha; Silhouette Luma; Soft Light; Stencil Alpha; Stencil Luma; Subtract; Vivid Light **track_matte_modes** -- Track matte type (TrkMat column). 10 recovered rows, 9 after removing the menu-title row. Values: Alpha Inverted Matte; Alpha Matte; Luma Inverted Matte; Luma Matte; No Track Matte; Matte Layer Above; Matte with Layer Above; Matte Layer Below; Matte with Layer Below ** [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-COMPOSITE",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

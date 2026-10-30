@@ -139,7 +139,9 @@
   },
   "gameplan_ref": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml",
   "context_capsule": {
-    "module_maintenance_refs": [".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/5/maintenance"],
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/5/maintenance"
+    ],
     "specification_anchor_refs": [
       {
         "id": "STU-RAS-133",
@@ -1999,7 +2001,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2309,5 +2312,45 @@
       "criterion": "TEXTURE SUB-ENGINE.** A brush MAY be textured by a `StudioPattern`; 107 of 643 shipped presets are. The texture is referenced by pattern id, not by name. *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | observed | classification | |---|---|---|---|---|---|---|---|---|---| | `texture_enabled` | — | — | — | — | false | none | — | true in 107 of 643 | boolean | | `texture_pattern_id` | — | — | — | — | absent | none | — | — | `StudioPattern` reference | | `texture_scale` | unknown | unknown | 1 | 1000 | 100.0 | percent | 1 | 1.0 .. 280.0 | `observed` | | `texture_depth` | 0 | 100 | 0 | 100 | 100.0 | percent | 1 | 0.0 .. 100.0 | `observed` | | `texture_minimum_depth` | 0 | 100 | 0 | 100 | 0.0 | percent | 1 | 0.0 .. 100.0 | `observed` | | `texture_brightness` | unknown | unknown | -150 | 150 | 0.0 | count | 0 | -150.0 .. 53.0 | `observed`; signed, unitless | | `texture_contrast` | unknown | unknown | -100 | 100 | 0.0 | count | 0 | -50.0 .. 100.0 | `observed`; signed, unitless | | `texture_blend_mode` | enum | enum | — | — | `height` | none | — | height, multiply, subtract, linear height, colour burn, linear burn observed | includes two height-field modes that are texture-only and are not layer blend modes | | `texture_inve [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-PIGMENT",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

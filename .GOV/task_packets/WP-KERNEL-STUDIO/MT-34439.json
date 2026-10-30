@@ -160,7 +160,7 @@
       {
         "id": "STU-SHL-018",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:30898",
-        "verbatim": "**[STU-SHL-018] The menu NEVER hides.** A menu node \u2014 a top-level title, a submenu or a leaf \u2014 MUST be rendered at every level regardless of its `availability_state`. `AVAILABLE` renders enabled. `INAPPLICABLE_HERE` renders greyed with its reason and its remedy. `NOT_IN_THIS_DOCUMENT` renders greyed with its reason. No node is ever removed, collapsed away, or conditionally omitted. The reason this rule holds for the menu and not for the Tool Rail is structural, not a compromise:",
+        "verbatim": "**[STU-SHL-018] The menu NEVER hides.** A menu node — a top-level title, a submenu or a leaf — MUST be rendered at every level regardless of its `availability_state`. `AVAILABLE` renders enabled. `INAPPLICABLE_HERE` renders greyed with its reason and its remedy. `NOT_IN_THIS_DOCUMENT` renders greyed with its reason. No node is ever removed, collapsed away, or conditionally omitted. The reason this rule holds for the menu and not for the Tool Rail is structural, not a compromise:",
         "heading": "#### 1.2 The never-hide rule",
         "section": "14.30",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -1231,7 +1231,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1639,7 +1639,24 @@
     ],
     "shared_resource_locks": [],
     "inputs": [
-      {"canonical_repository_url":"https://github.com/Nuntissura/assets","planned_source_root":"handshake-studio-assets/crates/hsk-studio-controls","requirement_refs":["STU-SHL-018"],"current_normative_instructions":"**[STU-SHL-018] The menu NEVER hides.** A menu node — a top-level title, a submenu or a leaf — MUST be rendered at every level regardless of its `availability_state`. `AVAILABLE` renders enabled. `INAPPLICABLE_HERE` renders greyed with its reason and its remedy. `NOT_IN_THIS_DOCUMENT` renders greyed with its reason. No node is ever removed, collapsed away, or conditionally omitted. The reason this rule holds for the menu and not for the Tool Rail is structural, not a compromise: 1. A hidden node has no stable AccessKit address. Argus and every out-of-process inspector address surfaces by `author_id`, and an element that is not rendered emits no node, so a test can only infer its state from the absence of an effect ([STU-MDL-002]). 2. An index whose entries disappear is not an index. The menu's whole contract under [STU-SHL-013] is exhaustiveness; conditional membership destroys it. 3. The menu is the address space that the UserManual, the command palette, the shortcut editor and the model command surface all resolve against. An address space with conditional membership cannot be documented or reverse-looked-up. The Tool Rail is a roughly twenty-slot ergonomic surface over 362 tools and was never an index, so it may omit ([STU-SHL-049]). A dock is an arrangement and the AccessKit tree behind it is the address space, so the dock may omit what the tree must still carry.","declared_table_keys":[],"source_fields":["availability_state","AVAILABLE","INAPPLICABLE_HERE","NOT_IN_THIS_DOCUMENT","author_id"],"feature_selection":"--no-default-features; Controls+Accord+Observe+approved egui0.33 headless; published provider ports only","activation_bindings":"Immutable actual source/lock/proof, existing actor/session and resolved physical external artifact root; never fabricated local facts"},
+      {
+        "canonical_repository_url": "https://github.com/Nuntissura/assets",
+        "planned_source_root": "handshake-studio-assets/crates/hsk-studio-controls",
+        "requirement_refs": [
+          "STU-SHL-018"
+        ],
+        "current_normative_instructions": "**[STU-SHL-018] The menu NEVER hides.** A menu node — a top-level title, a submenu or a leaf — MUST be rendered at every level regardless of its `availability_state`. `AVAILABLE` renders enabled. `INAPPLICABLE_HERE` renders greyed with its reason and its remedy. `NOT_IN_THIS_DOCUMENT` renders greyed with its reason. No node is ever removed, collapsed away, or conditionally omitted. The reason this rule holds for the menu and not for the Tool Rail is structural, not a compromise: 1. A hidden node has no stable AccessKit address. Argus and every out-of-process inspector address surfaces by `author_id`, and an element that is not rendered emits no node, so a test can only infer its state from the absence of an effect ([STU-MDL-002]). 2. An index whose entries disappear is not an index. The menu's whole contract under [STU-SHL-013] is exhaustiveness; conditional membership destroys it. 3. The menu is the address space that the UserManual, the command palette, the shortcut editor and the model command surface all resolve against. An address space with conditional membership cannot be documented or reverse-looked-up. The Tool Rail is a roughly twenty-slot ergonomic surface over 362 tools and was never an index, so it may omit ([STU-SHL-049]). A dock is an arrangement and the AccessKit tree behind it is the address space, so the dock may omit what the tree must still carry.",
+        "declared_table_keys": [],
+        "source_fields": [
+          "availability_state",
+          "AVAILABLE",
+          "INAPPLICABLE_HERE",
+          "NOT_IN_THIS_DOCUMENT",
+          "author_id"
+        ],
+        "feature_selection": "--no-default-features; Controls+Accord+Observe+approved egui0.33 headless; published provider ports only",
+        "activation_bindings": "Immutable actual source/lock/proof, existing actor/session and resolved physical external artifact root; never fabricated local facts"
+      },
       {
         "scope": "Current STUDIO-MODULE-CONTROLS asset slice from semantic fulfillment and exact current source; retained old placement is historical and host acceptance remains separately mandatory.",
         "fulfillment_ref": "MT-34439#/fulfillment",
@@ -1916,7 +1933,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -1998,7 +2016,7 @@
             "line": 30898,
             "section": "14.30",
             "heading": "#### 1.2 The never-hide rule",
-            "verbatim": "**[STU-SHL-018] The menu NEVER hides.** A menu node \u2014 a top-level title, a submenu or a leaf \u2014 MUST be rendered at every level regardless of its `availability_state`. `AVAILABLE` renders enabled. `INAPPLICABLE_HERE` renders greyed with its reason and its remedy. `NOT_IN_THIS_DOCUMENT` renders greyed with its reason. No node is ever removed, collapsed away, or conditionally omitted. The reason this rule holds for the menu and not for the Tool Rail is structural, not a compromise:",
+            "verbatim": "**[STU-SHL-018] The menu NEVER hides.** A menu node — a top-level title, a submenu or a leaf — MUST be rendered at every level regardless of its `availability_state`. `AVAILABLE` renders enabled. `INAPPLICABLE_HERE` renders greyed with its reason and its remedy. `NOT_IN_THIS_DOCUMENT` renders greyed with its reason. No node is ever removed, collapsed away, or conditionally omitted. The reason this rule holds for the menu and not for the Tool Rail is structural, not a compromise:",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2065,10 +2083,10 @@
       {
         "acceptance_id": "AC-001",
         "original_pointer": "#/preserved_original/payload/acceptance_criteria/0",
-        "original_text": "The menu NEVER hides.** A menu node \u2014 a top-level title, a submenu or a leaf \u2014 MUST be rendered at every level regardless of its `availability_state`.",
+        "original_text": "The menu NEVER hides.** A menu node — a top-level title, a submenu or a leaf — MUST be rendered at every level regardless of its `availability_state`.",
         "original_row_sha256": "1b816fe7509c680649d05a17dfa7f9cb01efe7d7ba1588c6fc3edb4035505323",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "The menu NEVER hides.** A menu node \u2014 a top-level title, a submenu or a leaf \u2014 MUST be rendered at every level regardless of its `availability_state`.",
+        "semantic_fulfillment": "The menu NEVER hides.** A menu node — a top-level title, a submenu or a leaf — MUST be rendered at every level regardless of its `availability_state`.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34439-ASSET-CONTROLS"
@@ -2078,7 +2096,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "The menu NEVER hides.** A menu node \u2014 a top-level title, a submenu or a leaf \u2014 MUST be rendered at every level regardless of its `availability_state`.",
+            "required_behavior": "The menu NEVER hides.** A menu node — a top-level title, a submenu or a leaf — MUST be rendered at every level regardless of its `availability_state`.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2087,13 +2105,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-          "consumer_assertion": "Actual The menu NEVER hides output obeys The menu NEVER hides.** A menu node \u2014 a top-level title, a submenu or a leaf \u2014 MUST be rendered at every level regardless of its `availability_state`.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
+          "consumer_assertion": "Actual The menu NEVER hides output obeys The menu NEVER hides.** A menu node — a top-level title, a submenu or a leaf — MUST be rendered at every level regardless of its `availability_state`.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
           "negative_path": "Exact cases in MT-34439#/execution/implementation_steps",
           "oracle": "Independent actual outputs specified by MT-34439-ASSET-AC-001; unavailable provider means NOT_PROVEN."
         },
         "later_embedding_ref": "MT-36213",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Qualified source MT-34439/AC-001; actual host adoption MT-36213 independently proves: The menu NEVER hides.** A menu node \u2014 a top-level title, a submenu or a leaf \u2014 MUST be rendered at every level regardless of its `availability_state`.",
+        "later_embedding_assertion": "Qualified source MT-34439/AC-001; actual host adoption MT-36213 independently proves: The menu NEVER hides.** A menu node — a top-level title, a submenu or a leaf — MUST be rendered at every level regardless of its `availability_state`.",
         "status": "PENDING"
       }
     ],
@@ -2106,13 +2124,13 @@
       "original_acceptance": [
         {
           "id": "AC-001",
-          "criterion": "The menu NEVER hides.** A menu node \u2014 a top-level title, a submenu or a leaf \u2014 MUST be rendered at every level regardless of its `availability_state`.",
+          "criterion": "The menu NEVER hides.** A menu node — a top-level title, a submenu or a leaf — MUST be rendered at every level regardless of its `availability_state`.",
           "evidence_kind": "runtime_assertion",
           "source": "14-studio-creative-suite.md STU-SHL-018"
         }
       ],
       "original_scope": {
-        "summary": "The menu NEVER hides.** A menu node \u2014 a top-level title, a submenu or a leaf \u2014 MUST be rendered at every level regardless of its `availability_state`. `AVAILABLE` renders enabled. `INAPPLICABLE_HERE` renders greyed with its reason and its remedy. `NOT_IN_THIS_DOCUMENT` renders greyed with its reason. No node is ever removed, collapsed away, or conditionally omitted. The reason this rule holds for the menu and not for the Tool Rail is structural, not a compromise: 1. A hidden node has no stable AccessKit address. Argus and every out-of-process inspector address surfaces by `author_id`, and an element that is not rendered emits no node, so a test can only infer its state from the absence of an effect ([STU-MDL-002]). 2. An index whose entries disappear is not an index. The menu's whole contract under [STU-SHL-013] is exhaustiveness; conditional membership destroys it. 3. The menu is the address space that the UserManual, the command palette, the shortcut editor and the model command surface all resolve against. An address space with conditional membership cannot be documented or reverse-looked-up. The Tool Rail is a roughly twenty-slot ergonomic surface over 362 tools and was never an index, so it may omit ([STU-SHL-049]). A dock is an arrangement and the AccessKit tree behind it is the address space, so the dock may omit what the tree must still carry.",
+        "summary": "The menu NEVER hides.** A menu node — a top-level title, a submenu or a leaf — MUST be rendered at every level regardless of its `availability_state`. `AVAILABLE` renders enabled. `INAPPLICABLE_HERE` renders greyed with its reason and its remedy. `NOT_IN_THIS_DOCUMENT` renders greyed with its reason. No node is ever removed, collapsed away, or conditionally omitted. The reason this rule holds for the menu and not for the Tool Rail is structural, not a compromise: 1. A hidden node has no stable AccessKit address. Argus and every out-of-process inspector address surfaces by `author_id`, and an element that is not rendered emits no node, so a test can only infer its state from the absence of an effect ([STU-MDL-002]). 2. An index whose entries disappear is not an index. The menu's whole contract under [STU-SHL-013] is exhaustiveness; conditional membership destroys it. 3. The menu is the address space that the UserManual, the command palette, the shortcut editor and the model command surface all resolve against. An address space with conditional membership cannot be documented or reverse-looked-up. The Tool Rail is a roughly twenty-slot ergonomic surface over 362 tools and was never an index, so it may omit ([STU-SHL-049]). A dock is an arrangement and the AccessKit tree behind it is the address space, so the dock may omit what the tree must still carry.",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -2124,10 +2142,10 @@
         {
           "acceptance_id": "AC-001",
           "original_pointer": "#/preserved_original/payload/acceptance_criteria/0",
-          "original_text": "The menu NEVER hides.** A menu node \u2014 a top-level title, a submenu or a leaf \u2014 MUST be rendered at every level regardless of its `availability_state`.",
+          "original_text": "The menu NEVER hides.** A menu node — a top-level title, a submenu or a leaf — MUST be rendered at every level regardless of its `availability_state`.",
           "original_row_sha256": "1b816fe7509c680649d05a17dfa7f9cb01efe7d7ba1588c6fc3edb4035505323",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "The menu NEVER hides.** A menu node \u2014 a top-level title, a submenu or a leaf \u2014 MUST be rendered at every level regardless of its `availability_state`.",
+          "semantic_fulfillment": "The menu NEVER hides.** A menu node — a top-level title, a submenu or a leaf — MUST be rendered at every level regardless of its `availability_state`.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34439-ASSET-CONTROLS"
@@ -2137,7 +2155,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "The menu NEVER hides.** A menu node \u2014 a top-level title, a submenu or a leaf \u2014 MUST be rendered at every level regardless of its `availability_state`.",
+              "required_behavior": "The menu NEVER hides.** A menu node — a top-level title, a submenu or a leaf — MUST be rendered at every level regardless of its `availability_state`.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2146,13 +2164,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-            "consumer_assertion": "Actual The menu NEVER hides output obeys The menu NEVER hides.** A menu node \u2014 a top-level title, a submenu or a leaf \u2014 MUST be rendered at every level regardless of its `availability_state`.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
+            "consumer_assertion": "Actual The menu NEVER hides output obeys The menu NEVER hides.** A menu node — a top-level title, a submenu or a leaf — MUST be rendered at every level regardless of its `availability_state`.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
             "negative_path": "Exact cases in MT-34439#/execution/implementation_steps",
             "oracle": "Independent actual outputs specified by MT-34439-ASSET-AC-001; unavailable provider means NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36213",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Qualified source MT-34439/AC-001; actual host adoption MT-36213 independently proves: The menu NEVER hides.** A menu node \u2014 a top-level title, a submenu or a leaf \u2014 MUST be rendered at every level regardless of its `availability_state`.",
+          "later_embedding_assertion": "Qualified source MT-34439/AC-001; actual host adoption MT-36213 independently proves: The menu NEVER hides.** A menu node — a top-level title, a submenu or a leaf — MUST be rendered at every level regardless of its `availability_state`.",
           "status": "PENDING"
         }
       ]
@@ -2166,5 +2184,51 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00"
+  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

@@ -1940,7 +1940,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2145,5 +2146,39 @@
       "criterion": "Derivation rule (NORMATIVE).** The interoperability microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **parameter-model rule** ([STU-IO-101], [STU-IO-102], [STU-IO-103], [STU-IO-106], [STU-IO-107], [STU-IO-108], [STU-IO-109], [STU-IO-110], [STU-IO-144], [STU-IO-145]), a **closed enumeration or value domain** ([STU-IO-104], [STU-IO-105], [STU-IO-128], [STU-IO-136], [STU-IO-150], [STU-IO-151]), a **settings record shape** ([STU-IO-111], [STU-IO-112], [STU-IO-113], [STU-IO-114], [STU-IO-115], [STU-IO-116], [STU-IO-117], [STU-IO-127], [STU-IO-130], [STU-IO-131], [STU-IO-132], [STU-IO-133], [STU-IO-139], [STU-IO-141], [STU-IO-143], [STU-IO-146], [STU-IO-147], [STU-IO-148]), a **numeric contract table** ([STU-IO-129], [STU-IO-137], [STU-IO-138]), a **preset or group contract** ([STU-IO-125], [STU-IO-126], [STU-IO-134], [STU-IO-135]), an **encoding contract** ([STU-IO-142]), a **scale contract** ([STU-IO-140], [STU-IO-152], [STU-IO-153], [STU-IO-154]), or an **execution guarantee** ([STU-IO-162], [STU-IO-163]), where that clause can be implemented and proven independently of its siblings. 2. Each **validation-descriptor clause** in sub-section 9, [STU-IO-173] through [STU-IO-185]. Each of the 13 descriptors named in [STU-IO-165] is stated as its ow [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-PACKAGE",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

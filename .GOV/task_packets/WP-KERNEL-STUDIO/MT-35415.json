@@ -1769,7 +1769,9 @@
   "authority_migration": {
     "approval": "ilja091020261912",
     "template_ref": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json",
-    "active_execution_authority": [],
+    "active_execution_authority": [
+      "host_integration"
+    ],
     "historical_fields": [
       "clause",
       "spec_anchor",
@@ -1848,7 +1850,7 @@
         "original_text": "A microtask that cannot cite an anchor in this sub-section, in 14.31 or in 14.32 is out of scope for the operator shell and MUST be re-derived or retired, not activated. --- ## 14.31 ## 14.31 Tools, the Options Surface, and the Scrubbable Numeric Control This sub-section specifies what lives inside the operator shell of 14.30: the tool registry and its families, the Tool Rail, the two-zone Context Bar, Task Scopes, the generated numeric parameter contract, and the one scrubbable numeric widget every value in Studio is edited through.",
         "original_row_sha256": "4594ee620295c7dfab54ad6ebf846610702784ccc395af33e1a27631c2660fd5",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31863; **[STU-SHL-117] Clauses that yield NO microtask.** Exactly one class, and it is deliberately narrow: the four clauses of this derivation sub-section itself \u2014 [STU-SHL-116], [STU-SHL-117], [STU-SHL-118] and [STU-SHL-119] \u2014 because they describe how the spec is read rather than what Studio does. **Every other clause in this sub-section yields.** An earlier revision of this clause declared a much larger non-yielding set covering cross-references, universal obligations and framing statements; that was wrong in the dangerous direction, because a clause declared non-yielding drops out of the derived set silently. A clause that only points elsewhere still yields the work of making the pointer true, and an obligation that attaches to every microtask still yields the work of proving it holds. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
+        "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31863; **[STU-SHL-117] Clauses that yield NO microtask.** Exactly one class, and it is deliberately narrow: the four clauses of this derivation sub-section itself — [STU-SHL-116], [STU-SHL-117], [STU-SHL-118] and [STU-SHL-119] — because they describe how the spec is read rather than what Studio does. **Every other clause in this sub-section yields.** An earlier revision of this clause declared a much larger non-yielding set covering cross-references, universal obligations and framing statements; that was wrong in the dangerous direction, because a clause declared non-yielding drops out of the derived set silently. A clause that only points elsewhere still yields the work of making the pointer true, and an obligation that attaches to every microtask still yields the work of proving it holds. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
         "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_REFERENCE",
         "asset_contribution_refs": [
           ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31863"
@@ -1896,7 +1898,7 @@
           "original_text": "A microtask that cannot cite an anchor in this sub-section, in 14.31 or in 14.32 is out of scope for the operator shell and MUST be re-derived or retired, not activated. --- ## 14.31 ## 14.31 Tools, the Options Surface, and the Scrubbable Numeric Control This sub-section specifies what lives inside the operator shell of 14.30: the tool registry and its families, the Tool Rail, the two-zone Context Bar, Task Scopes, the generated numeric parameter contract, and the one scrubbable numeric widget every value in Studio is edited through.",
           "original_row_sha256": "4594ee620295c7dfab54ad6ebf846610702784ccc395af33e1a27631c2660fd5",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31863; **[STU-SHL-117] Clauses that yield NO microtask.** Exactly one class, and it is deliberately narrow: the four clauses of this derivation sub-section itself \u2014 [STU-SHL-116], [STU-SHL-117], [STU-SHL-118] and [STU-SHL-119] \u2014 because they describe how the spec is read rather than what Studio does. **Every other clause in this sub-section yields.** An earlier revision of this clause declared a much larger non-yielding set covering cross-references, universal obligations and framing statements; that was wrong in the dangerous direction, because a clause declared non-yielding drops out of the derived set silently. A clause that only points elsewhere still yields the work of making the pointer true, and an obligation that attaches to every microtask still yields the work of proving it holds. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
+          "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31863; **[STU-SHL-117] Clauses that yield NO microtask.** Exactly one class, and it is deliberately narrow: the four clauses of this derivation sub-section itself — [STU-SHL-116], [STU-SHL-117], [STU-SHL-118] and [STU-SHL-119] — because they describe how the spec is read rather than what Studio does. **Every other clause in this sub-section yields.** An earlier revision of this clause declared a much larger non-yielding set covering cross-references, universal obligations and framing statements; that was wrong in the dangerous direction, because a clause declared non-yielding drops out of the derived set silently. A clause that only points elsewhere still yields the work of making the pointer true, and an obligation that attaches to every microtask still yields the work of proving it holds. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
           "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_REFERENCE",
           "asset_contribution_refs": [
             ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31863"
@@ -1926,5 +1928,49 @@
       "status": "SPEC_EXPLICIT_NO_MT_OLD_EDGES_RETAINED_IN_ORIGINAL_PAYLOAD"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00"
+  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

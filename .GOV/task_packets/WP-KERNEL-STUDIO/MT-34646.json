@@ -26,20 +26,20 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement",
+  "clause": "The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement",
   "spec_anchor": [
     "STU-MDL-105"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "model_facing_surface",
   "scope": {
-    "summary": "The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`. It carries a STRING value and NO numeric minimum, no maximum, no step and no unit, and no temporal state. The consequence is precise and must not be softened: the accessibility set-value action ALREADY EXISTS and would happily set a value whose clamp the inspector cannot check, so every scrub control would pass a visual-inspection gate by being clickable while its actual numeric contract went completely untested. That is exactly the class of defect the inspector exists to catch. The temporal half is worse: on an animated property the reported value is a function of the playhead rather than a stored constant, so a test asserting a scrub result on an animated property is UNFALSIFIABLE \u2014 and animated is the majority case in a composition, since 1,246 of 1,573 typed effect parameters in the reference corpus are keyframable. The node MUST therefore additionally carry, all optional, all populated from the same ParamSpec and document time the control renders from: | Field | Type | Source | |---|---|---| | `numeric_value` | f64 | the value evaluated at the current time | | `numeric_min` | f64 | `ParamSpec.hard_min` | | `numeric_max` | f64 | `ParamSpec.hard_max` [...]",
+    "summary": "The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`. It carries a STRING value and NO numeric minimum, no maximum, no step and no unit, and no temporal state. The consequence is precise and must not be softened: the accessibility set-value action ALREADY EXISTS and would happily set a value whose clamp the inspector cannot check, so every scrub control would pass a visual-inspection gate by being clickable while its actual numeric contract went completely untested. That is exactly the class of defect the inspector exists to catch. The temporal half is worse: on an animated property the reported value is a function of the playhead rather than a stored constant, so a test asserting a scrub result on an animated property is UNFALSIFIABLE — and animated is the majority case in a composition, since 1,246 of 1,573 typed effect parameters in the reference corpus are keyframable. The node MUST therefore additionally carry, all optional, all populated from the same ParamSpec and document time the control renders from: | Field | Type | Source | |---|---|---| | `numeric_value` | f64 | the value evaluated at the current time | | `numeric_min` | f64 | `ParamSpec.hard_min` | | `numeric_max` | f64 | `ParamSpec.hard_max` [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.",
+      "criterion": "The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-MDL-105"
     },
@@ -147,7 +147,7 @@
   "identity": {
     "mt_id": "MT-34646",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement",
+    "title": "The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 4
@@ -166,7 +166,7 @@
       {
         "id": "STU-MDL-105",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31698",
-        "verbatim": "**[STU-MDL-105] The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`. It carries a STRING value and NO numeric minimum, no maximum, no step and no unit, and no temporal state. The consequence is precise and must not be softened: the accessibility set-value action ALREADY EXISTS and would happily set a value whose clamp the inspector cannot check, so every scrub control would pass a visual-inspection gate by being clickable while its actual numeric contract went completely untested. That is exactly the class of defect the inspector exists to catch. The temporal half is worse: on an animated property the reported value is a function of the playhead rather than a stored constant, so a test asserting a scrub result on an animated property is UNFALSIFIABLE \u2014 and animated is the majority case in a composition, since 1,246 of 1,573 typed effect parameters in the reference corpus are keyframable.",
+        "verbatim": "**[STU-MDL-105] The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`. It carries a STRING value and NO numeric minimum, no maximum, no step and no unit, and no temporal state. The consequence is precise and must not be softened: the accessibility set-value action ALREADY EXISTS and would happily set a value whose clamp the inspector cannot check, so every scrub control would pass a visual-inspection gate by being clickable while its actual numeric contract went completely untested. That is exactly the class of defect the inspector exists to catch. The temporal half is worse: on an animated property the reported value is a function of the playhead rather than a stored constant, so a test asserting a scrub result on an animated property is UNFALSIFIABLE — and animated is the majority case in a composition, since 1,246 of 1,573 typed effect parameters in the reference corpus are keyframable.",
         "heading": "### 7. Accessibility, addressing, and observability",
         "section": "14.30",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -1277,7 +1277,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1700,7 +1700,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.",
+        "text": "The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.",
         "fulfillment_ref": "MT-34646#/fulfillment/legacy_acceptance_map/0"
       },
       {
@@ -1835,7 +1835,7 @@
         "requirement_refs": [
           "STU-MDL-105"
         ],
-        "current_normative_instructions": "**[STU-MDL-105] The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`. It carries a STRING value and NO numeric minimum, no maximum, no step and no unit, and no temporal state. The consequence is precise and must not be softened: the accessibility set-value action ALREADY EXISTS and would happily set a value whose clamp the inspector cannot check, so every scrub control would pass a visual-inspection gate by being clickable while its actual numeric contract went completely untested. That is exactly the class of defect the inspector exists to catch. The temporal half is worse: on an animated property the reported value is a function of the playhead rather than a stored constant, so a test asserting a scrub result on an animated property is UNFALSIFIABLE \u2014 and animated is the majority case in a composition, since 1,246 of 1,573 typed effect parameters in the reference corpus are keyframable. The node MUST therefore additionally carry, all optional, all populated from the same ParamSpec and document time the control renders from: This is an ADDITIVE change to the shell's accessibility snapshot type and it is a HARD PREDECESSOR of the scrubbable numeric control, not a follow-up ([STU-SHL-110], step SHL-P-04). It is a product-wide improvement, not a Studio-local one.",
+        "current_normative_instructions": "**[STU-MDL-105] The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`. It carries a STRING value and NO numeric minimum, no maximum, no step and no unit, and no temporal state. The consequence is precise and must not be softened: the accessibility set-value action ALREADY EXISTS and would happily set a value whose clamp the inspector cannot check, so every scrub control would pass a visual-inspection gate by being clickable while its actual numeric contract went completely untested. That is exactly the class of defect the inspector exists to catch. The temporal half is worse: on an animated property the reported value is a function of the playhead rather than a stored constant, so a test asserting a scrub result on an animated property is UNFALSIFIABLE — and animated is the majority case in a composition, since 1,246 of 1,573 typed effect parameters in the reference corpus are keyframable. The node MUST therefore additionally carry, all optional, all populated from the same ParamSpec and document time the control renders from: This is an ADDITIVE change to the shell's accessibility snapshot type and it is a HARD PREDECESSOR of the scrubbable numeric control, not a follow-up ([STU-SHL-110], step SHL-P-04). It is a product-wide improvement, not a Studio-local one.",
         "declared_table_keys": [
           "Field",
           "---",
@@ -1889,7 +1889,7 @@
     "implementation_steps": [
       {
         "n": 1,
-        "step": "Extend the one existing Controls numeric descriptor/reducer for The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement under STU-MDL-105; consume the exact source fields/formulae { id, author_id, node_id, role, label, value, disabled, actions, bounds, children }, numeric_value, numeric_min, ParamSpec.hard_min, numeric_max, ParamSpec.hard_max, numeric_step, ParamSpec.step_default, numeric_jump, ParamSpec.step_coarse, unit, ParamSpec.unit, display_unit, temporal_state, Static, Animated, Expression, AnimatedAndExpression, time, keyframed_at_time. Separate pointer sensitivity from discrete arrow/accessibility steps; no copied domain widget/clamp implementation."
+        "step": "Extend the one existing Controls numeric descriptor/reducer for The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement under STU-MDL-105; consume the exact source fields/formulae { id, author_id, node_id, role, label, value, disabled, actions, bounds, children }, numeric_value, numeric_min, ParamSpec.hard_min, numeric_max, ParamSpec.hard_max, numeric_step, ParamSpec.step_default, numeric_jump, ParamSpec.step_coarse, unit, ParamSpec.unit, display_unit, temporal_state, Static, Animated, Expression, AnimatedAndExpression, time, keyframed_at_time. Separate pointer sensitivity from discrete arrow/accessibility steps; no copied domain widget/clamp implementation."
       },
       {
         "n": 2,
@@ -1917,7 +1917,7 @@
       }
     ],
     "expected_outputs": [
-      "Extend the one existing Controls numeric descriptor/reducer for The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement under STU-MDL-105; consume the exact source fields/formulae { id, author_id, node_id, role, label, value, disabled, actions, bounds, children }, numeric_value, numeric_min, ParamSpec.hard_min, numeric_max, ParamSpec.hard_max, numeric_step, ParamSpec.step_default, numeric_jump, ParamSpec.step_coarse, unit, ParamSpec.unit, display_unit, temporal_state, Static, Animated, Expression, AnimatedAndExpression, time, keyframed_at_time. Separate pointer sensitivity from discrete arrow/accessibility steps; no copied domain widget/clamp implementation.",
+      "Extend the one existing Controls numeric descriptor/reducer for The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement under STU-MDL-105; consume the exact source fields/formulae { id, author_id, node_id, role, label, value, disabled, actions, bounds, children }, numeric_value, numeric_min, ParamSpec.hard_min, numeric_max, ParamSpec.hard_max, numeric_step, ParamSpec.step_default, numeric_jump, ParamSpec.step_coarse, unit, ParamSpec.unit, display_unit, temporal_state, Static, Animated, Expression, AnimatedAndExpression, time, keyframed_at_time. Separate pointer sensitivity from discrete arrow/accessibility steps; no copied domain widget/clamp implementation.",
       "Drive the source-defined parameter kind/range/precision and action cases through real egui0.33/public action consumer; compare value, reported bounds, action semantics and revision with the canonical source. Integer/enum walks legal members; exact typing differs from pointer-only resistance/clamp where declared. Preserve every formula/condition from the source excerpt in inputs.",
       "Reject invalid/nonfinite/out-of-hard-range exact input, stale revision or revoked grant without commit; Escape/cancel restores the gesture start. Reversal must remove pointer-only accumulated resistance, absent bounds remain nonconstraints, and modifiers apply their declared semantic factors only once.",
       "Inspect typed source metadata against real ParamSpec then independently require host snapshot adoption proof before scrub.",
@@ -1974,7 +1974,7 @@
           "AC-001"
         ],
         "command_or_method": "Planned target: cargo test --locked -p hsk-studio-controls --no-default-features --test mt_34646 source_contract_consumer -- --exact. Independent validator drives source-specific cases in steps for STU-MDL-105/AC-001 against actual reducer/projection/record output, including declared negative/recovery cases. Implementer separately cargo check --locked -p hsk-studio-controls --no-default-features --tests. Actual candidate/lock/actor/artifact roots activation-bound; no execution claimed. Exact source-specific refinement: Inspect typed source metadata against real ParamSpec then independently require host snapshot adoption proof before scrub. Unknown bounds stay unknown/unclamped; no fabricated limits or source contract claiming host predecessor passed.",
-        "expected": "Actual The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement output obeys The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
+        "expected": "Actual The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement output obeys The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1987,7 +1987,7 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`. Inspect typed source metadata against real ParamSpec then independently require host snapshot adoption proof before scrub.",
+          "consumer_assertion": "The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`. Inspect typed source metadata against real ParamSpec then independently require host snapshot adoption proof before scrub.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Unknown bounds stay unknown/unclamped; no fabricated limits or source contract claiming host predecessor passed.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
@@ -2010,7 +2010,7 @@
           "AC-002"
         ],
         "command_or_method": "Planned target: cargo test --locked -p hsk-studio-controls --no-default-features --test mt_34646 source_contract_consumer -- --exact. Independent validator drives source-specific cases in steps for STU-MDL-105/AC-002 against actual reducer/projection/record output, including declared negative/recovery cases. Implementer separately cargo check --locked -p hsk-studio-controls --no-default-features --tests. Actual candidate/lock/actor/artifact roots activation-bound; no execution claimed. Exact source-specific refinement: Inspect typed source metadata against real ParamSpec then independently require host snapshot adoption proof before scrub. Unknown bounds stay unknown/unclamped; no fabricated limits or source contract claiming host predecessor passed.",
-        "expected": "Actual The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement output obeys The node MUST therefore additionally carry, all optional, all populated from the same ParamSpec and document time the control renders from: | Field | Type | Source | |---|---|---| | `numeric_value` | f64 | the value evaluated at the current time | | `numeric_min` | f64 | `ParamSpec.hard_min` | | `numeric_max` | f64 | `ParamSpec.hard_max` | | `numeric_step` | f64 | `ParamSpec.step_default` | | `numeric_jump` | f64 | `ParamSpec.step_coarse` | | `unit` | string | `ParamSpec.unit` or `display_unit` | | `temporal_state` | enum | `Static` \\| `Animated` \\| `Expression` \\| `AnimatedAndExpression` | | [...]; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
+        "expected": "Actual The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement output obeys The node MUST therefore additionally carry, all optional, all populated from the same ParamSpec and document time the control renders from: | Field | Type | Source | |---|---|---| | `numeric_value` | f64 | the value evaluated at the current time | | `numeric_min` | f64 | `ParamSpec.hard_min` | | `numeric_max` | f64 | `ParamSpec.hard_max` | | `numeric_step` | f64 | `ParamSpec.step_default` | | `numeric_jump` | f64 | `ParamSpec.step_coarse` | | `unit` | string | `ParamSpec.unit` or `display_unit` | | `temporal_state` | enum | `Static` \\| `Animated` \\| `Expression` \\| `AnimatedAndExpression` | | [...]; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2124,20 +2124,20 @@
         "active": false,
         "validator_verdict": "PENDING"
       },
-      "clause": "The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement",
+      "clause": "The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement",
       "spec_anchor": [
         "STU-MDL-105"
       ],
       "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
       "domain": "model_facing_surface",
       "scope": {
-        "summary": "The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`. It carries a STRING value and NO numeric minimum, no maximum, no step and no unit, and no temporal state. The consequence is precise and must not be softened: the accessibility set-value action ALREADY EXISTS and would happily set a value whose clamp the inspector cannot check, so every scrub control would pass a visual-inspection gate by being clickable while its actual numeric contract went completely untested. That is exactly the class of defect the inspector exists to catch. The temporal half is worse: on an animated property the reported value is a function of the playhead rather than a stored constant, so a test asserting a scrub result on an animated property is UNFALSIFIABLE \u2014 and animated is the majority case in a composition, since 1,246 of 1,573 typed effect parameters in the reference corpus are keyframable. The node MUST therefore additionally carry, all optional, all populated from the same ParamSpec and document time the control renders from: | Field | Type | Source | |---|---|---| | `numeric_value` | f64 | the value evaluated at the current time | | `numeric_min` | f64 | `ParamSpec.hard_min` | | `numeric_max` | f64 | `ParamSpec.hard_max` [...]",
+        "summary": "The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`. It carries a STRING value and NO numeric minimum, no maximum, no step and no unit, and no temporal state. The consequence is precise and must not be softened: the accessibility set-value action ALREADY EXISTS and would happily set a value whose clamp the inspector cannot check, so every scrub control would pass a visual-inspection gate by being clickable while its actual numeric contract went completely untested. That is exactly the class of defect the inspector exists to catch. The temporal half is worse: on an animated property the reported value is a function of the playhead rather than a stored constant, so a test asserting a scrub result on an animated property is UNFALSIFIABLE — and animated is the majority case in a composition, since 1,246 of 1,573 typed effect parameters in the reference corpus are keyframable. The node MUST therefore additionally carry, all optional, all populated from the same ParamSpec and document time the control renders from: | Field | Type | Source | |---|---|---| | `numeric_value` | f64 | the value evaluated at the current time | | `numeric_min` | f64 | `ParamSpec.hard_min` | | `numeric_max` | f64 | `ParamSpec.hard_max` [...]",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "acceptance_criteria": [
         {
           "id": "AC-001",
-          "criterion": "The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.",
+          "criterion": "The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.",
           "evidence_kind": "runtime_assertion",
           "source": "14-studio-creative-suite.md STU-MDL-105"
         },
@@ -2219,7 +2219,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2300,7 +2301,7 @@
             "line": 31698,
             "section": "14.30",
             "heading": "### 7. Accessibility, addressing, and observability",
-            "verbatim": "**[STU-MDL-105] The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`. It carries a STRING value and NO numeric minimum, no maximum, no step and no unit, and no temporal state. The consequence is precise and must not be softened: the accessibility set-value action ALREADY EXISTS and would happily set a value whose clamp the inspector cannot check, so every scrub control would pass a visual-inspection gate by being clickable while its actual numeric contract went completely untested. That is exactly the class of defect the inspector exists to catch. The temporal half is worse: on an animated property the reported value is a function of the playhead rather than a stored constant, so a test asserting a scrub result on an animated property is UNFALSIFIABLE \u2014 and animated is the majority case in a composition, since 1,246 of 1,573 typed effect parameters in the reference corpus are keyframable.",
+            "verbatim": "**[STU-MDL-105] The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`. It carries a STRING value and NO numeric minimum, no maximum, no step and no unit, and no temporal state. The consequence is precise and must not be softened: the accessibility set-value action ALREADY EXISTS and would happily set a value whose clamp the inspector cannot check, so every scrub control would pass a visual-inspection gate by being clickable while its actual numeric contract went completely untested. That is exactly the class of defect the inspector exists to catch. The temporal half is worse: on an animated property the reported value is a function of the playhead rather than a stored constant, so a test asserting a scrub result on an animated property is UNFALSIFIABLE — and animated is the majority case in a composition, since 1,246 of 1,573 typed effect parameters in the reference corpus are keyframable.",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2368,10 +2369,10 @@
       {
         "acceptance_id": "AC-001",
         "original_pointer": "#/preserved_original/payload/acceptance_criteria/0",
-        "original_text": "The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.",
+        "original_text": "The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.",
         "original_row_sha256": "6180987d0c1139ee289ffd8299e0da130822a051e2e77be32f0e4401ae6ae53e",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.",
+        "semantic_fulfillment": "The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34646-ASSET-CONTROLS"
@@ -2381,7 +2382,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.",
+            "required_behavior": "The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2390,13 +2391,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`. Inspect typed source metadata against real ParamSpec then independently require host snapshot adoption proof before scrub.",
+          "consumer_assertion": "The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`. Inspect typed source metadata against real ParamSpec then independently require host snapshot adoption proof before scrub.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Unknown bounds stay unknown/unclamped; no fabricated limits or source contract claiming host predecessor passed.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-34646-KERNEL-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36213"
@@ -2450,7 +2451,7 @@
       "original_acceptance": [
         {
           "id": "AC-001",
-          "criterion": "The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.",
+          "criterion": "The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.",
           "evidence_kind": "runtime_assertion",
           "source": "14-studio-creative-suite.md STU-MDL-105"
         },
@@ -2462,7 +2463,7 @@
         }
       ],
       "original_scope": {
-        "summary": "The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`. It carries a STRING value and NO numeric minimum, no maximum, no step and no unit, and no temporal state. The consequence is precise and must not be softened: the accessibility set-value action ALREADY EXISTS and would happily set a value whose clamp the inspector cannot check, so every scrub control would pass a visual-inspection gate by being clickable while its actual numeric contract went completely untested. That is exactly the class of defect the inspector exists to catch. The temporal half is worse: on an animated property the reported value is a function of the playhead rather than a stored constant, so a test asserting a scrub result on an animated property is UNFALSIFIABLE \u2014 and animated is the majority case in a composition, since 1,246 of 1,573 typed effect parameters in the reference corpus are keyframable. The node MUST therefore additionally carry, all optional, all populated from the same ParamSpec and document time the control renders from: | Field | Type | Source | |---|---|---| | `numeric_value` | f64 | the value evaluated at the current time | | `numeric_min` | f64 | `ParamSpec.hard_min` | | `numeric_max` | f64 | `ParamSpec.hard_max` [...]",
+        "summary": "The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`. It carries a STRING value and NO numeric minimum, no maximum, no step and no unit, and no temporal state. The consequence is precise and must not be softened: the accessibility set-value action ALREADY EXISTS and would happily set a value whose clamp the inspector cannot check, so every scrub control would pass a visual-inspection gate by being clickable while its actual numeric contract went completely untested. That is exactly the class of defect the inspector exists to catch. The temporal half is worse: on an animated property the reported value is a function of the playhead rather than a stored constant, so a test asserting a scrub result on an animated property is UNFALSIFIABLE — and animated is the majority case in a composition, since 1,246 of 1,573 typed effect parameters in the reference corpus are keyframable. The node MUST therefore additionally carry, all optional, all populated from the same ParamSpec and document time the control renders from: | Field | Type | Source | |---|---|---| | `numeric_value` | f64 | the value evaluated at the current time | | `numeric_min` | f64 | `ParamSpec.hard_min` | | `numeric_max` | f64 | `ParamSpec.hard_max` [...]",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -2474,10 +2475,10 @@
         {
           "acceptance_id": "AC-001",
           "original_pointer": "#/preserved_original/payload/acceptance_criteria/0",
-          "original_text": "The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.",
+          "original_text": "The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.",
           "original_row_sha256": "6180987d0c1139ee289ffd8299e0da130822a051e2e77be32f0e4401ae6ae53e",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.",
+          "semantic_fulfillment": "The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34646-ASSET-CONTROLS"
@@ -2487,7 +2488,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.",
+              "required_behavior": "The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2496,13 +2497,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.",
+            "consumer_assertion": "The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-34646-KERNEL-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "The accessibility node MUST carry numeric and temporal metadata \u2014 a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "The accessibility node MUST carry numeric and temporal metadata — a DECLARED GAP stated as a requirement.** The shell's UI tree node today is `{ id, author_id, node_id, role, label, value, disabled, actions, bounds, children }`. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "MT-36213"
@@ -2579,5 +2580,51 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00"
+  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

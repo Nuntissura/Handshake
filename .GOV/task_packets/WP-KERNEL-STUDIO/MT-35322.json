@@ -139,7 +139,9 @@
   },
   "gameplan_ref": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml",
   "context_capsule": {
-    "module_maintenance_refs": [".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/15/maintenance"],
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/15/maintenance"
+    ],
     "specification_anchor_refs": [
       {
         "id": "STU-FX-127c",
@@ -2006,7 +2008,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2316,5 +2319,45 @@
       "criterion": "The identity test is the Studio NAME, and the capture's engine-level count is provenance that does not resolve to a row list.** After the rename of [STU-FX-127a], two rows carry the same Studio name if and only if they are the same `filter_kind`; that is a test any reader or tool can apply to the tables as they stand. Applying it: of the 371 rows in 14.9.6's effect catalogue, 192 carry a name already present in 14.9.3 and dedup onto it, and 179 rows carry 173 distinct new names; of the 107 preset-defined pseudo-effect rows, 106 dedup onto 14.9.3's own pseudo-effect table and 1 is new. The capture separately reports an ENGINE-level count -- 337 of the 617 editing-application entries sharing the compositing application's engine, 141 editing-application-native, 138 audio processors and 1 grading intrinsic owned by 14.8 -- and that count is retained here as provenance. It does NOT agree with the name test and it does NOT resolve to a list of rows: nothing recovered says which 337 they are, and neither the `Engine` column nor any other column reproduces the partition. The normative dedup for this sub-section is therefore the name test above. Reconciling the 337 against the 192 requires re-deriving effect identity from the binaries and is a declared gap; it is recorded as such and is NOT closed by choosing 337 rows to make the arithmetic agree.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-COMPOSITE",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

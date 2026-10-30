@@ -139,7 +139,9 @@
   },
   "gameplan_ref": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml",
   "context_capsule": {
-    "module_maintenance_refs": [".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/5/maintenance"],
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/5/maintenance"
+    ],
     "specification_anchor_refs": [
       {
         "id": "STU-RAS-157",
@@ -2004,7 +2006,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2314,5 +2317,45 @@
       "criterion": "PER-EFFECT PARAMETER CONTRACTS.** Every effect instance carries the common block plus its kind block. Bounds marked `unknown` were not declared by any source; the `observed` column is the spread across the 370 captured shipped styles and is evidence only ([STU-RAS-107]). Common block, present on every effect kind: *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | observed | classification | |---|---|---|---|---|---|---|---|---|---| | `enabled` | — | — | — | — | true | none | — | true on every shipped instance | boolean | | `blend_mode` | enum | enum | — | — | per kind | none | — | see kind rows | closed `StudioBlendMode` set, §12 | | `opacity` | 0 | 100 | unknown | unknown | per kind | percent | 1 | 0.0 .. 100.0 | hard bounds `derived`; no soft bound declared | | `colour` | see [STU-RAS-150] | see [STU-RAS-150] | unknown | unknown | per kind | — | 1 | RGB floats 0.0..255.0 | component bounds are the colour-model contract of [STU-RAS-150]; a colour MAY additionally carry a spot-book id and key | | `contour` | see [STU-RAS-158] | see [STU-RAS-158] | unknown | unknown | `linear` | — | — | 2..9 points | named curve plus point list | | `anti_alias` | — | — | — | — | false | none | — | true on a minority | boolean | | `nois [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-PIGMENT",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

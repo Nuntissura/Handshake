@@ -1755,7 +1755,9 @@
   "authority_migration": {
     "approval": "ilja091020261912",
     "template_ref": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json",
-    "active_execution_authority": [],
+    "active_execution_authority": [
+      "host_integration"
+    ],
     "historical_fields": [
       "clause",
       "spec_anchor",
@@ -1834,7 +1836,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32982; **[STU-SHL-254] Clauses that yield NO microtask.** Exactly one class: the four clauses of this derivation sub-section itself \u2014 [STU-SHL-253] through [STU-SHL-256]. **Every other clause in this sub-section yields.** Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
+        "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32982; **[STU-SHL-254] Clauses that yield NO microtask.** Exactly one class: the four clauses of this derivation sub-section itself — [STU-SHL-253] through [STU-SHL-256]. **Every other clause in this sub-section yields.** Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
         "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_REFERENCE",
         "asset_contribution_refs": [
           ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32982"
@@ -1875,7 +1877,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32982; **[STU-SHL-254] Clauses that yield NO microtask.** Exactly one class: the four clauses of this derivation sub-section itself \u2014 [STU-SHL-253] through [STU-SHL-256]. **Every other clause in this sub-section yields.** Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
+          "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32982; **[STU-SHL-254] Clauses that yield NO microtask.** Exactly one class: the four clauses of this derivation sub-section itself — [STU-SHL-253] through [STU-SHL-256]. **Every other clause in this sub-section yields.** Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
           "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_REFERENCE",
           "asset_contribution_refs": [
             ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32982"
@@ -1948,5 +1950,49 @@
       "criterion": "An open item still yields a microtask.** As [STU-SHL-118]. [STU-MAN-120] (the manual entry shape for canvas tools) and [STU-MAN-121] (the generator's manual-version behaviour) each yield a microtask whose FIRST acceptance criterion is obtaining the operator decision, because both BLOCK the generator step SHL-P-06 and the generator cannot be written around them. [STU-MAN-122] yields a microtask that sets the model-invokability floor. The 42% residual prose gap of [STU-MAN-109] is NOT a blocked microtask: it is a standing backlog measured by the gap ledger and gated by CI gate 10, and each gap row becomes an authored-prose microtask only when the operator commissions it. The ten CI gates of [STU-MAN-112] are acceptance criteria of one gate-suite microtask rather than ten microtasks, because they are ten assertions over one generated artefact set; the same holds for the validation descriptors of [STU-SHL-251].",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

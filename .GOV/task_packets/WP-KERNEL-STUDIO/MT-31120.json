@@ -1968,7 +1968,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2272,5 +2273,39 @@
       "criterion": "Character attributes are stored per contiguous character range on the `StudioTextStory`; mixed values across a selection are representable and reported as mixed. The normative character control set is: | Control | Contract / units | Provenance (deduped) | |---|---|---| | Font family + style | Family and named style/instance; resolved via [STU-TYP-030] font management | all five suites | | Size | Points (typographic unit per [STU-DOC-003]); Figma density-independent px accepted at API decode and converted | all five | | Leading (line height) | Absolute (pt/px) or auto-leading percentage of size | PS/AI/ID/AF/Figma | | Tracking | Range letter-spacing in 1/1000 em (numeric or %; may be negative) | all five | | Kerning | `metrics` (font pair table), `optical` (computed from glyph shapes), or `manual` per-pair value | PS/AI/ID/AF | | Horizontal / vertical scale | Per-glyph scale percentages | PS/AI/ID | | Baseline shift | Raise/lower from baseline (manual super/subscript) | PS/AI/ID | | Character rotation | Per-character rotation angle | AI/ID | | Case | All-caps, small-caps (true OpenType or synthesized), title case, lowercase; non-destructive (stored characters unchanged) | PS/AI/ID/AF/Figma | | Position | Superscript / subscript (synthesized) | PS/AI/ID/AF | | Decoration | Underline (solid/dotted/wavy with thickness, offset, skip-ink) and strikethrough, each with custom options | [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-TYPE",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

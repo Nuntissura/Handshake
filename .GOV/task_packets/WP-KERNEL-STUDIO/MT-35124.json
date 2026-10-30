@@ -33,13 +33,13 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "tooltips_and_manual",
   "scope": {
-    "summary": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78\u201386% | | `summary` at TOOL level | **at most 58.0%** \u2014 210 recoverable sentences against 362 tools \u2014 and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts. Every other captured application ships tool names and shortcuts with no adjacent description \u2014 one carries name plus a four-character type code plus a keystroke and nothing else; another carries a command id and a keystroke; a third's 39 tool rows all have a null label and a null menu location; a fourth's names were recovered by pattern from panel strings with no adjacent description; a fifth has no tool registry at all; two more carry names and shortcuts but no prose. **57 tools are PROVEN to have no descriptive sentence at all**: their strings appear under BOTH the description context and the summary context with the tool's own NAME as the value, because the vendor fell back to the name where no summary was written. These are not missing data; they are confirmed absences and MUST be recorded as such rather than re-queried. The 0%-bound figure is a JOIN problem, not an absence problem: that vendor's resource keys are the neutral English sourc [...]",
+    "summary": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78–86% | | `summary` at TOOL level | **at most 58.0%** — 210 recoverable sentences against 362 tools — and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts. Every other captured application ships tool names and shortcuts with no adjacent description — one carries name plus a four-character type code plus a keystroke and nothing else; another carries a command id and a keystroke; a third's 39 tool rows all have a null label and a null menu location; a fourth's names were recovered by pattern from panel strings with no adjacent description; a fifth has no tool registry at all; two more carry names and shortcuts but no prose. **57 tools are PROVEN to have no descriptive sentence at all**: their strings appear under BOTH the description context and the summary context with the tool's own NAME as the value, because the vendor fell back to the name where no summary was written. These are not missing data; they are confirmed absences and MUST be recorded as such rather than re-queried. The 0%-bound figure is a JOIN problem, not an absence problem: that vendor's resource keys are the neutral English sourc [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78\u201386% | | `summary` at TOOL level | **at most 58.0%** \u2014 210 recoverable sentences against 362 tools \u2014 and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.",
+      "criterion": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78–86% | | `summary` at TOOL level | **at most 58.0%** — 210 recoverable sentences against 362 tools — and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-MAN-109"
     },
@@ -1277,7 +1277,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1700,7 +1700,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78\u201386% | | `summary` at TOOL level | **at most 58.0%** \u2014 210 recoverable sentences against 362 tools \u2014 and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.",
+        "text": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78–86% | | `summary` at TOOL level | **at most 58.0%** — 210 recoverable sentences against 362 tools — and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.",
         "fulfillment_ref": "MT-35124#/fulfillment/legacy_acceptance_map/0"
       },
       {
@@ -1835,7 +1835,7 @@
         "requirement_refs": [
           "STU-MAN-109"
         ],
-        "current_normative_instructions": "**[STU-MAN-109] Measured coverage (normative, and it MUST NOT be softened).** Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts. Every other captured application ships tool names and shortcuts with no adjacent description \u2014 one carries name plus a four-character type code plus a keystroke and nothing else; another carries a command id and a keystroke; a third's 39 tool rows all have a null label and a null menu location; a fourth's names were recovered by pattern from panel strings with no adjacent description; a fifth has no tool registry at all; two more carry names and shortcuts but no prose. **57 tools are PROVEN to have no descriptive sentence at all**: their strings appear under BOTH the description context and the summary context with the tool's own NAME as the value, because the vendor fell back to the name where no summary was written. These are not missing data; they are confirmed absences and MUST be recorded as such rather than re-queried. The 0%-bound figure is a JOIN problem, not an absence problem: that vendor's resource keys are the neutral English source text plus a bracketed context, and NOTHING in the resource file joins a tool's name to its summary. The closing action is SHL-P-05, one further extraction pass over the assembly IL recording which resource keys are loaded by the same type or method \u2014 the class that loads a tool's description is the class that loads its summary, and that join is IN the IL even though it is absent from the string table. Expected yield: tool-level mechanically bound prose from 0% to roughly 58%, and it resolves the 143 unbound tool identifiers of [STU-SHL-132] SD-7 at the same time. The compositing fold-in does NOT dissolve this gap: it adds 62 plain-English effect descriptions and 225 manual pages, but effects are not tools, and the tool-level ceiling is unchanged.",
+        "current_normative_instructions": "**[STU-MAN-109] Measured coverage (normative, and it MUST NOT be softened).** Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts. Every other captured application ships tool names and shortcuts with no adjacent description — one carries name plus a four-character type code plus a keystroke and nothing else; another carries a command id and a keystroke; a third's 39 tool rows all have a null label and a null menu location; a fourth's names were recovered by pattern from panel strings with no adjacent description; a fifth has no tool registry at all; two more carry names and shortcuts but no prose. **57 tools are PROVEN to have no descriptive sentence at all**: their strings appear under BOTH the description context and the summary context with the tool's own NAME as the value, because the vendor fell back to the name where no summary was written. These are not missing data; they are confirmed absences and MUST be recorded as such rather than re-queried. The 0%-bound figure is a JOIN problem, not an absence problem: that vendor's resource keys are the neutral English source text plus a bracketed context, and NOTHING in the resource file joins a tool's name to its summary. The closing action is SHL-P-05, one further extraction pass over the assembly IL recording which resource keys are loaded by the same type or method — the class that loads a tool's description is the class that loads its summary, and that join is IN the IL even though it is absent from the string table. Expected yield: tool-level mechanically bound prose from 0% to roughly 58%, and it resolves the 143 unbound tool identifiers of [STU-SHL-132] SD-7 at the same time. The compositing fold-in does NOT dissolve this gap: it adds 62 plain-English effect descriptions and 225 manual pages, but effects are not tools, and the tool-level ceiling is unchanged.",
         "declared_table_keys": [
           "Level",
           "---",
@@ -1881,7 +1881,7 @@
       },
       {
         "n": 5,
-        "step": "Retain measured limits: display names~100%,controls78\u201386%,tool prose at most58.0%/currently0% mechanically bound;57 confirmed absences, SHL-P05 IL join closes unbound keys."
+        "step": "Retain measured limits: display names~100%,controls78–86%,tool prose at most58.0%/currently0% mechanically bound;57 confirmed absences, SHL-P05 IL join closes unbound keys."
       },
       {
         "n": 6,
@@ -1950,7 +1950,7 @@
           "AC-001"
         ],
         "command_or_method": "Planned target: cargo test --locked -p hsk-studio-controls --no-default-features --test mt_35124 source_contract_consumer -- --exact. Independent validator drives source-specific cases in steps for STU-MAN-109/AC-001 against actual reducer/projection/record output, including declared negative/recovery cases. Implementer separately cargo check --locked -p hsk-studio-controls --no-default-features --tests. Actual candidate/lock/actor/artifact roots activation-bound; no execution claimed. Exact source-specific refinement: Reconcile actual corpus and type/method resource joins without relabeling confirmed absences or effect descriptions as tool prose; new coverage requires actual report. Preserve all current inputs, scope, proof and source obligations cumulatively. Unresolved operator decision or unavailable required owner stops dependent implementation; invalid/stale/cancelled requests leave accepted state unchanged. Runtime and host verdicts remain pending.",
-        "expected": "Actual Measured coverage (normative, and it MUST NOT be softened) output obeys Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78\u201386% | | `summary` at TOOL level | **at most 58.0%** \u2014 210 recoverable sentences against 362 tools \u2014 and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
+        "expected": "Actual Measured coverage (normative, and it MUST NOT be softened) output obeys Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78–86% | | `summary` at TOOL level | **at most 58.0%** — 210 recoverable sentences against 362 tools — and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1963,7 +1963,7 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78\u201386% | | `summary` at TOOL level | **at most 58.0%** \u2014 210 recoverable sentences against 362 tools \u2014 and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts. Reconcile actual corpus and type/method resource joins without relabeling confirmed absences or effect descriptions as tool prose; new coverage requires actual report.",
+          "consumer_assertion": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78–86% | | `summary` at TOOL level | **at most 58.0%** — 210 recoverable sentences against 362 tools — and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts. Reconcile actual corpus and type/method resource joins without relabeling confirmed absences or effect descriptions as tool prose; new coverage requires actual report.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Preserve all current inputs, scope, proof and source obligations cumulatively. Unresolved operator decision or unavailable required owner stops dependent implementation; invalid/stale/cancelled requests leave accepted state unchanged. Runtime and host verdicts remain pending.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
@@ -2107,13 +2107,13 @@
       "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
       "domain": "tooltips_and_manual",
       "scope": {
-        "summary": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78\u201386% | | `summary` at TOOL level | **at most 58.0%** \u2014 210 recoverable sentences against 362 tools \u2014 and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts. Every other captured application ships tool names and shortcuts with no adjacent description \u2014 one carries name plus a four-character type code plus a keystroke and nothing else; another carries a command id and a keystroke; a third's 39 tool rows all have a null label and a null menu location; a fourth's names were recovered by pattern from panel strings with no adjacent description; a fifth has no tool registry at all; two more carry names and shortcuts but no prose. **57 tools are PROVEN to have no descriptive sentence at all**: their strings appear under BOTH the description context and the summary context with the tool's own NAME as the value, because the vendor fell back to the name where no summary was written. These are not missing data; they are confirmed absences and MUST be recorded as such rather than re-queried. The 0%-bound figure is a JOIN problem, not an absence problem: that vendor's resource keys are the neutral English sourc [...]",
+        "summary": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78–86% | | `summary` at TOOL level | **at most 58.0%** — 210 recoverable sentences against 362 tools — and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts. Every other captured application ships tool names and shortcuts with no adjacent description — one carries name plus a four-character type code plus a keystroke and nothing else; another carries a command id and a keystroke; a third's 39 tool rows all have a null label and a null menu location; a fourth's names were recovered by pattern from panel strings with no adjacent description; a fifth has no tool registry at all; two more carry names and shortcuts but no prose. **57 tools are PROVEN to have no descriptive sentence at all**: their strings appear under BOTH the description context and the summary context with the tool's own NAME as the value, because the vendor fell back to the name where no summary was written. These are not missing data; they are confirmed absences and MUST be recorded as such rather than re-queried. The 0%-bound figure is a JOIN problem, not an absence problem: that vendor's resource keys are the neutral English sourc [...]",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "acceptance_criteria": [
         {
           "id": "AC-001",
-          "criterion": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78\u201386% | | `summary` at TOOL level | **at most 58.0%** \u2014 210 recoverable sentences against 362 tools \u2014 and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.",
+          "criterion": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78–86% | | `summary` at TOOL level | **at most 58.0%** — 210 recoverable sentences against 362 tools — and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.",
           "evidence_kind": "runtime_assertion",
           "source": "14-studio-creative-suite.md STU-MAN-109"
         },
@@ -2195,7 +2195,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2344,10 +2345,10 @@
       {
         "acceptance_id": "AC-001",
         "original_pointer": "#/preserved_original/payload/acceptance_criteria/0",
-        "original_text": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78\u201386% | | `summary` at TOOL level | **at most 58.0%** \u2014 210 recoverable sentences against 362 tools \u2014 and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.",
+        "original_text": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78–86% | | `summary` at TOOL level | **at most 58.0%** — 210 recoverable sentences against 362 tools — and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.",
         "original_row_sha256": "1aa3163656fbe4a08ba26f939725908781d068121b0f4ad1c8920ca9c3d37b87",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78\u201386% | | `summary` at TOOL level | **at most 58.0%** \u2014 210 recoverable sentences against 362 tools \u2014 and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.",
+        "semantic_fulfillment": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78–86% | | `summary` at TOOL level | **at most 58.0%** — 210 recoverable sentences against 362 tools — and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-35124-ASSET-CONTROLS"
@@ -2357,7 +2358,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78\u201386% | | `summary` at TOOL level | **at most 58.0%** \u2014 210 recoverable sentences against 362 tools \u2014 and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.",
+            "required_behavior": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78–86% | | `summary` at TOOL level | **at most 58.0%** — 210 recoverable sentences against 362 tools — and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2366,13 +2367,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78\u201386% | | `summary` at TOOL level | **at most 58.0%** \u2014 210 recoverable sentences against 362 tools \u2014 and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts. Reconcile actual corpus and type/method resource joins without relabeling confirmed absences or effect descriptions as tool prose; new coverage requires actual report.",
+          "consumer_assertion": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78–86% | | `summary` at TOOL level | **at most 58.0%** — 210 recoverable sentences against 362 tools — and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts. Reconcile actual corpus and type/method resource joins without relabeling confirmed absences or effect descriptions as tool prose; new coverage requires actual report.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Preserve all current inputs, scope, proof and source obligations cumulatively. Unresolved operator decision or unavailable required owner stops dependent implementation; invalid/stale/cancelled requests leave accepted state unchanged. Runtime and host verdicts remain pending.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-35124-KERNEL-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78\u201386% | | `summary` at TOOL level | **at most 58.0%** \u2014 210 recoverable sentences against 362 tools \u2014 and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78–86% | | `summary` at TOOL level | **at most 58.0%** — 210 recoverable sentences against 362 tools — and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36213"
@@ -2426,7 +2427,7 @@
       "original_acceptance": [
         {
           "id": "AC-001",
-          "criterion": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78\u201386% | | `summary` at TOOL level | **at most 58.0%** \u2014 210 recoverable sentences against 362 tools \u2014 and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.",
+          "criterion": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78–86% | | `summary` at TOOL level | **at most 58.0%** — 210 recoverable sentences against 362 tools — and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.",
           "evidence_kind": "runtime_assertion",
           "source": "14-studio-creative-suite.md STU-MAN-109"
         },
@@ -2438,7 +2439,7 @@
         }
       ],
       "original_scope": {
-        "summary": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78\u201386% | | `summary` at TOOL level | **at most 58.0%** \u2014 210 recoverable sentences against 362 tools \u2014 and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts. Every other captured application ships tool names and shortcuts with no adjacent description \u2014 one carries name plus a four-character type code plus a keystroke and nothing else; another carries a command id and a keystroke; a third's 39 tool rows all have a null label and a null menu location; a fourth's names were recovered by pattern from panel strings with no adjacent description; a fifth has no tool registry at all; two more carry names and shortcuts but no prose. **57 tools are PROVEN to have no descriptive sentence at all**: their strings appear under BOTH the description context and the summary context with the tool's own NAME as the value, because the vendor fell back to the name where no summary was written. These are not missing data; they are confirmed absences and MUST be recorded as such rather than re-queried. The 0%-bound figure is a JOIN problem, not an absence problem: that vendor's resource keys are the neutral English sourc [...]",
+        "summary": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78–86% | | `summary` at TOOL level | **at most 58.0%** — 210 recoverable sentences against 362 tools — and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts. Every other captured application ships tool names and shortcuts with no adjacent description — one carries name plus a four-character type code plus a keystroke and nothing else; another carries a command id and a keystroke; a third's 39 tool rows all have a null label and a null menu location; a fourth's names were recovered by pattern from panel strings with no adjacent description; a fifth has no tool registry at all; two more carry names and shortcuts but no prose. **57 tools are PROVEN to have no descriptive sentence at all**: their strings appear under BOTH the description context and the summary context with the tool's own NAME as the value, because the vendor fell back to the name where no summary was written. These are not missing data; they are confirmed absences and MUST be recorded as such rather than re-queried. The 0%-bound figure is a JOIN problem, not an absence problem: that vendor's resource keys are the neutral English sourc [...]",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -2450,10 +2451,10 @@
         {
           "acceptance_id": "AC-001",
           "original_pointer": "#/preserved_original/payload/acceptance_criteria/0",
-          "original_text": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78\u201386% | | `summary` at TOOL level | **at most 58.0%** \u2014 210 recoverable sentences against 362 tools \u2014 and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.",
+          "original_text": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78–86% | | `summary` at TOOL level | **at most 58.0%** — 210 recoverable sentences against 362 tools — and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.",
           "original_row_sha256": "1aa3163656fbe4a08ba26f939725908781d068121b0f4ad1c8920ca9c3d37b87",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78\u201386% | | `summary` at TOOL level | **at most 58.0%** \u2014 210 recoverable sentences against 362 tools \u2014 and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.",
+          "semantic_fulfillment": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78–86% | | `summary` at TOOL level | **at most 58.0%** — 210 recoverable sentences against 362 tools — and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-35124-ASSET-CONTROLS"
@@ -2463,7 +2464,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78\u201386% | | `summary` at TOOL level | **at most 58.0%** \u2014 210 recoverable sentences against 362 tools \u2014 and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.",
+              "required_behavior": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78–86% | | `summary` at TOOL level | **at most 58.0%** — 210 recoverable sentences against 362 tools — and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2472,13 +2473,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78\u201386% | | `summary` at TOOL level | **at most 58.0%** \u2014 210 recoverable sentences against 362 tools \u2014 and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.",
+            "consumer_assertion": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78–86% | | `summary` at TOOL level | **at most 58.0%** — 210 recoverable sentences against 362 tools — and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-35124-KERNEL-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78\u201386% | | `summary` at TOOL level | **at most 58.0%** \u2014 210 recoverable sentences against 362 tools \u2014 and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Measured coverage (normative, and it MUST NOT be softened).** | Level | Coverage | |---|---| | `display_name` | ~100% | | `summary` at CONTROL level | 78–86% | | `summary` at TOOL level | **at most 58.0%** — 210 recoverable sentences against 362 tools — and **currently 0% mechanically bound** | Only ONE captured application ships per-tool prose at all: 212 explanatory sentences across its tool-summary and tool-description string contexts. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "MT-36213"
@@ -2555,5 +2556,51 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00"
+  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

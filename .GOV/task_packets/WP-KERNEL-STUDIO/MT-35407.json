@@ -1902,7 +1902,9 @@
   "authority_migration": {
     "approval": "ilja091020261912",
     "template_ref": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json",
-    "active_execution_authority": [],
+    "active_execution_authority": [
+      "host_integration"
+    ],
     "historical_fields": [
       "clause",
       "spec_anchor",
@@ -2104,5 +2106,41 @@
       "criterion": "Derivation rule (NORMATIVE).** The asset-binding microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states the **binding itself or a prohibition on breaking it** ([STU-ASSET-001], [STU-ASSET-002], [STU-ASSET-003], [STU-ASSET-004]), a **placed-asset link record field set** ([STU-ASSET-005], [STU-ASSET-006], [STU-ASSET-008]), a **link state** ([STU-ASSET-007] — the five-member closed state set, each state's render behaviour and its diagnostic rule), a **required read command** ([STU-ASSET-010]), a **resolution rule at a boundary** ([STU-ASSET-009]), a **domain-boundary rule** ([STU-ASSET-011]), a **publication and provenance-chain contract** ([STU-ASSET-012], [STU-ASSET-013], [STU-ASSET-014], [STU-ASSET-015], [STU-ASSET-016]), a **supersession closure that changes what gets built** ([STU-ASSET-017], [STU-ASSET-019], [STU-ASSET-020]), or an **execution guarantee** ([STU-ASSET-021], [STU-ASSET-022], [STU-ASSET-023], [STU-ASSET-024]), where that clause can be implemented and proven independently of its siblings. 2. Each **declared gap** — in this module exactly three, [STU-ASSET-025], [STU-ASSET-026] and [STU-ASSET-027]. Each yields a microtask under [STU-ASSET-030], not nothing. This module names no validation-descriptor set of its own: its failure modes [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "STU-CON-013",
+      "STU-CON-014"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

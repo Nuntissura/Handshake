@@ -1971,7 +1971,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2265,5 +2266,41 @@
       "criterion": "Handoff aid record shapes.** The aids of [STU-AUT-024] carry these shapes: - **Annotation:** `{label, label_markdown, properties[], category_id}` where `properties` is drawn from the closed thirty-three-member set of [STU-DS-157] and renders LIVE values. - **Measurement:** `{measurement_id, start: {node_id, side}, end: {node_id, side}, offset, free_text}` where `side` ∈ {`TOP`, `RIGHT`, `BOTTOM`, `LEFT`} and `offset` ∈ {`INNER`, `OUTER`}. Measurements stay in sync as geometry changes; a measurement whose endpoint node is deleted transitions to a broken state and is reported, never silently removed. - **Dev resource link:** `{name, url, inherited_from_node_id?}` — an external ticket, repository or document reference attached to a node, optionally inherited from an ancestor. - **Implementation status:** the two-member enumeration of [STU-DS-159].",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "STU-CON-013",
+      "STU-CON-014"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": true
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

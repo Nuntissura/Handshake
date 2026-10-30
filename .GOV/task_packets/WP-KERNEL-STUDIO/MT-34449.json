@@ -2150,7 +2150,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2444,5 +2445,56 @@
       "criterion": "OBJECT (Studio module menu).** - `Transform` | submenu \u2192 Free Transform, Move\u2026, Scale\u2026, Rotate\u2026, Shear\u2026, Reflect\u2026, Flip Horizontal, Flip Vertical, Rotate 90\u00b0 CW, Rotate 90\u00b0 CCW, Rotate 180\u00b0, Distort, Perspective, Skew, Warp\u2026, Puppet Warp, Content-Aware Scale, Transform Again, Transform Each\u2026, Reset Transform, Transform Reference Point\u2026 - `Arrange` | submenu \u2192 Bring to Front, Bring Forward, Send Backward, Send to Back, Send to Current Layer, Move to Artboard\u2026, Move to Page\u2026 - `Align & Distribute` | expansion | `studio.object.align` - `Group` / `Ungroup` | items - `Lock` | submenu \u2192 Lock Selection, Unlock All, Lock Others, Lock Position, Lock Guides - `Hide` | submenu \u2192 Hide Selection, Show All, Hide Others - `Rename\u2026` | item - `Object Label / Script Id\u2026` | item \u2014 menu-only ([STU-SHL-040]): an automation-addressing concern with no visual representation - `Layer` | submenu | `studio.object.layer` \u2192 New, Duplicate Layer\u2026, Delete Layer, Merge Down, Merge Visible, Merge Selected, Flatten Document, Rasterise, Convert To, Blending Mode *(39-member enumeration)*, Track Matte *(10-member enumeration)*, Opacity\u2026, Fill Opacity\u2026, Knockout, Isolate Blending, Frame Blending *(4-member enumeration)*, Layer Colour Tag\u2026, Layer Comps\u2026, Layer States\u2026, 3D Layer, Guide Layer, Environment Layer, Layer Styles, Layer Settings\u2026, Material, Camera, Light, Pre-compose\u2026, Auto-trace\u2026, Create Shapes from Vect [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "bounded_admission_via_job_port",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "STU-ARC-008",
+      "STU-ARC-012",
+      "STU-ARC-013",
+      "GUI-DESKTOP-033",
+      "GPU-QUOTA-015",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": true,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

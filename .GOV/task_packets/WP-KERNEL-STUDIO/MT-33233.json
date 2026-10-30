@@ -2065,7 +2065,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2384,5 +2385,53 @@
       "criterion": "Easing value shape (normative, closed).** Easing is `{type, easing_function_cubic_bezier?, easing_function_spring?}`: - `easing_function_cubic_bezier` is `{x1, y1, x2, y2}` — four numbers, the two control points of a cubic bezier. Contract per component: hard_min for `x1`/`x2` is 0 and hard_max 1 (x must stay in the unit interval or the curve is not a function); hard_min/hard_max for `y1`/`y2` are NOT DECLARED IN SOURCE and Studio declares -10 and 10 so overshoot is expressible ([STU-PRO-019e]); soft range 0..1 on all four; default `{0, 0, 1, 1}` (linear); unit dimensionless; precision 4 decimal places; step/coarse/fine 0.01/0.1/0.001. - `easing_function_spring` is `{mass, stiffness, damping, initial_velocity}` — four numbers. Contract: `mass` hard_min > 0, Studio-declared hard_max 100, soft 0.1..10, default 1, precision 3; `stiffness` hard_min > 0, Studio-declared hard_max 10000, soft 1..1000, default 100, precision 2; `damping` hard_min 0, Studio-declared hard_max 1000, soft 0..100, default 15, precision 2; `initial_velocity` hard bounds NOT DECLARED IN SOURCE, Studio declares -1000..1000, soft -10..10, default 0, precision 3. All four are dimensionless. Exactly one of the two function records is present. Both absent, or both present, is a validation error.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "STU-CON-013",
+      "STU-CON-014",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-COMPONENTS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": true
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

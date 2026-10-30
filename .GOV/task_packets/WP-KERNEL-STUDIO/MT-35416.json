@@ -1787,7 +1787,9 @@
   "authority_migration": {
     "approval": "ilja091020261912",
     "template_ref": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json",
-    "active_execution_authority": [],
+    "active_execution_authority": [
+      "host_integration"
+    ],
     "historical_fields": [
       "clause",
       "spec_anchor",
@@ -1864,10 +1866,10 @@
       {
         "acceptance_id": "AC-001",
         "original_pointer": "#/preserved_original/payload/acceptance_criteria/0",
-        "original_text": "A clause states a contract, a rule, a structure or an enumeration that can be implemented and PROVEN independently, and it yields one microtask whether or not the sentence carrying it happens to use MUST: a stored contract may be stated in the indicative mood. 2. **Each ROW of a catalogue table** \u2014 a table whose FIRST COLUMN names a separate implementable subject rather than a facet of one subject.",
+        "original_text": "A clause states a contract, a rule, a structure or an enumeration that can be implemented and PROVEN independently, and it yields one microtask whether or not the sentence carrying it happens to use MUST: a stored contract may be stated in the indicative mood. 2. **Each ROW of a catalogue table** — a table whose FIRST COLUMN names a separate implementable subject rather than a facet of one subject.",
         "original_row_sha256": "9e0bf0388c4796ce33b3bac867ad6c3a8713ea51130a080fdfd56ec52383e897",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731; **[STU-SHL-225] Clauses that yield NO microtask.** Exactly one class: the five clauses of this derivation sub-section itself \u2014 [STU-SHL-224] through [STU-SHL-228]. **Every other clause in this sub-section yields**, including the obligation clauses, because proving an obligation holds across 362 tools is itself work. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
+        "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731; **[STU-SHL-225] Clauses that yield NO microtask.** Exactly one class: the five clauses of this derivation sub-section itself — [STU-SHL-224] through [STU-SHL-228]. **Every other clause in this sub-section yields**, including the obligation clauses, because proving an obligation holds across 362 tools is itself work. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
         "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_REFERENCE",
         "asset_contribution_refs": [
           ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731"
@@ -1877,7 +1879,7 @@
         "asset_proof_recipe": {
           "selected_packages": [],
           "feature_policy": "No runtime target: STU-SHL-225",
-          "consumer_assertion": "A clause states a contract, a rule, a structure or an enumeration that can be implemented and PROVEN independently, and it yields one microtask whether or not the sentence carrying it happens to use MUST: a stored contract may be stated in the indicative mood. 2. **Each ROW of a catalogue table** \u2014 a table whose FIRST COLUMN names a separate implementable subject rather than a facet of one subject.",
+          "consumer_assertion": "A clause states a contract, a rule, a structure or an enumeration that can be implemented and PROVEN independently, and it yields one microtask whether or not the sentence carrying it happens to use MUST: a stored contract may be stated in the indicative mood. 2. **Each ROW of a catalogue table** — a table whose FIRST COLUMN names a separate implementable subject rather than a facet of one subject.",
           "negative_path": "Preserve genuine executable source units; no runtime AC fabrication.",
           "oracle": "Exact source STU-SHL-225 and existing packet derivation/index reconciliation; no runtime PASS."
         },
@@ -1889,10 +1891,10 @@
       {
         "acceptance_id": "AC-002",
         "original_pointer": "#/preserved_original/payload/acceptance_criteria/1",
-        "original_text": "The remaining columns of the row are that microtask's acceptance criteria. 3. **Each enumeration table, taken WHOLE** \u2014 its members are acceptance criteria of one microtask, not separate microtasks. 4. **Each command, shortcut, binding, preset or template table, taken WHOLE.** Binding a key is not a unit of implementation work and MUST NOT be one microtask per row. 5. **Each parameter table, taken WHOLE**, where the row's seven bound fields are its acceptance criteria.",
+        "original_text": "The remaining columns of the row are that microtask's acceptance criteria. 3. **Each enumeration table, taken WHOLE** — its members are acceptance criteria of one microtask, not separate microtasks. 4. **Each command, shortcut, binding, preset or template table, taken WHOLE.** Binding a key is not a unit of implementation work and MUST NOT be one microtask per row. 5. **Each parameter table, taken WHOLE**, where the row's seven bound fields are its acceptance criteria.",
         "original_row_sha256": "cb7f37867751b584448a788647b0e941e8b436e96d606d02bdec95ef5d47aa02",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731; **[STU-SHL-225] Clauses that yield NO microtask.** Exactly one class: the five clauses of this derivation sub-section itself \u2014 [STU-SHL-224] through [STU-SHL-228]. **Every other clause in this sub-section yields**, including the obligation clauses, because proving an obligation holds across 362 tools is itself work. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
+        "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731; **[STU-SHL-225] Clauses that yield NO microtask.** Exactly one class: the five clauses of this derivation sub-section itself — [STU-SHL-224] through [STU-SHL-228]. **Every other clause in this sub-section yields**, including the obligation clauses, because proving an obligation holds across 362 tools is itself work. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
         "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_REFERENCE",
         "asset_contribution_refs": [
           ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731"
@@ -1902,7 +1904,7 @@
         "asset_proof_recipe": {
           "selected_packages": [],
           "feature_policy": "No runtime target: STU-SHL-225",
-          "consumer_assertion": "The remaining columns of the row are that microtask's acceptance criteria. 3. **Each enumeration table, taken WHOLE** \u2014 its members are acceptance criteria of one microtask, not separate microtasks. 4. **Each command, shortcut, binding, preset or template table, taken WHOLE.** Binding a key is not a unit of implementation work and MUST NOT be one microtask per row. 5. **Each parameter table, taken WHOLE**, where the row's seven bound fields are its acceptance criteria.",
+          "consumer_assertion": "The remaining columns of the row are that microtask's acceptance criteria. 3. **Each enumeration table, taken WHOLE** — its members are acceptance criteria of one microtask, not separate microtasks. 4. **Each command, shortcut, binding, preset or template table, taken WHOLE.** Binding a key is not a unit of implementation work and MUST NOT be one microtask per row. 5. **Each parameter table, taken WHOLE**, where the row's seven bound fields are its acceptance criteria.",
           "negative_path": "Preserve genuine executable source units; no runtime AC fabrication.",
           "oracle": "Exact source STU-SHL-225 and existing packet derivation/index reconciliation; no runtime PASS."
         },
@@ -1919,19 +1921,19 @@
       "original_acceptance": [
         {
           "id": "AC-001",
-          "criterion": "A clause states a contract, a rule, a structure or an enumeration that can be implemented and PROVEN independently, and it yields one microtask whether or not the sentence carrying it happens to use MUST: a stored contract may be stated in the indicative mood. 2. **Each ROW of a catalogue table** \u2014 a table whose FIRST COLUMN names a separate implementable subject rather than a facet of one subject.",
+          "criterion": "A clause states a contract, a rule, a structure or an enumeration that can be implemented and PROVEN independently, and it yields one microtask whether or not the sentence carrying it happens to use MUST: a stored contract may be stated in the indicative mood. 2. **Each ROW of a catalogue table** — a table whose FIRST COLUMN names a separate implementable subject rather than a facet of one subject.",
           "evidence_kind": "runtime_assertion",
           "source": "14-studio-creative-suite.md STU-SHL-224"
         },
         {
           "id": "AC-002",
-          "criterion": "The remaining columns of the row are that microtask's acceptance criteria. 3. **Each enumeration table, taken WHOLE** \u2014 its members are acceptance criteria of one microtask, not separate microtasks. 4. **Each command, shortcut, binding, preset or template table, taken WHOLE.** Binding a key is not a unit of implementation work and MUST NOT be one microtask per row. 5. **Each parameter table, taken WHOLE**, where the row's seven bound fields are its acceptance criteria.",
+          "criterion": "The remaining columns of the row are that microtask's acceptance criteria. 3. **Each enumeration table, taken WHOLE** — its members are acceptance criteria of one microtask, not separate microtasks. 4. **Each command, shortcut, binding, preset or template table, taken WHOLE.** Binding a key is not a unit of implementation work and MUST NOT be one microtask per row. 5. **Each parameter table, taken WHOLE**, where the row's seven bound fields are its acceptance criteria.",
           "evidence_kind": "runtime_assertion",
           "source": "14-studio-creative-suite.md STU-SHL-224"
         }
       ],
       "original_scope": {
-        "summary": "Derivation rule (NORMATIVE).** The tools-and-controls microtask set is derived from this sub-section MECHANICALLY, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. **Each numbered clause of this sub-section**, except the bookkeeping clauses named in [STU-SHL-225]. A clause states a contract, a rule, a structure or an enumeration that can be implemented and PROVEN independently, and it yields one microtask whether or not the sentence carrying it happens to use MUST: a stored contract may be stated in the indicative mood. 2. **Each ROW of a catalogue table** \u2014 a table whose FIRST COLUMN names a separate implementable subject rather than a facet of one subject. Each such row is its own microtask, because one microtask reading \"362 tools\" or \"90 panels\" is not implementable and would let the work disappear behind a number. The remaining columns of the row are that microtask's acceptance criteria. 3. **Each enumeration table, taken WHOLE** \u2014 its members are acceptance criteria of one microtask, not separate microtasks. 4. **Each command, shortcut, binding, preset or template table, taken WHOLE.** Binding a key is not a unit of implementation work and MUST NOT be one microtask per row. 5. **Each parameter table, taken WHOLE**, where the row's seven bound fields are its acceptance criteria. The catalogue table in this sub-section is the [...]",
+        "summary": "Derivation rule (NORMATIVE).** The tools-and-controls microtask set is derived from this sub-section MECHANICALLY, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. **Each numbered clause of this sub-section**, except the bookkeeping clauses named in [STU-SHL-225]. A clause states a contract, a rule, a structure or an enumeration that can be implemented and PROVEN independently, and it yields one microtask whether or not the sentence carrying it happens to use MUST: a stored contract may be stated in the indicative mood. 2. **Each ROW of a catalogue table** — a table whose FIRST COLUMN names a separate implementable subject rather than a facet of one subject. Each such row is its own microtask, because one microtask reading \"362 tools\" or \"90 panels\" is not implementable and would let the work disappear behind a number. The remaining columns of the row are that microtask's acceptance criteria. 3. **Each enumeration table, taken WHOLE** — its members are acceptance criteria of one microtask, not separate microtasks. 4. **Each command, shortcut, binding, preset or template table, taken WHOLE.** Binding a key is not a unit of implementation work and MUST NOT be one microtask per row. 5. **Each parameter table, taken WHOLE**, where the row's seven bound fields are its acceptance criteria. The catalogue table in this sub-section is the [...]",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -1943,10 +1945,10 @@
         {
           "acceptance_id": "AC-001",
           "original_pointer": "#/preserved_original/payload/acceptance_criteria/0",
-          "original_text": "A clause states a contract, a rule, a structure or an enumeration that can be implemented and PROVEN independently, and it yields one microtask whether or not the sentence carrying it happens to use MUST: a stored contract may be stated in the indicative mood. 2. **Each ROW of a catalogue table** \u2014 a table whose FIRST COLUMN names a separate implementable subject rather than a facet of one subject.",
+          "original_text": "A clause states a contract, a rule, a structure or an enumeration that can be implemented and PROVEN independently, and it yields one microtask whether or not the sentence carrying it happens to use MUST: a stored contract may be stated in the indicative mood. 2. **Each ROW of a catalogue table** — a table whose FIRST COLUMN names a separate implementable subject rather than a facet of one subject.",
           "original_row_sha256": "9e0bf0388c4796ce33b3bac867ad6c3a8713ea51130a080fdfd56ec52383e897",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731; **[STU-SHL-225] Clauses that yield NO microtask.** Exactly one class: the five clauses of this derivation sub-section itself \u2014 [STU-SHL-224] through [STU-SHL-228]. **Every other clause in this sub-section yields**, including the obligation clauses, because proving an obligation holds across 362 tools is itself work. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
+          "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731; **[STU-SHL-225] Clauses that yield NO microtask.** Exactly one class: the five clauses of this derivation sub-section itself — [STU-SHL-224] through [STU-SHL-228]. **Every other clause in this sub-section yields**, including the obligation clauses, because proving an obligation holds across 362 tools is itself work. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
           "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_REFERENCE",
           "asset_contribution_refs": [
             ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731"
@@ -1956,7 +1958,7 @@
           "asset_proof_recipe": {
             "selected_packages": [],
             "feature_policy": "No runtime target: STU-SHL-225",
-            "consumer_assertion": "A clause states a contract, a rule, a structure or an enumeration that can be implemented and PROVEN independently, and it yields one microtask whether or not the sentence carrying it happens to use MUST: a stored contract may be stated in the indicative mood. 2. **Each ROW of a catalogue table** \u2014 a table whose FIRST COLUMN names a separate implementable subject rather than a facet of one subject.",
+            "consumer_assertion": "A clause states a contract, a rule, a structure or an enumeration that can be implemented and PROVEN independently, and it yields one microtask whether or not the sentence carrying it happens to use MUST: a stored contract may be stated in the indicative mood. 2. **Each ROW of a catalogue table** — a table whose FIRST COLUMN names a separate implementable subject rather than a facet of one subject.",
             "negative_path": "Preserve genuine executable source units; no runtime AC fabrication.",
             "oracle": "Exact source STU-SHL-225 and existing packet derivation/index reconciliation; no runtime PASS."
           },
@@ -1968,10 +1970,10 @@
         {
           "acceptance_id": "AC-002",
           "original_pointer": "#/preserved_original/payload/acceptance_criteria/1",
-          "original_text": "The remaining columns of the row are that microtask's acceptance criteria. 3. **Each enumeration table, taken WHOLE** \u2014 its members are acceptance criteria of one microtask, not separate microtasks. 4. **Each command, shortcut, binding, preset or template table, taken WHOLE.** Binding a key is not a unit of implementation work and MUST NOT be one microtask per row. 5. **Each parameter table, taken WHOLE**, where the row's seven bound fields are its acceptance criteria.",
+          "original_text": "The remaining columns of the row are that microtask's acceptance criteria. 3. **Each enumeration table, taken WHOLE** — its members are acceptance criteria of one microtask, not separate microtasks. 4. **Each command, shortcut, binding, preset or template table, taken WHOLE.** Binding a key is not a unit of implementation work and MUST NOT be one microtask per row. 5. **Each parameter table, taken WHOLE**, where the row's seven bound fields are its acceptance criteria.",
           "original_row_sha256": "cb7f37867751b584448a788647b0e941e8b436e96d606d02bdec95ef5d47aa02",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731; **[STU-SHL-225] Clauses that yield NO microtask.** Exactly one class: the five clauses of this derivation sub-section itself \u2014 [STU-SHL-224] through [STU-SHL-228]. **Every other clause in this sub-section yields**, including the obligation clauses, because proving an obligation holds across 362 tools is itself work. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
+          "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731; **[STU-SHL-225] Clauses that yield NO microtask.** Exactly one class: the five clauses of this derivation sub-section itself — [STU-SHL-224] through [STU-SHL-228]. **Every other clause in this sub-section yields**, including the obligation clauses, because proving an obligation holds across 362 tools is itself work. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
           "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_REFERENCE",
           "asset_contribution_refs": [
             ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731"
@@ -1981,7 +1983,7 @@
           "asset_proof_recipe": {
             "selected_packages": [],
             "feature_policy": "No runtime target: STU-SHL-225",
-            "consumer_assertion": "The remaining columns of the row are that microtask's acceptance criteria. 3. **Each enumeration table, taken WHOLE** \u2014 its members are acceptance criteria of one microtask, not separate microtasks. 4. **Each command, shortcut, binding, preset or template table, taken WHOLE.** Binding a key is not a unit of implementation work and MUST NOT be one microtask per row. 5. **Each parameter table, taken WHOLE**, where the row's seven bound fields are its acceptance criteria.",
+            "consumer_assertion": "The remaining columns of the row are that microtask's acceptance criteria. 3. **Each enumeration table, taken WHOLE** — its members are acceptance criteria of one microtask, not separate microtasks. 4. **Each command, shortcut, binding, preset or template table, taken WHOLE.** Binding a key is not a unit of implementation work and MUST NOT be one microtask per row. 5. **Each parameter table, taken WHOLE**, where the row's seven bound fields are its acceptance criteria.",
             "negative_path": "Preserve genuine executable source units; no runtime AC fabrication.",
             "oracle": "Exact source STU-SHL-225 and existing packet derivation/index reconciliation; no runtime PASS."
           },
@@ -2001,5 +2003,49 @@
       "status": "SPEC_EXPLICIT_NO_MT_OLD_EDGES_RETAINED_IN_ORIGINAL_PAYLOAD"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00"
+  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

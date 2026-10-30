@@ -1999,7 +1999,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2300,5 +2301,45 @@
       "criterion": "**Six identifier families are load-bearing and are called out because an implementation that ships the language without them ships a calculator.** *Derivation: catalogue table, splits per row; yields 6 microtasks, one per load-bearing identifier family.* | Family | Members | Why it is load-bearing | |---|---|---| | Space transforms (30) | `toComp`, `fromComp`, `toWorld`, `fromWorld`, `toCompVec`, `fromCompVec`, `toWorldVec`, `fromWorldVec`, `fromCompToSurface` and their legacy spellings | Converting a point between a layer's space, the composition's space and world space is what makes rigging across a parent hierarchy possible. Without them, an expression cannot answer \"where is that layer, from here\". | | Property sampling (in the uncategorised block) | `valueAtTime`, `velocityAtTime`, `speedAtTime`, `nearestKey`, `nextKey`, `previousKey`, `numKeys`, `key` | Reading another property at another time is how delay, echo, follow and inertia rigs are built. | | Looping | `loopIn`, `loopOut`, `loopInDuration`, `loopOutDuration` with a `type = \"cycle\"` argument | Cycling, ping-ponging, continuing and offsetting an existing keyframe range without duplicating keyframes. | | Randomness | `seedRandom`, `random`, `gaussRandom`, `noise`, `wiggle`, `temporalWiggle` | Procedural variation. `seedRandom` is what makes it REPRODUCIBLE, and Studio requires the seed to be explicit exactly as [STU [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-MOTION",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

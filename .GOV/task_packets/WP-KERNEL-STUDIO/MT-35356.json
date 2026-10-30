@@ -1975,7 +1975,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2269,5 +2270,41 @@
       "criterion": "Yields index (NORMATIVE).** The counts below are the derivation surface of this module under [STU-AUT-176]. They are not estimates: they are the measured output of applying that rule to this module's text, and every row states which unit kinds it contributes. | Unit group | Clauses | Units by kind | Yields | |---|---|---|---| | Actions and macros — the recorded-automation model | [STU-AUT-101]-[STU-AUT-114] | 14 clause, 2 enumeration | 16 | | The scripting object model | [STU-AUT-116]-[STU-AUT-125] | 10 clause | 10 | | Batch processing | [STU-AUT-126]-[STU-AUT-136] | 11 clause | 11 | | Data-driven graphics | [STU-AUT-137]-[STU-AUT-140] | 4 clause | 4 | | Find and change | [STU-AUT-141]-[STU-AUT-146] | 6 clause | 6 | | The model-steerable command surface | [STU-AUT-147]-[STU-AUT-154] | 8 clause | 8 | | Plugins | [STU-AUT-156]-[STU-AUT-162] | 7 clause | 7 | | Inspect, codegen and handoff | [STU-AUT-164]-[STU-AUT-169] | 6 clause | 6 | | Obligations | [STU-AUT-170]-[STU-AUT-175] | 6 clause | 6 | | Validation Descriptor Catalogue | [STU-AUT-181]-[STU-AUT-200] | 20 validator | 20 | | Clauses yielding nothing | 9 clauses, listed in [STU-AUT-176] | — | 0 | | **Module total** | | **101 clauses** | **94** | Of this module's 101 clauses, 9 yield nothing and 92 yield at least one unit; tables inside yielding clauses contribute the remainder. The module total is **94**. The last numeric col [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "STU-CON-013",
+      "STU-CON-014"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": true
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

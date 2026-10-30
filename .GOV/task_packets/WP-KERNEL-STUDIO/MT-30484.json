@@ -2372,7 +2372,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2879,7 +2880,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `paint.none` with the exact meaning the spec states: `0` | No paint.. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2914,7 +2917,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `paint.process_cmyk` with the exact meaning the spec states: `1` | Process CMYK component colour.. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2949,7 +2954,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `paint.gray` with the exact meaning the spec states: `2` | Single-channel grey.. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2984,7 +2991,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `paint.rgb` with the exact meaning the spec states: `3` | RGB component colour.. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -3019,7 +3028,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `paint.spot` with the exact meaning the spec states: `4` | Named spot colour with tint ([STU-VEC-141]).. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -3054,7 +3065,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `paint.pattern` with the exact meaning the spec states: `5` | Tiled pattern ([STU-VEC-138]).. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -3089,7 +3102,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "The enumeration accepts the member `paint.gradient` with the exact meaning the spec states: `6` | Gradient ramp ([STU-VEC-135]).. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -3170,5 +3185,39 @@
     "CX-VERIFY-001",
     "CX-VERIFY-002",
     "CX-VERIFY-003"
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-NIB",
+      "unit_kind": "enumeration",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

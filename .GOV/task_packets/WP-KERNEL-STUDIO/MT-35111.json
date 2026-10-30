@@ -33,7 +33,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "operator_shell",
   "scope": {
-    "summary": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` \u2014 the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` \u2014 the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
+    "summary": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` — the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` — the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [],
@@ -1264,7 +1264,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1686,7 +1686,7 @@
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
-        "text": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` \u2014 the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` \u2014 the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
+        "text": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` — the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` — the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
         "fulfillment_ref": "MT-35111#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -1816,7 +1816,7 @@
         "requirement_refs": [
           "STU-SHL-244"
         ],
-        "current_normative_instructions": "**[STU-SHL-244] Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` \u2014 the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` \u2014 the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
+        "current_normative_instructions": "**[STU-SHL-244] Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` — the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` — the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
         "declared_table_keys": [],
         "source_fields": [
           "accessible_name",
@@ -1936,13 +1936,13 @@
           "Independent actual output"
         ],
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
-        "expected": "Actual Synchronisation is not achieved, it is UNREPRESENTABLE output obeys Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` \u2014 the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` \u2014 the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
+        "expected": "Actual Synchronisation is not achieved, it is UNREPRESENTABLE output obeys Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` — the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` — the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` \u2014 the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` \u2014 the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither. Compare actualtooltip/AccessKit using samefieldreference and localechange; no copiedstrings or divergentnullable summary.",
+          "consumer_assertion": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` — the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` — the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither. Compare actualtooltip/AccessKit using samefieldreference and localechange; no copiedstrings or divergentnullable summary.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Preserve all current source obligations; unavailable owner/provider or unresolved operator prerequisite stops dependent implementation. Actual invalid/stale/cancelled requests preserve accepted state; standalone proof never substitutes required integrated host proof.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
@@ -2049,7 +2049,7 @@
       "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
       "domain": "operator_shell",
       "scope": {
-        "summary": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` \u2014 the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` \u2014 the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
+        "summary": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` — the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` — the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "acceptance_criteria": [],
@@ -2124,7 +2124,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2275,7 +2276,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` \u2014 the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` \u2014 the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
+        "semantic_fulfillment": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` — the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` — the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-35111-ASSET-CONTROLS"
@@ -2285,7 +2286,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` \u2014 the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` \u2014 the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
+            "required_behavior": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` — the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` — the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2294,13 +2295,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` \u2014 the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` \u2014 the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither. Compare actualtooltip/AccessKit using samefieldreference and localechange; no copiedstrings or divergentnullable summary.",
+          "consumer_assertion": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` — the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` — the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither. Compare actualtooltip/AccessKit using samefieldreference and localechange; no copiedstrings or divergentnullable summary.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Preserve all current source obligations; unavailable owner/provider or unresolved operator prerequisite stops dependent implementation. Actual invalid/stale/cancelled requests preserve accepted state; standalone proof never substitutes required integrated host proof.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-35111-KERNEL-ASSET-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` \u2014 the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` \u2014 the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` — the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` — the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36213"
@@ -2313,7 +2314,7 @@
       "all_original_acceptance_refs": [],
       "original_acceptance": [],
       "original_scope": {
-        "summary": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` \u2014 the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` \u2014 the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
+        "summary": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` — the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` — the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -2328,7 +2329,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` \u2014 the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` \u2014 the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
+          "semantic_fulfillment": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` — the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` — the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-35111-ASSET-CONTROLS"
@@ -2338,7 +2339,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` \u2014 the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` \u2014 the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
+              "required_behavior": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` — the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` — the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2347,13 +2348,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` \u2014 the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` \u2014 the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
+            "consumer_assertion": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` — the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` — the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-35111-KERNEL-ASSET-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` \u2014 the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` \u2014 the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` — the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` — the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "MT-36213"
@@ -2373,7 +2374,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` \u2014 the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` \u2014 the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
+          "semantic_fulfillment": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` — the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` — the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-35111-ASSET-CONTROLS"
@@ -2383,7 +2384,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` \u2014 the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` \u2014 the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
+              "required_behavior": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` — the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` — the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2392,13 +2393,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` \u2014 the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` \u2014 the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
+            "consumer_assertion": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` — the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` — the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-35111-KERNEL-ASSET-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` \u2014 the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` \u2014 the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` — the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` — the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ],
@@ -2424,8 +2425,54 @@
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
-      "criterion": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` \u2014 the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` \u2014 the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
+      "criterion": "Synchronisation is not achieved, it is UNREPRESENTABLE.** The accessible name and description are not COPIES that must be kept in step; they are the same fields read twice. 1. `accessible_name` **IS** `display_name` — the same field, read twice, never copied. 2. `accessible_description` **IS** `summary` — the same field, read twice, never copied. 3. The tooltip renderer and the AccessKit node builder BOTH take a `&UiDescriptor`; neither accepts a string literal, because the API has no such signature. 4. Localisation swaps the DESCRIPTOR SET, not the call sites, so a translated build changes both surfaces together or neither.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

@@ -1961,7 +1961,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2255,5 +2256,41 @@
       "criterion": "Primitive type system (normative, closed, eighteen members).** Every property, method parameter and method return in the object model has exactly one of these types: | Type | Meaning | |---|---| | `void` | a command with no return value | | `any` | variant | | `short_integer` | 16-bit signed | | `long_integer` | 32-bit signed | | `large_integer` | 64-bit signed | | `boolean` | | | `string` | | | `measurement` | a unit-bearing real: coordinates, lengths, weights. Distinct from `real` | | `real` | a unitless double: scales, angles, percentages | | `date_time` | | | `file_path` | a file reference | | `properties_record` | a bag of named property values, used for bulk set | | `binary_stream` | binary or graphic data | | `script_variant` | any value as seen by the script layer | | `object_reference_mixed` | a reference that may resolve to more than one class | | `object_reference` | a reference to one class | | `parent_reference` | a reference to the containing object | | `enumeration_reference` | a reference to a declared enumeration ([STU-AUT-120]) | `measurement` versus `real` is the same distinction as `measured` versus `number` in [STU-AUT-106] and is equally load-bearing: a measurement carries the document unit and converts; a real does not.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "STU-CON-013",
+      "STU-CON-014"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": true
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

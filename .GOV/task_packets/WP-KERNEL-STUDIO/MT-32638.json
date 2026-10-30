@@ -146,7 +146,9 @@
   },
   "gameplan_ref": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml",
   "context_capsule": {
-    "module_maintenance_refs": [".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/12/maintenance"],
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/12/maintenance"
+    ],
     "specification_anchor_refs": [
       {
         "id": "STU-FX-134a",
@@ -1716,8 +1718,8 @@
         "claim_refs": [
           "ASSET-AC-001"
         ],
-      "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32638 --exact",
-      "timeout_seconds": 60,
+        "command_or_method": "cargo test --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --test score_contract -- mt_32638 --exact",
+        "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
           "Every full-scope requirement and governing source range",
@@ -1730,15 +1732,17 @@
           "selected_packages": [
             "hsk-studio-score"
           ],
-        "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
-        "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
-        "compile_timeout_seconds": 300,
-        "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
-        "target_materialization": "Create natural score_contract target and exact mt_32638 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
-        "unresolved_before_dispatch": ["Bind The complete audio processor set. Rows without a contract table above are specified missing behavior dependencies/decision and independent positive oracle before dispatch."],
+          "feature_policy": "--no-default-features; pure Score+declared Accord/Observe; no kernel/native/DB/device/plugin/JS. Planned manifest/lock/selectors verified before dispatch.",
+          "planned_compile_command": "cargo check --locked --manifest-path handshake-studio-assets/Cargo.toml -p hsk-studio-score --no-default-features --tests",
+          "compile_timeout_seconds": 300,
+          "execution_status": "PLANNED_NOT_IMPLEMENTED_NOT_RUN",
+          "target_materialization": "Create natural score_contract target and exact mt_32638 consumer test during implementation; real target before handoff. Implementer compile/static; independent validator runtime.",
+          "unresolved_before_dispatch": [
+            "Bind The complete audio processor set. Rows without a contract table above are specified missing behavior dependencies/decision and independent positive oracle before dispatch."
+          ],
           "consumer_assertion": "The complete audio processor set. Rows without a contract table above are specified in identity and behaviour but not yet in parameters, per [STU-FX-128]. **(uncategorised)** (138) *Derivation: catalogue table, splits per row; yields 138 microtasks, one per audio processor.* | Studio effect | Engine | Params | Presets | Description (from capture) | Import key (provenance) | |---|---|---|---|---|---| | Adaptive Noise Reduction | dva_audio | 6 | 0 | _no vendor description recovered_ | `AudioFilter:AdaptiveNoiseReduction` | | AddSchemaPropertyDialog.adam | dva_audio | 0 | 0 | _no vendor description recovered_ | `AudioFilter:AddSchemaPropertyDialog.adam` | | Render Settings Dialog Sheet | dva_audio | 0 | 0 | _no vendor description recovered_ | `AudioFilter:AERenderSettingsDialog.adam` | | Amplify | dva_audio | 4 | 0 | _no vendor description recovered_ | `AudioFilter:Amplify` | | Analog Delay | dva_audio | 0 | 0 | _no vendor description recovered_ | `AudioFilter:AnalogDelay` | | ArriRawLogC4MXFSetup | dva_audio | 0 | 0 | _no vendor description recovered_ | `AudioFilter:ArriRawLogC4MXFSetup` | | ArriRawLogC4MXFSetup.adam | dva_audio | 0 | 0 | _no vendor description recovered_ | `AudioFilter:ArriRawLogC4MXFSetup.adam` | | ArriRawMXFSetup | dva_audio | 0 | 0 | _no vendor description recovered_ | `AudioFilter:ArriRawMXFSetup` | | ArriRawMXFSetup.adam | dva_audio | 0 | 0 | _no vendor des [...]",
-        "negative_path": "Exact The complete audio processor set. Rows without a contract table above are specified source definition;immutable actor/resource/revision input;success,unknown enum/slot,cancel-before-commit,stale revision. No host clock/stochastic seed.",
-        "oracle": "Independent portable consumer drives The complete audio processor set. Rows without a contract table above are specified comparing actual output to bound clause/table. Separate host/native acceptance retained;status/fixture alone is not proof."
+          "negative_path": "Exact The complete audio processor set. Rows without a contract table above are specified source definition;immutable actor/resource/revision input;success,unknown enum/slot,cancel-before-commit,stale revision. No host clock/stochastic seed.",
+          "oracle": "Independent portable consumer drives The complete audio processor set. Rows without a contract table above are specified comparing actual output to bound clause/table. Separate host/native acceptance retained;status/fixture alone is not proof."
         },
         "materialization_timing": {
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
@@ -1906,7 +1910,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2087,8 +2092,14 @@
       }
     ],
     "later_kernel": {
-      "host_adoption_mt_refs": ["MT-36201"],
-      "qualified_ac_to_host_adoption_mts": {"MT-32638/ASSET-AC-001":["MT-36201"]},
+      "host_adoption_mt_refs": [
+        "MT-36201"
+      ],
+      "qualified_ac_to_host_adoption_mts": {
+        "MT-32638/ASSET-AC-001": [
+          "MT-36201"
+        ]
+      },
       "host_allocation_ref": ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/partition-team/partition-proposal.json#/qualified_ac_to_host_adoption_mts",
       "phase": "SEPARATE_LATER_EMBEDDING",
       "status": "PENDING",
@@ -2192,5 +2203,62 @@
       "criterion": "The complete audio processor set. Rows without a contract table above are specified in identity and behaviour but not yet in parameters, per [STU-FX-128]. **(uncategorised)** (138) *Derivation: catalogue table, splits per row; yields 138 microtasks, one per audio processor.* | Studio effect | Engine | Params | Presets | Description (from capture) | Import key (provenance) | |---|---|---|---|---|---| | Adaptive Noise Reduction | dva_audio | 6 | 0 | _no vendor description recovered_ | `AudioFilter:AdaptiveNoiseReduction` | | AddSchemaPropertyDialog.adam | dva_audio | 0 | 0 | _no vendor description recovered_ | `AudioFilter:AddSchemaPropertyDialog.adam` | | Render Settings Dialog Sheet | dva_audio | 0 | 0 | _no vendor description recovered_ | `AudioFilter:AERenderSettingsDialog.adam` | | Amplify | dva_audio | 4 | 0 | _no vendor description recovered_ | `AudioFilter:Amplify` | | Analog Delay | dva_audio | 0 | 0 | _no vendor description recovered_ | `AudioFilter:AnalogDelay` | | ArriRawLogC4MXFSetup | dva_audio | 0 | 0 | _no vendor description recovered_ | `AudioFilter:ArriRawLogC4MXFSetup` | | ArriRawLogC4MXFSetup.adam | dva_audio | 0 | 0 | _no vendor description recovered_ | `AudioFilter:ArriRawLogC4MXFSetup.adam` | | ArriRawMXFSetup | dva_audio | 0 | 0 | _no vendor description recovered_ | `AudioFilter:ArriRawMXFSetup` | | ArriRawMXFSetup.adam | dva_audio | 0 | 0 | _no vendor des [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "bounded_admission_via_job_port",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "STU-ARC-008",
+      "STU-ARC-012",
+      "STU-ARC-013",
+      "GUI-DESKTOP-033",
+      "GPU-QUOTA-015",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-SCORE",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": true,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

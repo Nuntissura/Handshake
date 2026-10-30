@@ -1966,7 +1966,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2270,5 +2271,45 @@
       "criterion": "Pipeline position (NORMATIVE).** Colour management sits BELOW the compositor on the input side and ABOVE the compositor on the output side. The compositor never sees a device value and never performs a profile conversion. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own. Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.* | Stage | Owner | Operates in | |---|---|---| | 1. Decode | interop (14.13) | The asset's own encoding | | 2. Input transform | `ColorEngine` | Asset space -> document working space | | 3. Layer content evaluation, adjustments, filters, effects | `RasterEngine` / `VectorEngine` / `RenderEngine` | Document working space, document precision | | 4. Blending and compositing | `RenderEngine` | Document BLENDING space ([STU-COL-162]) | | 5. Document grade and LUT stack | `ColorEngine` + `RenderEngine` | Working space, in the order of [STU-COL-160] | | 6a. Display transform | `ColorEngine` | Working space -> display | | 6b. Export transform | `ColorEngine` | Working space -> destination profile, with intent and BPC | | 6c. Proof transform | `ColorEngine` | Working -> proof device -> display, two intents ([STU-COL-241]) | | 7. Inspection overlays (gamut warning [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-PRISM",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

@@ -2100,7 +2100,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2427,7 +2428,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "Studio MUST expose all five as persisted enumerated tool state: *Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members.* | Option | Kind | Members | default | |---|---|---|---| | `anchor_edit_mode` | enumeration | captured as an indexed popup; Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2462,7 +2465,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "Under [STU-VEC-100] and [GLOBAL-ANTISPECULATION-004] the member lists are declared UNKNOWN and MUST NOT be invented. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2497,7 +2502,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "An implementer MUST ship the five selectors as typed enumerated state with at least the captured default index and MUST raise a spec-gap rather than guess members. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2566,5 +2573,39 @@
     "CX-VERIFY-001",
     "CX-VERIFY-002",
     "CX-VERIFY-003"
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-NIB",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

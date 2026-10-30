@@ -2077,7 +2077,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2372,5 +2373,41 @@
       "criterion": "Vector and document settings.** - **SVG:** `{format: \"SVG\", contents_only, use_absolute_bounds, suffix, colour_profile, outline_text, include_id_attribute, simplify_stroke}`. `outline_text` (boolean) converts text to paths; `include_id_attribute` (boolean) emits node ids as `id` attributes; `simplify_stroke` (boolean) reduces stroke geometry. A string-returning variant `SVG_STRING` produces the markup in-memory rather than as a file and is what a codegen or web-authoring caller uses. - **PDF:** `{format: \"PDF\", contents_only, use_absolute_bounds, suffix, colour_profile}`. This is the NODE-render PDF, distinct from the document PDF export of [STU-IO-125]. - **Serialised tree:** `{format: \"JSON_TREE\"}` — the typed node tree of [STU-AUT-022]. It carries no image options.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "STU-CON-013",
+      "STU-CON-014"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-PACKAGE",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": true
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

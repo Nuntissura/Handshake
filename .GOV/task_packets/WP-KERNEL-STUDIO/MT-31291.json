@@ -1969,7 +1969,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2273,5 +2274,45 @@
       "criterion": "Colour wheels: the lift/gamma/gain model (NORMATIVE MATHEMATICS).** Studio's colour wheels implement the following, recovered from the shipped grading shader source. It is stated as mathematics, not as prose, because two implementations that differ here produce visibly different grades. Per tonal band (overall, shadow, midtone, highlight), given a colour offset vector `offset`, a gamma vector `gamma`, a gain vector `gain`, and scalars `Temperature`, `Magenta`, `Contrast`, `Pivot`, `Saturation`, `PostSat`: ``` TempGain.r = pow(2, gain.r + (Temperature + Magenta * 0.5)) TempGain.g = pow(2, gain.g + (-Magenta)) TempGain.b = pow(2, gain.b + (-Temperature + Magenta * 0.5)) Contrast' = pow(2, Contrast) offset'.c = TempGain.c * (offset.c + Pivot - Contrast' * Pivot) for c in {r,g,b} gain'.c = TempGain.c * Contrast' for c in {r,g,b} gamma'.c = pow(3, gamma_band.c + gamma.c) for c in {r,g,b} ``` Band results compose by adding the band offset to the overall offset, and the band split points are `lowMid` (shadow/midtone crossover) and `midHigh` (midtone/highlight crossover). Luminance weights are an explicit 3-vector; the shipped legacy configuration carries `luminance.r = 0.299` and `luminance.b = 0.114` (Rec.601 luma). Studio stores the luminance weight vector explicitly and selects it from the working space rather than hard-coding Rec.601. Declared control values from the shader source [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-PRISM",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

@@ -2133,7 +2133,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2436,5 +2437,51 @@
       "criterion": "composition (`{artboard, timeline}`) \u2014 REBUILT FROM MEASUREMENT.** This layout was previously extrapolated from a different vendor's video workspace and is now built from 16 measured factory workspaces of the vendor of record for compositing. The five corrections below are normative; implementing the superseded extrapolation is a defect. - centre: `composition` viewer; splits to composition + footage, or composition + layer, on demand as SIBLING EDITOR GROUPS - left: expanded 260px \u2014 `[project-bin, effect-controls, media-browser, library, preset-library]` **`effect-controls` docks LEFT here, co-tabbed with `project-bin`.** This is the measured vendor default in both of its shipped baseline workspaces. The earlier argument for placing it right \u2014 \"a keyframe editor needs height\" \u2014 is void: in this document model the keyframe editor is NOT the effect-controls panel, it is the TIMELINE, which is the full-width bottom band. Effect-controls is only the parameter list. - right, three groups with shares 0.14 / 0.42 / 0.44 \u2014 `[preview-render]` \u00b7 `[properties, align-distribute, audio-meters, effects-browser]` \u00b7 `[layers, graphics-templates, scopes, history]` **`effects-browser` docks RIGHT here** (it docks LEFT in the sequence profile). - right rail: **HIDDEN.** All 16 measured workspaces of the vendor of record declare no side bars at all, and place the audio panel as a right-dock TAB. [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

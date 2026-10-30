@@ -20435,7 +20435,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -20904,5 +20905,57 @@
       "criterion": "Two contract details in this set are normative and easy to lose. First, the shadow and glow styles carry a `Use Global Light` boolean alongside a local angle: when the boolean is true the style reads a composition-level lighting angle instead of its own, so the angle parameter is present but not authoritative. Studio models this as a per-composition `global_light_angle` property with per-style opt-in, not as a hidden coupling between parameters. Second, several style distance and size parameters declare a hard maximum of 30000 against a soft maximum of 100 -- a 300x ratio -- which is the clearest available demonstration of why [STU-FX-107] exists. **Drop Shadow** -- `dropShadow/enabled` *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | Kind | hard_min | hard_max | soft_min | soft_max | default | unit | precision | property key | |---|---|---|---|---|---|---|---|---|---| | Blend Mode | POPUP | -- | -- | -- | -- | index 5 | -- | -- | `dropShadow/mode2` | | Color | COLOR | -- | -- | -- | -- | RGB [0, 0, 0] | -- | -- | `dropShadow/color` | | Opacity | SLIDER | 0 | 100 | -- | -- | 75 | percent | 0 | `dropShadow/opacity` | | Use Global Light | CHECKBOX | -- | -- | -- | -- | false | -- | -- | `dropShadow/useGlobalAngle` | | Angle | ANGLE | -- | -- | -- | -- | 120 | degrees | -- | `dropShadow/loca [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-COMPOSITE",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

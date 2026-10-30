@@ -2174,7 +2174,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2534,5 +2535,53 @@
       "criterion": "Yields index (NORMATIVE).** The counts below are the derivation surface of this module under [STU-PRO-146]. They are not estimates: they are the measured output of applying that rule to this module's text, and every row states which unit kinds it contributes. | Unit group | Clauses | Units by kind | Yields | |---|---|---|---| | The reaction record | [STU-PRO-102]-[STU-PRO-104] | 3 clause | 3 | | Triggers | [STU-PRO-105]-[STU-PRO-109] | 5 clause, 2 parameter table | 7 | | Actions | [STU-PRO-110]-[STU-PRO-115] | 6 clause, 1 enumeration | 7 | | Transitions and easing | [STU-PRO-116]-[STU-PRO-121] | 6 clause, 1 parameter table | 7 | | Overlays | [STU-PRO-122]-[STU-PRO-124] | 3 clause | 3 | | Scroll, overflow and fixed positioning | [STU-PRO-125]-[STU-PRO-127] | 3 clause | 3 | | Flow, state preservation and presentation | [STU-PRO-128]-[STU-PRO-132] | 5 clause, 1 enumeration | 6 | | Interactive components | [STU-PRO-133]-[STU-PRO-134] | 2 clause | 2 | | Interactive documents (authoring side) | [STU-PRO-033]-[STU-PRO-137] | 4 clause | 4 | | Command, panel, asset and obligation bindings | [STU-PRO-138]-[STU-PRO-145] | 8 clause | 8 | | Validation Descriptor Catalogue | [STU-PRO-151]-[STU-PRO-165] | 15 validator | 15 | | Interactive-Document Object Class | [STU-PRO-166]-[STU-PRO-166] | 1 clause | 1 | | Clauses yielding nothing | 7 clauses, listed in [STU-PRO-146] | — | 0 | | **Module to [...] Current v02.209 amendment: Reconcile the current209 yields index as76 clauses,74 units,seven NoYield and69 clauses yielding at least one unit; the eight167..174 contracts add eight clauses/eight units. Preserve prior68/66 declarations solely as historical207 capture. Independently recount current rule/table output; no new physical IDs or aliases are allocated by this amendment.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "STU-CON-013",
+      "STU-CON-014",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-COMPONENTS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": true
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

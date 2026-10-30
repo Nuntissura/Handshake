@@ -2258,7 +2258,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2559,5 +2560,52 @@
       "criterion": "The automation/scripting surface for motion is enumerated, and 14.14 owns it.** 44 scripting classes with 1,708 members are recovered as the object-model shape a Studio automation API must cover: project, item collections, compositions, layers, layer collections, property groups, properties, keyframes, render queue items, output modules, viewers, footage sources and the text document. This sub-section requires only that the automation surface be a projection of the same primitives specified here -- one property model, not a parallel scripting model ([STU-DOC-004]). *Derivation: catalogue table, splits per row; yields 44 microtasks, one per scripting class.* | Class | Members | |---|---| | `AVLayer` | 118 | | `CameraLayer` | 9 | | `CharacterRange` | 0 | | `CompItem` | 67 | | `ComposedLineRange` | 7 | | `DeferredCall` | 490 | | `File` | 61 | | `FileSource` | 114 | | `Folder` | 13 | | `FolderItem` | 1 | | `Font` | 59 | | `FootageItem` | 5 | | `GuideOptions` | 3 | | `ImportOptions` | 9 | | `ItemCollection` | 5 | | `KeyframeEase` | 3 | | `Layer` | 2 | | `LayerCollection` | 21 | | `LightLayer` | 2 | | `MarkerValue` | 10 | | `MaskPropertyGroup` | 6 | | `MaterialPropertyGroup` | 188 | | `OMCollection` | 1 | | `OutputModule` | 14 | | `ParagraphRange` | 0 | | `ParametricMeshLayer` | 20 | | `PlaceholderSource` | 0 | | `PreviewOptions` | 8 | | `Project` | 56 | | `Property` | 90 | | `Proper [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "bounded_admission_via_job_port",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018",
+      "STU-ARC-008",
+      "STU-ARC-012",
+      "STU-ARC-013",
+      "GUI-DESKTOP-033",
+      "GPU-QUOTA-015",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-MOTION",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": true,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

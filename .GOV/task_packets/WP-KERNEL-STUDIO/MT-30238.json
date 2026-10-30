@@ -139,7 +139,9 @@
   },
   "gameplan_ref": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml",
   "context_capsule": {
-    "module_maintenance_refs": [".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/5/maintenance"],
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/5/maintenance"
+    ],
     "specification_anchor_refs": [
       {
         "id": "STU-RAS-154",
@@ -2004,7 +2006,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2314,5 +2317,45 @@
       "criterion": "CANONICAL BLEND-MODE ENUMERATION.** The set is closed and the discriminants are canonical. They are the discriminants carried by the captured source enumerations, which agree with each other on every shared member, so an imported document round-trips without a mapping table. *Derivation: catalogue table, splits per row; yields 30 microtasks, one per blend mode.* | Blend mode (`StudioBlendMode`) | Discriminant | Group | Applicability | |---|---|---|---| | `pass_through` | 1 | structural | group layers only; the default group mode | | `normal` | 2 | normal | all | | `dissolve` | 3 | normal | all | | `darken` | 4 | darken | all | | `multiply` | 5 | darken | all | | `colour_burn` | 6 | darken | all | | `linear_burn` | 7 | darken | all | | `lighten` | 8 | lighten | all | | `screen` | 9 | lighten | all | | `colour_dodge` | 10 | lighten | all | | `linear_dodge_add` | 11 | lighten | all | | `overlay` | 12 | contrast | all | | `soft_light` | 13 | contrast | all | | `hard_light` | 14 | contrast | all | | `vivid_light` | 15 | contrast | all | | `linear_light` | 16 | contrast | all | | `pin_light` | 17 | contrast | all | | `difference` | 18 | comparative | all | | `exclusion` | 19 | comparative | all | | `hue` | 20 | component | all | | `saturation` | 21 | component | all | | `colour` | 22 | component | all | | `luminosity` | 23 | component | all | | `behind` | 24 | normal | **tool only** [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-PIGMENT",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

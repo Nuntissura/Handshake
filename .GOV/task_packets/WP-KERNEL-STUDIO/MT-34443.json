@@ -153,7 +153,7 @@
       {
         "id": "STU-SHL-022",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:30922",
-        "verbatim": "**[STU-SHL-022] Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `\u2026` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
+        "verbatim": "**[STU-SHL-022] Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `…` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
         "heading": "#### 1.3 The full menu tree",
         "section": "14.30",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -1224,7 +1224,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1632,7 +1632,23 @@
     ],
     "shared_resource_locks": [],
     "inputs": [
-      {"canonical_repository_url":"https://github.com/Nuntissura/assets","planned_source_root":"handshake-studio-assets/crates/hsk-studio-controls","requirement_refs":["STU-SHL-022"],"current_normative_instructions":"**[STU-SHL-022] Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `…` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.","declared_table_keys":[],"source_fields":["Label | node kind | command id","submenu","expansion","…"],"feature_selection":"--no-default-features; Controls+Accord+Observe+approved egui0.33 headless; published provider ports only","activation_bindings":"Immutable actual source/lock/proof, existing actor/session and resolved physical external artifact root; never fabricated local facts"},
+      {
+        "canonical_repository_url": "https://github.com/Nuntissura/assets",
+        "planned_source_root": "handshake-studio-assets/crates/hsk-studio-controls",
+        "requirement_refs": [
+          "STU-SHL-022"
+        ],
+        "current_normative_instructions": "**[STU-SHL-022] Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `…` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
+        "declared_table_keys": [],
+        "source_fields": [
+          "Label | node kind | command id",
+          "submenu",
+          "expansion",
+          "…"
+        ],
+        "feature_selection": "--no-default-features; Controls+Accord+Observe+approved egui0.33 headless; published provider ports only",
+        "activation_bindings": "Immutable actual source/lock/proof, existing actor/session and resolved physical external artifact root; never fabricated local facts"
+      },
       {
         "scope": "Current STUDIO-MODULE-CONTROLS asset slice from semantic fulfillment and exact current source; retained old placement is historical and host acceptance remains separately mandatory.",
         "fulfillment_ref": "MT-34443#/fulfillment",
@@ -1903,7 +1919,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -1985,7 +2002,7 @@
             "line": 30922,
             "section": "14.30",
             "heading": "#### 1.3 The full menu tree",
-            "verbatim": "**[STU-SHL-022] Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `\u2026` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
+            "verbatim": "**[STU-SHL-022] Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `…` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2055,7 +2072,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `\u2026` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
+        "semantic_fulfillment": "Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `…` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34443-ASSET-CONTROLS"
@@ -2065,7 +2082,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `\u2026` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
+            "required_behavior": "Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `…` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2074,13 +2091,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-          "consumer_assertion": "Actual Tree notation output obeys Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `\u2026` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
+          "consumer_assertion": "Actual Tree notation output obeys Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `…` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
           "negative_path": "Exact cases in MT-34443#/execution/implementation_steps",
           "oracle": "Independent actual outputs specified by MT-34443-ASSET-ASSET-AC-001; unavailable provider means NOT_PROVEN."
         },
         "later_embedding_ref": "MT-36213",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Qualified source MT-34443/ASSET-AC-001; actual host adoption MT-36213 independently proves: Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `\u2026` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
+        "later_embedding_assertion": "Qualified source MT-34443/ASSET-AC-001; actual host adoption MT-36213 independently proves: Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `…` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
         "status": "PENDING"
       }
     ],
@@ -2090,7 +2107,7 @@
       "all_original_acceptance_refs": [],
       "original_acceptance": [],
       "original_scope": {
-        "summary": "Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `\u2026` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
+        "summary": "Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `…` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -2105,7 +2122,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `\u2026` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
+          "semantic_fulfillment": "Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `…` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34443-ASSET-CONTROLS"
@@ -2115,7 +2132,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `\u2026` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
+              "required_behavior": "Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `…` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2124,13 +2141,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-            "consumer_assertion": "Actual Tree notation output obeys Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `\u2026` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
+            "consumer_assertion": "Actual Tree notation output obeys Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `…` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
             "negative_path": "Exact cases in MT-34443#/execution/implementation_steps",
             "oracle": "Independent actual outputs specified by MT-34443-ASSET-ASSET-AC-001; unavailable provider means NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36213",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Qualified source MT-34443/ASSET-AC-001; actual host adoption MT-36213 independently proves: Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `\u2026` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
+          "later_embedding_assertion": "Qualified source MT-34443/ASSET-AC-001; actual host adoption MT-36213 independently proves: Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `…` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
           "status": "PENDING"
         }
       ],
@@ -2141,7 +2158,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `\u2026` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
+          "semantic_fulfillment": "Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `…` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34443-ASSET-CONTROLS"
@@ -2151,7 +2168,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `\u2026` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
+              "required_behavior": "Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `…` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2160,13 +2177,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `\u2026` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
+            "consumer_assertion": "Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `…` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-34443-KERNEL-ASSET-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `\u2026` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `…` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ]
@@ -2187,5 +2204,51 @@
       "criterion": "Tree notation.** Each entry below is `Label | node kind | command id`. `submenu` nodes list their children. `expansion` nodes name their leaf source and their leaf count and are governed by [STU-SHL-037]. A trailing `…` marks a leaf that opens a dialog. This tree is the DESIGNED surface: 1,533 explicit leaves, 203 submenus, 375 menu-only nodes, plus registry expansion.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

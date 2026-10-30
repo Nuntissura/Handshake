@@ -1949,7 +1949,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2251,5 +2252,39 @@
       "criterion": "Transparency and blending contract.** Document-scoped transparency preferences carry a global light that every shadow and bevel effect inherits unless it overrides: *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | |---|---|---|---|---|---|---|---| | `global_light_angle` | -360 | 360 | unknown | unknown | unknown | `deg` | unknown | | `global_light_altitude` | 0 | 90 | unknown | unknown | unknown | `deg` | unknown | | `blending_setting_opacity` | 0 | 100 | unknown | unknown | unknown | `percent` | unknown | `blending_space` is the captured three-member enumeration `{blend_space.default, blend_space.rgb, blend_space.cmyk}` and is a SPREAD-scoped setting: changing it changes how every transparency group on that spread composites. `spread_flattener_override` is a per-spread flattener level drawn from `{flattener.low, flattener.medium_low, flattener.medium, flattener.medium_high, flattener.high}`.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-LAYOUT",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

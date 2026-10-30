@@ -1769,7 +1769,9 @@
   "authority_migration": {
     "approval": "ilja091020261912",
     "template_ref": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json",
-    "active_execution_authority": [],
+    "active_execution_authority": [
+      "host_integration"
+    ],
     "historical_fields": [
       "clause",
       "spec_anchor",
@@ -1848,7 +1850,7 @@
         "original_text": "The requirement it satisfies is \"tooltips wherever possible\", and the requirement's own generation principle is normative: **tooltip text MUST be generated from the captured corpora rather than hand-written, so it cannot drift from the implementation.** The captures already hold vendor-written descriptions plus real ranges, units, defaults and decimal places.",
         "original_row_sha256": "1a99f2157f044de6e957b106b722769f88f584729a61fb086bdecabfd8ca04af",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731; **[STU-SHL-225] Clauses that yield NO microtask.** Exactly one class: the five clauses of this derivation sub-section itself \u2014 [STU-SHL-224] through [STU-SHL-228]. **Every other clause in this sub-section yields**, including the obligation clauses, because proving an obligation holds across 362 tools is itself work. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
+        "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731; **[STU-SHL-225] Clauses that yield NO microtask.** Exactly one class: the five clauses of this derivation sub-section itself — [STU-SHL-224] through [STU-SHL-228]. **Every other clause in this sub-section yields**, including the obligation clauses, because proving an obligation holds across 362 tools is itself work. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
         "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_REFERENCE",
         "asset_contribution_refs": [
           ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731"
@@ -1881,7 +1883,7 @@
         }
       ],
       "original_scope": {
-        "summary": "Anchor binding.** As [STU-SHL-119A]. A microtask derived here cites its clause anchor directly, a tool microtask additionally cites its `tool_id`, and binding clears `spec_anchor_status`. --- ## 14.32 ## 14.32 Tooltips, the Help System, and the Generated UserManual Contract This sub-section specifies the tooltip and help system for every Studio surface, the ONE record that backs a tooltip, an accessible description, a menu leaf, a palette row and a manual anchor simultaneously, the build-time generation path from the captured corpora into that record, and the honest coverage ceiling with the gate that keeps it honest. The requirement it satisfies is \"tooltips wherever possible\", and the requirement's own generation principle is normative: **tooltip text MUST be generated from the captured corpora rather than hand-written, so it cannot drift from the implementation.** The captures already hold vendor-written descriptions plus real ranges, units, defaults and decimal places. This sub-section is the contract that turns that into a shipped property of the product rather than an intention. The clauses [STU-MAN-001] through [STU-MAN-004] of v02.205 remain in force UNCHANGED. This sub-section adds the mechanism that makes them satisfiable at Studio's scale \u2014 362 tools and roughly 14,700 parameters \u2014 where hand-seeding is not viable. --- ### 1. The tooltip system",
+        "summary": "Anchor binding.** As [STU-SHL-119A]. A microtask derived here cites its clause anchor directly, a tool microtask additionally cites its `tool_id`, and binding clears `spec_anchor_status`. --- ## 14.32 ## 14.32 Tooltips, the Help System, and the Generated UserManual Contract This sub-section specifies the tooltip and help system for every Studio surface, the ONE record that backs a tooltip, an accessible description, a menu leaf, a palette row and a manual anchor simultaneously, the build-time generation path from the captured corpora into that record, and the honest coverage ceiling with the gate that keeps it honest. The requirement it satisfies is \"tooltips wherever possible\", and the requirement's own generation principle is normative: **tooltip text MUST be generated from the captured corpora rather than hand-written, so it cannot drift from the implementation.** The captures already hold vendor-written descriptions plus real ranges, units, defaults and decimal places. This sub-section is the contract that turns that into a shipped property of the product rather than an intention. The clauses [STU-MAN-001] through [STU-MAN-004] of v02.205 remain in force UNCHANGED. This sub-section adds the mechanism that makes them satisfiable at Studio's scale — 362 tools and roughly 14,700 parameters — where hand-seeding is not viable. --- ### 1. The tooltip system",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -1896,7 +1898,7 @@
           "original_text": "The requirement it satisfies is \"tooltips wherever possible\", and the requirement's own generation principle is normative: **tooltip text MUST be generated from the captured corpora rather than hand-written, so it cannot drift from the implementation.** The captures already hold vendor-written descriptions plus real ranges, units, defaults and decimal places.",
           "original_row_sha256": "1a99f2157f044de6e957b106b722769f88f584729a61fb086bdecabfd8ca04af",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731; **[STU-SHL-225] Clauses that yield NO microtask.** Exactly one class: the five clauses of this derivation sub-section itself \u2014 [STU-SHL-224] through [STU-SHL-228]. **Every other clause in this sub-section yields**, including the obligation clauses, because proving an obligation holds across 362 tools is itself work. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
+          "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731; **[STU-SHL-225] Clauses that yield NO microtask.** Exactly one class: the five clauses of this derivation sub-section itself — [STU-SHL-224] through [STU-SHL-228]. **Every other clause in this sub-section yields**, including the obligation clauses, because proving an obligation holds across 362 tools is itself work. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
           "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_REFERENCE",
           "asset_contribution_refs": [
             ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731"
@@ -1926,5 +1928,49 @@
       "status": "SPEC_EXPLICIT_NO_MT_OLD_EDGES_RETAINED_IN_ORIGINAL_PAYLOAD"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00"
+  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

@@ -2055,7 +2055,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2356,5 +2357,45 @@
       "criterion": "The normative keyframe operation set.** Each is a typed command and one reversible history step. *Derivation: catalogue table, splits per row; yields 15 microtasks, one per keyframe operation.* | Operation | Contract | |---|---| | Add or delete at current time | Per property, toggling. Adding captures the property's current evaluated value, so adding a keyframe never changes the render. | | Add and reveal | Adds a keyframe and expands the property in the outline. | | Enable animation on a property | Converts `static` to `keyframed` by creating the first keyframe at the current time. | | Disable animation | Converts back to `static`, discarding keyframes, with the retained static value of [STU-MOT-020b]. | | Select all keyframes on a property, layer, or composition | Three scopes, separately addressable. | | Select visible keyframes and exposed properties | Scoped to what the outline currently shows. | | Deselect all keyframes and properties | | | Go to next / previous keyframe | Two variants: across all visible properties, and restricted to selected layers or properties. | | Shift selected keyframes by one frame / by ten frames, earlier or later | The ten-frame step is the shared multi-step preference ([STU-VID-035a]). | | Drag to move in time | Snaps to the playhead, to other keyframes, and to layer in/out points. | | Copy, paste, and REVERSE paste | Reverse paste inverts the [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-MOTION",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

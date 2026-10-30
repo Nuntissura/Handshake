@@ -153,7 +153,7 @@
       {
         "id": "STU-SHL-226",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32733",
-        "verbatim": "**[STU-SHL-226] An open item still yields a microtask.** As [STU-SHL-118]. A clause blocked on an operator decision or a capture gap yields a microtask whose FIRST acceptance criterion is resolving that dependency. In particular: the `adjustment_live` and `filter_live` disposition ([STU-SHL-142]) is blocked on OD-3, and its 80 catalogue rows remain in the derived set as BLOCKED rather than being dropped \u2014 if OD-3 moves them to commands, both the count and the catalogue change together and the rows are re-derived, never deleted ([STU-SHL-156]). The model-backed exclusion boundary ([STU-SHL-154]) is blocked on OD-9 and remains derived. Spatial interpolation ([STU-SHL-206]) is blocked on SD-4 and remains derived. Every tool row carries three declared-unknown inputs \u2014 rail group, chord and Task Scope membership \u2014 as open inputs of its microtask rather than as invented values ([STU-SHL-155]).",
+        "verbatim": "**[STU-SHL-226] An open item still yields a microtask.** As [STU-SHL-118]. A clause blocked on an operator decision or a capture gap yields a microtask whose FIRST acceptance criterion is resolving that dependency. In particular: the `adjustment_live` and `filter_live` disposition ([STU-SHL-142]) is blocked on OD-3, and its 80 catalogue rows remain in the derived set as BLOCKED rather than being dropped — if OD-3 moves them to commands, both the count and the catalogue change together and the rows are re-derived, never deleted ([STU-SHL-156]). The model-backed exclusion boundary ([STU-SHL-154]) is blocked on OD-9 and remains derived. Spatial interpolation ([STU-SHL-206]) is blocked on SD-4 and remains derived. Every tool row carries three declared-unknown inputs — rail group, chord and Task Scope membership — as open inputs of its microtask rather than as invented values ([STU-SHL-155]).",
         "heading": "### 10. Microtask Derivation",
         "section": "14.31",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -1755,7 +1755,9 @@
   "authority_migration": {
     "approval": "ilja091020261912",
     "template_ref": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json",
-    "active_execution_authority": [],
+    "active_execution_authority": [
+      "host_integration"
+    ],
     "historical_fields": [
       "clause",
       "spec_anchor",
@@ -1801,7 +1803,7 @@
             "line": 32733,
             "section": "14.31",
             "heading": "### 10. Microtask Derivation",
-            "verbatim": "**[STU-SHL-226] An open item still yields a microtask.** As [STU-SHL-118]. A clause blocked on an operator decision or a capture gap yields a microtask whose FIRST acceptance criterion is resolving that dependency. In particular: the `adjustment_live` and `filter_live` disposition ([STU-SHL-142]) is blocked on OD-3, and its 80 catalogue rows remain in the derived set as BLOCKED rather than being dropped \u2014 if OD-3 moves them to commands, both the count and the catalogue change together and the rows are re-derived, never deleted ([STU-SHL-156]). The model-backed exclusion boundary ([STU-SHL-154]) is blocked on OD-9 and remains derived. Spatial interpolation ([STU-SHL-206]) is blocked on SD-4 and remains derived. Every tool row carries three declared-unknown inputs \u2014 rail group, chord and Task Scope membership \u2014 as open inputs of its microtask rather than as invented values ([STU-SHL-155]).",
+            "verbatim": "**[STU-SHL-226] An open item still yields a microtask.** As [STU-SHL-118]. A clause blocked on an operator decision or a capture gap yields a microtask whose FIRST acceptance criterion is resolving that dependency. In particular: the `adjustment_live` and `filter_live` disposition ([STU-SHL-142]) is blocked on OD-3, and its 80 catalogue rows remain in the derived set as BLOCKED rather than being dropped — if OD-3 moves them to commands, both the count and the catalogue change together and the rows are re-derived, never deleted ([STU-SHL-156]). The model-backed exclusion boundary ([STU-SHL-154]) is blocked on OD-9 and remains derived. Spatial interpolation ([STU-SHL-206]) is blocked on SD-4 and remains derived. Every tool row carries three declared-unknown inputs — rail group, chord and Task Scope membership — as open inputs of its microtask rather than as invented values ([STU-SHL-155]).",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -1834,7 +1836,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731; **[STU-SHL-225] Clauses that yield NO microtask.** Exactly one class: the five clauses of this derivation sub-section itself \u2014 [STU-SHL-224] through [STU-SHL-228]. **Every other clause in this sub-section yields**, including the obligation clauses, because proving an obligation holds across 362 tools is itself work. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
+        "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731; **[STU-SHL-225] Clauses that yield NO microtask.** Exactly one class: the five clauses of this derivation sub-section itself — [STU-SHL-224] through [STU-SHL-228]. **Every other clause in this sub-section yields**, including the obligation clauses, because proving an obligation holds across 362 tools is itself work. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
         "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_REFERENCE",
         "asset_contribution_refs": [
           ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731"
@@ -1860,7 +1862,7 @@
       "all_original_acceptance_refs": [],
       "original_acceptance": [],
       "original_scope": {
-        "summary": "An open item still yields a microtask.** As [STU-SHL-118]. A clause blocked on an operator decision or a capture gap yields a microtask whose FIRST acceptance criterion is resolving that dependency. In particular: the `adjustment_live` and `filter_live` disposition ([STU-SHL-142]) is blocked on OD-3, and its 80 catalogue rows remain in the derived set as BLOCKED rather than being dropped \u2014 if OD-3 moves them to commands, both the count and the catalogue change together and the rows are re-derived, never deleted ([STU-SHL-156]). The model-backed exclusion boundary ([STU-SHL-154]) is blocked on OD-9 and remains derived. Spatial interpolation ([STU-SHL-206]) is blocked on SD-4 and remains derived. Every tool row carries three declared-unknown inputs \u2014 rail group, chord and Task Scope membership \u2014 as open inputs of its microtask rather than as invented values ([STU-SHL-155]).",
+        "summary": "An open item still yields a microtask.** As [STU-SHL-118]. A clause blocked on an operator decision or a capture gap yields a microtask whose FIRST acceptance criterion is resolving that dependency. In particular: the `adjustment_live` and `filter_live` disposition ([STU-SHL-142]) is blocked on OD-3, and its 80 catalogue rows remain in the derived set as BLOCKED rather than being dropped — if OD-3 moves them to commands, both the count and the catalogue change together and the rows are re-derived, never deleted ([STU-SHL-156]). The model-backed exclusion boundary ([STU-SHL-154]) is blocked on OD-9 and remains derived. Spatial interpolation ([STU-SHL-206]) is blocked on SD-4 and remains derived. Every tool row carries three declared-unknown inputs — rail group, chord and Task Scope membership — as open inputs of its microtask rather than as invented values ([STU-SHL-155]).",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -1875,7 +1877,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731; **[STU-SHL-225] Clauses that yield NO microtask.** Exactly one class: the five clauses of this derivation sub-section itself \u2014 [STU-SHL-224] through [STU-SHL-228]. **Every other clause in this sub-section yields**, including the obligation clauses, because proving an obligation holds across 362 tools is itself work. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
+          "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731; **[STU-SHL-225] Clauses that yield NO microtask.** Exactly one class: the five clauses of this derivation sub-section itself — [STU-SHL-224] through [STU-SHL-228]. **Every other clause in this sub-section yields**, including the obligation clauses, because proving an obligation holds across 362 tools is itself work. Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
           "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_REFERENCE",
           "asset_contribution_refs": [
             ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32731"
@@ -1902,7 +1904,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "An open item still yields a microtask.** As [STU-SHL-118]. A clause blocked on an operator decision or a capture gap yields a microtask whose FIRST acceptance criterion is resolving that dependency. In particular: the `adjustment_live` and `filter_live` disposition ([STU-SHL-142]) is blocked on OD-3, and its 80 catalogue rows remain in the derived set as BLOCKED rather than being dropped \u2014 if OD-3 moves them to commands, both the count and the catalogue change together and the rows are re-derived, never deleted ([STU-SHL-156]). The model-backed exclusion boundary ([STU-SHL-154]) is blocked on OD-9 and remains derived. Spatial interpolation ([STU-SHL-206]) is blocked on SD-4 and remains derived. Every tool row carries three declared-unknown inputs \u2014 rail group, chord and Task Scope membership \u2014 as open inputs of its microtask rather than as invented values ([STU-SHL-155]).",
+          "semantic_fulfillment": "An open item still yields a microtask.** As [STU-SHL-118]. A clause blocked on an operator decision or a capture gap yields a microtask whose FIRST acceptance criterion is resolving that dependency. In particular: the `adjustment_live` and `filter_live` disposition ([STU-SHL-142]) is blocked on OD-3, and its 80 catalogue rows remain in the derived set as BLOCKED rather than being dropped — if OD-3 moves them to commands, both the count and the catalogue change together and the rows are re-derived, never deleted ([STU-SHL-156]). The model-backed exclusion boundary ([STU-SHL-154]) is blocked on OD-9 and remains derived. Spatial interpolation ([STU-SHL-206]) is blocked on SD-4 and remains derived. Every tool row carries three declared-unknown inputs — rail group, chord and Task Scope membership — as open inputs of its microtask rather than as invented values ([STU-SHL-155]).",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-35418-ASSET-CONTROLS"
@@ -1912,7 +1914,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "An open item still yields a microtask.** As [STU-SHL-118]. A clause blocked on an operator decision or a capture gap yields a microtask whose FIRST acceptance criterion is resolving that dependency. In particular: the `adjustment_live` and `filter_live` disposition ([STU-SHL-142]) is blocked on OD-3, and its 80 catalogue rows remain in the derived set as BLOCKED rather than being dropped \u2014 if OD-3 moves them to commands, both the count and the catalogue change together and the rows are re-derived, never deleted ([STU-SHL-156]). The model-backed exclusion boundary ([STU-SHL-154]) is blocked on OD-9 and remains derived. Spatial interpolation ([STU-SHL-206]) is blocked on SD-4 and remains derived. Every tool row carries three declared-unknown inputs \u2014 rail group, chord and Task Scope membership \u2014 as open inputs of its microtask rather than as invented values ([STU-SHL-155]).",
+              "required_behavior": "An open item still yields a microtask.** As [STU-SHL-118]. A clause blocked on an operator decision or a capture gap yields a microtask whose FIRST acceptance criterion is resolving that dependency. In particular: the `adjustment_live` and `filter_live` disposition ([STU-SHL-142]) is blocked on OD-3, and its 80 catalogue rows remain in the derived set as BLOCKED rather than being dropped — if OD-3 moves them to commands, both the count and the catalogue change together and the rows are re-derived, never deleted ([STU-SHL-156]). The model-backed exclusion boundary ([STU-SHL-154]) is blocked on OD-9 and remains derived. Spatial interpolation ([STU-SHL-206]) is blocked on SD-4 and remains derived. Every tool row carries three declared-unknown inputs — rail group, chord and Task Scope membership — as open inputs of its microtask rather than as invented values ([STU-SHL-155]).",
               "only_owner_root_may_change": true
             }
           ],
@@ -1921,13 +1923,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "An open item still yields a microtask.** As [STU-SHL-118]. A clause blocked on an operator decision or a capture gap yields a microtask whose FIRST acceptance criterion is resolving that dependency. In particular: the `adjustment_live` and `filter_live` disposition ([STU-SHL-142]) is blocked on OD-3, and its 80 catalogue rows remain in the derived set as BLOCKED rather than being dropped \u2014 if OD-3 moves them to commands, both the count and the catalogue change together and the rows are re-derived, never deleted ([STU-SHL-156]). The model-backed exclusion boundary ([STU-SHL-154]) is blocked on OD-9 and remains derived. Spatial interpolation ([STU-SHL-206]) is blocked on SD-4 and remains derived. Every tool row carries three declared-unknown inputs \u2014 rail group, chord and Task Scope membership \u2014 as open inputs of its microtask rather than as invented values ([STU-SHL-155]).",
+            "consumer_assertion": "An open item still yields a microtask.** As [STU-SHL-118]. A clause blocked on an operator decision or a capture gap yields a microtask whose FIRST acceptance criterion is resolving that dependency. In particular: the `adjustment_live` and `filter_live` disposition ([STU-SHL-142]) is blocked on OD-3, and its 80 catalogue rows remain in the derived set as BLOCKED rather than being dropped — if OD-3 moves them to commands, both the count and the catalogue change together and the rows are re-derived, never deleted ([STU-SHL-156]). The model-backed exclusion boundary ([STU-SHL-154]) is blocked on OD-9 and remains derived. Spatial interpolation ([STU-SHL-206]) is blocked on SD-4 and remains derived. Every tool row carries three declared-unknown inputs — rail group, chord and Task Scope membership — as open inputs of its microtask rather than as invented values ([STU-SHL-155]).",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-35418-KERNEL-ASSET-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "An open item still yields a microtask.** As [STU-SHL-118]. A clause blocked on an operator decision or a capture gap yields a microtask whose FIRST acceptance criterion is resolving that dependency. In particular: the `adjustment_live` and `filter_live` disposition ([STU-SHL-142]) is blocked on OD-3, and its 80 catalogue rows remain in the derived set as BLOCKED rather than being dropped \u2014 if OD-3 moves them to commands, both the count and the catalogue change together and the rows are re-derived, never deleted ([STU-SHL-156]). The model-backed exclusion boundary ([STU-SHL-154]) is blocked on OD-9 and remains derived. Spatial interpolation ([STU-SHL-206]) is blocked on SD-4 and remains derived. Every tool row carries three declared-unknown inputs \u2014 rail group, chord and Task Scope membership \u2014 as open inputs of its microtask rather than as invented values ([STU-SHL-155]). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "An open item still yields a microtask.** As [STU-SHL-118]. A clause blocked on an operator decision or a capture gap yields a microtask whose FIRST acceptance criterion is resolving that dependency. In particular: the `adjustment_live` and `filter_live` disposition ([STU-SHL-142]) is blocked on OD-3, and its 80 catalogue rows remain in the derived set as BLOCKED rather than being dropped — if OD-3 moves them to commands, both the count and the catalogue change together and the rows are re-derived, never deleted ([STU-SHL-156]). The model-backed exclusion boundary ([STU-SHL-154]) is blocked on OD-9 and remains derived. Spatial interpolation ([STU-SHL-206]) is blocked on SD-4 and remains derived. Every tool row carries three declared-unknown inputs — rail group, chord and Task Scope membership — as open inputs of its microtask rather than as invented values ([STU-SHL-155]). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ]
@@ -1948,5 +1950,49 @@
       "criterion": "An open item still yields a microtask.** As [STU-SHL-118]. A clause blocked on an operator decision or a capture gap yields a microtask whose FIRST acceptance criterion is resolving that dependency. In particular: the `adjustment_live` and `filter_live` disposition ([STU-SHL-142]) is blocked on OD-3, and its 80 catalogue rows remain in the derived set as BLOCKED rather than being dropped — if OD-3 moves them to commands, both the count and the catalogue change together and the rows are re-derived, never deleted ([STU-SHL-156]). The model-backed exclusion boundary ([STU-SHL-154]) is blocked on OD-9 and remains derived. Spatial interpolation ([STU-SHL-206]) is blocked on SD-4 and remains derived. Every tool row carries three declared-unknown inputs — rail group, chord and Task Scope membership — as open inputs of its microtask rather than as invented values ([STU-SHL-155]).",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

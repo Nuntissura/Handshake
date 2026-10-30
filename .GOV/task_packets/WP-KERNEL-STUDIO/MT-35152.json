@@ -139,7 +139,9 @@
   },
   "gameplan_ref": ".GOV/docs_repo/tmp/studio-preparation-gameplan.yaml",
   "context_capsule": {
-    "module_maintenance_refs": [".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/15/maintenance"],
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#/modules/15/maintenance"
+    ],
     "specification_anchor_refs": [
       {
         "id": "STU-FX-133b",
@@ -2014,7 +2016,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2324,5 +2327,45 @@
       "criterion": "Preset-defined pseudo-effects.** 107 entries in the editing application and 106 in the compositing application are not plug-in binaries but effect identities defined by a shipped preset: a named parameter surface over an underlying effect graph. Studio models these as `StudioEffectStack` presets in the `StudioStyleRegistry` ([STU-FX-039]) that expose a curated parameter subset, NOT as new `filter_kind` values, because doing otherwise would create a second effect-identity space. Their exposed parameters are ordinary `StudioEffectParameter` records and carry the full contract. **Presets (pseudo-effect backing shipped animation presets)** (107) *Derivation: catalogue table, splits per row; yields 107 microtasks, one per preset-defined pseudo-effect.* **Preset-defined pseudo-effects new to the editing application** (1 row) *Derivation: catalogue table, splits per row; yields 1 microtasks, one per new preset-defined pseudo-effect.* | Studio effect | Engine | Params | Presets | Description (from capture) | Import key (provenance) | |---|---|---|---|---|---| | Face Track Points | ae_native | 151 | 0 | _no vendor description recovered_ | `Pseudo/ADBE Animal Head66` | **Preset-defined pseudo-effects that dedup onto 14.9.3** (106 rows) *Derivation: catalogue table listing rows that dedup onto an existing filter_kind under [STU-FX-127]; yields no microtask of its own.* | Studio effect | E [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-COMPOSITE",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

@@ -1950,7 +1950,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2178,7 +2179,9 @@
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
-          "host_adoption_mt_refs": ["MT-36195"],
+          "host_adoption_mt_refs": [
+            "MT-36195"
+          ],
           "later_embedding_required": true,
           "later_embedding_assertion": "Scribble-fill contract.** A procedural hand-drawn fill. Fully captured, and the richest single effect contract in the vector capture: *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | |---|---|---|---|---|---|---|---| | `path_overlap` | unknown | unknown | -1000 | 1000 | 0 | `ruler_unit` | 2 | | `path_overlap_variation` | unknown | unknown | 0 | 1000 | 5 | `ruler_unit` | 2 | | `stroke_width` | unknown | unknown | 0.01 | 1000 | 3 | `ruler_unit` | 2 | | `curviness` | unknown | unknown | 0 | 100 | 5 | `percent` | 2 | | `curviness_variation` | unknown | unknown | 0 | 100 | 1 | `percent` | 2 | | `spacing` | unknown | unknown | 0.01 | 1000 | 5 | `ruler_unit` | 2 | | `spacing_variation` | unknown | unknown | 0 | 1000 | 0.5 | `ruler_unit` | 2 | | `angle` | unknown | unknown | unknown | unknown | unknown | `deg` | unknown | `observed` across 59 shipped instances: angle -144.0..148.0, edge overlap -9.0..2.0, overlap variation 0.0..8.0, scribbliness 0.0..0.84, scribble variation 0.0..1.0, spacing 0.2..15.0, spacing variation 0.0..18.0, stroke width 0.2..8.0. A named settings preset selector accompanies the sliders; its member list was not recovered and is a declared spec gap. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
@@ -2284,5 +2287,39 @@
     "CX-VERIFY-001",
     "CX-VERIFY-002",
     "CX-VERIFY-003"
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-NIB",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

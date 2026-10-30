@@ -2021,7 +2021,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2323,5 +2324,39 @@
       "criterion": "Trap preset contract.** Referenced by the vector domain's trap operation ([STU-VEC-132]). The captured trap-preset object declares: *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | |---|---|---|---|---|---|---|---| | `default_trap_width` | 0.0 | 8.0 | unknown | unknown | unknown | `pt` | unknown | | `black_width` | 0.0 | 8.0 | unknown | unknown | unknown | `pt` | unknown | | `black_color_threshold` | 0 | 100 | unknown | unknown | unknown | `percent` | unknown | | `black_density` | 0.001 | 10 | unknown | unknown | unknown | `ratio` | 3 | | `sliding_trap_threshold` | 0 | 100 | unknown | unknown | unknown | `percent` | unknown | | `step_threshold` | 1 | 100 | unknown | unknown | unknown | `percent` | unknown | | `color_reduction` | 0 | 100 | unknown | unknown | unknown | `percent` | unknown | A second capture of `black_density` declares 0.001..12.0; per [STU-LAY-103] both are recorded and the normative Studio hard maximum is 12.0 (the wider). The two width parameters are declared per unit -- 0.0 to 8.0 points, 0 to 0.1111 inches, 0 to 2.822 mm, 0 to 0.2822 cm, 0p0 to 0p8 picas, 0c0 to 0c7.507 ciceros -- and `pt` is canonical per [STU-LAY-100]. `trap_end_type` is `{trap_end.miter, trap_end.overlap}`; `trap_image_placemen [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-LAYOUT",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

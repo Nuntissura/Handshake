@@ -1971,7 +1971,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2272,5 +2273,45 @@
       "criterion": "21 shape operator families are normative.** They divide into three roles: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Role | Operators | |---|---| | Path generators | Rectangle path (position, size, roundness, direction), Ellipse path (position, size, direction), Polystar path (type, points, position, rotation, inner and outer radius, inner and outer roundness, direction), Bezier path (an editable path plus direction). | | Paint operators | Fill (colour, opacity, fill rule, blend mode, composite order), Stroke (colour, opacity, width, line cap, line join, miter limit, dashes, taper, wave, blend mode, composite order), Gradient Fill, Gradient Stroke. | | Path modifiers | Merge Paths, Offset Paths, Pucker & Bloat, Repeater, Round Corners, Trim Paths, Twist, Wiggle Paths, Wiggle Transform, Zig Zag, and a Trim reveal helper. | Two further groups complete the model: a per-group TRANSFORM and a per-group MATERIALS group for 3D shape extrusion.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-MOTION",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

@@ -2102,7 +2102,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2409,5 +2410,51 @@
       "criterion": "The 22 families (normative, closed).** Family is the TAXONOMIC axis and is closed. Every tool belongs to exactly one family. The family level is what makes 362 tools browsable and it is MANDATORY in the menu ([STU-SHL-039]). | family_id | Display name | Definition | Members | |---|---|---|---| | `select_object` | Selection — object | Pick, sub-pick and group-pick whole objects, nodes and clips. | 11 | | `select_region` | Selection — region | Produce or refine a pixel, range or colour selection rather than picking an object. | 22 | | `navigate` | Navigation | Move the viewport. NEVER mutates the document. | 4 | | `camera_3d` | Camera and 3D scene | Move and frame a camera layer, and manipulate 3D scene geometry. Distinct from `navigate` precisely because it MUTATES a camera layer's transform. | 4 | | `paint_raster` | Paint | Deposit colour with a stroke, raster or vector. | 6 | | `erase` | Erase | Remove coverage with a stroke. | 4 | | `retouch` | Retouch and repair | Replace image content from elsewhere, from a model, or from a computed reconstruction. | 21 | | `tone_brush` | Tone and local adjustment brushes | Modify tone, colour, focus or a live adjustment by painting a mask. | 12 | | `draw_path` | Draw and edit paths | Construct and manipulate curve geometry and its nodes, handles and topology. | 21 | | `shape` | Shapes | Parametric primitive construction. | 37 | | `type` | [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

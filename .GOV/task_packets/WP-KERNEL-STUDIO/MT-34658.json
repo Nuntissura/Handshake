@@ -2056,7 +2056,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2363,5 +2364,51 @@
       "criterion": "SD-1 — THE LAYER-VERSUS-NODE COMPOSITING FORK. NOT DECIDED. Settle before SHL-P-14.** *The question.* Is Studio's compositing document model LAYER-based (a composition holds an ordered stack of layers, each carrying a property tree) or NODE-based (a directed graph of operations)? *Why it is a fork and not a rendering detail.* The two are different DOCUMENT MODELS with different undo semantics, different parallelism, and different model-steerability. The vendor of record for compositing that the green room captured is layer-based; high-end visual effects practice is predominantly node-based. Serving visual-effects work properly may mean a node graph. *What the evidence supports.* The LAYER model fully: 1,326 catalogued property match names, 759 containment edges, 13 property-group topics, the keyframe record format and the expression container are all measured. A node model has NO reference basis in the corpus and would need its own. *What already exists in the product.* Handshake already ships node-graph precedent in its own shell — a graph surface and a canvas board — so the fork is not a build-versus-buy question, it is a document-model question. *The weakest form of the question that IS already answered.* A graph PROJECTION over a layer document is already required and already field-precedented: the captured application ships a read-only dependency view over nested compositi [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

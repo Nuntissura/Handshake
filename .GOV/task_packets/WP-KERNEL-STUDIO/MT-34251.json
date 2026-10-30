@@ -1581,7 +1581,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-WEB scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-WEB scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': True, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -2362,7 +2362,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2724,5 +2725,51 @@
       "criterion": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) | Current v02.208 enrichment: Preserve all nine original binding fields; require refines_panel_id only for band6, naming registered band5 with equal binds_to/selection_scope/document_types set-or-same-star/context_requirement map and nonnull discriminator; other bands gain no suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34251.json#/execution/inputs/1/complete_clause_body",
       "source": "Current v02.208 verified full clause plus preserved native original scope; mirrors closure_unit.materialized_acceptance under the same ID."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-WEB",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

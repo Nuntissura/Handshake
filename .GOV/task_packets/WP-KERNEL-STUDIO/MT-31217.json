@@ -1966,7 +1966,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2270,5 +2271,45 @@
       "criterion": "LUT and grade application order (NORMATIVE).** When a colour operation stack contains more than one of these, they apply in exactly this order and the order is not configurable: 1. **Input / technical LUT** - converts a camera or source encoding into the working space. 2. **Primary correction** - white balance, exposure, contrast, tone, saturation ([STU-COL-220]). 3. **Creative look LUT** with its intensity mix ([STU-COL-221]). 4. **Look adjustments** - the post-look tone and colour trim. 5. **Curves** - RGB curves, then hue/saturation curves ([STU-COL-225], [STU-COL-226]). 6. **Colour wheels** - lift/gamma/gain and their shadow/midtone/highlight split ([STU-COL-222]). 7. **Secondary corrections** - keyed or masked regions, in stack order ([STU-COL-227]). 8. **Vignette** ([STU-COL-228]). 9. **Output / display LUT or display transform**. A stack that applies a creative look before the technical input LUT produces a different and wrong image. This ordering is part of the determinism contract of [STU-COL-143]. --- ### 14.8.8 Where Colour Management Sits Relative to the Compositor",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-PRISM",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

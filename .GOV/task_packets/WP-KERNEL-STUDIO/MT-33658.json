@@ -172,7 +172,7 @@
       {
         "id": "STU-UNI-001",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:22359",
-        "verbatim": "[STU-UNI-001] ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive \u2014 the same typed contract models call (14.16).",
+        "verbatim": "[STU-UNI-001] ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16).",
         "heading": "## 14.21 Operator Unification Surface",
         "section": "14.21",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -1243,7 +1243,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1751,13 +1751,13 @@
           "Independent actual output"
         ],
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
-        "expected": "Actual consumer satisfies ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive \u2014 the same typed contract models call (14.16). with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
+        "expected": "Actual consumer satisfies ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16). with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-controls"
           ],
           "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-          "consumer_assertion": "Actual consumer satisfies ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive \u2014 the same typed contract models call (14.16). with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
+          "consumer_assertion": "Actual consumer satisfies ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16). with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
           "negative_path": "Exact cases in MT-33658#/execution/implementation_steps",
           "oracle": "Independent actual outputs specified by MT-33658-ASSET-ASSET-AC-001; unavailable provider means NOT_PROVEN."
         },
@@ -1946,7 +1946,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2028,7 +2029,7 @@
             "line": 22359,
             "section": "14.21",
             "heading": "## 14.21 Operator Unification Surface",
-            "verbatim": "[STU-UNI-001] ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive \u2014 the same typed contract models call (14.16).",
+            "verbatim": "[STU-UNI-001] ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16).",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2098,7 +2099,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive \u2014 the same typed contract models call (14.16).",
+        "semantic_fulfillment": "ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16).",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33658-ASSET-CONTROLS"
@@ -2108,7 +2109,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive \u2014 the same typed contract models call (14.16).",
+            "required_behavior": "ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16).",
             "only_owner_root_may_change": true
           }
         ],
@@ -2117,13 +2118,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-          "consumer_assertion": "Actual consumer satisfies ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive \u2014 the same typed contract models call (14.16). with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
+          "consumer_assertion": "Actual consumer satisfies ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16). with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
           "negative_path": "Exact cases in MT-33658#/execution/implementation_steps",
           "oracle": "Independent actual outputs specified by MT-33658-ASSET-ASSET-AC-001; unavailable provider means NOT_PROVEN."
         },
         "later_embedding_ref": "MT-36213",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Qualified source MT-33658/ASSET-AC-001; actual host adoption MT-36213 independently proves: ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive \u2014 the same typed contract models call (14.16).",
+        "later_embedding_assertion": "Qualified source MT-33658/ASSET-AC-001; actual host adoption MT-36213 independently proves: ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16).",
         "status": "PENDING"
       }
     ],
@@ -2133,7 +2134,7 @@
       "all_original_acceptance_refs": [],
       "original_acceptance": [],
       "original_scope": {
-        "summary": "ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive \u2014 the same typed contract models call (14.16).",
+        "summary": "ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16).",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -2148,7 +2149,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive \u2014 the same typed contract models call (14.16).",
+          "semantic_fulfillment": "ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16).",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33658-ASSET-CONTROLS"
@@ -2158,7 +2159,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive \u2014 the same typed contract models call (14.16).",
+              "required_behavior": "ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16).",
               "only_owner_root_may_change": true
             }
           ],
@@ -2167,13 +2168,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-            "consumer_assertion": "Actual consumer satisfies ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive \u2014 the same typed contract models call (14.16). with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
+            "consumer_assertion": "Actual consumer satisfies ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16). with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
             "negative_path": "Exact cases in MT-33658#/execution/implementation_steps",
             "oracle": "Independent actual outputs specified by MT-33658-ASSET-ASSET-AC-001; unavailable provider means NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36213",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Qualified source MT-33658/ASSET-AC-001; actual host adoption MT-36213 independently proves: ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive \u2014 the same typed contract models call (14.16).",
+          "later_embedding_assertion": "Qualified source MT-33658/ASSET-AC-001; actual host adoption MT-36213 independently proves: ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16).",
           "status": "PENDING"
         }
       ],
@@ -2184,7 +2185,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive \u2014 the same typed contract models call (14.16).",
+          "semantic_fulfillment": "ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16).",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33658-ASSET-CONTROLS"
@@ -2194,7 +2195,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive \u2014 the same typed contract models call (14.16).",
+              "required_behavior": "ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16).",
               "only_owner_root_may_change": true
             }
           ],
@@ -2203,13 +2204,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive \u2014 the same typed contract models call (14.16).",
+            "consumer_assertion": "ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16).",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-33658-KERNEL-ASSET-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive \u2014 the same typed contract models call (14.16). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ]
@@ -2230,5 +2231,51 @@
       "criterion": "ONE DOCUMENT, ONE TOOL SURFACE. Studio presents one unified `StudioDocument` model and one unified tool surface across raster/vector/layout/design-system/whiteboard domains. There are no per-source-app silos: a shared capability exists once as a Studio primitive (14.3) and every operator-facing tool/panel/command is a projection of that single primitive — the same typed contract models call (14.16).",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

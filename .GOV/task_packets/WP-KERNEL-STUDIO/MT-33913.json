@@ -2351,7 +2351,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2652,5 +2653,45 @@
       "criterion": "206 of the 333 identifiers carry no category header on disk.** They form the table's leading block and are real members -- the camera, light, mask, path, velocity, text-style and string surfaces are all in it -- but no category can be attributed to them without inventing one, so none is invented. They are listed as an explicitly uncategorised block below, and categorising them for the operator-facing reference is a documentation task, not a discovery task. *Derivation: catalogue table, splits per row; yields 12 microtasks, one per expression identifier category.* | Category | Count | Identifiers | |---|---|---| | Global | 18 | `comp`, `footage`, `this_comp`, `this_layer`, `this_property`, `thisComp`, `thisProject`, `time`, `color_depth`, `colorDepth`, `posterize_time`, `posterizeTime`, `timeToFrames`, `framesToTime`, `timeToTimecode`, `timeToNTSCTimecode`, `timeToFeetAndFrames`, `timeToCurrentFormat` | | Vector Math | 9 | `add`, `mul`, `clamp`, `dot`, `cross`, `normalize`, `length`, `look_at`, `lookAt` | | Random Numbers | 6 | `seed_random`, `seedRandom`, `random`, `gauss_random`, `gaussRandom`, `noise` | | Interpolation | 6 | `linear`, `ease`, `ease_in`, `ease_out`, `easeIn`, `easeOut` | | Color Conversion | 5 | `rgb_to_hsl`, `hsl_to_rgb`, `rgbToHsl`, `hslToRgb`, `hexToRgb` | | Other Math | 4 | `degrees_to_radians`, `radians_to_degrees`, `degreesToRadians`, `radiansToDegrees` [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-MOTION",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

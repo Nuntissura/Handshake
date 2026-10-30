@@ -33,13 +33,13 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "tooltips_and_manual",
   "scope": {
-    "summary": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40\u201360% prose cold start at the tool level. The rules that make that survivable: 1. a missing `summary` renders L1 WITHOUT the sentence and never blocks the tip ([STU-SHL-232]); 2. every gap is a row in the gap ledger; 3. an authored replacement carries `extraction_method = handshake_authored` and is therefore countable against derived text at any moment; 4. hand-writing prose inside a UI source file is a TYPE ERROR ([STU-SHL-245]), not a review finding.",
+    "summary": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40–60% prose cold start at the tool level. The rules that make that survivable: 1. a missing `summary` renders L1 WITHOUT the sentence and never blocks the tip ([STU-SHL-232]); 2. every gap is a row in the gap ledger; 3. an authored replacement carries `extraction_method = handshake_authored` and is therefore countable against derived text at any moment; 4. hand-writing prose inside a UI source file is a TYPE ERROR ([STU-SHL-245]), not a review finding.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40\u201360% prose cold start at the tool level.",
+      "criterion": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40–60% prose cold start at the tool level.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-MAN-111"
     }
@@ -160,7 +160,7 @@
       {
         "id": "STU-MAN-111",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32905",
-        "verbatim": "**[STU-MAN-111] A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40\u201360% prose cold start at the tool level. The rules that make that survivable:",
+        "verbatim": "**[STU-MAN-111] A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40–60% prose cold start at the tool level. The rules that make that survivable:",
         "heading": "### 4. The honest ceiling and the gate that keeps it honest",
         "section": "14.32",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -1271,7 +1271,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
         "assessment": "APPLIES_ON_NAMED_TRIGGER",
-        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver \u2014 and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+        "reason": "STUDIO-MODULE-CONTROLS scope flags {'resource': True, 'owned_gui': True, 'collaborative_state': False, 'queue_or_inflight': False, 'interop_or_remote': False, 'uuid_generation': False, 'parked_ai': False}; If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
         "trigger_assessment_basis": {
           "resource": true,
           "owned_gui": true,
@@ -1693,7 +1693,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40\u201360% prose cold start at the tool level.",
+        "text": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40–60% prose cold start at the tool level.",
         "fulfillment_ref": "MT-35126#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -1823,7 +1823,7 @@
         "requirement_refs": [
           "STU-MAN-111"
         ],
-        "current_normative_instructions": "**[STU-MAN-111] A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40\u201360% prose cold start at the tool level. The rules that make that survivable: 1. a missing `summary` renders L1 WITHOUT the sentence and never blocks the tip ([STU-SHL-232]); 2. every gap is a row in the gap ledger; 3. an authored replacement carries `extraction_method = handshake_authored` and is therefore countable against derived text at any moment; 4. hand-writing prose inside a UI source file is a TYPE ERROR ([STU-SHL-245]), not a review finding.",
+        "current_normative_instructions": "**[STU-MAN-111] A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40–60% prose cold start at the tool level. The rules that make that survivable: 1. a missing `summary` renders L1 WITHOUT the sentence and never blocks the tip ([STU-SHL-232]); 2. every gap is a row in the gap ledger; 3. an authored replacement carries `extraction_method = handshake_authored` and is therefore countable against derived text at any moment; 4. hand-writing prose inside a UI source file is a TYPE ERROR ([STU-SHL-245]), not a review finding.",
         "declared_table_keys": [],
         "source_fields": [
           "summary",
@@ -1863,7 +1863,7 @@
       },
       {
         "n": 5,
-        "step": "Support40\u201360% tool-prose cold start: null summary remains valid L1, every gap tracked, authored replacement countable, literal UI prose type error."
+        "step": "Support40–60% tool-prose cold start: null summary remains valid L1, every gap tracked, authored replacement countable, literal UI prose type error."
       },
       {
         "n": 6,
@@ -1932,7 +1932,7 @@
           "AC-001"
         ],
         "command_or_method": "Planned target: cargo test --locked -p hsk-studio-controls --no-default-features --test mt_35126 source_contract_consumer -- --exact. Independent validator drives source-specific cases in steps for STU-MAN-111/AC-001 against actual reducer/projection/record output, including declared negative/recovery cases. Implementer separately cargo check --locked -p hsk-studio-controls --no-default-features --tests. Actual candidate/lock/actor/artifact roots activation-bound; no execution claimed. Exact source-specific refinement: Inspect actual missing-summary consumer and generated-ID negative compile diagnostic; no discoverability gate on prose completion. Preserve all current inputs, scope, proof and source obligations cumulatively. Unresolved operator decision or unavailable required owner stops dependent implementation; invalid/stale/cancelled requests leave accepted state unchanged. Runtime and host verdicts remain pending.",
-        "expected": "Actual A missing tooltip is a TRACKED GAP, never an invented sentence output obeys A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40\u201360% prose cold start at the tool level.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
+        "expected": "Actual A missing tooltip is a TRACKED GAP, never an invented sentence output obeys A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40–60% prose cold start at the tool level.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1945,7 +1945,7 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40\u201360% prose cold start at the tool level. Inspect actual missing-summary consumer and generated-ID negative compile diagnostic; no discoverability gate on prose completion.",
+          "consumer_assertion": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40–60% prose cold start at the tool level. Inspect actual missing-summary consumer and generated-ID negative compile diagnostic; no discoverability gate on prose completion.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Preserve all current inputs, scope, proof and source obligations cumulatively. Unresolved operator decision or unavailable required owner stops dependent implementation; invalid/stale/cancelled requests leave accepted state unchanged. Runtime and host verdicts remain pending.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
@@ -2053,13 +2053,13 @@
       "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
       "domain": "tooltips_and_manual",
       "scope": {
-        "summary": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40\u201360% prose cold start at the tool level. The rules that make that survivable: 1. a missing `summary` renders L1 WITHOUT the sentence and never blocks the tip ([STU-SHL-232]); 2. every gap is a row in the gap ledger; 3. an authored replacement carries `extraction_method = handshake_authored` and is therefore countable against derived text at any moment; 4. hand-writing prose inside a UI source file is a TYPE ERROR ([STU-SHL-245]), not a review finding.",
+        "summary": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40–60% prose cold start at the tool level. The rules that make that survivable: 1. a missing `summary` renders L1 WITHOUT the sentence and never blocks the tip ([STU-SHL-232]); 2. every gap is a row in the gap ledger; 3. an authored replacement carries `extraction_method = handshake_authored` and is therefore countable against derived text at any moment; 4. hand-writing prose inside a UI source file is a TYPE ERROR ([STU-SHL-245]), not a review finding.",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "acceptance_criteria": [
         {
           "id": "AC-001",
-          "criterion": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40\u201360% prose cold start at the tool level.",
+          "criterion": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40–60% prose cold start at the tool level.",
           "evidence_kind": "runtime_assertion",
           "source": "14-studio-creative-suite.md STU-MAN-111"
         }
@@ -2135,7 +2135,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2216,7 +2217,7 @@
             "line": 32905,
             "section": "14.32",
             "heading": "### 4. The honest ceiling and the gate that keeps it honest",
-            "verbatim": "**[STU-MAN-111] A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40\u201360% prose cold start at the tool level. The rules that make that survivable:",
+            "verbatim": "**[STU-MAN-111] A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40–60% prose cold start at the tool level. The rules that make that survivable:",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2283,10 +2284,10 @@
       {
         "acceptance_id": "AC-001",
         "original_pointer": "#/preserved_original/payload/acceptance_criteria/0",
-        "original_text": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40\u201360% prose cold start at the tool level.",
+        "original_text": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40–60% prose cold start at the tool level.",
         "original_row_sha256": "43c6ec6349f08f553c1fc61501c1e0f7f457c67f28e8fd9567d59741cf0913ea",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40\u201360% prose cold start at the tool level.",
+        "semantic_fulfillment": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40–60% prose cold start at the tool level.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-35126-ASSET-CONTROLS"
@@ -2296,7 +2297,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40\u201360% prose cold start at the tool level.",
+            "required_behavior": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40–60% prose cold start at the tool level.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2305,13 +2306,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40\u201360% prose cold start at the tool level. Inspect actual missing-summary consumer and generated-ID negative compile diagnostic; no discoverability gate on prose completion.",
+          "consumer_assertion": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40–60% prose cold start at the tool level. Inspect actual missing-summary consumer and generated-ID negative compile diagnostic; no discoverability gate on prose completion.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Preserve all current inputs, scope, proof and source obligations cumulatively. Unresolved operator decision or unavailable required owner stops dependent implementation; invalid/stale/cancelled requests leave accepted state unchanged. Runtime and host verdicts remain pending.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-35126-KERNEL-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40\u201360% prose cold start at the tool level. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40–60% prose cold start at the tool level. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36213"
@@ -2327,13 +2328,13 @@
       "original_acceptance": [
         {
           "id": "AC-001",
-          "criterion": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40\u201360% prose cold start at the tool level.",
+          "criterion": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40–60% prose cold start at the tool level.",
           "evidence_kind": "runtime_assertion",
           "source": "14-studio-creative-suite.md STU-MAN-111"
         }
       ],
       "original_scope": {
-        "summary": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40\u201360% prose cold start at the tool level. The rules that make that survivable: 1. a missing `summary` renders L1 WITHOUT the sentence and never blocks the tip ([STU-SHL-232]); 2. every gap is a row in the gap ledger; 3. an authored replacement carries `extraction_method = handshake_authored` and is therefore countable against derived text at any moment; 4. hand-writing prose inside a UI source file is a TYPE ERROR ([STU-SHL-245]), not a review finding.",
+        "summary": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40–60% prose cold start at the tool level. The rules that make that survivable: 1. a missing `summary` renders L1 WITHOUT the sentence and never blocks the tip ([STU-SHL-232]); 2. every gap is a row in the gap ledger; 3. an authored replacement carries `extraction_method = handshake_authored` and is therefore countable against derived text at any moment; 4. hand-writing prose inside a UI source file is a TYPE ERROR ([STU-SHL-245]), not a review finding.",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -2345,10 +2346,10 @@
         {
           "acceptance_id": "AC-001",
           "original_pointer": "#/preserved_original/payload/acceptance_criteria/0",
-          "original_text": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40\u201360% prose cold start at the tool level.",
+          "original_text": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40–60% prose cold start at the tool level.",
           "original_row_sha256": "43c6ec6349f08f553c1fc61501c1e0f7f457c67f28e8fd9567d59741cf0913ea",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40\u201360% prose cold start at the tool level.",
+          "semantic_fulfillment": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40–60% prose cold start at the tool level.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-35126-ASSET-CONTROLS"
@@ -2358,7 +2359,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40\u201360% prose cold start at the tool level.",
+              "required_behavior": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40–60% prose cold start at the tool level.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2367,13 +2368,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40\u201360% prose cold start at the tool level.",
+            "consumer_assertion": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40–60% prose cold start at the tool level.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-35126-KERNEL-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40\u201360% prose cold start at the tool level. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "A missing tooltip is a TRACKED GAP, never an invented sentence.** The design MUST ship for a 40–60% prose cold start at the tool level. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "MT-36213"
@@ -2404,5 +2405,51 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00"
+  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

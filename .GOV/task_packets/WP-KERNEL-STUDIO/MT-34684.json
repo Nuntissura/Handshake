@@ -2500,7 +2500,8 @@
       "execution",
       "proof",
       "fulfillment",
-      "activation"
+      "activation",
+      "host_integration"
     ],
     "historical_fields": [
       "clause",
@@ -2807,5 +2808,51 @@
       "criterion": "The tool catalogue (normative, closed).** The 362 tools of [STU-SHL-140] are enumerated below, grouped by the 22 families of [STU-SHL-141]. EACH ROW IS ONE UNIT OF WORK. A tool absent from this table does not exist in Studio; a tool present here may not be dropped, silently merged or deferred without an operator decision recorded under [STU-SHL-136]. Each row carries: the Studio name; the stable `tool_id` used to build its `author_id` `studio.tool.<family>.<tool_id>` ([STU-MDL-100]) and its command id; its family; its menu path, which is mechanically derived from the family per [STU-SHL-039] and is where the tool is guaranteed reachable ([STU-SHL-144]); the capture provenance; and the vendor variants that collapsed into it, shipped inline so every merge is auditable and reversible from this table alone ([STU-SHL-135]). Vendor names in the last two columns are PROVENANCE ONLY and are never Studio names ([STU-SECTION-003]). Three per-tool facts are NOT resolved by the captures and are UNKNOWN for every row rather than guessed: (1) Tool Rail group membership - roughly 120 of the 362 live in the rail's ~20 groups ([STU-SHL-148]) but the captures do not resolve which, and the assignment is closed by OD-1 and by the rail work of [STU-SHL-145]-[STU-SHL-147]; (2) the default chord, because every chord is PROVISIONAL until the arbitration is recomputed ([STU-SHL-045], SD-2); (3) Task Sc [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": true,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }

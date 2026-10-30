@@ -1755,7 +1755,9 @@
   "authority_migration": {
     "approval": "ilja091020261912",
     "template_ref": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json",
-    "active_execution_authority": [],
+    "active_execution_authority": [
+      "host_integration"
+    ],
     "historical_fields": [
       "clause",
       "spec_anchor",
@@ -1834,7 +1836,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32982; **[STU-SHL-254] Clauses that yield NO microtask.** Exactly one class: the four clauses of this derivation sub-section itself \u2014 [STU-SHL-253] through [STU-SHL-256]. **Every other clause in this sub-section yields.** Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
+        "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32982; **[STU-SHL-254] Clauses that yield NO microtask.** Exactly one class: the four clauses of this derivation sub-section itself — [STU-SHL-253] through [STU-SHL-256]. **Every other clause in this sub-section yields.** Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
         "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_REFERENCE",
         "asset_contribution_refs": [
           ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32982"
@@ -1860,7 +1862,7 @@
       "all_original_acceptance_refs": [],
       "original_acceptance": [],
       "original_scope": {
-        "summary": "Yields index.** Applying [STU-SHL-253] through [STU-SHL-255] to this sub-section yields the counts below. Every count is enumerated from the module text, not estimated. | Unit group | Clauses | Yields | |---|---|---| | The five disclosure levels and the anti-annoyance rules | [STU-SHL-230]-[STU-SHL-236] | 7 | | The UiDescriptor data contract and the type-level prose prohibition | [STU-SHL-240]-[STU-SHL-247] | 8 | | Obligations, validation descriptors and the naming law | [STU-SHL-250]-[STU-SHL-252] | 3 | | The generator, its target store, its artefacts and its field sources | [STU-MAN-100]-[STU-MAN-108] | 9 | | Coverage measurement, the gap ledger and the CI gates | [STU-MAN-109]-[STU-MAN-113] | 5 | | Binding to the existing manual obligations | [STU-MAN-114]-[STU-MAN-118] | 5 | | Declared spec debt | [STU-MAN-120]-[STU-MAN-123] | 4 | | **Module total** | 45 clauses | **41** | Every row here is one-per-clause. An earlier revision of this ledger claimed 75 by counting the five tooltip levels, the four synchronisation rules, the ten CI gates, the two manual layers and the fourteen validation descriptors as separate microtasks. They are not: each is an assertion over one artefact \u2014 one tooltip helper, one descriptor record, one generated set \u2014 and splitting them produces microtasks that cannot be finished independently. They are acceptance criteria of their clause, and the ledger [...]",
+        "summary": "Yields index.** Applying [STU-SHL-253] through [STU-SHL-255] to this sub-section yields the counts below. Every count is enumerated from the module text, not estimated. | Unit group | Clauses | Yields | |---|---|---| | The five disclosure levels and the anti-annoyance rules | [STU-SHL-230]-[STU-SHL-236] | 7 | | The UiDescriptor data contract and the type-level prose prohibition | [STU-SHL-240]-[STU-SHL-247] | 8 | | Obligations, validation descriptors and the naming law | [STU-SHL-250]-[STU-SHL-252] | 3 | | The generator, its target store, its artefacts and its field sources | [STU-MAN-100]-[STU-MAN-108] | 9 | | Coverage measurement, the gap ledger and the CI gates | [STU-MAN-109]-[STU-MAN-113] | 5 | | Binding to the existing manual obligations | [STU-MAN-114]-[STU-MAN-118] | 5 | | Declared spec debt | [STU-MAN-120]-[STU-MAN-123] | 4 | | **Module total** | 45 clauses | **41** | Every row here is one-per-clause. An earlier revision of this ledger claimed 75 by counting the five tooltip levels, the four synchronisation rules, the ten CI gates, the two manual layers and the fourteen validation descriptors as separate microtasks. They are not: each is an assertion over one artefact — one tooltip helper, one descriptor record, one generated set — and splitting them produces microtasks that cannot be finished independently. They are acceptance criteria of their clause, and the ledger [...]",
         "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
       },
       "original_dependencies": [],
@@ -1875,7 +1877,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32982; **[STU-SHL-254] Clauses that yield NO microtask.** Exactly one class: the four clauses of this derivation sub-section itself \u2014 [STU-SHL-253] through [STU-SHL-256]. **Every other clause in this sub-section yields.** Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
+          "semantic_fulfillment": "Retained derivation/context source binding .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32982; **[STU-SHL-254] Clauses that yield NO microtask.** Exactly one class: the four clauses of this derivation sub-section itself — [STU-SHL-253] through [STU-SHL-256]. **Every other clause in this sub-section yields.** Original acceptance remains exact in original_pointer/original_text and native Git history; no runtime PASS.",
           "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_REFERENCE",
           "asset_contribution_refs": [
             ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:32982"
@@ -1902,7 +1904,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Yields index.** Applying [STU-SHL-253] through [STU-SHL-255] to this sub-section yields the counts below. Every count is enumerated from the module text, not estimated. | Unit group | Clauses | Yields | |---|---|---| | The five disclosure levels and the anti-annoyance rules | [STU-SHL-230]-[STU-SHL-236] | 7 | | The UiDescriptor data contract and the type-level prose prohibition | [STU-SHL-240]-[STU-SHL-247] | 8 | | Obligations, validation descriptors and the naming law | [STU-SHL-250]-[STU-SHL-252] | 3 | | The generator, its target store, its artefacts and its field sources | [STU-MAN-100]-[STU-MAN-108] | 9 | | Coverage measurement, the gap ledger and the CI gates | [STU-MAN-109]-[STU-MAN-113] | 5 | | Binding to the existing manual obligations | [STU-MAN-114]-[STU-MAN-118] | 5 | | Declared spec debt | [STU-MAN-120]-[STU-MAN-123] | 4 | | **Module total** | 45 clauses | **41** | Every row here is one-per-clause. An earlier revision of this ledger claimed 75 by counting the five tooltip levels, the four synchronisation rules, the ten CI gates, the two manual layers and the fourteen validation descriptors as separate microtasks. They are not: each is an assertion over one artefact \u2014 one tooltip helper, one descriptor record, one generated set \u2014 and splitting them produces microtasks that cannot be finished independently. They are acceptance criteria of their clause, and the ledger [...]",
+          "semantic_fulfillment": "Yields index.** Applying [STU-SHL-253] through [STU-SHL-255] to this sub-section yields the counts below. Every count is enumerated from the module text, not estimated. | Unit group | Clauses | Yields | |---|---|---| | The five disclosure levels and the anti-annoyance rules | [STU-SHL-230]-[STU-SHL-236] | 7 | | The UiDescriptor data contract and the type-level prose prohibition | [STU-SHL-240]-[STU-SHL-247] | 8 | | Obligations, validation descriptors and the naming law | [STU-SHL-250]-[STU-SHL-252] | 3 | | The generator, its target store, its artefacts and its field sources | [STU-MAN-100]-[STU-MAN-108] | 9 | | Coverage measurement, the gap ledger and the CI gates | [STU-MAN-109]-[STU-MAN-113] | 5 | | Binding to the existing manual obligations | [STU-MAN-114]-[STU-MAN-118] | 5 | | Declared spec debt | [STU-MAN-120]-[STU-MAN-123] | 4 | | **Module total** | 45 clauses | **41** | Every row here is one-per-clause. An earlier revision of this ledger claimed 75 by counting the five tooltip levels, the four synchronisation rules, the ten CI gates, the two manual layers and the fourteen validation descriptors as separate microtasks. They are not: each is an assertion over one artefact — one tooltip helper, one descriptor record, one generated set — and splitting them produces microtasks that cannot be finished independently. They are acceptance criteria of their clause, and the ledger [...]",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-35424-ASSET-CONTROLS"
@@ -1912,7 +1914,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "Yields index.** Applying [STU-SHL-253] through [STU-SHL-255] to this sub-section yields the counts below. Every count is enumerated from the module text, not estimated. | Unit group | Clauses | Yields | |---|---|---| | The five disclosure levels and the anti-annoyance rules | [STU-SHL-230]-[STU-SHL-236] | 7 | | The UiDescriptor data contract and the type-level prose prohibition | [STU-SHL-240]-[STU-SHL-247] | 8 | | Obligations, validation descriptors and the naming law | [STU-SHL-250]-[STU-SHL-252] | 3 | | The generator, its target store, its artefacts and its field sources | [STU-MAN-100]-[STU-MAN-108] | 9 | | Coverage measurement, the gap ledger and the CI gates | [STU-MAN-109]-[STU-MAN-113] | 5 | | Binding to the existing manual obligations | [STU-MAN-114]-[STU-MAN-118] | 5 | | Declared spec debt | [STU-MAN-120]-[STU-MAN-123] | 4 | | **Module total** | 45 clauses | **41** | Every row here is one-per-clause. An earlier revision of this ledger claimed 75 by counting the five tooltip levels, the four synchronisation rules, the ten CI gates, the two manual layers and the fourteen validation descriptors as separate microtasks. They are not: each is an assertion over one artefact \u2014 one tooltip helper, one descriptor record, one generated set \u2014 and splitting them produces microtasks that cannot be finished independently. They are acceptance criteria of their clause, and the ledger [...]",
+              "required_behavior": "Yields index.** Applying [STU-SHL-253] through [STU-SHL-255] to this sub-section yields the counts below. Every count is enumerated from the module text, not estimated. | Unit group | Clauses | Yields | |---|---|---| | The five disclosure levels and the anti-annoyance rules | [STU-SHL-230]-[STU-SHL-236] | 7 | | The UiDescriptor data contract and the type-level prose prohibition | [STU-SHL-240]-[STU-SHL-247] | 8 | | Obligations, validation descriptors and the naming law | [STU-SHL-250]-[STU-SHL-252] | 3 | | The generator, its target store, its artefacts and its field sources | [STU-MAN-100]-[STU-MAN-108] | 9 | | Coverage measurement, the gap ledger and the CI gates | [STU-MAN-109]-[STU-MAN-113] | 5 | | Binding to the existing manual obligations | [STU-MAN-114]-[STU-MAN-118] | 5 | | Declared spec debt | [STU-MAN-120]-[STU-MAN-123] | 4 | | **Module total** | 45 clauses | **41** | Every row here is one-per-clause. An earlier revision of this ledger claimed 75 by counting the five tooltip levels, the four synchronisation rules, the ten CI gates, the two manual layers and the fourteen validation descriptors as separate microtasks. They are not: each is an assertion over one artefact — one tooltip helper, one descriptor record, one generated set — and splitting them produces microtasks that cannot be finished independently. They are acceptance criteria of their clause, and the ledger [...]",
               "only_owner_root_may_change": true
             }
           ],
@@ -1921,13 +1923,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Yields index.** Applying [STU-SHL-253] through [STU-SHL-255] to this sub-section yields the counts below. Every count is enumerated from the module text, not estimated. | Unit group | Clauses | Yields | |---|---|---| | The five disclosure levels and the anti-annoyance rules | [STU-SHL-230]-[STU-SHL-236] | 7 | | The UiDescriptor data contract and the type-level prose prohibition | [STU-SHL-240]-[STU-SHL-247] | 8 | | Obligations, validation descriptors and the naming law | [STU-SHL-250]-[STU-SHL-252] | 3 | | The generator, its target store, its artefacts and its field sources | [STU-MAN-100]-[STU-MAN-108] | 9 | | Coverage measurement, the gap ledger and the CI gates | [STU-MAN-109]-[STU-MAN-113] | 5 | | Binding to the existing manual obligations | [STU-MAN-114]-[STU-MAN-118] | 5 | | Declared spec debt | [STU-MAN-120]-[STU-MAN-123] | 4 | | **Module total** | 45 clauses | **41** | Every row here is one-per-clause. An earlier revision of this ledger claimed 75 by counting the five tooltip levels, the four synchronisation rules, the ten CI gates, the two manual layers and the fourteen validation descriptors as separate microtasks. They are not: each is an assertion over one artefact \u2014 one tooltip helper, one descriptor record, one generated set \u2014 and splitting them produces microtasks that cannot be finished independently. They are acceptance criteria of their clause, and the ledger [...]",
+            "consumer_assertion": "Yields index.** Applying [STU-SHL-253] through [STU-SHL-255] to this sub-section yields the counts below. Every count is enumerated from the module text, not estimated. | Unit group | Clauses | Yields | |---|---|---| | The five disclosure levels and the anti-annoyance rules | [STU-SHL-230]-[STU-SHL-236] | 7 | | The UiDescriptor data contract and the type-level prose prohibition | [STU-SHL-240]-[STU-SHL-247] | 8 | | Obligations, validation descriptors and the naming law | [STU-SHL-250]-[STU-SHL-252] | 3 | | The generator, its target store, its artefacts and its field sources | [STU-MAN-100]-[STU-MAN-108] | 9 | | Coverage measurement, the gap ledger and the CI gates | [STU-MAN-109]-[STU-MAN-113] | 5 | | Binding to the existing manual obligations | [STU-MAN-114]-[STU-MAN-118] | 5 | | Declared spec debt | [STU-MAN-120]-[STU-MAN-123] | 4 | | **Module total** | 45 clauses | **41** | Every row here is one-per-clause. An earlier revision of this ledger claimed 75 by counting the five tooltip levels, the four synchronisation rules, the ten CI gates, the two manual layers and the fourteen validation descriptors as separate microtasks. They are not: each is an assertion over one artefact — one tooltip helper, one descriptor record, one generated set — and splitting them produces microtasks that cannot be finished independently. They are acceptance criteria of their clause, and the ledger [...]",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-35424-KERNEL-ASSET-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Yields index.** Applying [STU-SHL-253] through [STU-SHL-255] to this sub-section yields the counts below. Every count is enumerated from the module text, not estimated. | Unit group | Clauses | Yields | |---|---|---| | The five disclosure levels and the anti-annoyance rules | [STU-SHL-230]-[STU-SHL-236] | 7 | | The UiDescriptor data contract and the type-level prose prohibition | [STU-SHL-240]-[STU-SHL-247] | 8 | | Obligations, validation descriptors and the naming law | [STU-SHL-250]-[STU-SHL-252] | 3 | | The generator, its target store, its artefacts and its field sources | [STU-MAN-100]-[STU-MAN-108] | 9 | | Coverage measurement, the gap ledger and the CI gates | [STU-MAN-109]-[STU-MAN-113] | 5 | | Binding to the existing manual obligations | [STU-MAN-114]-[STU-MAN-118] | 5 | | Declared spec debt | [STU-MAN-120]-[STU-MAN-123] | 4 | | **Module total** | 45 clauses | **41** | Every row here is one-per-clause. An earlier revision of this ledger claimed 75 by counting the five tooltip levels, the four synchronisation rules, the ten CI gates, the two manual layers and the fourteen validation descriptors as separate microtasks. They are not: each is an assertion over one artefact \u2014 one tooltip helper, one descriptor record, one generated set \u2014 and splitting them produces microtasks that cannot be finished independently. They are acceptance criteria of their clause, and the ledger [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Yields index.** Applying [STU-SHL-253] through [STU-SHL-255] to this sub-section yields the counts below. Every count is enumerated from the module text, not estimated. | Unit group | Clauses | Yields | |---|---|---| | The five disclosure levels and the anti-annoyance rules | [STU-SHL-230]-[STU-SHL-236] | 7 | | The UiDescriptor data contract and the type-level prose prohibition | [STU-SHL-240]-[STU-SHL-247] | 8 | | Obligations, validation descriptors and the naming law | [STU-SHL-250]-[STU-SHL-252] | 3 | | The generator, its target store, its artefacts and its field sources | [STU-MAN-100]-[STU-MAN-108] | 9 | | Coverage measurement, the gap ledger and the CI gates | [STU-MAN-109]-[STU-MAN-113] | 5 | | Binding to the existing manual obligations | [STU-MAN-114]-[STU-MAN-118] | 5 | | Declared spec debt | [STU-MAN-120]-[STU-MAN-123] | 4 | | **Module total** | 45 clauses | **41** | Every row here is one-per-clause. An earlier revision of this ledger claimed 75 by counting the five tooltip levels, the four synchronisation rules, the ten CI gates, the two manual layers and the fourteen validation descriptors as separate microtasks. They are not: each is an assertion over one artefact — one tooltip helper, one descriptor record, one generated set — and splitting them produces microtasks that cannot be finished independently. They are acceptance criteria of their clause, and the ledger [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ]
@@ -1948,5 +1950,49 @@
       "criterion": "Yields index.** Applying [STU-SHL-253] through [STU-SHL-255] to this sub-section yields the counts below. Every count is enumerated from the module text, not estimated. | Unit group | Clauses | Yields | |---|---|---| | The five disclosure levels and the anti-annoyance rules | [STU-SHL-230]-[STU-SHL-236] | 7 | | The UiDescriptor data contract and the type-level prose prohibition | [STU-SHL-240]-[STU-SHL-247] | 8 | | Obligations, validation descriptors and the naming law | [STU-SHL-250]-[STU-SHL-252] | 3 | | The generator, its target store, its artefacts and its field sources | [STU-MAN-100]-[STU-MAN-108] | 9 | | Coverage measurement, the gap ledger and the CI gates | [STU-MAN-109]-[STU-MAN-113] | 5 | | Binding to the existing manual obligations | [STU-MAN-114]-[STU-MAN-118] | 5 | | Declared spec debt | [STU-MAN-120]-[STU-MAN-123] | 4 | | **Module total** | 45 clauses | **41** | Every row here is one-per-clause. An earlier revision of this ledger claimed 75 by counting the five tooltip levels, the four synchronisation rules, the ten CI gates, the two manual layers and the fourteen validation descriptors as separate microtasks. They are not: each is an assertion over one artefact — one tooltip helper, one descriptor record, one generated set — and splitting them produces microtasks that cannot be finished independently. They are acceptance criteria of their clause, and the ledger [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
-  ]
+  ],
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-CONTROLS",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-10-30T22:40:37Z"
+  }
 }
