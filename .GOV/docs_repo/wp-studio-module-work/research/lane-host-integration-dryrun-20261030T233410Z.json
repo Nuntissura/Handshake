@@ -1,0 +1,213 @@
+{
+ "mode": "dry_run",
+ "generated_at": "2026-10-30T23:34:10Z",
+ "lanes": {
+  "SMB-REEL-NATIVE": {
+   "status": null,
+   "gui_host": "none",
+   "gpu": "via_render_provider_port",
+   "exposure": "low",
+   "file": false
+  },
+  "SMB-PRESS-GEOMETRY": {
+   "status": null,
+   "gui_host": "none",
+   "gpu": "none",
+   "exposure": "none",
+   "file": false
+  },
+  "SMB-FMT-SWEEP": {
+   "status": null,
+   "gui_host": "none",
+   "gpu": "none",
+   "exposure": "none",
+   "file": false
+  },
+  "SMB-ROUND-TIMEOUT-REPORT": {
+   "status": null,
+   "gui_host": "none",
+   "gpu": "none",
+   "exposure": "none",
+   "file": false
+  },
+  "SMB-FOLIO-CHANNEL-RECORD": {
+   "status": null,
+   "gui_host": "none",
+   "gpu": "none",
+   "exposure": "none",
+   "file": false
+  },
+  "SMB-HARNESS-DEVELOP-4": {
+   "status": null,
+   "gui_host": "asset_local_test_host_only",
+   "gpu": "none",
+   "exposure": "medium",
+   "file": false
+  },
+  "SMB-PDFX-ORACLE": {
+   "status": null,
+   "gui_host": "none",
+   "gpu": "none",
+   "exposure": "none",
+   "file": false
+  },
+  "SMB-RAW-SAMPLES-OPERATOR": {
+   "status": null,
+   "gui_host": "none",
+   "gpu": "none",
+   "exposure": "none",
+   "file": false
+  },
+  "SMB-PULSE-PLAYBACK-3": {
+   "status": null,
+   "gui_host": "asset_local_test_host_only",
+   "gpu": "none",
+   "exposure": "medium",
+   "file": false
+  },
+  "SMB-RAW-PROVENANCE-OPERATOR": {
+   "status": null,
+   "gui_host": "none",
+   "gpu": "via_render_provider_port",
+   "exposure": "low",
+   "file": false
+  },
+  "SMB-HARNESS-MEDIA-NATIVE-UNIT": {
+   "status": null,
+   "gui_host": "none",
+   "gpu": "none",
+   "exposure": "none",
+   "file": false
+  },
+  "SMB-REEL-ENCODE-2": {
+   "status": null,
+   "gui_host": "none",
+   "gpu": "via_render_provider_port",
+   "exposure": "low",
+   "file": false
+  },
+  "SMB-SPEC-SMART-MATCH-OPERATOR": {
+   "status": null,
+   "gui_host": "none",
+   "gpu": "none",
+   "exposure": "none",
+   "file": false
+  },
+  "SMB-SPEC-LAYOUT-CONFLICTS-OPERATOR": {
+   "status": null,
+   "gui_host": "none",
+   "gpu": "none",
+   "exposure": "none",
+   "file": false
+  },
+  "SMB-FIG-COLLAB": {
+   "status": null,
+   "gui_host": "none",
+   "gpu": "none",
+   "exposure": "none",
+   "file": false
+  },
+  "SMB-STEWARD-LOCK-RELEASE-BUG": {
+   "status": null,
+   "gui_host": "none",
+   "gpu": "none",
+   "exposure": "none",
+   "file": false
+  },
+  "SMB-ID-PREPRESS-2": {
+   "status": null,
+   "gui_host": "none",
+   "gpu": "none",
+   "exposure": "none",
+   "file": false
+  },
+  "SMB-PS-ORACLE-RESCRIPT": {
+   "status": null,
+   "gui_host": "none",
+   "gpu": "none",
+   "exposure": "none",
+   "file": false
+  },
+  "SMB-AE-PARTICLES-2": {
+   "status": null,
+   "gui_host": "none",
+   "gpu": "none",
+   "exposure": "none",
+   "file": false
+  },
+  "SMB-AI-MESH-2": {
+   "status": null,
+   "gui_host": "none",
+   "gpu": "none",
+   "exposure": "none",
+   "file": false
+  },
+  "SMB-RAW-CLEANROOM-3": {
+   "status": null,
+   "gui_host": "none",
+   "gpu": "via_render_provider_port",
+   "exposure": "low",
+   "file": false
+  },
+  "SMB-AE-KEYFRAME-TIMELINE-1": {
+   "status": "BLOCKED",
+   "gui_host": "vulkan_shell_client",
+   "gpu": "none",
+   "exposure": "high",
+   "file": false
+  },
+  "SMB-FIG-GRID-2": {
+   "status": "READY_FOR_VALIDATION",
+   "gui_host": "vulkan_shell_client",
+   "gpu": "none",
+   "exposure": "high",
+   "file": true
+  },
+  "SMB-ID-FRAME-AUTOSIZE-2": {
+   "status": "PAUSED",
+   "gui_host": "none",
+   "gpu": "none",
+   "exposure": "none",
+   "file": true
+  },
+  "SMB-R43-FOLLOWUPS-1": {
+   "status": "READY_FOR_VALIDATION",
+   "gui_host": "none",
+   "gpu": "via_render_provider_port",
+   "exposure": "low",
+   "file": true
+  },
+  "SMB-FIG-GRID-3": {
+   "status": "PAUSED",
+   "gui_host": "vulkan_shell_client",
+   "gpu": "none",
+   "exposure": "high",
+   "file": true
+  }
+ },
+ "skipped_no_file": [
+  "SMB-REEL-NATIVE",
+  "SMB-PRESS-GEOMETRY",
+  "SMB-FMT-SWEEP",
+  "SMB-ROUND-TIMEOUT-REPORT",
+  "SMB-FOLIO-CHANNEL-RECORD",
+  "SMB-HARNESS-DEVELOP-4",
+  "SMB-PDFX-ORACLE",
+  "SMB-RAW-SAMPLES-OPERATOR",
+  "SMB-PULSE-PLAYBACK-3",
+  "SMB-RAW-PROVENANCE-OPERATOR",
+  "SMB-HARNESS-MEDIA-NATIVE-UNIT",
+  "SMB-REEL-ENCODE-2",
+  "SMB-SPEC-SMART-MATCH-OPERATOR",
+  "SMB-SPEC-LAYOUT-CONFLICTS-OPERATOR",
+  "SMB-FIG-COLLAB",
+  "SMB-STEWARD-LOCK-RELEASE-BUG",
+  "SMB-ID-PREPRESS-2",
+  "SMB-PS-ORACLE-RESCRIPT",
+  "SMB-AE-PARTICLES-2",
+  "SMB-AI-MESH-2",
+  "SMB-RAW-CLEANROOM-3",
+  "SMB-AE-KEYFRAME-TIMELINE-1"
+ ],
+ "already": []
+}

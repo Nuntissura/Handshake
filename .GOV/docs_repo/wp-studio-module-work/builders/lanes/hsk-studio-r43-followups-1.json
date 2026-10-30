@@ -89,5 +89,33 @@
   "ready_claim": "cites only run1 (lane-check-smb-r43-followups-1-3cf0f149.log)",
   "lead_accepted": "radial_blur_window_cost signature change (no callers outside pigment); profile-honest colours extended to Gradient Ramp, Circle and Checkerboard",
   "downstream": "SMB-ID-FRAME-AUTOSIZE-2 and SMB-FIG-GRID-3 rebase onto 3cf0f149 before their runs"
+ },
+ "host_integration": {
+  "schema_id": "hsk.studio_mt_host_integration@1",
+  "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+  "spec_version": "v02.225",
+  "gui_host": "none",
+  "gpu": "via_render_provider_port",
+  "diagnostics": {
+   "internal_diagnostics": "producer_through_observe",
+   "flight_recorder": "none",
+   "palmistry": "none"
+  },
+  "control_descriptors": "none",
+  "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+  "jobs": "none",
+  "settings": "none",
+  "refactor_exposure": "low",
+  "binding": "posture record: built before the direction; its pending validation runs under the existing round rules; the HOST INTEGRATION rules of the common brief bind any remediation or follow-up lane",
+  "derived_from": {
+   "crates": [
+    "composite",
+    "folio",
+    "pigment"
+   ],
+   "lane_status": "READY_FOR_VALIDATION",
+   "lane_phase": "validation (R45)"
+  },
+  "recorded_at": "2026-10-30T23:34:39Z"
  }
 }

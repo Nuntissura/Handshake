@@ -4,7 +4,7 @@
  "lane": "Repo Governance: Studio records under .GOV/docs_repo/wp-studio-module-work and the WP-KERNEL-STUDIO packet",
  "generated_at": "2026-10-30T21:50:32Z",
  "by": "Studio lead (KERNEL_BUILDER)",
- "status": "PW-01..14 DONE; PW-15 (lane files) and PW-16 (dispatch/workspace rules after D1) PROPOSED; PW-17 DEFERRED",
+ "status": "PW-01..15 DONE; PW-16 (dispatch/workspace rules after D1) PROPOSED; PW-17 DEFERRED",
  "inventory_ref": "research/integration-refactor-inventory-20261030.json",
  "principle": "preservation-first: every existing MT, lane, brief and preparation record keeps its content; the direction is added as a typed block or rule, never by rewriting history; machine-readable JSON is the authority, Markdown only projects it",
  "per_mt_record": {
@@ -196,7 +196,7 @@
    "change": "host_integration block mirrored from the MT schema; PASS lanes untouched",
    "method": "python pass",
    "authority": "lead, after D4",
-   "status": "PROPOSED"
+   "status": "DONE 2026-10-30T23:34:39Z (Operator \"Lane files too\"): 26 open lanes (2 READY, 2 PAUSED, 1 BLOCKED, 21 queued) carry host_integration in ledger.json; the 4 with lane files (FIG-GRID-2, FRAME-AUTOSIZE-2, R43-FOLLOWUPS-1, FIG-GRID-3) carry the full block in the file; the 22 queued/blocked lanes have no lane file yet (ledger block only; the block goes into the brief and lane file at dispatch); PASS lanes untouched; the ~40 estimate included lanes R44 has since judged PASS"
   },
   {
    "id": "PW-16",

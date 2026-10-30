@@ -6,12 +6,42 @@
  "candidate": null,
  "worktree": "wt-studio-lanes/smb-id-frame-autosize-2 (branch lane/smb-id-frame-autosize-2, base ff4ca080; working tree clean)",
  "commits": [
-  {"sha": "3777714d", "slice": "1 red", "pushed": false, "subject": "type: Run::cap_height_pt/x_height_pt stubs (None) + tests/run_face_metrics.rs"},
-  {"sha": "e2626f3f", "slice": "2 red", "pushed": false, "subject": "layout: LayoutError::FirstBaselineMetricUnavailable(FirstBaselineUnavailable) + pins in tests/frame_autosize.rs and interop-layout tests/layout_reflow_folio_export.rs"},
-  {"sha": "37690096", "slice": "3 red", "pushed": false, "subject": "interop-layout: tests/idml_frame_autosize.rs (amended locally before any push: Result alias compile fix + V4-08 escape/decoy cases)"},
-  {"sha": "fb78104b", "slice": "1", "pushed": false, "subject": "type: Run::cap_height_pt / x_height_pt from OS/2 (both providers)"},
-  {"sha": "c160868f", "slice": "2", "pushed": false, "subject": "layout: typed first-baseline refusal; from_type takes Type metrics; DESCRIPTOR"},
-  {"sha": "bcba0af5", "slice": "3", "pushed": false, "subject": "interop-layout: IDML auto-size rows mapped to Studio readings (import losses, export readings); DESCRIPTOR frame_autosize"}
+  {
+   "sha": "3777714d",
+   "slice": "1 red",
+   "pushed": false,
+   "subject": "type: Run::cap_height_pt/x_height_pt stubs (None) + tests/run_face_metrics.rs"
+  },
+  {
+   "sha": "e2626f3f",
+   "slice": "2 red",
+   "pushed": false,
+   "subject": "layout: LayoutError::FirstBaselineMetricUnavailable(FirstBaselineUnavailable) + pins in tests/frame_autosize.rs and interop-layout tests/layout_reflow_folio_export.rs"
+  },
+  {
+   "sha": "37690096",
+   "slice": "3 red",
+   "pushed": false,
+   "subject": "interop-layout: tests/idml_frame_autosize.rs (amended locally before any push: Result alias compile fix + V4-08 escape/decoy cases)"
+  },
+  {
+   "sha": "fb78104b",
+   "slice": "1",
+   "pushed": false,
+   "subject": "type: Run::cap_height_pt / x_height_pt from OS/2 (both providers)"
+  },
+  {
+   "sha": "c160868f",
+   "slice": "2",
+   "pushed": false,
+   "subject": "layout: typed first-baseline refusal; from_type takes Type metrics; DESCRIPTOR"
+  },
+  {
+   "sha": "bcba0af5",
+   "slice": "3",
+   "pushed": false,
+   "subject": "interop-layout: IDML auto-size rows mapped to Studio readings (import losses, export readings); DESCRIPTOR frame_autosize"
+  }
  ],
  "capabilities_done": [
   "type: Run::cap_height_pt() / x_height_pt() -> Option<f64> = OS/2 sCapHeight / sxHeight (existing private ttf parser, MVAR cpht/xhgt at the run's axes) x font size / unitsPerEm; None without OS/2, below v2, or OS/2 shorter than its version needs; not estimated from outlines (type has no outline estimate; harness-view src/view/text.rs:428 passes a glyph-top estimate to area text, a host estimate outside type)",
@@ -27,9 +57,31 @@
   "skipped": 222,
   "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-frame-autosize-2/smb-id-frame-autosize-2-focus1-bcba0af5.log (first line HEAD=bcba0af5)",
   "history": [
-   {"sha": "618a491f (pre-amend)", "run": "red 1", "exit": 101, "note": "tests/idml_frame_autosize.rs did not compile (crate Result alias); fixed and amended before any push", "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-frame-autosize-2/smb-id-frame-autosize-2-red1-618a491f.log"},
-   {"sha": "37690096", "run": "red 2", "exit": 100, "passed": 2, "failed": 6, "note": "each failure for the intended reason (None metrics, UnsupportedComposition, no loss, no export rows); the two passes are the None and moot cases", "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-frame-autosize-2/smb-id-frame-autosize-2-red2-37690096.log"},
-   {"sha": "bcba0af5", "run": "focused 1 (D:, harfrust feature on, clippy over the 3 crates without dependents)", "exit": 0, "passed": 11, "failed": 0, "started": "2026-10-30T18:01:59Z", "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-frame-autosize-2/smb-id-frame-autosize-2-focus1-bcba0af5.log"}
+   {
+    "sha": "618a491f (pre-amend)",
+    "run": "red 1",
+    "exit": 101,
+    "note": "tests/idml_frame_autosize.rs did not compile (crate Result alias); fixed and amended before any push",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-frame-autosize-2/smb-id-frame-autosize-2-red1-618a491f.log"
+   },
+   {
+    "sha": "37690096",
+    "run": "red 2",
+    "exit": 100,
+    "passed": 2,
+    "failed": 6,
+    "note": "each failure for the intended reason (None metrics, UnsupportedComposition, no loss, no export rows); the two passes are the None and moot cases",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-frame-autosize-2/smb-id-frame-autosize-2-red2-37690096.log"
+   },
+   {
+    "sha": "bcba0af5",
+    "run": "focused 1 (D:, harfrust feature on, clippy over the 3 crates without dependents)",
+    "exit": 0,
+    "passed": 11,
+    "failed": 0,
+    "started": "2026-10-30T18:01:59Z",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-frame-autosize-2/smb-id-frame-autosize-2-focus1-bcba0af5.log"
+   }
   ],
   "bundled_runs": 0,
   "lane_tests": [
@@ -54,5 +106,33 @@
   "warnings": "run_face_metrics test reports 1 warning shared with glyph_render/harfrust_spike/foundation_contract (from the included support/mod.rs, pre-existing); check in the bundled run that no new clippy warning comes from lane code",
   "follow_ups": "Folio record for the six STU-LAY-118 rows folio does not store (folio decision; SMB-R43-FOLLOWUPS-1 is changing folio); the layout window committing reflow_autosize bounds (GUI)"
  },
- "verdicts": []
+ "verdicts": [],
+ "host_integration": {
+  "schema_id": "hsk.studio_mt_host_integration@1",
+  "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+  "spec_version": "v02.225",
+  "gui_host": "none",
+  "gpu": "none",
+  "diagnostics": {
+   "internal_diagnostics": "producer_through_observe",
+   "flight_recorder": "none",
+   "palmistry": "none"
+  },
+  "control_descriptors": "none",
+  "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+  "jobs": "none",
+  "settings": "none",
+  "refactor_exposure": "none",
+  "binding": "binds on resume: the HOST INTEGRATION rules of the common brief apply to every further commit of this lane",
+  "derived_from": {
+   "crates": [
+    "interop-layout",
+    "layout",
+    "type"
+   ],
+   "lane_status": "PAUSED",
+   "lane_phase": "PAUSED for Operator realignment (2026-10-30T18:10:39Z)"
+  },
+  "recorded_at": "2026-10-30T23:34:39Z"
+ }
 }

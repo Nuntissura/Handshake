@@ -51,5 +51,32 @@
   "green_unproven": "the green code has never been compiled or run; it stays uncommitted in the scratchpad per the pause instruction",
   "paused_green_copy": "lead 2026-10-30T18:09:08Z: uncompiled green files copied to Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-3/paused-green-uncompiled/ (scratchpad is temporary)"
  },
- "verdicts": []
+ "verdicts": [],
+ "host_integration": {
+  "schema_id": "hsk.studio_mt_host_integration@1",
+  "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+  "spec_version": "v02.225",
+  "gui_host": "vulkan_shell_client",
+  "gpu": "none",
+  "diagnostics": {
+   "internal_diagnostics": "producer_through_observe",
+   "flight_recorder": "none",
+   "palmistry": "ring_visible"
+  },
+  "control_descriptors": "shared_typed_source",
+  "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+  "jobs": "none",
+  "settings": "module_tab_feature_subtab",
+  "refactor_exposure": "high",
+  "binding": "binds on resume: the HOST INTEGRATION rules of the common brief apply to every further commit of this lane",
+  "derived_from": {
+   "crates": [
+    "harness-core",
+    "harness-view"
+   ],
+   "lane_status": "PAUSED",
+   "lane_phase": "PAUSED for Operator realignment (2026-10-30T18:09:08Z)"
+  },
+  "recorded_at": "2026-10-30T23:34:39Z"
+ }
 }

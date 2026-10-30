@@ -239,5 +239,32 @@
   },
   "red_commits": "7b15c7a6, 562d8f8e and bf5bc476 each compile alone and fail their new tests (logs at their pre-rebase shas dc9aabb7, 15abedb9, f5c78741); no squash needed; 8dd54d12 compiles and fails its new test"
  },
- "verdicts": []
+ "verdicts": [],
+ "host_integration": {
+  "schema_id": "hsk.studio_mt_host_integration@1",
+  "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+  "spec_version": "v02.225",
+  "gui_host": "vulkan_shell_client",
+  "gpu": "none",
+  "diagnostics": {
+   "internal_diagnostics": "producer_through_observe",
+   "flight_recorder": "none",
+   "palmistry": "ring_visible"
+  },
+  "control_descriptors": "shared_typed_source",
+  "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+  "jobs": "none",
+  "settings": "module_tab_feature_subtab",
+  "refactor_exposure": "high",
+  "binding": "posture record: built before the direction; its pending validation runs under the existing round rules; the HOST INTEGRATION rules of the common brief bind any remediation or follow-up lane",
+  "derived_from": {
+   "crates": [
+    "harness-view",
+    "interop-fig-base"
+   ],
+   "lane_status": "READY_FOR_VALIDATION",
+   "lane_phase": "validation (R45)"
+  },
+  "recorded_at": "2026-10-30T23:34:39Z"
+ }
 }
