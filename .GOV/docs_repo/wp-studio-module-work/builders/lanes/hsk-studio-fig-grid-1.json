@@ -1,0 +1,131 @@
+{
+ "crate": "hsk-studio-folio (src/autolayout.rs, src/records.rs grid-parent hook, src/lib.rs DESCRIPTOR sentence, tests/auto_layout_grid_records.rs, tests/design_records_contract.rs one row) + hsk-studio-components (src/auto_layout.rs, new src/auto_layout/grid.rs, src/lib.rs exports + DESCRIPTOR, tests/auto_layout.rs, new tests/auto_layout_grid.rs) + hsk-studio-interop-fig-native (src/native.rs one line grid: None)",
+ "lane": "SMB-FIG-GRID-1",
+ "status": "CODE_READY_AWAITING_RUN",
+ "phase": "slices 1-3 committed locally on lane/smb-fig-grid-1 (base 2a60acf3), nothing pushed; focused runs green on D: at 3ef0c010 (22/22); waiting for the lead to name the disk and base for the bundled run; push LAST in the wave after SMB-PR-NEST-2 and SMB-AI-ARROWHEADS-2",
+ "candidate": null,
+ "commits": [
+  {
+   "sha": "07c830b9",
+   "slice": "1 red",
+   "subject": "folio test: GRID record tests; grid members added, validation stubbed"
+  },
+  {
+   "sha": "3cf73c36",
+   "slice": "1",
+   "subject": "folio: GRID container and child records validated (STU-DS-146/147/150)"
+  },
+  {
+   "sha": "1cabd639",
+   "slice": "2+3 red",
+   "subject": "components test: GRID solver and command tests; grid module stubbed"
+  },
+  {
+   "sha": "aafcc801",
+   "slice": "2",
+   "subject": "components: GRID solver (STU-DS-146..150)"
+  },
+  {
+   "sha": "3ef0c010",
+   "slice": "3",
+   "subject": "components: grid_append_child_at, grid_reorder_rows, grid_reorder_columns"
+  }
+ ],
+ "capabilities_done": [
+  "folio: StudioAutoLayout::grid (StudioGridLayout: the eight STU-DS-146 fields, STU-DS-147 StudioGridTrackSize) and StudioChildLayout::grid_child (StudioGridChild, STU-DS-150), skipped when absent; validation with typed codes at <node>/auto_layout/grid/<field> and <node>/child_layout/grid_child/<field>",
+  "components: GRID solver in src/auto_layout/grid.rs called from solve_auto_layout (placement by anchors, ROW_AUTO_FLOW forward cursor, implicit HUG rows under ROWS, typed grid_overflow under NONE; per-axis track sizing FIXED / HUG with spanning children / FLEX by factor, fr rule on hugging axes; FILL to cell, MIN/CENTER/MAX alignment; absolute children by constraints; container hug = padding + tracks + gaps; GRID_CELL_BUDGET 2^24 cell visits)",
+  "components: grid_append_child_at, grid_reorder_rows, grid_reorder_columns (GridTrackMove; GridReorder {records, tracks: Vec<GridTrackEntry {index, previous_index, size}>}), Folio-validated successor records, typed refusals"
+ ],
+ "tests": {
+  "history": [
+   {
+    "sha": "07c830b9",
+    "run": "folio red (D:): auto_layout_grid_records + design_records_contract",
+    "exit": 100,
+    "passed": 6,
+    "failed": 4,
+    "failures": "grid_container_refusals_are_typed, grid_child_refusals_are_typed, hostile_grid_sizes_are_refused_before_entries_are_read (validation stubbed); non_grid_records_encode_byte_identically (test compared struct-order bytes with sorted-key Value bytes; test fixed in 3cf73c36)",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-1/smb-fig-grid-1-folio-red-07c830b9.log"
+   },
+   {
+    "sha": "3cf73c36",
+    "run": "folio green (D:): auto_layout_grid_records + design_records_contract",
+    "exit": 0,
+    "passed": 10,
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-1/smb-fig-grid-1-folio-green-3cf73c36.log"
+   },
+   {
+    "sha": "1cabd639",
+    "run": "components red (D:): auto_layout_grid + auto_layout",
+    "exit": 100,
+    "passed": 4,
+    "failed": 8,
+    "failures": "all 8 new auto_layout_grid tests (grid module stubbed); the 4 existing auto_layout tests pass",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-1/smb-fig-grid-1-components-red-1cabd639.log"
+   },
+   {
+    "sha": "3ef0c010",
+    "run": "focused green (D:): components auto_layout_grid + auto_layout, folio auto_layout_grid_records + design_records_contract",
+    "exit": 0,
+    "passed": 22,
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-1/smb-fig-grid-1-focus-green-3ef0c010.log"
+   }
+  ],
+  "bundled_runs": 0,
+  "lane_tests": [
+   "folio tests/auto_layout_grid_records.rs: grid_record_round_trips_through_wire_json, non_grid_records_encode_byte_identically, grid_container_refusals_are_typed, grid_child_refusals_are_typed, hostile_grid_sizes_are_refused_before_entries_are_read",
+   "components tests/auto_layout_grid.rs: fixed_flex_columns_and_hug_rows_by_hand, spanning_child_and_auto_flow_skip_anchored_cells, auto_tracks_rows_adds_a_row_and_none_overflow_is_refused, grid_nested_in_a_horizontal_flow_aligns_fills_and_keeps_absolute_constraints, hostile_grid_input_is_refused_before_allocation, append_child_at_sets_the_anchors, reorder_rows_returns_ordered_tracks_and_moves_anchored_children, command_refusals_change_nothing",
+   "changed pins: folio design_records_contract GRID row (UnsupportedDescriptor -> MissingField /auto_layout/grid); components auto_layout wrap_lines_and_typed_refusals GRID row (unsupported grid -> invalid_layout grid_fields)"
+  ],
+  "planned_bundled_argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-fig-grid-1 --disk <lead> -- cargo nextest run -p hsk-studio-folio -p hsk-studio-components -p hsk-studio-interop-fig-native -p hsk-studio-interop-fig -p hsk-studio-package --no-fail-fast (clippy over the five crates and every direct dependent)"
+ },
+ "blockers": [],
+ "bg_pids": [],
+ "next": "wait for the lead's message with disk and base; wave order NEST-2, then ARROWHEADS-2, then this lane last; rebase (keep only the native.rs grid: None line), bundled run, push",
+ "updated_at": "2026-10-30T16:12:05Z",
+ "notes": {
+  "spec_basis": "master-spec-v02.225 14-studio-creative-suite.md: STU-DS-144 (:19873) GRID is a layout_mode member; STU-DS-145 (:19897) grid_row_gap / grid_column_gap hard_min 0, Studio-declared hard_max 100000 (studio_declared); STU-DS-146 (:19912) exactly eight grid fields (counts hard_min 1, Studio declares 1000; row/column sizes default one HUG track; grid_auto_tracks NONE|ROWS default NONE; grid_items_positioning MANUAL|ROW_AUTO_FLOW default ROW_AUTO_FLOW) and three commands, the reorders returning the ordered tracks; STU-DS-147 (:19927) {type FIXED|FLEX|HUG, value?}, value required for FIXED and FLEX (hard_min 0, FLEX default 1), absent for HUG; STU-DS-148 (:19929) child align and sizing; STU-DS-149 (:19939) clamps; STU-DS-150 (:19941) anchors hard_min 0, spans hard_min 1, bounded by the declared counts, read-only grid_child_index, a span past the count is a validation error",
+  "UNVERIFIED_D5": "Figma grid track sizing, placement and alignment are UNVERIFIED; the solver is a Studio reading modelled on W3C css-grid-1 section 11 (simplified), written in the grid module docs and the components DESCRIPTOR",
+  "declared_readings": "FIXED/FLEX value max 100000 studio_declared (not in source); columns = primary (horizontal) axis; grid_child optional: present = anchored, absent = auto-flowed under ROW_AUTO_FLOW, refused unanchored under MANUAL (solver); grid_child on an ABSOLUTE child or under a non-GRID parent is InvalidField; absent grid under GRID is MissingField; reorder options = GridTrackMove {from_index, to_index} (spec names no option fields)",
+  "native_rs": "interop-fig-native src/native.rs: one line grid: None at the StudioAutoLayout literal (committed in 07c830b9 because folio would not compile its dependents without it); ARROWHEADS-2 pushes first, then this lane rebases and keeps only that line. GRID frames imported by native.rs now hit Folio's MissingField (grid) instead of UnsupportedDescriptor; the importer mapping stays out of scope",
+  "rule_4b": "Folio record fields added (grid, grid_child and the grid_* names): hsk-studio-package suite runs in the bundled run; no externals.rs VOCAB word expected",
+  "red_commits": "07c830b9 (folio, 4 new tests fail) and 1cabd639 (components, 8 new tests fail) compile and fail their new tests; aafcc801 (solver green, commands still stubbed) has no own run: its tests are covered by the 3ef0c010 run",
+  "cargo_lock": "not committed; no new dependency; no new crate edge",
+  "rule_4c": "lane-check --step0-only clean (worktree state equal to 3ef0c010)",
+  "rule_4d": "no doc examples added or changed",
+  "rule_4e": "no cfg(feature) test files",
+  "v4_01": "#![deny(clippy::arithmetic_side_effects)] on folio src/autolayout.rs and components src/auto_layout/grid.rs (new code, checked/saturating integer math); components src/auto_layout.rs (no byte decoding, existing usize arithmetic) not given the deny",
+  "clippy": "cargo clippy -p hsk-studio-components --tests on D: at the 3ef0c010 tree: no warning in lane code (two pre-existing hsk-studio-observe too_many_arguments warnings)",
+  "scope_extension": {
+   "accepted_by": "lead, 2026-10-30 (message to this builder)",
+   "paths": [
+    "hsk-studio-folio src/records.rs: one hook in check_nodes; GRID containers join the auto-layout parent map so grid children may carry child_layout, and each child layout's grid_child is checked against its parent's declared counts (validate_grid_child; STU-DS-150 span validation needs the parent, which only check_nodes sees)",
+    "hsk-studio-components src/lib.rs: pub use of the grid commands and types (GRID_CELL_BUDGET, GridReorder, GridTrackEntry, GridTrackMove, grid_append_child_at, grid_reorder_rows, grid_reorder_columns) and the DESCRIPTOR grid entry"
+   ],
+   "concurrent_lanes": "neither file is touched by SMB-PR-NEST-2 or SMB-AI-ARROWHEADS-2"
+  },
+  "changed_expected_results": {
+   "accepted_by": "lead, 2026-10-30; behaviour change for the validator to re-judge",
+   "change": "a GRID container without its grid record was refused outright as GRID (Folio UnsupportedDescriptor at /auto_layout/layout_mode; solver UnsupportedLayout(\"grid\")); it is now Folio MissingField at <node>/auto_layout/grid and solver InvalidLayout(\"grid_fields@<node>\"), because GRID with its record is now accepted and solved",
+   "tests": [
+    {
+     "test": "hsk-studio-folio tests/design_records_contract.rs, test design_records_round_trip_and_node_rules_are_refused (the refused() row patching /nodes/0/auto_layout/layout_mode to GRID)",
+     "expected_before": "Code::UnsupportedDescriptor, suffix /auto_layout/layout_mode",
+     "expected_now": "Code::MissingField, suffix /auto_layout/grid",
+     "origin_lane": "SMB-FOLIO-ENG-4 (commit efeeaa2, design_records_contract tests)",
+     "changed_in": "07c830b9"
+    },
+    {
+     "test": "hsk-studio-components tests/auto_layout.rs, test wrap_lines_and_typed_refusals (the GRID row in the typed-refusals block)",
+     "expected_before": "folio_result code UnsupportedDescriptor; solve_raw Err(UnsupportedLayout(\"grid\"))",
+     "expected_now": "folio_result code MissingField; solve_raw Err(InvalidLayout(\"grid_fields@<root id>\"))",
+     "origin_lane": "SMB-COMPONENTS (commit f8b5328, slice 2 auto layout: the solver's GRID refusal) and SMB-COMPONENTS-FOLIO-MIGRATE (commit c6251f0: the row's current Folio-record form with UnsupportedDescriptor)",
+     "changed_in": "1cabd639"
+    }
+   ]
+  }
+ },
+ "verdicts": []
+}

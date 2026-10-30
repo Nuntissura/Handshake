@@ -1,0 +1,130 @@
+{
+ "crate": "hsk-studio-pulse",
+ "lane": "SMB-PR-NEST-2",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed e83eae43 to origin/codex/handshake-studio-assets (base 2a60acf3, fetched and re-read: tip e83eae43); claim run on D: at e83eae43 EXIT 0: 450/450, 20 skipped; never claimed PASS",
+ "candidate": "e83eae43",
+ "commits": [
+  {
+   "slice": "2a pulse",
+   "sha": "cad61e66",
+   "pushed": true,
+   "summary": "NestedAudioSources::with_routing (nested mixes apply their own clip gain/pan envelopes; new() keeps its signature and delegates with an empty set), NestProposal::copied_clips; tests nested_mix_applies_moved_clip_envelopes, make_subsequence_lists_the_copies_of_each_parent_clip (red commit squashed in: it would not compile)"
+  },
+  {
+   "slice": "2b harness-core",
+   "sha": "9c1e9631",
+   "pushed": true,
+   "summary": "Run::submit_sequence_edits_and_entry (one history step, refused entry write rolls the sequence step back and keeps the redo history), multi-sequence undo/redo arm swaps the step's entry, RUN_COMMANDS row document.submit_sequence_edits_and_entry"
+  },
+  {
+   "slice": "1-3 harness-view",
+   "sha": "e83eae43",
+   "pushed": true,
+   "summary": "timeline_export_job_with + NestedDocument; nest_envelopes (Nest moves, Make Subsequence copies envelopes) committed via submit_sequence_edits_and_entry; mixer/bus_stream on with_routing; open_monitor sets the document, monitor_ui syncs every refresh, paused monitor re-presents after set_document; tests/viewer_timeline_nest_2.rs (red commit squashed in)"
+  }
+ ],
+ "tests": {
+  "history": [
+   {
+    "sha": "cad61e66 (pre-commit tree)",
+    "scope": "cargo clippy -p hsk-studio-pulse --tests; cargo nextest run -p hsk-studio-pulse --test nest (D:)",
+    "exit": 0,
+    "passed": 7,
+    "failed": 0,
+    "note": "2 cloned_ref_to_slice_refs warnings in tests/nest.rs fixed before commit",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nest-2/focused-pulse-1.log"
+   },
+   {
+    "sha": "e83eae43 (pre-commit tree, identical content)",
+    "scope": "cargo clippy -p hsk-studio-harness-core -p hsk-studio-harness-view --tests --features hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch; nextest binary(viewer_timeline_nest_2) | binary(viewer_timeline_nest) | test(corpus_lists_every_run_operation_with_recordability) (D:)",
+    "exit": 0,
+    "passed": 14,
+    "failed": 0,
+    "note": "clippy: no findings in lane files (foreign: manual_clamp timeline_export/composition.rs:155-156)",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nest-2/focused-view-1.log"
+   },
+   {
+    "sha": "e83eae43 (pre-commit tree)",
+    "scope": "lane-check.sh --step0-only",
+    "exit": 0,
+    "note": "step 0 policy clean"
+   },
+   {
+    "sha": "e83eae43",
+    "scope": "claim run, bundled lane-check on D: (pulse, harness-core, harness-view, harness, interop-media; harness + harness-view desktop+audio-batch, which includes viewer)",
+    "exit": 0,
+    "passed": 450,
+    "failed": 0,
+    "skipped": 20,
+    "step0": "clean",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nest-2/lane-check-smb-pr-nest-2-e83eae43.log",
+    "clippy": "no findings in lane files (foreign: manual_clamp timeline_export/composition.rs, harness tests timeline_captions.rs / viewer_media.rs)"
+   }
+  ],
+  "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-pr-nest-2 --disk d -- cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-core -p hsk-studio-harness-view -p hsk-studio-harness -p hsk-studio-interop-media --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch,hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch --no-fail-fast",
+  "sha": "e83eae43",
+  "exit": 0,
+  "passed": 450,
+  "failed": 0,
+  "skipped": 20,
+  "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nest-2/lane-check-smb-pr-nest-2-e83eae43.log",
+  "new_tests": "pulse nest 2 new (7/7); harness-core corpus row via existing corpus test; harness-view viewer_timeline_nest_2 6/6, viewer_timeline_nest rewritten envelope test"
+ },
+ "blockers": [],
+ "bg_pids": [],
+ "updated_at": "2026-10-30T16:19:13Z",
+ "notes": {
+  "worktree": "wt-studio-lanes/smb-pr-nest-2 (branch lane/smb-pr-nest-2, base 2a60acf3)",
+  "brief": "builders/briefs/lane-smb-pr-nest-2.md",
+  "gap_source": "builders/lanes/hsk-studio-pr-nest-1.json notes.gaps / notes.spec_deltas",
+  "spec_basis": [
+   "[STU-VID-030] (module 14 :23543) nest, subsequence, opaque nested clip, recursive",
+   "[STU-VID-040] (:23671) one reversible history entry per operation: the nest and the envelope move are one entry",
+   "[STU-FX-137] (:18454) / [STU-FX-135] (:18444) routing and audio stacks are part of the document",
+   "export path clauses as SMB-REEL-ENCODE and SMB-PR-NEST-1 cite them; no export behaviour added beyond resolving nested clips"
+  ],
+  "declared_readings": [
+   "NEST-1 readings unchanged, Premiere UNVERIFIED (D5)",
+   "NEW: an envelope moves with its clip unchanged, in clip-relative ticks (Nest); Make Subsequence copies it under the copy id, re-anchored to the copy's source window (a range cut gets an interpolated edge point, the envelopes module's trim rule)",
+   "nested mix = the nested sequence's timeline mix plus its own clip gain/pan envelopes (NestedAudioSources::with_routing); its bus routes, sends, effects and track automation still do not apply",
+   "export with a NestedDocument: root mix stays TimelineMixStream::new (no root envelopes or bus routing, as before this lane); nested clips get the mixer's nested mix",
+   "an audio routing entry that does not validate before a nest is left as is and reported in the status line (envelopes module rule)"
+  ],
+  "unverified": "Premiere receiving track, track mirroring, subsequence range cut, playhead mapping and how clip envelopes follow a nest UNVERIFIED (D5)",
+  "spec_deltas": [
+   "REQUEST: no clause defines how a nested clip's clip gain / pan envelopes follow Nest or Make Subsequence (NEST-1 spec_deltas item 3); this lane's reading: moved unchanged in clip-relative ticks, copied under fresh ids",
+   "carried: STU-VID-030a needs an additive Folio side record (deferred; would collide with SMB-FIG-GRID-1 on folio)",
+   "carried: receiving track / track mirroring / subsequence range cut undefined"
+  ],
+  "gaps": [
+   "window/CLI sequence export: no window or CLI code builds a timeline export job (render_queue.rs handles compositions only, not sequences); timeline_export_job_with is test-driven only",
+   "export root mix ignores root-level clip envelopes and bus routing (pre-existing; not changed: brief adds no export behaviour beyond nesting)",
+   "STU-VID-030a booleans deferred"
+  ],
+  "scope_extensions": [
+   "pulse nest.rs: NestProposal::copied_clips accessor (additive) besides with_routing, needed for Make Subsequence to copy envelopes",
+   "harness-view mixer.rs: the private Builder type alias takes the routing set (call site of NestedAudioSources plus its one invocation in mixer_rebuild)",
+   "harness-view tests/viewer_timeline_nest.rs (NEST-1 file): nest_refuses_a_clip_with_a_routing_envelope pinned the refusal this lane removes; rewritten as nest_moves_a_clip_routing_envelope_with_the_clip (F-R35-3 class: an old test pinning the old refusal)",
+   "harness-view timeline.rs: untouched (timeline_sync_monitor already calls nest_sync_monitor)"
+  ],
+  "rule_4a": "bundled run: whole suites of pulse, harness-core, harness-view, harness, interop-media (direct dependents of pulse and harness-core)",
+  "rule_4c": "no drive-letter or user-profile literal added; step0-only clean",
+  "rule_4d": "no doc examples added",
+  "rule_4e": "tests/viewer_timeline_nest_2.rs is #![cfg(feature = \"viewer\")]; monitor test runs in round unit [viewer]; export mod #[cfg(feature = \"media\")] and envelope tests #[cfg(feature = \"audio-batch\")] run in unit [desktop, audio-batch] (audio-batch implies media)",
+  "cargo_lock": "not committed; no new dependency or module edge",
+  "run_ui_md_lines_for_lead": [
+   "Nest keeps clip volume and pan envelopes: they move into the nested sequence and the parent sounds the same (one undo step); Make Subsequence copies them onto the copies.",
+   "The program monitor shows nested clips as soon as it opens (WORKSPACE > Program Monitor) and follows edits, undo and redo without the timeline panel."
+  ],
+  "overlap": "crate-level only with SMB-AI-ARROWHEADS-2 (harness-view, harness): no shared files; whichever pushes second rebases and re-runs the harness-view and harness suites",
+  "for_validator": "This lane changes a test of READY lane SMB-PR-NEST-1 (bdc15f15): harness-view tests/viewer_timeline_nest.rs nest_refuses_a_clip_with_a_routing_envelope (pinned the nest_clip_envelopes_unsupported refusal) is rewritten as nest_moves_a_clip_routing_envelope_with_the_clip in e83eae43; lead-accepted outside-path change (2026-10-30). Also lead-accepted: pulse NestProposal::copied_clips accessor.",
+  "lead_answers_20261030": {
+   "outside_paths": "accepted (NEST-1 test rewrite named for the validator; copied_clips accessor fine)",
+   "run": "one bundled run on D:, origin 2a60acf3; this lane pushes first in the wave",
+   "gap": "window/CLI sequence export queued by the lead"
+  }
+ },
+ "next": "validation round judges SMB-PR-NEST-2 at e83eae43",
+ "verdicts": []
+}
