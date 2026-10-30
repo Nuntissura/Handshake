@@ -4,7 +4,7 @@
  "lane": "Repo Governance: Studio records under .GOV/docs_repo/wp-studio-module-work and the WP-KERNEL-STUDIO packet",
  "generated_at": "2026-10-30T21:50:32Z",
  "by": "Studio lead (KERNEL_BUILDER)",
- "status": "PROPOSED; PW-08 dry run done and PW-14 done on the Operator's instruction; items marked DONE_TONIGHT were applied 2026-10-30, every other item waits for Operator approval (decision D4 in the inventory)",
+ "status": "PW-01..08 and PW-14 DONE; PW-09..13, PW-15..16 PROPOSED (Operator D4 scope beyond the mechanical block); PW-17 DEFERRED",
  "inventory_ref": "research/integration-refactor-inventory-20261030.json",
  "principle": "preservation-first: every existing MT, lane, brief and preparation record keeps its content; the direction is added as a typed block or rule, never by rewriting history; machine-readable JSON is the authority, Markdown only projects it",
  "per_mt_record": {
@@ -134,7 +134,7 @@
    "change": "host_integration block per MT (schema above) added to active_execution_authority; index summary",
    "method": "mechanical pass, dry run first",
    "authority": "Operator D4",
-   "status": "DRY_RUN_DONE 2026-10-30T22:32:05Z: 6204 would change, 0 errors, 0 skipped; report research/mt-host-integration-dryrun-20261030T222803Z.json; tool tools/mt-host-integration.py; write waits for the Operator review of the report",
+   "status": "DONE 2026-10-30T22:45:47Z: written on the Operator's \"Write it\" (kernel 68715f20): 6204 MT contracts + _MT_INDEX.json; full content check against HEAD 6205/6205 files differ only by the block (and the active_execution_authority append); report research/mt-host-integration-write-20261030T224037Z.json",
    "dry_run_findings": [
     "456 MTs (foundations, amendments, host adoption, source contributions) have no authority_migration block: the block is top-level there and active by construction",
     "128 MTs are single-line JSON; the pass keeps them single-line",
