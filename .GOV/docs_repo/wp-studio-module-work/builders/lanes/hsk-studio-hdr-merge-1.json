@@ -1,0 +1,82 @@
+{
+ "crate": "hsk-studio-pigment",
+ "lane": "SMB-HDR-MERGE-1",
+ "status": "HOLD_FOR_RELEASE",
+ "phase": "slices 1-3 green locally at aabca209 (base c6b3733f); push held for lead RELEASE; slice 4 not started (signature in notes)",
+ "commits": [
+  {
+   "slice": 1,
+   "sha": "b69543bc",
+   "pushed": false,
+   "summary": "pigment hdr_merge radiance merge + merge depth capability"
+  },
+  {
+   "slice": 2,
+   "sha": "4985cb90",
+   "pushed": false,
+   "summary": "pigment MTB alignment, deghost, tone-map 32->16/8, capability table, descriptor"
+  },
+  {
+   "slice": 3,
+   "sha": "aabca209",
+   "pushed": false,
+   "summary": "develop merge_raw_brackets (camera-space merge through develop demosaic, reference stage A)"
+  }
+ ],
+ "capabilities_done": [
+  "pigment hdr_merge merge_brackets (STU-RAS-033 merge, 32-bit beyond display range)",
+  "pigment MTB translation alignment",
+  "pigment per-pixel deghost levels 0..3",
+  "pigment tone_map 32 -> 16/8 via prism DisplayEncoding",
+  "STU-RAS-149 HDR_CAPABILITIES + typed unsupported_depth",
+  "develop merge_raw_brackets (raw brackets -> linear scene-referred 32-bit frame)"
+ ],
+ "tests": {
+  "pigment tests/hdr_merge.rs": [
+   "merge_recovers_known_radiance_from_synthetic_brackets",
+   "clipped_highlights_come_from_the_darker_frame",
+   "merge_refuses_mismatched_or_unexposed_inputs",
+   "merge_is_deterministic",
+   "misaligned_bracket_is_shifted_back",
+   "moving_object_is_not_doubled_with_deghost_on",
+   "tone_map_keeps_order_and_range",
+   "unsupported_depth_is_refused_typed"
+  ],
+  "develop tests/hdr_merge.rs": [
+   "raw_brackets_merge_through_develop_to_linear_hdr",
+   "identical_brackets_reproduce_the_develop_pipeline",
+   "raw_brackets_refuse_mismatched_camera_size_or_cfa"
+  ]
+ },
+ "blockers": [],
+ "lock_wait_s": null,
+ "bg_pids": [],
+ "next": "on RELEASE: rebase onto origin (origin now cf2e46da: harness-view + layout only, not pigment/develop or their dependencies, so no re-run), diff --stat check, PUSH SAFETY push, then READY_FOR_VALIDATION per slice",
+ "updated_at": "2026-10-30T11:05:00Z",
+ "notes": {
+  "brief": "builders/briefs/lane-smb-hdr-merge-1.md; binding builders/briefs/wave-parity-2-common.md",
+  "spec_basis": "STU-RAS-033 (merge bracketed exposures to HDR with ghost removal and tone-mapping; tone-mapping 32/16/8; 32-bit beyond display range), STU-RAS-149 (depth capability metadata; typed refusal naming depth and supported set; no silent promotion), STU-RAS-044 (native on-device offline), STU-RAW-129 (names only; HDR edit mode not in this lane)",
+  "push_hold": "lead instruction: commit slices locally, after the green bundled run write HOLD_FOR_RELEASE with the green local sha; push only after RELEASE",
+  "readings_declared": "merge: Debevec-Malik 1997 hat on the largest channel over (black 1/512, clip 0.98), linear-light weighted mean of z/relative_exposure, zero-weight pixels -> longest unclipped exposure else shortest clipped; align: Ward 2003 MTB translation-only, each frame to the reference, exclusion band median/16 (paper: +-4/255 on gamma grey), bounded by max_shift 1..64 and an 8-sample coarsest level; deghost: anchor = reference sample when weighted else weighted sample nearest its exposure, levels 1/2/3 = 1, 1/2, 1/4 stop, inconsistent pixel takes the anchor radiance; tone-map: 2^ev exposure, Reinhard 2002 eq.4 on Rec.709 luminance (prism grade::LUMA_REC709), hue-preserving scale, prism DisplayEncoding srgb/bt1886/gamma22 (PQ refused), round(v*(2^depth-1)); develop: merge in normalised demosaiced camera space (develop's cfa_plane + demosaic_normalized_threads; 1.0 = white level so the clip test is exact), EXIF ExposureTime as seconds, equal f-number and ISO required, then the reference bracket's DngRaw::recipe (BaselineExposure ignored) as-shot gain + camera->working matrix (same arithmetic as stage A)",
+  "unverified": "Photoshop Merge to HDR Pro / HDR Toning and Lightroom Photo Merge > HDR (auto-align, deghost amounts, presets): D5, no oracle",
+  "not_proven": "Photoshop/Lightroom HDR parity (no D5 oracle); real camera brackets (develop tests synthesise DNG brackets of one linear scene)",
+  "sources": "Debevec & Malik, Recovering High Dynamic Range Radiance Maps from Photographs, SIGGRAPH 1997; Ward, Fast Robust Image Registration for Compositing HDR Photographs from Hand-Held Exposures, JGT 8(2) 2003; Reinhard, Stark, Shirley, Ferwerda, Photographic Tone Reproduction for Digital Images, SIGGRAPH 2002 (papers only, no code read)",
+  "public_api": "additive only: new pigment module hdr_merge (+ align, tone submodules), new develop module hdr_merge; no existing signature changed, no new dependency or edge",
+  "doctests": "no doc examples added (4d n/a)",
+  "features": "no feature-gated tests (4e n/a)",
+  "machine_paths": "none (lane-check --step0-only clean)",
+  "slice4_signature": "NOT DONE. Needed: develop dng_write.rs additive `pub fn dng_from_hdr(merged: &hdr_merge::RawHdrMerged, source: &DngRaw, settings: &DngExportSettings, parts: &DngParts<'_>) -> Result<DngExport, ExportError>` writing a LinearRaw IFD (PhotometricInterpretation 34892, SamplesPerPixel 3, BitsPerSample 32,32,32, SampleFormat 3,3,3, Compression 1) of merged.camera.frame (camera-space radiance, black 0) with the source colour tags and the reference AsShotNeutral; blocker: dng_write verifies every written file by decoding it back with develop's own reader, which reads CFA frames only, so a float LinearRaw reader in src/dng.rs (not an owned path) is required first; DNG 1.4 float-sample rules (WhiteLevel, BaselineExposure for HDR) not read in this lane: UNVERIFIED",
+  "spec_delta_requests": "none required; possible enrichment: STU-RAS-033 does not name merge weights, deghost levels or the tone-map operator (Studio readings declared in HDR_MERGE_DESCRIPTOR)"
+ },
+ "verdicts": [],
+ "green_local_sha": "aabca2091c3a978db4e918ca6f2ad90683be6d50",
+ "lane_check": {
+  "run": "tools/lane-check.sh --owner smb-hdr-merge-1 --disk ssd -- cargo nextest run -p hsk-studio-pigment -p hsk-studio-develop --no-fail-fast",
+  "sha": "aabca209",
+  "result": "passed",
+  "exit": 0,
+  "tests": "380 run, 380 passed, 19 skipped (whole pigment + develop suites; 11 new hdr_merge tests passed)",
+  "clippy": "pigment, develop + dependents [composite, harness, harness-core, harness-view, interop-fig, interop-layout, interop-lrcat, interop-psd, pulse, render-cpu, render-gpu] no errors; 3 warnings in the lane test files (pigment tests/hdr_merge.rs:449 manual div_ceil; develop tests/hdr_merge.rs:204,235 needless_range_loop), left to avoid a re-run",
+  "step0": "clean"
+ }
+}

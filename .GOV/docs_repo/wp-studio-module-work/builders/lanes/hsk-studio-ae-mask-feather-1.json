@@ -1,0 +1,68 @@
+{
+ "crate": "hsk-studio-folio, hsk-studio-composite, hsk-studio-render-cpu (test only)",
+ "lane": "SMB-AE-MASK-FEATHER-1",
+ "status": "HOLD_FOR_RELEASE",
+ "phase": "green bundled run 3 at local f59b775a (base origin c6b3733f); PUSH HOLD until the lead's RELEASE",
+ "commits": [
+  {
+   "sha": "e7dce0c9",
+   "slice": 1,
+   "subject": "folio: composition masks carry optional keyframable feather [x, y] px, opacity (stored 0..1) and expansion px streams; validate_mask; track_apply literal"
+  },
+  {
+   "sha": "7a4cb16c",
+   "slice": 2,
+   "subject": "composite: mask_paths::mask_coverage_shaped + MaskShape (expansion, feather, invert, opacity, combine); identity bit-identical"
+  },
+  {
+   "sha": "2c643900",
+   "slice": 3,
+   "subject": "composite: temporal LayerMasks carries the streams, 2D matte / 3D plane / effect-stack sites use shaped coverage; composite + render-cpu tests"
+  },
+  {
+   "sha": "f59b775a",
+   "slice": 2,
+   "subject": "composite: mask_shape round-corner oracle is a fine polygon; two test clippy warnings"
+  }
+ ],
+ "capabilities_done": [
+  "folio: StudioCompositionMask optional keyframable feather [x,y] px / opacity stored 0..1 / expansion px streams, absent = identity and byte-identical, validate_mask typed refusals (tests/composition_mask_properties.rs)",
+  "composite: mask_paths::mask_coverage_shaped + MaskShape + MaskShapeRefusal; identity bit-identical to mask_coverage; round-join layer-space expansion; separable pigment feather; opacity; ordered combine (tests/mask_shape.rs)",
+  "composite (motion): temporal LayerMasks samples the streams per tick; 2D matte, 3D plane and effect-stack sites use shaped coverage; refusals name <layer>/masks/<id> (tests/composition_mask_shape.rs)",
+  "render-cpu: shaped masks render the coverage oracle for every chunking/thread count (tests/composition_mask_shape.rs, support composite/tests/support/mask_shape_scene.rs)"
+ ],
+ "tests": {
+  "argv": "lane-check.sh --owner smb-ae-mask-feather-1 --disk ssd -- cargo nextest run -p hsk-studio-folio -p hsk-studio-composite -p hsk-studio-package -p hsk-studio-render-cpu --features hsk-studio-composite/motion -E 'package(folio)|package(composite)|package(package)|(package(render-cpu)&(binary(composition_mask_shape)|binary(composition_mask_paths)))' --no-fail-fast",
+  "exit": 0,
+  "sha": "f59b775a",
+  "passed": 327,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": null,
+ "bg_pids": [],
+ "next": "on RELEASE: git fetch + rebase onto origin/codex/handshake-studio-assets (origin at cf2e46da = harness-view only since c6b3733f: no re-run needed unless the rebase touches folio/composite/render-cpu/package or their dependencies), diff --stat check, push with PUSH SAFETY, then READY_FOR_VALIDATION",
+ "updated_at": "2026-10-30T08:57:12Z",
+ "notes": {
+  "base": "origin c719b1dc, lane worktree wt-studio-lanes/smb-ae-mask-feather-1, branch lane/smb-ae-mask-feather-1",
+  "spec_basis": "module 14 v02.225: STU-CMP-025 (:29388 'mask feather (edge softness, with an optional variable-width feather along the path), mask opacity, and mask expansion (a positive or negative offset of the path outward or inward ...)', all keyframable), STU-CMP-025a (:29396 seven modes, combined in order, independent inverted), STU-CMP-026 (:29403 opacity stored normalised 0..1, presented 0..100), STU-CMP-027 (:29413 mask geometry is the same StudioVectorPath primitive), STU-CMP-010 step 2 (:29278 masks combine before effects), STU-MOT-095 table (:27893-27899 ADBE Mask Feather = uniform feather, ADBE Mask Offset = expansion, ADBE Mask Opacity; ADBE Mask Interp variable-width feather = declared gap)",
+  "slice1_folio": "StudioCompositionMask gains feather / opacity / expansion: Option<StudioKeyedValue> (existing static_value + keyframes record, no new type), serde default + skip_serializing_if none, deny_unknown_fields kept. Ranges: feather 2 components each 0..=MAX_STREAM_ABS_VALUE (folio's coordinate bound; pigment's 10000 px feather limit is enforced as a typed refusal in composite, not in Folio), opacity 1 component 0..=1 (stored form, STU-CMP-026), expansion 1 component |x| <= MAX_STREAM_ABS_VALUE. validate_mask runs validate_keyed per stream (target <layer>/masks/<id>/<stream>/...). New const StudioCompositionMask::FEATHER_COMPONENTS = 2. track_apply literal: fields None (a planar-track re-apply replaces an existing mask with the streams absent, as it already resets inverted: follow-up candidate, not changed). Existing folio test mask_path_contract.rs still sets masks[0].feather = 2.0 and expects a decode error: still refused (a number is not a StudioKeyedValue), its message 'unknown fields are refused' is now stale wording (file not owned).",
+  "slice2_composite": "mask_paths additive: MaskShape {feather_px [x,y], opacity, expansion_px} (Default = identity), MaskShapeRefusal {mask index, code}, codes composition_mask_feather_out_of_range / composition_mask_opacity_not_finite / composition_mask_expansion_geometry, MASK_EXPANSION_TOLERANCE_PX = 1e-3, mask_coverage_shaped. Readings declared in the module rustdoc (UNVERIFIED vs After Effects, D5): order expansion -> coverage over rect grown by feather_support -> separable feather_kernel (x then y, cropped, no border clamp reached) -> invert -> opacity -> combine; expansion in LAYER space before the matrix (nib edit::offset_path, round join, polygon mapped by the matrix; 0 skips the offset); feather in plane pixels along plane axes, radius = feather value (pigment sigma = r/2, support ceil(3 sigma), the Photoshop vector-mask feather maths); sampled overshoot clamped (opacity 0..1, negative feather 0); non-finite or > MAX_FEATHER_PX typed. MaskAtTick and mask_coverage unchanged; masked_scene.rs untouched.",
+  "slice3_temporal": "LayerMasks.masks: Vec<LayerMask {mask_id, mode, inverted, closed, path, feather, opacity, expansion}> (was a tuple); LayerMasks::at samples every stream with motion sample (same property()/keyed_property conversion as the path); LayerMasks::coverage calls mask_coverage_shaped; used at the 3D plane site, the 2D composition matte site and effects.rs. Plane bound: max(rect pixels, vector::MAX_CLIP_PIXELS) so a feather's support fits; identity masks see the same bound outcome as before. Refusal = TemporalError::Unsupported { layer_id: '<layer>/masks/<mask_id>', feature: code }. The 3D plane site is wired but has no dedicated test in this lane.",
+  "descriptor": "composite DESCRIPTOR lists no composition mask capability (grep of lib.rs: no mask_paths / STU-CMP-025 / KEY-TRACK-3 text), so no DESCRIPTOR hunk",
+  "rule_4a": "bundled run = whole suites of hsk-studio-folio, hsk-studio-composite (features motion), hsk-studio-package, plus render-cpu binaries composition_mask_shape and composition_mask_paths; clippy over the four crates (composite with motion) and lane-check's dependents pass",
+  "rule_4b": "Folio record fields added: hsk-studio-package suite in the run; externals.rs VOCAB has no word matching feather / opacity / expansion, so no classification hunk. git grep StudioCompositionMask -- crates/ at base: only composite (and folio itself)",
+  "rule_4c": "lane-check --step0-only clean at bb958187",
+  "rule_4d": "no doc examples added or changed",
+  "rule_4e": "composite tests/composition_mask_shape.rs is #![cfg(feature = \"motion\")]; .config/round-features.toml has hsk-studio-composite = [[\"motion\"]]: covered. mask_shape.rs, folio and render-cpu tests are default-feature",
+  "default_build": "mask_paths.rs has no cfg(feature) items and every new private fn is reached from the pub mask_coverage_shaped; temporal changes are motion-only. The dependents clippy pass of lane-check (no features: interop-fig, pulse, render-gpu, ... depend on composite without motion) compiles composite default; result recorded after the run",
+  "red_first": "not run red separately (one bundled run per push); by construction: folio composition_mask_properties feather_opacity_and_expansion_are_accepted_and_round_trip fails at c719b1dc (deny_unknown_fields refused 'feather'); composite tests name MaskShape / mask_coverage_shaped, absent at c719b1dc",
+  "not_proven": "printed lines: After Effects mask feather/opacity/expansion parity (no D5 oracle case), variable-width feather ADBE Mask Interp (declared gap), GPU render of shaped masks",
+  "cargo_lock": "not committed; no new dependency or crate edge (composite already depends on nib and pigment)",
+  "rebase": "local slices rebased onto origin c6b3733f before the first bundled run (lead coordination note); nib diff c719b1dc..c6b3733f is additive (simplify.rs, descriptor, lib.rs mod line), edit::offset_path unchanged. Run 1 (old base, still in clippy) stopped: TaskStop of its shell and taskkill of its orphaned cargo-clippy tree (PIDs 44900/63628/57656/71916, target lanes/smb-ae-mask-feather-1 only); lock released by the studio-env EXIT trap path; no lock touched by hand",
+  "run2": "2c643900 (base c6b3733f): clippy clean for this lane's code except two test-only lints in mask_shape.rs (useless_vec, cloned_ref_to_slice_refs; fixed in f59b775a); other warnings pre-existing (render-cpu display.rs duplicated_attributes, composition_scenes.rs large_enum_variant). Dependents clippy pass compiled composite with default features (no composite lib warning) = default-build check. Tests 326/327: FAIL mask_shape expansion_grows_with_round_corners_and_shrinks corner max |delta| 4.7e-2 (12/255); cause: the oracle's cubic-arc rounded rect went through mask_coverage, whose nib rasterize flattens curves at the default 0.1 px tolerance (chord sagitta up to 0.1 px), while the expansion polygon is flattened at 1e-3; inside/outside exactness held. Fix: oracle = 128-chord-per-quarter polygon (sagitta ~6e-5 px). Product code unchanged. Loop cap: run 3 is the one re-run for this failure",
+  "run3": "f59b775a, 2026-10-30T08:45:24Z-08:57:02Z on C: ssd: clippy (4 crates, composite with motion) + dependents pass clean for this lane's code; nextest 327/327 PASS (folio 131 incl. composition_mask_properties 4, composite incl. mask_shape 6 and composition_mask_shape 3 under motion, package 35, render-cpu composition_mask_shape + composition_mask_paths); LANE_CHECK_EXIT 0",
+  "hold_for_release": "local green sha f59b775a (lane branch lane/smb-ae-mask-feather-1); not pushed"
+ },
+ "verdicts": []
+}

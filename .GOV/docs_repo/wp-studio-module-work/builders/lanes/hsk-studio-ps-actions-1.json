@@ -1,0 +1,103 @@
+{
+ "crate": "hsk-studio-harness-core, hsk-studio-harness (slice 4 cli.rs)",
+ "lane": "SMB-PS-ACTIONS-1",
+ "status": "HOLD_FOR_RELEASE",
+ "phase": "slices 1-3 green on be8dbe7c; slice 4 committed locally c79067a4 (not yet built: lead said do not run before RELEASE); waiting for RELEASE after SMB-AI-AREA-TYPE-3 pushes",
+ "commits": [
+  {
+   "sha": "b5ef8e70",
+   "slice": 1,
+   "pushed": false,
+   "subject": "harness-core (SMB-PS-ACTIONS-1 slice 1): action records, strict portable artifact, validators, Run command corpus"
+  },
+  {
+   "sha": "2f1bf5f5",
+   "slice": 2,
+   "pushed": false,
+   "subject": "harness-core (SMB-PS-ACTIONS-1 slice 2): record the Run command stream, replay as one undo step"
+  },
+  {
+   "sha": "3505f115",
+   "slice": 3,
+   "pushed": false,
+   "subject": "harness-core (SMB-PS-ACTIONS-1 slice 3): batch runner over documents"
+  },
+  {
+   "sha": "be8dbe7c",
+   "slice": 3,
+   "pushed": false,
+   "subject": "harness-core (SMB-PS-ACTIONS-1 slice 3): action_batch test names its job-mutation type (clippy type_complexity)"
+  },
+  {
+   "sha": "c79067a4",
+   "slice": 4,
+   "pushed": false,
+   "subject": "harness + harness-core (SMB-PS-ACTIONS-1 slice 4): CLI batch / action check, manual entries"
+  }
+ ],
+ "capabilities_done": [
+  "slice 1 action records + strict artifact + validators STU-AUT-181..185 + RUN_COMMANDS corpus",
+  "slice 2 Run::start_recording/stop_recording/play_action, group undo step, rollback",
+  "slice 3 batch runner (run_batch, BatchJob export/decode)",
+  "slice 4 CLI `batch JOB.json`, `action check SET.json`, manual COMMANDS entries + automation vocabulary (built, not yet run)"
+ ],
+ "tests": {
+  "argv": "cd <lane>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --disk ssd --owner smb-ps-actions-1 -- cargo nextest run -p hsk-studio-harness-core",
+  "exit": 0,
+  "sha": "be8dbe7c",
+  "passed": 21,
+  "failed": 0,
+  "skipped": 0,
+  "clippy": "harness-core + dependents harness, harness-view: no warnings in owned crates (2 pre-existing hsk-studio-observe too_many_arguments warnings, not owned)",
+  "runs": [
+   {
+    "run": 1,
+    "sha": "3505f115",
+    "exit": 0,
+    "passed": 21,
+    "note": "clippy type_complexity warning in tests/action_batch.rs, fixed in be8dbe7c"
+   },
+   {
+    "run": 2,
+    "sha": "be8dbe7c",
+    "exit": 0,
+    "passed": 21
+   }
+  ]
+ },
+ "blockers": [],
+ "lock_wait_s": null,
+ "bg_pids": [],
+ "next": "on RELEASE: git fetch + rebase onto origin; ONE bundled lane-check on C: (ssd, CARGO_BUILD_JOBS=6): cargo nextest run -p hsk-studio-harness-core -p hsk-studio-harness -p hsk-studio-harness-view --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch,hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch (covers harness-view units [viewer] and [desktop,audio-batch] of .config/round-features.toml and the harness viewer/desktop/media/audio-batch units; whole suites, no filter); then diff --stat check, guarded push, READY_FOR_VALIDATION",
+ "updated_at": "2026-10-30T09:00:39Z",
+ "notes": {
+  "brief": "builders/briefs/lane-smb-ps-actions-1.md; binding builders/briefs/wave-parity-2-common.md",
+  "push_hold": "lead instruction: commit slices locally, after first green bundled run write HOLD_FOR_RELEASE with the green local sha; push only after RELEASE. Lead 08:2x: rebase before the first bundled run (done: onto origin c6b3733f).",
+  "spec_basis": "STU-RAS-169; STU-AUT-001/002/004/008/010/011/012; STU-AUT-100 (correction of 010: action replays INSIDE a command batch); STU-AUT-101..114 record shapes and closed enumerations; STU-AUT-126..136 batch; STU-AUT-147 corpus; STU-AUT-181..187 validator codes (module 14 v02.225)",
+  "spec_delta_requests": [
+   "STU-AUT-106 heading says 'closed, seven members' but its table has eight rows (reference, class, enumerated, measured, number, boolean, string, list); STU-AUT-178 also says 'all seven recorded value types'. Implemented eight, string and list distinct. Request: correct both to eight.",
+   "STU-AUT-105 names 'a headless batch run under [STU-AUT-112]' but 112 is event-bound actions; the headless batch clause is STU-AUT-136. Request: fix the cross reference.",
+   "STU-AUT-128 'action (a StudioAction by id)': no action library exists to resolve ids; the job carries the action record inline (portable). Request: allow inline action records in the batch artifact or name the library."
+  ],
+  "studio_readings_unverified_d5": "refused recordable ops are not recorded (listed in RecordingReport.refused); headless suppresses show_in_interactive_playback and show_if_configured (only always_show blocks); folder patterns * and ? on the file name, case-sensitive, symlinks not followed, sorted by path; date/time/dimension/scale-suffix template tokens refused (no clock port); concurrency 1 only; quarantine COPIES the input; retries only before any output is written; backoff recorded never slept; template is a structured token list (spec says 'a token string')",
+  "blend_mode_value": "no blend-mode member-name source in harness-core's dependencies (folio stores the StudioBlendMode discriminant; names live in Pigment): blend mode records as type number (discriminant)",
+  "restructure": "placement-only writes are recordable (list [reference layer, enumerated place.<mode>, reference anchor?]); a restructure with a create payload (layer record + graph operation) is not replayable from the recorded value types: not recorded, reported not_recordable reason restructure_create_payload",
+  "replay_transaction": "each replayed step is its own chronicle revision through the same public Run method; atomicity is rollback (newest-first undo of applied steps, redo history restored) and ONE group history step 'action <name>'; a chronicle-level single transaction is NOT_PROVEN",
+  "content_digest": "no public raw-bytes sha256 in harness-core's non-optional dependencies (package::sha256_hex_of is behind feature import); the receipt digest comes from Session::stage_tile on the opened input (sha256 of the input bytes, staged body not referenced so never saved); an input that fails to open has no digest (digest_note input_not_opened)",
+  "job_scope_resource": "JobScope.resource needs an Accord DomainId; no job-level prefix exists, so admission uses the opened document's SDOC id and follows the open (before automation and outputs). Not a missing port API.",
+  "gaps_not_proven": "GUI actions panel; Folio persistence of action sets (STU-AUT-114) and CKC registration; schemars input/output schemas (STU-AUT-147); STU-AUT-111 step kinds (byte-payload ops route there); event-bound actions STU-AUT-112; conditional predicates STU-AUT-113; SACT accord prefix; dry-run mode (dry_runnable false everywhere); STU-AUT-110 explicit insertion of non-recordable steps; ArtifactService manifest ids and EventLedger binding of receipts; other batch source kinds, output formats, concurrency > 1",
+  "public_api": "additive only: new modules action and batch, new Run methods start_recording / stop_recording / play_action, new lib re-exports; no existing pub signature changed",
+  "history_paths": "HistoryStep gained a private group field (group: None on the 10 existing literals); history_step routes a group step to group_step before the existing branches; the split-step undo calls of set_*_and_entry / restructure_and_entry run through quietly(). Per lead: harness and harness-view suites are part of the release run.",
+  "rule_4a": "release run = whole hsk-studio-harness-core, hsk-studio-harness and hsk-studio-harness-view suites in one nextest invocation (no filter); clippy over those crates and their dependents via lane-check",
+  "rule_4b": "no Folio record field added or renamed",
+  "rule_4c": "step 0 clean before the run; tests write only under std::env::temp_dir(); no path literals",
+  "rule_4d": "no doc examples added",
+  "rule_4e": "harness-view viewer tests (#![cfg(feature = \"viewer\")]) need the viewer unit: the release run enables harness-view desktop + audio-batch (viewer, media on); harness desktop + audio-batch enables the harness viewer unit; harness default-feature CLI tests (harness_batch_cli.rs) also compile under those features. New test file harness_batch_cli.rs has no cfg gate.",
+  "cargo_lock": "not touched; no new dependency or crate edge",
+  "red_first": "not run red separately (one bundled run per push); every new test exercises APIs that do not exist at c719b1dc (modules action/batch, Run::start_recording/play_action), so each is red by construction at the base",
+  "not_proven_lines": "tests print NOT_PROVEN: lines (action_records corpus test x8, action_record_replay x4, action_batch x6); nextest captures stdout of passing tests",
+  "lead_2026-10-30": "lead: push order downstream-first (AREA-TYPE-3 -> this lane -> AE-MASK-FEATHER-1 -> HDR-MERGE-1); HistoryStep group field touches undo/redo internals harness and harness-view lean on, so the harness and harness-view suites run before READY (supersedes the earlier history_paths judgement that they were not needed)",
+  "slice4": "cli.rs: batch / action subcommands (no window, process, network or env API; harness_batch_cli.rs also scans action.rs and batch.rs for those tokens); manual.rs: COMMANDS batch + action, manual_json automation key (dialog options, value types, unit tokens, overwrite and error policies, source kinds, template tokens, validator codes, RUN_COMMANDS corpus), manual_text AUTOMATION section"
+ },
+ "verdicts": []
+}
