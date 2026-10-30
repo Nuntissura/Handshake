@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-HANDOFF
 file_kind: handoff
-updated_at: 2026-10-24T08:25:00Z
+updated_at: 2026-10-30T03:10:00Z
 wp: WP-KERNEL-STUDIO
 authority: Handshake Codex, KERNEL_BUILDER_PROTOCOL, START_LOG.md, ledger.json, validation/*, builders/briefs/wave-parity-2-common.md, builders/studio-env.sh, workflow/workflow-v3.json (this file is a projection; they win on conflict)
 ---
@@ -101,6 +101,13 @@ DO NOT:
 </topic>
 
 <topic id="state" status="active" summary="Verified state 2026-10-24 08:20Z (supersedes the takeover prompt's STATE YOU INHERIT block)">
+
+## State update (lead, 2026-10-30 ~03:10Z)
+
+- R40 @868be362 (first round built on the C: SSD): 319 PASS / 0 FAIL / 0 INCONCLUSIVE; all of tonight's lanes through SMB-LR-HEALING-2 and the FIG-EDIT-1 D16 fix are PASS; the R39 render-gpu set and SMB-TIMELINE-UI-1 PASS; newly covered tests all ran green. Findings F-R40-2 (motion-js CPU-cap claim vs test), F-R40-10 (C: cap vs lane targets: retire a C: lane target once its builder has pushed), F-R40-6 (layout_rules fingerprints) are open small follow-ups.
+- 2026-10-24 ~13:20Z all agents stopped on the weekly API limit (reset 2026-10-27); resumed 2026-10-30. R40's union finished unattended. gov_kernel fast-forwarded to the WP-012 device's work; SPEC_CURRENT v02.225.
+- READY for R41 (origin 88c7eb6f and later): SMB-SHELL-ROW-WRAP-1 bfb5843c, SMB-ID-CJK-KINSOKU-1 Folio slice 88c7eb6f; building on C: (resumed with context): SMB-ID-CJK-KINSOKU-1 (layout), SMB-AI-AREA-TYPE-1, SMB-PS-INFO-HISTOGRAM-1. R41 freezes when they have pushed; scope per round-select (R40 was full).
+- Budget lesson: the night of 2026-10-23/24 ran ~25 Opus agents (several at 400-630k tokens) and exhausted the weekly limit; size waves to the remaining budget.
 
 ## State (lead, 2026-10-24 ~08:20Z)
 
