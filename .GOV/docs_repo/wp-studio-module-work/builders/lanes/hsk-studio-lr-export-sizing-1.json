@@ -1,13 +1,37 @@
 {
  "crate": "hsk-studio-develop",
  "lane": "SMB-LR-EXPORT-SIZING-1",
- "status": "CODE_READY_LOCAL",
- "phase": "4 slices coded and committed locally on lane/smb-lr-export-sizing-1 (base d208bc0e), focused tests green on D:; NOT pushed; bundled run waits for the lead's disk and base (R43 on C:)",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed at 61bb4d58 (rebased onto 6f005d28, after VIEW-POLISH-1 and R42-FOLLOWUPS-1); bundled run green on D:",
  "commits": [
-  {"slice": 1, "red_sha": "4c767d6d", "sha": "144bd246", "pushed": false, "summary": "image sizing: OutputSizing, fit_output_size, stretched Keys-cubic linear-light resample, receipt, EXPORT_STAGE_KEYS"},
-  {"slice": 2, "red_sha": "b828780a", "sha": "1cf8ed84", "pushed": false, "summary": "output sharpening: OutputSharpening, sharpen_row table, unsharp mask, out-of-range counts"},
-  {"slice": 3, "red_sha": "ecc6d5b8", "sha": "fc36b118", "pushed": false, "summary": "graphic watermark: WatermarkSettings, rotate/size/place/composite in linear light, text watermark typed refusal"},
-  {"slice": 4, "red_sha": "9ce0195d", "sha": "b644d8ec", "pushed": false, "summary": "staged entries: develop_to_output_staged, develop_to_tiff_staged, tiff_from_staged_output, validate_export_stage, ExportError::Stage, DESCRIPTOR export_stage"}
+  {
+   "slice": 1,
+   "red_sha": "2924b816",
+   "sha": "52138bf6",
+   "pushed": true,
+   "summary": "image sizing: OutputSizing, fit_output_size, stretched Keys-cubic linear-light resample, receipt, EXPORT_STAGE_KEYS"
+  },
+  {
+   "slice": 2,
+   "red_sha": "aa5b23b7",
+   "sha": "7222e0be",
+   "pushed": true,
+   "summary": "output sharpening: OutputSharpening, sharpen_row table, unsharp mask, out-of-range counts"
+  },
+  {
+   "slice": 3,
+   "red_sha": "d074a641",
+   "sha": "75b8a064",
+   "pushed": true,
+   "summary": "graphic watermark: WatermarkSettings, rotate/size/place/composite in linear light, text watermark typed refusal"
+  },
+  {
+   "slice": 4,
+   "red_sha": "374f601a",
+   "sha": "61bb4d58",
+   "pushed": true,
+   "summary": "staged entries: develop_to_output_staged, develop_to_tiff_staged, tiff_from_staged_output, validate_export_stage, ExportError::Stage, DESCRIPTOR export_stage"
+  }
  ],
  "capabilities_done": [
   "export stage on the developed linear-light image before the output transfer: sizing -> output sharpening -> graphic watermark",
@@ -35,15 +59,21 @@
   ]
  },
  "focused_runs": {
-  "red": ["lane-check-smb-lr-export-sizing-1-red1-4c767d6d.log", "lane-check-smb-lr-export-sizing-1-red2-b828780a.log", "lane-check-smb-lr-export-sizing-1-red3-ecc6d5b8.log", "lane-check-smb-lr-export-sizing-1-red4-9ce0195d.log"],
+  "red": [
+   "lane-check-smb-lr-export-sizing-1-red1-4c767d6d.log",
+   "lane-check-smb-lr-export-sizing-1-red2-b828780a.log",
+   "lane-check-smb-lr-export-sizing-1-red3-ecc6d5b8.log",
+   "lane-check-smb-lr-export-sizing-1-red4-9ce0195d.log"
+  ],
   "green": "lane-check-smb-lr-export-sizing-1-s4-wip-9ce0195d.log (D:, develop only, binaries develop_export_stage + develop_export_tiff + develop_output: 22 run, 22 passed; clippy develop clean apart from pre-existing observe too_many_arguments warnings; the run built 9ce0195d plus the slice 4 src committed unchanged as b644d8ec)",
-  "dir": "session scratchpad smb-lr-export-sizing-1/"
+  "dir": "session scratchpad smb-lr-export-sizing-1/",
+  "note": "focused and red logs are pre-rebase shas (4c767d6d..9ce0195d); the pushed commits are the same patches rebased"
  },
  "blockers": [],
  "lock_wait_s": null,
  "bg_pids": [],
- "next": "lead message naming disk and base -> rebase, bundled run (clippy develop + dependents, whole develop suite), push, READY_FOR_VALIDATION",
- "updated_at": "2026-10-30T14:12:22Z",
+ "next": "validation round",
+ "updated_at": "2026-10-30T14:15:57Z",
  "notes": {
   "brief": "builders/briefs/lane-smb-lr-export-sizing-1.md (LR-33 of research/parity-20261023-adobe-print.json); binding builders/briefs/wave-parity-2-common.md",
   "worktree": "wt-studio-lanes/smb-lr-export-sizing-1, branch lane/smb-lr-export-sizing-1, base d208bc0e",
@@ -57,7 +87,23 @@
   "pigment": "only existing d208bc0e API used: transform_math::catmull_rom (no pigment edit, no new API needed)",
   "step0": "lane-check --step0-only clean at 4c767d6d; no drive-letter literals in the lane hunks",
   "round_features": "tests/develop_export_stage.rs has no feature gate; develop default unit runs it (rule 4e)",
-  "dependents": "public API additive except the new ExportError::Stage variant; no crate outside develop matches ExportError (grep at d208bc0e), so dependents should compile untouched; the bundled run's clippy over harness-core, harness-view, harness, interop-lrcat proves it"
+  "dependents": "public API additive except the new ExportError::Stage variant; no crate outside develop matches ExportError (grep at d208bc0e), so dependents should compile untouched; the bundled run's clippy over harness-core, harness-view, harness, interop-lrcat proves it",
+  "red_commits_pushed": "the four red-test commits (2924b816, aa5b23b7, d074a641, 374f601a) are in the pushed history as the brief required (red first); each does not compile alone; only 61bb4d58 is the READY claim",
+  "log_copy": "lead 2026-10-30T14:16:45Z: run log copied from the session scratchpad to Handshake_Artifacts/WP-KERNEL-STUDIO/smb-lr-export-sizing-1/lane-check-smb-lr-export-sizing-1-61bb4d58.log (HSK-ART-001 artifact root; scratchpad is temporary); content unchanged, first line 61bb4d58"
  },
- "verdicts": []
+ "verdicts": [],
+ "green_local_sha": "b644d8ec (pre-rebase)",
+ "lane_check": {
+  "run": "tools/lane-check.sh --owner smb-lr-export-sizing-1 --disk d -- cargo nextest run -p hsk-studio-develop --no-fail-fast (CARGO_BUILD_JOBS=6)",
+  "sha": "61bb4d58",
+  "base": "6f005d28",
+  "result": "passed",
+  "exit": 0,
+  "tests": "167 run, 167 passed, 19 skipped (whole develop suite incl. 13 develop_export_stage tests; develop_export_tiff and develop_output unchanged and green)",
+  "clippy": "develop + direct dependents harness, harness-core, harness-view, interop-lrcat: no errors (ExportError::Stage variant compiles in every dependent); only pre-existing hsk-studio-observe too_many_arguments warnings",
+  "step0": "clean",
+  "dependents_suites": "not run: API additive; dependents compile under clippy --tests (rule 4b, lead 2026-10-30)",
+  "log": "C:/Users/ILJASM~1/AppData/Local/Temp/claude/D--Projects-LLM-projects-Handshake-Handshake-Worktrees-wt-gov-kernel/78736d01-8cca-4de4-921a-e3cf98762f72/scratchpad/smb-lr-export-sizing-1/lane-check-smb-lr-export-sizing-1-61bb4d58.log"
+ },
+ "pushed_sha": "61bb4d58ab8bef03f0b534280c9641566019f98d"
 }

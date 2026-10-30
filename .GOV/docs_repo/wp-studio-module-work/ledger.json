@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T14:14:41Z",
+ "updated_at": "2026-10-30T14:16:45Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11721,7 +11721,7 @@
    "candidate": null,
    "commits": [],
    "verdicts": [],
-   "note": "Audition AU-14 slice 3: clip pan envelope in pulse TimelineMixStream, master row (StudioAudioMaster volume + effect lanes), automated-fader state in the mixer. Base a259a3df; pulse depends on composite, so it runs after AE-17 pushes.; 2026-10-30T13:13:57Z local 2c38798f (folio clip_pans + master.volume_automation, pulse with_clip_envelopes), 8c05fa58 (Clip Pan lane, master row, mixer AUTO; fader on automated track writes a point at the playhead, no playhead -> fader_automated_no_playhead), 38e94ab6 (panned/unpanned and mono/stereo crossfades refused by name, strip_crossfade_mismatch); clip pan then track balance is a Studio reading, Audition UNVERIFIED"
+   "note": "Audition AU-14 slice 3: clip pan envelope in pulse TimelineMixStream, master row (StudioAudioMaster volume + effect lanes), automated-fader state in the mixer. Base a259a3df; pulse depends on composite, so it runs after AE-17 pushes.; 2026-10-30T13:13:57Z local 2c38798f (folio clip_pans + master.volume_automation, pulse with_clip_envelopes), 8c05fa58 (Clip Pan lane, master row, mixer AUTO; fader on automated track writes a point at the playhead, no playhead -> fader_automated_no_playhead), 38e94ab6 (panned/unpanned and mono/stereo crossfades refused by name, strip_crossfade_mismatch); clip pan then track balance is a Studio reading, Audition UNVERIFIED; 2026-10-30T14:16:45Z claim run 1 at e7c62712 574/575 (all 10 new green; viewer_timeline_audio lane-cycle pin extended with ClipPan, 225ac4c9, outside owned paths); re-run 2 stopped before taking the lock; rebased clean on 6f005d28"
   },
   {
    "lane_id": "SMB-AI-AREA-TYPE-4",
@@ -11756,17 +11756,22 @@
   {
    "lane_id": "SMB-LR-EXPORT-SIZING-1",
    "crate": "hsk-studio-develop",
-   "phase": "bundled D: run after rebase onto 6f005d28 (2026-10-30T14:14:41Z); pushes before AU-MULTITRACK-3",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-lr-export-sizing-1.json",
    "brief": "builders/briefs/lane-smb-lr-export-sizing-1.md",
    "worktree": "wt-studio-lanes/smb-lr-export-sizing-1",
    "disk": "lead names it",
-   "candidate": null,
-   "commits": [],
+   "candidate": "61bb4d58",
+   "commits": [
+    "52138bf6",
+    "7222e0be",
+    "75b8a064",
+    "61bb4d58"
+   ],
    "verdicts": [],
-   "note": "Lightroom LR-33 engine: export resize (six types, do not enlarge, resolution), output sharpening Screen/Glossy/Matte x Low/Standard/High, graphic watermark (STU-IO-134..138; sharpening and watermark fields UNVERIFIED readings). Base d208bc0e; develop depends on pigment, so its run is ordered against SMB-PS-GRADIENT-BUCKET-1.; 2026-10-30T14:14:41Z 4 slices local (sizing 144bd246, sharpening 1cf8ed84, graphic watermark fc36b118, staged entries b644d8ec), 22/22 focused on D:; new ExportError::Stage variant"
+   "note": "Lightroom LR-33 engine: export resize (six types, do not enlarge, resolution), output sharpening Screen/Glossy/Matte x Low/Standard/High, graphic watermark (STU-IO-134..138; sharpening and watermark fields UNVERIFIED readings). Base d208bc0e; develop depends on pigment, so its run is ordered against SMB-PS-GRADIENT-BUCKET-1.; 2026-10-30T14:14:41Z 4 slices local (sizing 144bd246, sharpening 1cf8ed84, graphic watermark fc36b118, staged entries b644d8ec), 22/22 focused on D:; new ExportError::Stage variant; 2026-10-30T14:16:45Z pushed 6f005d28..61bb4d58 (ls-remote verified); D: run develop 167/167 (19 skipped) exit 0, clippy over develop + direct dependents clean (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-lr-export-sizing-1/lane-check-smb-lr-export-sizing-1-61bb4d58.log); four red-test commits on origin do not compile alone: never a round candidate"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
