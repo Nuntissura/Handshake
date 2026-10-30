@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T09:02:24Z",
+ "updated_at": "2026-10-30T09:03:36Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11255,17 +11255,17 @@
   {
    "lane_id": "SMB-AU-MULTITRACK-2",
    "crate": "hsk-studio-folio + pulse/score mix + harness-view timeline",
-   "phase": "queued (after R42 judges SMB-AU-MULTITRACK-1; next free builder slot)",
+   "phase": "build",
    "status": null,
-   "owner": "not dispatched",
-   "lane_file": null,
-   "brief": null,
-   "worktree": null,
-   "disk": null,
+   "owner": "builder opus/high (GUI lane 2)",
+   "lane_file": "builders/lanes/hsk-studio-au-multitrack-2.json",
+   "brief": "builders/briefs/lane-smb-au-multitrack-2.md",
+   "worktree": "wt-studio-lanes/smb-au-multitrack-2",
+   "disk": "C:",
    "candidate": null,
    "commits": [],
    "verdicts": [],
-   "note": "AU-MULTITRACK-1 gaps: (1) data integrity first: trim-in / razor / lift must carry clip volume envelopes (shift, split, remove) so a lifted clip never leaves an envelope that fails routing validation; (2) track volume/pan automation over time: Folio StudioAudioRouting.track_automation + pulse bus_mix reads it instead of a constant (rule 4b package suite); (3) clip pan envelope, master lane row, lanes for disabled bus effects. No AU-14 clause: spec-delta request.",
+   "note": "AU-MULTITRACK-1 gaps: (1) data integrity first: trim-in / razor / lift must carry clip volume envelopes (shift, split, remove) so a lifted clip never leaves an envelope that fails routing validation; (2) track volume/pan automation over time: Folio StudioAudioRouting.track_automation + pulse bus_mix reads it instead of a constant (rule 4b package suite); (3) clip pan envelope, master lane row, lanes for disabled bus effects. No AU-14 clause: spec-delta request.; dispatched 2026-10-30T09:03:36Z at cf2e46da; bundled run after the held-lane chain lands",
    "remediation": null
   },
   {
@@ -11281,7 +11281,7 @@
    "candidate": null,
    "commits": [],
    "verdicts": [],
-   "note": "STU-RAS-033 merge bracketed exposures to HDR (radiance merge, MTB alignment, deghost, tone-map 32->16/8) in pigment + Lightroom LR-23 HDR merge entry in develop; optional float DNG (SampleFormat 3). Base c6b3733f; push held for lead release (pigment upstream of composite); 2026-10-30T09:02:24Z slices 1-3 green locally aabca209 (b69543bc merge, 4985cb90 align/deghost/tone-map/depth caps, aabca209 develop raw brackets): pigment+develop whole suites 380/380 (19 skipped) exit 0; 3 clippy warnings in its tests being fixed; pushes last (folio change from MASK-FEATHER is in its closure: one re-run). Slice 4 float DNG blocked: needs float LinearRaw reader in develop src/dng.rs (not owned; dng_write verifies by decoding) -> follow-up. Declared readings: Debevec-Malik weights (black 1/512, clip 0.98), Ward 2003 MTB translation, deghost to reference (1/2/3 = 1, 1/2, 1/4 stop), Reinhard 2002 global via prism; develop merges in camera space before WB. NOT_PROVEN real camera brackets; PS/LR parity UNVERIFIED.",
+   "note": "STU-RAS-033 merge bracketed exposures to HDR (radiance merge, MTB alignment, deghost, tone-map 32->16/8) in pigment + Lightroom LR-23 HDR merge entry in develop; optional float DNG (SampleFormat 3). Base c6b3733f; push held for lead release (pigment upstream of composite); 2026-10-30T09:02:24Z slices 1-3 green locally aabca209 (b69543bc merge, 4985cb90 align/deghost/tone-map/depth caps, aabca209 develop raw brackets): pigment+develop whole suites 380/380 (19 skipped) exit 0; 3 clippy warnings in its tests being fixed; pushes last (folio change from MASK-FEATHER is in its closure: one re-run). Slice 4 float DNG blocked: needs float LinearRaw reader in develop src/dng.rs (not owned; dng_write verifies by decoding) -> follow-up. Declared readings: Debevec-Malik weights (black 1/512, clip 0.98), Ward 2003 MTB translation, deghost to reference (1/2/3 = 1, 1/2, 1/4 stop), Reinhard 2002 global via prism; develop merges in camera space before WB. NOT_PROVEN real camera brackets; PS/LR parity UNVERIFIED.; clippy fixes committed da3867d8 (unproven until release run)",
    "remediation": null
   }
  ],
