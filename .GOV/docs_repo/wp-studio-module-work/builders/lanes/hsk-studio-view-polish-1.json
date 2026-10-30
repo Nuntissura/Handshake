@@ -1,0 +1,43 @@
+{
+ "crate": "hsk-studio-harness-view",
+ "lane": "SMB-VIEW-POLISH-1",
+ "status": "HOLD_FOR_RUN",
+ "phase": "items 1-4 committed locally (fc10ccbd, aafd450f, e8979ba9), NOT compiled since fc10ccbd and NOT pushed; holding per lead 2026-10-30: no C: lane-check until R42 has recorded its verdicts, then rebase onto origin and one bundled run",
+ "candidate": null,
+ "commits": [
+  {"slice": "1 measure", "sha": "fc10ccbd", "pushed": false, "summary": "tests/viewer_view_polish.rs properties_rows_measured_at_900x700: every text row of the Properties panel from egui's paint list"},
+  {"slice": "3", "sha": "aafd450f", "pushed": false, "summary": "shell.rs: TYPE title (between VIEW and COLOR, STU-SHL-011) > Convert > Create Outlines (ShellCommand::CreateOutlines, id studio.type.convert.create_outlines, harness leaf suffix), Ctrl+Shift+O consumed before Ctrl+O, runs hosted PanelAction::CreateOutlines; availability: no document -> NO_SUCH_CONTAINER (remedy Open), no selection -> NEEDS_SELECTION (remedy WORKSPACE > Layers)"},
+  {"slice": "1, 2, 4", "sha": "e8979ba9", "pushed": false, "summary": "mod.rs receipt loss entries as wrapping labels (Grid removed); mod.rs Text tool click -> vector.rs Viewer::text_click (open path -> path text, closed path containing the point -> area text inset 0, else point text); mod.rs render_if_dirty echoes changed live-text lines (Viewer.live_text_seen); hosted.rs Path Operations summary appends the live-text line; viewer_side_panels INFO_MIN restored at 900x700, doc restored; tests/viewer_view_polish.rs 4 tests"}
+ ],
+ "tests": {
+  "history": [
+   {"sha": "fc10ccbd", "scope": "lane-check --step0-only", "exit": 0},
+   {"sha": "fc10ccbd", "scope": "measurement: lane-check (C: ssd, no dependents) clippy harness-view + harness, nextest viewer_view_polish::properties_rows_measured_at_900x700 (desktop+audio-batch features)", "exit": 0, "passed": 1, "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-view-polish-1/lane-check-smb-view-polish-1-measure-fc10ccbd.log"},
+   {"sha": "e8979ba9", "scope": "lane-check --step0-only", "exit": 0}
+  ]
+ },
+ "blockers": ["lead hold: no C: lane-check until R42 verdicts are recorded"],
+ "bg_pids": [],
+ "updated_at": "2026-10-30T14:40:00Z",
+ "notes": {
+  "brief": "builders/briefs/lane-smb-view-polish-1.md",
+  "worktree": "wt-studio-lanes/smb-view-polish-1 (branch lane/smb-view-polish-1, base 169d082c)",
+  "F-R41-3_measured": "fc10ccbd, 900x700, document open, Info with 4 samplers and a selection, no layer selected: Properties PanelState rect 445.0 px (x 455..900). Widest text rows (none wrapping) are the import receipt loss Grid row: 'document/layer_extras' x 481.0..615.0, 'transformed' 623.6..694.6, 'merged_image_oracle_unknown' 704.2..892.2 (411 px across). Measured from egui's FullOutput shapes (TextShape visual_bounding_rect, galley wrap max_width), not by reading. Fix: one wrapping label per entry 'path / kind / code'.",
+  "gaps": [
+   "not compiled or tested after fc10ccbd (lead hold)",
+   "area text from a click uses inset 0 (the Path Operations panel's Area inset field is not read by the click)",
+   "Text tool click on a network (vector network) layer is not a target; Illustrator's own Type-tool click on an open path makes area type, Studio reads the brief (path text): UNVERIFIED D5"
+  ],
+  "out_of_owned_paths": "crates/hsk-studio-harness-view/tests/viewer_proof.rs:184 and crates/hsk-studio-harness/tests/viewer_shell.rs:641 title-order pins gain 'Type' (the brief's TYPE menu changes the title list; one line each); waiver requested from the lead",
+  "run_ui_md_lines": [
+   "Text tool on paths: with the Text tool, click on an open vector path for text on the path, inside a closed vector path for area text in it, elsewhere for point text; Edit > Undo removes it in one step.",
+   "Create Outlines: Type > Convert > Create Outlines (Ctrl+Shift+O) outlines the selected point text or the live text of the selected vector layer, the same command as Path Operations > Create Outlines.",
+   "After a path edit the status log says 'live text <id>: N glyphs placed[, M overset]' when the counts changed; the Path Operations summary line shows the selected layer's live text the same way.",
+   "Import receipt loss entries wrap inside Properties ('path / kind / code'); the side panels keep their default widths at 900x700."
+  ],
+  "rule_4e": "tests/viewer_view_polish.rs is #![cfg(feature = \"viewer\")]; .config/round-features.toml has hsk-studio-harness-view [viewer] and [desktop, audio-batch] units: covered",
+  "spec_basis": "STU-SHL-011 (TYPE between VIEW and COLOR), STU-SHL-029 (TYPE > Convert > Create Outlines), STU-TYP-114 (point/area/path text kinds), STU-TYP-004/120 (text on path); module 14 v02.225",
+  "unverified": "Illustrator behaviour of Type tool clicks on paths and the Create Outlines key binding: UNVERIFIED (D5); Ctrl+Shift+O is a Studio choice; command id studio.type.convert.create_outlines has no spec-declared id (harness leaf suffix)"
+ },
+ "next": "on lead go: git fetch, rebase onto origin/codex/handshake-studio-assets, one bundled lane-check (C: ssd, owner smb-view-polish-1, CARGO_BUILD_JOBS=6) over harness-view + harness suites with desktop,audio-batch features, log lane-check-smb-view-polish-1-<sha>.log; fix all visible failures then at most one re-run; push with PUSH SAFETY; READY_FOR_VALIDATION"
+}

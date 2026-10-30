@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T10:36:58Z",
+ "updated_at": "2026-10-30T10:54:44Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11381,7 +11381,7 @@
   {
    "lane_id": "SMB-VIEW-POLISH-1",
    "crate": "hsk-studio-harness-view",
-   "phase": "build",
+   "phase": "hold (no C: runs during R42)",
    "status": null,
    "owner": "builder opus/medium (GUI lane 1)",
    "lane_file": "builders/lanes/hsk-studio-view-polish-1.json",
@@ -11391,23 +11391,25 @@
    "candidate": null,
    "commits": [],
    "verdicts": [],
-   "note": "F-R41-3 Properties wide row measured + wrapped, INFO_MIN restored; Text tool click on open path -> path text, inside closed path -> area text; Create Outlines Type menu leaf + key; overset echo after path edits + Path Operations live-text summary. Base 169d082c.",
+   "note": "F-R41-3 Properties wide row measured + wrapped, INFO_MIN restored; Text tool click on open path -> path text, inside closed path -> area text; Create Outlines Type menu leaf + key; overset echo after path edits + Path Operations live-text summary. Base 169d082c.; 2026-10-30T10:37:53Z items 1-4 coded locally (fc10ccbd measurement test, aafd450f Type > Convert > Create Outlines Ctrl+Shift+O checked before Ctrl+O, e8979ba9 receipt loss rows wrap + INFO_MIN restored, Text-tool click path/area/point, overset echo + Path Operations live-text line); measured wide row: receipt loss grid row document/layer_extras | transformed | merged_image_oracle_unknown (x 481..892 at 900x700). HBR-STOP-005 waiver (lead): one-line title-order updates in tests/viewer_proof.rs:184 and hsk-studio-harness/tests/viewer_shell.rs:641 for the new Type menu. Bundled run after R42 verdicts.",
    "remediation": null
   },
   {
    "lane_id": "SMB-PIGMENT-AE-KERNELS-1",
    "crate": "hsk-studio-pigment",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-pigment-ae-kernels-1.json",
    "brief": "lead dispatch prompt 2026-10-30T10:36:58Z (signatures from SMB-AE-EFFECT-FAMILIES-2 lane notes)",
    "worktree": "wt-studio-lanes/smb-pigment-ae-kernels-1",
    "disk": "D:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "a259a3df",
+   "commits": [
+    "a259a3df"
+   ],
    "verdicts": [],
-   "note": "pigment kernels requested by SMB-AE-EFFECT-FAMILIES-2 (signatures in its lane file): blur_window_axis (one-axis), directional_blur_window, radial_blur_window (spin/zoom), find_edges_window, box_kernel (move Fast Box Blur taps from composite); then composite lifts the typed refusals. Also serves Photoshop filters.; dispatched 2026-10-30T10:36:58Z at 169d082c on D: (R42 holds C:); push held until lead release",
+   "note": "pigment kernels requested by SMB-AE-EFFECT-FAMILIES-2 (signatures in its lane file): blur_window_axis (one-axis), directional_blur_window, radial_blur_window (spin/zoom), find_edges_window, box_kernel (move Fast Box Blur taps from composite); then composite lifts the typed refusals. Also serves Photoshop filters.; dispatched 2026-10-30T10:36:58Z at 169d082c on D: (R42 holds C:); push held until lead release; 2026-10-30T10:54:44Z READY at a259a3df: pigment whole suite 246/246 on D: exit 0 (17 new tests in tests/ae_kernels.rs), log Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pigment-ae-kernels-1/run2-a259a3df.log; declared readings (premultiplied, bilinear, fixed-order f64 sums; radial amount 0..=1000; Sobel find edges) in lane file. For R43.",
    "remediation": null
   }
  ],

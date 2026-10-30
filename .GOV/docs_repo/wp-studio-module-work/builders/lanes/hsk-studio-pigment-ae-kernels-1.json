@@ -1,0 +1,73 @@
+{
+ "crate": "hsk-studio-pigment",
+ "lane": "SMB-PIGMENT-AE-KERNELS-1",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed a259a3df to origin/codex/handshake-studio-assets (169d082c..a259a3df, fast-forward; rebase a no-op, origin unchanged, so no re-run)",
+ "green_sha": "a259a3df",
+ "commits": [
+  {
+   "sha": "6c95da04",
+   "subject": "pigment: box_kernel, blur_window_axis, directional_blur_window, radial_blur_window, find_edges_window, BlurError::Parameter; tests/ae_kernels.rs"
+  },
+  {
+   "sha": "a259a3df",
+   "subject": "pigment: radial_blur_window amount 0..=1000 (AE Radial Blur Amount hard range): spin arc 0.36*amount deg, zoom 1 +- amount/2000"
+  }
+ ],
+ "capabilities_done": [
+  "blur_math::box_kernel(half_width_px: u32, iterations: u32) -> Result<Vec<f32>, BlurError>: iterated box, composite box_taps arithmetic (running sum / width in binary64, clamp >= 0, normalise by index-order sum, round to binary32), <= MAX_BOX_KERNEL_TAPS 6001 else BlurError::Parameter; 0 -> [1.0]",
+  "blur_math::blur_window_axis(range, src, src_rect, out, taps, axis: BlurAxis {Horizontal|Vertical}, limits: BlurLimits) -> Result<Vec<[f32;4]>, BlurError> + blur_window_axis_cost(out, taps)",
+  "blur_math::directional_blur_window(range, src, src_rect, out, angle_deg: f32, length_px: f32, limits) -> Result<Vec<[f32;4]>, BlurError> + directional_blur_window_cost(out, length_px); length 0..=6000 (MAX_DIRECTIONAL_BLUR_LENGTH_PX)",
+  "blur_math::radial_blur_window(range, src, src_rect, out, centre: [f32;2], amount: f32, kind: RadialBlurKind {Spin|Zoom}, limits) -> Result<Vec<[f32;4]>, BlurError> + radial_blur_window_cost(out, centre, amount, kind); amount 0..=1000 (MAX_RADIAL_BLUR_AMOUNT)",
+  "filter_math::find_edges_window(src, src_rect, out, invert: bool, limits: FilterLimits) -> Result<Vec<[f32;4]>, FilterError> + find_edges_window_cost(out); FIND_EDGES_OPERATOR",
+  "BlurError::Parameter (code blur_parameter; FilterError::from maps it to Parameter); BlurError is non_exhaustive, render-cpu blur_error already has a wildcard arm"
+ ],
+ "tests": {
+  "argv": "cd <lane>/handshake-studio-assets && CARGO_BUILD_JOBS=6 STUDIO_LANE_CHECK_NO_DEPENDENTS=1 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-pigment-ae-kernels-1 --disk d -- cargo nextest run -p hsk-studio-pigment",
+  "exit": 0,
+  "sha": "a259a3df",
+  "passed": 246,
+  "failed": 0,
+  "skipped": 0,
+  "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pigment-ae-kernels-1/run2-a259a3df.log",
+  "earlier": {
+   "sha": "6c95da04",
+   "exit": 0,
+   "passed": 246,
+   "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pigment-ae-kernels-1/run1-6c95da04.log"
+  },
+  "new_tests": "tests/ae_kernels.rs (17 tests: box goldens/normalisation/Gaussian bound/refusals; axis golden, H-then-V == blur_window_in within 1e-6 (Gaussian r 1, 2, 3.5 and box (2,3)), identity/window independence/refusals; directional goldens, angle 0/180/360/-180/720 == horizontal box_kernel(h,1) and 90/270/-90 == vertical within 1e-6, length 0 identity, oblique mass 1 and centroid kept, refusals; radial goldens, spin keeps radial distance (|d-R| <= 1.5, mean within 0.25), zoom keeps angle (<= asin(1.5/R)), window independence, exact cost, refusals; find edges step-edge goldens, flat/transparent/beyond-source, refusals)",
+  "clippy": "clean for the changed files (warnings only pre-existing: hsk-studio-observe lib.rs too_many_arguments x2, pigment tests/layer_styles.rs:145 is_multiple_of)",
+  "doctests": "none added (rule 4d n/a)",
+  "features": "ae_kernels.rs not feature-gated (rule 4e n/a)",
+  "dependents": "not run: additive public items only, no existing signature changed"
+ },
+ "blockers": [],
+ "bg_pids": [],
+ "next": "validation round",
+ "updated_at": "2026-10-30T10:54:33Z",
+ "notes": {
+  "origin": "pigment_kernel_gaps of SMB-AE-EFFECT-FAMILIES-2 (lead dispatch 2026-10-30)",
+  "spec_basis": "module 14 v02.225 parameter rows: ADBE Motion Blur (Directional Blur: Direction ANGLE, Blur Length 0..1000), ADBE Radial Blur (Amount 0..1000 soft 0..100 default 10, Center POINT, Type POPUP), ADBE Box Blur2 (Fast Box Blur: Blur Radius 0..30000, Iterations 1..50, Blur Dimensions POPUP), ADBE Find Edges (one CHECKBOX, Invert); STU-FX-013 shared Gaussian",
+  "signature_differences": {
+   "box_kernel": "refusal is BlurError::Parameter (not Option). MAX_BOX_KERNEL_TAPS 6001 = composite's MAX_EFFECT_TAPS, so Fast Box Blur radius 30000 hard max is still refused above 6001 taps",
+   "find_edges_window": "no SampleRange parameter (unit range only: 1 - m refers to the white point); returns FilterError",
+   "directional/radial": "as requested; each has a *_cost function for admission before the call",
+   "radial amount": "accepts the full AE hard range 0..=1000; composite maps AE Amount 1:1 (a refusal 'Radial Blur amount > 0' can be dropped)"
+  },
+  "declared_readings": {
+   "common": "premultiplied work, straight in/out, transparent beyond src_rect, binary64 sums in fixed order rounded once to binary32, each output pixel independent of the window; sub-pixel filter SUBPIXEL_FILTER = bilinear_premultiplied, pixel (x,y) centred at (x+0.5, y+0.5)",
+   "box_kernel": "three iterations ~ Gaussian of variance h(h+1): max tap error <= 10% of peak, L1 <= 0.06 (measured 9.2%/0.052 at h=1, 6.3%/0.051 at h=25)",
+   "blur_window_axis": "one separable pass, unpremultiplied after the pass; H then V == blur_window_in within 1e-6 (straight round trip between passes)",
+   "directional": "uniform weights over 2*ceil(L/2)+1 samples spaced L/(2m) on a segment of length L centred on the pixel; angle from +x towards screen-up (direction (cos, -sin)), exact at multiples of 90; angle 0 with L=2h == box_kernel(h,1) horizontal. AE Direction 0 meaning (AE may treat 0 as vertical) UNVERIFIED: composite maps the AE angle",
+   "radial": "mean of 2m+1 samples per pixel, m = min(ceil(extent/2), 256) (spacing <= 1 px below the cap); spin arc 0.36*amount degrees (1000 = full turn), zoom scales 1 +- amount/2000, both centred on the pixel; AE amount unit, sample counts and Antialiasing quality UNVERIFIED (D5)",
+   "find_edges": "FIND_EDGES_OPERATOR: per premultiplied colour channel 3x3 Sobel, replicated border, m = clamp(sqrt(gx^2+gy^2)/4, 0, 1); colour 1 - m (dark edges on white), invert -> m; alpha = source alpha; alpha 0 -> transparent. AE/PS formula UNVERIFIED (D5)",
+   "class": "Approximate; parity NOT_PROVEN",
+   "out_of_scope": "Camera Lens Blur (no record); Find Edges Blend With Original (composite lerps)"
+  },
+  "determinism": "sin_cos only for non-quadrant directional angles and spin samples (platform binary64 libm, as brush/liquify/style already use); sqrt is IEEE",
+  "machine_paths": "none (step 0 clean on both shas)"
+ },
+ "verdicts": [],
+ "pushed_sha": "a259a3df"
+}
