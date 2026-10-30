@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T10:02:49Z",
+ "updated_at": "2026-10-30T10:03:38Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11329,17 +11329,19 @@
   {
    "lane_id": "SMB-AE-MASK-FEATHER-2",
    "crate": "hsk-studio-composite",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high (resumed)",
    "lane_file": "builders/lanes/hsk-studio-ae-mask-feather-2.json",
    "brief": "lead message 2026-10-30T09:38:16Z (scope in this note)",
    "worktree": "wt-studio-lanes/smb-ae-mask-feather-2",
    "disk": "D:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "169d082c",
+   "commits": [
+    "169d082c"
+   ],
    "verdicts": [],
-   "note": "planar track re-apply keeps mask feather/opacity/expansion/inverted (declared reading, UNVERIFIED vs AE); 3D-plane mask site test. Same builder as MASK-FEATHER-1 (resumed, opus/high). D: limited build. Push after AU-MULTITRACK-2. Base b64650e8.; 2026-10-30T09:59:25Z green locally 8cd683f4 on D: (composite 160/160, motion); waits for rebase + re-run (folio changed by MULTITRACK-2), then push; for R43",
+   "note": "planar track re-apply keeps mask feather/opacity/expansion/inverted (declared reading, UNVERIFIED vs AE); 3D-plane mask site test. Same builder as MASK-FEATHER-1 (resumed, opus/high). D: limited build. Push after AU-MULTITRACK-2. Base b64650e8.; 2026-10-30T09:59:25Z green locally 8cd683f4 on D: (composite 160/160, motion); waits for rebase + re-run (folio changed by MULTITRACK-2), then push; for R43; 2026-10-30T10:03:38Z READY at 169d082c: re-run at ae35f6ed (after folio change) composite 160/160 with motion exit 0, log scratchpad/smb-ae-mask-feather-2/run-smb-ae-mask-feather-2-ae35f6ed.log; last rebase onto 09a57c06 brought develop + docs only (not in composite closure). For R43.",
    "remediation": null
   },
   {
@@ -11374,6 +11376,22 @@
    "commits": [],
    "verdicts": [],
    "note": "After Effects AE-17: blur / glow / colour families in the per-layer effect stack via pigment kernels; entry blend modes (STU-FX-008), entry mask reference (STU-FX-004), adjustment layers (STU-CMP-015) if one slice allows. Base 09a57c06; run waits behind R42 on C:.",
+   "remediation": null
+  },
+  {
+   "lane_id": "SMB-VIEW-POLISH-1",
+   "crate": "hsk-studio-harness-view",
+   "phase": "build",
+   "status": null,
+   "owner": "builder opus/medium (GUI lane 1)",
+   "lane_file": "builders/lanes/hsk-studio-view-polish-1.json",
+   "brief": "builders/briefs/lane-smb-view-polish-1.md",
+   "worktree": "wt-studio-lanes/smb-view-polish-1",
+   "disk": "C:",
+   "candidate": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "F-R41-3 Properties wide row measured + wrapped, INFO_MIN restored; Text tool click on open path -> path text, inside closed path -> area text; Create Outlines Type menu leaf + key; overset echo after path edits + Path Operations live-text summary. Base 169d082c.",
    "remediation": null
   }
  ],

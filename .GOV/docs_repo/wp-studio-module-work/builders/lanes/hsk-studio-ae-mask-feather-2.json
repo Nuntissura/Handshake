@@ -1,12 +1,12 @@
 {
  "crate": "hsk-studio-composite",
  "lane": "SMB-AE-MASK-FEATHER-2",
- "status": "HOLD_FOR_RELEASE",
- "phase": "green local 8cd683f4; waiting for SMB-AU-MULTITRACK-2 on origin before rebase + push (origin still b64650e8)",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed 169d082c to origin/codex/handshake-studio-assets (09a57c06..169d082c)",
  "commits": [
   {
-   "sha": "8cd683f4",
-   "subject": "composite: planar-track re-apply keeps inverted, feather, opacity and expansion; tests/mask_track_reapply.rs (+ 3D-plane mask site test)"
+   "sha": "169d082c",
+   "subject": "composite (SMB-AE-MASK-FEATHER-2): planar-track re-apply keeps inverted, feather, opacity and expansion; tests/mask_track_reapply.rs (+ 3D-plane mask site test)"
   }
  ],
  "capabilities_done": [
@@ -15,17 +15,15 @@
  "tests": {
   "argv": "lane-check.sh --owner smb-ae-mask-feather-2 --disk d -- cargo nextest run -p hsk-studio-composite --features hsk-studio-composite/motion --no-fail-fast (STUDIO_LANE_CHECK_NO_DEPENDENTS=1)",
   "exit": 0,
-  "sha": "8cd683f4",
+  "sha": "ae35f6ed (content-identical to pushed 169d082c for composite's closure)",
   "passed": 160,
   "failed": 0
  },
  "blockers": [],
  "lock_wait_s": null,
- "bg_pids": [
-  "origin watch (git fetch every 2 min for SMB-AU-MULTITRACK-2)"
- ],
- "next": "on green: wait until SMB-AU-MULTITRACK-2 is on origin (git log origin), rebase, re-run only if composite's closure changed, push with PUSH SAFETY, READY_FOR_VALIDATION",
- "updated_at": "2026-10-30T09:43:48Z",
+ "bg_pids": [],
+ "next": "validation round",
+ "updated_at": "2026-10-30T10:02:53Z",
  "notes": {
   "origin": "follow-up found by SMB-AE-MASK-FEATHER-1 (re-applying a planar track reset the mask's shape); lead dispatch 2026-10-30",
   "spec_basis": "module 14 v02.225 STU-CMP-025 (mask path, feather, opacity, expansion all keyframable), STU-CMP-065 (planar / mask tracking producing an animated mask path); declared reading: a track apply replaces the path, its keyframes and the mode only (UNVERIFIED vs After Effects, D5)",
@@ -35,7 +33,8 @@
   "run": "lane-check --disk d --owner smb-ae-mask-feather-2, whole composite suite with motion (round unit hsk-studio-composite [[motion]]); STUDIO_LANE_CHECK_NO_DEPENDENTS=1 (no public API change, no caller outside composite tests); folio not touched",
   "rule_4e": "the 3D test is #[cfg(feature = \"motion\")] inside the file; .config/round-features.toml has hsk-studio-composite = [[\"motion\"]]: covered; the re-apply tests also run in the default unit",
   "cargo_lock": "not committed; no new dependency or edge",
-  "run_log": "C:/Users/ILJASM~1/AppData/Local/Temp/claude/D--Projects-LLM-projects-Handshake-Handshake-Worktrees-wt-gov-kernel/78736d01-8cca-4de4-921a-e3cf98762f72/scratchpad/smb-ae-mask-feather-2/run-smb-ae-mask-feather-2-8cd683f4.log (09:40:52Z-09:43:14Z, D:, clippy composite+motion clean for this lane's code; 160/160 incl. mask_track_reapply 3; only warning in the new test target is the pre-existing composition_scenes large_enum_variant)"
+  "run_log": "lane smb-ae-mask-feather-2, sha ae35f6ed: C:/Users/ILJASM~1/AppData/Local/Temp/claude/D--Projects-LLM-projects-Handshake-Handshake-Worktrees-wt-gov-kernel/78736d01-8cca-4de4-921a-e3cf98762f72/scratchpad/smb-ae-mask-feather-2/run-smb-ae-mask-feather-2-ae35f6ed.log (earlier green at 8cd683f4: run-smb-ae-mask-feather-2-8cd683f4.log)",
+  "rebase": "origin b64650e8..2bc9103a (SMB-AU-MULTITRACK-2) changed folio (9688bb72): re-run at ae35f6ed 160/160 green (10:00:16Z-10:02:38Z, D:); then origin 2bc9103a..09a57c06 changed only hsk-studio-develop and harness RUN-UI.md (not in composite's closure): no re-run; rebase clean; diff --stat origin..HEAD = 2 owned paths; push guarded SHA=$(git rev-parse HEAD) && [ -n $SHA ] && git push origin $SHA:refs/heads/codex/handshake-studio-assets, exit 0"
  },
  "verdicts": []
 }
