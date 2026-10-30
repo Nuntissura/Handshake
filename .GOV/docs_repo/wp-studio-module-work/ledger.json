@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T13:49:23Z",
+ "updated_at": "2026-10-30T14:14:41Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11692,22 +11692,26 @@
   {
    "lane_id": "SMB-R42-FOLLOWUPS-1",
    "crate": "hsk-studio-harness-core + hsk-studio-layout (NOTICE)",
-   "phase": "coding (dispatched 2026-10-30T12:44:41Z)",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-r42-followups-1.json",
    "brief": "builders/briefs/lane-smb-r42-followups-1.md",
    "worktree": "wt-studio-lanes/smb-r42-followups-1",
    "disk": "C:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "6f005d28",
+   "commits": [
+    "51f6930f",
+    "89bbeb42",
+    "6f005d28"
+   ],
    "verdicts": [],
-   "note": "F-R42-2 redo history kept after a refused entry write in the four Run::*_and_entry APIs; F-R42-3 submit_sequence_and_entry in RUN_COMMANDS + quiet rollback; F-R42-4 full W3C 2015/2023 licence texts in layout NOTICE. Base a259a3df; push after VIEW-POLISH-1."
+   "note": "F-R42-2 redo history kept after a refused entry write in the four Run::*_and_entry APIs; F-R42-3 submit_sequence_and_entry in RUN_COMMANDS + quiet rollback; F-R42-4 full W3C 2015/2023 licence texts in layout NOTICE. Base a259a3df; push after VIEW-POLISH-1.; 2026-10-30T14:14:41Z pushed d208bc0e..6f005d28 (ls-remote verified); 443 passed / 0 failed / 20 skipped exit 0 on C: (lane-check-smb-r42-followups-1-6f005d28.log, re-run after a rebase that brought folio); F-R42-2 shared Run::keeping_redo_without_new_step; F-R42-3 corpus row + source-reading corpus check; F-R42-4 LICENSES-W3C verbatim. Steward request deferred to after R43 (root input, would void canary reuse): .config/round-features.toml hsk-studio-harness-core = [[\"import\"]] (two submit_sequence_and_entry tests print NOT_PROVEN without it)"
   },
   {
    "lane_id": "SMB-AU-MULTITRACK-3",
    "crate": "hsk-studio-pulse + hsk-studio-harness-view (+ folio additive)",
-   "phase": "bundled C: run after rebase onto 2832b1d0 (2026-10-30T13:13:57Z)",
+   "phase": "runs last (after AREA-TYPE-4 and LR-EXPORT-SIZING-1 push): its closure holds harness-core 6f005d28 (submit_sequence_and_entry changed), type, develop (2026-10-30T14:14:41Z)",
    "status": null,
    "owner": "builder opus/high (GUI lane 2)",
    "lane_file": "builders/lanes/hsk-studio-au-multitrack-3.json",
@@ -11722,7 +11726,7 @@
   {
    "lane_id": "SMB-AI-AREA-TYPE-4",
    "crate": "hsk-studio-type (+ harness-view test only)",
-   "phase": "diagnosis + fix (dispatched 2026-10-30T13:38:26Z)",
+   "phase": "bundled C: run at b32420ad (2026-10-30T14:14:41Z); push when green, before AU-MULTITRACK-3",
    "status": null,
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-ai-area-type-4.json",
@@ -11732,7 +11736,7 @@
    "candidate": null,
    "commits": [],
    "verdicts": [],
-   "note": "Area text in a non-rectangular closed frame placed 0 of 32 glyphs after one corner drag (SMB-VIEW-POLISH-1 run 2); AREA-TYPE-1 claims any closed container. Reproduce at engine level, fix the cause (engine or viewer drag), restore the one-corner-drag viewer test. Base d208bc0e."
+   "note": "Area text in a non-rectangular closed frame placed 0 of 32 glyphs after one corner drag (SMB-VIEW-POLISH-1 run 2); AREA-TYPE-1 claims any closed container. Reproduce at engine level, fix the cause (engine or viewer drag), restore the one-corner-drag viewer test. Base d208bc0e.; 2026-10-30T14:14:41Z cause: type src/area_text.rs:617-620 skipped a narrowed band without checking whether a later band held the word, so the slanted quad (bands 30/34.02/10.02 pt < word 42.47 pt) placed 0/32; fix: lookahead within max_bands, else break the word in the band; 78688e5a + b32420ad local; ai_area_text circle tolerance scaled by r/hw (lead accepted with derivation + cap; AREA-TYPE-1 re-judged under CX-VAL-009); lead waiver HBR-STOP-005: no re-run after rebasing onto 6f005d28 (harness-core refused-entry path only, not exercised; R43 full union covers)"
   },
   {
    "lane_id": "SMB-PS-GRADIENT-BUCKET-1",
@@ -11752,7 +11756,7 @@
   {
    "lane_id": "SMB-LR-EXPORT-SIZING-1",
    "crate": "hsk-studio-develop",
-   "phase": "coding (dispatched 2026-10-30T13:49:23Z)",
+   "phase": "bundled D: run after rebase onto 6f005d28 (2026-10-30T14:14:41Z); pushes before AU-MULTITRACK-3",
    "status": null,
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-lr-export-sizing-1.json",
@@ -11762,7 +11766,7 @@
    "candidate": null,
    "commits": [],
    "verdicts": [],
-   "note": "Lightroom LR-33 engine: export resize (six types, do not enlarge, resolution), output sharpening Screen/Glossy/Matte x Low/Standard/High, graphic watermark (STU-IO-134..138; sharpening and watermark fields UNVERIFIED readings). Base d208bc0e; develop depends on pigment, so its run is ordered against SMB-PS-GRADIENT-BUCKET-1."
+   "note": "Lightroom LR-33 engine: export resize (six types, do not enlarge, resolution), output sharpening Screen/Glossy/Matte x Low/Standard/High, graphic watermark (STU-IO-134..138; sharpening and watermark fields UNVERIFIED readings). Base d208bc0e; develop depends on pigment, so its run is ordered against SMB-PS-GRADIENT-BUCKET-1.; 2026-10-30T14:14:41Z 4 slices local (sizing 144bd246, sharpening 1cf8ed84, graphic watermark fc36b118, staged entries b644d8ec), 22/22 focused on D:; new ExportError::Stage variant"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

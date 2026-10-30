@@ -1,0 +1,63 @@
+{
+ "crate": "hsk-studio-develop",
+ "lane": "SMB-LR-EXPORT-SIZING-1",
+ "status": "CODE_READY_LOCAL",
+ "phase": "4 slices coded and committed locally on lane/smb-lr-export-sizing-1 (base d208bc0e), focused tests green on D:; NOT pushed; bundled run waits for the lead's disk and base (R43 on C:)",
+ "commits": [
+  {"slice": 1, "red_sha": "4c767d6d", "sha": "144bd246", "pushed": false, "summary": "image sizing: OutputSizing, fit_output_size, stretched Keys-cubic linear-light resample, receipt, EXPORT_STAGE_KEYS"},
+  {"slice": 2, "red_sha": "b828780a", "sha": "1cf8ed84", "pushed": false, "summary": "output sharpening: OutputSharpening, sharpen_row table, unsharp mask, out-of-range counts"},
+  {"slice": 3, "red_sha": "ecc6d5b8", "sha": "fc36b118", "pushed": false, "summary": "graphic watermark: WatermarkSettings, rotate/size/place/composite in linear light, text watermark typed refusal"},
+  {"slice": 4, "red_sha": "9ce0195d", "sha": "b644d8ec", "pushed": false, "summary": "staged entries: develop_to_output_staged, develop_to_tiff_staged, tiff_from_staged_output, validate_export_stage, ExportError::Stage, DESCRIPTOR export_stage"}
+ ],
+ "capabilities_done": [
+  "export stage on the developed linear-light image before the output transfer: sizing -> output sharpening -> graphic watermark",
+  "image sizing: all six STU-IO-136 resize types, STU-IO-137 bounds/defaults, pixels/in/cm boxes, ppinch/ppcm resolution, constrain_size, do_not_enlarge, Megapixels floor rounding, stage limits 65535 px/side and 2^28 px",
+  "resample: Keys cubic a=-0.5 through pigment transform_math::catmull_rom, stretched by the reduction factor (support 4f), edge replicate, binary64, flat fields exact",
+  "output sharpening: Screen/Glossy/Matte x Low/Standard/High (level 1..3, default 2), stated unsharp-mask table, kernel scales with media and (print media) output ppi, clip counted in receipt and render_output ClipReport",
+  "graphic watermark: straight RGBA (linear or sRGB-encoded), opacity, Proportional/Fit/Fill, 9 anchors, x/y insets, clockwise 0/90/180/270, premultiplied resample, linear-light composite; text watermark refused text_watermark_unsupported",
+  "entries (additive): apply_export_stage, validate_export_stage, fit_output_size, sharpen_row, develop_to_output_staged, develop_to_tiff_staged, tiff_from_staged_output (stage resolution as whole dpi); unstaged develop_to_output, develop_to_tiff, TiffExportSettings::new unchanged"
+ ],
+ "tests": {
+  "develop tests/develop_export_stage.rs": [
+   "sizing_every_resize_type_fits_portrait_and_landscape_by_hand",
+   "do_not_enlarge_never_upsamples_a_small_source",
+   "checkerboard_downscale_keeps_the_mean_without_an_aliasing_beat",
+   "hostile_sizing_settings_get_typed_refusals",
+   "step_edge_gains_the_stated_overshoot_per_media_and_level",
+   "flat_field_is_unchanged_by_output_sharpening",
+   "sharpening_clip_is_counted_in_the_clip_report",
+   "watermark_anchor_and_inset_place_a_2x2_mark_on_10x6",
+   "watermark_opacity_50_blends_in_linear_light",
+   "watermark_rotation_90_turns_the_mark_clockwise",
+   "hostile_watermark_settings_get_typed_refusals",
+   "staged_tiff_carries_output_size_and_dpi",
+   "staged_entries_equal_the_composed_stages_and_keep_unstaged_bytes"
+  ]
+ },
+ "focused_runs": {
+  "red": ["lane-check-smb-lr-export-sizing-1-red1-4c767d6d.log", "lane-check-smb-lr-export-sizing-1-red2-b828780a.log", "lane-check-smb-lr-export-sizing-1-red3-ecc6d5b8.log", "lane-check-smb-lr-export-sizing-1-red4-9ce0195d.log"],
+  "green": "lane-check-smb-lr-export-sizing-1-s4-wip-9ce0195d.log (D:, develop only, binaries develop_export_stage + develop_export_tiff + develop_output: 22 run, 22 passed; clippy develop clean apart from pre-existing observe too_many_arguments warnings; the run built 9ce0195d plus the slice 4 src committed unchanged as b644d8ec)",
+  "dir": "session scratchpad smb-lr-export-sizing-1/"
+ },
+ "blockers": [],
+ "lock_wait_s": null,
+ "bg_pids": [],
+ "next": "lead message naming disk and base -> rebase, bundled run (clippy develop + dependents, whole develop suite), push, READY_FOR_VALIDATION",
+ "updated_at": "2026-10-30T14:12:22Z",
+ "notes": {
+  "brief": "builders/briefs/lane-smb-lr-export-sizing-1.md (LR-33 of research/parity-20261023-adobe-print.json); binding builders/briefs/wave-parity-2-common.md",
+  "worktree": "wt-studio-lanes/smb-lr-export-sizing-1, branch lane/smb-lr-export-sizing-1, base d208bc0e",
+  "spec_basis": "module 14 (master-spec-v02.225): STU-IO-134 per key stored setting vs surface-only field, never promoted silently; STU-IO-135 groups image_sizing (13), watermarking (12), output_sharpening (4); STU-IO-136 resize type WidthHeight/Dimensions/LongEdge/ShortEdge/Megapixels/Percentage, resolution unit pixels/in/cm/ppinch/ppcm, sharpening media Screen/Glossy/Matte, amount Low/Standard/High; STU-IO-137 max width/height hard_min 1 default 1000, resize percentage hard_min 1 default 100, resolution hard_min 1 default 240, output sharpening level 1..3 default 2, hard_max unknown; STU-IO-138 constrain_size (5 true / 4 false), do_not_enlarge (4 false / 1 true), use_watermark (false in all 9), split spread default labelled studio_declared; STU-IO-103 unknown hard bound passed unclamped, the stage's own limit is its own typed error",
+  "readings_declared": "all UNVERIFIED against Lightroom Classic (D5). Sizing: constrain_size=Resize to Fit; boxes rounded half up to pixels; LongEdge/ShortEdge read max_width; Dimensions fits both orientations; Megapixels floors both edges; output equal to the source is copied. Sharpening: unsharp mask in linear light, sigma Screen 0.5 px, Glossy ppi/240, Matte ppi/160 (refused above 64 px), strength Screen 0.4/0.8/1.2, Glossy 0.5/1.0/1.5, Matte 0.6/1.2/1.8. Watermark: every field (opacity, size Proportional/Fit/Fill, anchor, insets, clockwise rotation, sRGB-or-linear graphic encoding) a Studio reading. TIFF writes the stage resolution as whole dpi rounded half up.",
+  "studio_declared_defaults": "constrain_size true, resize_type WidthHeight, size_unit pixels, megapixels 2, resolution_unit ppinch, do_not_enlarge false, output sharpening off / Screen, watermark source none, opacity 100, size proportional 25, anchor bottom_right, insets 0, rotation 0 (EXPORT_STAGE_KEYS carries each with its source)",
+  "spec_delta_request": "STU-IO-135 counts 12 watermarking keys, 13 image_sizing keys and 4 output_sharpening keys but enumerates none of them. Request: enumerate the watermarking key list (Studio reads use_watermark, source graphic/text, opacity, size proportional/fit/fill, anchor 9, inset x, inset y, rotation 0/90/180/270), the image_sizing list (no megapixel value field is named; which field LongEdge/ShortEdge read), the output_sharpening list (on/off key, media, level; fourth key unknown), and the STU-IO-134 stored/surface-only class of each; Studio classes the unnamed ones Unclassified and does not promote them",
+  "folio": "no Folio record: the stage is develop-local settings like TiffExportSettings; a stored export preset (STU-IO-134 stored export setting) would need a Folio record in a later lane, not added here",
+  "gui_calls_for_a_later_lane": "harness-view src/view/develop.rs (read only here): export_develop_inner calls hsk_studio_develop::develop_to_output (PNG/JPEG/DNG preview paths, line ~1152) and develop_to_tiff (Tiff arm, line ~1138); a GUI lane adds an ExportStage to DevelopExport (or beside it) and calls develop_to_output_staged(&d.prepared.plane, &recipe, revision, depth, SRGB_V4_ICC, &stage, d.threads, self.cancel) -> (OutputImage, ExportStageReceipt, DevelopReceipt) and develop_to_tiff_staged(&plane, &recipe, revision, &settings /* dpi None */, &stage, SRGB_V4_ICC, threads, cancel) -> (TiffExport, ExportStageReceipt, DevelopReceipt); validate_export_stage(&stage) for live form checks, fit_output_size(&stage.sizing, w, h) for the size preview, EXPORT_STAGE_KEYS for the panel rows; the DNG preview (reduce_preview) is not staged",
+  "gaps": "text watermarks (hsk-studio-type edge, typed refusal); file-size limit, export presets and the window button of LR-33; DNG preview not staged",
+  "pigment": "only existing d208bc0e API used: transform_math::catmull_rom (no pigment edit, no new API needed)",
+  "step0": "lane-check --step0-only clean at 4c767d6d; no drive-letter literals in the lane hunks",
+  "round_features": "tests/develop_export_stage.rs has no feature gate; develop default unit runs it (rule 4e)",
+  "dependents": "public API additive except the new ExportError::Stage variant; no crate outside develop matches ExportError (grep at d208bc0e), so dependents should compile untouched; the bundled run's clippy over harness-core, harness-view, harness, interop-lrcat proves it"
+ },
+ "verdicts": []
+}
