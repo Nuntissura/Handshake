@@ -1,0 +1,155 @@
+{
+ "crate": "hsk-studio-interop-fig-native (src/native.rs, src/export.rs, tests/fig_markers.rs) + hsk-studio-interop-vector-svg (src/svg_adapter.rs, src/svg_adapter/defs.rs, src/svg_export.rs, src/svg_export/records.rs, tests/svg_markers.rs) + hsk-studio-harness-view (src/view/vector/markers.rs, src/view/vector/style.rs, src/view/vector.rs, src/view/hosted.rs, src/view/vector/pdf_export.rs) + hsk-studio-harness (tests/viewer_vector_markers.rs); outside owned paths: hsk-studio-interop-fig tests/fig_paints.rs (one pin, lead approval requested) + hsk-studio-interop-vector (src/lib.rs DESCRIPTOR, one phrase, lead-approved)",
+ "lane": "SMB-AI-ARROWHEADS-2",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed 8780b3e9 on origin/codex/handshake-studio-assets (rebased onto e83eae43 SMB-PR-NEST-2, no conflict; fetch before push: origin still e83eae43, ancestor check ok, diff --stat lists only this lane's 16 paths; push exit 0, ls-remote = 8780b3e9); bundled run green at 8780b3e9; READY_FOR_VALIDATION (claim = 835c6d6c, 84b8166a, 30d64f49, cab82c97, e2e205f3, 5b6daabb, 9cfb1083, 9e626e74, 623fbf3b, 8780b3e9)",
+ "candidate": "8780b3e9",
+ "commits": [
+  {
+   "sha": "835c6d6c",
+   "slice": "1 red",
+   "subject": "interop-fig-native test: Figma marker caps as stroke_markers",
+   "pre_rebase": "4aa742a2"
+  },
+  {
+   "sha": "84b8166a",
+   "slice": "2 red",
+   "subject": "interop-vector-svg test: SVG markers as stroke_markers",
+   "pre_rebase": "4a244512"
+  },
+  {
+   "sha": "30d64f49",
+   "slice": "3-4 red",
+   "subject": "harness-view + harness test: viewer marker API stubbed",
+   "pre_rebase": "853a9181"
+  },
+  {
+   "sha": "cab82c97",
+   "slice": "1",
+   "subject": "interop-fig-native: Figma marker caps as stroke_markers; frame export draws them",
+   "pre_rebase": "b50f6971"
+  },
+  {
+   "sha": "e2e205f3",
+   "slice": "1 (outside path)",
+   "subject": "interop-fig test: ARROW_LINES pin follows the new marker mapping",
+   "pre_rebase": "101c0895"
+  },
+  {
+   "sha": "5b6daabb",
+   "slice": "2",
+   "subject": "interop-vector-svg: SVG markers import and export as stroke_markers",
+   "pre_rebase": "cc35aa74"
+  },
+  {
+   "sha": "9cfb1083",
+   "slice": "3",
+   "subject": "harness-view: viewer stroke markers, one undo step each",
+   "pre_rebase": "da33d560"
+  },
+  {
+   "sha": "9e626e74",
+   "slice": "4",
+   "subject": "harness-view: Stroke panel arrowheads (panel.stroke.marker.*)",
+   "pre_rebase": "93cb5ad3"
+  },
+  {
+   "sha": "623fbf3b",
+   "slice": "fix",
+   "subject": "focused-run fixes: clippy (manual_option_zip, type_complexity, contains), test probes and state path",
+   "pre_rebase": "7fe88e1b"
+  },
+  {
+   "sha": "8780b3e9",
+   "slice": "descriptor (lead-approved)",
+   "subject": "interop-vector: DESCRIPTOR no longer lists stroke markers as unsupported"
+  }
+ ],
+ "capabilities_done": [
+  "interop-fig-native: Figma collaborative marker caps and ERD terminators import as Folio stroke_markers (both ends, scale 100, inside_path, cap butt); VECTOR-node and unknown caps keep stroke_cap_marker_no_folio_home; frame PDF/raster export draws nib-trimmed stroke plus nib marker outlines, ERD a typed loss",
+  "interop-vector-svg: marker-start/marker-end with one recognised shape (triangle, chevron/nib simple, circle, square; orient auto / auto-start-reverse) import as stroke_markers with scale and alignment; everything else, marker-mid and shorthand unsupported_marker; export writes <marker> defs of nib outlines; export then import round-trips the recognised tokens",
+  "harness-view: Viewer::stroke_markers / set_stroke_markers / swap_stroke_markers / first_stroke_row / stroke_markers_json, one undo step each, Folio-validated, projected in state_json edit.vector.selected_path.stroke_markers and shell.hosted.stroke.markers; markers follow their stroke row through restyles; Stroke panel panel.stroke.marker.* controls; vector PDF export writes the outlines (no code needed)"
+ ],
+ "tests": {
+  "history": [
+   {
+    "sha": "853a9181",
+    "run": "red (D:, no dependents): fig_markers, svg_markers, viewer_vector_markers[viewer]",
+    "exit": 100,
+    "passed": 3,
+    "failed": 13,
+    "notes": "the 3 passing pin behaviour that already held: network_stroke_keeps_its_loss, unknown_marker_cap_keeps_the_old_loss, unrecognised_markers_keep_unsupported_marker",
+    "started": "2026-10-30T16:03:06Z",
+    "ended": "2026-10-30T16:08:25Z",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-arrowheads-2/smb-ai-arrowheads-2-red-853a9181.log"
+   },
+   {
+    "sha": "93cb5ad3",
+    "run": "focused 1 (D:, clippy over fig-native, vector-svg, interop-fig, harness-view[viewer], harness[viewer]; no dependents)",
+    "exit": 100,
+    "passed": 13,
+    "failed": 4,
+    "failures": "viewer canvas/pdf probe pixel (60,36) partly covered (test geometry error); state_json path is edit.vector; svg hostile CSS case: two identical stacks share one style (test); clippy: 3 warnings in lane code",
+    "started": "2026-10-30T16:14:30Z",
+    "ended": "2026-10-30T16:22:34Z",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-arrowheads-2/smb-ai-arrowheads-2-focus1-93cb5ad3.log"
+   },
+   {
+    "sha": "7fe88e1b",
+    "run": "focused 2 (same scope): fig_markers 5, svg_markers 5, viewer_vector_markers 6, interop-fig strokes_render_and_caps_dashes_miter_map",
+    "exit": 0,
+    "passed": 17,
+    "failed": 0,
+    "started": "2026-10-30T16:24:01Z",
+    "ended": "2026-10-30T16:26:59Z",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-arrowheads-2/smb-ai-arrowheads-2-focus2-7fe88e1b.log"
+   },
+   {
+    "sha": "8780b3e9",
+    "run": "bundled 1 (D:, lead go): step 0 clean; clippy --tests over fig-native, interop-fig, vector-svg, interop-vector, harness-view[viewer], harness[viewer] (their direct dependents are all in the set); whole suites of those 6 crates, harness-view and harness under the round's viewer unit",
+    "exit": 0,
+    "passed": 364,
+    "failed": 0,
+    "skipped": 20,
+    "started": "2026-10-30T16:28:08Z",
+    "ended": "2026-10-30T16:32:24Z",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-arrowheads-2/smb-ai-arrowheads-2-bundled1-8780b3e9.log (first line HEAD=8780b3e9)"
+   }
+  ],
+  "bundled_runs": 1,
+  "lane_tests": [
+   "interop-fig-native tests/fig_markers.rs: triangle_filled_cap_imports_as_markers_on_both_ends, erd_cap_is_stored_and_its_render_refusal_is_typed, network_stroke_keeps_its_loss, export_writes_the_marker_cap_back_as_its_outline, unknown_marker_cap_keeps_the_old_loss",
+   "interop-vector-svg tests/svg_markers.rs: triangle_marker_end_maps_to_arrow_triangle_with_the_hand_computed_scale, unrecognised_markers_keep_unsupported_marker, marker_mid_keeps_its_loss, export_then_import_gives_the_same_markers, hostile_marker_references_are_bounded_and_typed",
+   "harness tests/viewer_vector_markers.rs (#![cfg(feature = viewer)]): set_markers_is_one_undo_step_each_validated_and_projected, the_canvas_draws_the_markers_near_the_ends_only, swap_exchanges_the_ends_in_one_step, restyles_keep_the_markers_on_their_stroke_row, stroke_panel_marker_controls_drive_the_same_edits, vector_pdf_export_writes_the_marker_outlines"
+  ],
+  "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-ai-arrowheads-2 --disk d -- cargo nextest run -p hsk-studio-interop-fig-native -p hsk-studio-interop-fig -p hsk-studio-interop-vector-svg -p hsk-studio-interop-vector -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/viewer,hsk-studio-harness-view/viewer --no-fail-fast",
+  "exit": 0,
+  "sha": "8780b3e9",
+  "passed": 364,
+  "failed": 0
+ },
+ "blockers": [],
+ "bg_pids": [],
+ "next": "validation",
+ "updated_at": "2026-10-30T16:32:56Z",
+ "notes": {
+  "spec_basis": "STU-VEC-146 (master-spec-v02.225 14-studio-creative-suite.md:3986) 26-token catalogue, start/end scales 1..1000 %, arrow_alignment, independent ends, swap command; STU-VEC-020 (:3936) no captured attribute dropped (every unmapped marker stays a typed loss); STU-VEC-062 network strokes (markers refused, ARROWHEADS-1 accepted refusal)",
+  "UNVERIFIED_D5": "Illustrator, Figma and SVG-viewer marker behaviour; the readings below are Studio readings",
+  "declared_readings": "Figma: one node-level marker cap marks both ends, scale 100, inside_path (tip at the path end), row cap butt; VECTOR nodes (networks) keep stroke_cap_marker_no_folio_home. SVG: recognised shapes in stroke widths around refX/refY (closed triangle with half width = length / 2 = arrow.triangle; open chevron of that proportion or nib's six-vertex outline = arrow.simple; circle = arrow.circle_solid / arrow.circle by fill none; square rect = arrow.square_solid / arrow.square), orient auto-start-reverse or auto (start read half a turn), scale = 100 x length / 3 rounded to 1e-6, tip on ref = inside_path, back on ref = outside_path; start dropped (loss) when the two ends' alignments differ",
+  "brief_deviation_fig_export": "the brief asked the Figma exporter to write the cap back; hsk-studio-interop-fig-native has no .fig writer (src/export.rs is the frame PDF/raster export through press), so the marked stroke is written as Studio draws it: nib-trimmed path stroked butt plus nib marker outlines filled; ERD/refused markers are the typed loss export.stroke.markers; accepted by the lead 2026-10-30",
+  "pdf_export": "harness-view vector PDF export needed no code: composite expand_vectors already returns StrokeGeometry rows with nib marker outlines; module note added and a test",
+  "outside_owned_path": "CHANGE TO ANOTHER LANE'S TEST (for the validator): hsk-studio-interop-fig tests/fig_paints.rs strokes_render_and_caps_dashes_miter_map: the ARROW_LINES pin changed from loss 1 to loss 0 plus the marker entry (commit e2e205f3, pre-rebase 101c0895); approved by the lead 2026-10-30",
+  "descriptor_gap": "resolved: hsk-studio-interop-vector src/lib.rs DESCRIPTOR phrase now says recognised stroke markers import/export (commit 8780b3e9), lead-approved; no doc example",
+  "test_change_after_red": "viewer_vector_markers restyles test: merge_graphic_style orders rows fill, fill, stroke, stroke, so the own stroke row is index 2 (the red version expected index 1)",
+  "rule_4b": "no Folio record field added or renamed (stroke_markers exists since ARROWHEADS-1)",
+  "rule_4c": "lane-check step 0 clean at 853a9181, 93cb5ad3 and 7fe88e1b",
+  "rule_4e": "harness tests/viewer_vector_markers.rs is #![cfg(feature = viewer)]: .config/round-features.toml has hsk-studio-harness [viewer]; bundled run used the viewer features for harness-view and harness (lead 2026-10-30); the desktop+audio-batch harness-view unit was not run separately",
+  "red_commits": "4aa742a2, 4a244512, 853a9181 compile and fail their new tests (13/16 red, 3 pin unchanged behaviour)",
+  "rule_4d": "no doc examples added or changed",
+  "run_ui_lines": "RUN-UI.md not edited; suggested lines for the steward: Stroke panel > Arrowheads: Start / End pickers (panel.stroke.marker.start / .end), Start scale / End scale (.start_scale / .end_scale, 1..1000 %), Align (.align), Apply Arrowheads (.apply), No Arrowheads (.none), Swap (.swap); an imported ERD terminator shows as panel.stroke.marker.<end>.stored",
+  "rule_4a": "bundled 1 ran the whole suites of every crate this lane changed (fig-native, interop-fig, vector-svg, interop-vector, harness-view, harness), 364/364",
+  "closure": "rebase onto e83eae43 (SMB-PR-NEST-2, harness-view timeline/export/monitor files, disjoint) had no conflict; bundled run after the rebase; origin unchanged at push",
+  "process": "focused and bundled runs on D: (R43 held C:); push guarded (non-empty full sha, ancestor check, &&), exit 0, ls-remote = 8780b3e9; Cargo.lock not committed; no new dependency or crate edge; kernel not committed"
+ },
+ "verdicts": []
+}
