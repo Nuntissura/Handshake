@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T09:59:25Z",
+ "updated_at": "2026-10-30T10:01:35Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11311,17 +11311,19 @@
   {
    "lane_id": "SMB-HDR-MERGE-2",
    "crate": "hsk-studio-develop",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high (resumed)",
    "lane_file": "builders/lanes/hsk-studio-hdr-merge-2.json",
    "brief": "lead message 2026-10-30T09:38:16Z (scope in this note)",
    "worktree": "wt-studio-lanes/smb-hdr-merge-2",
    "disk": "D:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "558969d3",
+   "commits": [
+    "558969d3"
+   ],
    "verdicts": [],
-   "note": "float HDR DNG: dng_from_hdr LinearRaw SampleFormat 3 float32 + float read path in dng.rs (round-trip self-check); integer DNG byte-identical. Same builder as HDR-MERGE-1 (resumed, opus/high). D: limited build. Push after AU-MULTITRACK-2. Base b64650e8.; 2026-10-30T09:59:25Z green locally b0738a6d on D: (develop 154/154, 19 skipped; dng_from_hdr float32 LinearRaw DNG 1.4, decode_linear_float self-check, integer uncompressed output pinned by digest); released: rebase + re-run (folio) then push; for R43",
+   "note": "float HDR DNG: dng_from_hdr LinearRaw SampleFormat 3 float32 + float read path in dng.rs (round-trip self-check); integer DNG byte-identical. Same builder as HDR-MERGE-1 (resumed, opus/high). D: limited build. Push after AU-MULTITRACK-2. Base b64650e8.; 2026-10-30T09:59:25Z green locally b0738a6d on D: (develop 154/154, 19 skipped; dng_from_hdr float32 LinearRaw DNG 1.4, decode_linear_float self-check, integer uncompressed output pinned by digest); released: rebase + re-run (folio) then push; for R43; 2026-10-30T10:01:35Z READY at 558969d3 (rebased on 2bc9103a): re-run on D: exit 0, develop 154/154 (19 skipped, 3 hdr_dng), log scratchpad/lane-check-smb-hdr-merge-2-558969d3.log. NOT_PROVEN: Lightroom reading the float DNG, real brackets; only uncompressed integer output byte-pinned. For R43.",
    "remediation": null
   },
   {
@@ -11338,6 +11340,24 @@
    "commits": [],
    "verdicts": [],
    "note": "planar track re-apply keeps mask feather/opacity/expansion/inverted (declared reading, UNVERIFIED vs AE); 3D-plane mask site test. Same builder as MASK-FEATHER-1 (resumed, opus/high). D: limited build. Push after AU-MULTITRACK-2. Base b64650e8.; 2026-10-30T09:59:25Z green locally 8cd683f4 on D: (composite 160/160, motion); waits for rebase + re-run (folio changed by MULTITRACK-2), then push; for R43",
+   "remediation": null
+  },
+  {
+   "lane_id": "SMB-RUN-UI-MERGE-1",
+   "crate": "docs (RUN-UI.md)",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "owner": "docs lane sonnet/low",
+   "lane_file": "builders/lanes/hsk-studio-run-ui-merge-1.json",
+   "brief": "lead dispatch prompt 2026-10-30T10:01:20Z",
+   "worktree": "wt-studio-lanes/smb-run-ui-merge-1",
+   "disk": "none (step-0 only)",
+   "candidate": "09a57c06",
+   "commits": [
+    "09a57c06"
+   ],
+   "verdicts": [],
+   "note": "RUN-UI.md merges window lines of AREA-TYPE-2/3, AU-MULTITRACK-1/2 (new Multitrack section; -1 display-only line superseded), LR-HEALING-2; TIMELINE-TRIM-1 and PR-RATE-STRETCH-1 already present; step-0 exit 0; no include_str! of RUN-UI.md. For R43.",
    "remediation": null
   }
  ],

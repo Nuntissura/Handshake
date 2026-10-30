@@ -1,13 +1,13 @@
 {
  "crate": "hsk-studio-develop",
  "lane": "SMB-HDR-MERGE-2",
- "status": "HOLD_FOR_RELEASE",
- "phase": "slice green locally at b0738a6d (base b64650e8); push waits for SMB-AU-MULTITRACK-2 on origin (not there at fetch 2026-10-30)",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed at 558969d3 (rebased onto 2bc9103a, after SMB-AU-MULTITRACK-2); targets R43",
  "commits": [
   {
    "slice": 1,
-   "sha": "b0738a6d",
-   "pushed": false,
+   "sha": "558969d3",
+   "pushed": true,
    "summary": "dng_from_hdr float LinearRaw writer + decode_linear_float reader + tests/hdr_dng.rs"
   }
  ],
@@ -25,8 +25,8 @@
  "blockers": [],
  "lock_wait_s": null,
  "bg_pids": [],
- "next": "when SMB-AU-MULTITRACK-2 is on origin: rebase, re-run only if the rebase touched develop closure, PUSH SAFETY push, READY_FOR_VALIDATION",
- "updated_at": "2026-10-30T13:10:00Z",
+ "next": "validation round R43",
+ "updated_at": "2026-10-30T13:40:00Z",
  "notes": {
   "brief": "lead message 2026-10-30 (slice 4 of SMB-HDR-MERGE-1 as its own lane); binding builders/briefs/wave-parity-2-common.md",
   "spec_basis": "STU-RAS-033 (32-bit HDR storage beyond display range); Adobe DNG Specification 1.4.0.0 (Sept 2012), read this lane: SampleFormat 3 with BitsPerSample 16/24/32 for floating point, Compression 1 allowed (8 deflate optional), WhiteLevel default 1.0 for floating point, Compatibility Issue 8: DNGBackwardVersion >= 1.4.0.0 when the main image IFD uses floating point, LinearRaw 34892 for demosaiced data, chapter 5 rescaled values clip to 0..1",
@@ -38,12 +38,14 @@
  "green_local_sha": "b0738a6d",
  "lane_check": {
   "run": "STUDIO_LANE_CHECK_NO_DEPENDENTS=1 tools/lane-check.sh --owner smb-hdr-merge-2 --disk d -- cargo nextest run -p hsk-studio-develop --no-fail-fast",
-  "sha": "b0738a6d",
+  "sha": "558969d3",
   "result": "passed",
   "exit": 0,
-  "tests": "154 run, 154 passed, 19 skipped (whole develop suite)",
+  "tests": "154 run, 154 passed, 19 skipped (whole develop suite; 3 hdr_dng tests passed)",
   "clippy": "develop: no errors; only pre-existing too_many_arguments warnings outside lane hunks; dependents skipped (additive API, lead: limited single-crate build)",
   "step0": "clean",
-  "log": "C:/Users/ILJASM~1/AppData/Local/Temp/claude/D--Projects-LLM-projects-Handshake-Handshake-Worktrees-wt-gov-kernel/78736d01-8cca-4de4-921a-e3cf98762f72/scratchpad/lane-check-smb-hdr-merge-2-b0738a6d.log"
- }
+  "log": "C:/Users/ILJASM~1/AppData/Local/Temp/claude/D--Projects-LLM-projects-Handshake-Handshake-Worktrees-wt-gov-kernel/78736d01-8cca-4de4-921a-e3cf98762f72/scratchpad/lane-check-smb-hdr-merge-2-558969d3.log",
+  "base": "2bc9103a"
+ },
+ "pushed_sha": "558969d3ea35b519022de14377645319fa3c80cb"
 }

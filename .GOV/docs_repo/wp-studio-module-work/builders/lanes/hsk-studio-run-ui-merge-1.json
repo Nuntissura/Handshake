@@ -1,0 +1,34 @@
+{
+ "crate": "docs",
+ "lane": "SMB-RUN-UI-MERGE-1",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "merged",
+ "commits": [
+  {
+   "sha": "09a57c068eb1d34da1e5f04fd59b6dd8e9b50fa2",
+   "subject": "docs (SMB-RUN-UI-MERGE-1): RUN-UI.md merges the window lines"
+  }
+ ],
+ "tests": {
+  "argv": "lane-check.sh --owner smb-run-ui-merge-1 --disk d --step0-only",
+  "exit": 0,
+  "sha": "09a57c068eb1d34da1e5f04fd59b6dd8e9b50fa2"
+ },
+ "next": "validator",
+ "updated_at": "2026-10-30T10:01:07Z",
+ "notes": {
+  "merged_from": {
+   "ai-area-type-2": 1,
+   "ai-area-type-3": 4,
+   "au-multitrack-1": 3,
+   "au-multitrack-2": 2,
+   "lr-healing-2": 3
+  },
+  "skipped_duplicates": {
+   "timeline-trim-1": 4,
+   "pr-rate-stretch-1": 4,
+   "shell-row-wrap-1": 0,
+   "ai-area-type-1": 0
+  }
+ }
+}
