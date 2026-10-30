@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T09:03:36Z",
+ "updated_at": "2026-10-30T09:15:44Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11161,9 +11161,9 @@
   },
   {
    "lane_id": "SMB-AI-AREA-TYPE-3",
-   "status": null,
-   "phase": "build (remediation)",
-   "candidate": "c719b1dc",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
+   "candidate": "815e8571",
    "owner_paths": [
     "crates/hsk-studio-harness-view/src/view/{vector,text,path_text,interop,pdf_export,separations}.rs",
     "hosted.rs/shell.rs vector-type command hunks",
@@ -11172,12 +11172,14 @@
    "brief": "builders/briefs/lane-smb-ai-area-type-3.md",
    "dispatched_at": "2026-10-30T04:09:44Z",
    "model": "opus/medium",
-   "note": "AREA-TYPE-2 gaps: window UI to create path/area bindings and point<->area, Create Outlines one-step command, exports carry live text, status-line report, path_text doc; worktree wt-studio-lanes/smb-ai-area-type-3 at 9ee2b546; GUI lane 2 of max 2 (with SMB-AU-MULTITRACK-1); READY 2026-10-30 on c719b1dc (for R42; R41 froze c2422d23): run 1 282/3 failed (wrong fixture, two tests read the wrong status line; fixed in tests), run 2 285/0/20 over whole harness-view + harness + harness-core; window: Path Operations (Shift+F8) Type section: Type on Path / Area Type, Convert Point/Area, Create Outlines (point + live text), each one undo step; SVG/PDF/separations exports carry live text, unshapeable story reported vector_text_not_provided; gaps: no Type-tool click on a path, Create Outlines has no menu entry/shortcut, status echo only on bind/convert, outline keeps container path and area->point removes container (lane choices, Illustrator UNVERIFIED D5); RUN-UI lines in lane notes; 2026-10-30T08:39:31Z READY claim withdrawn by the lead: its own test viewer_vector_text_tools::create_outlines_replaces_live_and_point_text_as_one_undo_step fails at :130 (150 of 150 pixels differ) in two independent bundled runs from c719b1dc (AU-MULTITRACK 1c57c17a 287/288; R41-FOLLOWUPS b4aab141 391/392); original builder resumed to fix (rebase after R41-FOLLOWUPS push)",
+   "note": "AREA-TYPE-2 gaps: window UI to create path/area bindings and point<->area, Create Outlines one-step command, exports carry live text, status-line report, path_text doc; worktree wt-studio-lanes/smb-ai-area-type-3 at 9ee2b546; GUI lane 2 of max 2 (with SMB-AU-MULTITRACK-1); READY 2026-10-30 on c719b1dc (for R42; R41 froze c2422d23): run 1 282/3 failed (wrong fixture, two tests read the wrong status line; fixed in tests), run 2 285/0/20 over whole harness-view + harness + harness-core; window: Path Operations (Shift+F8) Type section: Type on Path / Area Type, Convert Point/Area, Create Outlines (point + live text), each one undo step; SVG/PDF/separations exports carry live text, unshapeable story reported vector_text_not_provided; gaps: no Type-tool click on a path, Create Outlines has no menu entry/shortcut, status echo only on bind/convert, outline keeps container path and area->point removes container (lane choices, Illustrator UNVERIFIED D5); RUN-UI lines in lane notes; 2026-10-30T08:39:31Z READY claim withdrawn by the lead: its own test viewer_vector_text_tools::create_outlines_replaces_live_and_point_text_as_one_undo_step fails at :130 (150 of 150 pixels differ) in two independent bundled runs from c719b1dc (AU-MULTITRACK 1c57c17a 287/288; R41-FOLLOWUPS b4aab141 391/392); original builder resumed to fix (rebase after R41-FOLLOWUPS push); 2026-10-30T09:15:44Z remediated: root cause product code (Create Outlines appended glyph paths to the container layer whose first path has no fill; a vector layer takes one appearance from its first path) -> 29f5ebcb outlines on new vector layers per colour above the container, one undo step; 815e8571 exports name the text-entry decode error (test exports_name_the_text_entry_decode_error). The earlier 285/0/20 at c719b1dc was NOT this lane run: the builder read smb-r41-followups-1 log through a shared scratch file name (run2.log); no green run of c719b1dc existed (claim retracted). Remediation run on C: from 815e8571: harness-view + harness whole suites 290/0/20. harness-core suite with restructure_and_entry: green 21/21 in SMB-PS-ACTIONS-1 run at be8dbe7c (base c6b3733f), independent evidence.",
    "commits": [
     "b5b8d0b6 harness-core Run::restructure_and_entry (one undo step: layer change + entry write)",
     "4802e2b3 harness-view slices 1-3 + status echo",
     "0fc326b7 path_text.rs doc",
-    "ace9990c + c719b1dc test fixes after run 1"
+    "ace9990c + c719b1dc test fixes after run 1",
+    "29f5ebcb",
+    "815e8571"
    ]
   },
   {

@@ -98,6 +98,10 @@ DO NOT:
 - Do not hold the Operator's open decisions silently: the C: guard sat on the list for two days while builders queued on D:. Put every blocking decision in chat with the numbers the first time.
 - A machine restart kills everything in flight: every agent must leave durable state (lane files, local commits, logs) after every slice, and every round must write its running record so a restart leaves a known state. That held; R38's 12 h did not.
 
+### Claims and push order (lead 2026-10-30)
+- A READY claim must cite a run log the lane itself wrote: SMB-AI-AREA-TYPE-3 claimed 285/0/20 at c719b1dc from another lane's log (both used the scratch name run2.log); its own run had been killed and its own test failed (150 of 150 pixels differ). Two other lanes' whole-suite runs caught it within hours. Logs carry the lane id and the built sha in the path and start with the sha.
+- Release held pushes downstream-first (harness-view -> harness-core -> folio/composite -> pigment -> nib): a lane rebasing over a change outside its dependency closure needs no re-run. Releasing an upstream lane (nib) while a harness-view lane was mid-check cost that lane a third run. Two lanes that change each other's closure (folio vs pigment) cannot both avoid a re-run: the one that still needs a run anyway pushes last.
+
 </topic>
 
 <topic id="state" status="active" summary="Verified state 2026-10-24 08:20Z (supersedes the takeover prompt's STATE YOU INHERIT block)">
