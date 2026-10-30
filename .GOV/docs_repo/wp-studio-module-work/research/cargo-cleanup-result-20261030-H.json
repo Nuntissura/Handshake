@@ -1,0 +1,584 @@
+{
+ "schema": "hsk.studio.cleanup_result@2",
+ "file_id": "CARGO-CLEANUP-RESULT-20261030-H",
+ "generated_at": "2026-10-30T20:44:44Z",
+ "plan": "research/cargo-plan-20261024.json; batch plan research/cargo-cleanup-plan-20261030-H.json",
+ "approval": "lead review 2026-10-30 (coordinator 'Go' after reviewing batch H against the ledger) under the Operator standing grant (START_LOG 2026-10-24 ~600-601: clean Studio's own stale, unused cargo output, check-first, lead-reviewed, guarded script; failed delete -> Recycle Bin + Operator told the size): exactly the 27 STUDIO-R44 PASS lane targets (rule P2) of the batch-H plan, 5 on C: (C-H01..C-H05) and 22 on D: (D-H01..D-H22)",
+ "why": "rule P2 (lanes PASS in R44 @ff4ca080, kernel 408e6f4b) and P3 (D: held 26 lane targets, C: 5; P3 allows 6 per disk); Studio work paused for Operator realignment, no builder or round running",
+ "keep": "lane targets smb-fig-grid-2, smb-r43-followups-1 (READY_FOR_VALIDATION, R45), smb-id-frame-autosize-2, smb-fig-grid-3 (PAUSED; paused-green-uncompiled untouched) via -KeepLanes; studio-round (C: and D:), steward-export, sync-export, oracle-corpus, logs/results/receipts/exports, registry caches, locks, lane tmp/nextest dirs, MT-35536 nested cargo-target, prism-eng8-export target, steward dbl-test/scratch targets: never touched",
+ "checks_before_run": {
+  "ledger": "ledger.json lanes[]: all 27 status PASS_Vn, phase 'done (STUDIO-R44 PASS_Vn @ff4ca080)'; KEEP lanes READY_FOR_VALIDATION / PAUSED",
+  "round": "validation/round-R44.json lanes[]: all 27 verdict PASS_Vn, decision passed; verdict_counts PASS 283 / FAIL 0 / INCONCLUSIVE 0; candidate ff4ca080",
+  "processes": "0 cargo/rustc/cargo-nextest/link/clippy-driver processes at 20:15Z (re-check before execute); script process scan (command line + image path, path + ref_patterns incl. WP-KERNEL-STUDIO/<lane>/) 0 references per item, twice per item",
+  "lock": "C: and D: .disk-build-lock: no held/, queue/ empty at 20:15Z",
+  "newest_write": "robocopy /L /TS full listing per item: all older than 60 min (no SKIPPED_RECENT_WRITE)"
+ },
+ "method": "unchanged copy (sha256 026a57ff59c603ba7edfc7c4e88e71cc08838b1d91d376570059daf92a1f1dd5, identical to batches F and G) of phase2-guarded-delete.ps1 in the cargo-manager-20261030-H scratch; candidate files batchH-C.json / batchH-D.json (mk_items.py, ledger-asserted PASS). C: -Disk C -Approve C-H01..C-H05 -ReleaseKeepSlot -AllowLanes -KeepLanes 'smb-fig-grid-2|smb-fig-grid-3|smb-id-frame-autosize-2|smb-r43-followups-1' -NormalIo -MaxFilesPerSec 600 -MaxBytesPerSec 500 MiB -Execute; D: -Disk D -Approve D-H01..D-H22, same -KeepLanes/-NormalIo/rates, -Execute (batch G rate settings). C: run first, D: after it finished. No script diff: the existing D: shape <owner>/target under the allowed D: root covers lane targets.",
+ "dry_run": {
+  "C": {
+   "result_file": "phase2-C-dryrun-20261030T200804Z-result.json",
+   "at": "2026-10-30T20:08:39Z",
+   "counts": {
+    "status": "WOULD_DELETE",
+    "n": 5,
+    "gib_deleted": 98.285
+   }
+  },
+  "D": {
+   "result_file": "phase2-D-dryrun-20261030T200844Z-result.json",
+   "at": "2026-10-30T20:11:42Z",
+   "counts": {
+    "status": "WOULD_DELETE",
+    "n": 22,
+    "gib_deleted": 339.048
+   }
+  }
+ },
+ "runs": [
+  {
+   "disk": "C",
+   "batch": "H",
+   "script": "phase2-guarded-delete.ps1 (unchanged copy, cargo-manager-20261030-H scratch)",
+   "result_file": "phase2-C-execute-20261030T201607Z-result.json",
+   "log": "phase2-C-execute-20261030T201607Z.log + phase2-C-execute.stdout.log (full stdout)",
+   "at": "2026-10-30T20:21:38Z",
+   "free_before": [
+    {
+     "drive": "C",
+     "free_gib": 358.95
+    },
+    {
+     "drive": "D",
+     "free_gib": 1142.6
+    }
+   ],
+   "free_after": [
+    {
+     "drive": "C",
+     "free_gib": 455.47
+    },
+    {
+     "drive": "D",
+     "free_gib": 1142.6
+    }
+   ],
+   "rate_limit": {
+    "mib_per_s": 500,
+    "files_per_s": 600
+   },
+   "counts": {
+    "status": "DELETED",
+    "n": 5,
+    "gib_deleted": 98.285
+   },
+   "recycle_bin_gib_for_operator": 0
+  },
+  {
+   "disk": "D",
+   "batch": "H",
+   "script": "phase2-guarded-delete.ps1 (unchanged copy, cargo-manager-20261030-H scratch)",
+   "result_file": "phase2-D-execute-20261030T202143Z-result.json",
+   "log": "phase2-D-execute-20261030T202143Z.log + phase2-D-execute.stdout.log (full stdout)",
+   "at": "2026-10-30T20:44:44Z",
+   "free_before": [
+    {
+     "drive": "C",
+     "free_gib": 455.47
+    },
+    {
+     "drive": "D",
+     "free_gib": 1142.6
+    }
+   ],
+   "free_after": [
+    {
+     "drive": "C",
+     "free_gib": 455.47
+    },
+    {
+     "drive": "D",
+     "free_gib": 1476.22
+    }
+   ],
+   "rate_limit": {
+    "mib_per_s": 500,
+    "files_per_s": 600
+   },
+   "counts": {
+    "status": "DELETED",
+    "n": 22,
+    "gib_deleted": 339.048
+   },
+   "recycle_bin_gib_for_operator": 0
+  }
+ ],
+ "lane_targets": {
+  "before": {
+   "C": 5,
+   "D": 26
+  },
+  "after": {
+   "C": 0,
+   "D": 4
+  },
+  "p3_max": 6,
+  "live_after": {
+   "C": [],
+   "D": [
+    "smb-fig-grid-2",
+    "smb-fig-grid-3",
+    "smb-id-frame-autosize-2",
+    "smb-r43-followups-1"
+   ]
+  }
+ },
+ "summary": {
+  "deleted": {
+   "count": 27,
+   "gib": 437.333,
+   "files": 249840,
+   "per_disk": {
+    "C": {
+     "count": 5,
+     "gib": 98.285
+    },
+    "D": {
+     "count": 22,
+     "gib": 339.048
+    }
+   }
+  },
+  "recycled_remainder_gib": 0,
+  "skipped": []
+ },
+ "free_space": {
+  "before": [
+   {
+    "drive": "C",
+    "free_gib": 358.95
+   },
+   {
+    "drive": "D",
+    "free_gib": 1142.6
+   }
+  ],
+  "after": [
+   {
+    "drive": "C",
+    "free_gib": 455.47
+   },
+   {
+    "drive": "D",
+    "free_gib": 1476.22
+   }
+  ]
+ },
+ "recycle_bin_gib_for_operator": 0,
+ "items": [
+  {
+   "id": "C-H01",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-ae-effect-families-2",
+   "owner": "smb-ae-effect-families-2",
+   "ledger_status": "PASS_V2 (ledger: done (STUDIO-R44 PASS_V2 @ff4ca080); round-R44.json PASS_V2 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 3.344,
+   "files": 5824,
+   "newest_write_utc": "2026-10-30T13:01:51Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 17.9,
+   "gib_deleted": 3.344,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "C-H02",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-ai-area-type-4",
+   "owner": "smb-ai-area-type-4",
+   "ledger_status": "PASS_V2 (ledger: done (STUDIO-R44 PASS_V2 @ff4ca080); round-R44.json PASS_V2 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 28.987,
+   "files": 8329,
+   "newest_write_utc": "2026-10-30T14:34:38Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 77.5,
+   "gib_deleted": 28.987,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "C-H03",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-au-multitrack-3",
+   "owner": "smb-au-multitrack-3",
+   "ledger_status": "PASS_V1 (ledger: done (STUDIO-R44 PASS_V1 @ff4ca080); round-R44.json PASS_V1 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 22.527,
+   "files": 7925,
+   "newest_write_utc": "2026-10-30T13:56:40Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 65.4,
+   "gib_deleted": 22.527,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "C-H04",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-r42-followups-1",
+   "owner": "smb-r42-followups-1",
+   "ledger_status": "PASS_V2 (ledger: done (STUDIO-R44 PASS_V2 @ff4ca080); round-R44.json PASS_V2 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 22.196,
+   "files": 6507,
+   "newest_write_utc": "2026-10-30T14:12:10Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 72.7,
+   "gib_deleted": 22.196,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "C-H05",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-view-polish-1",
+   "owner": "smb-view-polish-1",
+   "ledger_status": "PASS_V2 (ledger: done (STUDIO-R44 PASS_V2 @ff4ca080); round-R44.json PASS_V2 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 21.231,
+   "files": 5407,
+   "newest_write_utc": "2026-10-30T13:36:50Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 68.6,
+   "gib_deleted": 21.231,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-H01",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-mask-feather-2/target",
+   "owner": "smb-ae-mask-feather-2",
+   "ledger_status": "PASS_V2 (ledger: done (STUDIO-R44 PASS_V2 @ff4ca080); round-R44.json PASS_V2 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 1.922,
+   "files": 1606,
+   "newest_write_utc": "2026-10-30T10:02:37Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 6.6,
+   "gib_deleted": 1.922,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-H02",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-roto-wiring/target",
+   "owner": "smb-ae-roto-wiring",
+   "ledger_status": "PASS_V6 (ledger: done (STUDIO-R44 PASS_V6 @ff4ca080); round-R44.json PASS_V6 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 28.447,
+   "files": 91814,
+   "newest_write_utc": "2026-10-22T13:21:23Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 287.2,
+   "gib_deleted": 28.447,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-H03",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-area-type-1/target",
+   "owner": "smb-ai-area-type-1",
+   "ledger_status": "PASS_V4 (ledger: done (STUDIO-R44 PASS_V4 @ff4ca080); round-R44.json PASS_V4 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 0.207,
+   "files": 538,
+   "newest_write_utc": "2026-10-24T13:09:44Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 1.5,
+   "gib_deleted": 0.207,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-H04",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-area-type-4/target",
+   "owner": "smb-ai-area-type-4",
+   "ledger_status": "PASS_V2 (ledger: done (STUDIO-R44 PASS_V2 @ff4ca080); round-R44.json PASS_V2 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 0.339,
+   "files": 691,
+   "newest_write_utc": "2026-10-30T13:51:29Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 1.9,
+   "gib_deleted": 0.339,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-H05",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-arrowheads-1/target",
+   "owner": "smb-ai-arrowheads-1",
+   "ledger_status": "PASS_V1 (ledger: done (STUDIO-R44 PASS_V1 @ff4ca080); round-R44.json PASS_V1 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 3.983,
+   "files": 6833,
+   "newest_write_utc": "2026-10-30T15:33:29Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 21.8,
+   "gib_deleted": 3.983,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-H06",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-arrowheads-2/target",
+   "owner": "smb-ai-arrowheads-2",
+   "ledger_status": "PASS_V1 (ledger: done (STUDIO-R44 PASS_V1 @ff4ca080); round-R44.json PASS_V1 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 46.55,
+   "files": 6966,
+   "newest_write_utc": "2026-10-30T16:32:24Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 110.4,
+   "gib_deleted": 46.55,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-H07",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-simplify-1/target",
+   "owner": "smb-ai-simplify-1",
+   "ledger_status": "PASS_V2 (ledger: done (STUDIO-R44 PASS_V2 @ff4ca080); round-R44.json PASS_V2 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 0.435,
+   "files": 2942,
+   "newest_write_utc": "2026-10-30T08:24:26Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 7.6,
+   "gib_deleted": 0.435,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-H08",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-au-multitrack-3/target",
+   "owner": "smb-au-multitrack-3",
+   "ledger_status": "PASS_V1 (ledger: done (STUDIO-R44 PASS_V1 @ff4ca080); round-R44.json PASS_V1 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 23.02,
+   "files": 8676,
+   "newest_write_utc": "2026-10-30T14:48:11Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 64.6,
+   "gib_deleted": 23.02,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-H09",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-1/target",
+   "owner": "smb-fig-grid-1",
+   "ledger_status": "PASS_V1 (ledger: done (STUDIO-R44 PASS_V1 @ff4ca080); round-R44.json PASS_V1 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 3.382,
+   "files": 5203,
+   "newest_write_utc": "2026-10-30T16:39:16Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 19.1,
+   "gib_deleted": 3.382,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-H10",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-hdr-merge-2/target",
+   "owner": "smb-hdr-merge-2",
+   "ledger_status": "PASS_V2 (ledger: done (STUDIO-R44 PASS_V2 @ff4ca080); round-R44.json PASS_V2 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 0.968,
+   "files": 1264,
+   "newest_write_utc": "2026-10-30T10:00:55Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 4.8,
+   "gib_deleted": 0.968,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-H11",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-cjk-kinsoku-1/target",
+   "owner": "smb-id-cjk-kinsoku-1",
+   "ledger_status": "PASS_V4 (ledger: done (STUDIO-R44 PASS_V4 @ff4ca080); round-R44.json PASS_V4 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 1.491,
+   "files": 4239,
+   "newest_write_utc": "2026-10-24T13:09:27Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 13.8,
+   "gib_deleted": 1.491,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-H12",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-frame-autosize-1/target",
+   "owner": "smb-id-frame-autosize-1",
+   "ledger_status": "PASS_V1 (ledger: done (STUDIO-R44 PASS_V1 @ff4ca080); round-R44.json PASS_V1 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 2.25,
+   "files": 3175,
+   "newest_write_utc": "2026-10-30T17:18:55Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 11.3,
+   "gib_deleted": 2.25,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-H13",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-lr-export-gui-1/target",
+   "owner": "smb-lr-export-gui-1",
+   "ledger_status": "PASS_V1 (ledger: done (STUDIO-R44 PASS_V1 @ff4ca080); round-R44.json PASS_V1 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 24.177,
+   "files": 5539,
+   "newest_write_utc": "2026-10-30T15:40:03Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 59.7,
+   "gib_deleted": 24.177,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-H14",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-lr-export-sizing-1/target",
+   "owner": "smb-lr-export-sizing-1",
+   "ledger_status": "PASS_V2 (ledger: done (STUDIO-R44 PASS_V2 @ff4ca080); round-R44.json PASS_V2 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 1.025,
+   "files": 2157,
+   "newest_write_utc": "2026-10-30T14:15:43Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 7,
+   "gib_deleted": 1.025,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-H15",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pigment-ae-kernels-1/target",
+   "owner": "smb-pigment-ae-kernels-1",
+   "ledger_status": "PASS_V2 (ledger: done (STUDIO-R44 PASS_V2 @ff4ca080); round-R44.json PASS_V2 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 0.759,
+   "files": 1224,
+   "newest_write_utc": "2026-10-30T10:53:19Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 3.8,
+   "gib_deleted": 0.759,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-H16",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nest-1/target",
+   "owner": "smb-pr-nest-1",
+   "ledger_status": "PASS_V1 (ledger: done (STUDIO-R44 PASS_V1 @ff4ca080); round-R44.json PASS_V1 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 28.974,
+   "files": 6522,
+   "newest_write_utc": "2026-10-30T15:28:35Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 95.9,
+   "gib_deleted": 28.974,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-H17",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nest-2/target",
+   "owner": "smb-pr-nest-2",
+   "ledger_status": "PASS_V1 (ledger: done (STUDIO-R44 PASS_V1 @ff4ca080); round-R44.json PASS_V1 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 30.13,
+   "files": 6560,
+   "newest_write_utc": "2026-10-30T16:18:54Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 72.8,
+   "gib_deleted": 30.13,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-H18",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-seq-export-ui-1/target",
+   "owner": "smb-pr-seq-export-ui-1",
+   "ledger_status": "PASS_V1 (ledger: done (STUDIO-R44 PASS_V1 @ff4ca080); round-R44.json PASS_V1 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 44.257,
+   "files": 7565,
+   "newest_write_utc": "2026-10-30T17:24:30Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 106.7,
+   "gib_deleted": 44.257,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-H19",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-gradient-bucket-1/target",
+   "owner": "smb-ps-gradient-bucket-1",
+   "ledger_status": "PASS_V1 (ledger: done (STUDIO-R44 PASS_V1 @ff4ca080); round-R44.json PASS_V1 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 33.233,
+   "files": 8383,
+   "newest_write_utc": "2026-10-30T14:54:40Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 84.6,
+   "gib_deleted": 33.233,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-H20",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-info-histogram-1/target",
+   "owner": "smb-ps-info-histogram-1",
+   "ledger_status": "PASS_V4 (ledger: done (STUDIO-R44 PASS_V4 @ff4ca080); round-R44.json PASS_V4 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 20.143,
+   "files": 8891,
+   "newest_write_utc": "2026-10-24T13:13:56Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 64.1,
+   "gib_deleted": 20.143,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-H21",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-shell-row-wrap-1/target",
+   "owner": "smb-shell-row-wrap-1",
+   "ledger_status": "PASS_V4 (ledger: done (STUDIO-R44 PASS_V4 @ff4ca080); round-R44.json PASS_V4 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 18.216,
+   "files": 5235,
+   "newest_write_utc": "2026-10-24T10:22:17Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 48.3,
+   "gib_deleted": 18.216,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-H22",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-timeline-ui-1/target",
+   "owner": "smb-timeline-ui-1",
+   "ledger_status": "PASS_V5 (ledger: done (STUDIO-R44 PASS_V5 @ff4ca080); round-R44.json PASS_V5 passed, candidate ff4ca080, kernel 408e6f4b)",
+   "size_gib_before": 25.14,
+   "files": 29825,
+   "newest_write_utc": "2026-10-22T23:34:32Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 111.5,
+   "gib_deleted": 25.14,
+   "gib_binned": 0,
+   "result": "deleted"
+  }
+ ]
+}
