@@ -1,34 +1,118 @@
 {
  "crate": "hsk-studio-harness-view",
  "lane": "SMB-VIEW-POLISH-1",
- "status": "HOLD_FOR_RUN",
- "phase": "items 1-4 committed locally (fc10ccbd, aafd450f, e8979ba9), NOT compiled since fc10ccbd and NOT pushed; holding per lead 2026-10-30: no C: lane-check until R42 has recorded its verdicts, then rebase onto origin and one bundled run",
- "candidate": null,
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed d208bc0e to origin/codex/handshake-studio-assets (base 2832b1d0, fetched and re-read); bundled run 4 at d208bc0e EXIT 0: 309/309, 20 skipped; never claimed PASS",
+ "candidate": "d208bc0e",
  "commits": [
-  {"slice": "1 measure", "sha": "fc10ccbd", "pushed": false, "summary": "tests/viewer_view_polish.rs properties_rows_measured_at_900x700: every text row of the Properties panel from egui's paint list"},
-  {"slice": "3", "sha": "aafd450f", "pushed": false, "summary": "shell.rs: TYPE title (between VIEW and COLOR, STU-SHL-011) > Convert > Create Outlines (ShellCommand::CreateOutlines, id studio.type.convert.create_outlines, harness leaf suffix), Ctrl+Shift+O consumed before Ctrl+O, runs hosted PanelAction::CreateOutlines; availability: no document -> NO_SUCH_CONTAINER (remedy Open), no selection -> NEEDS_SELECTION (remedy WORKSPACE > Layers)"},
-  {"slice": "1, 2, 4", "sha": "e8979ba9", "pushed": false, "summary": "mod.rs receipt loss entries as wrapping labels (Grid removed); mod.rs Text tool click -> vector.rs Viewer::text_click (open path -> path text, closed path containing the point -> area text inset 0, else point text); mod.rs render_if_dirty echoes changed live-text lines (Viewer.live_text_seen); hosted.rs Path Operations summary appends the live-text line; viewer_side_panels INFO_MIN restored at 900x700, doc restored; tests/viewer_view_polish.rs 4 tests"}
+  {
+   "slice": "1 measure",
+   "sha": "2bc94db3",
+   "pushed": true,
+   "summary": "tests/viewer_view_polish.rs properties_rows_measured_at_900x700: every text row of the Properties panel from egui's paint list"
+  },
+  {
+   "slice": "3",
+   "sha": "44be2233",
+   "pushed": true,
+   "summary": "shell.rs: TYPE title (between VIEW and COLOR, STU-SHL-011) > Convert > Create Outlines (ShellCommand::CreateOutlines, id studio.type.convert.create_outlines, harness leaf suffix), Ctrl+Shift+O consumed before Ctrl+O, runs hosted PanelAction::CreateOutlines; availability: no document -> NO_SUCH_CONTAINER (remedy Open), no selection -> NEEDS_SELECTION (remedy WORKSPACE > Layers)"
+  },
+  {
+   "slice": "1, 2, 4",
+   "sha": "63f642d7",
+   "pushed": true,
+   "summary": "mod.rs receipt loss entries as wrapping labels (Grid removed); mod.rs Text tool click -> vector.rs Viewer::text_click (open path -> path text, closed path containing the point -> area text inset 0, else point text); mod.rs render_if_dirty echoes changed live-text lines (Viewer.live_text_seen); hosted.rs Path Operations summary appends the live-text line; viewer_side_panels INFO_MIN restored at 900x700, doc restored; tests/viewer_view_polish.rs 4 tests"
+  },
+  {
+   "slice": "4 fix",
+   "sha": "863d5962",
+   "pushed": true,
+   "summary": "vector.rs replace_vector_layer: path/area text bindings move to the edited path's new id in the same undo step (Run::set_vector_paths_and_entry); echo test adds undo/redo checks"
+  },
+  {
+   "slice": "4 test",
+   "sha": "d208bc0e",
+   "pushed": true,
+   "summary": "echo test grows the frame as a rectangle (three corner drags), undo/redo x3"
+  }
  ],
  "tests": {
   "history": [
-   {"sha": "fc10ccbd", "scope": "lane-check --step0-only", "exit": 0},
-   {"sha": "fc10ccbd", "scope": "measurement: lane-check (C: ssd, no dependents) clippy harness-view + harness, nextest viewer_view_polish::properties_rows_measured_at_900x700 (desktop+audio-batch features)", "exit": 0, "passed": 1, "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-view-polish-1/lane-check-smb-view-polish-1-measure-fc10ccbd.log"},
-   {"sha": "e8979ba9", "scope": "lane-check --step0-only", "exit": 0}
+   {
+    "sha": "fc10ccbd",
+    "scope": "lane-check --step0-only",
+    "exit": 0
+   },
+   {
+    "sha": "fc10ccbd",
+    "scope": "measurement: lane-check (C: ssd, no dependents) clippy harness-view + harness, nextest viewer_view_polish::properties_rows_measured_at_900x700 (desktop+audio-batch features)",
+    "exit": 0,
+    "passed": 1,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-view-polish-1/lane-check-smb-view-polish-1-measure-fc10ccbd.log"
+   },
+   {
+    "sha": "e8979ba9",
+    "scope": "lane-check --step0-only",
+    "exit": 0
+   },
+   {
+    "sha": "53a5d337",
+    "scope": "bundled lane-check run 1 (C: ssd): clippy harness-view + harness (dependents none), nextest whole harness-view + harness suites, features harness/desktop,audio-batch + harness-view/desktop,audio-batch",
+    "exit": 100,
+    "passed": 308,
+    "failed": 1,
+    "skipped": 20,
+    "failures": "viewer_view_polish::path_edits_echo_live_text_counts_and_the_summary_shows_them: 4/28 -> 4/28 (replace_vector_layer minted a new path id and the area text stayed on the old one)",
+    "clippy": "warnings only: pre-existing timeline_export/composition.rs manual_clamp x2; viewer_view_polish.rs doc_lazy_continuation x2 (fixed in 21d16891)",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-view-polish-1/lane-check-smb-view-polish-1-53a5d337.log"
+   },
+   {
+    "sha": "21d16891",
+    "scope": "bundled lane-check run 2 (same command as run 1)",
+    "exit": 100,
+    "passed": 308,
+    "failed": 1,
+    "skipped": 20,
+    "failures": "viewer_view_polish::path_edits_echo_live_text_counts_and_the_summary_shows_them: 4/28 -> 0/32 (binding now follows; one bottom-right corner drag 40,30 -> 90,60 makes the quadrilateral 10,10 40,10 90,60 10,30 in which area text places 0 glyphs)",
+    "clippy": "clean for lane code (pre-existing manual_clamp x2 in timeline_export/composition.rs)",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-view-polish-1/lane-check-smb-view-polish-1-21d16891.log"
+   },
+   {
+    "sha": "25bac88d",
+    "scope": "bundled lane-check run 3 (same command), base a259a3df; superseded by the AE-17 base",
+    "exit": 0,
+    "passed": 309,
+    "failed": 0,
+    "skipped": 20,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-view-polish-1/lane-check-smb-view-polish-1-25bac88d.log"
+   },
+   {
+    "sha": "d208bc0e",
+    "scope": "bundled lane-check run 4 (C: ssd, owner smb-view-polish-1): clippy harness-view + harness (no workspace dependents), nextest whole harness-view + harness suites, features hsk-studio-harness/desktop,audio-batch + hsk-studio-harness-view/desktop,audio-batch (viewer included; round units [viewer] and [desktop, audio-batch] cover viewer_view_polish.rs)",
+    "base": "2832b1d0",
+    "exit": 0,
+    "passed": 309,
+    "failed": 0,
+    "skipped": 20,
+    "clippy": "no lane warnings (pre-existing manual_clamp x2 in timeline_export/composition.rs)",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-view-polish-1/lane-check-smb-view-polish-1-d208bc0e.log"
+   }
   ]
  },
- "blockers": ["lead hold: no C: lane-check until R42 verdicts are recorded"],
+ "blockers": [],
  "bg_pids": [],
- "updated_at": "2026-10-30T14:40:00Z",
+ "updated_at": "2026-10-30T16:00:00Z",
  "notes": {
   "brief": "builders/briefs/lane-smb-view-polish-1.md",
   "worktree": "wt-studio-lanes/smb-view-polish-1 (branch lane/smb-view-polish-1, base 169d082c)",
   "F-R41-3_measured": "fc10ccbd, 900x700, document open, Info with 4 samplers and a selection, no layer selected: Properties PanelState rect 445.0 px (x 455..900). Widest text rows (none wrapping) are the import receipt loss Grid row: 'document/layer_extras' x 481.0..615.0, 'transformed' 623.6..694.6, 'merged_image_oracle_unknown' 704.2..892.2 (411 px across). Measured from egui's FullOutput shapes (TextShape visual_bounding_rect, galley wrap max_width), not by reading. Fix: one wrapping label per entry 'path / kind / code'.",
   "gaps": [
-   "not compiled or tested after fc10ccbd (lead hold)",
+   "live text following path edits was not implemented before this lane (SMB-AI-AREA-TYPE-3 notes claimed it); added in vector.rs replace_vector_layer (beyond the helper scope of the brief, required by item 4)",
    "area text from a click uses inset 0 (the Path Operations panel's Area inset field is not read by the click)",
-   "Text tool click on a network (vector network) layer is not a target; Illustrator's own Type-tool click on an open path makes area type, Studio reads the brief (path text): UNVERIFIED D5"
+   "Text tool click on a network (vector network) layer is not a target; Illustrator's own Type-tool click on an open path makes area type, Studio reads the brief (path text): UNVERIFIED D5",
+   "area text in the non-rectangular quadrilateral (10,10) (40,10) (90,60) (10,30) at 12 pt places 0 of 32 glyphs while the 30x20 rectangle places 4: Type/composite area layout on slanted containers, cause NOT_INSPECTED (engine crates read-only for this lane); reported to the lead"
   ],
-  "out_of_owned_paths": "crates/hsk-studio-harness-view/tests/viewer_proof.rs:184 and crates/hsk-studio-harness/tests/viewer_shell.rs:641 title-order pins gain 'Type' (the brief's TYPE menu changes the title list; one line each); waiver requested from the lead",
+  "out_of_owned_paths": "waiver granted by the lead 2026-10-30: crates/hsk-studio-harness-view/tests/viewer_proof.rs:184 and crates/hsk-studio-harness/tests/viewer_shell.rs:641 title-order pins gain 'Type' (one line each)",
   "run_ui_md_lines": [
    "Text tool on paths: with the Text tool, click on an open vector path for text on the path, inside a closed vector path for area text in it, elsewhere for point text; Edit > Undo removes it in one step.",
    "Create Outlines: Type > Convert > Create Outlines (Ctrl+Shift+O) outlines the selected point text or the live text of the selected vector layer, the same command as Path Operations > Create Outlines.",
@@ -37,7 +121,9 @@
   ],
   "rule_4e": "tests/viewer_view_polish.rs is #![cfg(feature = \"viewer\")]; .config/round-features.toml has hsk-studio-harness-view [viewer] and [desktop, audio-batch] units: covered",
   "spec_basis": "STU-SHL-011 (TYPE between VIEW and COLOR), STU-SHL-029 (TYPE > Convert > Create Outlines), STU-TYP-114 (point/area/path text kinds), STU-TYP-004/120 (text on path); module 14 v02.225",
-  "unverified": "Illustrator behaviour of Type tool clicks on paths and the Create Outlines key binding: UNVERIFIED (D5); Ctrl+Shift+O is a Studio choice; command id studio.type.convert.create_outlines has no spec-declared id (harness leaf suffix)"
+  "unverified": "Illustrator behaviour of Type tool clicks on paths and the Create Outlines key binding: UNVERIFIED (D5); Ctrl+Shift+O is a Studio choice; command id studio.type.convert.create_outlines has no spec-declared id (harness leaf suffix)",
+  "key_binding": "Ctrl+Shift+O (Studio choice, UNVERIFIED D5), consumed in shell_shortcuts before Ctrl+O",
+  "run_causes": "run 1 (53a5d337): echo test 4/28 -> 4/28, path edits minted a new path id and the binding stayed on the old one (live text did not follow edits); run 2 (21d16891): bindings follow, but the one-corner drag made a quadrilateral where area text places 0/32 (engine behaviour, NOT_INSPECTED); run 3 (25bac88d) green on a259a3df; run 4 green on 2832b1d0"
  },
- "next": "on lead go: git fetch, rebase onto origin/codex/handshake-studio-assets, one bundled lane-check (C: ssd, owner smb-view-polish-1, CARGO_BUILD_JOBS=6) over harness-view + harness suites with desktop,audio-batch features, log lane-check-smb-view-polish-1-<sha>.log; fix all visible failures then at most one re-run; push with PUSH SAFETY; READY_FOR_VALIDATION"
+ "next": "validation round"
 }
