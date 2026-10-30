@@ -4,7 +4,7 @@
  "lane": "Repo Governance: Studio records under .GOV/docs_repo/wp-studio-module-work and the WP-KERNEL-STUDIO packet",
  "generated_at": "2026-10-30T21:50:32Z",
  "by": "Studio lead (KERNEL_BUILDER)",
- "status": "PW-01..11, PW-14 DONE; PW-12 (module catalog), PW-13 (embedding preparation record), PW-15 (lane files), PW-16 (dispatch/workspace rules after D1) PROPOSED; PW-17 DEFERRED",
+ "status": "PW-01..14 DONE; PW-15 (lane files) and PW-16 (dispatch/workspace rules after D1) PROPOSED; PW-17 DEFERRED",
  "inventory_ref": "research/integration-refactor-inventory-20261030.json",
  "principle": "preservation-first: every existing MT, lane, brief and preparation record keeps its content; the direction is added as a typed block or rule, never by rewriting history; machine-readable JSON is the authority, Markdown only projects it",
  "per_mt_record": {
@@ -172,7 +172,7 @@
    "change": "catalog the 21 uncatalogued crates (harness-core, harness-view, worker, interop-affinity/fig-base/fig-native/raster/tiff/vector-core/vector-svg, press-read/write, ps*, web-assets/core) with owner, edges and host_integration_class; bump spec_version from v02.209 to v02.225 with the catalog sha recorded in _MT_INDEX.asset_first_migration",
    "method": "hand + checksum",
    "authority": "Operator (catalog is under STUDIO-APPROVAL-SPEC-207)",
-   "status": "PROPOSED"
+   "status": "DONE 2026-10-30T23:32:21Z (Operator \"Catalog and record\"; kernel 23c800c4): STUDIO_MODULES.json gains crate_catalog (21 crates with owner module, role, edges from Cargo.toml at 3cf0f149, host_integration_class), module_host_integration (35 modules), host_integration_spec_binding (v02.225 modules 14/15/05/06 with sha256), spec_version v02.225, workspace_crate_count 56, history entry with previous sha; modules[] and current_scoped_spec_binding untouched; _MT_INDEX.asset_first_migration.module_catalog_sha256 re-pinned with history (the old pin df923cb was already stale against the on-disk catalog 1112e338)"
   },
   {
    "id": "PW-13",
@@ -180,7 +180,7 @@
    "change": "dated amendment entry: direction supersedes 'wgpu device' assumptions; dependency_boundary gains 'no own GPU device in any Studio crate'; known_missing_consumers gains the Vulkan backend and the GPU owner",
    "method": "hand, append only",
    "authority": "Operator D4",
-   "status": "PROPOSED"
+   "status": "DONE 2026-10-30T23:32:21Z (kernel 23c800c4): preparation.json gains amendments[EMBED-PREP-HOST-AMEND-001] (superseded wgpu-device reading, dependency_boundary addendum), four grouped_host_tasks for MT-36248..36251 (status LEAD_AUTHORED_20261030_NONEXECUTION), four known_missing_consumers (Vulkan backend, GPU owner, DiagEvent identity + RT-safe handoff, settings registration / Engine Profiles); originals untouched"
   },
   {
    "id": "PW-14",
