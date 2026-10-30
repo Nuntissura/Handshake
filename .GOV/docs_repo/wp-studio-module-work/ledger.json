@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T03:17:33Z",
+ "updated_at": "2026-10-30T03:19:22Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -10832,6 +10832,20 @@
    "dispatched_at": "2026-10-30T03:17:33Z",
    "model": "opus/medium",
    "note": "R40 code findings: F-R40-2 motion-js host-poll vs kernel-limit kill proof (DESCRIPTOR V4-07), F-R40-5 fig-edit undo result, F-R40-6 folio layout_rules fingerprints sha256 + typed serialization error; worktree wt-studio-lanes/smb-r40-followups-1 at ce5df74c; F-R40-4 lane-file shas fixed by the lead (patch-ids verified)"
+  },
+  {
+   "lane_id": "SMB-AU-MULTITRACK-1",
+   "status": null,
+   "phase": "build",
+   "candidate": "",
+   "owner_paths": [
+    "crates/hsk-studio-harness-view/src/view/timeline*",
+    "crates/hsk-studio-harness-view/tests/viewer_timeline_audio.rs"
+   ],
+   "brief": "builders/briefs/lane-smb-au-multitrack-1.md",
+   "dispatched_at": "2026-10-30T03:19:22Z",
+   "model": "opus/medium",
+   "note": "post-mortem top gap Audition rank 1: AU-14 multitrack clip view + automation lanes (GUI over validated engine); no Audition multitrack clause in module 14 (spec-delta request expected); worktree wt-studio-lanes/smb-au-multitrack-1 at 007b34f2; GUI lane 1 of max 2"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
