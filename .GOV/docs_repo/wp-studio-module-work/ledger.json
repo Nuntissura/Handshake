@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T14:56:13Z",
+ "updated_at": "2026-10-30T15:00:13Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11750,17 +11750,25 @@
   {
    "lane_id": "SMB-PS-GRADIENT-BUCKET-1",
    "crate": "hsk-studio-pigment + hsk-studio-harness-view (+ harness test)",
-   "phase": "claim run on D: at the 5328a6a2 rebase (2026-10-30T14:49:00Z); R43 holds C:",
-   "status": null,
+   "phase": "validation (R44)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high (GUI lane 2)",
    "lane_file": "builders/lanes/hsk-studio-ps-gradient-bucket-1.json",
    "brief": "builders/briefs/lane-smb-ps-gradient-bucket-1.md",
    "worktree": "wt-studio-lanes/smb-ps-gradient-bucket-1",
    "disk": "lead names it",
-   "candidate": null,
-   "commits": [],
+   "candidate": "e1e06156",
+   "commits": [
+    "f1371325",
+    "c9213309",
+    "70c3b09d",
+    "37bc67cf",
+    "fc39c70b",
+    "edca21c3",
+    "e1e06156"
+   ],
    "verdicts": [],
-   "note": "Photoshop PS-19: raster Gradient tool (five geometries), Paint Bucket and Edit > Fill on pixel layers, one undo step each (planner brief, STU-RAS-025/160/161/119/117/170, STU-SHL-155). Base d208bc0e.; 2026-10-30T14:40:51Z 8 local commits (gradient, bucket + Edit > Fill, viewer Tool::Gradient / Tool::FloodFill, dedupe 3a83e851 onto brush helpers + prism DisplayEncoding::Srgb.encode); pigment 254/254 + viewer fill 4/4 focused on D:; scope extension in edit.rs (fill field, pub(super) tile helpers) and brush_mix.rs visibility granted by the lead"
+   "note": "Photoshop PS-19: raster Gradient tool (five geometries), Paint Bucket and Edit > Fill on pixel layers, one undo step each (planner brief, STU-RAS-025/160/161/119/117/170, STU-SHL-155). Base d208bc0e.; 2026-10-30T14:40:51Z 8 local commits (gradient, bucket + Edit > Fill, viewer Tool::Gradient / Tool::FloodFill, dedupe 3a83e851 onto brush helpers + prism DisplayEncoding::Srgb.encode); pigment 254/254 + viewer fill 4/4 focused on D:; scope extension in edit.rs (fill field, pub(super) tile helpers) and brush_mix.rs visibility granted by the lead; 2026-10-30T15:00:13Z pushed 5328a6a2..e1e06156 (ls-remote verified); D: run 506/506 (20 skipped) exit 0, suites pigment + harness-view + harness, clippy over pigment dependents (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-gradient-bucket-1/lane-check-smb-ps-gradient-bucket-1-e1e06156.log); non-compiling red commit squashed (RED COMMITS); gaps: no gradient on masks, pattern bucket not tested end to end in the window"
   },
   {
    "lane_id": "SMB-LR-EXPORT-SIZING-1",
@@ -11815,17 +11823,17 @@
   {
    "lane_id": "SMB-LR-EXPORT-GUI-1",
    "crate": "hsk-studio-harness-view (develop export dialog) + hsk-studio-harness (cli flags, test)",
-   "phase": "queued: dispatch after SMB-PS-GRADIENT-BUCKET-1 pushes (GUI limit 2)",
+   "phase": "coding (dispatched 2026-10-30T15:00:13Z); runs after SMB-PR-NEST-1 pushes",
    "status": null,
    "owner": "builder opus/medium (GUI)",
    "lane_file": "builders/lanes/hsk-studio-lr-export-gui-1.json",
    "brief": "builders/briefs/lane-smb-lr-export-gui-1.md",
-   "worktree": null,
+   "worktree": "wt-studio-lanes/smb-lr-export-gui-1",
    "disk": "lead names it",
    "candidate": null,
    "commits": [],
    "verdicts": [],
-   "note": "Window export dialog for SMB-LR-EXPORT-SIZING-1 (resize, sharpening, watermark) plus Export TIFF / DNG buttons; empty stage byte-identical to today."
+   "note": "Window export dialog for SMB-LR-EXPORT-SIZING-1 (resize, sharpening, watermark) plus Export TIFF / DNG buttons; empty stage byte-identical to today.; base e1e06156"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

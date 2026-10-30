@@ -1,57 +1,51 @@
 {
  "crate": "hsk-studio-pigment, hsk-studio-harness-view, hsk-studio-harness (test only)",
  "lane": "SMB-PS-GRADIENT-BUCKET-1",
- "status": "IN_PROGRESS",
- "phase": "code complete in 8 local commits on lane/smb-ps-gradient-bucket-1 (base d208bc0e), nothing pushed; lead dedupe done (3a83e851); focused tests green on D:; waiting: runs last after SMB-AU-MULTITRACK-3, lead names disk + base",
- "candidate": null,
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed e1e06156 to origin/codex/handshake-studio-assets (base 5328a6a2, fetched and re-read via ls-remote); bundled run at e1e06156 EXIT 0: 506/506, 20 skipped; never claimed PASS",
+ "candidate": "e1e06156",
  "commits": [
   {
-   "slice": "1 red",
-   "sha": "f8587882",
-   "pushed": false,
-   "summary": "pigment fill_tools API skeleton + tests/fill_tools.rs gradient tests (red)"
+   "slice": "1 red (compiles, tests fail)",
+   "sha": "f1371325",
+   "pushed": true,
+   "summary": "pigment fill_tools API skeleton + gradient tests"
   },
   {
    "slice": 1,
-   "sha": "c77675d7",
-   "pushed": false,
-   "summary": "pigment fill_tools::gradient_fill: independent colour/transparency stop lists, midpoints, drag-line linear/reflected/radial/angle/diamond, reverse, seeded dither, blend; style.rs gradient_sample pub(crate)"
+   "sha": "c9213309",
+   "pushed": true,
+   "summary": "pigment fill_tools::gradient_fill; style.rs gradient_sample pub(crate)"
   },
   {
-   "slice": "2 red",
-   "sha": "d7aaf479",
-   "pushed": false,
-   "summary": "tests/fill_tools.rs bucket + Edit > Fill tests (red)"
+   "slice": "2 red (compiles, tests fail)",
+   "sha": "70c3b09d",
+   "pushed": true,
+   "summary": "bucket + Edit > Fill tests"
   },
   {
    "slice": 2,
-   "sha": "f2fde248",
-   "pushed": false,
-   "summary": "pigment fill_tools::flood_fill (magic_wand region) and fill_selection; colour or pattern tile content"
-  },
-  {
-   "slice": "3 red",
-   "sha": "17c96a72",
-   "pushed": false,
-   "summary": "harness tests/viewer_fill_tools.rs (red: viewer API absent)"
+   "sha": "37bc67cf",
+   "pushed": true,
+   "summary": "pigment fill_tools::flood_fill and fill_selection"
   },
   {
    "slice": "3 and 4",
-   "sha": "c21af8eb",
-   "pushed": false,
-   "summary": "harness-view view/fill_tools.rs: Tool::Gradient / Tool::FloodFill, fill_gradient / flood_fill / fill_selection one chronicle tiles step each, fill_drag / fill_click, option row fill.*, hover, state_json edit.fill; slice 4 document pattern tiles offered to the bucket (pattern_unavailable otherwise)"
+   "sha": "fc39c70b",
+   "pushed": true,
+   "summary": "harness-view view/fill_tools.rs + Tool::Gradient / Tool::FloodFill + harness tests/viewer_fill_tools.rs (red harness commit 17c96a72 did not compile alone: squashed in, rule RED COMMITS)"
   },
   {
    "slice": "3 test fix",
-   "sha": "3785dc0e",
-   "pushed": false,
+   "sha": "edca21c3",
+   "pushed": true,
    "summary": "viewer_fill_tools clippy cloned_ref_to_slice_refs"
   },
   {
    "slice": "lead dedupe",
-   "sha": "3a83e851",
-   "pushed": false,
-   "summary": "view/fill_tools.rs reuses brush_mix plane/put/tile_view/Quiet/BYTE_LIMIT (pub(super)) and Prism DisplayEncoding::Srgb.encode"
+   "sha": "e1e06156",
+   "pushed": true,
+   "summary": "fill_tools.rs reuses brush_mix plane/put/tile_view/Quiet/BYTE_LIMIT (pub(super)) and Prism DisplayEncoding::Srgb.encode"
   }
  ],
  "tests": {
@@ -153,13 +147,31 @@
     "failed": 0,
     "note": "an earlier run with a test()-only filter missed the viewer_fill_tools binary (9 brush-named tests passed); rerun with binary() filter",
     "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-gradient-bucket-1/focused-smb-ps-gradient-bucket-1-3785dc0e-dedupe-tests2.log"
+   },
+   {
+    "sha": "e1e06156",
+    "scope": "bundled lane-check --disk d (step 0; clippy over pigment, harness-view, harness and dependents composite, develop, interop-fig, interop-layout, interop-psd, pulse, render-cpu, render-gpu; whole suites of pigment, harness-view, harness with viewer features)",
+    "exit": 0,
+    "passed": 506,
+    "failed": 0,
+    "skipped": 20,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-gradient-bucket-1/lane-check-smb-ps-gradient-bucket-1-e1e06156.log",
+    "clippy": "no findings in lane files"
    }
   ],
-  "step0": "lane-check --step0-only at c21af8eb: clean"
+  "step0": "clean",
+  "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-ps-gradient-bucket-1 --disk d -- cargo nextest run -p hsk-studio-pigment -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/viewer,hsk-studio-harness-view/viewer --no-fail-fast",
+  "exit": 0,
+  "sha": "e1e06156",
+  "passed": 506,
+  "failed": 0,
+  "skipped": 20,
+  "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-gradient-bucket-1/lane-check-smb-ps-gradient-bucket-1-e1e06156.log",
+  "new_tests": "pigment fill_tools 8/8; harness viewer_fill_tools 4/4; harness-view view::fill_tools::tests 1/1"
  },
  "blockers": [],
  "bg_pids": [],
- "updated_at": "2026-10-30T14:31:24Z",
+ "updated_at": "2026-10-30T14:59:49Z",
  "notes": {
   "worktree": "wt-studio-lanes/smb-ps-gradient-bucket-1 (branch lane/smb-ps-gradient-bucket-1, base d208bc0e)",
   "brief": "builders/briefs/lane-smb-ps-gradient-bucket-1.md",
@@ -204,8 +216,9 @@
    "edit_rs (lead grant 2026-10-30)": "EditState.fill field + Default; edit_json \"fill\" line; pub(super) on CELL, COLOUR_CELL, ALPHA_CELL, tile_rects, new_tile_profile, new_tile, Viewer::canvas (visibility instead of copies)",
    "brush_mix_rs (lead grant 2026-10-30, visibility only)": "pub(super) on BYTE_LIMIT, Quiet, plane, put, tile_view",
    "mod_rs (brief-listed)": "module line, gradient drag arm, bucket click block, gradient preview line arm, hover arm, option-row call"
-  }
+  },
+  "local_shas_before_rebase": "f8587882 c77675d7 d7aaf479 f2fde248 17c96a72 c21af8eb 3785dc0e 3a83e851 (base d208bc0e); rebased onto 5328a6a2 without conflicts"
  },
- "next": "await lead message: disk + base for the bundled run (rebase onto the named base, run once, push, READY per slice)",
+ "next": "validation round judges SMB-PS-GRADIENT-BUCKET-1 at e1e06156",
  "verdicts": []
 }
