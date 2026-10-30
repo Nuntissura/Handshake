@@ -1,0 +1,93 @@
+{
+ "crate": "hsk-studio-pigment, hsk-studio-folio (additive), hsk-studio-composite (+ hsk-studio-package tests/externals.rs classification, rule 4b)",
+ "lane": "SMB-R43-FOLLOWUPS-1",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed 3cf0f149 to origin/codex/handshake-studio-assets (rebased on 825598c6, SMB-FIG-GRID-2; push exit 0, origin re-read = 3cf0f149); green bundled run on 3cf0f149",
+ "candidate": "3cf0f149",
+ "commits": [
+  {
+   "sha": "0a5705d7",
+   "finding": "F-R43-3, F-R43-4 (tests, red first)",
+   "subject": "pigment, folio, composite (SMB-R43-FOLLOWUPS-1): red tests for F-R43-3 / F-R43-4",
+   "pre_rebase": "013eb18e"
+  },
+  {
+   "sha": "4aac85dd",
+   "finding": "F-R43-3",
+   "subject": "pigment (SMB-R43-FOLLOWUPS-1): F-R43-3 radial blur cost refuses a hostile rect before the walk",
+   "pre_rebase": "cdf716ba"
+  },
+  {
+   "sha": "d9bec187",
+   "finding": "F-R43-4 (folio record, package classification)",
+   "subject": "folio, package (SMB-R43-FOLLOWUPS-1): F-R43-4 STU-FX-118 profile reference on composition-effect colour parameters",
+   "pre_rebase": "6e6f763d"
+  },
+  {
+   "sha": "3cf0f149",
+   "finding": "F-R43-4 (composite conversion)",
+   "subject": "composite (SMB-R43-FOLLOWUPS-1): F-R43-4 profile-honest effect colour parameters through Prism",
+   "pre_rebase": "92c7702e"
+  }
+ ],
+ "tests": {
+  "red": {
+   "sha": "013eb18e",
+   "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r43-followups-1/red-smb-r43-followups-1-013eb18e.log (first line HEAD=013eb18e)",
+   "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 STUDIO_LANE_CHECK_NO_DEPENDENTS=1 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-r43-followups-1 --disk d --tests radial_hostile_rect_is_refused_before_the_walk,colour_parameters_carry_a_profile_reference_additively,colour_parameter_without_a_profile_reference_is_refused -- cargo nextest run -p hsk-studio-pigment -p hsk-studio-folio -p hsk-studio-composite --features hsk-studio-composite/motion --no-fail-fast",
+   "disk": "D:",
+   "result": "compiles (clippy clean); 3 run: 2 failed as intended (folio: record with colour_profiles refused at decode; composite: profile-less Tint lowered instead of refused), 1 TIMEOUT 120 s as intended (pigment: the walk over 10^12 pixels before the budget check)",
+   "exit": 100
+  },
+  "focused": {
+   "sha": "013eb18e + uncommitted green (= tree of 92c7702e)",
+   "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r43-followups-1/focused-smb-r43-followups-1-wip1.log (first line HEAD=013eb18e dirty)",
+   "argv": "same lane-check, --disk d, no dependents, filter radial_,colour_parameter,effect_stack_records_round_trip,hostile_effect_records,animated_effect_parameters,colour_family_maps,glow_builds,folio_effect_stacks_render,every_folio_reference_property_is_classified over -p pigment -p folio -p composite -p package --features hsk-studio-composite/motion",
+   "result": "clippy clean on the four crates; 15 run, 15 passed",
+   "exit": 0,
+   "note": "superseded by run1"
+  },
+  "run1": {
+   "sha": "3cf0f149 (pushed)",
+   "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r43-followups-1/lane-check-smb-r43-followups-1-3cf0f149.log (first line HEAD=3cf0f149)",
+   "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-r43-followups-1 --disk d -- cargo nextest run -p hsk-studio-pigment -p hsk-studio-folio -p hsk-studio-composite -p hsk-studio-package --features hsk-studio-composite/motion --no-fail-fast",
+   "disk": "D:",
+   "scope": "whole suites of pigment, folio, composite (motion, the round unit) and package (rules 4a/4b); clippy over the four crates and 22 direct dependents",
+   "clippy": "clean for every changed file; warnings only in untouched test targets (pigment layer_styles, composite composition_document/composition_static/mask_track_reapply/three_d_adapter/composition_adapter/composition_docgraph_masks)",
+   "passed": 607,
+   "failed": 0,
+   "skipped": 0,
+   "exit": 0
+  }
+ },
+ "blockers": [],
+ "bg_pids": [],
+ "updated_at": "2026-10-30T18:14:00Z",
+ "notes": {
+  "spec_basis": "repair of validation/round-R43.json findings_not_failures F-R43-3 and F-R43-4 (brief builders/briefs/lane-smb-r43-followups-1.md); STU-FX-118 (module 14 v02.225 :12766) 'A color parameter's value is meaningless without a profile. Every color parameter carries a required StudioColorProfile reference and is evaluated in the layer's declared working space ([STU-FX-006a])'",
+  "F-R43-3": "radial_blur_window_cost(out, centre, amount, kind, limits) (PUBLIC SIGNATURE CHANGE: new BlurLimits argument; only callers are pigment's radial_blur_window and tests/ae_kernels.rs; composite calls radial_blur_window, unchanged) refuses path_cost(out, area) = (area x BLUR_SAMPLE_BYTES, area x 4) against the limits before the per-pixel walk, so the walk is at most max_work / 4 pixels. Overflow of the checked products is BlurError::Overflow (u32::MAX x u32::MAX rect). Test ae_kernels radial_hostile_rect_is_refused_before_the_walk: 10^6 x 10^6 rect refused OverBudget on bytes and on work, u32::MAX^2 Overflow, for both kinds and amounts 0/100/1000, through radial_blur_window and the cost function; no timing assertion.",
+  "F-R43-4 folio": "StudioCompositionEffect::colour_profiles: BTreeMap<param_key, StudioEffectColourProfile { colour_profile_id: ProfileBinding (crate::required, as StudioColor) }>, serde default + skip when empty (bytes unchanged: tests effect_stack_records_round_trip_and_an_absent_stack_is_byte_identical and colour_parameters_carry_a_profile_reference_additively). Validation: key must be a color row of the kind (InvalidField {layer}/effects/{id}/colour_profiles), id via Ctx::profile (InvalidId at .../colour_profiles/{key}; resolver issue at .../colour_profiles/{key}/colour_profile). Missing reference accepted at load. Shape chosen as an object with colour_profile_id so package externals.rs's PROFILE_KEYS walker reports each reference as an external colour_profile (a map of bare ids would not be found).",
+  "F-R43-4 composite": "At::colour: reference (null = document working_space_rgb) -> unchanged when it is the document blending_space in an encoded plan or its ICC bytes hash to ColourTag.profile_sha256; else hsk_studio_prism::WideEngine (relative colorimetric, no BPC, Studio reading UNVERIFIED D5) from the caller's ICC bytes into the plan profile bytes (must hash to the tag), alpha kept; Observe frame discarded (documented). Refusals: composition_effect_option with layer_id {layer}/effects/{effect_id}/{param_key}; cancel during conversion -> Composite(Canceled). New public API: temporal::composition::EffectColourProfiles::new(actor, plan_profile_id, plan_icc).with_profile(id, icc); CompositionTemporalSource::with_effect_colour_profiles(Arc<_>). Applied to EVERY colour parameter (Tint, Tritone, Glow A & B, and the SMB-AE-EFFECT-STACK-1 generators Gradient Ramp, Circle, Checkerboard), since STU-FX-118 covers every color parameter and the generators shared the same At::colour gap.",
+  "out_of_owned_paths": "lead-confirmed 2026-10-30: composite src/temporal/composition.rs (2 lines: read_effects takes &CompositionInput instead of BlendSpace; re-export of EffectColourProfiles); package tests/externals.rs (2 CLASSIFIED rows for StudioCompositionEffect.colour_profiles and StudioEffectColourProfile.colour_profile_id, rule 4b)",
+  "changed_tests_for_validator": [
+   "composite tests/effect_families_2.rs animated_effect_parameters_evaluate_per_frame (Tint carries colour_profiles SCPF-1 = blending space; expectations unchanged)",
+   "composite tests/effect_families_2.rs colour_family_maps_onto_pigment_adjustments (Tint default and Tritone carry colour_profiles SCPF-1; expectations unchanged)",
+   "composite tests/effect_families_2.rs lowered() now delegates to new lowered_in(extra, frame, space, profiles) (same behaviour for the old callers)",
+   "composite tests/composition_effects.rs folio_effect_stacks_render_through_render_scene_in_stack_order (Checkerboard 'board' carries colour_profiles color SCPF-1; expectations unchanged; SMB-AE-EFFECT-STACK-1 test)",
+   "folio tests/composition_effect_records.rs: new test only",
+   "pigment tests/ae_kernels.rs radial_window_independence_cost_and_refusals: the three radial_blur_window_cost calls pass WIDE (signature change)"
+  ],
+  "new_tests": [
+   "pigment ae_kernels radial_tests::radial_hostile_rect_is_refused_before_the_walk",
+   "folio composition_effect_records colour_parameters_carry_a_profile_reference_additively",
+   "composite effect_families_2 colour_parameter_without_a_profile_reference_is_refused",
+   "composite effect_families_2 colour_parameters_convert_from_their_profile_into_the_plan (sRGB / blending-space reference = today's values bit for bit; Display P3 reference = prism WideEngine conversion exactly; Glow A & B; refusals naming the parameter)"
+  ],
+  "fixtures": "composite effect_families_2.rs include_bytes!(\"../../hsk-studio-prism/tests/profiles/sRGB-v4.icc\" and \"DisplayP3-v4.icc\") (CC0, prism tests/profiles/README.md); relative paths, step 0 clean",
+  "4c_4d_4e": "4c: lane-check step 0 clean; 4d: no doc examples added or changed; 4e: effect_families_2.rs is cfg(feature motion), .config/round-features.toml has hsk-studio-composite = [[\"motion\"]]",
+  "unverified": "After Effects behaviour (colour-parameter profile semantics, rendering intent) stays UNVERIFIED (D5)",
+  "ready_claim": "cites only run1 (lane-check-smb-r43-followups-1-3cf0f149.log)",
+  "lead_accepted": "radial_blur_window_cost signature change (no callers outside pigment); profile-honest colours extended to Gradient Ramp, Circle and Checkerboard",
+  "downstream": "SMB-ID-FRAME-AUTOSIZE-2 and SMB-FIG-GRID-3 rebase onto 3cf0f149 before their runs"
+ }
+}

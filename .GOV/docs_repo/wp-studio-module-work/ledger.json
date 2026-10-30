@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T18:10:39Z",
+ "updated_at": "2026-10-30T18:14:26Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -12278,17 +12278,17 @@
   {
    "lane_id": "SMB-R43-FOLLOWUPS-1",
    "crate": "hsk-studio-pigment + hsk-studio-folio (additive) + hsk-studio-composite",
-   "phase": "coding (dispatched 2026-10-30T17:40:52Z); pushes after SMB-FIG-GRID-2 (folio)",
-   "status": null,
+   "phase": "validation (R45)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-r43-followups-1.json",
    "brief": "builders/briefs/lane-smb-r43-followups-1.md",
    "worktree": "wt-studio-lanes/smb-r43-followups-1",
    "disk": "lead names it",
-   "candidate": null,
+   "candidate": "3cf0f149",
    "commits": [],
    "verdicts": [],
-   "note": "F-R43-3 pigment radial blur refuses area x sample bytes / work before the per-pixel walk; F-R43-4 lead decision: STU-FX-118 profile-honest colour parameters (folio StudioColorProfile reference on colour effect parameters, composite converts through prism, missing reference refused typed). Base ff4ca080.; 2026-10-30T17:52:12Z origin now 825598c6 (FIG-GRID-2 done)"
+   "note": "F-R43-3 pigment radial blur refuses area x sample bytes / work before the per-pixel walk; F-R43-4 lead decision: STU-FX-118 profile-honest colour parameters (folio StudioColorProfile reference on colour effect parameters, composite converts through prism, missing reference refused typed). Base ff4ca080.; 2026-10-30T17:52:12Z origin now 825598c6 (FIG-GRID-2 done); 2026-10-30T18:14:26Z pushed 825598c6..3cf0f149 (ls-remote verified); D: run 607/607 pigment + folio + composite + package, clippy over 22 dependents (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r43-followups-1/lane-check-smb-r43-followups-1-3cf0f149.log); radial_blur_window_cost takes BlurLimits; profile-honest colour parameters incl. Gradient Ramp / Circle / Checkerboard; outside paths: composite composition.rs (2 lines), package tests/externals.rs (2 rows)"
   },
   {
    "lane_id": "SMB-FIG-GRID-3",
