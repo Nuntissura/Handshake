@@ -69,5 +69,8 @@
       "OUT OF LANE: STU-LAY-011 flex/container mode (consumes StudioAutoLayout); page-navigation side-by-side display and window commands (no harness-view hunk); IDML import/export of rules; guides and parent bindings not copied into alternate layouts"
     ],
     "not_proven": "InDesign liquid/adjust/alternate numerics UNVERIFIED (D5: parity-indesign ID-23 NO_ORACLE_CASE); GUI surface not in this lane"
-  }
+  },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V2", "status_change": "PASS_V2", "included_by": "CX-VAL-009 reopen", "prior_status": "READY_FOR_VALIDATION (CX-VAL-009 re-open; was PASS_V1)", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (changed crate: folio, layout, package); every unit of its crates folio, layout, package build 0 / run 0 in R41", "idempotency_key": "STUDIO-R41:SMB-ID-LIQUID-LAYOUT-1:c2422d232988:PASS_V2", "claim_scope": null, "round": "STUDIO-R41", "lane": "SMB-ID-LIQUID-LAYOUT-1", "candidate": "c2422d2329889572aef1f04aed2b5fa6633288c8", "tree": "cb86a8fe1aa7887e963780c7aeb9a81c4cd01285", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R41", "started_at": "2026-10-30T04:18:18Z", "completed_at": "2026-10-30T07:42:15Z"}
+ ]
 }

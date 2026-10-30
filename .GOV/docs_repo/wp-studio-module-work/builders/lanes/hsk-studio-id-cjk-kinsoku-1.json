@@ -58,5 +58,8 @@
     ],
     "unverified_D5": "InDesign shipped kinsoku sets and the aki values of its 17 mojikumi sets, push-in/push-out tie rules, hanging width: NOT_PROVEN (no InDesign CJK oracle case); no real-shaper CJK test (no checked-in CJK-capable test font found in the corpus; not searched beyond the brief)",
     "round_parity": "step 0 clean; no doc examples added (no doctest run needed); all tests default-feature; no new deps or edges; Cargo.lock untouched"
-  }
+  },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "status_change": "PASS_V1", "included_by": "READY claim in candidate", "prior_status": "READY_FOR_VALIDATION", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": null, "idempotency_key": "STUDIO-R41:SMB-ID-CJK-KINSOKU-1:c2422d232988:PASS_V1", "claim_scope": "folio hsk.studio.cjk_composition@1 (kinsoku/mojikumi tables, composers, paragraph-style bindings; dangling names refused); layout kinsoku and mojikumi in the Knuth-Plass item model, JLREQ hard/soft kinsoku and 17 distinct base sets as data, reflow_cjk wiring in single_line/every_line, non-CJK byte-identical (latin_paragraphs_are_unchanged); cjk_kinsoku 6, cjk_mojikumi 4, cjk_composition_records 4, package externals passed; waiver HBR-STOP-005 edits additive as described; licence notice names the wrong W3C licence (F-R41-1)", "round": "STUDIO-R41", "lane": "SMB-ID-CJK-KINSOKU-1", "candidate": "c2422d2329889572aef1f04aed2b5fa6633288c8", "tree": "cb86a8fe1aa7887e963780c7aeb9a81c4cd01285", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R41", "started_at": "2026-10-30T04:18:18Z", "completed_at": "2026-10-30T07:42:15Z"}
+ ]
 }
