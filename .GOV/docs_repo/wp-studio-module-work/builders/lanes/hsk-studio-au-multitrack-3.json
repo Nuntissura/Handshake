@@ -1,0 +1,103 @@
+{
+ "crate": "hsk-studio-harness-view",
+ "lane": "SMB-AU-MULTITRACK-3",
+ "status": "IN_PROGRESS",
+ "phase": "slices 1-3 plus the crossfade refusal detail committed locally (2c38798f, 8c05fa58, 38e94ab6) on base a259a3df, unpushed, tests not yet run; waiting for the lead's go message (AE-EFFECT-FAMILIES-2 push + disk)",
+ "candidate": null,
+ "commits": [
+  {
+   "slice": "1-2 engine",
+   "sha": "2c38798f",
+   "pushed": false,
+   "summary": "folio clip_pans + master.volume_automation; pulse with_clip_envelopes, bus_mix panned-mono strip and master lane; tests pulse clip_pan.rs (3), folio audio_routing_records new test"
+  },
+  {
+   "slice": "1-3 view",
+   "sha": "8c05fa58",
+   "pushed": false,
+   "summary": "timeline Clip Pan lane + envelope follow, master row and lanes, mixer AUTO state + fader writes lane at playhead; tests viewer_timeline_audio_3.rs (5)"
+  },
+  {
+   "slice": "lead answer 2",
+   "sha": "38e94ab6",
+   "pushed": false,
+   "summary": "panned/unpanned mono crossfade keeps audio_unsupported; pulse strip_crossfade_mismatch names track, clips and case; mixer error carries it; tests clip_pan refusal test extended, viewer_timeline_audio_3::panned_unpanned_crossfade_is_refused_by_name_in_the_mixer"
+  }
+ ],
+ "tests": {
+  "history": [
+   {
+    "sha": "8c05fa58 (pre-commit tree)",
+    "scope": "cargo clippy --tests folio, pulse, harness-view (desktop, audio-batch); harness-view (viewer)",
+    "exit": 0,
+    "note": "compile + clippy only, no tests run; no findings in lane files (foreign: 2 manual_clamp in timeline_export/composition.rs); step0-only EXIT 0",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-au-multitrack-3/clippy-precommit-2.log"
+   },
+   {
+    "sha": "38e94ab6 (pre-commit tree)",
+    "scope": "cargo clippy --tests pulse, harness-view (desktop, audio-batch) on D:",
+    "exit": 0,
+    "note": "compile + clippy only, no tests run; no findings in lane files",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-au-multitrack-3/clippy-precommit-3.log"
+   }
+  ],
+  "argv": "planned: cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-au-multitrack-3 --disk <lead> -- cargo nextest run -p hsk-studio-folio -p hsk-studio-pulse -p hsk-studio-package -p hsk-studio-harness-core -p hsk-studio-harness -p hsk-studio-harness-view -p hsk-studio-interop-media --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch,hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch --no-fail-fast",
+  "new_tests": "pulse tests/clip_pan.rs (3); folio audio_routing_records::clip_pans_and_master_automation_validate_round_trip_and_refuse_typed; harness-view tests/viewer_timeline_audio_3.rs (6)"
+ },
+ "blockers": [],
+ "bg_pids": [],
+ "updated_at": "2026-10-30T13:06:19Z",
+ "notes": {
+  "worktree": "wt-studio-lanes/smb-au-multitrack-3 (branch lane/smb-au-multitrack-3, base a259a3df)",
+  "spec_basis": [
+   "[STU-FX-137] Track | Carries channel_type, volume (default 1.0, linear gain), pan (default 0), mute, solo, locked, sync_locked, targeted, is_submix, keyframe_mode",
+   "[STU-FX-135] effect stacks (master effect parameter lanes reuse the bus effect keyframe path)",
+   "[STU-VID-040] Every operation in this sub-section is one reversible StudioHistoryEntry (14.19)"
+  ],
+  "slices": {
+   "1_clip_pan": "folio StudioAudioRouting.clip_pans (StudioClipPanEnvelope {clip_id, points [{offset_ticks, pan}]}, additive, absent not encoded); pulse TimelineMixStream::with_clip_envelopes (clip lane clamp(track pan + pan) at the points, linear between, held outside); bus_mix strips: panned mono clips move to the stereo strip (panned by score's equal-power law inside, track pan as balance after); timeline Clip Pan lane (LaneTarget::ClipPan, typed AddPoint/MovePoint/DeletePoint, entry-only step); envelopes.rs follows clip_pans with clip_gains in the edit's submit_sequence_and_entry step",
+   "2_master_row": "folio StudioAudioMaster.volume_automation (Vec<StudioAutomationPoint>, additive); pulse bus_mix master fader lane; timeline master row (MASTER_ROW = \"master\", layout_full, TimelineLayout.master) with Volume lane and master effect parameter lanes (instance keyframes, as bus effects); mixdown path unchanged (TimelineBusStream)",
+   "3_automated_fader": "Studio reading: a fader move on an automated control WRITES THE LANE AT THE PLAYHEAD (timeline playhead floored to the mixer sample grid; replaces a point at that tick) as one entry-only step (mixer_volume_lane / mixer_pan_lane / mixer_master_volume_lane); static field untouched; refusals fader_automated_no_playhead, outside_sequence, value range. Visible state: amber 'AUTO lane <v> at playhead' label (widgets mixer.<track>.volume.automated / .pan.automated / mixer.master.volume.automated) and volume_automated / pan_automated / lane_volume_db / lane_pan in mixer_json"
+  },
+  "declared_readings": [
+   "clip pan in the plain TimelineMixStream: lane = clamp(track pan + clip pan) per point (bus mix: track pan 0 inside the strip, so the lane is the envelope)",
+   "panned mono clip: equal-power clip pan, then the track pan acts as stereo balance (unpanned mono keeps the equal-power track pan); a crossfade between panned and unpanned mono clips is audio_unsupported",
+   "master has no pan lane (Folio/score store none): lane_unavailable",
+   "fader under automation writes the lane at the playhead (not refused)"
+  ],
+  "unverified": "Audition clip pan, master track layout and automation modes (read/write/touch) UNVERIFIED (D5)",
+  "spec_deltas": [
+   "no clause defines how clip pan and track pan compose (Studio: clip pan places mono into stereo with the pan law, track pan then acts as balance)",
+   "[STU-FX-137] no clause defines clip pan envelopes, how clip pan combines with track pan, or the pan law per channel count",
+   "no clause defines master volume automation or a master row in the timeline",
+   "no clause defines fader behaviour on an automated track (Studio: write the lane at the playhead)",
+   "module 14 still has no AU-14 multitrack clause set (carried)"
+  ],
+  "run_ui_md_lines_for_lead": [
+   "Multitrack (lane SMB-AU-MULTITRACK-3): audio tracks have a Clip Pan lane (A button cycles Clip Volume / Volume / Pan / Clip Pan): click adds, drag moves, right click deletes, one undo step each; clip pan follows trims, slips and razors with the audio.",
+   "Below the tracks a Master row shows the master volume (AUTO when a lane plays) and its A button opens the master Volume lane and master effect parameter lanes.",
+   "In the mixer, a fader whose track has an automation lane shows an amber AUTO label; moving it writes a lane point at the timeline playhead (one undo step) instead of the static fader."
+  ],
+  "outside_owned_paths": "folio tests/audio_routing_records.rs (one new test fn, rule 4b proof); pulse src/lib.rs (re-export of strip_crossfade_mismatch, StripCrossfadeMismatch and the two case constants)",
+  "rule_4a": "bundled run covers whole suites of folio, pulse, package, harness-core, harness, harness-view, interop-media (pulse dependents)",
+  "rule_4b": "Folio fields added: StudioAudioRouting.clip_pans, StudioAudioMaster.volume_automation, StudioClipPanPoint.pan; hsk-studio-package suite in the bundled run; no reference-vocabulary names",
+  "rule_4c": "no drive-letter or user-profile literal added",
+  "rule_4d": "no doc examples added",
+  "rule_4e": "tests/viewer_timeline_audio_3.rs is #![cfg(feature = \"audio-batch\")]; round-features.toml runs harness-view [desktop, audio-batch]",
+  "cargo_lock": "not committed; no new dependency or module edge",
+  "commit_split": "slices share files (folio audio_routing.rs, timeline/audio.rs), so commits are split engine (folio+pulse) / view (harness-view) rather than per slice",
+  "viewer_test_risk": "master_row_lanes_edit_and_play needs the default 260 px timeline panel to fit 3 tracks + master row + one lane (192 px of area); unproven until the bundled run",
+  "own_causes": [],
+  "lead_answers_20261030": {
+   "1_mono_clip_pan": "ACCEPTED as a Studio reading: clip pan places mono into stereo by pulse's existing pan law (score equal-power), then the track pan acts as balance on that stereo result; Audition UNVERIFIED (D5)",
+   "2_panned_unpanned_crossfade": "the preferred stereo-sides crossfade does not fit: plan_clips applies crossfades only between consecutive cuts of one TimelineMixStream, and bus_mix splits a track into per-class strips (mono strip consumed as one channel), so the two sides live in different streams; rendering them needs the strip split restructured. Kept typed audio_unsupported; detail named by pulse strip_crossfade_mismatch (case panned_unpanned_mono_crossfade | mono_stereo_crossfade, track, outgoing, incoming) and shown in the mixer error/status",
+   "3_master_row_test": "if master_row_lanes_edit_and_play fails only on the 260 px panel height, the test sizes its window/panel; the product default stays"
+  },
+  "engine_gaps_for_lead": [
+   "crossfade between a panned and an unpanned mono clip (and between mono and stereo clips) on one track: refused audio_unsupported (strip_crossfade_mismatch names it); rendering needs both sides as stereo in one strip, i.e. a restructured bus_mix strip split (pulse)",
+   "PulseError is a Copy unit enum without a detail field: the case is reported through strip_crossfade_mismatch, not inside the error value"
+  ]
+ },
+ "next": "on the lead's go message: fetch, rebase onto origin/codex/handshake-studio-assets, one bundled lane-check on the named disk, push with PUSH SAFETY",
+ "verdicts": []
+}

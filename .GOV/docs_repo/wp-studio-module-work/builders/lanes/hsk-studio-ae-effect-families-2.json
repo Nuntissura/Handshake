@@ -1,18 +1,18 @@
 {
  "crate": "hsk-studio-folio (composition/effects.rs kinds, boolean kind, entry blend_mode + mask_id; composition.rs one call-site line), hsk-studio-composite (composition/effect_stack.rs Blur/Glow/Colour/Composite kernels, composition.rs re-export hunk, temporal/composition/effects.rs lowering, temporal/composition.rs two lines: COMPOSITION_EFFECT_KERNEL re-export + read_effects blend_space argument, lib.rs DESCRIPTOR key composition_effect_stack, NEW tests/effect_families_2.rs)",
  "lane": "SMB-AE-EFFECT-FAMILIES-2",
- "status": "HOLD_FOR_RUN",
- "phase": "rebased onto origin a259a3df (SMB-PIGMENT-AE-KERNELS-1 pushed): 7af83dd0 (slices 1-4) + 2832b1d0 (kernel refusals lifted onto pigment kernels), local, NOT pushed, NOT built; waiting for the lead message after R42 (no C: run before it)",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed a259a3df..2832b1d0 (7af83dd0 slices 1-4 + 2832b1d0 kernel lift), no rebase needed (origin tip was a259a3df); ls-remote confirms 2832b1d0",
  "commits": [
   {
    "sha": "7af83dd0",
    "subject": "Studio AE-17 (SMB-AE-EFFECT-FAMILIES-2 slices 1-4): blur, glow and colour effect families and entry blend mode / effect mask in the composition effect stack (was 4319b6c3)",
-   "pushed": false
+   "pushed": true
   },
   {
    "sha": "2832b1d0",
    "subject": "Studio AE-17 (SMB-AE-EFFECT-FAMILIES-2): lift the kernel refusals onto pigment's SMB-PIGMENT-AE-KERNELS-1 kernels",
-   "pushed": false
+   "pushed": true
   }
  ],
  "capabilities_done": [
@@ -26,12 +26,20 @@
   "file": "crates/hsk-studio-composite/tests/effect_families_2.rs (#![cfg(feature = \"motion\")], round unit hsk-studio-composite+motion): blur_family_runs_pigment_kernels_with_edges_and_dimensions, blur_radius_zero_is_identity, animated_effect_parameters_evaluate_per_frame, glow_builds_from_threshold_blur_and_blend, colour_family_maps_onto_pigment_adjustments, entry_blend_modes_and_masks_compose_like_layers (prints the two NOT_PROVEN lines)",
   "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --disk ssd --owner smb-ae-effect-families-2 -- cargo nextest run -p hsk-studio-composite -p hsk-studio-folio -p hsk-studio-package --features hsk-studio-composite/motion",
   "step0": "clean at 2832b1d0 (exit 0)",
-  "run_1": "CANCELLED before lock acquisition (lead pause for R42): own lane-check processes stopped (TERM), own queue ticket removed (rm of the ticket file, as dbl_acquire does on cancel), no other entry or the lock touched; log Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-effect-families-2/run1-4319b6c3.log"
+  "run_1": "CANCELLED before lock acquisition (lead pause for R42): own lane-check processes stopped (TERM), own queue ticket removed (rm of the ticket file, as dbl_acquire does on cancel), no other entry or the lock touched; log Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-effect-families-2/run1-4319b6c3.log",
+  "run_2": {
+   "sha": "2832b1d059480c6d87dd26929e61aa6a54a95526",
+   "exit": 0,
+   "summary": "335 tests run: 335 passed, 0 skipped (composite+motion 166, folio 132, package 35 by PASS line prefix; 2 more PASS lines without a crate prefix in the count)",
+   "clippy": "tested crates + 22 direct dependents (--tests) clean of errors; no warning in the lane's files",
+   "effect_families_2": "all 6 tests PASS (the NOT_PROVEN println lines are captured by nextest on success; they print with --success-output)",
+   "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-effect-families-2/run2-smb-ae-effect-families-2-2832b1d0.log (first line the sha)"
+  }
  },
  "blockers": [],
  "bg_pids": [],
- "next": "on the lead message after R42: fetch + rebase, ONE bundled lane-check (tests.argv; log run2-<sha>.log; pigment changed on origin so composite/folio/package suites cover it), fix all visible failures in one commit and re-run once if red; when green: diff --stat check, guarded push, READY_FOR_VALIDATION",
- "updated_at": "2026-10-30T15:10:00Z",
+ "next": "validation round",
+ "updated_at": "2026-10-30T16:20:00Z",
  "notes": {
   "spec_basis (v02.225 module 14)": {
    "STU-FX-004": "\"A `StudioLiveFilter` entry MAY host its own `StudioMask` ... The effect is applied only where the mask is opaque, feathered by the mask's own falloff.\"",
@@ -43,6 +51,7 @@
    "STU-CMP-015": "\"An adjustment layer's effects apply to the composited result of everything beneath it\" (not implemented: refused composition_effect_content as before)"
   },
   "UNVERIFIED (D5 oracle)": [
+   "Directional Blur angle reading: After Effects Direction read as clockwise from screen-up (0 = vertical blur), pigment angle = 90 - Direction; UNVERIFIED",
    "every kernel mapping is a Studio reading: Blurriness = pigment radius (sigma r/2); box half-width/iterations rounding; glow threshold v/255, intensity in premultiplied form, Composite Original semantics, A&B ramp looping and midpoint; Levels per-channel records identity and Channel: a panel selector; Hue/Saturation Channel Control a panel selector; Exposure 2.2 linearisation stand-in; Tint/Tritone as W3C-Lum gradient maps; entry blend Cs' formula",
    "unnamed CHECKBOX rows keyed by the After Effects control they are read as: repeat_edge_pixels (Gaussian row 3, Fast Box row 4), invert (Find Edges row 1), preserve_luminosity (Color Balance row 10), bypass_linear_light_conversion (Exposure row 22), colorize (Hue/Saturation row 7)",
    "Directional Blur Direction hard pair 0..-1.5e-05 read as the no-range encoding (soft 0..7936 kept, declared_soft_only); Hue/Saturation Master/Colorize Hue 0..0 read as Twirl Angle",
@@ -69,5 +78,11 @@
   "build_disk": "C: (ssd) per the dispatch; CARGO_BUILD_JOBS=6",
   "feature_gate": "tests/effect_families_2.rs is #![cfg(feature = \"motion\")]; .config/round-features.toml has hsk-studio-composite = [[\"motion\"]], so the round compiles it",
   "process_notes": "gameplans not used (retired); no process stopped; no locks touched"
+ },
+ "green_sha": "2832b1d059480c6d87dd26929e61aa6a54a95526",
+ "candidate": "2832b1d059480c6d87dd26929e61aa6a54a95526",
+ "pushed_as": {
+  "7af83dd0": "slices 1-4 (blur, glow, colour families; entry blend mode and effect mask)",
+  "2832b1d0": "kernel refusals lifted onto SMB-PIGMENT-AE-KERNELS-1"
  }
 }
