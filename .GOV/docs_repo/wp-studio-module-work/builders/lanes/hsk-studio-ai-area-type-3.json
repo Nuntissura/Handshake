@@ -1,0 +1,71 @@
+{
+ "crate": "hsk-studio-harness-view (src/view/vector.rs, src/view/hosted.rs, src/view/vector/{interop,pdf_export,separations,path_text}.rs, tests/viewer_vector_text_tools.rs) + hsk-studio-harness-core (additive Run::restructure_and_entry, tests/run_restructure_and_entry.rs)",
+ "lane": "SMB-AI-AREA-TYPE-3",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-4 pushed: c719b1dc on origin/codex/handshake-studio-assets (rebased on c2422d23)",
+ "candidate": "c719b1dc",
+ "commits": [
+  {"sha": "b5b8d0b6", "slice": "2 (core API)", "subject": "harness-core: Run::restructure_and_entry commits a structure edit and a session document entry as ONE undo step (refused entry write undoes the structure edit); tests/run_restructure_and_entry.rs"},
+  {"sha": "4802e2b3", "slice": "1, 2, 3, 4 (status echo)", "subject": "harness-view: Path Operations Type section (Type on Path, Area Type, Convert Point / Area Type, Create Outlines as typed PanelActions); Viewer::convert_text_kind and Viewer::create_outlines (one undo step each); SVG/PDF/separations exports shape live text like the canvas and keep unshaped stories as vector_text_not_provided losses; status line echoes the live-text report; area_texts of absent layers filtered like path_texts"},
+  {"sha": "0fc326b7", "slice": "4", "subject": "harness-view: path_text.rs module doc no longer says live path text is not drawn"},
+  {"sha": "ace9990c", "slice": "fix after run 1", "subject": "replacement layers never reuse an id the text or vector entry still names; tests read the whole status log; core test creates a layer (the demo fixture's layers are not stacked)"},
+  {"sha": "c719b1dc", "slice": "fix", "subject": "clippy type_complexity in prepared_vectors_with_text (pre-existing from AREA-TYPE-2)"}
+ ],
+ "capabilities_done": [
+  "slice 1 (window UI for bindings): hosted Path Operations panel gains a Type section (controls path_operations.type.text, type.inset, type.on_path, type.area, type.convert, type.outlines) -> PanelAction::BindLiveText{text, kind} (Viewer::bind_live_text on the selected layer, one undo step as before), PanelAction::ConvertTextKind, PanelAction::CreateOutlines; Viewer::convert_text_kind(layer): point-text layer -> vector layer holding the rectangle Type point_to_area derives from the point layout (no fill/stroke) + StudioAreaText (inset 0, first baseline ascent, auto-size off), text layer removed; vector layer with area text -> point-text layer at Type area_to_point's origin (x = first line pen start, text layers draw left from origin), container layer and binding removed; story copied under the new layer's id with the other text_kind (ranges, styles, text unchanged, STU-TYP-114); ONE undo step via Run::restructure_and_entry (story copy written to the text entry first, unbound)",
+  "slice 2 (Create Outlines): Viewer::create_outlines(layer): live path/area text -> composite create_text_outlines rows become one filled path per paint row (glyph compound paths merged, non-zero, fill = row colour sRGB-encoded) appended to the layer's path ids, binding removed, in ONE step (Run::set_vector_paths_and_entry: chronicle vector_paths + vector entry); point text -> Type create_outlines over the point layout becomes a vector layer replacing the text layer in ONE step (Run::restructure_and_entry, new additive core API); unshapeable story refused with vector_text_not_provided + the viewer's reason, nothing changed",
+  "slice 3 (exports): vector_svg, vector_pdf_bytes, vector_separations pass LiveTextAssets (same text::shaped_story as the canvas) to expand_vectors with story fills sRGB-encoded for the Encoded plan; each unshapeable story appears in the export losses as '<STXT id>: vector_text_not_provided (<reason>)'",
+  "slice 4: bind/convert echo composite's report on the status line ('live text <id>: N glyphs placed[, M overset]' or the code with the reason); path_text.rs module doc fixed",
+  "hardening: VectorEntry::validate_records filters area_texts of absent container layers (as path_texts), so deleting a container layer no longer invalidates the entry; replacement layer ids skip ids the text/vector entries still name (undo-restorable records are never overwritten)"
+ ],
+ "tests": {
+  "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-ai-area-type-3 --disk ssd -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness -p hsk-studio-harness-core --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
+  "exit": 0,
+  "sha": "c719b1dc",
+  "passed": 285,
+  "failed": 0,
+  "skipped": 20,
+  "history": [
+   {"sha": "0fc326b7", "run": 1, "exit": "nextest failed", "passed": 282, "failed": 3, "failures": "core test: demo fixture layer not stacked (delete refused); two viewer tests asserted the LAST status line, which is a panel/render line after the echo"},
+   {"sha": "c719b1dc", "run": 2, "exit": 0, "passed": 285, "failed": 0}
+  ],
+  "bundled_runs": 2,
+  "lane_tests": [
+   "harness-view viewer_vector_text_tools: point_and_area_text_convert_both_ways_as_one_undo_step, create_outlines_replaces_live_and_point_text_as_one_undo_step, exports_carry_live_text_and_keep_the_unshaped_report",
+   "harness-core run_restructure_and_entry: structure_and_entry_undo_and_redo_as_one_step, refused_structure_or_entry_changes_nothing"
+  ],
+  "red_on_base": "on 9ee2b546 the new viewer test file does not compile (convert_text_kind, create_outlines, PanelAction::BindLiveText/CreateOutlines are new) and the exports passed plain EntryAssets (no text rows): red by construction, not by a run"
+ },
+ "blockers": [],
+ "bg_pids": [],
+ "next": "validation",
+ "updated_at": "2026-10-30T09:00:00Z",
+ "notes": {
+  "spec_basis": "v02.225 spec-modules/14-studio-creative-suite.md: [STU-TYP-114] (line 7929) point <-> area conversion MUST preserve every character and paragraph attribute, style binding and override and MUST be undoable as one history entry; [STU-VEC-038] (4993) a vector path is usable as a typographic baseline / text-frame boundary, text to outlines produces standard vector geometry; [STU-TYP-002] text_kind point/area/path",
+  "harness_core_api_added": "Run::restructure_and_entry(op, writes: &[PlacementWrite], token, bytes) -> bool: Run::restructure + session document entry in one history step (EntryRestore on the structure step; entry-only step when the structure changed nothing; refused entry write undoes the structure step). Direct dependents of harness-core (harness, harness-view) were in the bundled run.",
+  "run_ui_md_lines": [
+   "Type on a path / Area Type: select a vector layer, open Path Operations (Shift+F8), type the text in Type > Text, then Type on Path or Area Type (inset from Area inset). The text draws live and follows path edits; Edit > Undo removes the binding.",
+   "Convert Point / Area Type: select a point-text layer (or a vector layer holding area text) and press Convert Point / Area Type; one Undo restores the original.",
+   "Create Outlines: select a point-text layer or a vector layer with live text and press Create Outlines; the text becomes filled paths in one undo step.",
+   "The status log echoes each live text: 'live text <id>: N glyphs placed[, M overset]' or vector_text_not_provided with the reason."
+  ],
+  "declared_readings": "Create Outlines of path/area text keeps the container/baseline path on the layer (outlines appended above it; the drawn result is unchanged); area -> point removes the container layer; point -> area container has no fill/stroke; converted point layout is left-aligned from the text layer origin (text layers ignore paragraph alignment); one path record per paint row (glyphs merged, non-zero)",
+  "UNVERIFIED_D5": "Illustrator Create Outlines result structure (group of glyph paths, container fate), Convert to Area/Point Type geometry and first-baseline handling, Type on a Path defaults",
+  "gaps": [
+   "no canvas tool gesture (Type tool click on a path / Area Type tool): bindings are created from the Path Operations panel only; the Text tool click (view/mod.rs, not owned) still places point text",
+   "Create Outlines is a hosted panel command, not a shell menu leaf with a key binding (shell.rs Ctrl+O consumes Ctrl+Shift+O; no key added, no collision introduced)",
+   "status echo only on bind/convert; path edits that change overset are not echoed (render_if_dirty in view/mod.rs not owned); vector_text_reports / state_json live_texts remain the full surface",
+   "Path Operations summary line does not show live-text state",
+   "outlines of very long stories can exceed nib MAX_ANCHORS per merged row path (typed refusal, not split)",
+   "non-left paragraph alignment: area text from a point layer uses the story alignment while the point layer drew left (no viewer story ever sets it today)",
+   "clippy (pre-existing, not this lane): timeline_export/composition.rs manual_clamp x2"
+  ],
+  "rule_4a": "whole harness-view, harness and harness-core suites (desktop, audio-batch) in each bundled run",
+  "rule_4b": "no Folio record field added: package suite not required",
+  "rule_4c": "lane-check step 0 clean (no machine paths; core test includes the harness fixture by relative path)",
+  "rule_4d": "no doc examples added",
+  "rule_4e": "tests/viewer_vector_text_tools.rs is #![cfg(feature = \"viewer\")], covered by round unit hsk-studio-harness-view [viewer]; tests/run_restructure_and_entry.rs has no cfg and runs in the default harness-core unit",
+  "cargo_lock": "not committed; no new dependency or crate edge",
+  "process": "one cargo check (queued behind smb-au-multitrack-1 and a round) before the runs; locks never touched"
+ }
+}
