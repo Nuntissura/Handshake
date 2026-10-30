@@ -417,7 +417,9 @@
   {
    "id": "D6",
    "question": "May engine-only lanes (no GUI, no GPU ownership) resume under the phase-0 integration rules while GUI lanes wait for D1?",
-   "lead_reading": "yes for pure engine crates; every new lane records its host_integration block first"
+   "lead_reading": "yes for pure engine crates; every new lane records its host_integration block first",
+   "decision": "DECIDED 2026-10-30 (Operator, chat: 'Yes, engine lanes'): engine-only lanes resume under the HOST INTEGRATION rules of the common brief; GUI lanes (harness-view surfaces, controls renderer) stay paused on D7/D8. Lead reading of 'engine-only': lanes whose host_integration block has gui_host none or asset_local_test_host_only and that add no view code; a call-site change in a view file that removes default_actor() or routes a queue through JobPort is allowed because it adds no toolkit code.",
+   "decided_at": "2026-10-30T23:55:17Z"
   },
   {
    "id": "D7",
