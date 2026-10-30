@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T10:01:35Z",
+ "updated_at": "2026-10-30T10:02:49Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11358,6 +11358,22 @@
    ],
    "verdicts": [],
    "note": "RUN-UI.md merges window lines of AREA-TYPE-2/3, AU-MULTITRACK-1/2 (new Multitrack section; -1 display-only line superseded), LR-HEALING-2; TIMELINE-TRIM-1 and PR-RATE-STRETCH-1 already present; step-0 exit 0; no include_str! of RUN-UI.md. For R43.",
+   "remediation": null
+  },
+  {
+   "lane_id": "SMB-AE-EFFECT-FAMILIES-2",
+   "crate": "hsk-studio-composite (+ folio only if needed)",
+   "phase": "build",
+   "status": null,
+   "owner": "builder opus/high",
+   "lane_file": "builders/lanes/hsk-studio-ae-effect-families-2.json",
+   "brief": "builders/briefs/lane-smb-ae-effect-families-2.md",
+   "worktree": "wt-studio-lanes/smb-ae-effect-families-2",
+   "disk": "C:",
+   "candidate": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "After Effects AE-17: blur / glow / colour families in the per-layer effect stack via pigment kernels; entry blend modes (STU-FX-008), entry mask reference (STU-FX-004), adjustment layers (STU-CMP-015) if one slice allows. Base 09a57c06; run waits behind R42 on C:.",
    "remediation": null
   }
  ],
