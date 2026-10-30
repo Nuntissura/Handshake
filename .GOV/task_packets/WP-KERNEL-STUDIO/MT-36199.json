@@ -1119,7 +1119,10 @@
       "MT-36240/AC-002",
       "MT-36240/AC-003",
       "MT-36240/AC-004",
-      "MT-36240/AC-005"
+      "MT-36240/AC-005",
+      "MT-36199/AC-HOST-INT-001",
+      "MT-36199/AC-HOST-INT-002",
+      "MT-36199/AC-HOST-INT-003"
     ],
     "materialized_acceptance": [
       {
@@ -1201,6 +1204,21 @@
       {
         "id": "MT-36240/AC-005",
         "text": "Controls/Argus/manual expose actual tuple, original token/version, tolerance and fidelity/loss state using existing assets; quiet normal/constrained/error captures and cancellation/revision tests are mandatory."
+      },
+      {
+        "id": "MT-36199/AC-HOST-INT-001",
+        "text": "The adopted revision creates no window, viewport, event loop, GPU instance, device, queue, allocator, budget, recorder, ring or watcher of its own, and no egui, eframe, winit, wgpu or ash type appears in its public contract (HBR-HOST-001, HBR-HOST-003).",
+        "amendment_ref": "MT-36199/HOST-AMEND-001"
+      },
+      {
+        "id": "MT-36199/AC-HOST-INT-002",
+        "text": "Every terminal outcome of the module's operations reaches the host internal_diagnostics ring through the single observe adapter as an allowlisted code with real correlation and session identity, content-free; business outcomes stay on the Flight Recorder (HBR-HOST-005, HBR-HOST-007).",
+        "amendment_ref": "MT-36199/HOST-AMEND-001"
+      },
+      {
+        "id": "MT-36199/AC-HOST-INT-003",
+        "text": "Every operator-visible surface of the module mounts in the kernel-owned Vulkan shell pane on the real Vulkan path, with shared dividers, keyboard, focus, IME, AccessKit identity, DPI and multiwindow preserved and truthful loading, empty, denied and error states (HBR-HOST-001, HBR-HOST-008).",
+        "amendment_ref": "MT-36199/HOST-AMEND-001"
       }
     ],
     "spec_basis_refs": [
@@ -1213,6 +1231,34 @@
     ],
     "operator_decision_refs": [
       ".GOV/docs_repo/studio-collaboration-2026-10-09/modular-authoring/embedding-team/preparation.json#/scope"
+    ],
+    "amendments": [
+      {
+        "amendment_id": "MT-36199/HOST-AMEND-001",
+        "recorded_at": "2026-10-30T22:52:10Z",
+        "authority": "Operator 2026-10-30 'Yes, amend them' after 'Approve, dry run first' / 'Write it'; HANDSHAKE_BUILD_RULES 1.18.0 HBR-HOST-001..008; Master Spec v02.225",
+        "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+        "hbr_refs": [
+          "HBR-HOST-001",
+          "HBR-HOST-002",
+          "HBR-HOST-003",
+          "HBR-HOST-004",
+          "HBR-HOST-005",
+          "HBR-HOST-006",
+          "HBR-HOST-007",
+          "HBR-HOST-008"
+        ],
+        "outcome_addendum": "Adoption binds this unit to the Handshake host under the HOST pillar: the kernel-owned native Vulkan shell is the only GUI host, the central Handshake GPU and memory owner is the only device and budget owner, internal_diagnostics, the Flight Recorder and the out-of-process watcher are wired from the first slice, every command carries attribution, and no module-private window, device, recorder or watcher survives adoption. ",
+        "wording_superseded": [],
+        "originals_preserved": true,
+        "added_acceptance_refs": [
+          "MT-36199/AC-HOST-INT-001",
+          "MT-36199/AC-HOST-INT-002",
+          "MT-36199/AC-HOST-INT-003"
+        ],
+        "added_proof_check": "MT-36199/HOST-INT",
+        "open_host_dependencies": "Vulkan backend (WP-KERNEL-012 MT-198/199/212), GPU owner (MT-203), real-time-safe internal_diagnostics handoff, FR-EVT-STUDIO-* enum registration, Palmistry->Flight Recorder ingestion (WP-KERNEL-016)"
+      }
     ]
   },
   "model_routing": {
@@ -4644,6 +4690,24 @@
           "Canonical UserManual descriptors and actual three-tier captures/ingestion when native",
           "Each mapped current209 criterion/owned aspect, exact source/profile/oracle/candidate/actor/revision/grant, real native readback and same-descriptor manual evidence; preparation/runtime/reference inspection remains PENDING"
         ]
+      },
+      {
+        "check_id": "MT-36199/HOST-INT",
+        "kind": "independent_review",
+        "claim_refs": [
+          "MT-36199/AC-HOST-INT-001",
+          "MT-36199/AC-HOST-INT-002",
+          "MT-36199/AC-HOST-INT-003"
+        ],
+        "command_or_method": "Validator reads the pinned revision's public contract and the host adapter wiring against HBR-HOST-001..008 and this MT's host_integration block; where a runtime exists, runs the named proof (real Vulkan path, owner grant admission and settlement, ring codes with identity, survivor records).",
+        "expected": "Each AC-HOST-INT row is PROVED, NOT_APPLICABLE with a reason, or BLOCKED naming the Handshake dependency (Vulkan backend (WP-KERNEL-012 MT-198/199/212), GPU owner (MT-203), real-time-safe internal_diagnostics handoff, FR-EVT-STUDIO-* enum registration, Palmistry->Flight Recorder ingestion (WP-KERNEL-016)); a DX12, GL or software path never proves a Vulkan row; an asset-local host never proves a host row.",
+        "timeout_seconds": 300,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "public contract grep of the pinned revision",
+          "host adapter wiring reference",
+          "runtime log, grant receipt or survivor record where applicable"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -5165,7 +5229,7 @@
     "coder_protocol": ".GOV/roles/coder/CODER_PROTOCOL.md"
   },
   "created_at_utc": "2026-10-10T00:00:00Z",
-  "updated_at_utc": "2026-10-10T06:02:13.786022+00:00",
+  "updated_at_utc": "2026-10-30T22:52:10Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
