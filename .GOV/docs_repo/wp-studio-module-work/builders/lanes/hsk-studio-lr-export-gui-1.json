@@ -1,69 +1,51 @@
 {
  "crate": "hsk-studio-harness-view (develop export files), hsk-studio-harness (tests, CLI flags)",
  "lane": "SMB-LR-EXPORT-GUI-1",
- "status": "IN_PROGRESS",
- "phase": "CODE_READY_FOR_RUN: head 7e69b83d on lane/smb-lr-export-gui-1 (base e1e06156), focused 10/10 on D:, step 0 clean; waiting for the lead's disk + base (after SMB-PR-NEST-1). At push: rebase, squash 905ad603 (slice 1 red, does not compile) into b51109bd; 2a917910 and 8b30cc3d compile and fail their tests (kept as red-first)",
- "candidate": "",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed c7b8d78e to origin/codex/handshake-studio-assets (rebased onto bdc15f15 after SMB-PR-NEST-1, no conflicts; origin re-fetched unchanged before push; ls-remote shows c7b8d78e); bundled run green on D:; never claimed PASS",
+ "candidate": "c7b8d78e",
  "commits": [
   {
-   "slice": "pins",
-   "sha": "",
-   "pushed": false,
-   "summary": "digests of today's develop exports captured at e1e06156 with an uncommitted capture test (log pins-e1e06156.log); not a commit"
-  },
-  {
-   "slice": "1 red",
-   "sha": "905ad603",
-   "pushed": false,
-   "summary": "tests/viewer_develop_export_stage.rs slice 1 tests (do not compile before the API; local only, squash before push per RED COMMITS)"
-  },
-  {
    "slice": "1",
-   "sha": "b51109bd",
-   "pushed": false,
-   "summary": "export stage as DevelopDoc state beside DevelopExport (unchanged, Copy); staged PNG/JPEG/TIFF, DNG ignores the stage; receipt in report, status log and state_json; new view/develop/export_dialog.rs"
-  },
-  {
-   "slice": "2 red",
-   "sha": "2a917910",
-   "pushed": false,
-   "summary": "dialog tests (preview, invalid percentage, TIFF/DNG buttons, text watermark)"
+   "sha": "c02da59d",
+   "pushed": true,
+   "summary": "export stage as DevelopDoc state beside DevelopExport; staged PNG/JPEG/TIFF, DNG ignores it; receipt in report, status log, state_json; export_dialog.rs (red 905ad603 squashed in, did not compile)"
   },
   {
    "slice": "2",
-   "sha": "d8ecf4c9",
-   "pushed": false,
-   "summary": "develop panel draws the export dialog (STU-IO-135 groups, every EXPORT_STAGE_KEYS row with class and default source, W x H preview, inline typed error) and Export developed TIFF / Export DNG; PNG/JPEG/TIFF disabled while the stage is invalid"
+   "sha": "a1682014",
+   "pushed": true,
+   "summary": "dialog drawn (STU-IO-135 groups, rows with class/default source, preview, typed error) + Export TIFF / Export DNG; PNG/JPEG/TIFF disabled while invalid (red 2a917910 squashed in per lead)"
   },
   {
    "slice": "3 red",
-   "sha": "1914c53f",
-   "pushed": false,
-   "summary": "cli_stage_flags_build_the_same_stage_as_the_dialog"
+   "sha": "f050acf3",
+   "pushed": true,
+   "summary": "CLI parity test (compiles: uses only cli::run and existing viewer API; fails before 53aad122)"
   },
   {
    "slice": "3",
-   "sha": "321e0739",
-   "pushed": false,
-   "summary": "develop CLI --export-set KEY VALUE, --long-edge N, --sharpen media:amount, --watermark FILE through the dialog's field path"
+   "sha": "53aad122",
+   "pushed": true,
+   "summary": "CLI --export-set / --long-edge / --sharpen / --watermark through the dialog field path"
   },
   {
    "slice": "2 fix",
-   "sha": "caee6352",
-   "pushed": false,
+   "sha": "abd884e3",
+   "pushed": true,
    "summary": "short stage switch label (panel width)"
   },
   {
    "slice": "defaults red",
-   "sha": "8b30cc3d",
-   "pushed": false,
-   "summary": "switching_on_with_no_group_enabled_exports_byte_identically_to_the_empty_stage; resize tests turn constrain_size on (compiles, fails)"
+   "sha": "dbe5535a",
+   "pushed": true,
+   "summary": "group-off start test (compiles: next commit adds only dialog_start/any_group_on, unreferenced by tests)"
   },
   {
    "slice": "defaults",
-   "sha": "7e69b83d",
-   "pushed": false,
-   "summary": "dialog_start (develop defaults, every group off: constrain_size false; Studio reading, Lightroom UNVERIFIED); any_group_on false = unstaged entries (byte-identical), report reason no_group_enabled; CLI --long-edge sets constrain_size; harness src/lib.rs DESCRIPTOR develop usage line (lead grant)"
+   "sha": "c7b8d78e",
+   "pushed": true,
+   "summary": "dialog_start every group off, no-group stage = unstaged bytes, CLI --long-edge sets constrain_size, lib.rs usage line"
   }
  ],
  "focused_runs": {
@@ -93,7 +75,7 @@
  },
  "blockers": [],
  "bg_pids": [],
- "updated_at": "2026-10-30T15:21:13Z",
+ "updated_at": "2026-10-30T15:40:48Z",
  "notes": {
   "brief": "builders/briefs/lane-smb-lr-export-gui-1.md (LR-33 of research/parity-20261023-adobe-print.json); binding builders/briefs/wave-parity-2-common.md; engine lane builders/lanes/hsk-studio-lr-export-sizing-1.json",
   "worktree": "wt-studio-lanes/smb-lr-export-gui-1, branch lane/smb-lr-export-gui-1, base e1e06156",
@@ -110,7 +92,21 @@
   "shell_mod_hunks": "none: no shell.rs or mod.rs registration needed (dialog ids in its own widget module)",
   "rule_4e": "tests/viewer_develop_export_stage.rs is #![cfg(feature = \"viewer\")]; .config/round-features.toml has hsk-studio-harness [\"viewer\"]: compiled in rounds",
   "step0": "no drive-letter or profile literals in lane hunks (tests use Scratch tempdirs); lane-check --step0-only to run before the bundled run",
-  "help_text": "lead grant 2026-10-30: one-line edit of the develop usage in hsk-studio-harness src/lib.rs DESCRIPTOR (adds [--long-edge N] [--sharpen screen|glossy|matte:low|standard|high] [--watermark FILE] [--export-set KEY VALUE]...); the second develop 'cli' string in the same DESCRIPTOR and harness-core manual.rs not edited"
+  "help_text": "lead grant 2026-10-30: one-line edit of the develop usage in hsk-studio-harness src/lib.rs DESCRIPTOR (adds [--long-edge N] [--sharpen screen|glossy|matte:low|standard|high] [--watermark FILE] [--export-set KEY VALUE]...); the second develop 'cli' string in the same DESCRIPTOR and harness-core manual.rs not edited",
+  "remote_backup_branch_incident": "before the rebase I pushed a backup ref origin/lane/smb-lr-export-gui-1 (at 7e69b83d, pre-squash) following the kernel CLAUDE.md backup rule; this created a remote branch, which the dispatch forbids. Not deleted (deletion needs the lead/Operator); listed for the lead's decision"
  },
- "next": "wait for the lead's disk + base; then rebase, squash the non-compiling red commits, bundled lane-check (clippy harness-view + harness, whole harness-view suites [viewer] and [desktop,audio-batch], harness viewer units), push, READY_FOR_VALIDATION"
+ "next": "validation round",
+ "lane_check": {
+  "run": "tools/lane-check.sh --owner smb-lr-export-gui-1 --disk d -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast (CARGO_BUILD_JOBS=6)",
+  "sha": "c7b8d78e",
+  "base": "bdc15f15",
+  "result": "passed",
+  "exit": 0,
+  "tests": "338 run, 338 passed, 20 skipped (whole harness-view + harness suites; features = union of round units harness-view [viewer],[desktop,audio-batch] and harness [viewer],[desktop,viewer])",
+  "clippy": "no errors; no warnings in lane files (pre-existing warnings in type, observe, render-cpu, interop-psd, harness-view timeline_export, harness tests viewer_media/timeline_captions)",
+  "step0": "clean",
+  "doctests": "no doc examples added",
+  "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-lr-export-gui-1/lane-check-smb-lr-export-gui-1-c7b8d78e.log (first line c7b8d78e)"
+ },
+ "pushed_sha": "c7b8d78e7dc12876ec473f0fcc5fafe15ce1ea9c"
 }

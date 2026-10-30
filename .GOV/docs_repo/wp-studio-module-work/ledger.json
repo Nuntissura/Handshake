@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T15:29:48Z",
+ "updated_at": "2026-10-30T15:41:16Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11830,17 +11830,25 @@
   {
    "lane_id": "SMB-LR-EXPORT-GUI-1",
    "crate": "hsk-studio-harness-view (develop export dialog) + hsk-studio-harness (cli flags, test)",
-   "phase": "D: claim run at the bdc15f15 rebase (2026-10-30T15:29:48Z)",
-   "status": null,
+   "phase": "validation (R44)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/medium (GUI)",
    "lane_file": "builders/lanes/hsk-studio-lr-export-gui-1.json",
    "brief": "builders/briefs/lane-smb-lr-export-gui-1.md",
    "worktree": "wt-studio-lanes/smb-lr-export-gui-1",
    "disk": "lead names it",
-   "candidate": null,
-   "commits": [],
+   "candidate": "c7b8d78e",
+   "commits": [
+    "c02da59d",
+    "a1682014",
+    "f050acf3",
+    "53aad122",
+    "abd884e3",
+    "dbe5535a",
+    "c7b8d78e"
+   ],
    "verdicts": [],
-   "note": "Window export dialog for SMB-LR-EXPORT-SIZING-1 (resize, sharpening, watermark) plus Export TIFF / DNG buttons; empty stage byte-identical to today.; base e1e06156"
+   "note": "Window export dialog for SMB-LR-EXPORT-SIZING-1 (resize, sharpening, watermark) plus Export TIFF / DNG buttons; empty stage byte-identical to today.; base e1e06156; 2026-10-30T15:41:16Z pushed bdc15f15..c7b8d78e (ls-remote verified); D: run 338/338 (20 skipped) exit 0, harness-view + harness whole suites with viewer features (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-lr-export-gui-1/lane-check-smb-lr-export-gui-1-c7b8d78e.log); stage starts with every group off (Studio reading); spec group order image_sizing, watermarking, output_sharpening; remote backup branch origin/lane/smb-lr-export-gui-1 at 7e69b83d created by the builder under the kernel backup rule (not deleted; remote branch deletion is Operator-only)"
   },
   {
    "lane_id": "SMB-PR-NEST-2",
