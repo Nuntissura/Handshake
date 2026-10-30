@@ -1,0 +1,57 @@
+{
+  "crate": "hsk-studio-type (+ hsk-studio-folio vector.rs/vector_path_text.rs, hsk-studio-composite)",
+  "lane": "SMB-AI-AREA-TYPE-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-4 pushed; READY_FOR_VALIDATION at c951bbf7 (claim = 26ade258, 2cd5cec4, 1f642948, 007b34f2, c951bbf7 on origin/codex/handshake-studio-assets)",
+  "commits": [
+    {"sha": "26ade258", "subject": "type slices 1+4 engine: area type in any closed container, point type, point<->area conversion, overset report, create_outlines for point/area/path layouts"},
+    {"sha": "2cd5cec4", "subject": "type: place_line takes the composed line (clippy too_many_arguments)"},
+    {"sha": "1f642948", "subject": "folio slice 2: StudioAreaText / area_texts member, validate_area_text_story"},
+    {"sha": "007b34f2", "subject": "composite slices 3+4: live path and area text drawn from records, text reports, create_text_outlines proposal"},
+    {"sha": "c951bbf7", "subject": "type: degenerate-container test without negated partial-ord comparison (clippy)"}
+  ],
+  "capabilities_done": [
+    "slice 1 (AI-28 area type) type area_text.rs: layout_area_text composes a story inside any closed container (rectangle or Bezier, flattened at flatness_pt with a chord-error bound, non-zero rule over all subpaths, holes); per line a band [baseline - ascent, baseline + descent] intersected with the container on 5 scanlines over the band extended by the inset, intervals shrunk by the inset, widest interval used (ties leftmost); greedy word fill, trailing spaces hang, paragraph glyph forces a break; narrowed bands too small for the next word are skipped, a full-width band breaks an over-long word between glyphs; first baseline ascent/cap_height/x_height/leading/fixed with minimum; left/centre/right alignment; overset_from/overset_count report (nothing dropped); STU-TYP-116 auto-size off/height_only/width_only/height_and_width/height_and_width_proportional on axis-aligned rectangles (top-left fixed; proportional by 48-step bisection, factor reported), non-rectangular containers take only off (AutoSizeNeedsRectangle); layout_point_text; point_to_area / area_to_point generic over the story value (moved through untouched) so every attribute, binding and override is kept, geometry-only change, area layout reproduces the point glyph positions; caps on commands, flattened vertices, glyphs, runs, bands (V4-01/02)",
+    "slice 2 folio vector_path_text.rs + vector.rs: StudioAreaText {text_id STXT, container_layer_id SLYR, container_id SVPT, inset, first_baseline, first_baseline_min, auto_size} in area_texts (skip_serializing_if empty: byte-identical record sets); validation: id prefixes, vector layer holds the path, inset/minimum finite 0..=1e5, one binding per story, a story is not both path text and area text, count cap 4096; validate_area_text_story checks id and text_kind = area where stories resolve; package externals classifier green without a new row (field names outside its vocabulary)",
+    "slice 3 (AI-28 live drawing) composite vector_text.rs: path_texts and area_texts lowered on every prepare_vectors / expand_vectors from the caller-shaped current story (VectorAssets::shaped_story, default None) and the current path: Type layout (path options and per-run baseline offsets from the record; area inset/first baseline/auto-size from the record, alignment from the story), Type create_outlines, one own-geometry row (FillPaint::StrokeGeometry) per story paint row on the layer holding the path, above its own fills/strokes, existing vector route of both backends (no new operator); PreparedVectors::text/texts report placed, overset, auto-sized container; typed refusals vector_text_kind / vector_text_story / vector_text_layout / vector_path_unresolved; an unshaped story is reported vector_text_not_provided and the layer draws without it",
+    "slice 4 (AI-29 Create Outlines) type create_outlines.rs: ComposedGlyphs for PathTextLayout, AreaTextLayout, PointTextLayout; create_outlines -> one compound path per inked glyph (each contour a closed subpath, counters stay holes under non-zero), paint row carried, caps on glyphs and commands; composite create_text_outlines(records, text_id, assets) -> (layer, rows of filled shapes per paint row, report) as a proposal the host commits as one step"
+  ],
+  "tests": {
+    "argv": "lane-check.sh --owner smb-ai-area-type-1 --disk ssd -- cargo nextest run -p hsk-studio-type -p hsk-studio-composite -p hsk-studio-folio -p hsk-studio-package --features hsk-studio-type/harfrust --no-fail-fast (at a114483d = pushed 007b34f2 after a harness-view-only rebase); then for the type-only fix c951bbf7: lane-check.sh ... -- cargo nextest run -p hsk-studio-type -p hsk-studio-composite --features hsk-studio-type/harfrust --no-fail-fast",
+    "exit": 0,
+    "sha": "c951bbf7",
+    "passed": 316,
+    "failed": 0,
+    "fix_run": {"sha": "c951bbf7", "exit": 0, "passed": 155, "failed": 0},
+    "lane_tests": ["type ai_area_text: area_text_wraps_inside_a_circle_container, auto_size_members_resize_rectangular_containers, overset_is_reported_not_dropped, point_area_conversion_keeps_every_attribute, hostile_containers_are_bounded", "type ai_create_outlines: create_outlines_of_point_and_area_text_matches_glyph_outlines", "folio ai_area_text_records: area_text_records_round_trip_and_refuse_hostile_bindings, vector_records_without_area_texts_are_byte_identical", "composite vector_text_lowering: path_text_records_draw_live_and_follow_path_edits, area_text_records_draw_inside_their_container, editing_the_story_redraws_without_a_bake, outlined_text_renders_like_the_live_text", "package every_folio_reference_property_is_classified (unchanged, green)"]
+  },
+  "blockers": [],
+  "lock_wait_s": 973,
+  "bg_pids": [],
+  "next": "validation; GUI lane for the Area Type / Create Outlines tools and the viewer's shaped_story port",
+  "updated_at": "2026-10-30T03:23:32Z",
+  "notes": {
+    "spec_basis": "v02.225 spec-modules/14-studio-creative-suite.md (re-grepped 2026-10-30; STU-TYP-002, 114, 116, 120, 121, 127, STU-VEC-038 and the menu/tool rows are byte-identical to v02.222): STU-TYP-116 members off/height_only/width_only/height_and_width/height_and_width_proportional; STU-TYP-114 conversion keeps every attribute, binding and override; STU-VEC-038 text to outlines produces standard vector geometry; STU-TYP-002 area = closed container with overflow/overset state",
+    "spec_deltas": [
+      "none in the cited clauses between v02.222 and v02.225",
+      "STU-TYP-117 (auto_size_reference, 9 anchors, engine adjusts incompatible pairs) and STU-TYP-118 (minimum height/width) exist next to STU-TYP-116 and are NOT implemented: the anchor is top-left (declared reading), no minimums",
+      "STU-TYP-116 does not say how auto-size applies to non-rectangular containers (declared: refused AutoSizeNeedsRectangle)",
+      "STU-TYP-002 does not state the band rule for concave shapes (declared: widest interval of the band, 5 scanlines)",
+      "STU-TYP-114 'preserve every character' read as: no character added or removed on conversion, so area -> point keeps soft wraps as soft (no hard returns inserted) and keeps overset text",
+      "STU-TYP-120 bounds stay UNKNOWN; Folio stores no story paint (composite takes the story paint rows from the caller)"
+    ],
+    "declared_readings": "1 pt = 1 document unit in composite; first-line band top clamped to the inset top; band skip step = one leading; line metrics from the first glyph's run; path text top/bottom path alignment uses stroke width 0 in composite (stroke width not resolved); text rows ignore envelopes; overlapping glyphs of different paint rows paint in row order",
+    "UNVERIFIED_D5": "Illustrator area-type band rule for concave containers, inset defaults, first-baseline options, line skipping, auto-size reference, outline contour order and winding",
+    "NOT_PROVEN": "printed by create_outlines_of_point_and_area_text_matches_glyph_outlines and outlined_text_renders_like_the_live_text (no Illustrator oracle case); window tools Area Type / Create Outlines (later GUI lane)",
+    "gaps": [
+      "harness-view slice 3 not done: the viewer draws live path/area text only once its VectorAssets impl (view/vector.rs, not this lane's path) implements shaped_story; path_text.rs alone cannot do it. Needs a one-method hunk in view/vector.rs by the GUI lane or the lead",
+      "expand_vectors drops a vector_text_not_provided report (its return type has no report slot); a host that shapes no text exports no text"
+    ],
+    "run_ui_md_lines": [],
+    "rule_4b": "Folio field added -> package suite run: every_folio_reference_property_is_classified green with no externals edit (names text_id, container_layer_id, container_id, inset, first_baseline, first_baseline_min, auto_size, area_texts are outside VOCAB)",
+    "rule_4d": "no doc examples added or changed",
+    "rule_4e": "type suite run with harfrust (round unit hsk-studio-type = [harfrust]); new test files carry no cfg(feature)",
+    "rule_4c": "lane-check step 0 clean (no machine paths; fonts read from CARGO_MANIFEST_DIR fixtures)",
+    "process": "resumed 2026-10-30 after an API-limit stop; a queued type-only lane-check was stopped by this lane (own process) to use one bundled lock hold; Cargo.lock not committed; no new dependency or crate edge"
+  }
+}
