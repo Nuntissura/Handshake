@@ -1,0 +1,55 @@
+{
+ "crate": "hsk-studio-harness-core (src/harness.rs Run::set_vector_paths_and_entries, src/action.rs one RUN_COMMANDS row, new tests/run_vector_paths_and_entries.rs) + hsk-studio-harness-view (src/view/design/auto_layout.rs; no separate text-move helper exists: text origins were only offset inline in design/instance.rs, so the text move lives in auto_layout.rs) + hsk-studio-harness (tests/viewer_design_auto_layout.rs: outside the brief's paths, accepted by the lead 2026-10-30; it is the GRID-2 test file, the refusal test becomes the fixture-button text test, text-child tests added)",
+ "lane": "SMB-FIG-GRID-3",
+ "status": "PAUSED",
+ "phase": "PAUSED by the lead (Operator realigning the project) after the red run; nothing pushed; no bundled run; no background work running",
+ "base": "825598c6",
+ "candidate": null,
+ "commits": [
+  {
+   "sha": "90243907",
+   "slice": "1+2 red",
+   "local_only": true,
+   "subject": "harness-core + harness test (SMB-FIG-GRID-3, red): one step for paths, vector and text entries; auto layout moves text children"
+  }
+ ],
+ "uncommitted_green_code": {
+  "where": "session scratchpad smb-fig-grid-3/ (C:/Users/ILJASM~1/AppData/Local/Temp/claude/D--Projects-LLM-projects-Handshake-Handshake-Worktrees-wt-gov-kernel/78736d01-8cca-4de4-921a-e3cf98762f72/scratchpad/smb-fig-grid-3/); the lane worktree is clean at 90243907",
+  "files": {
+   "harness.rs.green": "full crates/hsk-studio-harness-core/src/harness.rs: real Run::set_vector_paths_and_entries (paths + first entry via vector_paths_and_entry_step, further entries set in the same step, grouped as ONE history step; refused entry write puts written entries back, undoes the path step, redo history kept via keeping_redo_without_new_step; duplicate token refused duplicate_entry before any change)",
+   "action.rs.green": "full crates/hsk-studio-harness-core/src/action.rs: RUN_COMMANDS row layer.set_vector_paths_and_entries (recordable false, mutates_authority true)",
+   "auto_layout.rs.green": "full crates/hsk-studio-harness-view/src/view/design/auto_layout.rs: blanket auto_layout_text_layer_unsupported removed; text rect = drawn extent (origin, summed advances, ink ascent/descent via text::shaped_story with the record's character style); text origins move with the re-layout and commit with the vector entry through set_vector_paths_and_entries; point text resized -> moves, keeps glyph size, status line names it; non-point Payload::Text resized -> auto_layout_text_resize_unsupported:<kind>:<id>; text_frame layers -> auto_layout_text_frame_unsupported:<id>; lead addition: live area/path text (vector layer with StudioAreaText/StudioPathText binding) resized -> auto_layout_text_resize_unsupported:<area|path>:<id>, moved -> binding container_id/path_id remapped to the rewritten path record",
+   "test-live-text.rs": "test to append to crates/hsk-studio-harness/tests/viewer_design_auto_layout.rs (lead request): text_click makes area text in a rectangle child and path text on a line child of a GRID frame; a gap change moves the line and its path-text binding follows; FILL on each is refused naming the child, document/vector/text entries unchanged",
+   "msg-red.txt": "commit message of 90243907"
+  }
+ },
+ "capabilities_done": [],
+ "tests": {
+  "history": [
+   {
+    "sha": "90243907",
+    "run": "red (D:): lane-check --owner smb-fig-grid-3 --disk d -- cargo nextest run -p hsk-studio-harness-core -p hsk-studio-harness --features hsk-studio-harness/viewer --no-fail-fast -E 'binary(run_vector_paths_and_entries) | test(corpus_lists_every_run_operation_with_recordability) | binary(viewer_design_auto_layout)'",
+    "exit": 100,
+    "passed": 9,
+    "failed": 8,
+    "failures": "as intended: 3 run_vector_paths_and_entries (stub not_implemented), corpus check (mutating Run methods without a RUN_COMMANDS row: [set_vector_paths_and_entries]), 4 new viewer_design_auto_layout text tests (auto_layout_text_layer_unsupported); the 9 existing GRID-2 auto-layout tests pass; clippy clean in lane files (warnings only in untouched crates)",
+    "started": "2026-10-30T18:01:08Z",
+    "ended": "2026-10-30T18:08:18Z",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-3/smb-fig-grid-3-red-90243907.log (first line HEAD=90243907 lane=smb-fig-grid-3)"
+   }
+  ]
+ },
+ "blockers": [
+  "PAUSED by the lead"
+ ],
+ "bg_pids": [],
+ "next": "on resume: copy the three .green files into the lane worktree (touch them, V4-11), append test-live-text.rs to viewer_design_auto_layout.rs, commit green with explicit pathspecs, focused green run on D: (same filter), then report ready and wait for the lead's go (disk + base) before the bundled run (whole suites harness-core, harness-view, harness; desktop + audio-batch; rules 4a/4e); then rebase, push guarded, READY_FOR_VALIDATION",
+ "updated_at": "2026-10-30T18:08:29Z",
+ "notes": {
+  "UNVERIFIED_D5": "Figma text auto-resize behaviour inside auto layout is UNVERIFIED (D5); the window reading: point text moves to the solved position and keeps its glyph extent",
+  "scope_extension": "crates/hsk-studio-harness/tests/viewer_design_auto_layout.rs edited (outside the brief's listed paths; accepted by the lead 2026-10-30)",
+  "green_unproven": "the green code has never been compiled or run; it stays uncommitted in the scratchpad per the pause instruction",
+  "paused_green_copy": "lead 2026-10-30T18:09:08Z: uncompiled green files copied to Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-3/paused-green-uncompiled/ (scratchpad is temporary)"
+ },
+ "verdicts": []
+}

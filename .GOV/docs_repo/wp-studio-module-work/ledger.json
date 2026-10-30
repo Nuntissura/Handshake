@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T17:52:40Z",
+ "updated_at": "2026-10-30T18:09:08Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -12293,8 +12293,8 @@
   {
    "lane_id": "SMB-FIG-GRID-3",
    "crate": "hsk-studio-harness-core (two-entry undo step) + hsk-studio-harness-view (auto-layout with text children)",
-   "phase": "coding (dispatched 2026-10-30T17:52:40Z)",
-   "status": null,
+   "phase": "PAUSED for Operator realignment (2026-10-30T18:09:08Z)",
+   "status": "PAUSED",
    "owner": "builder opus/high (GUI lane 1)",
    "lane_file": "builders/lanes/hsk-studio-fig-grid-3.json",
    "brief": "builders/briefs/lane-smb-fig-grid-3.md",
@@ -12303,7 +12303,7 @@
    "candidate": null,
    "commits": [],
    "verdicts": [],
-   "note": "From SMB-FIG-GRID-2: auto-layout edits on frames with text children (all fixture frames) need the design entry and the text entry in one undo step; today refused auto_layout_text_layer_unsupported.; base 825598c6"
+   "note": "From SMB-FIG-GRID-2: auto-layout edits on frames with text children (all fixture frames) need the design entry and the text entry in one undo step; today refused auto_layout_text_layer_unsupported.; base 825598c6; 2026-10-30T18:09:08Z paused: red commit 90243907 local only (red run 9 passed / 8 failed as intended, Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-3/smb-fig-grid-3-red-90243907.log); green code never compiled, kept as files in Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-3/paused-green-uncompiled/ (copied by the lead from the session scratchpad); resume: apply green, focused run on D:, then bundled run after lead go"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
