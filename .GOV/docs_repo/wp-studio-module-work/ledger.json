@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T08:07:33Z",
+ "updated_at": "2026-10-30T08:10:05Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11120,9 +11120,9 @@
   },
   {
    "lane_id": "SMB-AU-MULTITRACK-1",
-   "status": null,
-   "phase": "build",
-   "candidate": "",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
+   "candidate": "1c57c17a",
    "owner_paths": [
     "crates/hsk-studio-harness-view/src/view/timeline*",
     "crates/hsk-studio-harness-view/tests/viewer_timeline_audio.rs"
@@ -11130,7 +11130,13 @@
    "brief": "builders/briefs/lane-smb-au-multitrack-1.md",
    "dispatched_at": "2026-10-30T03:19:22Z",
    "model": "opus/medium",
-   "note": "post-mortem top gap Audition rank 1: AU-14 multitrack clip view + automation lanes (GUI over validated engine); no Audition multitrack clause in module 14 (spec-delta request expected); worktree wt-studio-lanes/smb-au-multitrack-1 at 007b34f2; GUI lane 1 of max 2"
+   "note": "post-mortem top gap Audition rank 1: AU-14 multitrack clip view + automation lanes (GUI over validated engine); no Audition multitrack clause in module 14 (spec-delta request expected); worktree wt-studio-lanes/smb-au-multitrack-1 at 007b34f2; GUI lane 1 of max 2; READY at 1c57c17a: multitrack timeline (waveform overviews, clip gain, clip volume and bus-parameter automation lanes as typed undoable routing-entry commands, mixer follows edits; track volume/pan lanes display-only: engine has no track_automation record). Bundled run 3 on C: 287/288: the one failure is viewer_vector_text_tools::create_outlines_replaces_live_and_point_text_as_one_undo_step (150 of 150 pixels differ) from SMB-AI-AREA-TYPE-3 c719b1dc, outside this lane diff (argued, not re-run on c719b1dc alone; SMB-R41-FOLLOWUPS-1 run on c719b1dc base will tell). Outside owned paths: mixer_rebuild pub(crate) in src/view/mixer.rs. Gaps (signatures in lane file): Folio StudioAudioRouting.track_automation + pulse bus_mix; no clip pan envelope, no master lane; trim-in/razor/lift do not update clip envelopes (lift leftover envelope would fail routing validation, untested). No AU-14 clause; Audition behaviour UNVERIFIED",
+   "commits": [
+    "e74013c5",
+    "35cf3a08",
+    "1037aabb",
+    "1c57c17a"
+   ]
   },
   {
    "lane_id": "SMB-AI-AREA-TYPE-2",
@@ -11236,6 +11242,22 @@
    "commits": [],
    "verdicts": [],
    "note": "After Effects AE-13 composition mask feather/opacity/expansion (STU-CMP-025/025a), static and animated; rule 4b package suite; SMB-AE-PARTICLES-2 and AE-17 effect families sequenced after this lane; push held for lead release (planner opus/high 2026-10-30, base c719b1dc)",
+   "remediation": null
+  },
+  {
+   "lane_id": "SMB-AU-MULTITRACK-2",
+   "crate": "hsk-studio-folio + pulse/score mix + harness-view timeline",
+   "phase": "queued (after R42 judges SMB-AU-MULTITRACK-1; next free builder slot)",
+   "status": null,
+   "owner": "not dispatched",
+   "lane_file": null,
+   "brief": null,
+   "worktree": null,
+   "disk": null,
+   "candidate": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "AU-MULTITRACK-1 gaps: (1) data integrity first: trim-in / razor / lift must carry clip volume envelopes (shift, split, remove) so a lifted clip never leaves an envelope that fails routing validation; (2) track volume/pan automation over time: Folio StudioAudioRouting.track_automation + pulse bus_mix reads it instead of a constant (rule 4b package suite); (3) clip pan envelope, master lane row, lanes for disabled bus effects. No AU-14 clause: spec-delta request.",
    "remediation": null
   }
  ],

@@ -1,29 +1,29 @@
 {
  "crate": "hsk-studio-harness-view",
  "lane": "SMB-AU-MULTITRACK-1",
- "status": "IN_PROGRESS",
- "phase": "code done and committed locally on lane/smb-au-multitrack-1 (rebased on origin c719b1dc); bundled run 2 green 285/285 at d05c2d07 (pre-rebase); confirming run after the c719b1dc rebase (harness-core + harness-view moved) cancelled while queued per lead pause for R41; push after the lead's go and a green confirming run",
- "candidate": null,
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed 1c57c17a to origin/codex/handshake-studio-assets; bundled run 3 on C: at 1c57c17a after R41: 287/288, the one failure is SMB-AI-AREA-TYPE-3's viewer_vector_text_tools::create_outlines_replaces_live_and_point_text_as_one_undo_step (origin c719b1dc; not in this lane's diff); 5/5 viewer_timeline_audio green",
+ "candidate": "1c57c17a",
  "commits": [
   {
    "sha": "e74013c5",
    "subject": "slice 1: timeline multitrack model (lane rows in the layout, clip volume / bus keyframe lanes as typed undoable routing-entry commands, clip gain, waveform overviews from the peak path, mixer follows edits; mixer_rebuild pub(crate))",
-   "pushed": false
+   "pushed": true
   },
   {
    "sha": "35cf3a08",
    "subject": "slice 2: panel draws waveforms in audio clips, lane buttons, automation lanes (click adds, drag moves, right click deletes), Waveforms / Clip Gain toolbar",
-   "pushed": false
+   "pushed": true
   },
   {
    "sha": "1037aabb",
    "subject": "slice 3: headless multitrack tests",
-   "pushed": false
+   "pushed": true
   },
   {
    "sha": "1c57c17a",
    "subject": "slice 3 fix: fixture sequence duration; settle without unwrap (clippy)",
-   "pushed": false
+   "pushed": true
   }
  ],
  "capabilities_done": [
@@ -37,10 +37,10 @@
  ],
  "tests": {
   "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-au-multitrack-1 --disk ssd -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
-  "exit": 0,
-  "sha": "d05c2d07 (same lane commits before the rebase onto c719b1dc)",
-  "passed": 285,
-  "failed": 0,
+  "exit": 100,
+  "sha": "1c57c17a",
+  "passed": 287,
+  "failed": 1,
   "skipped": 20,
   "clippy": "no findings in lane files (same lock hold)",
   "new_tests": "tests/viewer_timeline_audio.rs 5/5: audio_clips_show_the_overview_of_their_source_window, clip_gain_and_volume_points_play_through_the_mixer_and_undo, lane_clicks_and_drags_edit_points_at_their_pixels, bus_effect_parameter_keyframes_automate_the_submix, hostile_lane_commands_are_refused_without_a_step",
@@ -69,22 +69,20 @@
    },
    {
     "sha": "1c57c17a",
-    "scope": "bundled, after rebase onto c719b1dc",
-    "exit": null,
-    "note": "cancelled while queued (lead pause for R41); runs after the lead's go"
+    "scope": "bundled, after R41 (base c719b1dc)",
+    "exit": 100,
+    "passed": 287,
+    "failed": 1,
+    "failures": "foreign: viewer_vector_text_tools create_outlines_replaces_live_and_point_text_as_one_undo_step (SMB-AI-AREA-TYPE-3)"
    }
-  ]
+  ],
+  "foreign_failure": "hsk-studio-harness-view::viewer_vector_text_tools create_outlines_replaces_live_and_point_text_as_one_undo_step: '150 of 150 pixels differ' (tests/viewer_vector_text_tools.rs:130). Test and code from lane SMB-AI-AREA-TYPE-3 (4802e2b3, ace9990c, on origin at c719b1dc before this push). This lane's diff (git diff --stat c719b1dc..1c57c17a) touches only mixer.rs (one visibility token), timeline.rs, timeline_ui.rs, timeline/audio*.rs and tests/viewer_timeline_audio.rs: no vector, composite, type or harness-core input of that test. Not re-run on origin alone (UNVERIFIED that it fails without this lane, by argument only); reported to the lead"
  },
- "blockers": [
-  {
-   "error": "lead pause: no C: lane-check until R41 finishes; push waits for the confirming run",
-   "attempts": 0
-  }
- ],
- "lock_wait_s": 5400,
+ "blockers": [],
+ "lock_wait_s": 6600,
  "bg_pids": [],
- "next": "after the lead's R41 message: bundled run at HEAD, push, READY_FOR_VALIDATION with the pushed candidate",
- "updated_at": "2026-10-30T06:03:49Z",
+ "next": "validation round judges SMB-AU-MULTITRACK-1 at the candidate; never claimed PASS",
+ "updated_at": "2026-10-30T08:08:48Z",
  "notes": {
   "worktree": "wt-studio-lanes/smb-au-multitrack-1 (branch lane/smb-au-multitrack-1)",
   "owned_paths": "crates/hsk-studio-harness-view/src/view/timeline.rs, src/view/timeline_ui.rs (additive hunks), NEW src/view/timeline/audio.rs, NEW src/view/timeline/audio_ui.rs, NEW tests/viewer_timeline_audio.rs",
