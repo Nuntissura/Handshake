@@ -1,21 +1,26 @@
 {
  "crate": "hsk-studio-render-gpu (+ hsk-studio-harness Cargo.toml: one dev-dependency line enabling the test-only feature)",
  "lane": "SMB-GPU-CLIENT-PORT-1",
- "status": "BLOCKED",
- "phase": "bundled run 1 on C: at 921e8483 (rebased on 5275f91e) red on one Vulkan-only parity finding (threshold boundary pixel) plus the two FXC tests (fixed by the lead-approved per-backend commit 9285bce3, confirmed green); not pushed; waiting for the lead decision on the threshold finding before run 2 (loop cap: a second run would fail on the same unfixed finding)",
- "candidate": null,
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed 66c62129 to origin/codex/handshake-studio-assets (on 5275f91e; push exit 0, origin re-read = 66c62129); green bundled run 2 on 66c62129 on C:",
+ "candidate": "66c62129",
  "commits": [
   {
    "sha": "921e8483",
    "pre_rebase": "b8aef65c",
    "subject": "render-gpu, harness (SMB-GPU-CLIENT-PORT-1): typed GPU client port and transient asset-local adapter (RF-03 phase 0, MT-36248 asset side)",
-   "pushed": false,
+   "pushed": true,
    "slices": "1 client port, 2 adapters, 3 GpuBackend on the port, 4 public API sheds the device owners, 5 DESCRIPTOR + diagnostics: compile-coupled (the backend state, the device split and the port land together; harness tests need the feature line in the same commit), so one commit instead of one per slice; the red-first tests reference the new API and could not compile, so per RED COMMITS they stay squashed"
   },
   {
    "sha": "9285bce3",
    "subject": "render-gpu tests (SMB-GPU-CLIENT-PORT-1, lead-approved): gpu_pipeline_fault FXC expectations per backend",
-   "pushed": false
+   "pushed": true
+  },
+  {
+   "sha": "66c62129",
+   "subject": "render-gpu tests (SMB-GPU-CLIENT-PORT-1, lead disposition): threshold tie at the exact cut",
+   "pushed": true
   }
  ],
  "capabilities_done": [
@@ -81,7 +86,7 @@
    "confirm": "gpu_pipeline_fault on Vulkan after 9285bce3: 3 passed, both FXC tests print NOT_PROVEN for the FXC class"
   },
   "vulkan_readback_vs_dx12_tolerances": {
-   "outside": "ext_adjustment_layer_parity threshold 128: 1.0 at (129, 0) vs 2e-6 (dx12 0)",
+   "outside": "none after the lead disposition; the threshold-128 tie pixels (7 on the lattice) are boundary pixels (Vulkan 1.0 at (129, 0) before, DX12 0)",
    "inside_worst_by_test": {
     "gpu_plan MODES": "3.87e-7",
     "gpu_plan LATTICE non-separable": "1.61e-6 (tolerance 2e-6)",
@@ -102,22 +107,38 @@
     "text_render": "0 (2e-6)"
    },
    "device_loss": "destroy detected by the wgpu lost callback in 21.6 / 23.7 / 135.3 ms on Vulkan",
-   "settlement": "GPU_CLIENT_SETTLEMENT backend vulkan peak 612 retained 0 budget 8388608 (Measured = residency counters)"
+   "settlement": "GPU_CLIENT_SETTLEMENT backend vulkan peak 612 retained 0 budget 8388608 (Measured = residency counters)",
+   "threshold_tie_test": "THRESHOLD_TIE backend vulkan: off-tie max_err 0 (1e-4 below and above the cut), 1 boundary pixel accepted as 0 or 1"
+  },
+  "run2": {
+   "sha": "66c62129 (pushed)",
+   "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gpu-client-port-1/bundle-smb-gpu-client-port-1-66c62129.log (first line HEAD=66c62129)",
+   "disk": "C: (ssd), owner smb-gpu-client-port-1, one disk-lock hold; Vulkan (vulkan:discrete:NVIDIA GeForce RTX 3090) on every transient-adapter test",
+   "argv": "lane-check.sh --owner smb-gpu-client-port-1 --disk ssd -- cargo nextest run -p hsk-studio-render-gpu --features asset-local-backends,test-faults,shared-device; clippy harness-view [viewer] [desktop,audio-batch], harness [viewer] [desktop,viewer] --all-targets; nextest render-gpu [] [test-faults] [shared-device] [shared-device,test-faults]; doctests x4; nextest harness-view [viewer] [desktop,audio-batch], harness [viewer] [desktop,viewer]; nextest render-gpu HSK_STUDIO_TEST_GPU_BACKEND=vulkan [asset-local-backends,test-faults,shared-device]",
+   "step0": "clean",
+   "clippy": "render-gpu + harness-view + harness exit 0",
+   "results": {
+    "render-gpu [asset-local-backends,test-faults,shared-device] (lane-check)": "105 passed",
+    "render-gpu []": "90 passed",
+    "render-gpu [test-faults]": "101 passed",
+    "render-gpu [shared-device]": "93 passed",
+    "render-gpu [shared-device,test-faults]": "105 passed",
+    "render-gpu HSK_STUDIO_TEST_GPU_BACKEND=vulkan": "105 passed",
+    "doctests": "4 units exit 0",
+    "harness-view [viewer]": "96 passed",
+    "harness-view [desktop,audio-batch]": "141 passed",
+    "harness [viewer]": "188 passed, 20 skipped",
+    "harness [desktop,viewer]": "190 passed, 20 skipped"
+   },
+   "not_proven_lines": "NOT_PROVEN: threshold tie at cut, 7 boundary pixel(s), backend vulkan (lead disposition); NOT_PROVEN for the FXC class on vulkan (gpu_pipeline_fault, 2 tests); existing NOT_PROVEN: shared-texture overflow needs --features shared-device in non-shared units",
+   "exit": 0
   }
  },
- "blockers": [
-  {
-   "error": "Vulkan-only parity finding: gpu_plan ext_adjustment_layer_parity threshold 128 max_err 1.0 at (129, 0) (tolerance 2e-6); dx12 on the same head 0",
-   "file_line": "crates/hsk-studio-render-gpu/tests/gpu_plan.rs:3328 (assert); kernel src/kernel.wgsl:361 threshold_apply compares hsk_lum(rgb) >= t - 0.5/255",
-   "diagnosis": "lattice pixel (129, 0) = (r, g, b) = (7/16, 10/16, 0); with hsk_lum = 0.3 r + 0.59 g + 0.11 b (kernel.wgsl:50-51, verified) its luminance is exactly 0.5 = 127.5/255, the threshold-128 boundary; Vulkan binary32 evaluation lands just below it (black), dx12 and pigment on or above (white). A boundary-sensitive comparison, not a port defect; kernel.wgsl is outside this lane path list; the tolerance is not widened (lead rule)",
-   "attempts": 1,
-   "needs": "lead decision: kernel or pigment fix lane for the threshold boundary on Vulkan, or another disposition; until then run 2 would fail on the same finding (loop cap)"
-  }
- ],
+ "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "lead decision on the threshold finding; then fetch, rebase, run 2 (whole bundle), push with PUSH SAFETY, READY_FOR_VALIDATION",
- "updated_at": "2026-10-31T03:04:30Z",
+ "next": "validation round (Vulkan first on Windows: check the validator host Vulkan driver)",
+ "updated_at": "2026-10-31T03:13:05Z",
  "notes": {
   "brief": "builders/briefs/lane-smb-gpu-client-port-1.md; MT-36248 asset side (RF-03 phase 0)",
   "lead_decisions": "BackendChoice = test-only feature asset-local-backends; SharedDevice::new = the one asset-local wgpu crossing behind shared-device; Vulkan first on Windows (bundled run reports Vulkan readback numbers against the DX12-measured tolerances); harness-view display.rs/render.rs untouched",
@@ -166,8 +187,10 @@
    "tolerances": "a Vulkan readback outside a DX12-measured tolerance is reported with the measured delta, never widened"
   },
   "changes_to_other_lanes_tests": [
-   "tests/gpu_pipeline_fault.rs (lane SMB-RENDER-GPU-PIPELINE-FAULT / -SUBMIT-FAULT), commit 9285bce3, lead rule (DX12 shader compiler assumption): fxc_rejected_kernel_is_a_typed_refusal_before_any_dispatch and probe_failure_leaves_the_device_usable get per-backend expectations; dx12 expectations unchanged; off dx12 the construction failure is the typed pipeline_create of the composite envelope pipeline (validation, missing entry point composite_ext) and the probe builds; both print NOT_PROVEN for the FXC class. Exact failure texts in tests.run1.failures"
-  ]
+   "tests/gpu_pipeline_fault.rs (lane SMB-RENDER-GPU-PIPELINE-FAULT / -SUBMIT-FAULT), commit 9285bce3, lead rule (DX12 shader compiler assumption): fxc_rejected_kernel_is_a_typed_refusal_before_any_dispatch and probe_failure_leaves_the_device_usable get per-backend expectations; dx12 expectations unchanged; off dx12 the construction failure is the typed pipeline_create of the composite envelope pipeline (validation, missing entry point composite_ext) and the probe builds; both print NOT_PROVEN for the FXC class. Exact failure texts in tests.run1.failures",
+   "tests/gpu_plan.rs ext_adjustment_layer_parity threshold case (owner: the render-gpu adjustments lane), commit 66c62129, lead disposition 2026-10-31: pixels whose pigment luminance lies within 2^-20 of the cut (level - 0.5/255 = 0.5 for level 128) are boundary pixels (must be 0 or 1, alpha unchanged, counted, NOT_PROVEN line); every other pixel compared as before at 2e-6. Measured: Vulkan max_err 1.0 at (129, 0) = (7/16, 10/16, 0), luminance 0.3 r + 0.59 g + 0.11 b = 0.5 exactly; DX12 max_err 0 at the same head (probe log probe-smb-gpu-client-port-1-9285bce3.log). Reasoning: pigment adjust_math and kernel.wgsl threshold_apply both implement lum >= cut; at a measure-zero exact tie two evaluations can land on opposite sides; no tolerance widening or kernel rewrite fixes it. New test threshold_tie_at_the_cut_is_either_side_and_off_tie_pixels_match pins the rule from both sides. The lead adds a spec-delta item (Threshold tie at the exact cut undefined across precisions, D5 reading). The stale comment claiming no lattice luminance ties level 128 was corrected."
+  ],
+  "ready_claim": "cites only run2 (bundle-smb-gpu-client-port-1-66c62129.log); never PASS; MT-36248 HOST-CASES stay PLANNED: asset-local evidence for AC-HOST-001..006, never host acceptance"
  },
  "host_integration": {
   "schema_id": "hsk.studio_mt_host_integration@1",

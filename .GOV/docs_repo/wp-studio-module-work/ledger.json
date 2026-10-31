@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-31T03:05:58Z",
+ "updated_at": "2026-10-31T03:13:45Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -13171,15 +13171,19 @@
   {
    "lane_id": "SMB-GPU-CLIENT-PORT-1",
    "crate": "hsk-studio-render-gpu (+ one harness dev-dependency line)",
-   "phase": "run 2 on C: after the lead disposition (2026-10-31T03:05:58Z)",
-   "status": null,
+   "phase": "validation (R46)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-gpu-client-port-1.json",
    "brief": "builders/briefs/lane-smb-gpu-client-port-1.md",
    "worktree": "wt-studio-lanes/smb-gpu-client-port-1",
    "disk": "C: after R45",
-   "candidate": null,
-   "commits": [],
+   "candidate": "66c62129",
+   "commits": [
+    "921e8483",
+    "9285bce3",
+    "66c62129"
+   ],
    "verdicts": [],
    "host_integration": {
     "gui_host": "none",
@@ -13191,7 +13195,7 @@
     "recorded_at": "2026-10-31T00:11:28Z",
     "lane_file_block": false
    },
-   "note": "RF-03 phase 0, asset side of MT-36248: typed GPU client port (grant, admission with attribution, budgets, retained-memory accounting, settle-once, device-loss rebind, typed Unavailable/Lost), transient in-process adapter marked asset-local; BackendChoice becomes a test-only feature asset-local-backends (harness tests use it); the device crosses once through the existing shared-device feature (asset-local eframe path); Vulkan first on Windows. RISK recorded: rounds unset HSK_*, so Windows GPU proofs move from DX12 to Vulkan after this push; the validator host Vulkan driver and the DX12-measured tolerances are unchecked: the lane run must report the Vulkan readback result and R46 is warned. Base b425b54a.; 2026-10-31T03:05:58Z run 1 on C: at 921e8483 (Vulkan, RTX 3090): FXC tests in gpu_pipeline_fault.rs failed only because the WGSL that DX12 FXC rejects compiles on Vulkan (fixed with per-backend expectations + NOT_PROVEN, 9285bce3); ext_adjustment_layer_parity threshold 128 flips the exact-tie pixel (7/16,10/16,0) on Vulkan (binary32 vs CPU binary64 at lum == cut): lead disposition: boundary pixels within 2^-20 of the cut may be 0 or 1 and print NOT_PROVEN, all other pixels exact; spec delta SD-12; other Vulkan numbers inside DX12 tolerances (worst non-separable blend 1.61e-6 of 2e-6)"
+   "note": "RF-03 phase 0, asset side of MT-36248: typed GPU client port (grant, admission with attribution, budgets, retained-memory accounting, settle-once, device-loss rebind, typed Unavailable/Lost), transient in-process adapter marked asset-local; BackendChoice becomes a test-only feature asset-local-backends (harness tests use it); the device crosses once through the existing shared-device feature (asset-local eframe path); Vulkan first on Windows. RISK recorded: rounds unset HSK_*, so Windows GPU proofs move from DX12 to Vulkan after this push; the validator host Vulkan driver and the DX12-measured tolerances are unchecked: the lane run must report the Vulkan readback result and R46 is warned. Base b425b54a.; 2026-10-31T03:05:58Z run 1 on C: at 921e8483 (Vulkan, RTX 3090): FXC tests in gpu_pipeline_fault.rs failed only because the WGSL that DX12 FXC rejects compiles on Vulkan (fixed with per-backend expectations + NOT_PROVEN, 9285bce3); ext_adjustment_layer_parity threshold 128 flips the exact-tie pixel (7/16,10/16,0) on Vulkan (binary32 vs CPU binary64 at lum == cut): lead disposition: boundary pixels within 2^-20 of the cut may be 0 or 1 and print NOT_PROVEN, all other pixels exact; spec delta SD-12; other Vulkan numbers inside DX12 tolerances (worst non-separable blend 1.61e-6 of 2e-6); 2026-10-31T03:13:45Z run 2 green on C: (Vulkan RTX 3090): render-gpu 105/90/101/93/105 + 105 with HSK_STUDIO_TEST_GPU_BACKEND=vulkan, doctests all units, harness-view 96/141, harness 188/190 (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gpu-client-port-1/bundle-smb-gpu-client-port-1-66c62129.log); pushed 5275f91e..66c62129 (ls-remote verified, no root input changed); threshold tie prints NOT_PROVEN with 7 boundary pixels on Vulkan; FXC lines NOT_PROVEN on Vulkan; worst Vulkan readback 1.61e-6 of 2e-6; settlement peak 612 B retained 0; C: lane target 57.1 GiB kept until R46"
   },
   {
    "lane_id": "SMB-R45-FOLLOWUPS-1",
