@@ -53,7 +53,8 @@
    "id": "SD-07",
    "gap": "No Studio module/feature tree under GUI-DESKTOP-014 and no Engine Profiles binding for Studio's render providers",
    "needs": "the Studio Settings tab and subtab list, and the Engine Profile fields Studio binds (GPU/CPU provider, budgets)",
-   "lead_reading": "one tab 'Studio' with one subtab per module that owns a user-facing setting"
+   "lead_reading": "one tab 'Studio' with one subtab per module that owns a user-facing setting",
+   "namespace_gap": "2026-10-31T11:37:50Z (planner, SMB-SETTINGS-SCHEMA-1): SET-SCOPE-001 (spec-modules/10-product-surfaces.md:8294-8298) admits only data-roots, view-defaults, retention, feature-toggles; Studio tool defaults (brush, selection, export stage) fit none. The asset-local schema uses namespace 'studio' marked namespace_status spec_delta_pending and claims no SET-SCOPE namespace; the spec owner decides a module namespace or a mapping."
   },
   {
    "id": "SD-08",
@@ -87,7 +88,14 @@
    "raised_by": "SMB-GPU-CLIENT-PORT-1 run 1 on Vulkan",
    "correction": "2026-10-31T05:54:02Z lead correction after R46 F-R46-1: the binary64-vs-binary32 premise was FALSE. pigment Threshold is binary32 end to end (adjust_math.rs:807 apply(rgb: [f32; 3]), :878, blend_math.rs:463 lum -> f32) and kernel.wgsl:361-363 evaluates the same binary32 formula. The tie divergence is Vulkan-specific (pigment white, DX12 white, Vulkan black), most likely contraction (FMA) or evaluation order in the SPIR-V path: UNVERIFIED until the remediation lane measures it. The spec gap that remains is narrower: the Threshold reading should state whether the cut compares the exact rational luminance or round(255 lum) (PS-C07), so every backend has one target.",
    "measured": "2026-10-31T07:34:05Z: SMB-R46-FOLLOWUPS-1 measured the tie: pigment lum and cut 0x3f000000, Vulkan 0x3effffff, DX12 0x3f000000; 49/76 of 1110 tie colours differed per backend, reproduced exactly by FMA contraction in a backend-specific order; the kernel now prevents fusion and both backends match pigment on all 1110; the remaining spec question is only whether the cut is the exact rational or round(255 lum)"
+  },
+  {
+   "id": "SD-13",
+   "gap": "STU-IO-128 compatibility_level domain is 1.3, 1.4, 1.5 (spec-modules/14-studio-creative-suite.md:21011), but press-write writes 1.4, 1.5, 1.6, 1.7, 2.0 (src/export.rs:78) and PDF/X-4 only at 1.6 or later with a GtsPdfx intent and a TrimBox (src/export.rs:261-264)",
+   "needs": "the compatibility_level domain the preset contract must carry (add 1.6/1.7/2.0, or state that standards presets override the level) and whether 1.3 is a writer obligation",
+   "lead_reading": "2026-10-31T11:37:50Z: SMB-PDF-PRESETS-1 refuses 1.3 and any standards preset whose level the writer cannot honour with typed errors and reports them; it resolves nothing"
   }
  ],
- "edits": []
+ "edits": [],
+ "updated_at": "2026-10-31T11:37:50Z"
 }

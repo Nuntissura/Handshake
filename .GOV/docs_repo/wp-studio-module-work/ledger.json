@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-31T10:17:53Z",
+ "updated_at": "2026-10-31T11:37:50Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11683,21 +11683,23 @@
   },
   {
    "lane_id": "SMB-AE-PARTICLES-2",
-   "crate": "composite + folio + render-gpu",
-   "phase": "queued",
+   "crate": "hsk-studio-composite (particles: Rain, Snow, Star burst, classic particle systems)",
+   "phase": "briefed (not dispatched) 2026-10-31T11:37:50Z; base 4f69b03b",
    "status": null,
-   "owner": null,
+   "owner": "builder opus/high",
    "commits": [],
    "verdicts": [],
-   "note": "folio particle layer record + per-frame comp hook; more STU-CMP-075 simulation types; GPU parity; comp audio from folio records; bezier level keys; preset apply into effect stack",
+   "note": "folio particle layer record + per-frame comp hook; more STU-CMP-075 simulation types; GPU parity; comp audio from folio records; bezier level keys; preset apply into effect stack; 2026-10-31T11:37:50Z briefed (engine parts): closes MT-34184, MT-34185, MT-34189, MT-34177 (headless AC halves; tooltip halves wait for D7); folio particle record, per-frame comp hook, GPU parity, comp audio, bezier level keys, preset apply and the other STU-CMP-075 rows stay carried forward here",
    "host_integration": {
     "gui_host": "none",
-    "gpu": "none",
     "refactor_exposure": "none",
-    "binding": "binds at dispatch: the brief must carry the HOST INTEGRATION rules and this block before the builder starts",
-    "recorded_at": "2026-10-30T23:34:39Z",
-    "lane_file_block": false
-   }
+    "binding": "HOST INTEGRATION rules + block in brief and lane file",
+    "recorded_at": "2026-10-31T11:37:50Z",
+    "lane_file_block": true
+   },
+   "lane_file": "builders/lanes/hsk-studio-ae-particles-2.json",
+   "brief": "builders/briefs/lane-smb-ae-particles-2.md",
+   "worktree": "wt-studio-lanes/smb-ae-particles-2"
   },
   {
    "lane_id": "SMB-ID-COMPOSER-PARITY",
@@ -14051,6 +14053,72 @@
     "recorded_at": "2026-10-31T11:20:00Z",
     "lane_file_block": true
    }
+  },
+  {
+   "lane_id": "SMB-SETTINGS-SCHEMA-1",
+   "crate": "hsk-studio-accord (additive settings schema) + pigment + develop + harness-view (egui-free files only)",
+   "phase": "briefed (not dispatched) 2026-10-31T11:37:50Z; base 4f69b03b",
+   "status": null,
+   "owner": "builder opus/high",
+   "lane_file": "builders/lanes/hsk-studio-settings-schema-1.json",
+   "brief": "builders/briefs/lane-smb-settings-schema-1.md",
+   "worktree": "wt-studio-lanes/smb-settings-schema-1",
+   "disk": null,
+   "candidate": null,
+   "commits": [],
+   "verdicts": [],
+   "host_integration": {
+    "gui_host": "none",
+    "refactor_exposure": "low",
+    "binding": "HOST INTEGRATION rules + block in brief and lane file",
+    "recorded_at": "2026-10-31T11:37:50Z",
+    "lane_file_block": true
+   },
+   "note": "RF-09 phase 0 (asset side of MT-36249, asset-local evidence; closes no MT). Push LAST of the wave (accord/pigment in every closure); dispatch only after the R48 verdicts. Namespace studio is spec_delta_pending (SD-07). Engine Profiles: phase 1."
+  },
+  {
+   "lane_id": "SMB-PDF-PRESETS-1",
+   "crate": "hsk-studio-press (PDF export preset contract STU-IO-125..133)",
+   "phase": "briefed (not dispatched) 2026-10-31T11:37:50Z; base 4f69b03b",
+   "status": null,
+   "owner": "builder opus/high",
+   "lane_file": "builders/lanes/hsk-studio-pdf-presets-1.json",
+   "brief": "builders/briefs/lane-smb-pdf-presets-1.md",
+   "worktree": "wt-studio-lanes/smb-pdf-presets-1",
+   "disk": null,
+   "candidate": null,
+   "commits": [],
+   "verdicts": [],
+   "host_integration": {
+    "gui_host": "none",
+    "refactor_exposure": "none",
+    "binding": "HOST INTEGRATION rules + block in brief and lane file",
+    "recorded_at": "2026-10-31T11:37:50Z",
+    "lane_file_block": true
+   },
+   "note": "Closes MT-33385..MT-33395. compatibility_level conflict refused typed and reported (SD-13). Stock presets STU-LAY-159 (layout MT-30841/30842) need a lead placement decision (layout has no press edge)."
+  },
+  {
+   "lane_id": "SMB-ID-BOOKLET-1",
+   "crate": "hsk-studio-layout (print preferences, two print configurations, booklet options, imposition plan)",
+   "phase": "briefed (not dispatched) 2026-10-31T11:37:50Z; base 4f69b03b",
+   "status": null,
+   "owner": "builder opus/high",
+   "lane_file": "builders/lanes/hsk-studio-id-booklet-1.json",
+   "brief": "builders/briefs/lane-smb-id-booklet-1.md",
+   "worktree": "wt-studio-lanes/smb-id-booklet-1",
+   "disk": null,
+   "candidate": null,
+   "commits": [],
+   "verdicts": [],
+   "host_integration": {
+    "gui_host": "none",
+    "refactor_exposure": "none",
+    "binding": "HOST INTEGRATION rules + block in brief and lane file",
+    "recorded_at": "2026-10-31T11:37:50Z",
+    "lane_file_block": true
+   },
+   "note": "Closes MT-30820..MT-30831, advances MT-30819. Creep rule declared linear (InDesign formula UNVERIFIED, D5); rendering imposed sheets is a later lane."
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

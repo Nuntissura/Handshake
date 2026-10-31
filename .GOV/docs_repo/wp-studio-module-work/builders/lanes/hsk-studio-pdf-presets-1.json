@@ -1,0 +1,53 @@
+{
+  "crate": "hsk-studio-press (PDF export preset contract STU-IO-125..133 and its resolution onto press-write ExportOptions)",
+  "lane": "SMB-PDF-PRESETS-1",
+  "status": null,
+  "phase": "briefed (not dispatched)",
+  "candidate": null,
+  "worktree": "wt-studio-lanes/smb-pdf-presets-1",
+  "base": "4f69b03b",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": [],
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "lead dispatches; push in any order with SMB-AE-PARTICLES-2 and SMB-ID-BOOKLET-1, before SMB-R47-FOLLOWUPS-1 and SMB-SETTINGS-SCHEMA-1",
+  "updated_at": "2026-10-31T11:29:59Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": ["STU-IO-125", "STU-IO-126", "STU-IO-127", "STU-IO-128", "STU-IO-129", "STU-IO-130", "STU-IO-131", "STU-IO-132", "STU-IO-133", "STU-IO-012", "GUI-DESKTOP-049", "GUI-DESKTOP-050", "STU-ARC-010", "STU-VAL-002", "STU-ARC-015", "GUI-DESKTOP-041", "GUI-DESKTOP-045"],
+    "refactor_exposure": "none",
+    "binding": "binds at dispatch: every commit of this lane follows the HOST INTEGRATION rules of the common brief",
+    "notes": {
+      "attribution": "editing a shipped preset creates an operator preset; persisting it is a later host or Folio step, so no mutating command is added here",
+      "diagnostics": "refusals and receipts carry codes; terminal outcomes through press report (src/lib.rs:70)"
+    },
+    "recorded_at": "2026-10-31T11:29:59Z"
+  },
+  "notes": {
+    "brief": "builders/briefs/lane-smb-pdf-presets-1.md",
+    "model_effort": "opus / high (spec parameter and enumeration tables, a writer-version conflict to surface)",
+    "mts": "closes MT-33385, MT-33386, MT-33387, MT-33388, MT-33389, MT-33390, MT-33391, MT-33392, MT-33393, MT-33394, MT-33395",
+    "gap_evidence": "press-write src/export.rs:18-20 lists presets as not in its slice; no other preset or downsampling code in press*, layout or interop-layout src at 4f69b03b",
+    "conflict_for_spec_owner": "compatibility_level domain 1.3/1.4/1.5 (14-studio-creative-suite.md:21011) vs press-write VERSIONS from 1.4 (export.rs:78) and PDF/X-4 only at 1.6+ (export.rs:261-264); the lane refuses typed and reports",
+    "not_in_lane": "stock presets STU-LAY-159 (layout MT-30841/MT-30842; layout has no press edge: placement is a lead decision); downsampling/recompression execution; preset file import/export; PDF/X conformance stays not_proven (SMB-PDFX-ORACLE Operator item)",
+    "root_inputs": "none; no Cargo.toml or feature change",
+    "operator_items": "none needed; vendor preset values UNVERIFIED (D5)",
+    "index_status": "index status PENDING, lifecycle phase blocked (contract_preparation_only, as for nearly every MT); the index has no NOT_STARTED value"
+  }
+}

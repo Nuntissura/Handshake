@@ -1,0 +1,56 @@
+{
+  "crate": "hsk-studio-accord (additive settings schema), hsk-studio-pigment (selection entries), hsk-studio-develop (export-stage entries), hsk-studio-harness-view (brush entries in src/view/edit.rs and new egui-free src/view/settings_catalog.rs)",
+  "lane": "SMB-SETTINGS-SCHEMA-1",
+  "status": null,
+  "phase": "briefed (not dispatched)",
+  "candidate": null,
+  "worktree": "wt-studio-lanes/smb-settings-schema-1",
+  "base": "4f69b03b",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": [],
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "lead dispatches after the R48 verdicts; bundled run and push LAST of the wave (after SMB-AE-PARTICLES-2, SMB-PDF-PRESETS-1, SMB-ID-BOOKLET-1 and SMB-R47-FOLLOWUPS-1)",
+  "updated_at": "2026-10-31T11:29:59Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": ["GUI-DESKTOP-014", "GUI-DESKTOP-015", "GUI-DESKTOP-016", "GUI-DESKTOP-017", "GUI-DESKTOP-018", "GUI-DESKTOP-019", "SET-REC-001", "SET-REC-002", "SET-REC-003", "SET-REC-004", "SET-SCOPE-001"],
+    "refactor_exposure": "low",
+    "binding": "binds at dispatch: every commit of this lane follows the HOST INTEGRATION rules of the common brief",
+    "notes": {
+      "settings": "phase 0 typed schema and entries only; the host tab, persistence through PreferenceRecord and Handpick search are MT-36249 phase 1",
+      "attribution": "no mutating command in phase 0; setting a value is a host PreferenceRecord write",
+      "diagnostics": "MT-36249's flight_recorder and palmistry rows are host rows"
+    },
+    "recorded_at": "2026-10-31T11:29:59Z"
+  },
+  "notes": {
+    "brief": "builders/briefs/lane-smb-settings-schema-1.md (RF-09 phase 0, asset side of MT-36249)",
+    "model_effort": "opus / high (cross-crate contract mapped onto a Handshake schema, spec gap handling)",
+    "mts": "advances MT-36249 AC-HOST-001/002 as asset-local evidence only; AC-HOST-003..005 are host phase 1; closes no MT",
+    "owner_decision": "accord: reachable from every Studio crate with no new edge; controls is not reachable from pigment or develop; a new crate is a root input change",
+    "handshake_source": "wtc-native-editors-v1 @292d7a1c src/backend/handshake_core/src/preferences/mod.rs:198-393, :607, :721, :740-763 and src/api/preferences.rs:128-138, :172-177, :214-223 (read-only)",
+    "out_of_scope": "harness-view surface files: FillSettings fill_tools.rs:115, PsSettings select_liquify.rs:48 (non-engine fields), Prefer render.rs:46, ImportOptions audio_import.rs:77; DeviceOptions render-gpu device.rs:93 (GPU owner budgets, R47 crate) phase 1; ImportSettings harness-core import.rs:313 (R47 crate) next lane; audio device (score-device StreamConfig config.rs:40 has no Default) phase 1; CLI-flag mapping later; Engine Profiles phase 1 (handshake_dexterity profile.rs:8/:12/:46 has no render provider kind, outside the workspace, MT-196 BLOCKED)",
+    "spec_gap_for_lead": "SET-SCOPE-001 (10-product-surfaces.md:8294-8298) admits only data-roots, view-defaults, retention, feature-toggles; Studio tool settings fit none (extends SD-07); entries use namespace studio with namespace_status spec_delta_pending",
+    "paperwork_defect_for_lead": "MT-36248..MT-36251 execution blocks (allowed_write_paths studio/diagnostics.rs + test_studio_three_tier.rs, inputs 'Route module diagnostic ports...') are copies of MT-36233's; MT-36249's execution block does not describe settings",
+    "root_inputs": "none; no Cargo.toml or feature change (no new artifact identities)",
+    "risks": "accord and pigment sit in every other lane's closure and harness-view's closure holds all of theirs: push last; R48 verdicts on SMB-ATTRIBUTION-1/BUSINESS-EVENTS-1 (accord) and SMB-JOB-ADMISSION-1 (harness-view) may reopen remediation there; SMB-FIG-GRID-3 (PAUSED, local harness-view commits) rebases over this lane",
+    "index_status": "MT-36249 index status PENDING, lifecycle phase ready (the index has no NOT_STARTED value)"
+  }
+}

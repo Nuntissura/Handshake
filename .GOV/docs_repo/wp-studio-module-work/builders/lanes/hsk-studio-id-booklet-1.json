@@ -1,0 +1,52 @@
+{
+  "crate": "hsk-studio-layout (print preference record STU-LAY-156, booklet options and two print configurations STU-LAY-157, imposition plan STU-LAY-060)",
+  "lane": "SMB-ID-BOOKLET-1",
+  "status": null,
+  "phase": "briefed (not dispatched)",
+  "candidate": null,
+  "worktree": "wt-studio-lanes/smb-id-booklet-1",
+  "base": "4f69b03b",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": [],
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "lead dispatches; push in any order with SMB-AE-PARTICLES-2 and SMB-PDF-PRESETS-1, before SMB-R47-FOLLOWUPS-1 and SMB-SETTINGS-SCHEMA-1",
+  "updated_at": "2026-10-31T11:29:59Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": ["STU-LAY-059", "STU-LAY-156", "STU-LAY-060", "STU-LAY-157", "GUI-DESKTOP-049", "GUI-DESKTOP-050", "STU-ARC-010", "STU-VAL-002", "STU-ARC-015", "GUI-DESKTOP-041", "GUI-DESKTOP-045"],
+    "refactor_exposure": "none",
+    "binding": "binds at dispatch: every commit of this lane follows the HOST INTEGRATION rules of the common brief",
+    "notes": {
+      "attribution": "typed records and a pure imposition plan; no mutating command is added (persistence is a later folio lane)"
+    },
+    "recorded_at": "2026-10-31T11:29:59Z"
+  },
+  "notes": {
+    "brief": "builders/briefs/lane-smb-id-booklet-1.md",
+    "model_effort": "opus / high (spec parameter and enumeration tables plus imposition ordering; the records alone would be sonnet work)",
+    "mts": "closes MT-30820, MT-30821..MT-30828 (AC-001/AC-002 and the headless half of AC-003), MT-30829, MT-30830, MT-30831; advances MT-30819 (AC-001 and the bitmap fields; PostScript/EPS/bitmap output open); MT-186 (booklet GUI, vulkan_shell_client) is not this lane",
+    "gap_evidence": "no print, booklet or imposition code in any crate at 4f69b03b (grep booklet|imposition|saddle|print_spreads|bitmap_resolution|PrintPref: no hit)",
+    "unverified": "which fields the captured error 'half-gap greater than the crossover' names (14-studio-creative-suite.md:7064); InDesign creep formula and booklet ordering details (D5)",
+    "not_in_lane": "folio persistence of the records; PostScript, EPS and bitmap printing; device printing; marks rendering; imposed-sheet PDF rendering; operator surface",
+    "root_inputs": "none; no Cargo.toml or feature change",
+    "operator_items": "none",
+    "index_status": "index status PENDING, lifecycle phase blocked (contract_preparation_only, as for nearly every MT); the index has no NOT_STARTED value"
+  }
+}
