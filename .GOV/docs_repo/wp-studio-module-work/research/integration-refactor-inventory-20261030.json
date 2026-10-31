@@ -339,6 +339,25 @@
    },
    "phase": "2",
    "exposure": "medium"
+  },
+  {
+   "id": "RF-12",
+   "surface": "GPU API (D7: pure Vulkan, no wgpu)",
+   "current": "render-gpu uses wgpu 27.0.1 (workspace dependency; only render-gpu depends on it directly): device, transient client adapter, WGSL kernels and 6 GPU test files; every round's GPU units run wgpu's Vulkan backend (R50: vulkan:discrete RTX 3090) with DX12 rows in the test-faults units; harness-view's eframe window draws through egui-wgpu (already quarantined by D1)",
+   "target": "render-gpu is a pure-Vulkan typed client of the central Handshake GPU owner (no wgpu); kernels in a Vulkan-native shader path; GPU proof on the Vulkan API directly; DX12 rows retired with BackendChoice (RF-03)",
+   "handshake_prereq": "GPU owner MT-203 (NOT_STARTED) names the Vulkan binding crate and the shader path; the WP-KERNEL-012 direction conflict on wgpu (D7 note e) is resolved",
+   "studio_scope": {
+    "crates": [
+     "hsk-studio-render-gpu",
+     "hsk-studio-pigment (RenderBackend trait, API unchanged)",
+     "hsk-studio-harness-view (bin, already D1-quarantined)"
+    ],
+    "files": "render-gpu src (device, plan_sink, WGSL kernels), tests (6 GPU files)"
+   },
+   "phase": "1 (after the GPU owner and binding crate exist); until then no new wgpu code (common brief rule 1)",
+   "decision_ref": "D7",
+   "exposure": "high",
+   "recorded_at": "2026-10-31T23:54:56Z"
   }
  ],
  "handshake_prerequisites_not_studio_work": [
@@ -397,12 +416,14 @@
    "id": "D2",
    "question": "wgpu/egui pins: Studio and Handshake are both wgpu 27 / egui 0.33.3; Kumihimo's pin must match before adoption",
    "lead_reading": "freeze at wgpu 27.0.1 / egui 0.33.3 until Kumihimo's pinned revision is verified; a wgpu 30 move is a separate scoped upgrade (STU-ARC-018)",
-   "note_after_d1": "egui pin retired for product; wgpu 27.0.1 pin stays for render-gpu until the GPU owner names the device technology (D7)"
+   "note_after_d1": "egui pin retired for product; wgpu 27.0.1 pin stays for render-gpu until the GPU owner names the device technology (D7)",
+   "note_after_d7": "superseded by D7 (2026-10-31T23:54:56Z): no wgpu; the wgpu 27.0.1 pin holds only for the quarantined existing render-gpu code until RF-12 lands; no new wgpu dependency anywhere"
   },
   {
    "id": "D3",
    "question": "Who defines the GPU client contract while MT-203 (the owner) is NOT_STARTED?",
-   "lead_reading": "Studio defines the typed client port in render-gpu plus a transient in-process adapter for asset-local proof; Handshake implements the owner and the real issuer; no Studio device ownership survives phase 1"
+   "lead_reading": "Studio defines the typed client port in render-gpu plus a transient in-process adapter for asset-local proof; Handshake implements the owner and the real issuer; no Studio device ownership survives phase 1",
+   "note_after_d7": "not answered by the Operator on 2026-10-31T23:54:56Z; the lead reading stands with one change: the typed client port is a pure-Vulkan client (D7)"
   },
   {
    "id": "D4",
@@ -412,7 +433,9 @@
   {
    "id": "D5",
    "question": "Raise the spec deltas with the spec owner (Kumihimo clause, Studio GPU client contract, 5.8 egui wording, observe-to-ring mapping, Palmistry clause ids and thresholds, GPU frame callbacks, Studio Settings tree, author_id vs control id mapping, pre-account rendering, Studio-side GPU proof bounds)",
-   "lead_reading": "recorded as PROPOSED in spec-enrichment/STUDIO-ENRICHMENT-20261030-HOST-INTEGRATION.json; no Master Spec edit"
+   "lead_reading": "recorded as PROPOSED in spec-enrichment/STUDIO-ENRICHMENT-20261030-HOST-INTEGRATION.json; no Master Spec edit",
+   "decision": "DECIDED 2026-10-31T23:54:56Z (Operator, chat: 'approved: applying them in one batch after D7/D8'): SD-01..24 are applied to the Master Spec in one batch now that D7 and D8 are decided; the batch also carries SD-25 (the Operator's STU-SHL-130 decision); SD-26 onward stay proposed until reviewed",
+   "decided_at": "2026-10-31T23:54:56Z"
   },
   {
    "id": "D6",
@@ -430,7 +453,9 @@
     "RF-02",
     "RF-05",
     "RF-11"
-   ]
+   ],
+   "decision": "DECIDED 2026-10-31T23:54:56Z (Operator, chat: 'i want pure vulkan, no wgpu, i think this is also the direction we are going for wp kernel'): the shell's UI and control layer and all GPU work use the Vulkan API directly, no wgpu. Consequences recorded by the lead: (a) no new wgpu code anywhere in Studio (as D1 for egui); (b) render-gpu's wgpu code (the RF-03 transient adapter, kernels and GPU tests) becomes refactor item RF-12, a pure-Vulkan client of the Handshake GPU owner; the existing wgpu code is quarantined as asset-local test-host code until that client exists; lanes that would add GPU kernels or render-gpu code wait, like GUI lanes; (c) the decision names no Vulkan binding crate (ash, vulkano or other): open item for the GPU owner (MT-203), to be aligned with WP-KERNEL-012; (d) Kumihimo's non-egui renderer (D8) is pure Vulkan; (e) CONFLICT FLAGGED, not resolved: WP-KERNEL-012 records at kernel 1ee71110 (phase02 successor handoff v8, 2026-10-26) show handshake-native's Vulkan backend reached through eframe/egui-wgpu (strict Dx12/Vulkan backend selection over wgpu-hal; ash present only as wgpu's transitive dependency) and the Kumihimo native mount keeping its eframe/egui-wgpu patches, so the reading that WP-KERNEL-012 is going pure Vulkan is UNVERIFIED against its own records; no WP-KERNEL-012 file was touched; the WP-KERNEL-012 owner confirms or the direction is raised there.",
+   "decided_at": "2026-10-31T23:54:56Z"
   },
   {
    "id": "D8",
@@ -443,7 +468,35 @@
     "MT-36231",
     "MT-36249",
     "MT-36250"
-   ]
+   ],
+   "decision": "DECIDED 2026-10-31T23:54:56Z (Operator, chat: 'kumihimo as owner, ok'): Kumihimo stays the canonical shared-controls owner and gets a non-egui renderer crate beside kumihimo-egui, on pure Vulkan (D7). Basis verified at origin/codex/handpick e75e34ff: kumihimo-core depends only on optional serde and kumihimo-content only on kumihimo-core (toolkit-free control model); egui and wgpu live only in kumihimo-egui and kumihimo-render-bridge. The renderer is Kumihimo asset work (GLOBAL-ASSETS-002: extend the owning asset, no fork); Studio adopts it through RF-05.",
+   "decided_at": "2026-10-31T23:54:56Z"
+  },
+  {
+   "id": "STU-SHL-130",
+   "question": "Layer-versus-node compositing fork (spec SD-1, 'NOT DECIDED. Settle before SHL-P-14'; owner: operator)",
+   "lead_reading": "layer-based (HANDOFF 2026-10-24: the spec's evidence supports it; Folio composition records are already per layer)",
+   "decision": "DECIDED 2026-10-31T23:54:56Z (Operator, chat: 'layer based'): Studio compositing is layer-based; SHL-P-14 is unblocked for engine work; the keyframe-timeline panel (SHL-P-15, SMB-AE-KEYFRAME-TIMELINE-1) is GUI and still waits for the pure-Vulkan shell UI layer (D7) and the Kumihimo renderer (D8); spec delta SD-25",
+   "decided_at": "2026-10-31T23:54:56Z"
+  },
+  {
+   "id": "MT-STATUS-SYNC",
+   "question": "Only 10 of 6208 WP-KERNEL-STUDIO MT contract files say passed because lanes record closures in their own files",
+   "decision": "DECIDED 2026-10-31T23:54:56Z (Operator, chat: 'approved: a one-time mechanical sync, written back from the validated lane verdicts. After that, the round validator writes it at each round')",
+   "decided_at": "2026-10-31T23:54:56Z"
+  }
+ ],
+ "decision_log": [
+  {
+   "at": "2026-10-31T23:54:56Z",
+   "decided": [
+    "D7",
+    "D8",
+    "D5",
+    "STU-SHL-130",
+    "MT-STATUS-SYNC"
+   ],
+   "process_stop": "PROCESS_STOP_APPROVED:36464,82972,104388,103904,104244 (Operator chat) executed by the lead; five orphaned tail.exe log watchers stopped, verified gone"
   }
  ]
 }

@@ -1,15 +1,18 @@
 {
  "schema": "hsk.studio_spec_enrichment_delta@1",
  "delta_id": "STUDIO-ENRICHMENT-20261030-HOST-INTEGRATION",
- "status": "PROPOSED_TO_SPEC_OWNER; no Master Spec edit made",
+ "status": "APPROVED_FOR_BATCH_APPLY 2026-10-31T23:54:56Z (Operator): SD-01..24 plus SD-25 (Operator decision) in one batch, D7/D8 decided; SD-26..30 proposed only. No Master Spec edit made yet.",
  "purpose": "Spec-delta requests raised by the Studio lead's integration-direction review on 2026-10-30 (Operator briefing: native Vulkan workbench, one Handshake GPU owner, diagnostics wired from the beginning). Each item names the clause gap, the Studio surface that needs it, and the lead's reading used meanwhile (UNVERIFIED until the spec owner decides).",
  "base_spec": ".GOV/spec/master-spec-v02.225",
- "approval_ref": null,
+ "approval_ref": "Operator chat 2026-10-31T23:54:56Z: 'approved: applying them in one batch after D7/D8'",
  "code_basis": "research/integration-refactor-inventory-20261030.json (Handshake @292d7a1c, Studio @3cf0f149)",
  "decisions_covered": [
   "D1 toolkit under the Vulkan host",
   "D3 GPU client contract before the owner exists",
-  "D1 decided 2026-10-30: drop egui"
+  "D1 decided 2026-10-30: drop egui",
+  "D7 decided 2026-10-31T23:54:56Z: pure Vulkan, no wgpu",
+  "D8 decided 2026-10-31T23:54:56Z: Kumihimo stays shared-controls owner",
+  "STU-SHL-130 decided 2026-10-31T23:54:56Z: layer-based"
  ],
  "apply_rules": "none applied; proposals only",
  "open_items_for_spec_owner": [
@@ -17,19 +20,19 @@
    "id": "SD-01",
    "gap": "Kumihimo has no clause in any v02.225 module; the briefing calls it the canonical shared-controls owner",
    "needs": "a clause naming the Kumihimo asset, its pinned revision rule and its relation to STU-ARC-014 (one control mechanic) and GUI-DESKTOP-003/004",
-   "lead_reading": "Kumihimo is kumihimo-egui; with D1 (drop egui) its role as canonical shared-controls owner conflicts (Operator item D8); the clause must name the owner and its renderer"
+   "lead_reading": "2026-10-31T23:54:56Z: D8 decided: Kumihimo is the canonical shared-controls owner; its control model (kumihimo-core, kumihimo-content) is toolkit-free and it gains a non-egui pure-Vulkan renderer beside kumihimo-egui; the clause names Kumihimo as owner and binds no toolkit (the earlier D1 conflict is resolved by D8)"
   },
   {
    "id": "SD-02",
    "gap": "No typed Studio GPU client contract under the central owner (handle type, admission request, budget/retained-memory accounting fields, compute-only use without a surface); STU-FX-036 still makes RenderEngine own wgpu",
    "needs": "amend STU-FX-036 to point at GUI-DESKTOP-028 and define the client port",
-   "lead_reading": "render-gpu exposes a typed GPU client port with a transient in-process adapter for asset-local proof; no device ownership"
+   "lead_reading": "render-gpu exposes a typed GPU client port with a transient in-process adapter for asset-local proof; no device ownership; 2026-10-31T23:54:56Z D7: the client is a pure-Vulkan client (no wgpu); the Vulkan binding crate is named by the GPU owner"
   },
   {
    "id": "SD-03",
    "gap": "5.8 (05:1945-1957) says 'native egui app'; STU-MDL-002/104, STU-SHL-065/245 name egui and egui_tiles",
    "needs": "remove the toolkit name: 5.8 (05:1945-1957) native egui app, STU-MDL-002/104, STU-SHL-065 egui_tiles and STU-SHL-245 must describe the kernel-owned native Vulkan shell and its control layer without naming egui (Operator decision D1 2026-10-30: drop egui)",
-   "lead_reading": "D1 decided: drop egui; Studio product crates carry no egui; the host control layer technology is open (D7)"
+   "lead_reading": "2026-10-31T23:54:56Z: D1 and D7 decided: Studio product crates carry no egui and no wgpu; the host UI and control layer renders on the Vulkan API directly; the spec names neither toolkit (remove 'native egui app', egui and egui_tiles from 5.8, STU-MDL-002/104, STU-SHL-065/245)"
   },
   {
    "id": "SD-04",
@@ -171,8 +174,50 @@
    "needs": "the canonical unit of the threshold (dpi or ratio of the sampling dpi)",
    "lead_reading": "2026-10-31T22:54:36Z: both readings stay disclosed; a layout <-> press mapping converts threshold_dpi = ratio x sampling dpi through layout threshold_ratio()",
    "source": "validation/round-R50.json F-R50-4"
+  },
+  {
+   "id": "SD-25",
+   "gap": "STU-SHL-130 (SD-1 in the module) records the layer-versus-node compositing fork as NOT DECIDED and blocks SHL-P-14",
+   "needs": "record the decision",
+   "lead_reading": "2026-10-31T23:54:56Z: Operator decided layer-based (chat 'layer based'); the clause records the layer model as decided and unblocks SHL-P-14",
+   "source": "Operator decision 2026-10-31T23:54:56Z (research/integration-refactor-inventory-20261030.json STU-SHL-130)"
+  },
+  {
+   "id": "SD-26",
+   "gap": "STU-FX-131a ANGLE rows recorded with hard and soft 0..0 (e.g. Wave World Angle, Phase): read literally they lock the value to 0",
+   "needs": "whether 0..0 on ANGLE rows means unbounded (wrapping) or a literal fixed 0",
+   "lead_reading": "2026-10-31T23:54:56Z: stored unbounded, as folio already reads Twirl Angle (SMB-R50-FOLLOWUPS-1); the MT-32012/32013 text says literal bounds",
+   "source": "lane SMB-R50-FOLLOWUPS-1 pause notes"
+  },
+  {
+   "id": "SD-27",
+   "gap": "STU-FX-131a Foam / Wave World rows that declare no unit (Foam viscosity, Wave World damping, wave speed) cannot be matched to the engine's unit-carrying scalars",
+   "needs": "the units of those rows",
+   "lead_reading": "2026-10-31T23:54:56Z: the engine scalars stay authored studio_declared rows beside the stored recovered rows until a unit is recorded",
+   "source": "lane SMB-R50-FOLLOWUPS-1 pause notes"
+  },
+  {
+   "id": "SD-28",
+   "gap": "STU-TYP-207 says three insertable character catalogs but its table lists four",
+   "needs": "the catalog count",
+   "lead_reading": "2026-10-31T23:54:56Z: SMB-TYPE-OT-FEATURES-1 implements the four the table lists",
+   "source": "lane SMB-TYPE-OT-FEATURES-1 pause notes"
+  },
+  {
+   "id": "SD-29",
+   "gap": "no stream sentinels are assigned for markers, column/frame/page/odd-page/even-page breaks and flush space",
+   "needs": "the sentinel assignment",
+   "lead_reading": "2026-10-31T23:54:56Z: those catalog entries stay typed unavailable",
+   "source": "lane SMB-TYPE-OT-FEATURES-1 pause notes"
+  },
+  {
+   "id": "SD-30",
+   "gap": "STU-TYP-170 asks for a 229-tag OpenType feature list that the spec does not contain",
+   "needs": "the list",
+   "lead_reading": "2026-10-31T23:54:56Z: the registry carries the tags the spec names; the 229-tag check is NOT_PROVEN (#[ignore])",
+   "source": "lane SMB-TYPE-OT-FEATURES-1 pause notes"
   }
  ],
  "edits": [],
- "updated_at": "2026-10-31T22:54:36Z"
+ "updated_at": "2026-10-31T23:54:56Z"
 }

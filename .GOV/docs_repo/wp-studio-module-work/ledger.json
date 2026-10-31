@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-31T23:38:29Z",
+ "updated_at": "2026-10-31T23:54:56Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -13425,7 +13425,7 @@
    "crate": "hsk-studio-harness-view (new view/keyframe_timeline*) + additive shell hunks",
    "phase": "brief",
    "status": "BLOCKED",
-   "blocked_on": "Operator decision on STU-SHL-130 (layer-versus-node compositing fork; 'SHL-P-14 is BLOCKED until an operator decision is recorded. Owner: operator'); SHL-P-15 keyframe-timeline panel depends on SHL-P-14. Also needs lead edge decision harness-view -> motion at dispatch.",
+   "blocked_on": "STU-SHL-130 DECIDED 2026-10-31T23:54:56Z (layer-based). Still blocked: GUI lane, waits for the pure-Vulkan shell UI layer (D7) and the Kumihimo non-egui renderer (D8); needs a re-brief (its brief targets the egui harness-view). Lead edge decision harness-view -> motion at dispatch.",
    "owner": "not dispatched",
    "lane_file": null,
    "brief": "builders/briefs/lane-smb-ae-keyframe-timeline-1.md",
@@ -13443,7 +13443,8 @@
     "binding": "binds on resume: the HOST INTEGRATION rules of the common brief apply to every further commit of this lane",
     "recorded_at": "2026-10-30T23:34:39Z",
     "lane_file_block": false
-   }
+   },
+   "updated_at": "2026-10-31T23:54:56Z"
   },
   {
    "lane_id": "SMB-PS-SOFT-PROOF-2",
@@ -17340,7 +17341,12 @@
   "spec_version": "v02.225",
   "dispatch": "ENGINE LANES OPEN (D6): phase-0 engine lanes and engine remediation dispatch under the HOST INTEGRATION rules with a host_integration block in brief and lane file; GUI lanes (harness-view surfaces, controls renderer) PAUSED until D7/D8 and a Handshake non-egui Vulkan UI layer; SMB-FIG-GRID-3 stays PAUSED; SMB-ID-FRAME-AUTOSIZE-2 resumes; R45 freezes after it pushes",
   "d1": "DECIDED 2026-10-30T23:53:27Z: drop egui (Operator chat). Existing egui code is asset-local test-host only; no new egui code; GUI lanes wait for the shell UI layer (D7) and the Kumihimo decision (D8); engine-only lanes may resume once D6 is decided",
-  "d6": "DECIDED 2026-10-30T23:55:17Z: engine-only lanes resume under HOST INTEGRATION; GUI lanes paused on D7/D8"
+  "d6": "DECIDED 2026-10-30T23:55:17Z: engine-only lanes resume under HOST INTEGRATION; GUI lanes paused on D7/D8",
+  "d7": "DECIDED 2026-10-31T23:54:56Z: pure Vulkan, no wgpu (Operator chat). No new wgpu code; render-gpu wgpu code quarantined, refactor RF-12; binding crate open for the GPU owner; conflict with WP-KERNEL-012's eframe/egui-wgpu Vulkan path flagged, not resolved",
+  "d8": "DECIDED 2026-10-31T23:54:56Z: Kumihimo stays shared-controls owner; non-egui pure-Vulkan renderer beside kumihimo-egui (Kumihimo asset work)",
+  "stu_shl_130": "DECIDED 2026-10-31T23:54:56Z: layer-based compositing; SHL-P-14 unblocked for engine work; keyframe-timeline panel still waits on the D7/D8 GUI layer",
+  "d5": "DECIDED 2026-10-31T23:54:56Z: apply SD-01..24 (+SD-25) to the Master Spec in one batch",
+  "mt_status_sync": "DECIDED 2026-10-31T23:54:56Z: one-time mechanical MT status sync from validated lane verdicts; afterwards the round validator writes it each round"
  },
  "round_R45": {
   "candidate": "b425b54a",
