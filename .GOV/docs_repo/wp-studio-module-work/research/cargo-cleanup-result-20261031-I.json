@@ -1,0 +1,116 @@
+{
+ "schema": "hsk.studio.cleanup_result@2",
+ "file_id": "CARGO-CLEANUP-RESULT-20261031-I",
+ "generated_at": "2026-10-31T04:28:44Z",
+ "plan": "research/cargo-plan-20261024.json; precedent research/cargo-cleanup-result-20261030-H.json",
+ "approval": "lead 2026-10-31 under the Operator standing grant (START_LOG 2026-10-24 ~600-601: clean Studio's own stale, unused cargo output, check-first, lead-reviewed, guarded script; failed delete -> Recycle Bin + Operator told the size): exactly one C: lane target, smb-gpu-client-port-1",
+ "why": "R46 full union C: headroom: validator reported the C: Studio tree at 320.5 GiB growing ~2-2.5 GiB/min; the union guard stops above 355 GiB. Lead exception to P2: the lane is READY_FOR_VALIDATION (in R46), not PASS; its builder is finished, nothing uses the target, it is rebuildable if remediation needs it",
+ "keep": "everything else: studio-round (held by R46), C:/HandshakeBuild/.disk-build-lock (held class=round by run-round R46, win_pid 32336), all other lane targets and paths on C: and D: (-KeepLanes smb-fig-grid-2|smb-fig-grid-3|smb-id-frame-autosize-2|smb-r43-followups-1 as forbidden names); nothing on D:",
+ "checks_before_run": {
+  "ledger": "ledger.json lanes[]: SMB-GPU-CLIENT-PORT-1 status READY_FOR_VALIDATION, phase 'validation (R46)' (not PASS; lead-approved exception)",
+  "lock": "C: lock held class=round (run-round --all sha 66c621292ce6, R46, acquired 04:21:05Z); run with -AllowDuringRound per lead (round references studio-round, not this lane path)",
+  "processes": "script process scan (command line + image path, path + ref_patterns incl. WP-KERNEL-STUDIO/smb-gpu-client-port-1/) 0 references, checked twice in dry run and twice in execute",
+  "newest_write": "robocopy /L /TS full listing: older than 60 min (no SKIPPED_RECENT_WRITE)"
+ },
+ "method": "unchanged copy (sha256 026a57ff59c603ba7edfc7c4e88e71cc08838b1d91d376570059daf92a1f1dd5, identical to batches F, G, H) of phase2-guarded-delete.ps1 in the cargo-manager-20261031-I scratch; one-candidate file batchI-C.json (C-I01). Parameters: -Disk C -Approve C-I01 -ReleaseKeepSlot -AllowLanes -AllowDuringRound -KeepLanes 'smb-fig-grid-2|smb-fig-grid-3|smb-id-frame-autosize-2|smb-r43-followups-1' -NormalIo -MaxFilesPerSec 600 -MaxBytesPerSec 500 MiB (highest batch G/H rate); dry run, then -Execute immediately after WOULD_DELETE. No script diff.",
+ "dry_run": {
+  "result_file": "phase2-C-dryrun-20261031T042450Z-result.json",
+  "at": "2026-10-31T04:25:37Z",
+  "counts": {
+   "status": "WOULD_DELETE",
+   "n": 1,
+   "gib_deleted": 57.547
+  }
+ },
+ "runs": [
+  {
+   "disk": "C",
+   "batch": "I",
+   "script": "phase2-guarded-delete.ps1 (unchanged copy, cargo-manager-20261031-I scratch)",
+   "result_file": "phase2-C-execute-20261031T042537Z-result.json",
+   "log": "phase2-C-execute-20261031T042537Z.log + phase2-C-execute.stdout.log",
+   "at": "2026-10-31T04:28:44Z",
+   "free_before": [
+    {
+     "drive": "C",
+     "free_gib": 326.1
+    },
+    {
+     "drive": "D",
+     "free_gib": 1340.01
+    }
+   ],
+   "free_after": [
+    {
+     "drive": "C",
+     "free_gib": 380.07
+    },
+    {
+     "drive": "D",
+     "free_gib": 1340.02
+    }
+   ],
+   "rate_limit": {
+    "mib_per_s": 500,
+    "files_per_s": 600
+   },
+   "counts": {
+    "status": "DELETED",
+    "n": 1,
+    "gib_deleted": 57.547
+   },
+   "recycle_bin_gib_for_operator": 0,
+   "note": "R46 kept writing studio-round during the 184 s delete, so the C: free gain (~54 GiB) is below gib_deleted"
+  }
+ ],
+ "summary": {
+  "deleted": {
+   "count": 1,
+   "gib": 57.547,
+   "files": 10211,
+   "seconds": 184.1
+  },
+  "recycled_remainder_gib": 0,
+  "skipped": []
+ },
+ "free_space": {
+  "before": [
+   {
+    "drive": "C",
+    "free_gib": 326.1
+   },
+   {
+    "drive": "D",
+    "free_gib": 1340.01
+   }
+  ],
+  "after": [
+   {
+    "drive": "C",
+    "free_gib": 380.07
+   },
+   {
+    "drive": "D",
+    "free_gib": 1340.02
+   }
+  ]
+ },
+ "recycle_bin_gib_for_operator": 0,
+ "items": [
+  {
+   "id": "C-I01",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-gpu-client-port-1",
+   "owner": "smb-gpu-client-port-1",
+   "ledger_status": "READY_FOR_VALIDATION (ledger phase 'validation (R46)'); builder finished per lead; rebuildable",
+   "size_gib_before": 57.547,
+   "files": 10211,
+   "newest_write_utc": "2026-10-31T03:11:54Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 184.1,
+   "gib_deleted": 57.547,
+   "gib_binned": 0,
+   "result": "deleted"
+  }
+ ]
+}
