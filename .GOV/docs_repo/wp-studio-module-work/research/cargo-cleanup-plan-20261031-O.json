@@ -1,0 +1,113 @@
+{
+  "schema": "hsk.studio.cleanup_plan@1",
+  "file_id": "CARGO-CLEANUP-PLAN-20261031-O",
+  "generated_at": "2026-10-31T22:59:00Z",
+  "status": "EXECUTED: C-O01..03, D-O02, D-O03 DELETED; C-O04 and D-O01 SKIPPED_IN_USE (result research/cargo-cleanup-result-20261031-O.json)",
+  "authority": "Operator standing grant START_LOG 2026-10-24 (~600-601); rule P2 of research/cargo-plan-20261024.json; method precedent batch N",
+  "state_basis": {
+    "round": "STUDIO-R50 @63ecf5a6 (ledger.json lane_id uppercase)",
+    "locks": "C: and D: free (no held, queue empty) at 22:59Z",
+    "other_disk_search": "no CACHEDIR.TAG or debug/.fingerprint for the four C: lanes on D:, nor for the three D: lanes on C:"
+  },
+  "measure_at_dry_run": {
+    "at": "2026-10-31T22:57Z",
+    "C_free_gib": 418.89,
+    "D_free_gib": 1436.01,
+    "C_studio_round_gib": 220.57,
+    "C_studio_team_dev_gib": 10.48
+  },
+  "candidates": [
+    {
+      "id": "C-O01",
+      "disk": "C",
+      "lane": "smb-pdf-stock-presets-1",
+      "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pdf-stock-presets-1",
+      "gib": 1.624,
+      "files": 14182,
+      "newest_write_utc": "2026-10-31T17:04:25Z",
+      "ledger_status": "PASS in STUDIO-R50 @63ecf5a6 (PASS_V2 for smb-ae-particles-2 and smb-r47-followups-1; PASS_V1 for the rest)",
+      "dry_run_status": "WOULD_DELETE",
+      "execute_status": "DELETED"
+    },
+    {
+      "id": "C-O02",
+      "disk": "C",
+      "lane": "smb-ae-water-sims-1",
+      "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-ae-water-sims-1",
+      "gib": 3.951,
+      "files": 17804,
+      "newest_write_utc": "2026-10-31T17:32:32Z",
+      "ledger_status": "PASS in STUDIO-R50 @63ecf5a6 (PASS_V2 for smb-ae-particles-2 and smb-r47-followups-1; PASS_V1 for the rest)",
+      "dry_run_status": "WOULD_DELETE",
+      "execute_status": "DELETED"
+    },
+    {
+      "id": "C-O03",
+      "disk": "C",
+      "lane": "smb-id-pdf-export-prefs-1",
+      "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-id-pdf-export-prefs-1",
+      "gib": 1.423,
+      "files": 13797,
+      "newest_write_utc": "2026-10-31T16:57:24Z",
+      "ledger_status": "PASS in STUDIO-R50 @63ecf5a6 (PASS_V2 for smb-ae-particles-2 and smb-r47-followups-1; PASS_V1 for the rest)",
+      "dry_run_status": "WOULD_DELETE",
+      "execute_status": "DELETED"
+    },
+    {
+      "id": "C-O04",
+      "disk": "C",
+      "lane": "smb-ae-particles-2",
+      "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-ae-particles-2",
+      "gib": 3.479,
+      "files": 4935,
+      "newest_write_utc": "2026-10-31T13:35:59Z",
+      "ledger_status": "PASS in STUDIO-R50 @63ecf5a6 (PASS_V2 for smb-ae-particles-2 and smb-r47-followups-1; PASS_V1 for the rest)",
+      "dry_run_status": "SKIPPED_IN_USE",
+      "execute_status": "SKIPPED_IN_USE",
+      "detail": "tail.exe pids 36464, 82972 follow the smb-ae-particles-2 D: log; matched by lane ref_pattern; not touched (deferred again)"
+    },
+    {
+      "id": "D-O01",
+      "disk": "D",
+      "lane": "smb-r47-followups-1",
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r47-followups-1/target",
+      "gib": 84.077,
+      "files": 16885,
+      "newest_write_utc": "2026-10-31T16:42:56Z",
+      "ledger_status": "PASS in STUDIO-R50 @63ecf5a6 (PASS_V2 for smb-ae-particles-2 and smb-r47-followups-1; PASS_V1 for the rest)",
+      "dry_run_status": "SKIPPED_IN_USE",
+      "execute_status": "SKIPPED_IN_USE",
+      "detail": "tail.exe pids 104388, 103904, 104244 follow smb-r47-followups-1 logs; matched by lane ref_pattern; not touched"
+    },
+    {
+      "id": "D-O02",
+      "disk": "D",
+      "lane": "smb-folio-channel-record",
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-folio-channel-record/target",
+      "gib": 7.51,
+      "files": 28519,
+      "newest_write_utc": "2026-10-31T17:54:08Z",
+      "ledger_status": "PASS in STUDIO-R50 @63ecf5a6 (PASS_V2 for smb-ae-particles-2 and smb-r47-followups-1; PASS_V1 for the rest)",
+      "dry_run_status": "WOULD_DELETE",
+      "execute_status": "DELETED"
+    },
+    {
+      "id": "D-O03",
+      "disk": "D",
+      "lane": "smb-r49-followups-1",
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r49-followups-1/target",
+      "gib": 28.25,
+      "files": 35335,
+      "newest_write_utc": "2026-10-31T18:19:47Z",
+      "ledger_status": "PASS in STUDIO-R50 @63ecf5a6 (PASS_V2 for smb-ae-particles-2 and smb-r47-followups-1; PASS_V1 for the rest)",
+      "dry_run_status": "WOULD_DELETE",
+      "execute_status": "DELETED"
+    }
+  ],
+  "not_candidates": "logs, results, receipts, red logs, exports, per-sha dirs, tmp, nextest, studio-round, steward dirs, locks, registry",
+  "script": "phase2-guarded-delete.ps1 sha256 dd8d5380cf36db964f15625af39f86522b63286b3f0f39b4b16816ea306e1699 (unchanged from batch M/N)",
+  "execute_commands": {
+    "C": "-Plan batchO.json -Disk C -Approve C-O01,C-O02,C-O03,C-O04 -ReleaseKeepSlot -AllowLanes -KeepLanes smb-fig-grid-3 -NormalIo -KeepOrder -MaxFilesPerSec 600 -MaxBytesPerSec 524288000 -Execute",
+    "D": "-Plan batchO.json -Disk D -ApproveAllCandidates -NormalIo -KeepOrder -MaxFilesPerSec 600 -MaxBytesPerSec 524288000 -Execute"
+  }
+}
