@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-31T10:04:58Z",
+ "updated_at": "2026-10-31T10:06:44Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -13969,15 +13969,23 @@
   {
    "lane_id": "SMB-BUSINESS-EVENTS-1",
    "crate": "hsk-studio-accord (additive: event catalog, record, sink trait) + kernel-bindings + harness-core",
-   "phase": "slice 3 unblocked by lead decision (2026-10-31T09:47:57Z); D: run next",
-   "status": null,
+   "phase": "validation (R48)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-business-events-1.json",
    "brief": "builders/briefs/lane-smb-business-events-1.md",
    "worktree": "wt-studio-lanes/smb-business-events-1",
    "disk": "D:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "bbdfa94d",
+   "commits": [
+    "f0f4f06b",
+    "f6c4eef8",
+    "0aa6fd9e",
+    "9d9fe6fb",
+    "c7b0a4c8",
+    "9fbf2d4f",
+    "bbdfa94d"
+   ],
    "verdicts": [],
    "host_integration": {
     "gui_host": "none",
@@ -13989,7 +13997,7 @@
     "recorded_at": "2026-10-31T08:09:22Z",
     "lane_file_block": false
    },
-   "note": "RF-07: the 22 FR-EVT-STUDIO-* ids (STU-CON-014) emitted by kernel-bindings with actor, client_session_id, correlation, causation; resource = the document (accord business-event schema has no id prefix); 9 events have no asset-local producer (promotion/proposal/rejection, selection, export, design-system, prototype): typed not-yet-produced list; timeline commits have no catalogue family: spec delta. Base 2b42a0fe.; 2026-10-31T09:47:57Z BLOCKED on slice 3 (harness-core has no kernel-bindings edge, by the lead decision for ATTRIBUTION-1); lead decision option C: the 22-id catalog, a BusinessEventRecord and a non-blocking BusinessEventSink trait move to accord (additive), kernel-bindings keeps the canonical envelope/encoder and implements the sink, Run emits through an optional accord sink; no edge, no steward sync, canary reuse holds; host wiring stays MT-36230"
+   "note": "RF-07: the 22 FR-EVT-STUDIO-* ids (STU-CON-014) emitted by kernel-bindings with actor, client_session_id, correlation, causation; resource = the document (accord business-event schema has no id prefix); 9 events have no asset-local producer (promotion/proposal/rejection, selection, export, design-system, prototype): typed not-yet-produced list; timeline commits have no catalogue family: spec delta. Base 2b42a0fe.; 2026-10-31T09:47:57Z BLOCKED on slice 3 (harness-core has no kernel-bindings edge, by the lead decision for ATTRIBUTION-1); lead decision option C: the 22-id catalog, a BusinessEventRecord and a non-blocking BusinessEventSink trait move to accord (additive), kernel-bindings keeps the canonical envelope/encoder and implements the sink, Run emits through an optional accord sink; no edge, no steward sync, canary reuse holds; host wiring stays MT-36230; 2026-10-31T10:06:44Z pushed 3cfbe87e..bbdfa94d (ls-remote verified; no root input or Cargo.toml change); D: bundled run 80 passed / 0 failed (accord 20, kernel-bindings 26 both features, harness-core 34) + clippy over 46 dependents (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-business-events-1/bundled1-smb-business-events-1-bbdfa94d.log); Run emits after accepted commits with a new revision, outcomes in the op record and Run::business_events(), failed delivery never undoes a commit, indeterminate sets reconciliation; event ids document@revision#sequence; 13 events without an asset-local producer (mask, adjustment, effect, style added to the nine); import route only NOT_PROVEN in rounds (lane-only probe with import-raster passed); open: export events (after JOB-ADMISSION), host wiring MT-36230, spec delta for timeline/audio commit families"
   },
   {
    "lane_id": "SMB-JOB-ADMISSION-1",
