@@ -11980,10 +11980,13 @@
    "note": "folio particle layer record + per-frame comp hook; more STU-CMP-075 simulation types; GPU parity; comp audio from folio records; bezier level keys; preset apply into effect stack; 2026-10-31T11:37:50Z briefed (engine parts): closes MT-34184, MT-34185, MT-34189, MT-34177 (headless AC halves; tooltip halves wait for D7); folio particle record, per-frame comp hook, GPU parity, comp audio, bezier level keys, preset apply and the other STU-CMP-075 rows stay carried forward here",
    "host_integration": {
     "gui_host": "none",
-    "refactor_exposure": "none",
+    "refactor_exposure": "low",
     "binding": "HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T11:37:50Z",
-    "lane_file_block": true
+    "lane_file_block": true,
+    "gpu": "via_render_provider_port",
+    "reconciled_at": "2026-10-31T13:08:07Z",
+    "reconciled_from": "lane file host_integration block (F-R48-7)"
    },
    "lane_file": "builders/lanes/hsk-studio-ae-particles-2.json",
    "brief": "builders/briefs/lane-smb-ae-particles-2.md",
@@ -14172,7 +14175,9 @@
     "palmistry": "ring_visible",
     "jobs": "bounded_admission_via_job_port",
     "recorded_at": "2026-10-31T00:11:28Z",
-    "lane_file_block": false
+    "lane_file_block": true,
+    "reconciled_at": "2026-10-31T13:08:07Z",
+    "reconciled_from": "lane file host_integration block (F-R48-7)"
    },
    "note": "R44 MEDIUM F-R44-1..6 + LOW 7/9/10/12/13/15 (F-R44-8 egui-file cleanup excluded under D1; F-R44-16 already closed by FIG-GRID-2). Lead decisions: the fill_tools.rs sRGB function edit is allowed (no toolkit code); F-R44-3 fixed in the egui-free timeline_export.rs; F-R44-6 reading: plain reflow keeps the authored size (AUTOSIZE pin frame_autosize.rs:243 changes, listed for the validator). Base b425b54a.; 2026-10-31T01:32:28Z pushed b425b54a..78f027c9 (ls-remote verified, no root input changed); D: runs at ba719652: A all suites 1343/1346 (3 harness feature-check tests failed: viewer_panels audio_batch_panel_runs_the_queue_or_names_its_feature, audio_surfaces_are_reachable_or_name_their_feature, viewer_shell function_keys_and_workspace_entries_open_every_surface; they compare harness and harness-view features and the run mixed feature lists), B harness media unit 328/328 and C desktop+audio-batch 375/375 pass them; D after the clippy fix 78f027c9 7/7 (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r44-followups-1/lane-check-*). Closes F-R44-1..7/9/10/12/13/15; F-R44-8 left to the GUI lanes (D1), F-R44-16 already closed by FIG-GRID-2. New prism DisplayEncoding::decode (PQ refused decode_unsupported); export-sequence --audio FILE; timeline_export_job bound AS: Sync. Changed tests of other lanes: layout frame_autosize.rs height_only + threaded_reflow.rs Ascent (AUTOSIZE-1/2), interop-vector-svg svg_markers.rs round-trip (ARROWHEADS-2), viewer_timeline_nest_2.rs (NEST-2, stricter), cli_export_sequence.rs (SEQ-EXPORT-UI-1, new tests)"
   },
@@ -14208,7 +14213,9 @@
     "palmistry": "none",
     "jobs": "none",
     "recorded_at": "2026-10-31T00:11:28Z",
-    "lane_file_block": false
+    "lane_file_block": true,
+    "reconciled_at": "2026-10-31T13:08:07Z",
+    "reconciled_from": "lane file host_integration block (F-R48-7)"
    },
    "note": "RF-04 phase 0: ring-shaped producer port: 56-byte core matching Handshake DiagEvent + identity tail (~104 bytes: module, correlation, session/process as opaque ids; DiagEvent cannot carry them today, SD-04); every Outcome/DeliveryError maps to a closed code; proposed Studio code block 0x5300..0x53FF projects to Other until Handshake allocates it; non-blocking non-allocating try_record; no text crosses the port. Base b425b54a.; 2026-10-31T01:33:24Z pushed 78f027c9..5275f91e (ls-remote verified); claim cites the ea811c0d bundled log 62/62 + doctests 3/3 (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-observe-ring-port-1/lane-check-smb-observe-ring-port-1-ea811c0d.log); rebase brought no observe/accord/root change, observe files identical to ea811c0d, no re-run (closure rule); gap for the round: harness and harness-core suites at 5275f91e unrun after R44-FOLLOWUPS changed them; lead-accepted departures: delivery_failure takes CorrelationRef, receipt revision in counter_b, general RingRecord::new, &mut self receiver"
   },
@@ -14239,9 +14246,11 @@
     "refactor_exposure": "high",
     "binding": "binds at dispatch: HOST INTEGRATION rules + block in brief and lane file",
     "palmistry": "ring_visible",
-    "jobs": "bounded_admission_via_job_port",
+    "jobs": "none",
     "recorded_at": "2026-10-31T00:11:28Z",
-    "lane_file_block": false
+    "lane_file_block": true,
+    "reconciled_at": "2026-10-31T13:08:07Z",
+    "reconciled_from": "lane file host_integration block (F-R48-7)"
    },
    "note": "RF-03 phase 0, asset side of MT-36248: typed GPU client port (grant, admission with attribution, budgets, retained-memory accounting, settle-once, device-loss rebind, typed Unavailable/Lost), transient in-process adapter marked asset-local; BackendChoice becomes a test-only feature asset-local-backends (harness tests use it); the device crosses once through the existing shared-device feature (asset-local eframe path); Vulkan first on Windows. RISK recorded: rounds unset HSK_*, so Windows GPU proofs move from DX12 to Vulkan after this push; the validator host Vulkan driver and the DX12-measured tolerances are unchecked: the lane run must report the Vulkan readback result and R46 is warned. Base b425b54a.; 2026-10-31T03:05:58Z run 1 on C: at 921e8483 (Vulkan, RTX 3090): FXC tests in gpu_pipeline_fault.rs failed only because the WGSL that DX12 FXC rejects compiles on Vulkan (fixed with per-backend expectations + NOT_PROVEN, 9285bce3); ext_adjustment_layer_parity threshold 128 flips the exact-tie pixel (7/16,10/16,0) on Vulkan (binary32 vs CPU binary64 at lum == cut): lead disposition: boundary pixels within 2^-20 of the cut may be 0 or 1 and print NOT_PROVEN, all other pixels exact; spec delta SD-12; other Vulkan numbers inside DX12 tolerances (worst non-separable blend 1.61e-6 of 2e-6); 2026-10-31T03:13:45Z run 2 green on C: (Vulkan RTX 3090): render-gpu 105/90/101/93/105 + 105 with HSK_STUDIO_TEST_GPU_BACKEND=vulkan, doctests all units, harness-view 96/141, harness 188/190 (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gpu-client-port-1/bundle-smb-gpu-client-port-1-66c62129.log); pushed 5275f91e..66c62129 (ls-remote verified, no root input changed); threshold tie prints NOT_PROVEN with 7 boundary pixels on Vulkan; FXC lines NOT_PROVEN on Vulkan; worst Vulkan readback 1.61e-6 of 2e-6; settlement peak 612 B retained 0; C: lane target 57.1 GiB kept until R46; 2026-10-31T04:29:28Z C: lane target retired during R46 (cargo batch I, 57.547 GiB, 0 recycled; lead exception to P2: READY not PASS, retired for the full-union C: headroom; rebuild if R46 sends it back); 2026-10-31T05:54:02Z R46 F-R46-1 (MEDIUM): the lead threshold-tie disposition rested on a false premise (both sides are binary32); the 2^-20 boundary exemption is withdrawn by SMB-R46-FOLLOWUPS-1 (exact parity restored); F-R46-8 (MEDIUM): the harness dev-dependency line gave every harness unit new artifact identities (146.3 GiB in R46); the line is removed in the GUI lane that gives Viewer a port"
   },
@@ -14292,7 +14301,9 @@
     "refactor_exposure": "medium",
     "binding": "binds at dispatch: HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T05:54:02Z",
-    "lane_file_block": false
+    "lane_file_block": true,
+    "reconciled_at": "2026-10-31T13:08:07Z",
+    "reconciled_from": "lane file host_integration block (F-R48-7)"
    },
    "note": "R46 F-R46-1..7 + R45 F-R45-1..3 (merged from SMB-R45-FOLLOWUPS-1). F-R46-8 dev-dependency removal stays with the GUI lane (one change with the Viewer port). Base 66c62129.; 2026-10-31T07:34:05Z pushed 66c62129..2b42a0fe (ls-remote verified, no root input or Cargo.toml changed); D: run 2 1679 passed / 0 failed / 60 skipped (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r46-followups-1/bundle-smb-r46-followups-1-2b42a0fe.log); tie measured: pigment and cut 0x3f000000, Vulkan lum 0x3effffff, DX12 0x3f000000; 49 (Vulkan) / 76 (DX12) of 1110 tie colours differed; cause reproduced by FMA contraction of the luminance sum in a backend-specific order (driver reason UNVERIFIED); fix: runtime zero per product prevents fusion; after the fix 0/1110 on both, exemption removed; FXC rows on an explicit test-only DX12 port (no self dev-dependency: it would have rebuilt every render-gpu test unit, the F-R46-8 trap); grant ledger tombstones; host_core_le_bytes; --audio cap 16 files / 1 GiB / 4.15 GB decoded; GRID >1000 tracks refused before work; frame-size walk memoised under MAX_SUBTREE without egui code; refusal tests pin their cause"
   },
@@ -14320,11 +14331,13 @@
     "gui_host": "none",
     "gpu": "none",
     "refactor_exposure": "medium",
-    "flight_recorder": "business_event_ids",
+    "flight_recorder": "none",
     "jobs": "none",
     "binding": "binds at dispatch: HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T08:09:22Z",
-    "lane_file_block": false
+    "lane_file_block": true,
+    "reconciled_at": "2026-10-31T13:08:07Z",
+    "reconciled_from": "lane file host_integration block (F-R48-7)"
    },
    "note": "RF-06: 11 product default_actor() sites (not 13) + 3 literal actors; Harness::run takes RunContext (46 call sites); default_actor behind a test-host feature; HistoryStep and op record carry actor/command id/revision. Lead decision: the typed command context lives in accord (additive, beside ActorContext) instead of a new harness-core -> kernel-bindings edge (an edge is a steward root-input change that would void canary reuse); kernel-bindings maps Envelope onto it; Envelope.correlation_id stays the reply counter. Base 2b42a0fe.; 2026-10-31T09:42:33Z pushed 2b42a0fe..3cfbe87e (ls-remote verified; no root input, Cargo.lock unchanged); D: run 2 1584 passed / 0 failed / 123 skipped (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-attribution-1/bundle-smb-attribution-1-3cfbe87e.log); run 1 failed only the harness_headless op-record key pin (updated to the new shape); command context in accord (new types only), Envelope.command skipped when absent; Harness::run(RunContext); BatchPorts::new(RunContext) required; default_actor and literal actors gone outside feature-gated asset-local code and the harness CLI; tests build their own context (tests/support, tests/support_context; 22 harness-view test files mechanically edited); paths beyond brief: harness-core import *_as entry points, harness-view develop/vector/path_text/recolor/separations/swatch call sites (no toolkit code). STORAGE RISK (lead): harness now enables feature asset-local-test-host on harness-core and harness-view in its normal dependencies, so every harness unit gets new artifact identities in the next round (the F-R46-8 pattern, ~146 GiB on C:); retire the current harness/harness-view/harness-core identities in studio-round before R48 (cargo batch K)"
   },
@@ -14359,7 +14372,9 @@
     "jobs": "none",
     "binding": "binds at dispatch: HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T08:09:22Z",
-    "lane_file_block": false
+    "lane_file_block": true,
+    "reconciled_at": "2026-10-31T13:08:07Z",
+    "reconciled_from": "lane file host_integration block (F-R48-7)"
    },
    "note": "RF-07: the 22 FR-EVT-STUDIO-* ids (STU-CON-014) emitted by kernel-bindings with actor, client_session_id, correlation, causation; resource = the document (accord business-event schema has no id prefix); 9 events have no asset-local producer (promotion/proposal/rejection, selection, export, design-system, prototype): typed not-yet-produced list; timeline commits have no catalogue family: spec delta. Base 2b42a0fe.; 2026-10-31T09:47:57Z BLOCKED on slice 3 (harness-core has no kernel-bindings edge, by the lead decision for ATTRIBUTION-1); lead decision option C: the 22-id catalog, a BusinessEventRecord and a non-blocking BusinessEventSink trait move to accord (additive), kernel-bindings keeps the canonical envelope/encoder and implements the sink, Run emits through an optional accord sink; no edge, no steward sync, canary reuse holds; host wiring stays MT-36230; 2026-10-31T10:06:44Z pushed 3cfbe87e..bbdfa94d (ls-remote verified; no root input or Cargo.toml change); D: bundled run 80 passed / 0 failed (accord 20, kernel-bindings 26 both features, harness-core 34) + clippy over 46 dependents (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-business-events-1/bundled1-smb-business-events-1-bbdfa94d.log); Run emits after accepted commits with a new revision, outcomes in the op record and Run::business_events(), failed delivery never undoes a commit, indeterminate sets reconciliation; event ids document@revision#sequence; 13 events without an asset-local producer (mask, adjustment, effect, style added to the nine); import route only NOT_PROVEN in rounds (lane-only probe with import-raster passed); open: export events (after JOB-ADMISSION), host wiring MT-36230, spec delta for timeline/audio commit families"
   },
@@ -14386,19 +14401,21 @@
    "host_integration": {
     "gui_host": "none",
     "gpu": "none",
-    "refactor_exposure": "medium",
+    "refactor_exposure": "low",
     "flight_recorder": "none",
     "jobs": "bounded_admission_via_job_port",
     "binding": "binds at dispatch: HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T08:09:22Z",
-    "lane_file_block": false
+    "lane_file_block": true,
+    "reconciled_at": "2026-10-31T13:08:07Z",
+    "reconciled_from": "lane file host_integration block (F-R48-7)"
    },
    "note": "RF-08: one admission path for reel ExportQueue, AE render queue (test-only producer today), Export Media worker, AudioBatchQueue; lifecycle types (overload, cancellation, stale-revision, release, superseded) added beside JobPort without changing the trait; reel unchanged (no session edge); pump() off-callback but has no product caller (live playback unwired: noted). Base 2b42a0fe.; 2026-10-31T10:17:53Z pushed bbdfa94d..4f69b03b (ls-remote verified); D: bundled run 485 passed / 0 failed / 21 skipped (session, harness-view, harness, kernel-bindings, harness-core; Handshake_Artifacts/WP-KERNEL-STUDIO/smb-job-admission-1/bundled-smb-job-admission-1-4f69b03b.log); harness-view [viewer] unit not built alone; 38fc0b5e and 31131f18 carry a test file that calls Viewer::new (builds only with asset-local-test-host): intermediate commits not bisectable for that unit, 4f69b03b fixes it; two clippy explicit_auto_deref warnings kept (audio_batch.rs:395, job_admission.rs:265; builder belief unverified); EXPORT_RENDERED emission left for a later lane"
   },
   {
    "lane_id": "SMB-R47-FOLLOWUPS-1",
-   "crate": "hsk-studio-reel (sample budget, additive) + hsk-studio-harness (cli) + hsk-studio-harness-core (manual entry) + hsk-studio-render-gpu (tests) + hsk-studio-interop-fig-base (alias walk)",
-   "phase": "briefed; dispatch after R48 (R48 findings appended)",
+   "crate": "hsk-studio-reel (audio decode sample budget, additive), hsk-studio-harness (cli export-sequence), hsk-studio-harness-core (manual.rs entry; business-event entry path), hsk-studio-render-gpu (tests: DX12 threshold rows), hsk-studio-interop-fig-base (resolve_variables), hsk-studio-accord (business_event id), hsk-studio-session (additive correlation submit, deadline outcome), hsk-studio-harness-view (job correlations, deadline, clippy allows)",
+   "phase": "dispatching (R48 findings F-R48-1/2/3/6/8 appended)",
    "status": null,
    "owner": null,
    "lane_file": "builders/lanes/hsk-studio-r47-followups-1.json",
@@ -14412,10 +14429,14 @@
    "host_integration": {
     "gui_host": "none",
     "gpu": "central_broker_client",
-    "refactor_exposure": "low",
+    "refactor_exposure": "medium",
     "binding": "HOST INTEGRATION rules + block in brief and lane file",
-    "recorded_at": "2026-10-31T11:20:00Z",
-    "lane_file_block": true
+    "recorded_at": "2026-10-31T13:08:07Z",
+    "lane_file_block": true,
+    "reconciled_at": "2026-10-31T13:08:07Z",
+    "reconciled_from": "lane file host_integration block (F-R48-7)",
+    "flight_recorder": "business_event_ids",
+    "jobs": "bounded_admission_via_job_port"
    }
   },
   {
@@ -14436,7 +14457,10 @@
     "refactor_exposure": "low",
     "binding": "HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T11:37:50Z",
-    "lane_file_block": true
+    "lane_file_block": true,
+    "gpu": "none",
+    "reconciled_at": "2026-10-31T13:08:07Z",
+    "reconciled_from": "lane file host_integration block (F-R48-7)"
    },
    "note": "RF-09 phase 0 (asset side of MT-36249, asset-local evidence; closes no MT). Push LAST of the wave (accord/pigment in every closure); dispatch only after the R48 verdicts. Namespace studio is spec_delta_pending (SD-07). Engine Profiles: phase 1."
   },
@@ -14458,7 +14482,10 @@
     "refactor_exposure": "none",
     "binding": "HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T11:37:50Z",
-    "lane_file_block": true
+    "lane_file_block": true,
+    "gpu": "none",
+    "reconciled_at": "2026-10-31T13:08:07Z",
+    "reconciled_from": "lane file host_integration block (F-R48-7)"
    },
    "note": "Closes MT-33385..MT-33395. compatibility_level conflict refused typed and reported (SD-13). Stock presets STU-LAY-159 (layout MT-30841/30842) need a lead placement decision (layout has no press edge)."
   },
@@ -14480,7 +14507,10 @@
     "refactor_exposure": "none",
     "binding": "HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T11:37:50Z",
-    "lane_file_block": true
+    "lane_file_block": true,
+    "gpu": "none",
+    "reconciled_at": "2026-10-31T13:08:07Z",
+    "reconciled_from": "lane file host_integration block (F-R48-7)"
    },
    "note": "Closes MT-30820..MT-30831, advances MT-30819. Creep rule declared linear (InDesign formula UNVERIFIED, D5); rendering imposed sheets is a later lane."
   }

@@ -1,8 +1,8 @@
 {
-  "crate": "hsk-studio-reel (audio decode sample budget, additive), hsk-studio-harness (cli export-sequence), hsk-studio-harness-core (manual.rs export-sequence entry), hsk-studio-render-gpu (tests: DX12 threshold rows), hsk-studio-interop-fig-base (resolve_variables)",
+  "crate": "hsk-studio-reel (audio decode sample budget, additive), hsk-studio-harness (cli export-sequence), hsk-studio-harness-core (manual.rs entry; business-event entry path), hsk-studio-render-gpu (tests: DX12 threshold rows), hsk-studio-interop-fig-base (resolve_variables), hsk-studio-accord (business_event id), hsk-studio-session (additive correlation submit, deadline outcome), hsk-studio-harness-view (job correlations, deadline, clippy allows)",
   "lane": "SMB-R47-FOLLOWUPS-1",
   "status": null,
-  "phase": "briefed (not dispatched); dispatch after R48 records, with any R48 findings appended",
+  "phase": "briefed; R48 findings F-R48-1/2/3/6/8 appended; dispatching",
   "candidate": null,
   "commits": [],
   "capabilities_done": [],
@@ -11,7 +11,7 @@
   "lock_wait_s": 0,
   "bg_pids": [],
   "next": "lead dispatches after R48; base = R48 candidate or origin tip at dispatch",
-  "updated_at": "2026-10-31T11:20:00Z",
+  "updated_at": "2026-10-31T13:07:07Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -19,19 +19,19 @@
     "gui_host": "none",
     "gpu": "central_broker_client",
     "diagnostics": {
-      "internal_diagnostics": "none",
-      "flight_recorder": "none",
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
       "palmistry": "none"
     },
     "control_descriptors": "none",
     "attribution": "required",
-    "jobs": "none",
+    "jobs": "bounded_admission_via_job_port",
     "settings": "none",
-    "refactor_exposure": "low"
+    "refactor_exposure": "medium"
   },
   "notes": {
     "brief": "builders/briefs/lane-smb-r47-followups-1.md",
-    "findings": "validation/round-R47.json F-R47-1..4",
-    "out_of_scope": "F-R47-8 (tools/run-round.sh, steward); F-R46-8 (GUI lane)"
+    "findings": "validation/round-R47.json F-R47-1..4; validation/round-R48.json F-R48-1, F-R48-2, F-R48-3, F-R48-6, F-R48-8",
+    "out_of_scope": "F-R47-8 (tools/run-round.sh, steward); F-R48-4 (lane-check per-sha compile check, steward); F-R46-8 (GUI lane)"
   }
 }
