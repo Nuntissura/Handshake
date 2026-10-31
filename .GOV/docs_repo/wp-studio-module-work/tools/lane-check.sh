@@ -11,7 +11,9 @@
 #             or pass your own -E in the test command (not both).
 # Crates: every -p/--package of the test command; their --features/-F apply to clippy of those crates only.
 # Dependents: workspace members that depend on a tested crate (any dependency kind), from `cargo metadata --no-deps`;
-#   clippy --tests runs over them without features (STUDIO_LANE_CHECK_NO_DEPENDENTS=1 skips them).
+#   clippy --tests runs over them without features (STUDIO_LANE_CHECK_NO_DEPENDENTS=1 skips them and logs
+#   dependents=SKIPPED(STUDIO_LANE_CHECK_NO_DEPENDENTS=1)). A failed `cargo metadata` (exit, unreadable JSON, no
+#   workspace members) stops the check with "lane-check: cargo metadata failed" and exit 2, never dependents=[].
 # Step 0 (round parity, F-C55-1, lead 2026-10-24): FIRST, before clippy and outside the disk lock (read-only scan,
 #   ~1 s), the round's step-0 policy over the WHOLE lane workspace (cwd): V4-03 machine-local paths (crates/*/src and
 #   crates/*/tests, .config/machine-paths.toml [pinned]) and V4-05 frozen duplicates (crates/*/src,
@@ -179,6 +181,25 @@ lane_env() {   # build disk, owner, studio-env (lane target, TMP, disk lock, car
   TOOLS=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
   source "$TOOLS/../builders/studio-env.sh" || return 2
 }
+# lane_metadata DIR OUT: `cargo metadata --no-deps --offline` of the workspace at DIR into OUT. Fails closed (steward
+# 2026-10-31: lanes logged dependents=[] while the same crates had 21 dependents in another run, because a failed
+# metadata call was hidden by 2>/dev/null): a non-zero exit, unreadable JSON or a JSON without workspace members prints
+# "lane-check: cargo metadata failed" plus cargo's stderr and returns non-zero; never an empty list.
+lane_metadata() {
+  local err="$2.stderr.txt" rc
+  (cd "$1" && command cargo metadata --no-deps --offline --format-version 1) >"$2" 2>"$err"; rc=$?
+  if [ $rc -eq 0 ]; then
+    "$step0_py" -X utf8 -I -c 'import json, sys
+m = json.load(open(sys.argv[1], encoding="utf-8"))
+sys.exit(0 if m.get("packages") and m.get("workspace_members") else "metadata JSON lists no workspace members")' "$2" 2>>"$err" || rc=3
+  fi
+  if [ $rc -ne 0 ]; then
+    echo "lane-check: cargo metadata failed in $1 (exit $rc$([ $rc -eq 3 ] && echo ': unreadable JSON or no workspace members'))" >&2
+    cat "$err" >&2
+  fi
+  rm -f "$err"
+  return $rc
+}
 if [ -n "$per_sha" ]; then
   # --per-sha (header): every commit's own tree, step 0 + cargo check --tests of its changed crates, their direct
   # dependents and their round feature units, in the lane target under one disk-lock hold; stop at the first failure.
@@ -265,8 +286,7 @@ PY
         || { echo "PER_SHA_RESULT FAIL sha=$sha unit=archive (git archive | tar; no Cargo.toml)"; return 2; }
       git diff --relative --name-only "$sha^" "$sha" >"$per_root/changed.txt" \
         || { echo "PER_SHA_RESULT FAIL sha=$sha unit=diff"; return 2; }
-      (cd "$per_tree" && command cargo metadata --no-deps --offline --format-version 1) >"$per_root/meta.json" 2>"$per_root/meta.stderr.txt" \
-        || { cat "$per_root/meta.stderr.txt" >&2; echo "PER_SHA_RESULT FAIL sha=$sha unit=metadata"; return 2; }
+      lane_metadata "$per_tree" "$per_root/meta.json" || { echo "PER_SHA_RESULT FAIL sha=$sha unit=metadata"; return 2; }
       rows=$(per_sha_units "$per_tree" "$per_root/changed.txt" "$per_root/meta.json" "$per_root/isolate.toml") \
         || { echo "PER_SHA_RESULT FAIL sha=$sha unit=plan"; return 2; }
       lane_step0 "$per_tree"; rc=$?
@@ -328,18 +348,28 @@ echo "HEAD=$(git rev-parse --short=8 HEAD 2>/dev/null || echo unknown) lane=$own
 lane_step0 "$PWD" || exit $?
 lane_env || exit $?
 dependents=()
-if [ "${STUDIO_LANE_CHECK_NO_DEPENDENTS:-0}" != 1 ]; then
-  mapfile -t dependents < <(command cargo metadata --no-deps --format-version 1 2>/dev/null | python -c '
+if [ "${STUDIO_LANE_CHECK_NO_DEPENDENTS:-0}" = 1 ]; then
+  dep_list="SKIPPED(STUDIO_LANE_CHECK_NO_DEPENDENTS=1)"
+else
+  # fail closed (lane_metadata): a metadata or parse failure stops the check; it never becomes dependents=[]
+  meta_json=$(mktemp) || { echo "lane-check: cargo metadata failed (mktemp)" >&2; exit 2; }
+  lane_metadata "$PWD" "$meta_json" || { rm -f "$meta_json"; exit 2; }
+  dep_out=$("$step0_py" -X utf8 -I -c '
 import json, sys
-tested = set(sys.argv[1:])
-meta = json.load(sys.stdin)
+meta = json.load(open(sys.argv[1], encoding="utf-8"))
+ids = set(meta["workspace_members"])
+tested = set(sys.argv[2:])
 for p in meta["packages"]:
-    if p["name"] not in tested and any(d["name"] in tested and d.get("path") for d in p["dependencies"]):
-        print(p["name"])' "${crates[@]}" | tr -d '\r' | sort -u)
+    if p["id"] in ids and p["name"] not in tested and any(d["name"] in tested and d.get("path") for d in p["dependencies"]):
+        print(p["name"])' "$meta_json" "${crates[@]}"); dep_rc=$?
+  rm -f "$meta_json"
+  [ $dep_rc -eq 0 ] || { echo "lane-check: cargo metadata failed (dependents not computed, exit $dep_rc)" >&2; exit 2; }
+  mapfile -t dependents < <(printf '%s\n' "$dep_out" | tr -d '\r' | sed '/^$/d' | sort -u)
+  dep_list="[${dependents[*]}]"
 fi
 pk=(); for c in "${crates[@]}"; do pk+=(-p "$c"); done
 dk=(); for c in "${dependents[@]}"; do dk+=(-p "$c"); done
-echo "lane-check: owner=$owner disk=$STUDIO_BUILD_DISK target=$CARGO_TARGET_DIR crates=[${crates[*]}] dependents=[${dependents[*]}]" >&2
+echo "lane-check: owner=$owner disk=$STUDIO_BUILD_DISK target=$CARGO_TARGET_DIR crates=[${crates[*]}] dependents=$dep_list" >&2
 lane_check_body() {
   cargo clippy "${pk[@]}" ${feats[@]+"${feats[@]}"} --tests || return $?
   if [ ${#dk[@]} -gt 0 ]; then cargo clippy "${dk[@]}" --tests || return $?; fi
