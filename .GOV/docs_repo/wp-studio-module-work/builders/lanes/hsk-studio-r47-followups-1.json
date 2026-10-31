@@ -1,17 +1,110 @@
 {
   "crate": "hsk-studio-reel (audio decode sample budget, additive), hsk-studio-harness (cli export-sequence), hsk-studio-harness-core (manual.rs entry; business-event entry path), hsk-studio-render-gpu (tests: DX12 threshold rows), hsk-studio-interop-fig-base (resolve_variables), hsk-studio-accord (business_event id), hsk-studio-session (additive correlation submit, deadline outcome), hsk-studio-harness-view (job correlations, deadline, clippy allows)",
   "lane": "SMB-R47-FOLLOWUPS-1",
-  "status": null,
-  "phase": "briefed; R48 findings F-R48-1/2/3/6/8 appended; dispatching",
-  "candidate": null,
-  "commits": [],
-  "capabilities_done": [],
-  "tests": [],
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed 729d2702 to origin/codex/handshake-studio-assets (rebased on origin 1c44f0ac = SMB-ID-BOOKLET-1, SMB-AE-PARTICLES-2, SMB-PDF-PRESETS-1; push exit 0; origin re-read = 729d2702); run 1 on 12e11d57 green but for one test expectation, fixed and squashed into 71b39e18; run 2 on 729d2702 green",
+  "candidate": "729d2702",
+  "commits": [
+    {
+      "sha": "6f85d96d",
+      "finding": "F-R47-1",
+      "subject": "reel, harness (SMB-R47-FOLLOWUPS-1, F-R47-1): whole-file audio decode bounded by a sample budget",
+      "pushed": true
+    },
+    {
+      "sha": "2056f311",
+      "finding": "F-R47-2",
+      "subject": "harness-core manual, harness tests (SMB-R47-FOLLOWUPS-1, F-R47-2): export-sequence manual names every CLI refusal and bound",
+      "pushed": true
+    },
+    {
+      "sha": "847bde99",
+      "finding": "F-R47-3",
+      "subject": "render-gpu tests (SMB-R47-FOLLOWUPS-1, F-R47-3): threshold tie rows also on DX12",
+      "pushed": true
+    },
+    {
+      "sha": "2fc6b495",
+      "finding": "F-R47-4",
+      "subject": "interop-fig-base (SMB-R47-FOLLOWUPS-1, F-R47-4): linear, cancellable variable alias walk",
+      "pushed": true
+    },
+    {
+      "sha": "88added0",
+      "finding": "F-R48-6, F-R48-3",
+      "subject": "session (SMB-R47-FOLLOWUPS-1, F-R48-6, F-R48-3): command-correlated submits and a typed job deadline",
+      "pushed": true
+    },
+    {
+      "sha": "71b39e18",
+      "finding": "F-R48-1, F-R48-2, F-R48-6",
+      "subject": "accord, harness-core (SMB-R47-FOLLOWUPS-1, F-R48-1, F-R48-2, F-R48-6): entry-only event ids survive runs; no-change entries emit nothing; commit frames carry the command correlation",
+      "pushed": true,
+      "note": "run-1 fix squashed in (was 80ce17c0 + fixup): set_visible(L2, true) in run_attribution (the fixture layer is hidden, so a hide changed nothing), doc comment slashes and a Step type alias in the two harness-core test files"
+    },
+    {
+      "sha": "729d2702",
+      "finding": "F-R48-3, F-R48-8",
+      "subject": "harness-view (SMB-R47-FOLLOWUPS-1, F-R48-3, F-R48-8): job correlations from the viewer's run context",
+      "pushed": true
+    }
+  ],
+  "capabilities_done": [
+    "F-R47-1 reel decode_audio_file_within: kept samples bounded per block, no allocation above the budget; harness export-sequence passes remainder/4 samples",
+    "F-R47-2 export-sequence manual entry names every cli.rs refusal and the three bounds; test reads the codes from cli.rs",
+    "F-R47-3 threshold tie rows on TransientAdapter::dx12_for_tests (test-faults): dx12 0 of 1110 ties differ, every cut step as pigment; bits equal to vulkan",
+    "F-R47-4 fig-base resolve_variables linear (value per mode found once) and cancellable",
+    "F-R48-1 entry-only event ids from accord entry_event_sequence (top bit, entry change + command context): disjoint across runs, no collision",
+    "F-R48-2 TEXT_EDITED and vector entry mappings tested; identical entry bytes (and their undo) emit nothing",
+    "F-R48-3 job correlations minted from the viewer RunContext, one per job, on every frame; typed deadline outcome in the session lifecycle; viewer job classes have none by nature (notes.measurements)",
+    "F-R48-6 Session::submit_as / submit_timeline_as / submit_multicam_as: commit frames carry the command correlation",
+    "F-R48-8 explicit_auto_deref allowed with reasons at both sites"
+  ],
+  "tests": {
+    "run1": {
+      "sha": "12e11d57",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r47-followups-1/bundle-smb-r47-followups-1-12e11d57.log (first line HEAD=12e11d57)",
+      "script": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r47-followups-1/bundled-smb-r47-followups-1.sh",
+      "argv": "one D: disk-lock hold, owner smb-r47-followups-1, CARGO_BUILD_JOBS=6, HSK_* unset: lane-check.sh --step0-only; cargo clippy --tests over the 8 changed crates [render-gpu/test-faults, harness-view/desktop+audio-batch, harness/media], harness-view alone [viewer], the 41 direct workspace dependents; cargo nextest run --no-fail-fast: default unit (reel, interop-fig-base, accord, session, harness-core, harness, kernel-bindings, render-gpu), kernel-bindings [test-faults,ckc-test-double], render-gpu [test-faults] threshold rows --no-capture, [test-faults], [shared-device], [shared-device,test-faults], harness-view [viewer] [desktop,audio-batch], harness [viewer] [desktop,viewer] [media] [audio-batch]",
+      "results": {
+        "step0": "clean",
+        "clippy": "all exit 0; two warnings in changed files (harness-core tests four_forward_slashes, type_complexity), fixed in run 2",
+        "default unit": "380 passed, 1 failed (run_attribution commit_frames_carry_the_command_correlation: set_visible(L2, false) on a hidden layer changed nothing; its frame did carry correlation 7001), 1 skipped",
+        "kernel-bindings [test-faults,ckc-test-double]": "26 passed",
+        "render-gpu [test-faults] threshold": "5 passed (THRESHOLD lines for vulkan and dx12 in the log)",
+        "render-gpu [test-faults]": "108 passed",
+        "render-gpu [shared-device]": "97 passed",
+        "render-gpu [shared-device,test-faults]": "113 passed",
+        "harness-view [viewer]": "100 passed",
+        "harness-view [desktop,audio-batch]": "151 passed",
+        "harness [viewer]": "188 passed, 20 skipped",
+        "harness [desktop,viewer]": "190 passed, 20 skipped",
+        "harness [media]": "224 passed, 20 skipped",
+        "harness [audio-batch]": "234 passed, 20 skipped"
+      },
+      "exit": 1
+    },
+    "run2": {
+      "sha": "729d2702 (pushed)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r47-followups-1/bundle2-smb-r47-followups-1-729d2702.log (first line HEAD=729d2702)",
+      "script": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r47-followups-1/bundled2-smb-r47-followups-1.sh",
+      "scope": "the fix changed only harness-core tests/business_events_run.rs and tests/run_attribution.rs (git diff --stat 12e11d57 729d2702); every other run-1 unit has unchanged inputs and stands",
+      "argv": "one D: disk-lock hold: lane-check.sh --step0-only; cargo clippy -p hsk-studio-harness-core --tests; cargo nextest run -p hsk-studio-harness-core -p hsk-studio-harness --no-fail-fast",
+      "results": {
+        "step0": "clean",
+        "clippy": "exit 0, no warning in harness-core",
+        "harness-core + harness default": "47 passed"
+      },
+      "exit": 0
+    },
+    "gpu": "THRESHOLD_TIE_BITS vulkan and dx12: pigment lum 0x3f000000, gpu lum >= 0x3f000000 and < 0x3f000001; THRESHOLD_8BIT_TIES vulkan 0 of 1110, dx12 0 of 1110 (run-1 log); no NOT_PROVEN line; kernel.wgsl unchanged",
+    "doctests": "not run: no doc example added or changed (rule 4d)"
+  },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "lead dispatches after R48; base = R48 candidate or origin tip at dispatch",
-  "updated_at": "2026-10-31T13:07:07Z",
+  "next": "validation",
+  "updated_at": "2026-10-31T14:06:37Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -27,11 +120,54 @@
     "attribution": "required",
     "jobs": "bounded_admission_via_job_port",
     "settings": "none",
-    "refactor_exposure": "medium"
+    "refactor_exposure": "medium",
+    "recorded_at": "2026-10-31T13:37:03Z",
+    "notes": {
+      "gpu": "no new device, instance, queue or budget owner: the DX12 threshold rows use the existing test-faults TransientAdapter::dx12_for_tests port; no kernel change",
+      "diagnostics": "business-event ids only (no text): entry-only events get a sequence derived from the entry change and the command context; session commit frames carry the command correlation; job frames carry the job's correlation",
+      "jobs": "Export Media / reel export-queue / audio batch / superseded preview correlations minted from the viewer's RunContext source, one per job; typed deadline outcome added to the session lifecycle (admit_by, DeadlineExceeded); the viewer's job classes have no deadline by nature (notes.measurements.F-R48-3); JobPort unchanged; document-less audio batch stays Unaddressed (MT-36228)",
+      "gui": "no egui code added (D1): harness-view edits are the egui-free job_admission/audio_batch modules and their test"
+    }
   },
   "notes": {
     "brief": "builders/briefs/lane-smb-r47-followups-1.md",
     "findings": "validation/round-R47.json F-R47-1..4; validation/round-R48.json F-R48-1, F-R48-2, F-R48-3, F-R48-6, F-R48-8",
-    "out_of_scope": "F-R47-8 (tools/run-round.sh, steward); F-R48-4 (lane-check per-sha compile check, steward); F-R46-8 (GUI lane)"
+    "out_of_scope": "F-R47-8 (tools/run-round.sh, steward); F-R48-4 (lane-check per-sha compile check, steward); F-R46-8 (GUI lane)",
+    "measurements": {
+      "F-R48-1": {
+        "measured_at": "recorded 2026-10-31T13:37:08Z (static reading of the base 4f69b03b done before the fix was chosen; asserted by the test entry_only_events_of_two_runs_on_one_saved_package_have_disjoint_ids)",
+        "correlation": "NOT unique across runs: harness-core context.rs asset_local_test_context builds a fresh accord TransientCorrelation::new() (correlations 1, 2, ...) per call, i.e. per CLI invocation / viewer; a host context restarted the same way repeats its sequence. The new test pins it: two runs on one saved package with fresh sources mint the SAME correlation and command id for their develop commands.",
+        "command_id": "NOT unique: RUN_COMMANDS ids are static (e.g. layer.set_tiles_and_entry).",
+        "client_session": "NOT unique in the test host (fixed 'asset-local-test-host').",
+        "event_sequence": "per-run counter in Run (event_sequence), restarts at 0 per Run: the cause of the collision.",
+        "choice": "entry-only events (and the undo/redo of entry-only steps) keep revision = previous commit's (no revision semantics change, no golden changed) and take sequence = accord entry_event_sequence(event, token, before bytes, after bytes, command context) with the top bit set (ENTRY_EVENT_SEQUENCE_BIT): commit events keep 0, 1, ... so the two id spaces never meet; two runs that change an entry differently mint different ids; two records with one id carry the same envelope context (a replay, never a counted collision) unless the 63-bit FNV-1a+SplitMix64 hash collides (disclosed). kernel-bindings' envelope check event_id == business_event_id(document, revision, sequence) is unchanged and holds.",
+        "rejected": "entry writes advancing a revision (changes what a revision means; other lanes' goldens observe revisions); correlation-only ids (not unique across runs, measured); persisting the sequence with the document (a hidden entry would change saved package bytes)"
+      },
+      "F-R48-3": {
+        "measured_at": "recorded 2026-10-31T13:37:08Z (static reading of the base 4f69b03b done before the fix was chosen)",
+        "correlation_source": "the viewer's Run holds the RunContext (Viewer::with_context / Viewer::new); RunContext::command mints from its shared correlation source, so JobAdmission binds a RunCorrelations adapter over a clone of it (clones share the source).",
+        "deadline_per_job_class": {
+          "Export Media (window and headless export_sequence, AdmittedExportQueue)": "no deadline by nature: a committed export whose run time scales with the requested range and preset; the operator ends it by cancel; a late file is still the requested artifact (completed or completed_stale)",
+          "reel export queue (timeline_export::export_queue items through AdmittedExportQueue)": "same class as Export Media: no deadline",
+          "audio batch item (AudioBatchQueue, hosted or with a document)": "no deadline by nature: file-to-file processing of the operator's files, length-proportional, ended by cancel",
+          "preview (synchronous, replaceable, not admitted)": "bounded by supersession (preview_gate), not a deadline",
+          "result": "the session lifecycle now has the typed deadline outcome (JobLifecycle::admit_by, JobAdmissionRefusal::DeadlineExceeded, JobOutcome::DeadlineExceeded, AdmittedJob::deadline_passed; counters refused_deadline, deadline_exceeded) for any job class that has one (a host job with a timeout); the viewer's classes admit without one (job_admission.rs module docs)"
+        },
+        "document_less": "unchanged: the hosted audio batch with nothing open is resource-less, admitted against the lifecycle's local Admission, outcome Unaddressed until MT-36228 (disclosure kept)"
+      }
+    },
+    "outside_owned_paths": {
+      "hsk-studio-reel/src/audio/provider.rs": "pass-through only (decode_file_within, max_samples to decode_wav_file): the sample budget has to travel from mod.rs to engine.rs through it; no behaviour change for existing callers",
+      "hsk-studio-accord/src/lib.rs": "one re-export line (ENTRY_EVENT_SEQUENCE_BIT, entry_event_sequence)",
+      "DESCRIPTOR text": "session and accord DESCRIPTOR consts (lib.rs) not updated for the additive APIs (lib.rs not owned): follow-up for the owner"
+    },
+    "V4-06": {
+      "F-R47-1 class": "whole-file audio decode bounded by frames, not samples; regex decode_audio_file(_with)?\\( over crates/*/src: harness src/cli.rs export-sequence (fixed, decode_audio_file_within); harness-view src/view/audio_import.rs:297 viewer audio import (NOT FIXED, outside owned paths: limits.max_frames x up to 8 channels, same 16.6 GB magnitude for an 8-channel FLAC; reported to the lead); harness-view src/view/audio_batch.rs:642 re-decode of the file the item just wrote (not applicable: bounded by its own frames + 1 and its own channels)",
+      "F-R47-4 class": "per-hop linear value scan without a cancel poll; regex \\.iter\\(\\)\\.(find|position)\\( in interop-fig-base src: nodes.rs resolve_variables (fixed); nodes.rs:583 FigDocument::node and nodes.rs:683 Obj::take (not applicable: caller-driven single lookups, no walk); kiwi.rs:137/147/380/388/487 and kiwi_value.rs:182/287 (not applicable: schema-bounded field/terminator lookups); container.rs:209/369 (not applicable: part lookup by name, one per call)"
+    },
+    "red_commits": "none pushed: every red test calls an API this lane adds or lives in a tree that would not compile red; reds stayed local, squashed into their green commits",
+    "vendor": "no vendor parity claimed; Photoshop threshold tie behaviour stays UNVERIFIED (D5)",
+    "rule_4e": "reel tests/audio_sample_budget.rs, fig-base and session unit tests, accord unit test: default unit; render-gpu DX12 rows: test-faults units ([test-faults], [shared-device,test-faults]); harness tests/cli_export_sequence.rs: #![cfg(feature = \"media\")], round units [media] and its supersets; harness-view tests/viewer_job_admission.rs export_media mod: media via the round unit [desktop, audio-batch]; harness-core tests: default unit",
+    "ready_claim": "READY on pushed 729d2702: run 1 log (all units but one test expectation) + run 2 log (the fix and its units)"
   }
 }

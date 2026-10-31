@@ -14417,14 +14417,14 @@
   {
    "lane_id": "SMB-R47-FOLLOWUPS-1",
    "crate": "hsk-studio-reel (audio decode sample budget, additive), hsk-studio-harness (cli export-sequence), hsk-studio-harness-core (manual.rs entry; business-event entry path), hsk-studio-render-gpu (tests: DX12 threshold rows), hsk-studio-interop-fig-base (resolve_variables), hsk-studio-accord (business_event id), hsk-studio-session (additive correlation submit, deadline outcome), hsk-studio-harness-view (job correlations, deadline, clippy allows)",
-   "phase": "dispatching (R48 findings F-R48-1/2/3/6/8 appended)",
-   "status": null,
+   "phase": "READY_FOR_VALIDATION @729d2702 (run 1: 1816 passed, 1 own test-expectation failure squashed into 71b39e18; run 2 green; D:); queued for R49",
+   "status": "READY_FOR_VALIDATION",
    "owner": null,
    "lane_file": "builders/lanes/hsk-studio-r47-followups-1.json",
    "brief": "builders/briefs/lane-smb-r47-followups-1.md",
    "worktree": null,
    "disk": null,
-   "candidate": null,
+   "candidate": "729d2702",
    "commits": [],
    "verdicts": [],
    "note": "2026-10-31T10:04:58Z from R47: F-R47-1 one --audio decode can transiently hold up to 16.6 GB (reel caps frames not samples; 8-channel FLAC): charge samples before decode or cap channels; F-R47-2 export-sequence manual entry lacks audio_too_many / audio_too_large and the limits; F-R47-3 DX12 parity of the threshold fix only in the lane probe: add a DX12 threshold row like the FXC rows; F-R47-4 fig-base variable alias walk has the F-R45-1 shape (bound before work, cancellable)",
@@ -14439,7 +14439,17 @@
     "reconciled_from": "lane file host_integration block (F-R48-7)",
     "flight_recorder": "business_event_ids",
     "jobs": "bounded_admission_via_job_port"
-   }
+   },
+   "lead_notes_for_validator": [
+    "out-of-path one-liners: reel src/audio/provider.rs pass-through, accord src/lib.rs re-export line",
+    "F-R48-1: entry_event_sequence is a 63-bit hash with the top bit set; a collision would lose one event (disclosed)",
+    "F-R48-6: session and accord DESCRIPTOR text not updated for the new submit_as / entry_event_sequence API",
+    "F-R48-3: typed deadline outcome added; viewer job classes recorded as having no natural deadline"
+   ],
+   "followup_candidates": [
+    "harness-view src/view/audio_import.rs:297 viewer audio import has the same frames-only decode bound as F-R47-1 (builder report)"
+   ],
+   "updated_at": "2026-10-31T14:07:12Z"
   },
   {
    "lane_id": "SMB-SETTINGS-SCHEMA-1",
