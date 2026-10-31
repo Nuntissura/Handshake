@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-31T01:32:28Z",
+ "updated_at": "2026-10-31T01:33:24Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -12846,15 +12846,22 @@
   {
    "lane_id": "SMB-OBSERVE-RING-PORT-1",
    "crate": "hsk-studio-observe (additive)",
-   "phase": "green on D: at ea811c0d (62/62); released to rebase onto 78f027c9 and push (2026-10-31T01:32:28Z)",
-   "status": null,
+   "phase": "validation (R46)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-observe-ring-port-1.json",
    "brief": "builders/briefs/lane-smb-observe-ring-port-1.md",
    "worktree": "wt-studio-lanes/smb-observe-ring-port-1",
    "disk": "D:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "5275f91e",
+   "commits": [
+    "eae1d919",
+    "f85587bb",
+    "a474dc13",
+    "6cd4be62",
+    "647019aa",
+    "ea811c0d (rebased to 5275f91e)"
+   ],
    "verdicts": [],
    "host_integration": {
     "gui_host": "none",
@@ -12866,7 +12873,7 @@
     "recorded_at": "2026-10-31T00:11:28Z",
     "lane_file_block": false
    },
-   "note": "RF-04 phase 0: ring-shaped producer port: 56-byte core matching Handshake DiagEvent + identity tail (~104 bytes: module, correlation, session/process as opaque ids; DiagEvent cannot carry them today, SD-04); every Outcome/DeliveryError maps to a closed code; proposed Studio code block 0x5300..0x53FF projects to Other until Handshake allocates it; non-blocking non-allocating try_record; no text crosses the port. Base b425b54a."
+   "note": "RF-04 phase 0: ring-shaped producer port: 56-byte core matching Handshake DiagEvent + identity tail (~104 bytes: module, correlation, session/process as opaque ids; DiagEvent cannot carry them today, SD-04); every Outcome/DeliveryError maps to a closed code; proposed Studio code block 0x5300..0x53FF projects to Other until Handshake allocates it; non-blocking non-allocating try_record; no text crosses the port. Base b425b54a.; 2026-10-31T01:33:24Z pushed 78f027c9..5275f91e (ls-remote verified); claim cites the ea811c0d bundled log 62/62 + doctests 3/3 (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-observe-ring-port-1/lane-check-smb-observe-ring-port-1-ea811c0d.log); rebase brought no observe/accord/root change, observe files identical to ea811c0d, no re-run (closure rule); gap for the round: harness and harness-core suites at 5275f91e unrun after R44-FOLLOWUPS changed them; lead-accepted departures: delivery_failure takes CorrelationRef, receipt revision in counter_b, general RingRecord::new, &mut self receiver"
   },
   {
    "lane_id": "SMB-GPU-CLIENT-PORT-1",
