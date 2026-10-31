@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-31T01:33:24Z",
+ "updated_at": "2026-10-31T02:23:43Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -13171,7 +13171,7 @@
   {
    "lane_id": "SMB-GPU-CLIENT-PORT-1",
    "crate": "hsk-studio-render-gpu (+ one harness dev-dependency line)",
-   "phase": "coded b8aef65c (clean on D:); bundled run on C: after R45 (2026-10-31T01:32:28Z)",
+   "phase": "bundled run on C: after rebase onto 5275f91e (2026-10-31T02:23:43Z); R45 done",
    "status": null,
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-gpu-client-port-1.json",
@@ -13192,6 +13192,21 @@
     "lane_file_block": false
    },
    "note": "RF-03 phase 0, asset side of MT-36248: typed GPU client port (grant, admission with attribution, budgets, retained-memory accounting, settle-once, device-loss rebind, typed Unavailable/Lost), transient in-process adapter marked asset-local; BackendChoice becomes a test-only feature asset-local-backends (harness tests use it); the device crosses once through the existing shared-device feature (asset-local eframe path); Vulkan first on Windows. RISK recorded: rounds unset HSK_*, so Windows GPU proofs move from DX12 to Vulkan after this push; the validator host Vulkan driver and the DX12-measured tolerances are unchecked: the lane run must report the Vulkan readback result and R46 is warned. Base b425b54a."
+  },
+  {
+   "lane_id": "SMB-R45-FOLLOWUPS-1",
+   "crate": "hsk-studio-interop-fig-base (GRID decode bound) + hsk-studio-harness-view design/auto_layout frame-size walk (GUI file: waits for D7/D8 or a no-new-egui edit) + composite effect refusal tests",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "lane_file": null,
+   "brief": null,
+   "worktree": null,
+   "disk": null,
+   "candidate": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "From R45: F-R45-1 GRID decode quadratic before the 1000-track limit and not cancellable inside one node; F-R45-2 window frame-size walk exponential (background() resets depth; work before the subtree budget); F-R45-3 three AE-EFFECT-STACK-1 / AE-EFFECT-FAMILIES-2 refusal tests compare only the code, which the new missing-profile refusal shares: assert the detail too. F-R45-2 sits in a harness-view design file: engine-side bound only, no new egui code."
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
