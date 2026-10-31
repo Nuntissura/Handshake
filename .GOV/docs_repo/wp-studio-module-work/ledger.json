@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-31T10:06:44Z",
+ "updated_at": "2026-10-31T10:17:53Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -14002,15 +14002,20 @@
   {
    "lane_id": "SMB-JOB-ADMISSION-1",
    "crate": "hsk-studio-session (additive lifecycle types) + harness-view (egui-free queue files; one line each in hosted.rs and mod.rs, no toolkit code)",
-   "phase": "coding (dispatched 2026-10-31T08:09:22Z); runs after BUSINESS-EVENTS-1 pushes",
-   "status": null,
+   "phase": "validation (R48)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-job-admission-1.json",
    "brief": "builders/briefs/lane-smb-job-admission-1.md",
    "worktree": "wt-studio-lanes/smb-job-admission-1",
    "disk": "D:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "4f69b03b",
+   "commits": [
+    "6885ebc8",
+    "38fc0b5e",
+    "31131f18",
+    "4f69b03b"
+   ],
    "verdicts": [],
    "host_integration": {
     "gui_host": "none",
@@ -14022,7 +14027,7 @@
     "recorded_at": "2026-10-31T08:09:22Z",
     "lane_file_block": false
    },
-   "note": "RF-08: one admission path for reel ExportQueue, AE render queue (test-only producer today), Export Media worker, AudioBatchQueue; lifecycle types (overload, cancellation, stale-revision, release, superseded) added beside JobPort without changing the trait; reel unchanged (no session edge); pump() off-callback but has no product caller (live playback unwired: noted). Base 2b42a0fe."
+   "note": "RF-08: one admission path for reel ExportQueue, AE render queue (test-only producer today), Export Media worker, AudioBatchQueue; lifecycle types (overload, cancellation, stale-revision, release, superseded) added beside JobPort without changing the trait; reel unchanged (no session edge); pump() off-callback but has no product caller (live playback unwired: noted). Base 2b42a0fe.; 2026-10-31T10:17:53Z pushed bbdfa94d..4f69b03b (ls-remote verified); D: bundled run 485 passed / 0 failed / 21 skipped (session, harness-view, harness, kernel-bindings, harness-core; Handshake_Artifacts/WP-KERNEL-STUDIO/smb-job-admission-1/bundled-smb-job-admission-1-4f69b03b.log); harness-view [viewer] unit not built alone; 38fc0b5e and 31131f18 carry a test file that calls Viewer::new (builds only with asset-local-test-host): intermediate commits not bisectable for that unit, 4f69b03b fixes it; two clippy explicit_auto_deref warnings kept (audio_batch.rs:395, job_admission.rs:265; builder belief unverified); EXPORT_RENDERED emission left for a later lane"
   },
   {
    "lane_id": "SMB-R47-FOLLOWUPS-1",

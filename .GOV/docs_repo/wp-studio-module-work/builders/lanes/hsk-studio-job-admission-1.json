@@ -1,27 +1,33 @@
 {
   "crate": "hsk-studio-session (new src/jobs.rs, lib.rs re-exports + DESCRIPTOR v6, tests/job_lifecycle.rs), hsk-studio-harness-view (new view/job_admission.rs, view/preview_gate.rs, timeline_export.rs admitted_export_queue, timeline/export_media.rs, audio_batch.rs, call-site lines in hosted.rs and mod.rs, tests/viewer_job_admission.rs)",
   "lane": "SMB-JOB-ADMISSION-1",
-  "status": null,
-  "phase": "code-ready: 3 local commits on base 2b42a0fe; lead go pending. Waiting for SMB-BUSINESS-EVENTS-1 on origin (after SMB-ATTRIBUTION-1; fetch 2026-10-31T08:34:03Z: origin still 2b42a0fe), then rebase and the bundled run on D:; no READY before that run",
-  "candidate": null,
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed 4f69b03b to origin/codex/handshake-studio-assets (rebased onto bbdfa94d = SMB-BUSINESS-EVENTS-1 after SMB-ATTRIBUTION-1 3cfbe87e; origin unmoved at push; push exit 0; origin re-read = 4f69b03b); green bundled run on D:",
+  "candidate": "4f69b03b",
   "commits": [
     {
-      "sha": "7fbd3824",
+      "sha": "6885ebc8",
       "slice": 1,
       "subject": "session (SMB-JOB-ADMISSION-1, RF-08 slice 1): typed job lifecycle over the JobPort",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "f9ad59f6",
+      "sha": "38fc0b5e",
       "slice": 2,
       "subject": "harness-view (SMB-JOB-ADMISSION-1, RF-08 slice 2): Export Media and reel export queue admitted through the session JobPort; preview stale-frame gate",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "0e2d4224",
+      "sha": "31131f18",
       "slice": 3,
       "subject": "harness-view (SMB-JOB-ADMISSION-1, RF-08 slice 3): AudioBatchQueue items admitted and settled once per receipt",
-      "pushed": false
+      "pushed": true
+    },
+    {
+      "sha": "4f69b03b",
+      "slice": "2-3 tests",
+      "subject": "harness-view tests (SMB-JOB-ADMISSION-1): viewer_job_admission builds its viewer with its own context (support_context, SMB-ATTRIBUTION-1)",
+      "pushed": true
     }
   ],
   "tests": {
@@ -38,13 +44,22 @@
       "exit": 0,
       "passed": 5,
       "failed": 0,
-      "note": "iteration logs in the session scratchpad only (not proof); the READY proof is the bundled run log under Handshake_Artifacts/WP-KERNEL-STUDIO/smb-job-admission-1/"
+      "note": "superseded by the bundled run"
     },
-    "bundled": null
+    "bundled": {
+      "sha": "4f69b03b (clean tree; log line 1 HEAD=4f69b03b)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-job-admission-1/bundled-smb-job-admission-1-4f69b03b.log",
+      "argv": "lane-check.sh --owner smb-job-admission-1 --disk d -- cargo nextest run -p hsk-studio-session -p hsk-studio-harness-view -p hsk-studio-harness -p hsk-studio-kernel-bindings -p hsk-studio-harness-core --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast (CARGO_BUILD_JOBS=6)",
+      "steps": "step 0 clean; clippy over the 5 crates with the features + dependent interop-lrcat: exit 0 (warnings only); whole suites",
+      "exit": 0,
+      "passed": 485,
+      "failed": 0,
+      "skipped": 21
+    }
   },
   "blockers": [],
   "bg_pids": [],
-  "updated_at": "2026-10-31T08:34:03Z",
+  "updated_at": "2026-10-31T10:17:09Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -92,7 +107,7 @@
     "egui_grep": "grep -E '\\begui::|use egui|eframe|winit|wgpu' over job_admission.rs, preview_gate.rs, audio_batch.rs, timeline/export_media.rs, timeline_export.rs and tests/viewer_job_admission.rs: no match.",
     "rule_4e": "tests/viewer_job_admission.rs is #![cfg(feature = \"viewer\")]; the preview test compiles under round unit [\"viewer\"]; the export (media) and audio-batch cases compile under [\"desktop\", \"audio-batch\"]. Both units exist for harness-view in .config/round-features.toml; no unit missing.",
     "red_first": "no separate red commit: the tests need the new API to compile (RED COMMITS rule: a non-compiling red stays local), so each slice commit carries its tests.",
-    "attribution_dependency": "job_admission.rs uses self.run.actor() (added by SMB-ATTRIBUTION-1) and hosted.rs's batch line will conflict with ATTRIBUTION-1's edit of the same line (default_actor -> self.run.actor()); resolve at rebase keeping both. Viewer::new in the new test needs ATTRIBUTION-1's asset-local test-host feature wiring for harness-view tests.",
+    "attribution_dependency": "resolved at rebase: hosted.rs batch line = AudioBatchQueue::new(self.run.actor().clone()).with_jobs(self.job_admission()); no shim in any commit; the new test builds its viewer via tests/support_context (no Viewer::new).",
     "scope_extension_mod_rs": {
       "status": "lead-accepted 2026-10-31 (coordinator message)",
       "what": "mod.rs carries 7 added lines instead of 1: two `pub mod` lines (+1 doc line), the `jobs: job_admission::ViewerJobs` field (+1 doc line), its initializer in with_gpu_options, and the one render_if_dirty call line; all toolkit-free",
@@ -101,6 +116,10 @@
     "open_host_question_mt36228": {
       "status": "open, noted by the lead for MT-36228",
       "what": "JobScope needs a DomainId; a document-less job (the hosted audio batch with nothing open, harness test viewer_panels runs it that way) is admitted against the lifecycle's own bounded Admission (slots and bytes), never reaches the port, and reports Unaddressed. Host scope for document-less jobs is MT-36228's to decide."
-    }
+    },
+    "units": "the bundled run unifies harness desktop+audio-batch (harness-view desktop, audio-batch, viewer, media), as earlier harness-view lanes did; it covers the harness media/audio-batch/viewer test files and both harness-view round units' files in one build. The new test gates its media-only helpers so the [\"viewer\"] unit compiles it without dead code.",
+    "intermediate_commits": "38fc0b5e and 31131f18 carry the test file before the support_context switch (Viewer::new, available only with asset-local-test-host); the candidate is 4f69b03b.",
+    "clippy_warnings_own": "two clippy::explicit_auto_deref warnings at audio_batch.rs:395 and job_admission.rs:265 (`*code` on a &&'static str); left as is: the suggested auto-deref would yield a borrow-scoped &str where JobOutcome::Failed needs &'static str. Not an error (lane-check exit 0).",
+    "follow_up_business_events": "EXPORT_RENDERED (SMB-BUSINESS-EVENTS-1 catalog) belongs at the admitted export's settlement: job_admission.rs settle_export / ExportSettlements::settle and export_media.rs timeline_export_poll / export_sequence_inner, where the receipt and the JobSettlement meet. Not emitted in this lane (later lane)."
   }
 }
