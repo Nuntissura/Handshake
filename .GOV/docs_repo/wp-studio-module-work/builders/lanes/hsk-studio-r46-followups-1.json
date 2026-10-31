@@ -1,0 +1,185 @@
+{
+  "crate": "hsk-studio-render-gpu (kernel.wgsl threshold, client, plan_sink authorize order, tests), hsk-studio-observe (ring.rs, DESCRIPTOR), hsk-studio-interop-fig-base (GRID decode), hsk-studio-harness-view (design auto-layout frame-size walk only), hsk-studio-harness (cli.rs export-sequence audio budget + CLI tests), hsk-studio-composite (three refusal tests only)",
+  "lane": "SMB-R46-FOLLOWUPS-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed 2b42a0fe to origin/codex/handshake-studio-assets (on 66c62129, origin unmoved, no rebase; push exit 0, origin re-read = 2b42a0fe); green bundled run 2 on 2b42a0fe on D:",
+  "candidate": "2b42a0fe",
+  "commits": [
+    {
+      "sha": "be66cc60",
+      "finding": "F-R46-1 red",
+      "subject": "render-gpu tests (SMB-R46-FOLLOWUPS-1, F-R46-1 red): threshold tie decided per cut step and on the 1110 8-bit tie colours",
+      "pushed": true
+    },
+    {
+      "sha": "b954cb0f",
+      "finding": "F-R46-1",
+      "subject": "render-gpu (SMB-R46-FOLLOWUPS-1, F-R46-1): threshold luminance without FMA contraction; tie exemption removed",
+      "pushed": true
+    },
+    {
+      "sha": "e26c629f",
+      "finding": "F-R46-2, F-R46-3, F-R46-4, F-R46-5",
+      "subject": "render-gpu (SMB-R46-FOLLOWUPS-1, F-R46-2..5): DX12 FXC rows, closed-grant refusals, flag after authorize, bounded GrantLedger",
+      "pushed": true
+    },
+    {
+      "sha": "6af8c1ef",
+      "finding": "F-R46-6",
+      "subject": "observe (SMB-R46-FOLLOWUPS-1, F-R46-6): RingRecord::host_core_le_bytes, the host write of the DiagEvent core",
+      "pushed": true
+    },
+    {
+      "sha": "bd71ed48",
+      "finding": "F-R45-1",
+      "subject": "interop-fig-base (SMB-R46-FOLLOWUPS-1, F-R45-1): GRID track and sizing lists bounded before entry work, cancellable in one node",
+      "pushed": true
+    },
+    {
+      "sha": "05a4d19a",
+      "finding": "F-R45-3",
+      "subject": "composite tests (SMB-R46-FOLLOWUPS-1, F-R45-3): the three effect refusals pin their own cause",
+      "pushed": true
+    },
+    {
+      "sha": "c990d11c",
+      "finding": "F-R45-2",
+      "subject": "harness-view (SMB-R46-FOLLOWUPS-1, F-R45-2): the design auto-layout frame-size walk is memoised, depth-continuous and charged before it runs",
+      "pushed": true
+    },
+    {
+      "sha": "6ed07ef8",
+      "finding": "F-R46-7",
+      "subject": "harness (SMB-R46-FOLLOWUPS-1, F-R46-7): export-sequence --audio count cap, import file-size limit and one decoded budget",
+      "pushed": true
+    },
+    {
+      "sha": "2b42a0fe",
+      "finding": "F-R46-2 (run-1 fix)",
+      "subject": "render-gpu (SMB-R46-FOLLOWUPS-1, F-R46-2 fix): rename the test-faults constructor to with_grant_and_shader_source",
+      "pushed": true
+    }
+  ],
+  "tests": {
+    "red": {
+      "sha": "be66cc60 (tree of 66c62129 + the two new threshold tests; log header 66c62129 dirty)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r46-followups-1/probe-smb-r46-followups-1-66c62129-dirty-before.log",
+      "argv": "HSK_STUDIO_TEST_GPU_BACKEND=vulkan|dx12 cargo nextest run -p hsk-studio-render-gpu --features asset-local-backends --test gpu_plan -E 'test(threshold_tie_decides_as_pigment_at_every_cut_step) | test(threshold_8bit_ties_at_level_128_match_pigment) | test(threshold_tie_at_the_cut) | test(ext_adjustment_layer_parity)' (D:, owner smb-r46-followups-1)",
+      "result": "vulkan: 2 failed as intended (cut-step split at cut 0x3f000000; 49 of 1110 8-bit ties differ), dx12: 1 failed as intended (76 of 1110), the old exemption tests passed with their NOT_PROVEN line",
+      "exit": 100
+    },
+    "fix_probe": {
+      "sha": "be66cc60 + kernel fix (tree of b954cb0f)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r46-followups-1/probe-smb-r46-followups-1-be66cc60-dirty-after.log",
+      "result": "vulkan and dx12: 4 passed each; 0 of 1110 differ; tie lum 0x3f000000 on both",
+      "exit": 0
+    },
+    "focused": {
+      "sha": "05a4d19a + harness-view/harness slices (tree of 6ed07ef8)",
+      "logs": [
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r46-followups-1/focused1-smb-r46-followups-1-05a4d19a-dirty.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r46-followups-1/focused2-composite-05a4d19a.log"
+      ],
+      "result": "render-gpu [test-faults,shared-device] client_port + gpu_pipeline_fault + threshold 16 passed (dx12 rows ran: FXC class proven, no NOT_PROVEN line); observe + fig-base 6 passed; composite [motion] 2 passed; harness-view [viewer] 2 passed; harness [viewer,media] 14 passed (focused1's composite step selected 0 tests without motion, exit 4; rerun with motion = focused2)",
+      "clippy": "check2/check3 logs: no warning in a changed file; pre-existing warnings only (observe lib.rs too_many_arguments, composite tests/support, harness-view viewer_timeline_nest_2, harness viewer_media/timeline_captions)"
+    },
+    "run1": {
+      "sha": "6ed07ef8",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r46-followups-1/bundle-smb-r46-followups-1-6ed07ef8.log (first line HEAD=6ed07ef8)",
+      "argv": "bundled.sh (lane scratch, copy of the steward lane-check semantics in one disk-lock hold on D:, owner smb-r46-followups-1, CARGO_BUILD_JOBS=6, HSK_* unset): lane-check.sh --step0-only; cargo clippy --tests: render-gpu [asset-local-backends,test-faults,shared-device] and [], observe + interop-fig-base + composite, harness-view [viewer], harness [viewer,media], the 34 direct workspace dependents of the six changed crates; cargo nextest run --no-fail-fast: render-gpu [asset-local-backends,test-faults,shared-device] [] [test-faults] [shared-device] [shared-device,test-faults], observe, interop-fig-base, composite [] [motion], harness-view [viewer] [desktop,audio-batch], harness [viewer] [desktop,viewer] [media]; cargo test --doc: observe, render-gpu [] [test-faults]",
+      "result": "step 0 clean, every clippy exit 0, every non-render-gpu suite green; render-gpu 1 failure in all five units: gpu_plan fault_hooks_exist_only_under_the_test_faults_feature 'found 5, pinned 4' (the new gated constructor with_shader_source_on matched the prefix 'pub fn with_shader_source'); fixed in 2b42a0fe by renaming the hook (the pin itself unchanged)",
+      "exit": 1
+    },
+    "run2": {
+      "sha": "2b42a0fe (pushed)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r46-followups-1/bundle-smb-r46-followups-1-2b42a0fe.log (first line HEAD=2b42a0fe)",
+      "argv": "bundled.sh (lane scratch, copy of the steward lane-check semantics in one disk-lock hold on D:, owner smb-r46-followups-1, CARGO_BUILD_JOBS=6, HSK_* unset): lane-check.sh --step0-only; cargo clippy --tests: render-gpu [asset-local-backends,test-faults,shared-device] and [], observe + interop-fig-base + composite, harness-view [viewer], harness [viewer,media], the 34 direct workspace dependents of the six changed crates; cargo nextest run --no-fail-fast: render-gpu [asset-local-backends,test-faults,shared-device] [] [test-faults] [shared-device] [shared-device,test-faults], observe, interop-fig-base, composite [] [motion], harness-view [viewer] [desktop,audio-batch], harness [viewer] [desktop,viewer] [media]; cargo test --doc: observe, render-gpu [] [test-faults]",
+      "disk": "D:",
+      "step0": "clean",
+      "clippy": "all exit 0; no warning in a changed file (pre-existing warnings only: observe lib.rs too_many_arguments, composite tests/support, harness-view viewer_timeline_nest_2, harness viewer_media / timeline_captions)",
+      "results": {
+        "render-gpu [asset-local-backends,test-faults,shared-device]": "111 passed",
+        "render-gpu []": "94 passed",
+        "render-gpu [test-faults]": "106 passed",
+        "render-gpu [shared-device]": "97 passed",
+        "render-gpu [shared-device,test-faults]": "111 passed",
+        "observe": "28 passed",
+        "interop-fig-base": "5 passed",
+        "composite []": "112 passed",
+        "composite [motion]": "173 passed",
+        "harness-view [viewer]": "98 passed",
+        "harness-view [desktop,audio-batch]": "143 passed",
+        "harness [viewer]": "188 passed, 20 skipped",
+        "harness [desktop,viewer]": "190 passed, 20 skipped",
+        "harness [media]": "223 passed, 20 skipped",
+        "doctests": "observe, render-gpu [] and [test-faults] exit 0"
+      },
+      "passed": 1679,
+      "failed": 0,
+      "skipped": 60,
+      "gpu": "transient adapter default = Vulkan (vulkan:discrete:NVIDIA GeForce RTX 3090 in the focused log, DX12 row dx12:discrete:NVIDIA GeForce RTX 3090; 0 NOT_PROVEN lines there); the FXC tests' DX12 rows run on the test-only DX12 port in the test-faults units (focused1 log: PIPELINE_FAULT (dx12 row) internal + D3DCompile, FXC_ROW lines, no NOT_PROVEN for the FXC class); the bundled log captures passing-test output only on failure",
+      "exit": 0
+    }
+  },
+  "blockers": [],
+  "bg_pids": [],
+  "updated_at": "2026-10-31T07:32:46Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "central_broker_client",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "none",
+    "attribution": "required",
+    "jobs": "bounded_admission_via_job_port",
+    "settings": "none",
+    "refactor_exposure": "medium",
+    "recorded_at": "2026-10-31T06:25:33Z",
+    "notes": {
+      "gpu": "no new device, instance, queue or budget owner: the DX12 row is a test-faults candidate list of the existing transient adapter; the grant-closure hook closes grants through the existing ledgers",
+      "diagnostics": "no new text: GrantLedger tombstones and counters are closed codes; observe host_core_le_bytes projects the ring core onto the host DiagEventCode allowlist",
+      "jobs": "export-sequence audio decodes are bounded before allocation (count cap, per-file bytes, one decoded budget); no new queue or worker",
+      "gui": "no egui code added (D1): the harness-view change is the egui-free Geo walk of design auto-layout"
+    }
+  },
+  "notes": {
+    "brief": "builders/briefs/lane-smb-r46-followups-1.md (F-R46-1..7, F-R45-1..3); base 66c62129; disk D: only",
+    "F-R46-1": {
+      "measurement": "tie pixel (7/16, 10/16, 0), level 128/255: pigment lum (binary32 blend_math::lum) 0x3f000000 = cut (level - 0.5/255) 0x3f000000 -> white. GPU lum bracketed by stepping the level bits so the kernel's own binary32 cut walks 0x3efffffb..0x3f000002: Vulkan white at cut 0x3effffff, black at 0x3f000000 -> GPU lum = 0x3effffff; DX12 white at 0x3f000000, black at 0x3f000001 -> GPU lum = 0x3f000000. 1110 8-bit real-arithmetic ties (30R + 59G + 11B = 12750): Vulkan 49, DX12 76 decided unlike pigment (pigment white 1030).",
+      "cause": "contraction into FMA (evidence, exact rational model fma-model-smb-r46-followups-1.py/.txt in the lane artifact folder): full contraction fma(0.11, b, fma(0.3, r, round(0.59 g))) reproduces Vulkan's 0x3effffff and its 49 exactly; fma(0.11, b, fma(0.59, g, round(0.3 r))) reproduces DX12's 0x3f000000 and its 76; none of the other four modelled evaluation orders (plain sum, one fused product with the second sum rounded, fma over the rounded first sum) matches either backend. naga 27.0.3 emits no NoContraction decoration (grep of back/spv). Which driver stage fuses is vendor behaviour: UNVERIFIED (D5).",
+      "fix": "kernel.wgsl threshold_lum: each product plus the runtime zero ext.adj[0].y (ext.rs writes params[0] = [level, 0, 0, 0] for Threshold), then ((p0 + p1) + p2): no product feeds a sum; a contracted fma(w, c, 0) rounds w c once like the plain product. Pigment unchanged, no golden changed, no tolerance touched. After: 0 of 1110 on both backends, tie lum 0x3f000000 on both.",
+      "removed": "THRESHOLD_TIE_WINDOW, threshold_tie, threshold_cut, gpu_vs_reference_ties and the NOT_PROVEN boundary line (66c62129); ext_adjustment_layer_parity compares the 7 lattice ties exactly again (gpu_vs_reference_with). threshold_tie_at_the_cut_is_either_side_and_off_tie_pixels_match renamed threshold_tie_at_the_cut_and_off_tie_pixels_match_pigment (its claim changed: the tie must be white as pigment; the 1e-4 below/above greys kept).",
+      "new_tests": "threshold_tie_decides_as_pigment_at_every_cut_step (prints THRESHOLD_TIE_STEP / THRESHOLD_TIE_BITS per backend), threshold_8bit_ties_at_level_128_match_pigment",
+      "V4-06": "class: a binary32 decision (comparison) on a WGSL sum of products the compiler may contract; regex in render-gpu src/*.wgsl: '(>=|<=|<|>).*' on a sum of products feeding select/branch. Sites: kernel.wgsl threshold_apply (fixed); kernel.wgsl bc_ch legacy contrast step (x + b >= p at :505, no product: not applicable); filter.wgsl unsharp threshold '|o - blur| * 255 >= levels' (product then compare, not a fused sum; the DESCRIPTOR already declares on-threshold pixels may differ: not in this lane's owned paths, not changed, reported)",
+      "spec": "SD-12 binary64 premise: lead corrected it (kernel c8b1df58); the tie rule stays an Operator D5 decision; no Master Spec edit"
+    },
+    "F-R46-2": "test-only port instead of a self dev-dependency: TransientAdapter::dx12_for_tests (test-faults; DX12-only candidates) and GpuBackend::with_grant_and_shader_source (test-faults; named so the existing hook-count pin in gpu_plan stays exact, run 1). Reason: a render-gpu self dev-dependency on asset-local-backends would unify the feature into every render-gpu test and doctest build, compiling out the BACKEND_CHOICE_IS_TEST_ONLY compile_fail doctests and the non-asset-local env path in all four round units, and would create new artifact identities (F-R46-8 cost class). Both FXC tests run the DX12 row first on Windows (expectations unchanged: internal class, D3DCompile, labels composite / probe) and keep the platform-order row (Vulkan) as an extra row; that row prints NOT_PROVEN only when no DX12 row ran (off Windows). Render-gpu Cargo.toml unchanged.",
+    "F-R46-3": "test-faults GrantClosure {Revoked, Superseded} (client), GpuClientPort::inject_closure (default false; TransientAdapter and ExternalPort close through their ledger), GrantLedger::inject_closure, GpuBackend::inject_grant_closure. Tests: a_closed_held_grant_refuses_execute_and_grade_without_device_work (live transient backend; execute and execute_grade -> Unavailable(grant_revoked) / DeviceLost{1}; no sink call; grade surface bytes unchanged; device not lost), report_port_emits_one_terminal_frame_per_port_event (all 17 PortEvent values: one Terminal frame, outcome = port_outcome_of, no event code bytes in the frame, a second emit refused; canceled token -> Canceled).",
+    "F-R46-4": "SharedDevice::render_to_texture no longer writes the flag; execute_inner calls TextureOut::reset_flag after the Ready match and authorize, before key passes and chunks. Test shared_texture_flag_is_written_only_under_an_authorised_grant (shared-device + test-faults; counter SharedDevice::overflow_flag_writes: 1 after an authorised render, still 1 after a revoked render refused Denied(Revoked)).",
+    "F-R46-5": "GrantLedger: records only for live grants (open, or revoked and unsettled) in a BTreeMap; settle and supersede drop the record and store a tombstone (settled / superseded) in an Arc<AtomicU8> shared with the GpuGrant, so DoubleRelease vs LateRelease (and Lost for authorize/check_rebind) stay exact for any closed grant without a record; an issued id (<= next_id) without a record is closed; open count kept (no scan in counters). New pub GrantLedger::live_records(). Test grant_ledger_keeps_only_live_records_and_classifies_closed_grants_exactly. Existing settle_once_double_and_late_release_are_typed unchanged.",
+    "F-R46-6": "RingRecord::host_core_le_bytes() -> [u8; 56] (event_code = host_event_code(), bytes 2..56 = to_le_bytes); module docs + DESCRIPTOR ring_port.projection and proven_by.host_core. Pinned against host_mirror (schema.rs @292d7a1c re-read read-only in wtc-native-editors-v1: DiagEventCode 0..=11 and 65535, phases 0..4, severities 0..2, 56 bytes, align 8 match the mirror). Test host_core_carries_the_host_event_code_and_the_record_core.",
+    "F-R46-7": "cli.rs: MAX_EXPORT_AUDIO_FILES = 16 (audio_too_many before any read), per-audio-file limit ImportLimits::max_file_bytes (1 GiB, media_too_large with limit), MAX_EXPORT_AUDIO_DECODED_BYTES = 4 147 200 000 shared by all decodes (remainder / 4 as reel's frame limit; reel's audio-frame-budget refusal under that limit maps to audio_too_large; frames x channels x 4 charged before the decode is kept). Gap: channels are known only after the decode (reel has no probe API and reel is not an owned path), so one decode can transiently hold up to channels x remainder bytes before its charge is refused; the frame limit and the 16-file cap bound it.",
+    "F-R45-1": "nodes.rs: track and sizing lists over GRID_COUNT_MAX (folio, 1000) are refused whole before entry work (grid_track_count_over_limit, grid_track_size_count_over_limit); duplicate ids via HashSet, sizes via an id->index HashMap; both loops check the cancel token per entry (frame/grid_container/grid_tracks/grid_sizes return Result). V4-06 class 'per-entry linear search over a hostile kiwi array before a count bound', regex '\\.iter(_mut)?\\(\\)\\.(any|find|position)\\(' over nodes.rs: :583 FigDocument::node (public accessor, not decode), :683 Obj::take and :839/:1198-1206/:1328/:1567/:1631 (field-name scans over one message's schema fields, bounded by the schema, not by array length): not applicable; :2117 variable alias walk (cur.values.iter().find per alias step) is the same class outside GRID: not changed (not in the brief), reported.",
+    "F-R45-2": "auto_layout.rs Geo only (no egui, no rendering call): rects memoised per layer for one command (RefCell<BTreeMap>), every computed rect charged against MAX_SUBTREE before its walk (Cell counter), background_at(id, depth) walks siblings at depth + 1. Bounded without toolkit code: nothing to stop on.",
+    "F-R45-3": "the three assertions now carry colour_profiles for every colour key and compare (layer_id, feature) == (SLYR-...02, composition_effect_option).",
+    "red_commits": "only be66cc60 is a pushed red commit (compiles, fails its two new tests on this host). The other slices' tests use new API (host_core_le_bytes, live_records, inject_grant_closure, dx12_for_tests, overflow_flag_writes, MAX_EXPORT_AUDIO_FILES, Geo::new) or strengthen passing assertions (F-R45-3), so per RED COMMITS their red halves are squashed into the green commits; counterfactuals are in each test doc (2^40 walks, 2 x 10^10 comparisons, flag queued before authorize).",
+    "changed_tests_of_other_lanes": [
+      "render-gpu tests/gpu_plan.rs (render-gpu adjustments lane / SMB-GPU-CLIENT-PORT-1 66c62129): exemption removed (stricter: exact at the 7 ties); tie test renamed and made exact",
+      "render-gpu tests/gpu_pipeline_fault.rs (SMB-RENDER-GPU-PIPELINE-FAULT, 9285bce3 branch): DX12 row added first, DX12 expectations unchanged, platform row kept; NOT_PROVEN only when no DX12 row ran",
+      "harness tests/cli_export_sequence.rs export_sequence_cli_refuses_audio_range_output_and_total_size_typed (SMB-R44-FOLLOWUPS-1): the total-size case changed from 1 GiB + 1 byte audio to 640 MiB audio + 1.5 GiB media because the audio item limit is now 1 GiB (same total_limit claim, stage audio); new per-file and count cases",
+      "composite tests/composition_effects.rs folio_effect_stacks_render_through_render_scene_in_stack_order, tests/effect_families_2.rs glow_builds_from_threshold_blur_and_blend (SMB-AE-EFFECT-STACK-1 / -FAMILIES-2): stricter"
+    ],
+    "rule_4e": ".config/round-features.toml has every unit these tests need: render-gpu [test-faults] [shared-device] [shared-device,test-faults] (client_port closure/flag tests, gpu_pipeline_fault), composite [motion], harness-view [viewer] (auto_layout unit tests), harness [media] (cli unit test, cli_export_sequence); observe and interop-fig-base default; no steward unit needed",
+    "rule_4c": "no drive or profile path literal added (test paths are bare file names: a.wav, ghost.wav under the scratch dir)",
+    "rule_4d": "no doc example added or changed (observe and render-gpu doctests run in the bundled run anyway)",
+    "out_of_scope": "F-R46-8 (harness dev-dependency line) untouched; F-R46-12 (compile_fail doctests without E-codes in ring.rs) not in the brief, not changed",
+    "vendor": "Vulkan/DX12 driver contraction behaviour UNVERIFIED (D5); no vendor parity claimed",
+    "ready_claim": "cites only run2 (bundle-smb-r46-followups-1-2b42a0fe.log); never PASS; vendor driver contraction behaviour UNVERIFIED (D5)"
+  }
+}

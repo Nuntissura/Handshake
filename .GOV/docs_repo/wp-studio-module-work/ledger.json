@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-31T05:54:02Z",
+ "updated_at": "2026-10-31T07:34:05Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -13561,15 +13561,25 @@
   {
    "lane_id": "SMB-R46-FOLLOWUPS-1",
    "crate": "hsk-studio-render-gpu + hsk-studio-observe + hsk-studio-harness (cli) + hsk-studio-interop-fig-base + hsk-studio-harness-view (design auto-layout walk bound only) + composite tests",
-   "phase": "coding (dispatched 2026-10-31T05:54:02Z); runs on D: (C: has 16 GiB headroom)",
-   "status": null,
+   "phase": "validation (R47)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-r46-followups-1.json",
    "brief": "builders/briefs/lane-smb-r46-followups-1.md",
    "worktree": "wt-studio-lanes/smb-r46-followups-1",
    "disk": "D:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "2b42a0fe",
+   "commits": [
+    "be66cc60",
+    "b954cb0f",
+    "e26c629f",
+    "6af8c1ef",
+    "bd71ed48",
+    "05a4d19a",
+    "c990d11c",
+    "6ed07ef8",
+    "2b42a0fe"
+   ],
    "verdicts": [],
    "host_integration": {
     "gui_host": "none",
@@ -13579,7 +13589,7 @@
     "recorded_at": "2026-10-31T05:54:02Z",
     "lane_file_block": false
    },
-   "note": "R46 F-R46-1..7 + R45 F-R45-1..3 (merged from SMB-R45-FOLLOWUPS-1). F-R46-8 dev-dependency removal stays with the GUI lane (one change with the Viewer port). Base 66c62129."
+   "note": "R46 F-R46-1..7 + R45 F-R45-1..3 (merged from SMB-R45-FOLLOWUPS-1). F-R46-8 dev-dependency removal stays with the GUI lane (one change with the Viewer port). Base 66c62129.; 2026-10-31T07:34:05Z pushed 66c62129..2b42a0fe (ls-remote verified, no root input or Cargo.toml changed); D: run 2 1679 passed / 0 failed / 60 skipped (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r46-followups-1/bundle-smb-r46-followups-1-2b42a0fe.log); tie measured: pigment and cut 0x3f000000, Vulkan lum 0x3effffff, DX12 0x3f000000; 49 (Vulkan) / 76 (DX12) of 1110 tie colours differed; cause reproduced by FMA contraction of the luminance sum in a backend-specific order (driver reason UNVERIFIED); fix: runtime zero per product prevents fusion; after the fix 0/1110 on both, exemption removed; FXC rows on an explicit test-only DX12 port (no self dev-dependency: it would have rebuilt every render-gpu test unit, the F-R46-8 trap); grant ledger tombstones; host_core_le_bytes; --audio cap 16 files / 1 GiB / 4.15 GB decoded; GRID >1000 tracks refused before work; frame-size walk memoised under MAX_SUBTREE without egui code; refusal tests pin their cause"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
