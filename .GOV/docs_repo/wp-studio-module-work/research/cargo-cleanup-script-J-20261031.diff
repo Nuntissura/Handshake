@@ -1,0 +1,77 @@
+--- phase2-guarded-delete.ps1.orig	2026-10-31 06:57:33.209853200 +0100
++++ phase2-guarded-delete.ps1	2026-10-31 06:58:08.449296800 +0100
+@@ -35,7 +35,12 @@
+   [switch]$QuickNewest,
+   # lead decision B 2026-10-24 ~11:50Z (C: grant is a hard limit): normal I/O priority (no background mode), CPU BelowNormal;
+   # the files/s and MiB/s caps and every per-item re-check stay
+-  [switch]$NormalIo
++  [switch]$NormalIo,
++  # batch J (F-R46-8): superseded identities inside studio-round/target (kind round-stale-identity): one item = one
++  # .fingerprint/<pkg>-<hash> dir + its listed debug/deps|examples files with the same hash; only with this switch, only
++  # pkgs harness / harness-view / render-gpu, only if every part was last written before -StaleBefore (UTC ISO)
++  [switch]$AllowRoundStale,
++  [string]$StaleBefore = ''
+ )
+ $ErrorActionPreference = 'Continue'
+ $outDir = $PSScriptRoot
+@@ -171,8 +176,60 @@
+   return @{ files=$files; bytes=$bytes; errs=$errs }
+ }
+ 
++$rsShape = '^studio-round/target/debug/\.fingerprint/(hsk-studio-(?:harness|harness-view|render-gpu))-([0-9a-f]{16})$'
++$rsForbidden = $forbiddenAlways -replace '\(studio-round\|', '('   # studio-round waived for this kind only; every other name stays
++$rsCut = $null; if ($StaleBefore) { $rsCut = [datetime]::Parse($StaleBefore, $null, [Globalization.DateTimeStyles]::AdjustToUniversal) }
++function RoundStaleItem($it, $r) {   # returns the status; fills $r
++  $p = Norm $it.path; $rel = $(if ($p.StartsWith($root.TrimEnd('/') + '/')) { $p.Substring($root.Length) } else { '' })
++  if (-not $AllowRoundStale -or -not $rsCut) { return 'SKIPPED_ROUND_STALE_NOT_ALLOWED' }
++  if ($Disk -ne 'C' -or -not $rel) { return 'SKIPPED_NOT_UNDER_ALLOWED_ROOT' }
++  if ($rel -notmatch $rsShape) { return 'SKIPPED_UNEXPECTED_SHAPE' }
++  $hash = $Matches[2]
++  if ($p -match $rsForbidden) { return 'SKIPPED_FORBIDDEN_NAME' }
++  $dbg = $root + 'studio-round/target/debug/'
++  $files = @($it.files | ForEach-Object { Norm $_ })
++  foreach ($f in $files) { if ($f -notmatch ('^(deps|examples)/[A-Za-z0-9_.-]+-' + $hash + '(\.[A-Za-z0-9]+)?$')) { $r.detail = $f; return 'SKIPPED_UNEXPECTED_FILE_SHAPE' } }
++  if (-not (Test-Path -LiteralPath $p -PathType Container)) { return 'ABSENT' }
++  if (((Get-Item -LiteralPath $p -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return 'SKIPPED_REPARSE_POINT' }
++  # any holder or queued ticket on the C: lock (round or builder) stops this kind; -AllowDuringRound does not apply
++  if ((Test-Path -LiteralPath (Join-Path $lockDirs[$Disk] 'held')) -or @(Get-ChildItem -LiteralPath (Join-Path $lockDirs[$Disk] 'queue') -Name -ErrorAction SilentlyContinue).Count) { return 'SKIPPED_LOCK_NOT_FREE' }
++  $refs = RefProcs $p @('studio-round/target')
++  if ($refs.Count -gt 0) { $r.detail = (($refs | ForEach-Object { $_.ProcessId.ToString() + ':' + $_.Name }) -join ' '); return 'SKIPPED_IN_USE' }
++  $parts = @(Get-ChildItem -LiteralPath $p -Force) + @(Get-Item -LiteralPath $p -Force) + @($files | ForEach-Object { Get-Item -LiteralPath ($dbg + $_) -Force -ErrorAction SilentlyContinue })
++  $newest = ($parts | Measure-Object LastWriteTimeUtc -Maximum).Maximum
++  $bytes = (@($parts | Where-Object { $_ -is [IO.FileInfo] }) | Measure-Object Length -Sum).Sum + 0
++  $r.newest_write_utc = $newest.ToString('yyyy-MM-ddTHH:mm:ssZ'); $r.size_gib_now = [math]::Round($bytes / 1GB, 3); $r.files = $parts.Count - 1
++  if ($newest -ge $rsCut) { $r.detail = "newest write $($r.newest_write_utc) >= $StaleBefore"; return 'SKIPPED_WRITTEN_SINCE_FREEZE' }
++  if (-not $Execute) { $r.gib_deleted = $r.size_gib_now; return 'WOULD_DELETE' }
++  Add-Content -LiteralPath $touchedFile -Value $p
++  $del = 0L; $left = @()
++  foreach ($f in $files) { $fp = $dbg + $f; if (-not (Test-Path -LiteralPath $fp)) { continue }
++    $len = (Get-Item -LiteralPath $fp -Force).Length
++    try { [System.IO.File]::SetAttributes($fp, 'Normal'); [System.IO.File]::Delete($fp); $del += $len } catch { $left += $fp }
++    if ($len -gt 0) { Start-Sleep -Milliseconds ([int][Math]::Max(1000 / $MaxFilesPerSec, 1000.0 * $len / $MaxBytesPerSec)) } }
++  $d = Throttled-Delete $p; $del += $d.bytes
++  if (Test-Path -LiteralPath $p) { $left += $p }
++  $binned = 0L
++  foreach ($x in $left) { try { Add-Type -AssemblyName Microsoft.VisualBasic -ErrorAction Stop
++      $sz = $(if (Test-Path -LiteralPath $x -PathType Leaf) { (Get-Item -LiteralPath $x -Force).Length } else { (Get-TreeSize $x).bytes })
++      if (Test-Path -LiteralPath $x -PathType Leaf) { [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile(($x -replace '/','\'), 'OnlyErrorDialogs', 'SendToRecycleBin') }
++      else { [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory(($x -replace '/','\'), 'OnlyErrorDialogs', 'SendToRecycleBin') }
++      $binned += $sz } catch { $r.detail += "; recycle failed: $x" } }
++  $r.gib_deleted = [math]::Round($del / 1GB, 3); $r.gib_binned = [math]::Round($binned / 1GB, 3)
++  if (@($left | Where-Object { Test-Path -LiteralPath $_ }).Count) { return 'FAILED_PARTIAL' }
++  if ($left.Count) { return 'RECYCLED_REMAINDER' }
++  return 'DELETED'
++}
++
+ $results = @()
+ foreach ($it in $items) {
++  if ($it.kind -eq 'round-stale-identity') {
++    $r = [ordered]@{ id=$it.id; path=(Norm $it.path); disk=$Disk; owner=$it.owner; kind=$it.kind; group=$it.group; size_gib_plan=$it.size_gib; size_gib_now=$null; newest_write_utc=$null; status=''; detail=''; seconds=0; files=0; gib_deleted=0; gib_binned=0 }
++    $sw = [Diagnostics.Stopwatch]::StartNew(); $r.status = RoundStaleItem $it $r; $r.seconds = [math]::Round($sw.Elapsed.TotalSeconds, 1)
++    $r.disk_free_gib_after = [math]::Round((Get-PSDrive $Disk).Free / 1GB, 2)
++    Log ("{0,-30} {1,8} GiB {2,7}s {3,7} files {4}{5}" -f $r.status, $r.gib_deleted, $r.seconds, $r.files, $r.path, $(if ($r.detail) { '  [' + $r.detail + ']' } else { '' }))
++    $results += [pscustomobject]$r; continue
++  }
+   $p = Norm $it.path
+   $rel = $(if ($p.StartsWith($root.TrimEnd('/') + '/')) { $p.Substring($root.Length) } else { '' })
+   $r = [ordered]@{ id=$it.id; path=$p; disk=$Disk; owner=$it.owner; kind=$it.kind; group=$it.group; size_gib_plan=$it.size_gib; size_gib_now=$null; newest_write_utc=$null; status=''; detail=''; seconds=0; files=0; gib_deleted=0; gib_binned=0 }

@@ -1,0 +1,237 @@
+{
+ "schema": "hsk.studio.cleanup_plan@1",
+ "file_id": "CARGO-CLEANUP-PLAN-20261031-J",
+ "generated_at": "2026-10-31T06:14:00Z",
+ "status": "DRY_RUN_ONLY_AWAITING_REVIEW (nothing deleted)",
+ "authority": "Operator standing grant START_LOG 2026-10-24 (~600-601), lead-reviewed, guarded script; rules P2/P3 of research/cargo-plan-20261024.json; F-R46-8 repair direction (validation/round-R46.json)",
+ "state_basis": {
+  "round": "R46 recorded (kernel 565a435e, candidate 66c62129, 343 PASS); full union 03:18:55Z-05:45:23Z; freeze cutoff used 2026-10-31T03:13:00Z (lead's window start, before started_at 03:15:51Z)",
+  "locks": "C: and D: .disk-build-lock: no held/, queue/ empty at ~05:57Z",
+  "processes": "no cargo/rustc/nextest/link running at ~05:57Z",
+  "builder": "smb-r46-followups-1 (ledger phase 'coding', dispatched 05:54:02Z, D:) has no owner dir on D: yet; kept by -KeepLanes and by the KEEP list"
+ },
+ "measure_at_dry_run": {
+  "at": "2026-10-31T05:59:54Z",
+  "C_free_gib": 306.43,
+  "D_free_gib": 1338.4,
+  "C_studio_tree_gib": 343.932,
+  "C_studio_round_gib": 343.932,
+  "C_studio_team_dev_gib": 0,
+  "C_tree_after_J_estimate_gib": 197.7
+ },
+ "disks": {
+  "C": {
+   "scope": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target/debug: superseded identities of hsk-studio-harness (lib, bins, every test binary), hsk-studio-harness-view, hsk-studio-render-gpu",
+   "selection_rule": "an identity = .fingerprint/<pkg>-<metadata hash> dir + every debug/deps|examples file named *-<hash>.*. Candidate iff (1) pkg in {harness, harness-view, render-gpu}; (2) newest write of the fingerprint dir and all its files < 2026-10-31T03:13:00Z; (3) every target of the identity (fingerprint json names, e.g. test-integration-test-viewer_shell) has a different-hash identity of the same package written during R46 (03:13Z-05:50Z); (4) no fingerprint json anywhere in the target written since the cutoff lists this unit's fingerprint (le-u64 of its 16-hex hash file) as a dependency. No build/ dirs exist for these packages; incremental, .cargo-lock, build-script outputs and every other package are outside the rule",
+   "analysis": {
+    "script": "scratchpad cargo-manager-20261031-J/stale_identities.py (read-only)",
+    "result": "stale-identities.json",
+    "identities_total": 3325,
+    "per_pkg": {
+     "hsk-studio-harness": {
+      "total": 2924,
+      "written_since_freeze": 1428,
+      "written_during_r46": 1428,
+      "stale": 1496,
+      "stale_gib": 136.948
+     },
+     "hsk-studio-harness-view": {
+      "total": 137,
+      "written_since_freeze": 95,
+      "written_during_r46": 95,
+      "stale": 42,
+      "stale_gib": 1.007
+     },
+     "hsk-studio-render-gpu": {
+      "total": 264,
+      "written_since_freeze": 157,
+      "written_during_r46": 157,
+      "stale": 107,
+      "stale_gib": 7.879
+     }
+    },
+    "pre_freeze_without_r46_successor": 0,
+    "live_refs_to_stale": 0,
+    "candidate_newest_write_range": [
+     "2026-10-30T14:52:47Z",
+     "2026-10-31T02:16:20Z"
+    ]
+   },
+   "candidate_file": "scratchpad cargo-manager-20261031-J/batchJ-C.json (1645 items, kind round-stale-identity, each with its file list)",
+   "count": 1645,
+   "gib": 146.234,
+   "files": 11521,
+   "per_pkg": {
+    "hsk-studio-harness": {
+     "count": 1496,
+     "gib": 137.332
+    },
+    "hsk-studio-harness-view": {
+     "count": 42,
+     "gib": 1.018
+    },
+    "hsk-studio-render-gpu": {
+     "count": 107,
+     "gib": 7.884
+    }
+   },
+   "dry_run_result_file": "scratchpad cargo-manager-20261031-J/phase2-C-dryrun-20261031T055850Z-result.json",
+   "dry_run_at": "2026-10-31T06:10:35Z",
+   "dry_run_counts": {
+    "status": "WOULD_DELETE",
+    "n": 1645,
+    "gib_deleted": 146.234
+   },
+   "largest": [
+    {
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target/debug/.fingerprint/hsk-studio-harness-6507753eb347b143",
+     "gib": 0.345,
+     "newest_write_utc": "2026-10-31T01:41:10Z"
+    },
+    {
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target/debug/.fingerprint/hsk-studio-harness-b44c09e2d0ee7309",
+     "gib": 0.345,
+     "newest_write_utc": "2026-10-31T01:39:10Z"
+    },
+    {
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target/debug/.fingerprint/hsk-studio-harness-30c96fc36b30df3b",
+     "gib": 0.344,
+     "newest_write_utc": "2026-10-31T01:45:35Z"
+    },
+    {
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target/debug/.fingerprint/hsk-studio-harness-1e71a22ce12eaf7c",
+     "gib": 0.343,
+     "newest_write_utc": "2026-10-31T01:45:57Z"
+    },
+    {
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target/debug/.fingerprint/hsk-studio-harness-df553ce1bb28f88f",
+     "gib": 0.343,
+     "newest_write_utc": "2026-10-31T01:13:35Z"
+    },
+    {
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target/debug/.fingerprint/hsk-studio-harness-edd6b9795cd3af53",
+     "gib": 0.343,
+     "newest_write_utc": "2026-10-31T01:13:31Z"
+    },
+    {
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target/debug/.fingerprint/hsk-studio-harness-1bfedb2f72efa9fa",
+     "gib": 0.342,
+     "newest_write_utc": "2026-10-31T01:35:22Z"
+    },
+    {
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target/debug/.fingerprint/hsk-studio-harness-018e1f4d3ed8a717",
+     "gib": 0.342,
+     "newest_write_utc": "2026-10-31T01:35:53Z"
+    },
+    {
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target/debug/.fingerprint/hsk-studio-harness-648b6de4316754f9",
+     "gib": 0.342,
+     "newest_write_utc": "2026-10-31T01:40:02Z"
+    },
+    {
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target/debug/.fingerprint/hsk-studio-harness-035ce9da6a33b09b",
+     "gib": 0.342,
+     "newest_write_utc": "2026-10-31T01:37:59Z"
+    }
+   ]
+  },
+  "D": {
+   "scope": "D:/.../WP-KERNEL-STUDIO/<lane>/target of lanes PASS in ledger.json (STUDIO-R46 @66c62129)",
+   "count": 6,
+   "gib": 219.497,
+   "dry_run_result_file": "scratchpad cargo-manager-20261031-J/phase2-D-dryrun-20261031T055853Z-result.json",
+   "dry_run_at": "2026-10-31T05:59:47Z",
+   "dry_run_counts": {
+    "status": "WOULD_DELETE",
+    "n": 6,
+    "gib_deleted": 219.497
+   },
+   "candidates": [
+    {
+     "id": "D-J01",
+     "lane": "smb-fig-grid-2",
+     "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-grid-2/target",
+     "gib": 77.011,
+     "files": 9521,
+     "newest_write_utc": "2026-10-30T17:51:34Z",
+     "ledger_status": "PASS_V2 (ledger: done (STUDIO-R46 PASS_V2 @66c62129))",
+     "rule": "P2: lane PASS in STUDIO-R46 @66c62129 (kernel 565a435e)",
+     "dry_run_status": "WOULD_DELETE"
+    },
+    {
+     "id": "D-J02",
+     "lane": "smb-gpu-client-port-1",
+     "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gpu-client-port-1/target",
+     "gib": 1.566,
+     "files": 5821,
+     "newest_write_utc": "2026-10-31T00:36:26Z",
+     "ledger_status": "PASS_V1 (ledger: done (STUDIO-R46 PASS_V1 @66c62129))",
+     "rule": "P2: lane PASS in STUDIO-R46 @66c62129 (kernel 565a435e)",
+     "dry_run_status": "WOULD_DELETE"
+    },
+    {
+     "id": "D-J03",
+     "lane": "smb-id-frame-autosize-2",
+     "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-frame-autosize-2/target",
+     "gib": 3.514,
+     "files": 5710,
+     "newest_write_utc": "2026-10-31T00:02:57Z",
+     "ledger_status": "PASS_V2 (ledger: done (STUDIO-R46 PASS_V2 @66c62129))",
+     "rule": "P2: lane PASS in STUDIO-R46 @66c62129 (kernel 565a435e)",
+     "dry_run_status": "WOULD_DELETE"
+    },
+    {
+     "id": "D-J04",
+     "lane": "smb-observe-ring-port-1",
+     "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-observe-ring-port-1/target",
+     "gib": 1.37,
+     "files": 7047,
+     "newest_write_utc": "2026-10-31T00:24:29Z",
+     "ledger_status": "PASS_V1 (ledger: done (STUDIO-R46 PASS_V1 @66c62129))",
+     "rule": "P2: lane PASS in STUDIO-R46 @66c62129 (kernel 565a435e)",
+     "dry_run_status": "WOULD_DELETE"
+    },
+    {
+     "id": "D-J05",
+     "lane": "smb-r43-followups-1",
+     "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r43-followups-1/target",
+     "gib": 3.903,
+     "files": 6605,
+     "newest_write_utc": "2026-10-30T18:13:38Z",
+     "ledger_status": "PASS_V2 (ledger: done (STUDIO-R46 PASS_V2 @66c62129))",
+     "rule": "P2: lane PASS in STUDIO-R46 @66c62129 (kernel 565a435e)",
+     "dry_run_status": "WOULD_DELETE"
+    },
+    {
+     "id": "D-J06",
+     "lane": "smb-r44-followups-1",
+     "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r44-followups-1/target",
+     "gib": 132.133,
+     "files": 15706,
+     "newest_write_utc": "2026-10-31T01:28:44Z",
+     "ledger_status": "PASS_V1 (ledger: done (STUDIO-R46 PASS_V1 @66c62129))",
+     "rule": "P2: lane PASS in STUDIO-R46 @66c62129 (kernel 565a435e)",
+     "dry_run_status": "WOULD_DELETE"
+    }
+   ]
+  }
+ },
+ "keep": {
+  "C": "every other file and dir of studio-round (R46 identities, all other packages, incremental, .cargo-lock/.cargo-build-lock/.cargo-artifact-lock, build/, fixtures, tmp, hsk-worker-testbin), the C: lock",
+  "D": "smb-fig-grid-3/target (PAUSED, + paused-green-uncompiled), smb-r46-followups-1 (running builder; no dir yet), D: studio-round/target (P4, not in scope), logs/results/receipts/exports, oracle-corpus, steward/sync exports, registry caches, locks"
+ },
+ "script_diff": {
+  "file": "scratchpad cargo-manager-20261031-J/script-J.diff",
+  "base_sha256": "026a57ff59c603ba7edfc7c4e88e71cc08838b1d91d376570059daf92a1f1dd5",
+  "new_sha256": "b6100b0cee919d70abf65f7fc0e38cc8b41e1480052e0624459a04f8cc98b94e",
+  "summary": "adds only: switches -AllowRoundStale and -StaleBefore; one function RoundStaleItem and a branch at the top of the item loop for items of kind 'round-stale-identity'. Guards for that kind: switch + cutoff required; C: only; exact shape studio-round/target/debug/.fingerprint/hsk-studio-(harness|harness-view|render-gpu)-<16 hex>; every listed file must be debug/deps|examples/<name>-<same hash>[.ext]; studio-round waived in the forbidden-name regex for this kind only (all other names stay); no reparse point; C: lock must have no holder and no queued ticket of any class (-AllowDuringRound does not apply); no process command line/image path containing the identity path or 'studio-round/target'; newest write of the dir and all files re-measured < cutoff, else SKIPPED_WRITTEN_SINCE_FREEZE; delete files then the dir, throttled by the same files/s and MiB/s caps; remainder to the Recycle Bin with its size. Existing kinds, guards and the generic studio-round prohibition are unchanged"
+ },
+ "execute_commands": {
+  "C": "phase2-guarded-delete.ps1 -Plan batchJ-C.json -Disk C -ApproveAllCandidates -AllowRoundStale -StaleBefore 2026-10-31T03:13:00Z -KeepLanes 'smb-fig-grid-3|smb-r46-followups-1' -NormalIo -MaxFilesPerSec 600 -MaxBytesPerSec 524288000 -Execute",
+  "D": "phase2-guarded-delete.ps1 -Plan batchJ-D.json -Disk D -ApproveAllCandidates -KeepLanes 'smb-fig-grid-3|smb-r46-followups-1' -NormalIo -MaxFilesPerSec 600 -MaxBytesPerSec 524288000 -Execute"
+ },
+ "p3_after": {
+  "C_live_lane_targets": 0,
+  "D_live_lane_targets": 1
+ }
+}
