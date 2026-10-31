@@ -1,19 +1,54 @@
 {
   "crate": "hsk-studio-folio + hsk-studio-pigment + hsk-studio-interop-psd (+ hsk-studio-package tests): persistent alpha/spot channel record, selection save/load, PSD alpha channels",
   "lane": "SMB-FOLIO-CHANNEL-RECORD",
-  "status": null,
-  "phase": "dispatched",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed 719c9f75..ed28834c to origin/codex/handshake-studio-assets; READY_FOR_VALIDATION (all four slices)",
   "worktree": "wt-studio-lanes/smb-folio-channel-record",
   "base": "e9c46302",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "9960813c",
+      "subject": "folio (SMB-FOLIO-CHANNEL-RECORD slice 1): persistent channel record StudioRasterRecords.channels"
+    },
+    {
+      "sha": "4135ddb0",
+      "subject": "pigment (SMB-FOLIO-CHANNEL-RECORD slice 2): save and load selection through the Folio channel record"
+    },
+    {
+      "sha": "32ecf2cb",
+      "subject": "pigment (SMB-FOLIO-CHANNEL-RECORD slice 3): channel list operations as typed record transforms"
+    },
+    {
+      "sha": "e1a48c6c",
+      "subject": "interop-psd (SMB-FOLIO-CHANNEL-RECORD slice 4): PSD alpha and spot channels to Folio channel records and back"
+    },
+    {
+      "sha": "ed28834c",
+      "subject": "package (SMB-FOLIO-CHANNEL-RECORD, rule 4b): channel tile planes round-trip through the package"
+    }
+  ],
+  "capabilities_done": [
+    "folio StudioRasterRecords.channels: StudioChannelRecord (masked_area_alpha|selected_area_alpha|spot_colour, depth 8/16/32, full-grid TileRefs), typed validation, validate_channels, channel_list_budget; empty not encoded (MT-038 AC-002, MT-050 AC-005)",
+    "pigment selection_channel_roundtrip: save selection (new or existing with Replace/Extend/Diminish/Intersect) and load with CombineMode; identical at 16/32 bits, 8-bit quantisation declared (MT-038 AC-001, MT-30095)",
+    "pigment channel list ops: rename, reorder, visibility, duplicate, delete, kind conversion (inverts only across polarity); CommandContext + one terminal Observe frame per op (MT-050 AC-001 record half, Duplicate)",
+    "interop-psd: extra merged planes -> channel records via 1045/1006/1053/1077; apply_channel_edits / export_psd_with_channels write names, display entry, samples; unmodified re-emits byte-identically (MT-038 AC-003)",
+    "package: channel tile planes round-trip through both writers and the reader"
+  ],
+  "tests": {
+    "argv": "bundle (pre-rebase c057f7f4, lead 2026-10-31): lane-check --disk d -- cargo nextest run -p folio -p pigment -p interop-psd -p package -p harness --features hsk-studio-harness/import-psd (whole suites + harness import_psd) + dependents clippy; per-sha after rebase: lane-check --per-sha origin/codex/handshake-studio-assets",
+    "exit": 0,
+    "sha": "ed28834c (per-sha), c057f7f4 (bundle; rebase onto 719c9f75 touched no lane crate: composite simulations files use no folio/pigment name, git grep clean)",
+    "passed": 555,
+    "failed": 0,
+    "skipped": 16,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-folio-channel-record/bundle-smb-folio-channel-record-c057f7f4.log; per-sha-smb-folio-channel-record-ed28834c.log (PER_SHA_RESULT OK shas=5 range=719c9f75..ed28834c)"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": null,
   "bg_pids": [],
-  "next": "rebase onto f8a1c5f3; code slices; bundled run on D: (--disk d); push in the lead order",
-  "updated_at": "2026-10-31T16:35:22Z",
+  "next": "validation round; follow-up candidate harness-core import.rs:787 (channels dropped without layer records); open: Split/Merge, Apply-Image, Calculations, Channels surface, harness-view migration",
+  "updated_at": "2026-10-31T17:54:33Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -63,6 +98,20 @@
     "carried_forward": "harness-view migration from the interim session typed entry to the record; Split/Merge, Apply-Image, Calculations; TIFF extra samples",
     "root_inputs": "none; no Cargo.toml or feature change, no new dependency",
     "storage": "folio code change rebuilds every folio dependent (same artifact identities, no feature change); widest clippy set of the wave",
-    "operator_items": "none; Photoshop channel polarity and DisplayInfo semantics UNVERIFIED (D5)"
+    "operator_items": "none; Photoshop channel polarity and DisplayInfo semantics UNVERIFIED (D5)",
+    "spec_basis": {
+      "STU-RAS-022": "Studio MUST support saving a selection to a persistent alpha/spare channel and reloading it as a selection, preserved in round-trippable interchange formats (14.13). Save/load selection, alpha channels, and the Channels surface (§10) are one shared mechanism, not three.",
+      "STU-RAS-031": "Channels surface ... alpha channels, and spot-color channels with visibility, editability, reorder, rename ... converting channel content to/from selections, spare channels, and masks (the same mechanism as [STU-RAS-022]) ... Duplicate / Split / Merge ... Apply-Image ... Calculations",
+      "STU-RAS-144": "StudioChannel.kind is closed: component = 1, masked_area_alpha = 2, selected_area_alpha = 3, spot_colour = 4. The two alpha kinds differ in polarity and MUST NOT be merged ... a spot channel carries solidity in percent"
+    },
+    "polarity_reading": "samples = panel tone (0 black); coverage = tone for masked_area_alpha, 1 - tone for selected_area_alpha and spot_colour; kind conversion inverts samples only across polarity (Studio reading of STU-RAS-144; Photoshop UNVERIFIED, D5)",
+    "psd_mode_mapping": "1077 mode 1 -> masked_area_alpha, 0 -> selected_area_alpha, 2 -> spot_colour: evidence = psd-tools corpus cmyk-alpha-spot.psd stores default alpha options (red, 50%) as mode 1 and Photoshop default is Masked Areas; transparency (alpha id 0) = mode 1; Photoshop semantics UNVERIFIED (D5). Resource layouts per Adobe file format spec resource table + psd-tools MIT readers, confirmed on cmyk-alpha-spot.psd, cmyk-spot.psd, transparentbg.psd (my own read-only parser, 2026-10-31). Corpus spot \"light teal\" stores colour space 9009 (unmapped -> red fallback + loss, raw entry kept on export).",
+    "red_first": "tests written with each slice and run green before each local commit; no separate red commit (nothing red pushed)",
+    "observe": "every pigment channel op takes CommandContext (accord; actor, session, command id None until D7, base revision, correlation) and emits one terminal Observe frame with the outcome only; PSD import reports through the existing interop-psd report()",
+    "carried_forward_harness": "harness-core import.rs:787 stores raster_records in the package only when layers is non-empty, so a channels-only record set from a PSD is not persisted by the harness import yet (view/host work, carried forward with the harness-view migration)",
+    "rule_4e": "harness reaches interop-psd only behind import-psd; round-features.toml declares [import-psd] units for hsk-studio-harness, so clippy -p hsk-studio-harness --features import-psd is in the bundled run",
+    "externals": "no new field matches the externals vocabulary (channels, channel_id, name, kind, visible, colour, opacity, depth, width, height, tiles); tests/externals.rs unchanged",
+    "step0": "lane-check --step0-only clean at working tree of 026677e8 (2026-10-31)",
+    "followup_candidate_import_rs_787": "FOLLOW-UP CANDIDATE (not fixed in this lane, lead 2026-10-31): hsk-studio-harness-core src/import.rs:787 writes proposal.raster_records into the package only when raster_records.layers is non-empty, so a PSD whose records hold channels but no layer records drops its channels on harness import. Fix direction: gate on layers OR channels (and store channel_tiles as package assets)."
   }
 }

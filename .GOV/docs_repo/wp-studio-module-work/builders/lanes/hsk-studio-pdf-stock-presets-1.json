@@ -1,19 +1,41 @@
 {
   "crate": "hsk-studio-press (stock PDF preset catalogue STU-LAY-159 on the PdfPreset contract, preset codec)",
   "lane": "SMB-PDF-STOCK-PRESETS-1",
-  "status": null,
-  "phase": "dispatched",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed_ready",
   "worktree": "wt-studio-lanes/smb-pdf-stock-presets-1",
   "base": "e9c46302",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "a593c29ed0ba14d026ea409ba0c1a483c36df80c",
+      "subject": "press (SMB-PDF-STOCK-PRESETS-1): stock PDF preset catalogue, preset codec, F-R49-6 receipt note"
+    }
+  ],
+  "capabilities_done": [
+    "slice 1 contract additions: compliance_check (partial, asserts a standard; PDF/X-4:2007 -> standard_level_conflict), allow_transparency + preserve_overprint (studio_declared, not_applied), CCITTFaxEncode monochrome-only (filter_not_admitted_for_group), PdfPreset::page_range nullable end, PdfPreset::from_values",
+    "slice 2 stock catalogue src/preset/stock.rs: six records, 19 rows + common defaults exact, per-value provenance (stock_provenance), JPEG-2000 not_representable, logical_count 6, StockGap list",
+    "slice 3 StockPreset::to_preset: three writable shipped presets; three PDF/X refuse stock_output_intent_not_captured",
+    "slice 4 codec src/preset/codec.rs: canonical text, bounded, tokenised escapes-first, typed refusals",
+    "slice 5 real export of the three writable presets, press-read header 1.4/1.4/1.5",
+    "F-R49-6: ReceiptNote::NameKeyedCffEmbeddedWhole on the applied subset_fonts row (inside src/preset.rs; unit test subset_fonts_receipt_notes_name_keyed_cff)"
+  ],
+  "tests": {
+    "argv": "lane-check.sh --owner smb-pdf-stock-presets-1 --disk ssd -- cargo nextest run -p hsk-studio-press (step0 + clippy press and dependents harness, harness-core, harness-view, interop-fig, interop-fig-native, interop-layout + whole press suite)",
+    "exit": 0,
+    "sha": "f3ef5a103b17ea1ba4df2c37fba1eccaca345a05",
+    "passed": 191,
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pdf-stock-presets-1/bundled-smb-pdf-stock-presets-1-f3ef5a10.log",
+    "rebase": "f3ef5a10 rebased onto 45e3be82 (layout-only SMB-ID-PDF-EXPORT-PREFS-1; no press dependency or dependent touched) -> a593c29e, same press tree; no re-run per build strategy (3)",
+    "per_sha": "lane-check --per-sha origin/codex/handshake-studio-assets: PER_SHA_RESULT OK shas=1 range=45e3be82..a593c29e",
+    "doctests": "none added (codec format block is ```text)"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": null,
   "bg_pids": [],
-  "next": "rebase onto f8a1c5f3; code slices; bundled run on C: (--disk ssd); push in the lead order",
-  "updated_at": "2026-10-31T16:35:22Z",
+  "next": "validator round; spec owner items SD-14..SD-20; MT-30842 command-descriptor half waits for a command lane",
+  "updated_at": "2026-10-31T17:04:54Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -67,6 +89,22 @@
     "mt_contract_divergence": "MT-30841/MT-30842 allowed_write_paths and proof recipes name hsk-studio-layout; placement is press by the lead question; test targets keep the recipe names in press",
     "spec_conflicts": "CCITT monochrome filter (STU-LAY-159) vs image_filter domain (STU-IO-128); nullable end page (STU-LAY-159) vs -1 (STU-IO-129); cannot_embed_font_policy Error captured (STU-LAY-159) vs studio-declared (STU-IO-128); JPEG-2000 tile/quality have no setting home (STU-IO-127); PDF/X output-intent profiles not captured (STU-IO-130)",
     "root_inputs": "none; no Cargo.toml or feature change, no new dependency",
-    "operator_items": "none; vendor values UNVERIFIED (D5); Acrobat PDF/X oracle stays an Operator item"
+    "operator_items": "none; vendor values UNVERIFIED (D5); Acrobat PDF/X oracle stays an Operator item",
+    "commit_shape": "slices 1-5 + F-R49-6 squashed into one compiling commit (no red commit pushed); tests written with the code",
+    "pdf_presets_rs_edits": "tests/pdf_presets.rs: beyond the image_filter domain row, the additive settings forced the shape pins: SETTINGS.len 74->77, group counts, general family list, studio_declared list, EnumDomain::ALL 14->15 (compliance_check row), CCITT negative token now lowercase; drafts needed no change (sample() covers new settings)",
+    "decisions": [
+      "allow_transparency placed in general, preserve_overprint in colour_management, compliance_check in standards_compliance; all three group basis studio_declared (STU-IO-126 does not state them)",
+      "asserts_standard includes compliance_check != none, so SD-19 standard_compliance_not_provable also covers compliant_only + compliance_check X-1a/X-3; SD-13/SD-19/SD-20 codes, order and existing triggers unchanged (sd13_refusals, standard_without_output_intent_refuses pass unchanged)",
+      "stock standard_check_1a/3 false and output_intent_profile empty (studio_declared); compliance carried by compliance_check only",
+      "ACS 1:1 chroma encoded as HSamples/VSamples [1,1,1,1] on colour and greyscale ACS dicts; monochrome ACS dict empty (studio_declared); encoding UNVERIFIED (D5)",
+      "stock descriptions: one studio-declared en text per preset",
+      "page_range saturates a stored page number above u32::MAX to u32::MAX (no known hard max; documented, tested)",
+      "codec: directives, keys, kinds, numbers bare; strings quoted; quoted key refused; integers/reals must be canonical; # comment lines only at line start",
+      "DESCRIPTOR: new key pdf_stock_presets placed before pdf_presets (pdf_presets citation test scans to the end); pdf_presets contract count sentence updated 74->77; api list extended"
+    ],
+    "f_r49_6": "done inside src/preset.rs: SettingReceipt.note: Option<ReceiptNote>, ResolveReceipt::note(key); status of subset_fonts stays Applied",
+    "spec_basis": "STU-LAY-159 (spec-modules/14-studio-creative-suite.md:7137-7175), STU-LAY-168 :7582, STU-IO-125..133 :21001-21051, STU-SECTION-003 :118 (v02.225)",
+    "gaps_open": "SD-13 (1.3 / X-4 level), SD-14 CCITT, SD-15 end page, SD-16 Error provenance, SD-17 JPEG-2000 home, SD-18 PDF/X output intents, locale_variants_not_captured; asserted open in stock_gaps_stay_open",
+    "host_integration_check": "no egui, no GPU, no command/control added, no mutating op with actor, no job; outcomes via preset_outcome_for / codec_outcome_for codes only"
   }
 }

@@ -1,19 +1,54 @@
 {
   "crate": "hsk-studio-composite (STU-CMP-075 simulations: Wave world, Caustics, Bubbles, Foam)",
   "lane": "SMB-AE-WATER-SIMS-1",
-  "status": null,
-  "phase": "dispatched",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed",
   "worktree": "wt-studio-lanes/smb-ae-water-sims-1",
   "base": "e9c46302",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "81631918",
+      "subject": "composite (SMB-AE-WATER-SIMS-1 slice 1, MT-34181): Wave world height-field simulation",
+      "pushed": true
+    },
+    {
+      "sha": "95874c5f",
+      "subject": "composite (SMB-AE-WATER-SIMS-1 slice 2, MT-34182): Caustics through a water surface",
+      "pushed": true
+    },
+    {
+      "sha": "053100e0",
+      "subject": "composite (SMB-AE-WATER-SIMS-1 slice 3, MT-34186): Bubbles and the shared bubble shading",
+      "pushed": true
+    },
+    {
+      "sha": "719c9f75",
+      "subject": "composite (SMB-AE-WATER-SIMS-1 slice 4, MT-34183): Foam bubble clusters; simulations DESCRIPTOR",
+      "pushed": true
+    }
+  ],
+  "capabilities_done": [
+    "MT-34181 Wave world: damped leapfrog height field, fixed step grid, CFL refusal, reflect/absorb edges, point/line producers, seeded roughness, checkpoint resume; HeightField displacement map + greyscale frame",
+    "MT-34182 Caustics: Snell refraction of a HeightField (Wave world at the tick or caller field) over a bounded bottom image; forward-splat caustic light map; light_map / view_offsets",
+    "MT-34186 Bubbles: closed-form rising bubbles (rise share, wobble, growth, pop at region top or end of life); shared BubbleShading and render_bubble_marks",
+    "MT-34183 Foam: own identity; surface-bound bubbles with stickiness/repulsion via sorted uniform-grid neighbours, re-simulated from the start tick; shared shading",
+    "SimulationKind WATER/EVERY, Simulation variants, composite DESCRIPTOR simulations entry"
+  ],
+  "tests": {
+    "argv": "bundled: cargo clippy -p hsk-studio-composite --tests; ... --features motion --tests; cargo clippy -p hsk-studio-harness -p hsk-studio-harness-view -p hsk-studio-interop-fig -p hsk-studio-pulse -p hsk-studio-render-cpu -p hsk-studio-render-gpu --tests; cargo nextest run -p hsk-studio-composite; cargo nextest run -p hsk-studio-composite --features motion (one disk-lock hold, C: ssd, CARGO_BUILD_JOBS=6)",
+    "exit": 0,
+    "sha": "864388a1 (pre-rebase tree; rebased onto a593c29e = 719c9f75, upstream changed only hsk-studio-layout and hsk-studio-press, outside composite's closure, so no re-run)",
+    "passed": "default 144/144 (21 in tests/simulations_water.rs), motion 205/205 (21 water)",
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-water-sims-1/bundled-smb-ae-water-sims-1-864388a1-20261031T170959Z.log",
+    "per_sha": "PER_SHA_RESULT OK shas=4 range=a593c29e..719c9f75 (each commit's own tree: step 0 + cargo check --tests of composite, its dependents and their round feature units); log Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-water-sims-1/per-sha-smb-ae-water-sims-1-719c9f75.log"
+  },
   "verdicts": [],
   "blockers": [],
-  "lock_wait_s": null,
+  "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "rebase onto f8a1c5f3; code slices; bundled run on C: (--disk ssd); push in the lead order",
-  "updated_at": "2026-10-31T16:35:22Z",
+  "next": "validation of 81631918..719c9f75 (READY per slice: 81631918 Wave world, 95874c5f Caustics, 053100e0 Bubbles, 719c9f75 Foam); pushed BEFORE SMB-FOLIO-CHANNEL-RECORD as ordered",
+  "updated_at": "2026-10-31T17:32:46Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -65,6 +100,19 @@
     "mts": "closes MT-34181 Wave world, MT-34182 Caustics, MT-34186 Bubbles, MT-34183 Foam (AC-001/AC-002 and the headless half of AC-003; tooltip half waits for D7)",
     "carried_forward": "displacement-map effect consumer (STU-FX row), folio simulation-layer records, GPU parity; Shatter MT-34178, Card animation MT-34179, Fluid MT-34180, Hair MT-34187, Scatter MT-34188",
     "root_inputs": "none; no Cargo.toml or feature change (F-R46-8), no new dependency",
-    "operator_items": "none; After Effects parity UNVERIFIED (D5)"
+    "operator_items": "none; After Effects parity UNVERIFIED (D5)",
+    "rebased_onto": "f8a1c5f3 (origin/codex/handshake-studio-assets; the steward change touches tools/run-round.sh only)",
+    "spec_basis": "v02.225 14-studio-creative-suite.md: STU-CMP-075 table :29833-29848 (Wave world :29840 'Wave propagation producing a displacement map for other layers to consume'; Caustics :29841 'Refracted light through a simulated water surface'; Foam :29842 'Bubble-cluster generation with growth, stickiness and per-bubble rendering'; Bubbles :29845 'Rising-bubble generation, distinct from foam in that it is not surface-bound'); STU-CMP-075a :29850; STU-CMP-075b :29859; STU-FX-146; STU-FX-011 :19150; import keys :13258 APC Caustics, :13260 CC Bubbles, :13275 APC Foam, :13278 APC Wave World; STU-SECTION-003 :118",
+    "f_r49_8_sd_21_check": "The Simulation effect table rows for my four types are single rows (APC Wave World, APC Caustics, CC Bubbles, APC Foam); no obsolete / new pair exists for them, so no pair was merged and no UNVERIFIED pair reading is needed. Each kind maps exactly one import key (tests/simulations_water.rs::water_identities_are_native_stable_and_distinct).",
+    "finding_recovered_records": "UNVERIFIED reading for the spec owner: Wave World (:15433, 48 typed params) and Foam (:15367, 47 typed params) carry RECOVERED typed parameter records in the module (two of the three STU-CMP-075b names). The brief directs authored studio_declared records, so the lane authored Studio-unit rows (cells, cells/s, px, px/s) and did not adopt the recovered rows (their units and semantics are not recovered: e.g. Wave Speed 0.01..10, Grid Resolution 10..1000 default 40, Foam Stickiness 0..4). Mapping the recovered records onto these Studio records (or replacing them) is an open spec-owner item; an importer should record a typed loss for the recovered-only rows until then.",
+    "public_api": "SimulationKind::ALL keeps its published [Self; 5]; new SimulationKind::WATER [Self; 4] and EVERY [Self; 9]; from_id / from_import_key search EVERY. New SimulationKind and Simulation variants WaveWorld, Caustics, Bubbles, Foam (no use of either enum outside composite at e9c46302 per brief grep). particles.rs untouched; existing public items of simulations.rs unchanged in signature.",
+    "commit_layout": "one local commit per slice; each commit's tree carries only its slice (simulations.rs, its module, the test file sections up to that slice); DESCRIPTOR entry in slice 4",
+    "red_first": "tests were written alongside the code, not as separate red commits (no red commit exists, none pushed); the closed-form expectations were derived and checked first in a numeric prototype (wave front, absorb/damping energy, Snell offsets, caustic focusing, foam clustering) outside the product tree",
+    "feature_units_4e": "tests/simulations_water.rs has no cfg(feature) gate; it runs in both composite round units (default and motion from .config/round-features.toml)",
+    "doctests_4d": "no doc examples added",
+    "run_log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-water-sims-1/bundled-smb-ae-water-sims-1-864388a1-20261031T170959Z.log",
+    "push": "2026-10-31T17:32Z guarded push 719c9f75 -> origin/codex/handshake-studio-assets (a593c29e..719c9f75 fast-forward; diff --stat lists only crates/hsk-studio-composite paths)",
+    "ready_claim": "READY_FOR_VALIDATION on pushed 719c9f75 covering four slices; never PASS. AC-001/AC-002 and the headless half of AC-003 for MT-34181/34182/34186/34183; the operator-surface tooltip half waits for the GUI (D7).",
+    "gaps": "After Effects parity UNVERIFIED (D5) for all four; recovered Wave World / Foam typed records not mapped (finding_recovered_records); displacement-map effect consumer, folio simulation-layer records, GPU parity carried forward per brief."
   }
 }

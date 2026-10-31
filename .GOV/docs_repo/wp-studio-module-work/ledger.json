@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-31T16:35:22Z",
+ "updated_at": "2026-10-31T18:21:24Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -8430,8 +8430,8 @@
   {
    "lane_id": "SMB-FOLIO-CHANNEL-RECORD",
    "crate": "hsk-studio-folio, hsk-studio-pigment, hsk-studio-interop-psd, hsk-studio-package (tests)",
-   "phase": "dispatched",
-   "status": null,
+   "phase": "pushed, READY_FOR_VALIDATION (queued for STUDIO-R50)",
+   "status": "READY_FOR_VALIDATION",
    "owner": null,
    "commits": [],
    "verdicts": [],
@@ -8448,8 +8448,16 @@
    "brief": "builders/briefs/lane-smb-folio-channel-record.md",
    "worktree": "wt-studio-lanes/smb-folio-channel-record",
    "base": "f8a1c5f3 (rebase from e9c46302)",
-   "updated_at": "2026-10-31T16:35:22Z",
-   "disk": "d"
+   "updated_at": "2026-10-31T18:21:24Z",
+   "disk": "d",
+   "candidate": "ed28834c",
+   "lead_notes_for_validator": [
+    "bundle at pre-rebase c057f7f4, not re-run after the water-sims rebase; per-sha OK incl. composite motion unit; composite new files use no folio/pigment name (builder grep)",
+    "PSD 1077 mode mapping UNVERIFIED (D5)"
+   ],
+   "followup_candidates": [
+    "harness src/import.rs:787 stores raster records only when layers is non-empty, so PSD channels without layer records are dropped on import (builder report)"
+   ]
   },
   {
    "lane_id": "SMB-RENDER-CONTENT-AWARE",
@@ -14913,8 +14921,8 @@
   },
   {
    "lane_id": "SMB-PDF-STOCK-PRESETS-1",
-   "status": null,
-   "phase": "dispatched",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "pushed, READY_FOR_VALIDATION (queued for STUDIO-R50)",
    "crate": "hsk-studio-press (stock preset catalogue)",
    "lane_file": "builders/lanes/hsk-studio-pdf-stock-presets-1.json",
    "brief": "builders/briefs/lane-smb-pdf-stock-presets-1.md",
@@ -14928,13 +14936,19 @@
     "binding": "HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T14:42:57Z"
    },
-   "updated_at": "2026-10-31T16:35:22Z",
-   "disk": "ssd"
+   "updated_at": "2026-10-31T18:21:24Z",
+   "disk": "ssd",
+   "candidate": "a593c29e",
+   "lead_notes_for_validator": [
+    "tests/pdf_presets.rs fixed counts changed (74->77 settings, 14->15 enumerations): possible loosening",
+    "SD-19 refusal now also fires for compliant-only plus the new compliance-check setting: extension or change of the kept refusals?",
+    "F-R49-6 receipt note for name-keyed CFF"
+   ]
   },
   {
    "lane_id": "SMB-AE-WATER-SIMS-1",
-   "status": null,
-   "phase": "dispatched",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "pushed, READY_FOR_VALIDATION (queued for STUDIO-R50)",
    "crate": "hsk-studio-composite (Wave world, Caustics, Bubbles, Foam)",
    "lane_file": "builders/lanes/hsk-studio-ae-water-sims-1.json",
    "brief": "builders/briefs/lane-smb-ae-water-sims-1.md",
@@ -14948,13 +14962,21 @@
     "binding": "HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T14:42:57Z"
    },
-   "updated_at": "2026-10-31T16:35:22Z",
-   "disk": "ssd"
+   "updated_at": "2026-10-31T18:21:24Z",
+   "disk": "ssd",
+   "candidate": "719c9f75",
+   "lead_notes_for_validator": [
+    "lead brief error: studio_declared parameter records written although the spec has recovered typed records for Wave World (:15433) and Foam (:15367)",
+    "4 commits 81631918..719c9f75, per-sha OK"
+   ],
+   "followup_candidates": [
+    "map the spec's recovered typed parameter records for Wave World (14-studio-creative-suite.md:15433) and Foam (:15367) onto the studio_declared records"
+   ]
   },
   {
    "lane_id": "SMB-ID-PDF-EXPORT-PREFS-1",
-   "status": null,
-   "phase": "dispatched",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "pushed, READY_FOR_VALIDATION (queued for STUDIO-R50)",
    "crate": "hsk-studio-layout (PDF export preference record)",
    "lane_file": "builders/lanes/hsk-studio-id-pdf-export-prefs-1.json",
    "brief": "builders/briefs/lane-smb-id-pdf-export-prefs-1.md",
@@ -14968,13 +14990,18 @@
     "binding": "HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T14:42:57Z"
    },
-   "updated_at": "2026-10-31T16:35:22Z",
-   "disk": "ssd"
+   "updated_at": "2026-10-31T18:21:24Z",
+   "disk": "ssd",
+   "candidate": "45e3be82",
+   "lead_notes_for_validator": [
+    "run 1 failed on the builder's own test (correlation 7/8 vs 1, observe RevisionMismatch); fix folded into the one commit: check the attribution assertion was not loosened",
+    "threshold rows bound 1x..10x of partner dpi, no stored max; threshold unit (dpi stored, ratio declared) UNVERIFIED"
+   ]
   },
   {
    "lane_id": "SMB-R49-FOLLOWUPS-1",
-   "status": null,
-   "phase": "dispatched",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "pushed, READY_FOR_VALIDATION (queued for STUDIO-R50)",
    "crate": "hsk-studio-harness-view (viewer audio import sample budget) + hsk-studio-accord, hsk-studio-session (DESCRIPTOR text) + hsk-studio-observe (ring.rs doctest codes)",
    "lane_file": "builders/lanes/hsk-studio-r49-followups-1.json",
    "brief": "builders/briefs/lane-smb-r49-followups-1.md",
@@ -14990,7 +15017,13 @@
     "recorded_at": "2026-10-31T16:35:22Z"
    },
    "note": "closes F-R49-2 (viewer audio import sample budget), F-R49-3 (accord/session DESCRIPTOR), F-R46-12 (ring.rs doctest codes); pushes LAST of the wave (accord/observe in every closure)",
-   "updated_at": "2026-10-31T16:35:22Z"
+   "updated_at": "2026-10-31T18:21:24Z",
+   "candidate": "63ecf5a6",
+   "lead_notes_for_validator": [
+    "lead scope change: reel additive decode_audio_file_within_with (brief updated)",
+    "history squashed: red proof only in the local log of unpushed cc9b2c19",
+    "reel/accord/observe suites from the pre-rebase aba6a1c4 run (closure untouched by the wave); session and harness-view re-run after rebase"
+   ]
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

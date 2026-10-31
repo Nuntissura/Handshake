@@ -1,19 +1,47 @@
 {
   "crate": "hsk-studio-layout (PDF export preference record STU-LAY-158: six panels, relative bounds, read-back, security errors)",
   "lane": "SMB-ID-PDF-EXPORT-PREFS-1",
-  "status": null,
-  "phase": "dispatched",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed",
   "worktree": "wt-studio-lanes/smb-id-pdf-export-prefs-1",
   "base": "e9c46302",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "45e3be82",
+      "subject": "layout (SMB-ID-PDF-EXPORT-PREFS-1, STU-LAY-158): PDF export preference record"
+    }
+  ],
+  "capabilities_done": [
+    "nine STU-LAY-158 numeric bound sets stored field by field (unknown = None)",
+    "threshold_to_compress_* as partner-relative bounds 1x..10x, no stored absolute maximum, atomic re-validation on partner edit (refuse and keep, or accept both)",
+    "General panel: acrobat_compatibility 5, export_layers 3, pdf_display_title 2 exact; page_range via booklet grammar; undeclared token domains; standards_compliance partial (4 STU-LAY-159 tokens)",
+    "Compression panel: three image classes, quality tiers 7, compression_type 3, tile sizes",
+    "Marks and bleeds: printer_mark_weight nine members with unit and exact point fraction; four bleeds; use_document_bleed_with_pdf",
+    "Output: pdf_color_space 6; four effective_* read-back fields in a separate read-only type, None until record_effective",
+    "Advanced: subset_fonts_below bounds, omit flags, bounded applied_flattener_preset",
+    "Security: typed pdf_password_security_off on read/write while security off; redacting PdfPassword; nine independent disallow_* flags",
+    "pdf_export_preset_id reference (resolves nothing); PdfExportPreset complete-state copy; DESCRIPTOR pdf_export_prefs entry"
+  ],
+  "tests": {
+    "argv": "lane-check.sh --owner smb-id-pdf-export-prefs-1 --disk ssd -- cargo nextest run -p hsk-studio-layout --no-fail-fast (clippy over layout + direct dependents, whole layout suite)",
+    "exit": 0,
+    "sha": "45e3be82",
+    "passed": 153,
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-pdf-export-prefs-1/bundled-smb-id-pdf-export-prefs-1-45e3be82-run2.log",
+    "lane_tests": "tests/pdf_export_prefs.rs: 14 tests, all PASS",
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-id-pdf-export-prefs-1 --disk ssd --per-sha origin/codex/handshake-studio-assets",
+      "result": "PER_SHA_RESULT OK shas=1 range=f8a1c5f3..45e3be82",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-pdf-export-prefs-1/per-sha-45e3be82-summary.log"
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": null,
   "bg_pids": [],
-  "next": "rebase onto f8a1c5f3; code slices; bundled run on C: (--disk ssd); push in the lead order",
-  "updated_at": "2026-10-31T16:35:22Z",
+  "next": "validation round; follow-ups (not this lane): interop-layout applying the record to an export, tagged PDF (MT-30833 AC-004), Folio persistence, operator surface (D7)",
+  "updated_at": "2026-10-31T16:57:49Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -55,6 +83,23 @@
     "mts": "closes MT-30834, MT-30835, MT-30836, MT-30837, MT-30838, MT-30839, MT-30840 (headless halves; tooltip halves wait for D7); advances MT-30833 (AC-004 tagged PDF needs the exporter)",
     "spec_conflicts": "threshold_to_compress_* unit stated as ratio while bounds are multiples of a dpi partner; pdf_magnification ten members unnamed; standards_compliance, interactive_elements_option, pdf_page_layout, sampling and compression methods name no members",
     "root_inputs": "none; no Cargo.toml change, no new dependency",
-    "operator_items": "none; InDesign behaviour UNVERIFIED (D5)"
+    "operator_items": "none; InDesign behaviour UNVERIFIED (D5)",
+    "rebase": "lane rebased onto origin f8a1c5f3 before coding (clean)",
+    "spec_basis": "14-studio-creative-suite.md (v02.225) STU-LAY-158 :7093-7136 (numeric table :7098-7108, relative bounds :7110-7112, panels :7120-7125, effective read-back and password error :7127-7131, tagged PDF :7133-7135); STU-LAY-168 :7582-7590 (one descriptor per relative bound asserting revalidation when the partner changes); STU-LAY-159 :7137-7175 (compliance tokens none, PDF/X-1a:2001, PDF/X-3:2002, PDF/X-4:2007)",
+    "slices": "all five brief slices landed in ONE pushed commit 45e3be82 (RED COMMITS / squash rule). Run 1 (log bundled-...-a03bf13e-run1.log, local unpushed a03bf13e): clippy clean, 152/153, one test failure: the redaction test reported with correlation ids 7/8 against an Observe built for correlation 1 -> observe RevisionMismatch (test harness error, not product). Fixed by using correlation 1 (booklet precedent), folded into the unpushed commit by a local amend -> 45e3be82; run 2 green",
+    "paths": "new crates/hsk-studio-layout/src/pdf_export_prefs.rs; src/lib.rs (mod line, pub use block, DESCRIPTOR pdf_export_prefs entry); new tests/pdf_export_prefs.rs. print.rs and booklet.rs read and reused (PrintValue, MAX_PRINT_TEXT_BYTES, parse_page_range, MAX_IMPOSITION_PAGES, BookletError), not changed; no helper moved",
+    "unit_conflict": "threshold_to_compress_* declared unit `ratio` while bounded as 1x..10x of a dpi partner: Studio STORES dpi (PdfRelativeBounds.stored_unit = dpi) and keeps declared_unit = ratio beside it; ImageClassCompression::threshold_ratio reports the multiple. UNVERIFIED (D5); the STU-LAY-159 stock rows state the threshold as 1.5 (ratio): mapping to press is not this lane",
+    "relative_bounds": "CompressionPanel::set_sampling_dpi re-validates the threshold (refuse pdf_partner_change_invalidates_threshold, old state kept; clearing a partner with a threshold set is refused too); set_threshold needs a live partner (pdf_threshold_partner_unset); set_sampling_dpi_and_threshold accepts both or neither; sampling dpi and threshold are private fields so no unchecked write exists; tests ..._partner_up, ..._partner_down, ..._threshold_first",
+    "undeclared_domains": "PdfToken (1..=128 bytes, no control chars, kept exactly) with PdfTokenField domain_completeness undeclared for interactive_elements_option, pdf_magnification (ten declared, none named: declared_member_count 10), pdf_page_layout, color/grayscale/monochrome sampling_method and compression_method, pdf_mark_type (also names no members; not listed in the brief); standards_compliance partial with the four STU-LAY-159 tokens citing :7137",
+    "studio_declared_kinds": "fields named without a kind carry print's PrintValue (precedent print.rs); Studio-declared: use_security and nine disallow_* as Option<bool> (independent), four bleeds finite >= 0 pt (booklet precedent), page_range = PdfPageRange (booklet grammar validated against MAX_IMPOSITION_PAGES, resolve(document_pages) per document), applied_flattener_preset PdfName <= 256 bytes, pdf_export_preset_id ASCII [a-z0-9._-] <= 128 bytes; per-class Compression field names <class>_sampling_method / _compression_method / _compression_quality are Studio names beside the tabled dpi/threshold names",
+    "readings_unverified": "turning use_security off clears both passwords; passwords refused for write as well as read while security is off; empty password refused (no password = None); preset copy drops the effective read-back; all InDesign parity UNVERIFIED (D5)",
+    "security": "PdfPassword: Debug prints PdfPassword(<redacted>), no Display, expose() only; errors are codes; report emits codes; test pdf_security_password_permission_bits_redacted_everywhere greps Debug of the password, panel, record and preset and every observe frame and receipt for the value",
+    "mt_test_targets": "PLANNED MT proof.checks name non-existent --test targets (F-R49-9). Real target for every MT: `cargo nextest run -p hsk-studio-layout --test pdf_export_prefs` with filters: MT-30834 + MT-30833 AC-001 -> pdf_numeric_relative_bound_metadata (+ _partner_up, _partner_down, _threshold_first); MT-30835 -> pdf_general_document_structure_options; MT-30836 -> pdf_compression_classes_quality_tiles; MT-30837 -> pdf_marks_bleed_nine_weights; MT-30838 -> pdf_output_effective_colour_readback; MT-30839 -> pdf_advanced_subset_omit_flatten; MT-30840 + MT-30833 AC-003 -> pdf_security_password_permission_bits (+ _redacted_everywhere); STU-LAY-159 reference -> pdf_export_preset_reference_and_complete_copy; hostile V4-01/02 -> pdf_export_text_dims_u32_max_is_refused_before_allocation, pdf_export_page_range_aggregate_over_budget_is_refused_before_allocation",
+    "mt_status": "closes the headless halves of MT-30834 (AC-001..AC-009), MT-30835..MT-30840 (AC-001/AC-002 and the headless half of AC-003; operator-surface tooltip waits for the GUI, D7); advances MT-30833 (AC-001, AC-002, AC-003; AC-004 tagged and accessible PDF needs the exporter)",
+    "rules_4b_4d_4e": "4b n/a (no Folio record field); 4d n/a (no doc examples added); 4e n/a (tests/pdf_export_prefs.rs is not feature-gated; layout runs in the default unit)",
+    "v4_07": "doc and DESCRIPTOR absolute claims cite tests (never mirrored -> pdf_numeric_relative_bound_metadata; never an empty string -> pdf_security_password_permission_bits; read-back not copied -> pdf_output_effective_colour_readback; redaction -> ..._redacted_everywhere)",
+    "step0": "lane-check --step0-only clean before commit",
+    "push": "origin unchanged at f8a1c5f3 at both fetches (no rebase needed); guarded push f8a1c5f3..45e3be82 exit 0; origin re-read = 45e3be82; diff --stat lists only the three owned layout paths",
+    "push_order": "pushed before SMB-FOLIO-CHANNEL-RECORD as required"
   }
 }

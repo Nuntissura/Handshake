@@ -1,19 +1,52 @@
 {
   "crate": "hsk-studio-harness-view (viewer audio import sample budget) + hsk-studio-accord, hsk-studio-session (DESCRIPTOR text) + hsk-studio-observe (ring.rs doctest codes)",
   "lane": "SMB-R49-FOLLOWUPS-1",
-  "status": null,
-  "phase": "dispatched",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed",
   "worktree": "wt-studio-lanes/smb-r49-followups-1",
   "base": "f8a1c5f3",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "43dbeb8d",
+      "subject": "reel: decode_audio_file_within_with + tests/audio_sample_budget_external.rs"
+    },
+    {
+      "sha": "2d7e6249",
+      "subject": "harness-view F-R49-2: ImportLimits::max_samples, audio_too_large, tests/audio_import_budget.rs"
+    },
+    {
+      "sha": "4ec12443",
+      "subject": "F-R49-3: accord + session DESCRIPTOR text"
+    },
+    {
+      "sha": "63ecf5a6",
+      "subject": "F-R46-12: observe ring.rs compile_fail,E0277"
+    }
+  ],
+  "capabilities_done": [
+    "F-R49-2",
+    "F-R49-3",
+    "F-R46-12"
+  ],
+  "tests": {
+    "argv": "post-rebase (origin ed28834c): lane-check --per-sha origin/codex/handshake-studio-assets (exit 0, 4 commits x 35 units ok); lane-check -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-session --features hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch; before rebase (aba6a1c4, same code): 408 passed whole suites reel/harness-view/accord/session/observe + doctests",
+    "exit": 0,
+    "sha": "63ecf5a6",
+    "passed": 199,
+    "failed": 0,
+    "logs": [
+      "smb-r49-followups-1-63ecf5a6-persha.log",
+      "smb-r49-followups-1-63ecf5a6-bundled.log",
+      "smb-r49-followups-1-aba6a1c4-bundled.log",
+      "smb-r49-followups-1-aba6a1c4-doctests.log"
+    ]
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": null,
   "bg_pids": [],
-  "next": "code items 1-3; bundled run on D:; push LAST of the wave when the lead says so",
-  "updated_at": "2026-10-31T16:35:22Z",
+  "next": "validator round",
+  "updated_at": "2026-10-31T18:20:13Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -40,6 +73,12 @@
       "F-R49-2",
       "F-R49-3",
       "F-R46-12"
-    ]
+    ],
+    "round_features_4e": "tests/audio_import_budget.rs is #![cfg(feature=media)]; round unit hsk-studio-harness-view [desktop,audio-batch] enables media (audio-batch=media); ran 4/4 in that unit. unit [viewer] alone does not enable it.",
+    "v4_06": "class: whole-file audio decode bounded by frames only; sites outside reel: harness-view import_audio_external (fixed), audio_batch.rs:642 (own export, not applicable), harness cli_audio_within (already within), harness tests (fixtures, not applicable).",
+    "red_proof": "harness-view red proof ran at the earlier commit cc9b2c19 (field present, budget not enforced): 3 of 4 tests failed on the asserted audio_too_large expectations (log smb-r49-followups-1-cc9b2c19-red.log). History was then folded by git reset --soft to f8a1c5f3 and recommitted in 4 slices (red and green harness-view squashed so every pushed commit is green).",
+    "scope_change": "coordinator: budget for the external decoder lives in reel (decode_audio_file_within_with, additive, engine unchanged: provider::decode_file_within already took external+budget); viewer BudgetedAudioDecoder removed. reel test: external decoder output over budget is refused before any access unit is decoded (ADTS declared total), equal to unbudgeted decode within budget.",
+    "observation_audio_batch_642": "harness-view src/view/audio_batch.rs:642 decode_audio_file read-back of the batch own export is frames-bounded only; own output, not hostile input; no change (coordinator agreed).",
+    "rebase": "closure check: reel, accord, observe depend only on accord/observe (unchanged by the 7 crates the wave changed); session depends on folio+package (changed) and harness-view on folio/pigment/composite/layout: both re-run. reel/accord/observe suites and doctests not re-run (sources and dependencies identical to the aba6a1c4 green run)."
   }
 }
