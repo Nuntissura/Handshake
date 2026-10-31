@@ -2,18 +2,43 @@
   "crate": "hsk-studio-nib (vector live effects: Distort & Transform family on the recovered STU-VEC-155 records; convert-to-shape typed contract)",
   "lane": "SMB-AI-DISTORT-EFFECTS-1",
   "status": null,
-  "phase": "briefed (not dispatched)",
+  "phase": "paused (lead/Operator PAUSE 2026-10-31; green bundled run, NOT pushed)",
   "worktree": "wt-studio-lanes/smb-ai-distort-effects-1",
   "base": "63ecf5a6",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "82f85bde6439b053aca78dc2ef7ea9c5503b7798",
+      "subject": "nib (SMB-AI-DISTORT-EFFECTS-1, MT-32980..32986): vector live effects, Distort & Transform family",
+      "pushed": false,
+      "base": "63ecf5a6"
+    }
+  ],
+  "capabilities_done": [
+    "typed EffectRecord (STU-VEC-154): effect id hsk.studio.vector_effect.<snake>, version 1, ordered Int|Real|Bool|String map; typed refusals (unknown key, wrong/missing type, non-finite, hard bound, non-member, non-count)",
+    "STU-VEC-155 records cell for cell (roughen, zig zag, pucker/bloat, twist, tweak, free distort quad-to-quad); roughen_mode default mode.relative as Studio decision; step-repeat rows studio_declared",
+    "STU-VEC-158 convert-to-shape and object-mosaic token records; evaluation refuses convert_to_shape_sizing_law_not_recovered / object_mosaic_grid_law_not_recovered; gap numerics parameter_not_recovered",
+    "operators (declared laws v1): roughen (seeded), zig zag, pucker & bloat, twist, tweak (seeded, independent switches), free distort homography, step-repeat; pure over borrowed sources; cancel; budgets before allocation",
+    "outcome()/report() codes-only through observe; DESCRIPTOR vector_live_effects entry"
+  ],
+  "tests": {
+    "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-ai-distort-effects-1 --disk d -- cargo nextest run -p hsk-studio-nib -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness-view/viewer,hsk-studio-harness/viewer -E 'package(hsk-studio-nib)' --no-fail-fast",
+    "exit": 0,
+    "sha": "82f85bde",
+    "passed": 96,
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-distort-effects-1/smb-ai-distort-effects-1-bundled-82f85bde.log",
+    "clippy": "nib + harness-view [viewer] + harness [viewer] --tests, dependents composite, interop-fig, interop-fig-native, interop-layout, interop-vector, interop-vector-core, interop-vector-svg, render-cpu --tests: exit 0",
+    "focused": "tests/vector_live_effects.rs 13/13 (pre-commit focused run, D:)",
+    "doctests": "none added (4d n/a)",
+    "started": "2026-10-31T23:18:27Z",
+    "finished": "2026-10-31T23:27:17Z"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": null,
   "bg_pids": [],
-  "next": "lead: confirm gate G1 (studio-declared effect laws, Illustrator parity UNVERIFIED), wait for the R50 verdict on SMB-R49-FOLLOWUPS-1, name disk and dispatch; then slice 1 red tests",
-  "updated_at": "2026-10-31T18:38:25Z",
+  "next": "RESUME (after lead lifts the pause): in the lane worktree `git fetch origin` + `git rebase origin/codex/handshake-studio-assets`; if the rebase touched nib's closure re-run the bundled lane-check above, else proceed; run `lane-check.sh --owner smb-ai-distort-effects-1 --disk d --per-sha origin/codex/handshake-studio-assets`; on PER_SHA_RESULT OK push with PUSH SAFETY (`SHA=$(git rev-parse HEAD) && [ -n \"$SHA\" ] && git push origin \"$SHA\":refs/heads/codex/handshake-studio-assets`), check exit code, then set status READY_FOR_VALIDATION with the pushed sha",
+  "updated_at": "2026-10-31T23:27:51Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -59,11 +84,22 @@
   "notes": {
     "brief": "builders/briefs/lane-smb-ai-distort-effects-1.md",
     "model_effort": "opus / high (geometry numerics, a projective map, recovered parameter tables with unknown cells)",
-    "mts": "closes MT-32980..32986 (STU-FX-028 Distort & Transform rows: AC-001..AC-004 and the headless half of AC-005); advances the engine half of MT-30535, MT-30540, MT-30545..30550 (vulkan_shell_client) and MT-30559, MT-33001..33003 (convert-to-shape: sizing law not recovered)",
+    "mts": "closes on validation MT-32980..32986 AC-001..AC-004 + headless half of AC-005 (tooltip half waits for D7); advances engine half of MT-30535, MT-30540, MT-30545..30550, MT-30559, MT-33001..33003 (none closes)",
     "spec_records": "recovered STU-VEC-155 :4177 (roughen :4179-4196, zig zag :4198-4209, pucker and bloat :4211-4219, twist :4221-4229, tweak :4231-4244, free distort :4246-4251); STU-VEC-158 :4350; Transform (step-repeat) has no recovered record (studio_declared rows)",
     "dispatch_gate_g1": "MT-32982/32983 steps ask for the source-defined law; the spec recovers parameters only. Brief follows the SMB-AE-WATER-SIMS-1 precedent (declared Studio reading, parity UNVERIFIED D5); lead confirms before dispatch",
-    "mt_contract_conflicts": "MT-30559 step 1 and MT-33001 step 1 forbid deriving convert-to-shape geometry before the sizing law is recovered, while MT-33001..33003 step 3 expects geometry; the lane ships the typed contract and a typed refusal",
+    "mt_contract_conflicts": "MT-30559 / MT-33001 step 1 vs MT-33001..33003 step 3: typed contract + typed refusal shipped; a test pins the gap (shape_mosaic_gap_contract)",
     "root_inputs": "none; no Cargo.toml or feature change, no new dependency",
-    "operator_items": "none; Illustrator parity UNVERIFIED (D5)"
+    "operator_items": "none; Illustrator parity UNVERIFIED (D5)",
+    "pause": "PAUSE received 2026-10-31 (lead, Operator request) while the bundled run was in flight; run allowed to finish (green); no rebase, per-sha or push started; monitor exited on its own; working tree clean",
+    "test_mapping": "tests/vector_live_effects.rs: MT-32980 vector_free_distort_frame, MT-32981 vector_pucker_bloat_live, MT-32982 vector_roughen_live, MT-32983 vector_step_repeat_live, MT-32984 vector_tweak_live, MT-32985 vector_twist_live, MT-32986 vector_zig_zag_live, MT-30559 shape_mosaic_gap_contract; plus live_effect_typed_parameter_map (STU-VEC-154/155), live_effect_dims_u32_max, live_effect_aggregate_over_budget (V4-02), live_effect_outcomes_through_observe, live_effect_descriptor_entry",
+    "g1_exceptions": "none of MT-32980..32986 demands SOURCE_FUNCTION_BINDING_UNAVAILABLE; their 'unknown/missing law' negatives are met by the version stamp (unsupported_version: only law set v1 evaluates) and parameter_unset for unknown defaults. MT-30559 and MT-33001..33003 demand refusal (law not recovered): shipped convert_to_shape_sizing_law_not_recovered / object_mosaic_grid_law_not_recovered",
+    "unverified": "Illustrator parity UNVERIFIED (D5) for every law: roughen sample density/alternating seeded displacement/fixed open ends; relative size references (bounds diagonal for roughen/zig zag, width/height for tweak); pucker/bloat centre = per-subpath vertex centroid; twist centre = bounds centre, R = largest anchor distance, lines raised to thirds cubics; tweak handle-follows-anchor rule; free distort convexity requirement, horizon refusal and 0.01 pt / depth-10 subdivision; step-repeat composition order, reference default ref.centre, random rule; enum token for roughen_points/zigzag_points/tweak_mode defaults left unknown (parameter_unset)",
+    "studio_declared": "step-repeat rows (move h/v, scale h/v, rotate, reflect x/y, reference_point, copies, random, seed) and roughen/tweak seed; mosaic gap labels tile_counts/tile_spacing/resize_numerics are Studio labels for the STU-VEC-158 gap text",
+    "engine_limits": "MAX_OP_ELEMENTS (source+output elements per evaluation), zig zag ridges <= 1024/segment, COORDINATE_LIMIT 1e9: engine resource limits, not parameter bounds (STU-VEC-100); recorded in module docs",
+    "v4_07_claims": "'never mutates' -> vector_roughen_live / vector_pucker_bloat_live source equality; 'never invents a default' -> live_effect_typed_parameter_map parameter_unset loop; 'nothing is clamped' -> roughen 500 beyond slider and tweak 5000 stored as given",
+    "round_features_4e": "nib tests are not feature-gated (default unit); harness-view/harness reach nib only via viewer: included in clippy and test build with [viewer]",
+    "deviations": "slices 1-4 landed as one commit (one module; per-slice commits would have needed intermediate stubs); no separate red run (tests written with the code); shape_ops change is pub(crate) visibility only, public items unchanged",
+    "host_integration": "no egui/GPU/command/job/settings; outcomes codes-only via observe; ActorContext not taken because operators do not mutate a document (later Folio stack commit carries it)",
+    "open_questions": "lead: confirm one-commit landing is acceptable vs per-slice commits; confirm object-mosaic typed token record (beyond brief's carried-forward note) is wanted on MT-30559"
   }
 }

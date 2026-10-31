@@ -2,18 +2,72 @@
   "crate": "hsk-studio-prism (document mode records and depth availability, grayscale -> bitmap, RGB -> indexed, indexed colour table and colour-table file codec)",
   "lane": "SMB-PS-MODE-CONVERT-1",
   "status": null,
-  "phase": "briefed (not dispatched)",
+  "phase": "paused (lead/Operator PAUSE; nothing pushed)",
   "worktree": "wt-studio-lanes/smb-ps-mode-convert-1",
   "base": "63ecf5a6",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "79c4205b",
+      "subject": "prism (SMB-PS-MODE-CONVERT-1, slice 1): Image > Mode contract",
+      "pushed": false
+    },
+    {
+      "sha": "9c8aa057",
+      "subject": "prism (SMB-PS-MODE-CONVERT-1, slice 2): grayscale -> bitmap",
+      "pushed": false
+    },
+    {
+      "sha": "8ad6f1e6",
+      "subject": "prism (SMB-PS-MODE-CONVERT-1, slice 3): indexed colour table and colour-table file codec",
+      "pushed": false
+    },
+    {
+      "sha": "39c1ae7d",
+      "subject": "prism (SMB-PS-MODE-CONVERT-1, slice 4): RGB -> indexed",
+      "pushed": false
+    },
+    {
+      "sha": "5a05b3c7",
+      "subject": "prism (SMB-PS-MODE-CONVERT-1): clippy fixes in the mode conversions",
+      "pushed": false
+    }
+  ],
+  "capabilities_done": [
+    "STU-COL-118 enumerations; to_duotone refused typed (to_duotone_not_a_conversion)",
+    "STU-COL-120/121 depth matrix pure query, every cell studio_normative (no vendor variant)",
+    "plan_mode_change typed refusals + DiscardReport echo-confirmation; change_availability per operation",
+    "STU-COL-106/107 ParamRow seven fields for bitmap (4) and indexed (2) rows; UNKNOWN=None, literal UNKNOWN in JSON, no clamp",
+    "grayscale->bitmap: half_threshold, pattern_dither, diffusion_dither, halftone_screen (6 shapes), custom_pattern; resample refused",
+    "indexed colour table + colour-table file codec (768/772 bytes, big-endian trailer), shipped black_white/grayscale",
+    "RGB->indexed: exact, web, uniform, local_perceptual/selective/adaptive; forced, preserve_exact, transparency, 7 mattes, 4 dithers",
+    "emit_mode_outcome through observe (fixed failure code only); DESCRIPTOR mode_conversion key"
+  ],
+  "tests": {
+    "argv": "lane-check --owner smb-ps-mode-convert-1 --disk d -- cargo nextest run -p hsk-studio-prism -p hsk-studio-harness-core -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness-core/import-psd,hsk-studio-harness-view/viewer,hsk-studio-harness/import-psd --no-fail-fast -E 'package(hsk-studio-prism)'",
+    "exit": 0,
+    "sha": "5a05b3c7",
+    "passed": 213,
+    "failed": 0,
+    "skipped": 2,
+    "logs": [
+      "smb-ps-mode-convert-1-5a05b3c7-bundled.log",
+      "smb-ps-mode-convert-1-39c1ae7d-bundled.log (FAIL clippy)",
+      "smb-ps-mode-convert-1-5a05b3c7-persha.log (FAIL)"
+    ],
+    "note": "whole prism suite incl. 26 tests/mode_conversion.rs; clippy prism + 9 dependents + harness-core[import-psd], harness-view[viewer], harness[import-psd] clean of prism warnings"
+  },
   "verdicts": [],
-  "blockers": [],
+  "blockers": [
+    {
+      "error": "per-sha FAIL sha=8ad6f1e6 unit=default exit=101: E0425 cannot find RED/GREEN/BLUE in tests/mode_conversion.rs:378 (slice-3 colour-table tests use the colour constants that are defined in the slice-4 section)",
+      "file_line": "crates/hsk-studio-prism/tests/mode_conversion.rs:378 at 8ad6f1e6",
+      "attempts": 1
+    }
+  ],
   "lock_wait_s": null,
   "bg_pids": [],
-  "next": "wait for the R50 verdict on SMB-R49-FOLLOWUPS-1 and the lead naming disk and dispatch; then slice 1 red tests",
-  "updated_at": "2026-10-31T18:38:25Z",
+  "next": "RESUME: (1) rebuild the local branch so 8ad6f1e6 compiles: move `const RED/GREEN/BLUE` (and nothing else) from the slice-4 section into the slice-3 section of tests/mode_conversion.rs in slice 3, keep slice 4 without them, re-create commits 3..5 (tip tree unchanged: only the constants' position moves; the clippy fix 5a05b3c7 may be folded into its slices); (2) fetch; if origin moved, rebase; (3) lane-check --per-sha origin/codex/handshake-studio-assets; (4) push only on PER_SHA_RESULT OK with PUSH SAFETY; (5) READY_FOR_VALIDATION. The bundled run at 5a05b3c7 stays valid if the tip tree is byte-identical (else re-run).",
+  "updated_at": "2026-10-31T23:37:51Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -66,6 +120,21 @@
     "spec_records": "recovered STU-COL-119 :9913 (bitmap fields :9917-9921 and table :9924-9929, indexed fields :9932-9938 and table :9943-9946, colour table :9952-9955); STU-COL-121 depth matrix :9983-9992",
     "spec_gaps": "entries of the shipped mac_os and windows colour tables are not in the spec; dither matrices, error-diffusion kernel, halftone spot functions and the local palette algorithms are not recovered (Studio readings, Photoshop parity UNVERIFIED D5)",
     "root_inputs": "none; no Cargo.toml or feature change, no new dependency",
-    "operator_items": "none"
+    "operator_items": "none",
+    "mt_test_mapping": "tests/mode_conversion.rs (one file per brief; the MT proof commands name --test mt_3117N targets, which do not exist: brief handling, recorded): mt_31174_* -> MT-31174 (enumerations_match_stu_col_118, channel_discard_requires_the_echoed_receipt, illegal_changes_are_refused_typed, outcomes_go_through_observe_as_codes_only); mt_31175_* -> MT-31175 (bitmap_threshold_and_pattern_dither_values, bitmap_diffusion_is_deterministic_and_tone_preserving, bitmap_halftone_and_custom_pattern, failed_conversion_preserves_the_source_and_refuses_typed, bitmap_dims_u32_max_and_aggregate_over_budget, indexed_exact_web_uniform_palettes, indexed_local_palettes_bounded_and_deterministic, indexed_transparency_matte_forced, indexed_dither_modes_and_preserve_exact, indexed_dims_u32_max_and_aggregate_over_budget); mt_31176_* -> MT-31176 (bitmap_rows_store_seven_separate_fields, bitmap_option_defaults, inert_method_fields_round_trip); mt_31177_* -> MT-31177 (indexed_rows_store_seven_separate_fields, read_only_counts_and_dither_amount_bounds, color_table_encode_decode_is_identity, color_table_hostile_input, color_table_dims_u32_max, color_table_aggregate_over_budget); mt_31178_* -> MT-31178 (depth_rules_and_per_operation_availability); mt_31179_* -> MT-31179 (matrix_matches_stu_col_121, matrix_is_studio_normative_never_vendor)",
+    "mt_contract_defects": "ledger entry lists none for this lane. Observed: (1) proof commands name --test mt_31174..mt_31179 targets and --locked/plain cargo test (studio-env refuses plain cargo test); brief handling = one tests/mode_conversion.rs with mt_ names; (2) MT-31174/31175 consumer assertions require document create/convert with one undo, which is Folio/host (not prism write paths); claimed only the prism contract (enumerations, legality, discard receipt, conversions on borrowed buffers); (3) MT-31178 asks for HDR float pixel processing, not this lane (brief); claimed only depth rules and per-operation availability",
+    "spec_basis": "STU-COL-118 (14-studio-creative-suite.md v02.225 :9904) 'change_mode is a seven-value operation enumeration ... there is no to_duotone conversion operation'; STU-COL-119 :9913 'Conversions that discard channels MUST warn before executing and MUST be one undoable operation'; bitmap table :9924-9929, indexed table :9943-9946 ('indexed.colors is settable only for some palette types; for exact, mac_os, windows, web and previous it is read-only and derived'), colour table :9952-9955; STU-COL-120 :9974 '1-bit is valid only for bitmap mode ... the reduction MUST be reported per operation rather than discovered by failure'; STU-COL-121 :9979 matrix 'Studio's normative choice ... An implementer MUST NOT report them as vendor-derived'; STU-COL-106/107 seven separate fields, UNKNOWN literal, no clamp",
+    "unverified": "UNVERIFIED (D5): Photoshop parity of legal-change routes (bitmap only from 8/16-bit grayscale and only back to grayscale, indexed only from 8-bit RGB), discard classification, threshold rule, 8x8 Bayer matrix, Floyd-Steinberg raster-order kernel, the six spot functions and cell-rank coverage, custom-pattern threshold rule, exact palette first-occurrence order, web order (red outermost), uniform cube/gray ramp, local palette median cut and selective weighting, nearest metric, matte colours (semi_gray 128, netscape_gray 192), transparency alpha cutoff 128 and the appended transparency entry, pattern/noise spread +-16, black_white table order, colour-table 0xFFFF = no transparency; colour-table byte order big-endian taken from the specification's general statement for load files (the Color Table section states none)",
+    "act_layout_source": "Adobe Photoshop File Formats Specification (adobe.com/devnet-apps/photoshop/fileformatashtml), Color Table section: 'The file is 768 or 772 bytes long and contains 256 RGB colors'; trailer = two bytes count + two bytes transparency index; fetched 2026-10-31",
+    "studio_bounds": "MAX_MODE_PIXELS 2^28 (16384^2), MAX_PATTERN_TILE_CELLS 2^20, memo cap 2^20 (results independent of it), histogram 32768 bins; Studio bounds, not spec",
+    "red_first": "slices were written with their tests and committed green; no red-first run per slice (one bundled run per push); per-slice commits each compile on their own (checked by lane-check --per-sha)",
+    "round_feature_units": "prism has no round feature unit; tests/mode_conversion.rs is not feature-gated (4e satisfied for prism); harness-core [import-psd], harness-view [viewer], harness [import-psd] included in the bundled clippy via the test command's -p/--features",
+    "bundled_runs": [
+      "#1 39c1ae7d FAIL clippy (exit 101): arithmetic_side_effects on wrapping_rem/wrapping_div with runtime divisor (bitmap.rs:375, indexed.rs:618/619) + needless_range_loop + collapsible ifs; log smb-ps-mode-convert-1-39c1ae7d-bundled.log; fixed in 5a05b3c7 (focused cargo clippy -p hsk-studio-prism --tests clean before re-run)",
+      "#2 5a05b3c7 GREEN (exit 0): 213 passed, 2 skipped (pre-existing ignored); log smb-ps-mode-convert-1-5a05b3c7-bundled.log",
+      "per-sha 63ecf5a6..5a05b3c7: 79c4205b and 9c8aa057 OK; FAIL at 8ad6f1e6 default unit (log smb-ps-mode-convert-1-5a05b3c7-persha.log, per-sha-*/8ad6f1e6-default.log)"
+    ],
+    "local_commits": "79c4205b slice1 contract (per-sha OK all 25 units), 9c8aa057 slice2 bitmap (per-sha OK all units), 8ad6f1e6 slice3 colour table (per-sha FAIL: tests do not compile, NON-GREEN, local only; could not be re-subjected 'WIP pause:' without a history rewrite, which the pause forbids), 39c1ae7d slice4 indexed, 5a05b3c7 clippy fixes (tip; bundled run green). Working tree clean. origin/codex/handshake-studio-assets = 63ecf5a6 at 2026-10-31T23:22Z",
+    "open_questions": "none for the lead beyond the pause; MT proof commands name --test mt_3117N targets that the brief replaced with one tests/mode_conversion.rs (recorded)"
   }
 }

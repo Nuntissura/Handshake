@@ -2,18 +2,56 @@
   "crate": "hsk-studio-composite (Foam / Wave World recovered STU-FX-131a records), hsk-studio-folio (additive enum variants only), hsk-studio-interop-psd (channel_name_transcoded), hsk-studio-harness-core (import keeps channels without layer records), hsk-studio-harness (tests)",
   "lane": "SMB-R50-FOLLOWUPS-1",
   "status": null,
-  "phase": "dispatched",
+  "phase": "paused",
   "worktree": "wt-studio-lanes/smb-r50-followups-1",
   "base": "63ecf5a6",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "401b6004",
+      "subject": "interop-psd F-R50-5 red test (local)"
+    },
+    {
+      "sha": "efe7c928",
+      "subject": "harness F-R50-6 red test (local)"
+    },
+    {
+      "sha": "ebaf6532",
+      "subject": "composite, folio F-R50-1 / G2: recovered Foam and Wave world records stored and mapped (local)"
+    },
+    {
+      "sha": "ec198d47",
+      "subject": "interop-psd F-R50-5: channel_name_transcoded (local)"
+    },
+    {
+      "sha": "144d70ff",
+      "subject": "harness-core F-R50-6: records gate on layers or channels, channel tiles as assets (local)"
+    }
+  ],
+  "capabilities_done": [
+    "F-R50-1 / G2: FOAM_RECORD (47 rows) and WAVE_WORLD_RECORD (48 rows) stored as folio StudioEffectParamSpec, one test assertion block per spec row (tests/simulations_records.rs)",
+    "F-R50-1 / G2: engine mapping, recovered first (Foam wind_direction; Wave world preroll, producer x, y, amplitude, frequency, phase); unmapped engine scalars stay studio_declared (STU-FX-146 scope beside the record)",
+    "F-R50-1: false-basis docs fixed (composite simulations.rs module docs, foam.rs, wave_world.rs)",
+    "F-R50-5: interop-psd channel_name_transcoded loss when the 1006 Pascal entry cannot carry a renamed channel name exactly",
+    "F-R50-6: harness-core import writes the records entry on layers OR channels and stores channel tiles as package assets"
+  ],
+  "tests": {
+    "argv": "lane-check --owner smb-r50-followups-1 --disk ssd -- cargo nextest run -p hsk-studio-folio -p hsk-studio-composite -p hsk-studio-interop-psd -p hsk-studio-harness-core -p hsk-studio-harness --features hsk-studio-harness/import-psd --no-fail-fast (clippy over the 5 crates + 19 dependents clean for changed code); then cargo nextest run -p hsk-studio-composite --features motion",
+    "exit": 0,
+    "sha": "144d70ff",
+    "passed": 659,
+    "failed": 0,
+    "logs": [
+      "smb-r50-followups-1-144d70ff-bundled.log (450 passed, 16 skipped)",
+      "smb-r50-followups-1-144d70ff-composite-motion.log (209 passed)",
+      "red-smb-r50-followups-1-efe7c928.log (2 red tests FAIL as intended)"
+    ]
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": null,
   "bg_pids": [],
-  "next": "builder: red tests per item, then the bundled run on C:; push LAST of the wave (after nib, motion, type and prism lanes) with --per-sha",
-  "updated_at": "2026-10-31T22:54:36Z",
+  "next": "PAUSED by lead (Operator). Resume: git fetch; check origin/codex/handshake-studio-assets for the four wave lanes (nib SMB-AI-DISTORT-EFFECTS-1, motion SMB-AE-EXPR-LIBRARY-1, type SMB-TYPE-OT-FEATURES-1, prism SMB-PS-MODE-CONVERT-1; at pause none were on origin, origin tip 63ecf5a6); when all four are there or the lead releases: git rebase origin/codex/handshake-studio-assets, lane-check.sh --owner smb-r50-followups-1 --per-sha origin/codex/handshake-studio-assets, push on PER_SHA_RESULT OK only, then READY_FOR_VALIDATION. Doctests: none added.",
+  "updated_at": "2026-10-31T23:26:21Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -47,11 +85,146 @@
       "F-R50-5",
       "F-R50-6"
     ],
-    "mts": [
-      "MT-32012",
-      "MT-32013"
-    ],
+    "mts": {
+      "MT-32012": "advanced: all 47 rows stored and asserted; angle-row literal reading open (unverified_readings[0])",
+      "MT-32013": "advanced: all 48 rows stored and asserted; same open angle reading",
+      "MT-31728 / MT-31731": "AC-002 typed params 47 / 48 now met by the stored records; AC-001 / AC-004 already met (identity, import key); AC-005 operator surface not claimed (engine-only lane)"
+    },
     "lead_decision_G2": "Foam / Wave World take the recovered STU-FX-131a records (map, recovered first); authored rows only for engine scalars with no recovered counterpart; spec owner may override (SD-22)",
-    "disk": "c"
+    "disk": "c",
+    "red_evidence": {
+      "F-R50-5": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r50-followups-1/red-smb-r50-followups-1-efe7c928.log: renamed_channel_names_the_pascal_list_cannot_carry_are_typed_losses FAIL (left [] right [(channel[1]/name, Transformed)]) with the fixes stashed",
+      "F-R50-6": "same log: psd_alpha_channels_without_layer_records_survive_conversion FAIL (receipt records false)",
+      "F-R50-1": "the records test needs the new record API, so its red commit would not compile: squashed into the green commit (RED COMMITS rule)",
+      "first_red_attempt": "red-smb-r50-followups-1-070ea2ab.log: the F-R50-5 test did not compile (closure lifetime); the two local red commits were rebuilt with git reset --soft and recommitted as 401b6004 / efe7c928 (never pushed)"
+    },
+    "mapping_table_recovered_row_to_engine_scalar": [
+      {
+        "record": "Foam",
+        "row": 32,
+        "parameter": "Wind Direction (ANGLE, degrees, 0..0 = no-range reading)",
+        "engine": "wind_direction (deg)",
+        "conversion": "none",
+        "change": "hard -1e6..1e6 -> none (finite, |v| <= folio MAX_STREAM_ABS_VALUE 1e12); soft -180..180 -> none; default 90 -> 0"
+      },
+      {
+        "record": "Wave world",
+        "row": 24,
+        "parameter": "Pre-roll (seconds)",
+        "engine": "preroll (s)",
+        "conversion": "none",
+        "change": "none (hard 0..60, soft 0..5, default 0 already equal); provenance studio_declared -> recovered"
+      },
+      {
+        "record": "Wave world",
+        "row": 44,
+        "parameter": "Position (POINT, layer fractions), component 0 / 1",
+        "engine": "producer x / y (ratio)",
+        "conversion": "none",
+        "change": "hard -1e3..1e3 -> none (finite, <= 1e12); soft 0..1 -> none; default 0.5 unchanged"
+      },
+      {
+        "record": "Wave world",
+        "row": 52,
+        "parameter": "Amplitude",
+        "engine": "producer amplitude (height, the record's unitless scale)",
+        "conversion": "none",
+        "change": "hard 0..1e6 -> 0..5; soft 0..2 -> 0..1; default 0.5 unchanged"
+      },
+      {
+        "record": "Wave world",
+        "row": 54,
+        "parameter": "Frequency",
+        "engine": "producer frequency (Hz)",
+        "conversion": "none (time base seconds per the record's own row 24)",
+        "change": "hard 0..1000 -> 0..20; soft 0..5 -> 0..3; default 1 unchanged"
+      },
+      {
+        "record": "Wave world",
+        "row": 56,
+        "parameter": "Phase (ANGLE, no-range reading)",
+        "engine": "producer phase (deg)",
+        "conversion": "none",
+        "change": "hard -1e6..1e6 -> none (finite, <= 1e12); soft -180..180 -> none; default 0 unchanged"
+      },
+      {
+        "record": "Foam",
+        "rows": "4 Producer Point, 6/8 Producer X/Y Size",
+        "engine": "none: producer_x/y, producer_width/height stay authored",
+        "reason": "recovered rows are layer fractions; the engine producer is in composition pixels and the record carries no layer size"
+      },
+      {
+        "record": "Foam",
+        "rows": "14 Production Rate, 16 Size, 18 Size Variance, 20 Lifespan, 22 Bubble Growth Speed, 26 Initial Speed, 30 Wind Speed, 38 Repulsion, 42 Viscosity, 44 Stickiness",
+        "engine": "none: rate, size, size_random, life, growth, initial_speed, wind_speed, repulsion, viscosity, stickiness stay authored",
+        "reason": "the record declares no unit (--); the engine counterparts are px, px/s, px/s2, s, 1/s or a ratio of size; reading one as the other would invent a conversion (STU-FX-108)"
+      },
+      {
+        "record": "Foam",
+        "rows": "72 Random Seed (0..16)",
+        "engine": "none",
+        "reason": "not the STU-FX-011 u64 seed every simulation carries"
+      },
+      {
+        "record": "Wave world",
+        "rows": "26 Grid Resolution",
+        "engine": "none: grid_width / grid_height stay authored",
+        "reason": "one resolution scalar vs two per-axis cell counts; which axis it counts is not recovered"
+      },
+      {
+        "record": "Wave world",
+        "rows": "30 Wave Speed, 32 Damping",
+        "engine": "none: wave_speed (cells/s), damping (1/s) stay authored",
+        "reason": "Wave Speed declares no unit and no cell scale; Damping 0..1 without a unit is not shown to be the per-second coefficient"
+      },
+      {
+        "record": "Wave world",
+        "rows": "42 / 58 Type (Ring, Line)",
+        "engine": "ProducerShape (enum field, not a scalar)",
+        "reason": "consistent (index 1 Ring = Point default, 2 Line = Line); stored, not driving"
+      },
+      {
+        "record": "Wave world",
+        "rows": "second producer set 60, 62-72; 46/48/50 Height/Length, Width, Angle; x2/y2",
+        "engine": "none",
+        "reason": "engine producers read the first set; the engine line end x2/y2 has no recovered counterpart (the record describes a line by length, width, angle)"
+      },
+      {
+        "record": "both",
+        "rows": "all other rows (view, rotations, scale, brightness, contrast, gamma, dry areas, transparency, reflect edges, turbulence, wobble, pop velocity, zoom, universe size, textures, maps, quality, groups, layers, checkboxes)",
+        "engine": "none",
+        "reason": "stored and validated, documented as not driving the simulation (no invented behaviour)"
+      }
+    ],
+    "unverified_readings": [
+      "ANGLE rows recorded 0..0 in all four bounds (Foam 10, 28, 32; Wave world 4, 6, 50, 56, 66, 72) are stored with the four bounds None, unbounded_in_source, default 0, degrees, precision 0: folio's established Twirl Angle no-range reading. The MT-32012 / MT-32013 acceptance text states hard_min=0 .. soft_max=0 literally for these rows; storing 0 as a hard bound would admit only 0 and lock wind direction / phase. Spec-owner confirmation needed (SD).",
+      "-- unit stored as StudioUnitToken::Unitless (STU-FX-108; folio convention)",
+      "-- default stored as an empty default slice (STU-FX-103 default may be null)",
+      "POPUP rows interpolable = true: no row carries CANNOT_INTERP and G2 maps flags literally (folio's own enumeration rows are interpolable false as a Studio reading)",
+      "unnamed rows keyed unnamed_<index>, duplicate names keyed <name>_<index>; display name '(unnamed)'",
+      "COLLAPSE_TWIRLY kept as SimulationKind::collapsed_by_default from per-record index lists (folio's record has no field; struct field additions are outside this lane's folio scope)",
+      "Frequency read as Hz on the strength of the record's 'Pre-roll (seconds)' row; every mapping's After Effects parity UNVERIFIED (D5)",
+      "F-R50-5: the 1006 encoding (system code page vs Latin-1) stays UNVERIFIED (D5); the loss is recorded whenever the Latin-1 Pascal entry cannot carry the name exactly, with or without a 1045 resource"
+    ],
+    "changed_existing_assertions": "none: no existing test assertion changed. tests/simulations_water.rs only had its module doc reworded. Its loops over WAVE_PRODUCER_ROWS (now x2, y2) and params() (Foam without wind_direction, Wave world without preroll) cover fewer rows; the moved scalars are asserted in tests/simulations_records.rs (mapped_engine_scalars_take_the_recovered_bounds_and_defaults). The frequency 1000.5 refusal still holds (hard max 20).",
+    "folio_change": "additive StudioParameterKind::LayerReference and Group (components 0, accepts false); no external exhaustive match exists (grep of the workspace: controls/value.rs only names the kind in a doc comment)",
+    "proposal_rs": "no change needed in interop-psd src/proposal.rs or resources.rs: the loss is recorded at the export edit (export.rs), the import side is unchanged",
+    "pause": {
+      "at": "2026-10-31T23:26:21Z",
+      "local_head": "144d70ff",
+      "local_commits": [
+        "401b6004",
+        "efe7c928",
+        "ebaf6532",
+        "ec198d47",
+        "144d70ff"
+      ],
+      "all_green": "yes: no WIP commit; red commits 401b6004/efe7c928 compile and fail only their new tests",
+      "pushed": "nothing",
+      "open_questions": [
+        "angle rows 0..0: folio no-range reading vs MT-32012/32013 literal 0 bounds (spec owner, SD)",
+        "mapping scope: only same-quantity same-unit rows mapped (6 engine scalars); lead may want more (e.g. Foam viscosity, Wave world damping/wave speed) despite undeclared units"
+      ]
+    }
   }
 }

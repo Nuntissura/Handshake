@@ -2,18 +2,40 @@
   "crate": "hsk-studio-motion (expression identifier catalogue, signatures, dual spelling, seeded random reference) + hsk-studio-motion-js (After Effects globals prelude bindings)",
   "lane": "SMB-AE-EXPR-LIBRARY-1",
   "status": null,
-  "phase": "briefed (not dispatched)",
+  "phase": "paused",
   "worktree": "wt-studio-lanes/smb-ae-expr-library-1",
   "base": "63ecf5a6",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "1a77c4aa",
+      "subject": "motion (SMB-AE-EXPR-LIBRARY-1 slice 1): expression identifier catalogue",
+      "pushed": false
+    },
+    {
+      "sha": "31454a07",
+      "subject": "motion-js (SMB-AE-EXPR-LIBRARY-1 slices 2-4): After Effects library bound from the Motion catalogue",
+      "pushed": false
+    }
+  ],
+  "capabilities_done": [
+    "motion: expression identifier catalogue (333 identifiers verbatim in 12 rows, exact lookup, 60 dual-spelling pairs with camelCase canonical, 37 signatures verbatim with defaults attached to createPath/wiggle/temporalWiggle/loopOut, typed binding per identifier: 50 bound, 283 SOURCE_FUNCTION_BINDING_UNAVAILABLE), DESCRIPTOR key expression_catalogue",
+    "motion-js: prelude derived from the catalogue: bound add/mul/clamp/dot/cross/normalize/length, degrees/radians (both spellings), rgbToHsl/hslToRgb/hexToRgb (both spellings), linear unchanged; localeCompare UTF-16 order; every other plain catalogue identifier a native-getter global accessor refusing Unsupported at the user's line:column; match/search/toLocale*Case refused; Date absent; randomness/easing typed unavailable (G1)"
+  ],
+  "tests": {
+    "argv": "bundled run (one lock hold, C: ssd): lane-check default unit `cargo nextest run -p hsk-studio-motion -p hsk-studio-motion-js --no-fail-fast` (+clippy motion, motion-js, dependents), clippy hsk-studio-composite --features motion --tests, lane-check `-p hsk-studio-motion-js --features quickjs`, lane-check `-p hsk-studio-motion-js --features quickjs,test-faults`",
+    "exit": 0,
+    "sha": "31454a07",
+    "passed": "52 + 35 + 38 = 125 (whole suites per unit)",
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-expr-library-1/bundled-smb-ae-expr-library-1-31454a07.log",
+    "finished_at": "2026-10-31T23:28:34Z"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": null,
   "bg_pids": [],
-  "next": "lead: decide gate G1 (studio_declared ease and random generator vs SOURCE_FUNCTION_BINDING_UNAVAILABLE), wait for the R50 verdict on SMB-R49-FOLLOWUPS-1, name disk and dispatch; then slice 1 red tests",
-  "updated_at": "2026-10-31T18:38:25Z",
+  "next": "RESUME (after lead lifts PAUSE): in the lane worktree `git fetch origin` -> `git rebase origin/codex/handshake-studio-assets` (base 63ecf5a6) -> if the rebase touched motion/motion-js or their deps re-run the bundled script (scratchpad smb-ae-expr-library-1/bundled.sh, log named with lane+sha) -> `lane-check.sh --owner smb-ae-expr-library-1 --per-sha origin/codex/handshake-studio-assets` -> on PER_SHA_RESULT OK `git diff --stat origin/codex/handshake-studio-assets..HEAD` (own paths only) -> guarded push of both commits in ONE push -> READY_FOR_VALIDATION",
+  "updated_at": "2026-10-31T23:29:12Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -69,9 +91,18 @@
     "model_effort": "opus / high (cross-backend determinism of a seeded generator, a hostile-text parser, a 333-row catalogue against the spec)",
     "mts": "closes MT-33916, MT-33920, MT-33919, MT-33918, MT-33917, MT-33912, MT-33933 (ACs except the tooltip half, D7); advances MT-33911, MT-33915, MT-33926, MT-35297, MT-35301, MT-35302, MT-35303, MT-33934. MT-33917/33918 close only if gate G1 admits studio_declared semantics",
     "spec_records": "category table :27646-27657 (333 identifiers), 37 signatures with defaults :27659-27701, STU-MOT-075 named signatures :27717-27726",
-    "placement": "bindings in motion-js because MotionJS owns the JS profile (motion src/expression.rs:1-4; MT-33912 fulfillment names hsk-studio-motion-js); row MTs list motion/** only",
+    "placement": "bindings in motion-js (MotionJS owns the JS profile; motion src/expression.rs:1-4; MT-33912 fulfillment names hsk-studio-motion-js); row MTs list motion/** only. src/prelude.rs is declared from provider.rs via #[path] because lib.rs is not an owned path (no new public export)",
     "mt_contract_defects": "MT-35299 and MT-35300 implementation step 1 registers an empty identifier list ('names  as pure Motion catalogue metadata'); MT-35301 step 1 lists only seedRandom while its step 3 and the spec row list six members",
     "root_inputs": "none; no Cargo.toml or feature change, no new dependency",
-    "operator_items": "none; After Effects parity beyond the AE-03 linear oracle UNVERIFIED (D5)"
+    "operator_items": "none; After Effects parity beyond the AE-03 linear oracle UNVERIFIED (D5)",
+    "paused": "Lead/Operator PAUSE 2026-10-31: bundled run 31454a07 finished green; no rebase, per-sha or push done; worktree clean; all work committed (both commits green, no WIP)",
+    "slices": "slice 1 = 1a77c4aa; slices 2-4 landed in one commit 31454a07 (one shared prelude line); slice 4 shrank to typed refusals (G1 not confirmed): no src/expr_random.rs, no generator",
+    "identifiers_left_unavailable": "283 of 333: all of Global except time; lookAt, look_at; all 6 Random Numbers; ease, ease_in, ease_out, easeIn, easeOut; all Sub-objects, General, Properties, 3D, Space Transforms; leading block except the 17 Math functions and 15 string/object members (unavailable there: Date, match, search, toLocaleLowerCase, toLocaleUpperCase, .index, .name and every host/camera/light/mask/path/key/loop/wiggle/text-style/data identifier, sub, div)",
+    "dual_spelling_pairs": "60 pairs (Global 3, Vector Math 1, Random 2, Interpolation 2, Color 2, Other Math 2, General 7, Properties 3, 3D 4, Space Transforms 9, leading block 25); lone snake members kept: this_layer, this_property, world_position_to_psd, world_rotation_to_psd, world_scale_to_psd, BEEp_EvalExprEngines",
+    "unverified": "After Effects parity UNVERIFIED (D5) for every bound member except linear/time (AE-03): add/mul/clamp/dot argument shapes (mismatched lengths and scalar/array mixes refused, AE may pad), clamp with reversed limits (refused), cross only 3D, normalize/length on scalars (refused), rgbToHsl/hslToRgb domain 0..1 with alpha pass-through (Studio reading), hexToRgb accepts only #RRGGBB/RRGGBB (short, quartet and 0x forms refused); Math functions follow host libm (cross-platform bit identity UNVERIFIED)",
+    "open_items": "(1) library refusals are thrown errors: an author's own try/catch can catch them (host-read failures are uncatchable via quickjs.rs, not an owned path); (2) argument refusals inside bound helpers carry no span (throw site is the prelude line); (3) MT-33912 'normalise on write' is published per identifier (canonical_spelling); no binding-aware source rewriter exists (validator is lexical); (4) MT AC tooltip halves wait for D7; (5) candidates with mathematical semantics left unavailable because the brief scoped Vector Math/Other Math only: sub, div; (6) assigning to an unavailable name without a declaration (strict `color = 5`) now creates the binding via the accessor setter instead of ReferenceMissing",
+    "open_questions": "lead: accept typed refusals being catchable by user try/catch, or require an uncatchable path (needs quickjs.rs, outside owned paths)?; bind sub/div by definition in a follow-up?",
+    "mt_contract_handling": "MT plans name tests/contracts.rs with filters mt_<id>::; the brief owns tests/expr_catalogue.rs, whose modules are named mt_33911, mt_33912, mt_33915, mt_33916, mt_33917, mt_33918, mt_33919, mt_33920, mt_33926, mt_33933 for filter mapping",
+    "feature_gating_4e": "tests/ae_expression_library.rs is #![cfg(feature = \"quickjs\")]; .config/round-features.toml enables hsk-studio-motion-js [quickjs] and [quickjs,test-faults]: covered"
   }
 }

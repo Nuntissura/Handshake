@@ -2,18 +2,45 @@
   "crate": "hsk-studio-type (OpenType feature-tag registry and map, font feature availability query, legacy boolean / figure style / stylistic-set projections, special-character catalogs)",
   "lane": "SMB-TYPE-OT-FEATURES-1",
   "status": null,
-  "phase": "briefed (not dispatched)",
+  "phase": "paused",
   "worktree": "wt-studio-lanes/smb-type-ot-features-1",
   "base": "63ecf5a6",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "e80f767c",
+      "subject": "type (SMB-TYPE-OT-FEATURES-1): OpenType feature registry, tag map, availability query and legacy projections",
+      "pushed": false
+    },
+    {
+      "sha": "51456c44",
+      "subject": "type (SMB-TYPE-OT-FEATURES-1): STU-TYP-207 insertable character catalogs",
+      "pushed": false
+    }
+  ],
+  "capabilities_done": [
+    "STU-TYP-170 FeatureMap + registry (209 tags of the STU-TYP-171 table) + any well-formed tag",
+    "STU-TYP-171 FeatureGroup (20) + project_groups; STU-TYP-017 StudioFeatureGroup (13)",
+    "STU-TYP-172 inert stored features (declared:false), text bytes unchanged",
+    "STU-TYP-173 TextEngine::font_features / check_opentype_feature (bounded GSUB/GPOS reader)",
+    "STU-TYP-174 LegacyBoolean (11 mapped, 3 refuse legacy_projection_unmapped); STU-TYP-175 FigureStyle + ss01..ss20 bitfield",
+    "STU-TYP-207 four catalogs (catalog half; sentinels pending)"
+  ],
+  "tests": {
+    "argv": "bash scratchpad/smb-type-ot-features-1/bundled.sh under one studio_disk_lock_run: clippy --tests type+9 direct dependents; clippy harness-view/harness --features viewer; clippy type --features harfrust; nextest -p hsk-studio-type (default); nextest -p hsk-studio-type --features harfrust",
+    "exit": 0,
+    "sha": "51456c4427d72b5145c83f14d03e08195477084e",
+    "passed": "default 89, harfrust 90 (1 skipped each: mt_30955_observed_union_of_229_tags #[ignore] NOT_PROVEN)",
+    "failed": 0,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-ot-features-1/bundled-smb-type-ot-features-1-51456c44.log",
+    "step0": "lane-check --step0-only clean",
+    "finished_at": "2026-10-31T23:30:30Z"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": null,
   "bg_pids": [],
-  "next": "wait for the R50 verdict on SMB-R49-FOLLOWUPS-1 and the lead naming disk and dispatch; then slice 1 red tests",
-  "updated_at": "2026-10-31T18:38:25Z",
+  "next": "RESUME: git fetch; git rebase origin/codex/handshake-studio-assets (base 63ecf5a6); if origin moved into type/accord/observe re-run the bundled script; run lane-check.sh --owner smb-type-ot-features-1 --disk ssd --per-sha origin/codex/handshake-studio-assets; on PER_SHA_RESULT OK push with PUSH SAFETY (git diff --stat origin..HEAD lists only crates/hsk-studio-type paths), then set READY_FOR_VALIDATION",
+  "updated_at": "2026-10-31T23:31:29Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -64,6 +91,20 @@
     "mt_contract_defects": "MT-30960 step 2 requires a stylistic-set bitfield round trip through Package import/export ports, but its allowed_write_paths and Type's dependencies (accord, observe) exclude package",
     "spec_gaps": "the 229 observed feature tags of STU-TYP-170 are not listed in the spec; stream sentinels for STU-TYP-207 markers and breaks are not assigned (spec-owner item)",
     "root_inputs": "none; no Cargo.toml or feature change, no new dependency, no new fixture",
-    "operator_items": "none; the HarfRust provider path is untouched; vendor boolean-to-tag mappings UNVERIFIED (D5)"
+    "operator_items": "none; the HarfRust provider path is untouched; vendor boolean-to-tag mappings UNVERIFIED (D5)",
+    "pause": "paused 2026-10-31T23:31:29Z on lead/Operator PAUSE after the green bundled run; nothing pushed, no rebase, no per-sha run started; working tree clean",
+    "mt_mapping": "opentype_features.rs: mt_30955_* STU-TYP-170, mt_30956_* STU-TYP-171, mt_30957_* STU-TYP-172, mt_30958_* STU-TYP-173 (incl. dims_u32_max, aggregate_over_budget, truncated FeatureList, out-of-range lookup/feature index, observe codes only), mt_30959_* STU-TYP-174, mt_30960_* STU-TYP-175, mt_31140_*, mt_31141_* STU-TYP-017; character_catalogs.rs: mt_31005..mt_31009",
+    "mt_status_claimed": "closes (on validation): MT-30957, MT-30959, MT-31140, MT-31141; advances: MT-30955 (AC-001 229 union spec gap; #[ignore] NOT_PROVEN test), MT-30960 (Package round trip outside type), MT-30956/MT-30958 (engine half; no panel/descriptors, D7), MT-31005..31009 (catalog half; composition in layout, sentinels pending)",
+    "oracle": "fontTools 4.62.1 (MIT) over the pinned fixtures: tags reachable from any script/LangSys, max type-3 AlternateSet (type 7 resolved), GPOS membership, single/ligature substitution gids; scripts scratchpad/smb-type-ot-features-1/ft_oracle.py, ft_single.py; Unicode names via Python unicodedata 16.0.0",
+    "unverified": [
+      "vendor boolean-to-tag mapping (tags from the OpenType 1.9.1 registry; proportional_metrics -> palt is a Studio reading)",
+      "stylistic-set bit order bit i = ss(i+1)",
+      "source applications' internal code points for catalog members; flush space (likely U+2001 in InDesign) left Pending",
+      "non-breaking fixed U+202F / flexible U+00A0 assignment",
+      "currency signs member set (dollar, cent, pound, generic, yen, euro) is a Studio reading",
+      "break_opportunity flags read from UAX #14 classes"
+    ],
+    "deviations": "two local commits instead of four (slices 1-3 share features.rs); red-first not proven by a separate red run (tests authored first, both commits green); FeatureQuery reuses Limits.features/lookups as the layout count bounds (NotoSansSC needs features>=217)",
+    "open_questions": "spec owner: STU-TYP-207 stream sentinels for markers/column/frame/page/odd/even breaks and flush space; STU-TYP-207 says 'three catalogs' but its table has four; 229-tag observed union missing from spec"
   }
 }

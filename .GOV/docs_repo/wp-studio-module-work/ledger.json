@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-31T22:54:36Z",
+ "updated_at": "2026-10-31T23:38:29Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -15409,7 +15409,7 @@
   {
    "lane_id": "SMB-AI-DISTORT-EFFECTS-1",
    "status": null,
-   "phase": "dispatched",
+   "phase": "paused",
    "crate": "hsk-studio-nib (Illustrator Distort & Transform effects on recovered STU-VEC-154/155/158 records)",
    "lane_file": "builders/lanes/hsk-studio-ai-distort-effects-1.json",
    "brief": "builders/briefs/lane-smb-ai-distort-effects-1.md",
@@ -15421,17 +15421,27 @@
     "binding": "HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T18:46:19Z"
    },
-   "updated_at": "2026-10-31T22:54:36Z",
+   "updated_at": "2026-10-31T23:38:29Z",
    "mt_contract_defects": [
     "MT-30559 and MT-33001 step 1 forbid convert-to-shape geometry until the sizing law is recovered while MT-33001..33003 step 3 expects it (lane ships typed contract + typed refusal)"
    ],
    "note": "G1 confirmed (declared Studio laws, parity UNVERIFIED) except where an MT demands a refusal",
-   "dispatch_note": "after STUDIO-R50 (372 PASS, kernel 650a414f); no R50 remediation run holds this lane's crate"
+   "dispatch_note": "after STUDIO-R50 (372 PASS, kernel 650a414f); no R50 remediation run holds this lane's crate",
+   "pause": {
+    "at": "2026-10-31T23:38:29Z",
+    "reason": "Operator request: pause all Studio work",
+    "local_head": "82f85bde",
+    "commits_on_base_63ecf5a6": 1,
+    "pushed": false,
+    "last_run": "bundled green (nib 96/96, clippy clean)",
+    "resume_step": "fetch, rebase, --per-sha (disk d), push",
+    "open_on_resume": "slices 1-4 landed as one commit with no separate red run (validator to judge red-first); object-mosaic typed record added for MT-30559"
+   }
   },
   {
    "lane_id": "SMB-AE-EXPR-LIBRARY-1",
    "status": null,
-   "phase": "dispatched",
+   "phase": "paused",
    "crate": "hsk-studio-motion + hsk-studio-motion-js (expression catalogue, dual spellings, recovered signatures, mathematical function families)",
    "lane_file": "builders/lanes/hsk-studio-ae-expr-library-1.json",
    "brief": "builders/briefs/lane-smb-ae-expr-library-1.md",
@@ -15443,19 +15453,29 @@
     "binding": "HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T18:46:19Z"
    },
-   "updated_at": "2026-10-31T22:54:36Z",
+   "updated_at": "2026-10-31T23:38:29Z",
    "mt_contract_defects": [
     "MT-35299 and MT-35300 step 1 register an empty identifier list; MT-35301 step 1 lists only seedRandom of a six-member row",
     "MT-33884..33900 steps call for a revision-bound Folio patch but write paths are motion-only and motion has no folio edge",
     "MT-33912 fulfillment names motion-js but write paths list motion only"
    ],
    "note": "G1 not confirmed: identifiers without spec-recorded or mathematical semantics stay SOURCE_FUNCTION_BINDING_UNAVAILABLE (MT-33916 step 3, MT-33917 AC)",
-   "dispatch_note": "after STUDIO-R50 (372 PASS, kernel 650a414f); no R50 remediation run holds this lane's crate"
+   "dispatch_note": "after STUDIO-R50 (372 PASS, kernel 650a414f); no R50 remediation run holds this lane's crate",
+   "pause": {
+    "at": "2026-10-31T23:38:29Z",
+    "reason": "Operator request: pause all Studio work",
+    "local_head": "31454a07",
+    "commits_on_base_63ecf5a6": 2,
+    "pushed": false,
+    "last_run": "bundled green (125 passed: default 52, quickjs 35, quickjs+test-faults 38)",
+    "resume_step": "fetch, rebase, --per-sha, one push for both commits",
+    "open_on_resume": "refusals are catchable by user try/catch (fix needs quickjs.rs, outside lane); sub/div binding by definition is a follow-up candidate"
+   }
   },
   {
    "lane_id": "SMB-TYPE-OT-FEATURES-1",
    "status": null,
-   "phase": "dispatched",
+   "phase": "paused",
    "crate": "hsk-studio-type (OpenType feature-tag registry STU-TYP-171, per-font availability, legacy projections, STU-TYP-207 character catalogs)",
    "lane_file": "builders/lanes/hsk-studio-type-ot-features-1.json",
    "brief": "builders/briefs/lane-smb-type-ot-features-1.md",
@@ -15467,16 +15487,26 @@
     "binding": "HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T18:46:19Z"
    },
-   "updated_at": "2026-10-31T22:54:36Z",
+   "updated_at": "2026-10-31T23:38:29Z",
    "mt_contract_defects": [
     "MT-30960 step 2 requires a Package round trip but its write paths and type's dependencies exclude package"
    ],
-   "dispatch_note": "after STUDIO-R50 (372 PASS, kernel 650a414f); no R50 remediation run holds this lane's crate"
+   "dispatch_note": "after STUDIO-R50 (372 PASS, kernel 650a414f); no R50 remediation run holds this lane's crate",
+   "pause": {
+    "at": "2026-10-31T23:38:29Z",
+    "reason": "Operator request: pause all Studio work",
+    "local_head": "51456c44",
+    "commits_on_base_63ecf5a6": 2,
+    "pushed": false,
+    "last_run": "bundled green (type 89 default / 90 harfrust; 1 NOT_PROVEN ignore: 229-tag list absent from spec)",
+    "resume_step": "fetch, rebase, --per-sha, push",
+    "open_on_resume": "four slices in two commits, tests never run red first (validator to judge); spec-owner: stream sentinels for breaks unassigned, STU-TYP-207 says three catalogs but tables four"
+   }
   },
   {
    "lane_id": "SMB-PS-MODE-CONVERT-1",
    "status": null,
-   "phase": "dispatched",
+   "phase": "paused",
    "crate": "hsk-studio-prism (Image > Mode: grayscale->bitmap, RGB->indexed, indexed colour table and codec; STU-COL-119/121)",
    "lane_file": "builders/lanes/hsk-studio-ps-mode-convert-1.json",
    "brief": "builders/briefs/lane-smb-ps-mode-convert-1.md",
@@ -15488,13 +15518,23 @@
     "binding": "HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T18:46:19Z"
    },
-   "updated_at": "2026-10-31T22:54:36Z",
-   "dispatch_note": "after STUDIO-R50 (372 PASS, kernel 650a414f); no R50 remediation run holds this lane's crate"
+   "updated_at": "2026-10-31T23:38:29Z",
+   "dispatch_note": "after STUDIO-R50 (372 PASS, kernel 650a414f); no R50 remediation run holds this lane's crate",
+   "pause": {
+    "at": "2026-10-31T23:38:29Z",
+    "reason": "Operator request: pause all Studio work",
+    "local_head": "5a05b3c7",
+    "commits_on_base_63ecf5a6": 5,
+    "pushed": false,
+    "last_run": "bundled green at tip (prism 213 passed, 2 skipped); per-sha FAIL at 8ad6f1e6 (slice-3 tests use RED/GREEN/BLUE defined in slice 4)",
+    "resume_step": "move the three colour constants into slice 3 and re-create commits 3-5 (tip byte-identical), fetch, rebase, --per-sha, push",
+    "open_on_resume": "8ad6f1e6 must not be pushed as is (RED COMMITS)"
+   }
   },
   {
    "lane_id": "SMB-R50-FOLLOWUPS-1",
    "status": null,
-   "phase": "dispatched",
+   "phase": "paused",
    "crate": "hsk-studio-composite, hsk-studio-folio (additive), hsk-studio-interop-psd, hsk-studio-harness-core, hsk-studio-harness (tests)",
    "lane_file": "builders/lanes/hsk-studio-r50-followups-1.json",
    "brief": "builders/briefs/lane-smb-r50-followups-1.md",
@@ -15506,13 +15546,23 @@
     "binding": "HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T22:54:36Z"
    },
-   "updated_at": "2026-10-31T22:54:36Z",
+   "updated_at": "2026-10-31T23:38:29Z",
    "closes": [
     "F-R50-1 (+MT-32012, MT-32013)",
     "F-R50-5",
     "F-R50-6"
    ],
-   "note": "slot 5; pushes last of the post-R50 wave (the other four lanes' crates sit in its closure); G2 map decision recorded as SD-22"
+   "note": "slot 5; pushes last of the post-R50 wave (the other four lanes' crates sit in its closure); G2 map decision recorded as SD-22",
+   "pause": {
+    "at": "2026-10-31T23:38:29Z",
+    "reason": "Operator request: pause all Studio work",
+    "local_head": "144d70ff",
+    "commits_on_base_63ecf5a6": 5,
+    "pushed": false,
+    "last_run": "bundled green (450 passed) + composite[motion] 209 passed",
+    "resume_step": "push LAST: after the four engine lanes are on origin, rebase, --per-sha, push",
+    "open_on_resume": "open for spec owner: angle rows recorded 0..0 stored unbounded; viscosity/damping/wave speed stay authored (no unit in the record)"
+   }
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
