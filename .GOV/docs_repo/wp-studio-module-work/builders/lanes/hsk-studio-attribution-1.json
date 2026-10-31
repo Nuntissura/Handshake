@@ -1,0 +1,155 @@
+{
+  "crate": "hsk-studio-accord (additive command context), hsk-studio-kernel-bindings (Envelope command + adapter), hsk-studio-harness-core (RunContext, Run attribution, batch, import actor), hsk-studio-harness-view (call sites, Viewer::with_context, no toolkit code), hsk-studio-harness (asset-local test host entry points and tests)",
+  "lane": "SMB-ATTRIBUTION-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed 3cfbe87e to origin/codex/handshake-studio-assets (on 2b42a0fe, origin unmoved, no rebase; push exit 0, origin re-read = 3cfbe87e); green bundled run 2 on 3cfbe87e on D:",
+  "candidate": "3cfbe87e",
+  "commits": [
+    {
+      "sha": "57c0858b",
+      "slice": "1",
+      "subject": "accord + kernel-bindings (SMB-ATTRIBUTION-1, RF-06 slice 1): typed command context",
+      "pushed": true
+    },
+    {
+      "sha": "6f509418",
+      "slice": "1 (docs)",
+      "subject": "accord (SMB-ATTRIBUTION-1): command-context doc and DESCRIPTOR wording without unproven never-claims (V4-07)",
+      "pushed": true
+    },
+    {
+      "sha": "1893b965",
+      "slice": "2-4",
+      "subject": "harness-core + harness-view + harness (SMB-ATTRIBUTION-1, RF-06 slices 2-4): runs attributed to the caller's RunContext; no default or literal actor in product paths",
+      "pushed": true
+    },
+    {
+      "sha": "3cfbe87e",
+      "slice": "run-1 fix",
+      "subject": "harness tests (SMB-ATTRIBUTION-1, run-1 fix): the report schema pin names the op record attribution keys",
+      "pushed": true
+    }
+  ],
+  "capabilities_done": [
+    "accord CommandContext{actor, client_session, command?, base_revision, correlation, causation?}, ClientSessionId/CommandId (actor id bounds, InvalidContext), opaque CorrelationId/CausationId, CorrelationSource port, asset-local TransientCorrelation (additive, no changed accord signature)",
+    "kernel-bindings Envelope.command (CommandContextWire; absent = not encoded, envelopes without it keep their bytes; null non_canonical; invalid_command_context) mapped onto accord CommandContext by one adapter (src/context.rs); BridgePorts::set_command_context; Envelope.correlation_id stays the per-exchange reply-matching counter",
+    "harness-core Harness::run(RunContext); one CommandContext per mutating command; op records carry actor/command_id/correlation/causation; HistoryStep carries actor, client session, command id, base revision, revision, correlation (Run::history undo_steps/redo_steps); harness-owned Observe frames, chronicle patches, timeline and multicam steps carry the command correlation and the RUN_COMMANDS id (no op ordinal); undo/redo caused by the reversed step; Run::actor/Run::context",
+    "harness-core BatchPorts::new(RunContext) required (no Default; compile_fail doctests E0599/E0063); import colour converter takes the caller's actor (import_as, import_with_as, convert_to_native_as, import_affinity_preview_as, raw_proposal_as)",
+    "default_actor removed; asset_local_test_context and the actor-less import entry points behind non-default feature asset-local-test-host (harness-core); Viewer::new/with_gpu_options behind asset-local-test-host (harness-view); Viewer::with_context",
+    "harness-view: edit, fill, audio batch queue, waveform effect and plugin bounces, text shaping, separations and swatch Prism conversions take the Viewer run's actor; 3 literal actors removed",
+    "harness (asset-local test host) enables both features in its normal dependencies; cli.rs entry points and the batch take asset_local_test_context"
+  ],
+  "tests": {
+    "focused": {
+      "logs": [
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-attribution-1/focused2.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-attribution-1/focused6-view.log"
+      ],
+      "result": "kernel-bindings tests/command_context.rs 4 passed (focused1: bridge_contract 11 passed, command_context reply test failed on a test-host bug: it unwrapped a missing command on the cleared request; fixed in the test); harness-core whole default suite 28 passed incl. tests/run_attribution.rs 3; harness-view [desktop,audio-batch] tests/viewer_attribution.rs 2 passed (run 1 of that file: flood fill on a document without artboard, fixture changed to the two-layer PSD)",
+      "clippy": "check3/check6 logs: no warning in a changed file (pre-existing only: observe too_many_arguments, interop-psd proposal, harness-view composition clamp / render-cpu display duplicated attribute / viewer_timeline_nest_2 dead code, harness viewer_media / timeline_captions)"
+    },
+    "run1": {
+      "sha": "1893b965",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-attribution-1/bundle-smb-attribution-1-1893b965.log (first line HEAD=1893b965)",
+      "argv": "bundled.sh (lane scratch, steward lane-check semantics in one disk-lock hold on D:, owner smb-attribution-1, CARGO_BUILD_JOBS=6, HSK_* unset): lane-check.sh --step0-only; cargo clippy --tests: accord + kernel-bindings + harness-core, kernel-bindings [test-faults] [ckc-test-double], harness-core [import-psd,import-raw,import-tiff,import-pdf,import-raster,import-affinity], harness-view [viewer] [desktop,audio-batch], harness [] [desktop,viewer,media,audio-plugin,import-affinity], the 44 direct workspace dependents of the five changed crates; cargo nextest run --no-fail-fast: accord, kernel-bindings [] [test-faults] [ckc-test-double], interop-lrcat, harness-core, harness-view [viewer] [desktop,audio-batch], harness [] [import-psd,import-raw] [import-tiff] [import-tiff,import-raw] [import-pdf] [import-raster] [import-affinity] [viewer] [desktop,viewer] [media] [layout-ui] [audio-batch,audio-device] [audio-plugin]; cargo test --doc: accord, kernel-bindings [] [test-faults] [ckc-test-double], harness-core",
+      "result": "step 0 clean, every clippy exit 0, accord/kernel-bindings/lrcat/harness-core/harness-view suites and doctests green; every harness unit 1 failure: harness_headless json_output_is_stable_and_manual_comes_from_the_descriptors pinned the old op record keys (fixed in 3cfbe87e, the pin names the new attribution keys); [desktop,viewer] also viewer_shared_display viewer_renders_on_the_host_device_into_the_display_texture TIMEOUT 120 s (live GPU device while R47 ran; passed in run 2, no change)",
+      "exit": 1
+    },
+    "run2": {
+      "sha": "3cfbe87e (pushed)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-attribution-1/bundle-smb-attribution-1-3cfbe87e.log (first line HEAD=3cfbe87e)",
+      "argv": "bundled.sh (lane scratch, steward lane-check semantics in one disk-lock hold on D:, owner smb-attribution-1, CARGO_BUILD_JOBS=6, HSK_* unset): lane-check.sh --step0-only; cargo clippy --tests: accord + kernel-bindings + harness-core, kernel-bindings [test-faults] [ckc-test-double], harness-core [import-psd,import-raw,import-tiff,import-pdf,import-raster,import-affinity], harness-view [viewer] [desktop,audio-batch], harness [] [desktop,viewer,media,audio-plugin,import-affinity], the 44 direct workspace dependents of the five changed crates; cargo nextest run --no-fail-fast: accord, kernel-bindings [] [test-faults] [ckc-test-double], interop-lrcat, harness-core, harness-view [viewer] [desktop,audio-batch], harness [] [import-psd,import-raw] [import-tiff] [import-tiff,import-raw] [import-pdf] [import-raster] [import-affinity] [viewer] [desktop,viewer] [media] [layout-ui] [audio-batch,audio-device] [audio-plugin]; cargo test --doc: accord, kernel-bindings [] [test-faults] [ckc-test-double], harness-core",
+      "disk": "D:",
+      "step0": "clean",
+      "clippy": "all exit 0; no warning in a changed file (pre-existing only)",
+      "results": {
+        "accord": "18 passed",
+        "kernel-bindings []": "22 passed, 1 skipped",
+        "kernel-bindings [test-faults]": "22 passed",
+        "kernel-bindings [ckc-test-double]": "22 passed, 1 skipped",
+        "interop-lrcat": "26 passed",
+        "harness-core": "28 passed",
+        "harness-view [viewer]": "99 passed",
+        "harness-view [desktop,audio-batch]": "145 passed",
+        "harness []": "10 passed",
+        "harness [import-psd,import-raw]": "17 passed, 20 skipped",
+        "harness [import-tiff]": "18 passed",
+        "harness [import-tiff,import-raw]": "18 passed",
+        "harness [import-pdf]": "13 passed",
+        "harness [import-raster]": "14 passed",
+        "harness [import-affinity]": "15 passed, 1 skipped",
+        "harness [viewer]": "188 passed, 20 skipped",
+        "harness [desktop,viewer]": "190 passed, 20 skipped",
+        "harness [media]": "223 passed, 20 skipped",
+        "harness [layout-ui]": "24 passed",
+        "harness [audio-batch,audio-device]": "238 passed, 20 skipped",
+        "harness [audio-plugin]": "234 passed, 20 skipped",
+        "doctests": "accord, kernel-bindings x3, harness-core (incl. the two new compile_fail BatchPorts doctests) exit 0"
+      },
+      "passed": 1584,
+      "failed": 0,
+      "skipped": 123,
+      "not_run_units": "harness [import-psd] [import-raw-only n/a] [media-native] [os-encode] [studio-aac] [audio-device] [audio-batch] are subsets/variants of run units; not run (media-native/os-encode need worker prebuilds)",
+      "exit": 0
+    }
+  },
+  "blockers": [],
+  "lock_wait_s": null,
+  "bg_pids": [],
+  "next": "validation round; SMB-BUSINESS-EVENTS-1 and SMB-JOB-ADMISSION-1 rebase onto 3cfbe87e",
+  "updated_at": "2026-10-31T09:41:10Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-029",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-050",
+      "STU-ARC-014",
+      "STU-ARC-015"
+    ],
+    "refactor_exposure": "medium",
+    "binding": "binds at dispatch: every commit of this lane follows the HOST INTEGRATION rules of the common brief",
+    "notes": {
+      "gui_host": "harness-view edits are call sites with no toolkit code (D6 lead reading); no surface code",
+      "internal_diagnostics": "observe frames carry the command context's correlation instead of the op ordinal",
+      "flight_recorder": "business events are SMB-BUSINESS-EVENTS-1 and build on this lane's CommandContext",
+      "attribution": "the actor, client session and correlation come from the caller's RunContext; the asset-local test host is the only place a fixed context is built"
+    },
+    "recorded_at": "2026-10-31T08:05:14Z"
+  },
+  "notes": {
+    "brief": "builders/briefs/lane-smb-attribution-1.md (RF-06); base 2b42a0fe; disk D: only (R47 holds C:)",
+    "lead_decision": "no harness-core -> kernel-bindings edge: the typed command context lives in hsk-studio-accord (additive, new types only, no changed signature); kernel-bindings maps Envelope onto it through one adapter (src/context.rs CommandContextWire::to_context/from_context). No module edge added, no root input changed.",
+    "command_context_fields": "accord CommandContext = actor, client_session (ClientSessionId), command (Option<CommandId>, a RUN_COMMANDS id), base_revision, correlation (CorrelationId u64), causation (Option<CausationId>). The wire form omits the actor (the envelope's actor is the command's); BridgePorts::set_command_context refuses (sends nothing) a request for another actor.",
+    "envelope_correlation": "Envelope.correlation_id unchanged: adapter.rs mints it per exchange and matches the reply on it (documented on the field and in context.rs); the command correlation is the separate typed field command.correlation; test reply_matching_uses_the_exchange_id_not_the_command_correlation (a host echoing the command correlation is refused as stale, exactly as before).",
+    "run_attribution": "Run mints one CommandContext per mutating command (rename/visible/opacity/blend/panel_set/set_tiles/set_vector_paths/restructure/*_and_entry/submit_sequence(_edits)/undo/redo/action.play); a harness-owned operation without a command id (summary, verify, refusals with a session) gets a correlation-only context so its frame never carries n; op record keys actor, command_id, correlation, causation added (n, revision kept); op detail adds correlation_id (the chronicle/timeline transaction's); observe json of a delivered report adds the receipt correlation. HistoryStep gains ctx + revision; Run::history keeps undo/redo label arrays and adds undo_steps/redo_steps. Entry-only steps and entry refusals of *_and_entry keep their command's context (last_command).",
+    "session_frames_gap": "session-owned report frames (open, submit, save, checkpoint) keep the session's own operation counter as correlation (Session::settle_with -> emit_report(self.operations)); session is not an owned path (SMB-JOB-ADMISSION-1 owns it). The open record has no command context (correlation null). The harness-owned frames, patches, timeline and multicam steps carry the command correlation (tests/run_attribution.rs no_frame_patch_or_record_carries_the_op_ordinal).",
+    "batch": "brief said BatchPorts.actor becomes ActorContext through BatchPorts::new(actor); Harness::run needs the whole RunContext, so BatchPorts::new(context: RunContext) with field context (one correlation source for the job); Default removed; compile_fail doctests in src/batch.rs (E0599 BatchPorts::default, E0063 literal without context).",
+    "import_actor": "import/colour.rs converter takes the caller's actor; threading it needed import.rs, import/raster.rs, import/tiff.rs, import/affinity.rs (not listed in the brief's owned paths; signature-only edits): new import_as, import_with_as, convert_to_native_as, import_affinity_preview_as, raw_proposal_as; the actor-less import, import_with, convert_to_native, import_affinity_preview, raw_proposal stay behind asset-local-test-host (harness enables it, so the ~45 harness import test sites compile unchanged). Run::open_import_detailed uses convert_to_native_as with the run's actor; harness-view develop.rs uses raw_proposal_as with the viewer run's actor (one extra call site).",
+    "literal_actor_cascade": "the three literal actors' private functions are reached from more than the Viewer: text.rs shape_layers <- prepare, animated_glyphs, shape_probe <- shaped_line (vector/interop.rs PressDrawing::text_as_text, an interop-vector trait method: PressDrawing gains an actor field set by ai_to_package from Viewer::import_ai), shaped_glyphs (vector/path_text.rs, text.rs shaped_story <- vector.rs LiveTextAssets (gains an actor field) and two Viewer methods); separations.rs rgb_to_cmyk <- Walk (gains an actor field); swatch.rs prism_rgb <- resolve_rgb <- stand_in <- propagate (also vector/recolor.rs). Extra files touched (call sites, no toolkit code): view/vector.rs, vector/interop.rs, vector/path_text.rs, vector/recolor.rs, view/develop.rs; harness test motion_records_session.rs (animated_glyphs/prepare take the actor). waveform.rs: apply_op, replay and the PluginHost trait take the actor (waveform_plugin.rs impl).",
+    "rule_4e": "the brief proposed a self dev-dependency or required-features for the crates' own tests. A self dev-dependency changes Cargo.lock (round step 0 runs cargo metadata --locked) and is a path dev edge the workspace probe accepts only from root dev-allowed metadata (a self loop is a cycle for tools/edges.py); required-features would compile the tests to zero in the current round units. So the tests build their own RunContext instead: harness-core tests/support/mod.rs test_context(), harness-view tests/support_context/mod.rs context()/viewer()/viewer_with() (Viewer::with_context). Every harness-core and harness-view test runs in the existing round units (harness-core default, harness-view [viewer] and [desktop, audio-batch]) with no new unit; harness enables asset-local-test-host in its normal dependencies, so its tests and CLI use asset_local_test_context and Viewer::new in every harness unit. No steward unit needed.",
+    "grep_proof": "grep -rn 'default_actor|asset_local_test_context|ActorContext::new(' over product sources at 1893b965: harness-view src only view/mod.rs:299 inside #[cfg(feature = \"asset-local-test-host\")] Viewer::with_gpu_options; harness-core src only context.rs (the gated asset_local_test_context itself), the gated actor-less import wrappers (import.rs:326/332/393/419/674) and the gated re-export lib.rs:24; harness src (the asset-local test host) cli.rs:11/446/679/1024 and lib.rs:32. default_actor: no hit anywhere.",
+    "rule_4c": "no drive or profile path literal added (test files write fixtures under the Scratch dir)",
+    "rule_4d": "new compile_fail doctests in harness-core src/batch.rs; doctests of accord, kernel-bindings (3 units) and harness-core run in the bundled run",
+    "module_edges": "none added (lead decision); Cargo.lock unchanged",
+    "owned_path_deviations": "harness-core src/import.rs, src/import/{raster,tiff,affinity}.rs, src/context.rs (new), tests/support (new); harness-view src/view/{develop,text,vector}.rs, src/view/vector/{interop,path_text,recolor,separations,swatch}.rs (beyond the 11 listed sites), tests/support_context (new), all 22 harness-view test files that called Viewer::new (sed to the support helper); harness tests/motion_records_session.rs (2 call sites). All call-site or signature edits; no egui/eframe/winit item added (rule 1). Reported for the lead.",
+    "parallel_lanes": "SMB-BUSINESS-EVENTS-1 (kernel-bindings, harness-core) and SMB-JOB-ADMISSION-1 (session, harness-view queue files, view/mod.rs, view/hosted.rs) rebase onto this lane; hosted.rs changed one line (AudioBatchQueue::new(self.run.actor().clone())); audio_batch.rs untouched.",
+    "unverified": "the actor a score bounce or the audio batch queue names on its own score requests is threaded from self.run.actor() but no receipt exposes it (not runtime-asserted; audio_batch.rs is a queue file of SMB-JOB-ADMISSION-1)",
+    "ready_claim": "cites only run2 (bundle-smb-attribution-1-3cfbe87e.log); never PASS",
+    "harness_schema_pin": "changed test of another lane: harness tests/harness_headless.rs json_output_is_stable_and_manual_comes_from_the_descriptors (op record and observe key pins extended by the attribution keys, the brief's new record shape)"
+  }
+}

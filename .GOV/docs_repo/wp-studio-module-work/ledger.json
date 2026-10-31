@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-31T08:09:22Z",
+ "updated_at": "2026-10-31T09:42:33Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -13594,15 +13594,20 @@
   {
    "lane_id": "SMB-ATTRIBUTION-1",
    "crate": "hsk-studio-accord (additive CommandContext) + kernel-bindings + harness-core + harness-view (call sites, no toolkit code) + harness",
-   "phase": "coding (dispatched 2026-10-31T08:09:22Z); runs on D:; pushes first of the wave",
-   "status": null,
+   "phase": "validation (R48)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-attribution-1.json",
    "brief": "builders/briefs/lane-smb-attribution-1.md",
    "worktree": "wt-studio-lanes/smb-attribution-1",
    "disk": "D:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "3cfbe87e",
+   "commits": [
+    "57c0858b",
+    "6f509418",
+    "1893b965",
+    "3cfbe87e"
+   ],
    "verdicts": [],
    "host_integration": {
     "gui_host": "none",
@@ -13614,12 +13619,12 @@
     "recorded_at": "2026-10-31T08:09:22Z",
     "lane_file_block": false
    },
-   "note": "RF-06: 11 product default_actor() sites (not 13) + 3 literal actors; Harness::run takes RunContext (46 call sites); default_actor behind a test-host feature; HistoryStep and op record carry actor/command id/revision. Lead decision: the typed command context lives in accord (additive, beside ActorContext) instead of a new harness-core -> kernel-bindings edge (an edge is a steward root-input change that would void canary reuse); kernel-bindings maps Envelope onto it; Envelope.correlation_id stays the reply counter. Base 2b42a0fe."
+   "note": "RF-06: 11 product default_actor() sites (not 13) + 3 literal actors; Harness::run takes RunContext (46 call sites); default_actor behind a test-host feature; HistoryStep and op record carry actor/command id/revision. Lead decision: the typed command context lives in accord (additive, beside ActorContext) instead of a new harness-core -> kernel-bindings edge (an edge is a steward root-input change that would void canary reuse); kernel-bindings maps Envelope onto it; Envelope.correlation_id stays the reply counter. Base 2b42a0fe.; 2026-10-31T09:42:33Z pushed 2b42a0fe..3cfbe87e (ls-remote verified; no root input, Cargo.lock unchanged); D: run 2 1584 passed / 0 failed / 123 skipped (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-attribution-1/bundle-smb-attribution-1-3cfbe87e.log); run 1 failed only the harness_headless op-record key pin (updated to the new shape); command context in accord (new types only), Envelope.command skipped when absent; Harness::run(RunContext); BatchPorts::new(RunContext) required; default_actor and literal actors gone outside feature-gated asset-local code and the harness CLI; tests build their own context (tests/support, tests/support_context; 22 harness-view test files mechanically edited); paths beyond brief: harness-core import *_as entry points, harness-view develop/vector/path_text/recolor/separations/swatch call sites (no toolkit code). STORAGE RISK (lead): harness now enables feature asset-local-test-host on harness-core and harness-view in its normal dependencies, so every harness unit gets new artifact identities in the next round (the F-R46-8 pattern, ~146 GiB on C:); retire the current harness/harness-view/harness-core identities in studio-round before R48 (cargo batch K)"
   },
   {
    "lane_id": "SMB-BUSINESS-EVENTS-1",
    "crate": "hsk-studio-kernel-bindings + harness-core",
-   "phase": "coding (dispatched 2026-10-31T08:09:22Z); runs after ATTRIBUTION-1 pushes",
+   "phase": "released to rebase onto 3cfbe87e, slice 3, D: run (2026-10-31T09:42:33Z)",
    "status": null,
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-business-events-1.json",

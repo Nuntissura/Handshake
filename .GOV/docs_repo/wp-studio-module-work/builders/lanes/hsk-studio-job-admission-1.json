@@ -1,0 +1,106 @@
+{
+  "crate": "hsk-studio-session (new src/jobs.rs, lib.rs re-exports + DESCRIPTOR v6, tests/job_lifecycle.rs), hsk-studio-harness-view (new view/job_admission.rs, view/preview_gate.rs, timeline_export.rs admitted_export_queue, timeline/export_media.rs, audio_batch.rs, call-site lines in hosted.rs and mod.rs, tests/viewer_job_admission.rs)",
+  "lane": "SMB-JOB-ADMISSION-1",
+  "status": null,
+  "phase": "code-ready: 3 local commits on base 2b42a0fe; lead go pending. Waiting for SMB-BUSINESS-EVENTS-1 on origin (after SMB-ATTRIBUTION-1; fetch 2026-10-31T08:34:03Z: origin still 2b42a0fe), then rebase and the bundled run on D:; no READY before that run",
+  "candidate": null,
+  "commits": [
+    {
+      "sha": "7fbd3824",
+      "slice": 1,
+      "subject": "session (SMB-JOB-ADMISSION-1, RF-08 slice 1): typed job lifecycle over the JobPort",
+      "pushed": false
+    },
+    {
+      "sha": "f9ad59f6",
+      "slice": 2,
+      "subject": "harness-view (SMB-JOB-ADMISSION-1, RF-08 slice 2): Export Media and reel export queue admitted through the session JobPort; preview stale-frame gate",
+      "pushed": false
+    },
+    {
+      "sha": "0e2d4224",
+      "slice": 3,
+      "subject": "harness-view (SMB-JOB-ADMISSION-1, RF-08 slice 3): AudioBatchQueue items admitted and settled once per receipt",
+      "pushed": false
+    }
+  ],
+  "tests": {
+    "focused_session": {
+      "sha": "7fbd3824 (tree before commit)",
+      "argv": "cargo nextest run -p hsk-studio-session --test job_lifecycle (D:, owner smb-job-admission-1)",
+      "exit": 0,
+      "passed": 5,
+      "failed": 0
+    },
+    "focused_harness_view": {
+      "sha": "0e2d4224 tree with a local uncommitted shim (Run::actor() does not exist before SMB-ATTRIBUTION-1; the shim was reverted before commit, so the committed harness-view slices compile only on the ATTRIBUTION-1 base)",
+      "argv": "cargo nextest run -p hsk-studio-harness-view --features desktop,audio-batch --test viewer_job_admission --no-fail-fast (D:, owner smb-job-admission-1)",
+      "exit": 0,
+      "passed": 5,
+      "failed": 0,
+      "note": "iteration logs in the session scratchpad only (not proof); the READY proof is the bundled run log under Handshake_Artifacts/WP-KERNEL-STUDIO/smb-job-admission-1/"
+    },
+    "bundled": null
+  },
+  "blockers": [],
+  "bg_pids": [],
+  "updated_at": "2026-10-31T08:34:03Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "bounded_admission_via_job_port",
+    "settings": "none",
+    "spec_refs": [
+      "STU-ARC-008",
+      "STU-ARC-012",
+      "STU-ARC-013",
+      "STU-ARC-020",
+      "GUI-DESKTOP-033",
+      "GUI-DESKTOP-034",
+      "GUI-DESKTOP-035"
+    ],
+    "refactor_exposure": "low",
+    "binding": "binds at dispatch: every commit of this lane follows the HOST INTEGRATION rules of the common brief",
+    "notes": {
+      "jobs": "the four local queues admit through the session JobPort with typed overload, cancellation, stale-revision, release and superseded outcomes; host admission is MT-36228 (the kernel-bindings BridgeJobs implementation already exists)",
+      "realtime": "audio callbacks never call observe: score-device callback.rs and ring.rs name no observe item, and AudioOut::pump is host-loop only (grep evidence)",
+      "gui_host": "the hosted.rs and mod.rs edits are one-line call sites with no toolkit code (D6 lead reading)"
+    },
+    "recorded_at": "2026-10-31T08:05:14Z"
+  },
+  "notes": {
+    "brief": "builders/briefs/lane-smb-job-admission-1.md (RF-08 phase 0, asset side of MT-36228); base 2b42a0fe; disk D: only; push third after SMB-ATTRIBUTION-1 and SMB-BUSINESS-EVENTS-1",
+    "spec_basis": "STU-ARC-008, -012, -013, -020; GUI-DESKTOP-033..035 (from the brief; the spec module was not re-read in this lane)",
+    "design": {
+      "session": "jobs.rs: JobLifecycle::admit refuses typed in order canceled -> stale_revision {expected, head} -> overloaded {retry_after_ms}; AdmittedJob releases exactly once at settle/complete or settles abandoned on drop; Superseded on a Committed job is recorded failed not_replaceable; counters (JobCounts) and one Observe terminal frame per outcome (codes, bound revision, opaque correlation id). AdmissionJobPort is asset-local (DESCRIPTOR key job_lifecycle, version 6). JobPort trait and Admission signatures unchanged.",
+      "export": "export_queue stays the only ExportQueue constructor in product src; timeline_export::admitted_export_queue wraps it with a JobAdmission. Export Media (headless and window) admits before submit/thread/encoder; the settlement stays on the UI thread and is taken from the worker's receipt after join (cancel path included); result[\"job\"], state_json running.job_tickets and the status line (completed_stale names both revisions).",
+      "audio_batch": "AudioBatchQueue::new(actor) keeps its signature (6 harness test sites) and admits through an asset-local admission; with_jobs binds the viewer's; AudioBatchReceipt gains job (settlement or refusal JSON).",
+      "preview": "preview_gate.rs: Viewer::gate_preview at display time; frame revision != head -> Superseded {revision: head}, counter + JobLifecycle::record_superseded + status line, viewer stays dirty; previews are not admitted (synchronous)."
+    },
+    "render_queue": "render_queue.rs / composition.rs not edited: no product source runs render-queue jobs at 2b42a0fe (grep: ExportQueue::new / ::default appear in product src only in timeline_export.rs export_queue; render-queue jobs run only in harness tests render_queue_records.rs, render_queue_settings.rs, composition_export.rs, motion_records_session.rs, which build reel queues directly as asset-local engine tests). A future product run path admits through AdmittedExportQueue. Lead accepted this grep proof (2026-10-31).",
+    "realtime_grep": "grep -n -i observe score-device src/callback.rs src/ring.rs: no match (exit 1). grep '\\.pump(' over crates/*/src outside tests: no match; AudioOut::pump callers are harness tests audio_import.rs, audio_session.rs, viewer_audio.rs only. score-device not edited.",
+    "egui_grep": "grep -E '\\begui::|use egui|eframe|winit|wgpu' over job_admission.rs, preview_gate.rs, audio_batch.rs, timeline/export_media.rs, timeline_export.rs and tests/viewer_job_admission.rs: no match.",
+    "rule_4e": "tests/viewer_job_admission.rs is #![cfg(feature = \"viewer\")]; the preview test compiles under round unit [\"viewer\"]; the export (media) and audio-batch cases compile under [\"desktop\", \"audio-batch\"]. Both units exist for harness-view in .config/round-features.toml; no unit missing.",
+    "red_first": "no separate red commit: the tests need the new API to compile (RED COMMITS rule: a non-compiling red stays local), so each slice commit carries its tests.",
+    "attribution_dependency": "job_admission.rs uses self.run.actor() (added by SMB-ATTRIBUTION-1) and hosted.rs's batch line will conflict with ATTRIBUTION-1's edit of the same line (default_actor -> self.run.actor()); resolve at rebase keeping both. Viewer::new in the new test needs ATTRIBUTION-1's asset-local test-host feature wiring for harness-view tests.",
+    "scope_extension_mod_rs": {
+      "status": "lead-accepted 2026-10-31 (coordinator message)",
+      "what": "mod.rs carries 7 added lines instead of 1: two `pub mod` lines (+1 doc line), the `jobs: job_admission::ViewerJobs` field (+1 doc line), its initializer in with_gpu_options, and the one render_if_dirty call line; all toolkit-free",
+      "why": "per-viewer storage for the bound JobPort, lifecycle and preview counter; only mod.rs owns the Viewer struct; a module-level static was rejected (process-wide state)"
+    },
+    "open_host_question_mt36228": {
+      "status": "open, noted by the lead for MT-36228",
+      "what": "JobScope needs a DomainId; a document-less job (the hosted audio batch with nothing open, harness test viewer_panels runs it that way) is admitted against the lifecycle's own bounded Admission (slots and bytes), never reaches the port, and reports Unaddressed. Host scope for document-less jobs is MT-36228's to decide."
+    }
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "crate": "hsk-studio-kernel-bindings (business_event.rs catalog/envelope/port, host.rs TransientBusinessEvents, lib.rs re-exports + DESCRIPTOR, tests/business_events.rs), hsk-studio-harness-core (harness.rs Run commit-time emission + op-record field, RunContext port field, tests/business_events_run.rs)",
+  "lane": "SMB-BUSINESS-EVENTS-1",
+  "status": null,
+  "phase": "slices 1-2 plus the command_id lead-decision commit committed locally on base 2b42a0fe (not pushed); slice 3 waits for SMB-ATTRIBUTION-1 on origin and the lead's go",
+  "candidate": null,
+  "commits": [
+    {
+      "sha": "54306806",
+      "slice": 1,
+      "subject": "kernel-bindings (SMB-BUSINESS-EVENTS-1, RF-07 slice 1): the 22 STUDIO_* business-event catalog and the typed hsk.studio.business_event@1 envelope",
+      "pushed": false
+    },
+    {
+      "sha": "290eaca4",
+      "slice": 2,
+      "subject": "kernel-bindings (SMB-BUSINESS-EVENTS-1, RF-07 slice 2): asset-local TransientBusinessEvents sink and the DESCRIPTOR business_events entry",
+      "pushed": false
+    },
+    {
+      "sha": "89bc39f4",
+      "slice": 1,
+      "subject": "kernel-bindings (SMB-BUSINESS-EVENTS-1, RF-07 slice 1, lead decision): command_id required; a missing id is the typed refusal missing_command_id",
+      "pushed": false
+    }
+  ],
+  "capabilities_done": [
+    "StudioEventVariant: closed enum of the 22 STU-CON-014 rows, as_str/family/business_id, table pinned verbatim",
+    "StudioBusinessEvent: typed strict canonical envelope, SDOC document, derived event id, ids and digests only",
+    "BusinessEventPort + EventDeliveryError (observe semantics; Indeterminate needs reconciliation)",
+    "TransientBusinessEvents: bounded asset-local sink, Saturated on overflow, replay-once, collision Rejected",
+    "command_id required: StudioBusinessEvent::new(.., Option<&str>) refuses None as missing_command_id; null on the wire is invalid_type"
+  ],
+  "tests": {
+    "focused": {
+      "sha": "290eaca4 + lead-decision change (dirty, tree of 89bc39f4)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-business-events-1/focused3-smb-business-events-1-290eaca4-dirty.log",
+      "argv": "cargo clippy -p hsk-studio-kernel-bindings --tests --features test-faults && cargo nextest run -p hsk-studio-kernel-bindings --test business_events (D:, owner smb-business-events-1)",
+      "exit": 0,
+      "passed": 5,
+      "failed": 0,
+      "note": "clippy: no kernel-bindings warning; earlier logs focused1 (1 wrong expectation, fixed) and focused2 (5/5 on the tree of 290eaca4)"
+    },
+    "clippy": {
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-business-events-1/check1-smb-business-events-1-2b42a0fe-dirty.log",
+      "argv": "cargo clippy -p hsk-studio-kernel-bindings --tests --features test-faults",
+      "exit": 0,
+      "note": "no warning in kernel-bindings (two pre-existing observe too_many_arguments warnings)"
+    },
+    "bundled": null
+  },
+  "blockers": [],
+  "bg_pids": [],
+  "updated_at": "2026-10-31T08:22:13Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "STU-CON-003",
+      "STU-CON-013",
+      "STU-CON-014",
+      "STU-ARC-003",
+      "STU-VAL-002"
+    ],
+    "refactor_exposure": "low",
+    "binding": "binds at dispatch: every commit of this lane follows the HOST INTEGRATION rules of the common brief",
+    "notes": {
+      "flight_recorder": "typed emission at the binding only; registration in Handshake's closed FrEventId / KernelEventType enums, durable delivery and Palmistry-to-FR ingestion are MT-36230 and WP-KERNEL-016",
+      "proof": "asset-local sink results are evidence, never host acceptance"
+    },
+    "recorded_at": "2026-10-31T08:05:14Z"
+  },
+  "next": "wait for SMB-ATTRIBUTION-1 on origin; rebase; replace the interim EventAttribution with accord CommandContext; slice 3 harness-core Run emission; bundled run on D: after the lead names disk and base",
+  "notes": {
+    "brief": "builders/briefs/lane-smb-business-events-1.md; base 2b42a0fe; disk D: only (R47 holds C:)",
+    "spec_basis": {
+      "STU-CON-003": "14-studio-creative-suite.md:22620 the 22 STUDIO_* wire variants",
+      "STU-CON-013": "14-studio-creative-suite.md:22636 deterministic identity, immutable-envelope collision refusal, selection/proposal/rejection mirror after their own ledger acceptance, previews are not business events",
+      "STU-CON-014": "14-studio-creative-suite.md:22638 catalog table (verified identical to the brief table), binding not leaf engine emits after the canonical event, selection/proposal/rejection never claim promotion"
+    },
+    "interim_api": "EventAttribution{actor, client_session, correlation, causation} is an interim borrow of wire values only until SMB-ATTRIBUTION-1 lands; after the rebase StudioBusinessEvent::new takes the accord CommandContext and EventAttribution is removed (no second context type ships)",
+    "slice_split": "BusinessEventPort and EventDeliveryError live in business_event.rs and landed with slice 1; the sink and its test are slice 2",
+    "red_first": "the catalog and sink tests were written with the code, not as a separate red commit (no red commit pushed)",
+    "step0": "no drive-letter or user-profile literal in source or tests (a C:/ decoy command id was replaced with work/poster.psd before any commit)",
+    "lead_decision_command_id": {
+      "decided_at": "2026-10-31 (coordinator message, during slice 1-2 work)",
+      "decision": "command_id stays REQUIRED in the business-event envelope: a business event records a committed command and, since SMB-R42-FOLLOWUPS-1, every mutating pub fn of impl Run has a RUN_COMMANDS row (source-reading corpus check), so a committed command always has an id. ATTRIBUTION-1's Option<CommandId> stays for contexts that are not commands; at emission None is a typed refusal, counted and tested, never an event with a null or invented id.",
+      "implementation": "BusinessEventError::MissingCommandId (code missing_command_id) at construction, before delivery; the lead's example named EventDeliveryError::MissingCommandId, but the brief fixes EventDeliveryError as the closed observe set {Saturated, Rejected, Unavailable, Indeterminate}, so the refusal is a construction error. Slice 3 counts it in the Run op record (business_event: refused missing_command_id, naming the op) and tests it.",
+      "grammar_check": "all 34 RUN_COMMANDS ids in harness-core src/action.rs fit the envelope command-id grammar [a-z0-9._-]{1,64} (scripted check at 2b42a0fe)",
+      "accepted": "lead accepted (coordinator message, recorded 2026-10-31T08:22:13Z): BusinessEventError::MissingCommandId at construction; EventDeliveryError stays the closed observe set of four"
+    }
+  }
+}
