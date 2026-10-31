@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-31T18:46:19Z",
+ "updated_at": "2026-10-31T22:54:36Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -15409,7 +15409,7 @@
   {
    "lane_id": "SMB-AI-DISTORT-EFFECTS-1",
    "status": null,
-   "phase": "briefed (not dispatched); dispatch after STUDIO-R50 records",
+   "phase": "dispatched",
    "crate": "hsk-studio-nib (Illustrator Distort & Transform effects on recovered STU-VEC-154/155/158 records)",
    "lane_file": "builders/lanes/hsk-studio-ai-distort-effects-1.json",
    "brief": "builders/briefs/lane-smb-ai-distort-effects-1.md",
@@ -15421,16 +15421,17 @@
     "binding": "HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T18:46:19Z"
    },
-   "updated_at": "2026-10-31T18:46:19Z",
+   "updated_at": "2026-10-31T22:54:36Z",
    "mt_contract_defects": [
     "MT-30559 and MT-33001 step 1 forbid convert-to-shape geometry until the sizing law is recovered while MT-33001..33003 step 3 expects it (lane ships typed contract + typed refusal)"
    ],
-   "note": "G1 confirmed (declared Studio laws, parity UNVERIFIED) except where an MT demands a refusal"
+   "note": "G1 confirmed (declared Studio laws, parity UNVERIFIED) except where an MT demands a refusal",
+   "dispatch_note": "after STUDIO-R50 (372 PASS, kernel 650a414f); no R50 remediation run holds this lane's crate"
   },
   {
    "lane_id": "SMB-AE-EXPR-LIBRARY-1",
    "status": null,
-   "phase": "briefed (not dispatched); dispatch after STUDIO-R50 records",
+   "phase": "dispatched",
    "crate": "hsk-studio-motion + hsk-studio-motion-js (expression catalogue, dual spellings, recovered signatures, mathematical function families)",
    "lane_file": "builders/lanes/hsk-studio-ae-expr-library-1.json",
    "brief": "builders/briefs/lane-smb-ae-expr-library-1.md",
@@ -15442,18 +15443,19 @@
     "binding": "HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T18:46:19Z"
    },
-   "updated_at": "2026-10-31T18:46:19Z",
+   "updated_at": "2026-10-31T22:54:36Z",
    "mt_contract_defects": [
     "MT-35299 and MT-35300 step 1 register an empty identifier list; MT-35301 step 1 lists only seedRandom of a six-member row",
     "MT-33884..33900 steps call for a revision-bound Folio patch but write paths are motion-only and motion has no folio edge",
     "MT-33912 fulfillment names motion-js but write paths list motion only"
    ],
-   "note": "G1 not confirmed: identifiers without spec-recorded or mathematical semantics stay SOURCE_FUNCTION_BINDING_UNAVAILABLE (MT-33916 step 3, MT-33917 AC)"
+   "note": "G1 not confirmed: identifiers without spec-recorded or mathematical semantics stay SOURCE_FUNCTION_BINDING_UNAVAILABLE (MT-33916 step 3, MT-33917 AC)",
+   "dispatch_note": "after STUDIO-R50 (372 PASS, kernel 650a414f); no R50 remediation run holds this lane's crate"
   },
   {
    "lane_id": "SMB-TYPE-OT-FEATURES-1",
    "status": null,
-   "phase": "briefed (not dispatched); dispatch after STUDIO-R50 records",
+   "phase": "dispatched",
    "crate": "hsk-studio-type (OpenType feature-tag registry STU-TYP-171, per-font availability, legacy projections, STU-TYP-207 character catalogs)",
    "lane_file": "builders/lanes/hsk-studio-type-ot-features-1.json",
    "brief": "builders/briefs/lane-smb-type-ot-features-1.md",
@@ -15465,15 +15467,16 @@
     "binding": "HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T18:46:19Z"
    },
-   "updated_at": "2026-10-31T18:46:19Z",
+   "updated_at": "2026-10-31T22:54:36Z",
    "mt_contract_defects": [
     "MT-30960 step 2 requires a Package round trip but its write paths and type's dependencies exclude package"
-   ]
+   ],
+   "dispatch_note": "after STUDIO-R50 (372 PASS, kernel 650a414f); no R50 remediation run holds this lane's crate"
   },
   {
    "lane_id": "SMB-PS-MODE-CONVERT-1",
    "status": null,
-   "phase": "briefed (not dispatched); dispatch after STUDIO-R50 records",
+   "phase": "dispatched",
    "crate": "hsk-studio-prism (Image > Mode: grayscale->bitmap, RGB->indexed, indexed colour table and codec; STU-COL-119/121)",
    "lane_file": "builders/lanes/hsk-studio-ps-mode-convert-1.json",
    "brief": "builders/briefs/lane-smb-ps-mode-convert-1.md",
@@ -15485,7 +15488,31 @@
     "binding": "HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T18:46:19Z"
    },
-   "updated_at": "2026-10-31T18:46:19Z"
+   "updated_at": "2026-10-31T22:54:36Z",
+   "dispatch_note": "after STUDIO-R50 (372 PASS, kernel 650a414f); no R50 remediation run holds this lane's crate"
+  },
+  {
+   "lane_id": "SMB-R50-FOLLOWUPS-1",
+   "status": null,
+   "phase": "dispatched",
+   "crate": "hsk-studio-composite, hsk-studio-folio (additive), hsk-studio-interop-psd, hsk-studio-harness-core, hsk-studio-harness (tests)",
+   "lane_file": "builders/lanes/hsk-studio-r50-followups-1.json",
+   "brief": "builders/briefs/lane-smb-r50-followups-1.md",
+   "worktree": "wt-studio-lanes/smb-r50-followups-1",
+   "base": "63ecf5a6",
+   "disk_planned": "c",
+   "host_integration": {
+    "lane_file_block": true,
+    "binding": "HOST INTEGRATION rules + block in brief and lane file",
+    "recorded_at": "2026-10-31T22:54:36Z"
+   },
+   "updated_at": "2026-10-31T22:54:36Z",
+   "closes": [
+    "F-R50-1 (+MT-32012, MT-32013)",
+    "F-R50-5",
+    "F-R50-6"
+   ],
+   "note": "slot 5; pushes last of the post-R50 wave (the other four lanes' crates sit in its closure); G2 map decision recorded as SD-22"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

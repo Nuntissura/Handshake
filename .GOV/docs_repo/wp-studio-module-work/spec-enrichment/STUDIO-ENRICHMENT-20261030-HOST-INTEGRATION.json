@@ -150,8 +150,29 @@
    "needs": "whether Rainfall and Snowfall are the Rain and Snow capabilities or separate identities",
    "lead_reading": "2026-10-31T16:35:22Z: the asset maps each pair to one identity (studio_declared dedup under STU-SECTION-003, UNVERIFIED); an importer records a typed loss until the spec owner decides",
    "source": "validation/round-R49.json F-R49-8"
+  },
+  {
+   "id": "SD-22",
+   "gap": "STU-CMP-075b recovers typed STU-FX-131a records for Foam (14-studio-creative-suite.md:15367) and Wave World (:15433), while the asset's simulation engines were first written on authored STU-FX-146 rows",
+   "needs": "map (recovered rows drive the engine where they name the same quantity, authored rows only for the rest) or replace (the engine's parameter surface becomes exactly the recovered records)",
+   "lead_reading": "2026-10-31T22:54:36Z: map, recovered first (LEAD DECISION G2, lane SMB-R50-FOLLOWUPS-1); the per-row mapping is the builder's reading, UNVERIFIED (D5)",
+   "source": "validation/round-R50.json F-R50-1"
+  },
+  {
+   "id": "SD-23",
+   "gap": "the SD-19 refusal entry names standard_compliant_only with the standard checks; SMB-PDF-STOCK-PRESETS-1 extended the same refusal to the new compliance_check setting",
+   "needs": "whether SD-19 covers compliance_check",
+   "lead_reading": "2026-10-31T22:54:36Z: the asset refuses it with the existing code (validator F-R50-3: an extension, existing triggers and codes unchanged)",
+   "source": "validation/round-R50.json F-R50-3"
+  },
+  {
+   "id": "SD-24",
+   "gap": "STU-LAY-158/159 threshold-to-compress is stored in dpi by layout and as the stock ratio 1.5 by press",
+   "needs": "the canonical unit of the threshold (dpi or ratio of the sampling dpi)",
+   "lead_reading": "2026-10-31T22:54:36Z: both readings stay disclosed; a layout <-> press mapping converts threshold_dpi = ratio x sampling dpi through layout threshold_ratio()",
+   "source": "validation/round-R50.json F-R50-4"
   }
  ],
  "edits": [],
- "updated_at": "2026-10-31T14:42:57Z"
+ "updated_at": "2026-10-31T22:54:36Z"
 }

@@ -1,0 +1,57 @@
+{
+  "crate": "hsk-studio-composite (Foam / Wave World recovered STU-FX-131a records), hsk-studio-folio (additive enum variants only), hsk-studio-interop-psd (channel_name_transcoded), hsk-studio-harness-core (import keeps channels without layer records), hsk-studio-harness (tests)",
+  "lane": "SMB-R50-FOLLOWUPS-1",
+  "status": null,
+  "phase": "dispatched",
+  "worktree": "wt-studio-lanes/smb-r50-followups-1",
+  "base": "63ecf5a6",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": null,
+  "bg_pids": [],
+  "next": "builder: red tests per item, then the bundled run on C:; push LAST of the wave (after nib, motion, type and prism lanes) with --per-sha",
+  "updated_at": "2026-10-31T22:54:36Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "unchanged: no mutating command added; the PSD channel edit and the import keep their existing context",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "STU-FX-131a",
+      "STU-FX-113",
+      "STU-FX-146",
+      "STU-CMP-075b",
+      "STU-SECTION-003"
+    ],
+    "refactor_exposure": "low",
+    "binding": "binds at dispatch: every commit of this lane follows the HOST INTEGRATION rules of the common brief",
+    "recorded_at": "2026-10-31T22:54:36Z"
+  },
+  "notes": {
+    "brief": "builders/briefs/lane-smb-r50-followups-1.md",
+    "closes": [
+      "F-R50-1",
+      "F-R50-5",
+      "F-R50-6"
+    ],
+    "mts": [
+      "MT-32012",
+      "MT-32013"
+    ],
+    "lead_decision_G2": "Foam / Wave World take the recovered STU-FX-131a records (map, recovered first); authored rows only for engine scalars with no recovered counterpart; spec owner may override (SD-22)",
+    "disk": "c"
+  }
+}
