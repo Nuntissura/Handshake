@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-31T09:42:33Z",
+ "updated_at": "2026-10-31T09:47:57Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -13623,8 +13623,8 @@
   },
   {
    "lane_id": "SMB-BUSINESS-EVENTS-1",
-   "crate": "hsk-studio-kernel-bindings + harness-core",
-   "phase": "released to rebase onto 3cfbe87e, slice 3, D: run (2026-10-31T09:42:33Z)",
+   "crate": "hsk-studio-accord (additive: event catalog, record, sink trait) + kernel-bindings + harness-core",
+   "phase": "slice 3 unblocked by lead decision (2026-10-31T09:47:57Z); D: run next",
    "status": null,
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-business-events-1.json",
@@ -13644,7 +13644,7 @@
     "recorded_at": "2026-10-31T08:09:22Z",
     "lane_file_block": false
    },
-   "note": "RF-07: the 22 FR-EVT-STUDIO-* ids (STU-CON-014) emitted by kernel-bindings with actor, client_session_id, correlation, causation; resource = the document (accord business-event schema has no id prefix); 9 events have no asset-local producer (promotion/proposal/rejection, selection, export, design-system, prototype): typed not-yet-produced list; timeline commits have no catalogue family: spec delta. Base 2b42a0fe."
+   "note": "RF-07: the 22 FR-EVT-STUDIO-* ids (STU-CON-014) emitted by kernel-bindings with actor, client_session_id, correlation, causation; resource = the document (accord business-event schema has no id prefix); 9 events have no asset-local producer (promotion/proposal/rejection, selection, export, design-system, prototype): typed not-yet-produced list; timeline commits have no catalogue family: spec delta. Base 2b42a0fe.; 2026-10-31T09:47:57Z BLOCKED on slice 3 (harness-core has no kernel-bindings edge, by the lead decision for ATTRIBUTION-1); lead decision option C: the 22-id catalog, a BusinessEventRecord and a non-blocking BusinessEventSink trait move to accord (additive), kernel-bindings keeps the canonical envelope/encoder and implements the sink, Run emits through an optional accord sink; no edge, no steward sync, canary reuse holds; host wiring stays MT-36230"
   },
   {
    "lane_id": "SMB-JOB-ADMISSION-1",
