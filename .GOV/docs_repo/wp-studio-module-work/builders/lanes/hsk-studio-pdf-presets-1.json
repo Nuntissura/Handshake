@@ -1,20 +1,67 @@
 {
   "crate": "hsk-studio-press (PDF export preset contract STU-IO-125..133 and its resolution onto press-write ExportOptions)",
   "lane": "SMB-PDF-PRESETS-1",
-  "status": null,
-  "phase": "briefed (not dispatched)",
-  "candidate": null,
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed; all five brief slices in one commit",
+  "candidate": "1c44f0ac92960579dce3d66b86e4494460462d6d",
   "worktree": "wt-studio-lanes/smb-pdf-presets-1",
   "base": "4f69b03b",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": [],
+  "commits": [
+    {
+      "sha": "1c44f0ac92960579dce3d66b86e4494460462d6d",
+      "pre_rebase": "705cfe7f",
+      "subject": "press (SMB-PDF-PRESETS-1): PDF export preset contract STU-IO-125..133",
+      "pushed": true,
+      "slices": "1 preset record, 2 domains and numeric contracts, 3 standards and fonts, 4 descriptions and provenance, 5 resolution onto ExportOptions (one commit; no red commit pushed)"
+    }
+  ],
+  "capabilities_done": [
+    "PdfPreset::from_draft: complete preset, preset_incomplete names the first missing setting; no ambient default (STU-IO-125)",
+    "SETTINGS: 74 settings, ten groups, group_basis spec|studio_declared; STU-IO-127 sixteen-setting image family x3 (STU-IO-126/127)",
+    "fourteen STU-IO-128 enumerations, exact tokens, studio_declared members, partial completeness (STU-IO-128)",
+    "NumericContract seven separate fields, Bound Value|Unknown|Absent; hard refusal, typed soft warning (STU-IO-129)",
+    "standard check with empty output_intent_profile refuses standard_without_output_intent (STU-IO-130)",
+    "typed FontSettings; font_receipt names font, policy, writer cause; outcome export_refused, gap output_without_font_not_implemented (STU-IO-131, STU-IO-012)",
+    "Descriptions locale map, fallback requested_locale -> language -> default_locale (STU-IO-132)",
+    "PresetSource shipped|operator|imported(+origin); shipped read-only; edit_copy records parent (STU-IO-133)",
+    "resolve -> ExportOptions (every field from preset or request) + ResolveReceipt applied/not_applied per setting, conformance not_proven; SD-13 refusals"
+  ],
+  "tests": {
+    "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-pdf-presets-1 --disk ssd -- cargo nextest run -p hsk-studio-press (step 0 clean; clippy over press + harness, harness-core, harness-view, interop-fig, interop-fig-native, interop-layout; WHOLE press suite)",
+    "exit": 0,
+    "sha": "705cfe7f5fe8fa6bdc8b41008a7e2e722a27fd36",
+    "passed": 174,
+    "failed": 0,
+    "lane_tests": "tests/pdf_presets.rs 15 passed",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pdf-presets-1/lane-check-smb-pdf-presets-1-705cfe7f-run3.log",
+    "rebase": "705cfe7f -> 1c44f0ac over 2b28b1e1 (SMB-AE-PARTICLES-2, composite only; not in press's dependency closure accord/observe/press-read/press-write): no re-run",
+    "history": [
+      {
+        "run": 1,
+        "sha": "4cd1f15b (local, squashed)",
+        "exit": 101,
+        "cause": "borrowck: closure returning a borrow in Descriptions::render",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pdf-presets-1/lane-check-smb-pdf-presets-1-4cd1f15b-run1.log"
+      },
+      {
+        "run": 2,
+        "sha": "93a14375 (local, squashed)",
+        "exit": 0,
+        "passed": 174,
+        "note": "one clippy type_complexity warning in tests/pdf_presets.rs, fixed with a type alias before run 3",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pdf-presets-1/lane-check-smb-pdf-presets-1-93a14375-run2.log"
+      }
+    ],
+    "doctests": "none added (4d n/a)",
+    "folio_fields": "none (4b n/a)",
+    "feature_gates": "none; press default unit (4e)"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "lead dispatches; push in any order with SMB-AE-PARTICLES-2 and SMB-ID-BOOKLET-1, before SMB-R47-FOLLOWUPS-1 and SMB-SETTINGS-SCHEMA-1",
-  "updated_at": "2026-10-31T11:29:59Z",
+  "next": "validation of candidate 1c44f0ac; SMB-R47-FOLLOWUPS-1 and SMB-SETTINGS-SCHEMA-1 rebase onto it",
+  "updated_at": "2026-10-31T13:37:43Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -30,7 +77,25 @@
     "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
     "jobs": "none",
     "settings": "none",
-    "spec_refs": ["STU-IO-125", "STU-IO-126", "STU-IO-127", "STU-IO-128", "STU-IO-129", "STU-IO-130", "STU-IO-131", "STU-IO-132", "STU-IO-133", "STU-IO-012", "GUI-DESKTOP-049", "GUI-DESKTOP-050", "STU-ARC-010", "STU-VAL-002", "STU-ARC-015", "GUI-DESKTOP-041", "GUI-DESKTOP-045"],
+    "spec_refs": [
+      "STU-IO-125",
+      "STU-IO-126",
+      "STU-IO-127",
+      "STU-IO-128",
+      "STU-IO-129",
+      "STU-IO-130",
+      "STU-IO-131",
+      "STU-IO-132",
+      "STU-IO-133",
+      "STU-IO-012",
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
     "refactor_exposure": "none",
     "binding": "binds at dispatch: every commit of this lane follows the HOST INTEGRATION rules of the common brief",
     "notes": {
@@ -48,6 +113,12 @@
     "not_in_lane": "stock presets STU-LAY-159 (layout MT-30841/MT-30842; layout has no press edge: placement is a lead decision); downsampling/recompression execution; preset file import/export; PDF/X conformance stays not_proven (SMB-PDFX-ORACLE Operator item)",
     "root_inputs": "none; no Cargo.toml or feature change",
     "operator_items": "none needed; vendor preset values UNVERIFIED (D5)",
-    "index_status": "index status PENDING, lifecycle phase blocked (contract_preparation_only, as for nearly every MT); the index has no NOT_STARTED value"
+    "index_status": "index status PENDING, lifecycle phase blocked (contract_preparation_only, as for nearly every MT); the index has no NOT_STARTED value",
+    "red_commits_pushed": "none (red-first work squashed into the green commit)",
+    "sd13_refusals": "compatibility_level 1.3 -> compatibility_level_not_writable; any PDF/X-4 request -> standard_level_conflict (no domain member reaches 1.6); standard_compliant_only with an asserted check -> standard_compliance_not_provable (the writer implements neither check); output intent supplied with an empty output_intent_profile -> output_intent_not_declared. Outcome Unsupported for the first three through preset_outcome_for. Nothing resolved onto another level. For the spec owner: SD-13 open (domain 1.3-1.5 vs writer 1.4-2.0, PDF/X-4 1.6+)",
+    "spec_owner_items": "(1) SD-13 as above; (2) STU-IO-126 names no setting of the security group, so the group is empty (no setting invented); (3) group of image_memory, the colour_management members, output_intent_profile and dsc_reporting_level is not stated by the spec: labelled studio_declared (output_intent_profile placed in output_intent although STU-IO-130 lists it among the standards settings); (4) setting names thumbnails/optimisation and the two quality dictionaries (base_quality_dictionary, auto_colour_space_quality_dictionary) are studio names for the spec's words; (5) minimum_resolution and minimum_downsample_depth have no STU-IO-129 row: every contract field unknown; (6) cannot_embed_font_policy marked partial (only Warning observed), with binding, overprint_mode, default_rendering_intent",
+    "decisions": "asserting a standard = standard_check_1a or standard_check_3 (compliant_only alone asserts none); edit of an operator/imported preset is PdfPreset::set (in-memory, no ActorContext: not a document command; persisting is a later host/Folio step per host_integration notes)",
+    "disclosures": "one commit instead of one per slice (the slices share one module); embed_open_type is applied because press-write embed_font embeds OpenType-CFF; subset_fonts passes through although the writer embeds name-keyed OpenType-CFF whole (stated in DESCRIPTOR); vendor values UNVERIFIED (D5)",
+    "spec_basis": "14-studio-creative-suite.md v02.225 :21001-21051 (STU-IO-125..133), STU-IO-012 :21418"
   }
 }

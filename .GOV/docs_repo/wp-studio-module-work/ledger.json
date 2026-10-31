@@ -11972,8 +11972,8 @@
   {
    "lane_id": "SMB-AE-PARTICLES-2",
    "crate": "hsk-studio-composite (particles: Rain, Snow, Star burst, classic particle systems)",
-   "phase": "briefed (not dispatched) 2026-10-31T11:37:50Z; base 4f69b03b",
-   "status": null,
+   "phase": "READY_FOR_VALIDATION @2b28b1e1 (composite default 123/123, motion 184/184, C:); queued for R49",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high",
    "commits": [],
    "verdicts": [],
@@ -11990,7 +11990,9 @@
    },
    "lane_file": "builders/lanes/hsk-studio-ae-particles-2.json",
    "brief": "builders/briefs/lane-smb-ae-particles-2.md",
-   "worktree": "wt-studio-lanes/smb-ae-particles-2"
+   "worktree": "wt-studio-lanes/smb-ae-particles-2",
+   "candidate": "2b28b1e1",
+   "updated_at": "2026-10-31T13:37:51Z"
   },
   {
    "lane_id": "SMB-ID-COMPOSER-PARITY",
@@ -14467,14 +14469,14 @@
   {
    "lane_id": "SMB-PDF-PRESETS-1",
    "crate": "hsk-studio-press (PDF export preset contract STU-IO-125..133)",
-   "phase": "briefed (not dispatched) 2026-10-31T11:37:50Z; base 4f69b03b",
-   "status": null,
+   "phase": "READY_FOR_VALIDATION @1c44f0ac (press 174/174, C:); queued for R49; lead attack points: SD-13 refusals incl. builder-chosen standard_compliance_not_provable, subset_fonts accepted but writer embeds whole",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-pdf-presets-1.json",
    "brief": "builders/briefs/lane-smb-pdf-presets-1.md",
    "worktree": "wt-studio-lanes/smb-pdf-presets-1",
    "disk": null,
-   "candidate": null,
+   "candidate": "1c44f0ac",
    "commits": [],
    "verdicts": [],
    "host_integration": {
@@ -14487,7 +14489,8 @@
     "reconciled_at": "2026-10-31T13:08:07Z",
     "reconciled_from": "lane file host_integration block (F-R48-7)"
    },
-   "note": "Closes MT-33385..MT-33395. compatibility_level conflict refused typed and reported (SD-13). Stock presets STU-LAY-159 (layout MT-30841/30842) need a lead placement decision (layout has no press edge)."
+   "note": "Closes MT-33385..MT-33395. compatibility_level conflict refused typed and reported (SD-13). Stock presets STU-LAY-159 (layout MT-30841/30842) need a lead placement decision (layout has no press edge).",
+   "updated_at": "2026-10-31T13:38:06Z"
   },
   {
    "lane_id": "SMB-ID-BOOKLET-1",
