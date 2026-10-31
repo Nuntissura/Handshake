@@ -14031,18 +14031,26 @@
   },
   {
    "lane_id": "SMB-R47-FOLLOWUPS-1",
-   "crate": "hsk-studio-harness (cli audio sample budget) + harness-core (manual entry) + render-gpu (DX12 threshold row) + interop-fig-base (alias walk bound)",
-   "phase": "queued (after the attribution/business-events/job-admission wave)",
+   "crate": "hsk-studio-reel (sample budget, additive) + hsk-studio-harness (cli) + hsk-studio-harness-core (manual entry) + hsk-studio-render-gpu (tests) + hsk-studio-interop-fig-base (alias walk)",
+   "phase": "briefed; dispatch after R48 (R48 findings appended)",
    "status": null,
    "owner": null,
-   "lane_file": null,
-   "brief": null,
+   "lane_file": "builders/lanes/hsk-studio-r47-followups-1.json",
+   "brief": "builders/briefs/lane-smb-r47-followups-1.md",
    "worktree": null,
    "disk": null,
    "candidate": null,
    "commits": [],
    "verdicts": [],
-   "note": "2026-10-31T10:04:58Z from R47: F-R47-1 one --audio decode can transiently hold up to 16.6 GB (reel caps frames not samples; 8-channel FLAC): charge samples before decode or cap channels; F-R47-2 export-sequence manual entry lacks audio_too_many / audio_too_large and the limits; F-R47-3 DX12 parity of the threshold fix only in the lane probe: add a DX12 threshold row like the FXC rows; F-R47-4 fig-base variable alias walk has the F-R45-1 shape (bound before work, cancellable)"
+   "note": "2026-10-31T10:04:58Z from R47: F-R47-1 one --audio decode can transiently hold up to 16.6 GB (reel caps frames not samples; 8-channel FLAC): charge samples before decode or cap channels; F-R47-2 export-sequence manual entry lacks audio_too_many / audio_too_large and the limits; F-R47-3 DX12 parity of the threshold fix only in the lane probe: add a DX12 threshold row like the FXC rows; F-R47-4 fig-base variable alias walk has the F-R45-1 shape (bound before work, cancellable)",
+   "host_integration": {
+    "gui_host": "none",
+    "gpu": "central_broker_client",
+    "refactor_exposure": "low",
+    "binding": "HOST INTEGRATION rules + block in brief and lane file",
+    "recorded_at": "2026-10-31T11:20:00Z",
+    "lane_file_block": true
+   }
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

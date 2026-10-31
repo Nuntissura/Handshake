@@ -1,0 +1,37 @@
+{
+  "crate": "hsk-studio-reel (audio decode sample budget, additive), hsk-studio-harness (cli export-sequence), hsk-studio-harness-core (manual.rs export-sequence entry), hsk-studio-render-gpu (tests: DX12 threshold rows), hsk-studio-interop-fig-base (resolve_variables)",
+  "lane": "SMB-R47-FOLLOWUPS-1",
+  "status": null,
+  "phase": "briefed (not dispatched); dispatch after R48 records, with any R48 findings appended",
+  "candidate": null,
+  "commits": [],
+  "capabilities_done": [],
+  "tests": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "lead dispatches after R48; base = R48 candidate or origin tip at dispatch",
+  "updated_at": "2026-10-31T11:20:00Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "central_broker_client",
+    "diagnostics": {
+      "internal_diagnostics": "none",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "brief": "builders/briefs/lane-smb-r47-followups-1.md",
+    "findings": "validation/round-R47.json F-R47-1..4",
+    "out_of_scope": "F-R47-8 (tools/run-round.sh, steward); F-R46-8 (GUI lane)"
+  }
+}
