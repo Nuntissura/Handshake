@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-30T23:55:17Z",
+ "updated_at": "2026-10-31T00:04:24Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -12740,17 +12740,19 @@
   {
    "lane_id": "SMB-ID-FRAME-AUTOSIZE-2",
    "crate": "hsk-studio-type (cap/x height accessors) + hsk-studio-layout + hsk-studio-interop-layout (IDML auto-size)",
-   "phase": "resumed under D6 (2026-10-30T23:55:17Z): rebase onto origin 3cf0f149, one bundled run on D:, push",
-   "status": null,
+   "phase": "validation (R45)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-id-frame-autosize-2.json",
    "brief": "builders/briefs/lane-smb-id-frame-autosize-2.md",
    "worktree": "wt-studio-lanes/smb-id-frame-autosize-2",
    "disk": "lead names it",
-   "candidate": null,
-   "commits": [],
+   "candidate": "b425b54a",
+   "commits": [
+    "fd4eb215..b425b54a (7)"
+   ],
    "verdicts": [],
-   "note": "From SMB-ID-FRAME-AUTOSIZE-1: type Run::cap_height_pt() / x_height_pt() -> Option<f64> from OS/2 so from_type fills cap/x height; switch the reflow refusal to first_baseline_metric_unavailable:<kind> and update interop-layout tests/layout_reflow_folio_export.rs:268-271; host path commits reflow_autosize bounds; IDML auto-size attribute mapping; Folio record for the six STU-LAY-118 rows not stored.; scope at dispatch: type Run::cap_height_pt/x_height_pt (OS/2), layout from_type, refusal code first_baseline_metric_unavailable:<kind> + interop-layout pin, IDML auto-size mapping; folio STU-LAY-118 record and window commit of bounds stay follow-ups. Base ff4ca080.; 2026-10-30T17:52:12Z origin now 825598c6 (FIG-GRID-2 done); 2026-10-30T18:10:39Z paused: 6 local commits (red 3777714d/e2626f3f/37690096, green fb78104b type metrics, c160868f refusal code, bcba0af5 IDML mapping), focused 11/11 on D: (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-frame-autosize-2/smb-id-frame-autosize-2-focus1-bcba0af5.log); not pushed, no bundled run; dependents not yet proven to compile; resume: rebase, bundled run (type both feature sets, layout, interop-layout, clippy over dependents), push",
+   "note": "From SMB-ID-FRAME-AUTOSIZE-1: type Run::cap_height_pt() / x_height_pt() -> Option<f64> from OS/2 so from_type fills cap/x height; switch the reflow refusal to first_baseline_metric_unavailable:<kind> and update interop-layout tests/layout_reflow_folio_export.rs:268-271; host path commits reflow_autosize bounds; IDML auto-size attribute mapping; Folio record for the six STU-LAY-118 rows not stored.; scope at dispatch: type Run::cap_height_pt/x_height_pt (OS/2), layout from_type, refusal code first_baseline_metric_unavailable:<kind> + interop-layout pin, IDML auto-size mapping; folio STU-LAY-118 record and window commit of bounds stay follow-ups. Base ff4ca080.; 2026-10-30T17:52:12Z origin now 825598c6 (FIG-GRID-2 done); 2026-10-30T18:10:39Z paused: 6 local commits (red 3777714d/e2626f3f/37690096, green fb78104b type metrics, c160868f refusal code, bcba0af5 IDML mapping), focused 11/11 on D: (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-frame-autosize-2/smb-id-frame-autosize-2-focus1-bcba0af5.log); not pushed, no bundled run; dependents not yet proven to compile; resume: rebase, bundled run (type both feature sets, layout, interop-layout, clippy over dependents), push; 2026-10-31T00:04:24Z resumed under D6: rebased onto 3cf0f149, D: bundled run 2 296/296 (type 232 + harfrust 64; run 1 at d1e8976e failed the interop-layout IDML round-trip pin: height-only frame now reports auto_sizing_reference_point_not_exported, pin updated in b425b54a = second change to another lane test), pushed 3cf0f149..b425b54a (ls-remote verified); engine-only, no GUI/GPU types, refusal through observe codes",
    "host_integration": {
     "gui_host": "none",
     "gpu": "none",

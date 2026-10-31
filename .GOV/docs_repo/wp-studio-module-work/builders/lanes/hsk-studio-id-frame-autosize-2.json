@@ -1,46 +1,58 @@
 {
  "crate": "hsk-studio-type (src/result.rs Run::cap_height_pt/x_height_pt, src/engine.rs + src/provider/harfrust.rs Run construction, tests/run_face_metrics.rs new), hsk-studio-layout (src/paragraph.rs from_type, src/threaded_reflow.rs refusal, src/lib.rs LayoutError variant + DESCRIPTOR, tests/frame_autosize.rs pins), hsk-studio-interop-layout (src/idml_decode.rs auto_size_rows, src/folio_export.rs auto_size_rows + loss, src/descriptor.rs frame_autosize entry, tests/layout_reflow_folio_export.rs pin, tests/idml_frame_autosize.rs new)",
  "lane": "SMB-ID-FRAME-AUTOSIZE-2",
- "status": "PAUSED",
- "phase": "paused by the lead (Operator realignment) after a green focused run at bcba0af5; 6 local commits, NOTHING pushed; no bundled run started; no background work running",
- "candidate": null,
+ "status": "READY_FOR_VALIDATION",
+ "phase": "rebased onto 3cf0f149 (clean, no conflicts); bundled run 1 at d1e8976e failed 1 (export loss pin), fixed in b425b54a; bundled run 2 green; pushed b425b54a (fast-forward from 3cf0f149); READY_FOR_VALIDATION at b425b54a (claim = fd4eb215..b425b54a, 7 commits)",
+ "candidate": "b425b54a",
  "worktree": "wt-studio-lanes/smb-id-frame-autosize-2 (branch lane/smb-id-frame-autosize-2, base ff4ca080; working tree clean)",
  "commits": [
   {
-   "sha": "3777714d",
+   "sha": "fd4eb215",
    "slice": "1 red",
-   "pushed": false,
-   "subject": "type: Run::cap_height_pt/x_height_pt stubs (None) + tests/run_face_metrics.rs"
+   "pushed": true,
+   "subject": "type: Run::cap_height_pt/x_height_pt stubs (None) + tests/run_face_metrics.rs",
+   "pre_rebase_sha": "3777714d"
   },
   {
-   "sha": "e2626f3f",
+   "sha": "b7b9566a",
    "slice": "2 red",
-   "pushed": false,
-   "subject": "layout: LayoutError::FirstBaselineMetricUnavailable(FirstBaselineUnavailable) + pins in tests/frame_autosize.rs and interop-layout tests/layout_reflow_folio_export.rs"
+   "pushed": true,
+   "subject": "layout: LayoutError::FirstBaselineMetricUnavailable(FirstBaselineUnavailable) + pins in tests/frame_autosize.rs and interop-layout tests/layout_reflow_folio_export.rs",
+   "pre_rebase_sha": "e2626f3f"
   },
   {
-   "sha": "37690096",
+   "sha": "469c1348",
    "slice": "3 red",
-   "pushed": false,
-   "subject": "interop-layout: tests/idml_frame_autosize.rs (amended locally before any push: Result alias compile fix + V4-08 escape/decoy cases)"
+   "pushed": true,
+   "subject": "interop-layout: tests/idml_frame_autosize.rs (amended locally before any push: Result alias compile fix + V4-08 escape/decoy cases)",
+   "pre_rebase_sha": "37690096"
   },
   {
-   "sha": "fb78104b",
+   "sha": "50a0d3e0",
    "slice": "1",
-   "pushed": false,
-   "subject": "type: Run::cap_height_pt / x_height_pt from OS/2 (both providers)"
+   "pushed": true,
+   "subject": "type: Run::cap_height_pt / x_height_pt from OS/2 (both providers)",
+   "pre_rebase_sha": "fb78104b"
   },
   {
-   "sha": "c160868f",
+   "sha": "dc8024af",
    "slice": "2",
-   "pushed": false,
-   "subject": "layout: typed first-baseline refusal; from_type takes Type metrics; DESCRIPTOR"
+   "pushed": true,
+   "subject": "layout: typed first-baseline refusal; from_type takes Type metrics; DESCRIPTOR",
+   "pre_rebase_sha": "c160868f"
   },
   {
-   "sha": "bcba0af5",
+   "sha": "d1e8976e",
    "slice": "3",
-   "pushed": false,
-   "subject": "interop-layout: IDML auto-size rows mapped to Studio readings (import losses, export readings); DESCRIPTOR frame_autosize"
+   "pushed": true,
+   "subject": "interop-layout: IDML auto-size rows mapped to Studio readings (import losses, export readings); DESCRIPTOR frame_autosize",
+   "pre_rebase_sha": "bcba0af5"
+  },
+  {
+   "sha": "b425b54a",
+   "slice": "3 fix",
+   "pushed": true,
+   "subject": "interop-layout: folio_created_document_exports_idml_and_round_trips export-loss pin lists auto_sizing_reference_point_not_exported (the created document has a height-only frame)"
   }
  ],
  "capabilities_done": [
@@ -49,13 +61,13 @@
   "interop-layout: IDML import compares AutoSizingReferencePoint, Use/MinimumHeightForAutoSizing, Use/MinimumWidthForAutoSizing, UseNoLineBreaksForAutoSizing with the AUTOSIZE-1 readings for auto-sizing frames (Approximated losses auto_sizing_reference_point_not_stored, auto_sizing_minimum_not_stored, auto_sizing_line_breaks_not_stored; unknown values frame_preference_value_unknown); Off frames and absent rows not reported; export_folio writes UseMinimumHeight/WidthForAutoSizing=false and the kind's UseNoLineBreaksForAutoSizing for auto-sizing frames (Off unchanged) and reports auto_sizing_reference_point_not_exported"
  ],
  "tests": {
-  "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 STUDIO_LANE_CHECK_NO_DEPENDENTS=1 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-id-frame-autosize-2 --disk d --tests run_metrics_are,missing_face_metric_refuses_typed,reflow_overset_per_thread_and_typed_refusals,type_shaped_paragraphs_carry,absent_or_moot_auto_size,auto_size_attributes_map,folio_export_states,first_baseline_six_kinds,hostile_first_baseline_metrics,harfrust -- cargo nextest run -p hsk-studio-type -p hsk-studio-layout -p hsk-studio-interop-layout --features hsk-studio-type/harfrust --no-fail-fast",
+  "argv": "cd <lane worktree>/handshake-studio-assets && { CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-id-frame-autosize-2 --disk d -- cargo nextest run -p hsk-studio-type -p hsk-studio-layout -p hsk-studio-interop-layout --no-fail-fast; CARGO_BUILD_JOBS=6 STUDIO_LANE_CHECK_NO_DEPENDENTS=1 bash <same> --owner smb-id-frame-autosize-2 --disk d -- cargo nextest run -p hsk-studio-type --features harfrust --no-fail-fast; } (part 1: clippy over type, layout, interop-layout + dependents composite, harness, harness-view, interop-fig, interop-fig-native, render-cpu, render-gpu, then the three whole suites; part 2: type harfrust unit)",
   "exit": 0,
-  "sha": "bcba0af5",
-  "passed": 11,
+  "sha": "b425b54a",
+  "passed": 296,
   "failed": 0,
-  "skipped": 222,
-  "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-frame-autosize-2/smb-id-frame-autosize-2-focus1-bcba0af5.log (first line HEAD=bcba0af5)",
+  "skipped": 0,
+  "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-frame-autosize-2/smb-id-frame-autosize-2-bundled2-b425b54a.log (first lines HEAD=b425b54a, twice: part 1 and part 2)",
   "history": [
    {
     "sha": "618a491f (pre-amend)",
@@ -81,30 +93,59 @@
     "failed": 0,
     "started": "2026-10-30T18:01:59Z",
     "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-frame-autosize-2/smb-id-frame-autosize-2-focus1-bcba0af5.log"
+   },
+   {
+    "sha": "d1e8976e",
+    "run": "bundled 1 (D:)",
+    "exit": 100,
+    "passed": 231,
+    "failed": 1,
+    "part2": "type harfrust 64/64",
+    "started": "2026-10-30T23:56:00Z",
+    "failures": "interop-layout layout_reflow_folio_export folio_created_document_exports_idml_and_round_trips:609 export loss count left 2 right 1 (new auto_sizing_reference_point_not_exported on its height-only frame)",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-frame-autosize-2/smb-id-frame-autosize-2-bundled1-d1e8976e.log"
+   },
+   {
+    "sha": "b425b54a",
+    "run": "bundled 2 (D:)",
+    "exit": 0,
+    "passed": 296,
+    "failed": 0,
+    "part1": "232/232 (type default, layout, interop-layout)",
+    "part2": "64/64 (type harfrust)",
+    "started": "2026-10-31T00:02:31Z",
+    "ended": "2026-10-31T00:02:57Z",
+    "note": "no clippy warning on lane-changed lines (engine.rs warnings at lines 109-176 pre-existing); pushed",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-frame-autosize-2/smb-id-frame-autosize-2-bundled2-b425b54a.log (first lines HEAD=b425b54a, twice: part 1 and part 2)"
    }
   ],
-  "bundled_runs": 0,
+  "bundled_runs": 2,
   "lane_tests": [
    "type tests/run_face_metrics.rs: run_metrics_are_the_face_os2_values_scaled (Inter 96/11 and 72/11 pt at 12 pt; Noto Sans SC and variable Inter default instance vs test-side big-endian reader), run_metrics_are_none_without_os2_v2_fields (OS/2 v1; hostile v4 with directory length 86)",
    "layout tests/frame_autosize.rs missing_face_metric_refuses_typed: pins now the typed variant and code",
    "interop-layout tests/idml_frame_autosize.rs: type_shaped_paragraphs_carry_first_baseline_metrics (Inter 11 pt: cap 8 / x 6 / em 11 baselines via from_type; fixture shaper refused typed), absent_or_moot_auto_size_attributes_import_identically, auto_size_attributes_map_to_studio_readings_or_typed_loss (16 cases incl. V4-08 escape, decoy name, case/whitespace), folio_export_states_the_auto_size_readings",
-   "interop-layout tests/layout_reflow_folio_export.rs reflow_overset_per_thread_and_typed_refusals: cap-height pin (lines 258-276) changed to the new variant/code"
+   "interop-layout tests/layout_reflow_folio_export.rs reflow_overset_per_thread_and_typed_refusals: cap-height pin (lines 258-276) changed to the new variant/code",
+   "interop-layout tests/layout_reflow_folio_export.rs folio_created_document_exports_idml_and_round_trips: export loss pin 1 -> 2 (auto_sizing_reference_point_not_exported)"
   ]
  },
  "blockers": [],
  "bg_pids": [],
- "next": "on resume (lead names disk and base): rebase onto origin, bundled run = whole suites of hsk-studio-type (default and harfrust units), hsk-studio-layout, hsk-studio-interop-layout + clippy over their dependents (rule 4a/4b); then push with PUSH SAFETY and set READY_FOR_VALIDATION",
- "updated_at": "2026-10-30T18:09:51Z",
+ "next": "validation",
+ "updated_at": "2026-10-31T00:03:18Z",
  "notes": {
-  "other_lane_test_change": "hsk-studio-interop-layout tests/layout_reflow_folio_export.rs (cap-height pin in reflow_overset_per_thread_and_typed_refusals): Err(UnsupportedComposition)/'unsupported_composition' -> Err(FirstBaselineMetricUnavailable(CapHeight))/'first_baseline_metric_unavailable:cap_height' (brief item 2)",
+  "other_lane_test_change": "hsk-studio-interop-layout tests/layout_reflow_folio_export.rs (cap-height pin in reflow_overset_per_thread_and_typed_refusals): Err(UnsupportedComposition)/'unsupported_composition' -> Err(FirstBaselineMetricUnavailable(CapHeight))/'first_baseline_metric_unavailable:cap_height' (brief item 2); also folio_created_document_exports_idml_and_round_trips (same file, line 609): export loss count 1 -> 2 with auto_sizing_reference_point_not_exported (consequence of the brief item 3 export mapping; not the pin the brief named)",
   "idml_names_source": "Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/indesign/ID-03__para_hyph_w240.idml Resources/Styles.xml + Preferences.xml TextFramePreference: AutoSizingType=Off AutoSizingReferencePoint=CenterPoint UseMinimumHeightForAutoSizing=false MinimumHeightForAutoSizing=0 UseMinimumWidthForAutoSizing=false MinimumWidthForAutoSizing=0 UseNoLineBreaksForAutoSizing=false; no other reference-point value is attested, so export writes none (loss) and import treats any present value on an auto-sizing frame as a loss",
   "already_present": "AutoSizingType import (idml_decode AS table) and export (folio_export) existed before this lane; unknown AutoSizingType stays frame_preference_value_unknown",
   "declared_readings": "UseNoLineBreaksForAutoSizing reading: true for width_only and height_and_width (layout sets lines unwrapped), false for proportional (lines break at the scaled width), moot for height_only; minimum gates moot on an axis the kind does not size; all UNVERIFIED (D5)",
-  "rule_4b": "public API: Run gains 2 accessors (fields pub(crate)); LayoutError gains 1 variant (no exhaustive match on LayoutError outside layout found by grep in interop-layout, harness, harness-view); no Folio field; dependents still to be proven by the bundled clippy",
-  "rule_4e": "type has round unit [harfrust]: focused run compiled with --features hsk-studio-type/harfrust; bundled run must cover default and harfrust",
+  "rule_4b": "public API: Run gains 2 accessors (fields pub(crate)); LayoutError gains 1 variant; no Folio field; dependents composite, harness, harness-view, interop-fig, interop-fig-native, render-cpu, render-gpu compile clean through bundled clippy --tests",
+  "rule_4e": "type round unit [harfrust] covered by bundled part 2 (64/64); layout and interop-layout default unit only",
   "v4": "V4-01: idml_decode.rs already carries deny(arithmetic_side_effects); V4-07: doc claim weakened ('Not estimated from outlines'); V4-08: escape, decoy and case/whitespace cases in auto_size_attributes_map_to_studio_readings_or_typed_loss",
-  "warnings": "run_face_metrics test reports 1 warning shared with glyph_render/harfrust_spike/foundation_contract (from the included support/mod.rs, pre-existing); check in the bundled run that no new clippy warning comes from lane code",
-  "follow_ups": "Folio record for the six STU-LAY-118 rows folio does not store (folio decision; SMB-R43-FOLLOWUPS-1 is changing folio); the layout window committing reflow_autosize bounds (GUI)"
+  "warnings": "no clippy warning on lane-changed lines in bundled 2; the 1 test-target warning of run_face_metrics comes from the shared support/mod.rs (same in glyph_render, harfrust_spike, foundation_contract)",
+  "follow_ups": "Folio record for the six STU-LAY-118 rows folio does not store (folio decision; SMB-R43-FOLLOWUPS-1 is changing folio); the layout window committing reflow_autosize bounds (GUI)",
+  "rule_4d": "no doc examples added or changed",
+  "push": "PUSH SAFETY: fetch, origin 3cf0f149 ancestor of HEAD, diff --stat origin..HEAD lists only this lane's 13 paths in type, layout, interop-layout, [ -n \"$SHA\" ] && push, exit 0, fetch shows origin == b425b54a",
+  "cargo_lock": "not committed; no new dependency or crate edge",
+  "host_integration_check": "no egui/eframe/winit/wgpu type, no GPU owner, no actor, no job, no control in lane code; the new LayoutError variant reports through layout::report (observe) as FailureCode::Unsupported, codes only"
  },
  "verdicts": [],
  "host_integration": {
@@ -130,9 +171,9 @@
     "layout",
     "type"
    ],
-   "lane_status": "PAUSED",
-   "lane_phase": "PAUSED for Operator realignment (2026-10-30T18:10:39Z)"
+   "lane_status": "READY_FOR_VALIDATION",
+   "lane_phase": "READY_FOR_VALIDATION at b425b54a"
   },
-  "recorded_at": "2026-10-30T23:34:39Z"
+  "recorded_at": "2026-10-31T00:03:18Z"
  }
 }
