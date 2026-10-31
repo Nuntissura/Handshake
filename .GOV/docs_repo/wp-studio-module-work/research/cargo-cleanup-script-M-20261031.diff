@@ -1,0 +1,64 @@
+diff --git a/cargo-manager-20261031-L/phase2-guarded-delete.ps1 b/cargo-manager-20261031-M/phase2-guarded-delete.ps1
+index 74e1dd1..1248365 100644
+--- a/cargo-manager-20261031-L/phase2-guarded-delete.ps1
++++ b/cargo-manager-20261031-M/phase2-guarded-delete.ps1
+@@ -7,6 +7,11 @@
+ # - items flagged keep_slot_release (inside studio-team-dev) need -ReleaseKeepSlot in addition to their id;
+ # - right before each item: existence, directory, no reparse point at the item, exact path in the plan, shape regex,
+ #   cargo marker inside, size re-measured, no running process referencing it, no round/canary holding that disk's lock;
++# - batch M (2026-10-31, batch L report: a builder holding the disk lock did not stop a lane-target delete): a lane target
++#   (kind containing "lane", or shape <owner>/target or studio-team-dev/target/lanes/<owner>) is skipped with
++#   SKIPPED_LOCK_NOT_FREE whenever ANY holder (round or builder) or ANY queued ticket is on that disk's lock, checked
++#   before measuring and again right before deleting; no wait, -AllowDuringRound does not apply (the round-stale-identity
++#   kind's check, now the shared LockNotFree);
+ # - own directory walk that never descends into a junction/symlink (the link itself is removed, never its target);
+ # - direct delete first; a remainder that cannot be deleted goes to the Recycle Bin (recorded with its size so the
+ #   Operator can be told how much to empty).
+@@ -125,6 +130,19 @@ function RoundHoldsDisk() {   # a round/canary (class round) holding or queued o
+   $queuedRound = (Test-Path -LiteralPath $q) -and (@(Get-ChildItem -LiteralPath $q -Name -ErrorAction SilentlyContinue | Where-Object { $_ -like '0*' }).Count -gt 0)
+   return ($holderRound -or $queuedRound)
+ }
++function LockNotFree() {   # any holder (round or builder) or any queued ticket on this disk's lock; -AllowDuringRound does not apply
++  return ((Test-Path -LiteralPath (Join-Path $lockDirs[$Disk] 'held')) -or (@(Get-ChildItem -LiteralPath (Join-Path $lockDirs[$Disk] 'queue') -Name -ErrorAction SilentlyContinue).Count -gt 0))
++}
++function LockDetail() {   # what LockNotFree saw, for the result detail (read-only)
++  $ld = $lockDirs[$Disk]; $o = Join-Path $ld 'held/owner'
++  $cls = $(if (Test-Path -LiteralPath $o) { @(Get-Content -LiteralPath $o -ErrorAction SilentlyContinue | Where-Object { $_ -match '^class=' }) -join ',' } else { '' })
++  $nq = @(Get-ChildItem -LiteralPath (Join-Path $ld 'queue') -Name -ErrorAction SilentlyContinue).Count
++  return ("lock " + $ld + ": held=" + (Test-Path -LiteralPath (Join-Path $ld 'held')) + " " + $cls + "; queued=" + $nq)
++}
++# batch M: lane targets (D: <owner>/target, C: studio-team-dev/target/lanes/<owner>, or a plan kind naming a lane) are
++# skipped while the disk lock is not free, whoever holds or queues on it
++$laneShapes = @('^[^/]+/target$', '^studio-team-dev/target/lanes/[a-z0-9][a-z0-9-]*$')
++function IsLaneTarget($it, [string]$rel) { return ((($it.kind + '') -match 'lane') -or (@($laneShapes | Where-Object { $rel -match $_ }).Count -gt 0)) }
+ function Get-TreeSize([string]$p) {   # robocopy /L listing (studio_ssd_kib method) with /TS (UTC); errs high on hardlinks
+   $b = ''; $f = ''; $newest = ''
+   robocopy (($p -replace '/','\')) NUL /L /S /NJH /BYTES /NC /NDL /TS /XJ /R:0 /W:0 | ForEach-Object {
+@@ -199,7 +217,7 @@ function RoundStaleItem($it, $r) {   # returns the status; fills $r
+   if (-not (Test-Path -LiteralPath $p -PathType Container)) { return 'ABSENT' }
+   if (((Get-Item -LiteralPath $p -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return 'SKIPPED_REPARSE_POINT' }
+   # any holder or queued ticket on the C: lock (round or builder) stops this kind; -AllowDuringRound does not apply
+-  if ((Test-Path -LiteralPath (Join-Path $lockDirs[$Disk] 'held')) -or @(Get-ChildItem -LiteralPath (Join-Path $lockDirs[$Disk] 'queue') -Name -ErrorAction SilentlyContinue).Count) { return 'SKIPPED_LOCK_NOT_FREE' }
++  if (LockNotFree) { $r.detail = LockDetail; return 'SKIPPED_LOCK_NOT_FREE' }
+   $refs = RefProcs $p @('studio-round/target')
+   if ($refs.Count -gt 0) { $r.detail = (($refs | ForEach-Object { $_.ProcessId.ToString() + ':' + $_.Name }) -join ' '); return 'SKIPPED_IN_USE' }
+   $parts = @(Get-ChildItem -LiteralPath $p -Force) + @(Get-Item -LiteralPath $p -Force) + @($files | ForEach-Object { Get-Item -LiteralPath ($dbg + $_) -Force -ErrorAction SilentlyContinue })
+@@ -254,8 +272,10 @@ foreach ($it in $items) {
+   else {
+     $waited = 0
+     while ((RoundHoldsDisk) -and $waited -lt $LockWaitMaxS) { if ($waited -eq 0) { Log ("WAIT: a round/canary holds or queues the $Disk lock; item waits: " + $p) }; Start-Sleep -Seconds 60; $waited += 60 }
++    $laneItem = IsLaneTarget $it $rel
+     $refs = RefProcs $p $it.ref_patterns
+     if (RoundHoldsDisk) { $r.status = 'SKIPPED_ROUND_ON_DISK' }
++    elseif ($laneItem -and (LockNotFree)) { $r.status = 'SKIPPED_LOCK_NOT_FREE'; $r.detail = LockDetail }
+     elseif ($refs.Count -gt 0) { $r.status = 'SKIPPED_IN_USE'; $r.detail = (($refs | ForEach-Object { $_.ProcessId.ToString() + ':' + $_.Name }) -join ' ') }
+     else {
+       if ($QuickNewest) { $m = @{ bytes = 0; files = $null; newest = (Get-QuickNewest $p) }; $r.newest_method = 'dir-mtime depth 3' }
+@@ -267,6 +287,7 @@ foreach ($it in $items) {
+       $ownTouched = (Test-Path -LiteralPath $touchedFile) -and (@(Get-Content -LiteralPath $touchedFile | Where-Object { (Norm $_) -eq $p }).Count -gt 0)
+       if ($m.newest -and (((Get-Date).ToUniversalTime() - $m.newest).TotalMinutes -lt $recentWriteMin) -and -not $ownTouched) { $r.status = 'SKIPPED_RECENT_WRITE'; $r.detail = "newest write $($r.newest_write_utc) < $recentWriteMin min ago" }
+       elseif ($refs2.Count -gt 0) { $r.status = 'SKIPPED_IN_USE'; $r.detail = (($refs2 | ForEach-Object { $_.ProcessId.ToString() + ':' + $_.Name }) -join ' ') }
++      elseif ($laneItem -and (LockNotFree)) { $r.status = 'SKIPPED_LOCK_NOT_FREE'; $r.detail = LockDetail }   # re-check after the listing
+       elseif (-not $Execute) { $r.status = 'WOULD_DELETE'; $r.gib_deleted = $r.size_gib_now }
+       else {
+         $sw = [Diagnostics.Stopwatch]::StartNew()
