@@ -22,13 +22,33 @@
 #   lane-check.sh --step0-only            run only step 0 on the cwd workspace (no --owner, no test command).
 #   lane-check.sh --step0-self-test DIR   run the round's block and the embedded copy on DIR, compare exit, stdout
 #                                         (JSON) and stderr; prints STEP0_SELF_TEST OK|FAIL and exits 0|1.
+# Per-commit compile check (F-R48-4, F-R49-1; steward 2026-10-31), run before every push (brief rule RED COMMITS):
+#   lane-check.sh --owner <lane> [--disk ssd|d] --per-sha <base>[..<tip>]   (no test command; <tip> defaults to HEAD)
+#   For every commit of `git rev-list --reverse <base>..<tip>` (base excluded, as in git), oldest first: the commit's
+#   OWN tree (`git archive <sha>:<workspace dir>` unpacked with current mtimes into <owner tmp>/per-sha-<tip>/tree; the
+#   lane's working tree is not used) gets the round's step-0 policy, then `cargo check --offline --tests` over the
+#   commit's changed crates (crates/<dir>/ paths of `git diff <sha>^ <sha>`; root Cargo.toml, Cargo.lock,
+#   rust-toolchain.toml, .cargo/ or .config/round-features.toml = every member) and their direct workspace dependents
+#   (path dependency of any kind, from that commit's metadata): one default-features unit over the whole set, then
+#   each feature set .config/round-features.toml declares for those crates ([crates] and non-empty [ignored] sets,
+#   e.g. harness-view [viewer]), crates ordered dependencies first. It stops at the first failing unit and exits with
+#   cargo's status, naming the sha and unit (PER_SHA_RESULT FAIL sha=... unit=...); all clean = PER_SHA_RESULT OK, 0.
+#   Target: the lane's own target dir (no new target, P1/P3). Workspace-member units carry a profile override
+#   (codegen-units = 255 for every member, dev and test profiles; --config <owner tmp>/per-sha-<tip>/isolate.toml), so
+#   their fingerprints differ from the lane's own check/clippy/test units: a later lane build never reuses an artifact
+#   compiled from another commit's tree (the reason for the .studio-workspace-root binding), while dependency
+#   artifacts are shared. One disk-lock hold for the whole range, as the bundled run. No --locked (a commit waiting
+#   for a steward sync may carry an unsynced lock; the round's step 0 reports that). Logs: <artifact root>/WP-KERNEL-
+#   STUDIO/<owner>/per-sha-<tip8>/<sha8>-<unit>.log (first line = the sha); the temp tree is removed afterwards.
 # Exit: 72/71 step 0 policy hit (round codes), 2 usage or step 0 config error; else clippy's status when it fails
-#   (the tests are not run), else the test run's status.
+#   (the tests are not run), else the test run's status. --per-sha: the first failing unit's status (step 0: 72/71/2),
+#   2 on a range/archive/metadata error, else 0.
 set -uo pipefail
-owner="" disk=ssd tests="" step0_only=0 step0_selftest=""
+owner="" disk=ssd tests="" step0_only=0 step0_selftest="" per_sha=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --owner) owner=${2:?}; shift 2 ;;
+    --per-sha) per_sha=${2:?}; shift 2 ;;
     --disk) disk=${2:?}; shift 2 ;;
     --tests) tests=${2:?}; shift 2 ;;
     --step0-only) step0_only=1; shift ;;
@@ -152,6 +172,133 @@ if [ -n "$step0_selftest" ]; then
 fi
 if [ $step0_only -eq 1 ]; then lane_step0 "$PWD"; exit $?; fi
 [ -n "$owner" ] || { echo "lane-check: --owner <lane-id-lowercase> is required" >&2; exit 2; }
+lane_env() {   # build disk, owner, studio-env (lane target, TMP, disk lock, cargo wrapper)
+  case "$disk" in ssd) export STUDIO_BUILD_DISK=ssd ;; d|D) export STUDIO_BUILD_DISK=d ;; *) echo "lane-check: --disk ssd|d" >&2; return 2 ;; esac
+  export STUDIO_OWNER=$owner
+  unset STUDIO_DISK_BUILD_LOCK_DIR _STUDIO_ENV_LOCK_DERIVED
+  TOOLS=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+  source "$TOOLS/../builders/studio-env.sh" || return 2
+}
+if [ -n "$per_sha" ]; then
+  # --per-sha (header): every commit's own tree, step 0 + cargo check --tests of its changed crates, their direct
+  # dependents and their round feature units, in the lane target under one disk-lock hold; stop at the first failure.
+  [ $# -eq 0 ] || { echo "lane-check: --per-sha takes no test command" >&2; exit 2; }
+  case "$per_sha" in *..*) ps_base=${per_sha%%..*} ps_tip=${per_sha#*..} ;; *) ps_base=$per_sha ps_tip=HEAD ;; esac
+  base_sha=$(git rev-parse --verify --quiet "${ps_base}^{commit}") && tip_sha=$(git rev-parse --verify --quiet "${ps_tip:-HEAD}^{commit}") \
+    || { echo "lane-check: --per-sha: cannot resolve $per_sha to commits" >&2; exit 2; }
+  mapfile -t per_sha_list < <(git rev-list --reverse "$base_sha..$tip_sha")
+  ws_dir=$(git rev-parse --show-prefix) || { echo "lane-check: --per-sha: not in a git work tree" >&2; exit 2; }
+  ws_dir=${ws_dir%/} git_top=$(git rev-parse --show-toplevel)
+  echo "PER_SHA lane=$owner range=${base_sha:0:8}..${tip_sha:0:8} shas=${#per_sha_list[@]} workspace=${ws_dir:-.} started=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  [ ${#per_sha_list[@]} -gt 0 ] || { echo "PER_SHA_RESULT OK shas=0 (empty range)"; exit 0; }
+  lane_env || exit $?
+  per_root="$TMP/per-sha-${tip_sha:0:8}" per_logs="$(dirname "$TMP")/per-sha-${tip_sha:0:8}"
+  per_tree="$per_root/tree"
+  mkdir -p "$per_root" "$per_logs" || exit 2
+  echo "lane-check: owner=$owner disk=$STUDIO_BUILD_DISK target=$CARGO_TARGET_DIR per-sha logs=$per_logs" >&2
+  # per_sha_units TREE CHANGED_LIST METADATA_JSON ISOLATE_TOML -> rows "closure<TAB>changed<TAB>dependents",
+  # "default<TAB>crates (dependencies first)", "features|absent<TAB>crate<TAB>f1,f2"; writes the isolation profile file.
+  per_sha_units() {
+"$step0_py" -X utf8 -I - "$@" <<'PY'
+import json, os, pathlib, sys, tomllib
+
+sys.stdout.reconfigure(newline="\n")
+tree, changed_file, meta_file, iso_file = (pathlib.Path(a) for a in sys.argv[1:5])
+meta = json.loads(meta_file.read_text(encoding="utf-8"))
+ids = set(meta["workspace_members"])
+members = {p["name"]: p for p in meta["packages"] if p["id"] in ids}
+ws_root = meta["workspace_root"]   # cargo's own spelling of the tree (8.3 short names and slashes as cargo sees them)
+by_dir = {pathlib.Path(os.path.relpath(pathlib.Path(p["manifest_path"]).parent, ws_root)).as_posix(): n
+          for n, p in members.items()}
+ROOT_ALL = {"Cargo.toml", "Cargo.lock", "rust-toolchain.toml", ".config/round-features.toml"}
+changed = set()
+for line in changed_file.read_text(encoding="utf-8").splitlines():
+    f = line.strip().replace("\\", "/")
+    if not f:
+        continue
+    if f in ROOT_ALL or f.startswith(".cargo/"):
+        changed |= set(members)
+        continue
+    parts = f.split("/")
+    for k in range(len(parts) - 1, 0, -1):   # the deepest member dir holding the file
+        d = "/".join(parts[:k])
+        if d in by_dir:
+            changed.add(by_dir[d])
+            break
+deps = {n: {d["name"] for d in p["dependencies"] if d.get("path") and d["name"] in members} for n, p in members.items()}
+dependents = {n for n in members if n not in changed and deps[n] & changed}
+closure = changed | dependents
+order, done, pending = [], set(), sorted(closure)
+while pending:   # dependencies first (a failure is named at the lowest crate); a cycle takes the first name
+    ready = [n for n in pending if not (deps[n] & closure) - done] or pending[:1]
+    order += ready
+    done |= set(ready)
+    pending = [n for n in pending if n not in done]
+cfg = tree / ".config" / "round-features.toml"
+doc = tomllib.loads(cfg.read_text(encoding="utf-8")) if cfg.exists() else {}
+sets = {}
+for table in ("crates", "ignored"):
+    for crate, ss in doc.get(table, {}).items():
+        for s in (ss if isinstance(ss, list) else []):
+            if isinstance(s, list) and s:
+                key = tuple(sorted(set(s)))
+                if key not in sets.setdefault(crate, []):
+                    sets[crate].append(key)
+print("closure\t" + " ".join(sorted(changed)) + "\t" + " ".join(sorted(dependents)))
+if order:
+    print("default\t" + " ".join(order))
+for n in order:
+    for s in sets.get(n, []):
+        missing = [f for f in s if f not in members[n].get("features", {})]
+        print(("absent" if missing else "features") + f"\t{n}\t{','.join(s)}")
+iso_file.write_text("".join(f"[profile.{prof}.package.{n}]\ncodegen-units = 255\n"
+                            for n in sorted(members) for prof in ("dev", "test")), encoding="utf-8", newline="\n")
+PY
+  }
+  per_sha_body() {
+    local sha s8 rows kind a b unit ulog rc cc c args=() pk_=()
+    for sha in "${per_sha_list[@]}"; do
+      s8=${sha:0:8}
+      rm -rf "$per_tree" && mkdir -p "$per_tree" || { echo "lane-check: per-sha: cannot reset $per_tree" >&2; return 2; }
+      # from the top level: in a subdirectory, git archive would limit itself to that directory's path again
+      git -C "$git_top" archive --format=tar "$sha${ws_dir:+:$ws_dir}" | (cd "$per_tree" && tar -xmf -) && [ -f "$per_tree/Cargo.toml" ] \
+        || { echo "PER_SHA_RESULT FAIL sha=$sha unit=archive (git archive | tar; no Cargo.toml)"; return 2; }
+      git diff --relative --name-only "$sha^" "$sha" >"$per_root/changed.txt" \
+        || { echo "PER_SHA_RESULT FAIL sha=$sha unit=diff"; return 2; }
+      (cd "$per_tree" && command cargo metadata --no-deps --offline --format-version 1) >"$per_root/meta.json" 2>"$per_root/meta.stderr.txt" \
+        || { cat "$per_root/meta.stderr.txt" >&2; echo "PER_SHA_RESULT FAIL sha=$sha unit=metadata"; return 2; }
+      rows=$(per_sha_units "$per_tree" "$per_root/changed.txt" "$per_root/meta.json" "$per_root/isolate.toml") \
+        || { echo "PER_SHA_RESULT FAIL sha=$sha unit=plan"; return 2; }
+      lane_step0 "$per_tree"; rc=$?
+      if [ $rc -ne 0 ]; then echo "PER_SHA $s8 step0 FAIL exit=$rc"; echo "PER_SHA_RESULT FAIL sha=$sha unit=step0 exit=$rc"; return $rc; fi
+      while IFS=$'\t' read -r kind a b; do
+        case $kind in
+          closure) echo "PER_SHA $s8 changed=[$a] dependents=[$b]"; continue ;;
+          absent) echo "PER_SHA $s8 features:$a+${b//,/+} absent at this commit (the round records it absent, exit 74)"; continue ;;
+          default) unit=default; read -ra pk_ <<<"$a"; args=(); for c in "${pk_[@]}"; do args+=(-p "$c"); done ;;
+          features) unit="features:$a+${b//,/+}"; args=(-p "$a" --features "$b") ;;
+          *) continue ;;
+        esac
+        ulog="$per_logs/$s8-${unit//[:+]/_}.log"
+        printf 'SHA=%s unit=%s started=%s\n' "$sha" "$unit" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$ulog"
+        (cd "$per_tree" && cargo check --offline --tests --config "$per_root/isolate.toml" "${args[@]}") >>"$ulog" 2>&1 </dev/null
+        rc=$?
+        if [ $rc -ne 0 ]; then
+          cc=$(grep -o 'could not compile `[^`]*` ([^)]*)' "$ulog" | sort -u | tr '\n' ';')
+          echo "PER_SHA $s8 $unit FAIL exit=$rc ${cc}log=$ulog"
+          echo "PER_SHA_RESULT FAIL sha=$sha unit=$unit exit=$rc"
+          return $rc
+        fi
+        echo "PER_SHA $s8 $unit ok"
+      done <<<"$rows"
+    done
+    echo "PER_SHA_RESULT OK shas=${#per_sha_list[@]} range=${base_sha:0:8}..${tip_sha:0:8}"
+  }
+  studio_disk_lock_run "lane-check $owner: per-sha cargo check ${base_sha:0:8}..${tip_sha:0:8}" per_sha_body
+  rc=$?
+  rm -rf "$per_root"
+  exit $rc
+fi
 [ "${1:-}" = cargo ] && [ "${2:-}" = nextest ] && [ "${3:-}" = run ] \
   || { echo "lane-check: after -- give the literal test command: cargo nextest run -p <crate> ..." >&2; exit 2; }
 shift 3
@@ -179,11 +326,7 @@ fi
 # First output line names the built tree so a log can cite it (F-R43-5): HEAD sha, owner, dirty flag, UTC start.
 echo "HEAD=$(git rev-parse --short=8 HEAD 2>/dev/null || echo unknown) lane=$owner$( [ -n "$(git status --porcelain --untracked-files=no 2>/dev/null)" ] && echo ' dirty') started=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 lane_step0 "$PWD" || exit $?
-case "$disk" in ssd) export STUDIO_BUILD_DISK=ssd ;; d|D) export STUDIO_BUILD_DISK=d ;; *) echo "lane-check: --disk ssd|d" >&2; exit 2 ;; esac
-export STUDIO_OWNER=$owner
-unset STUDIO_DISK_BUILD_LOCK_DIR _STUDIO_ENV_LOCK_DERIVED
-TOOLS=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "$TOOLS/../builders/studio-env.sh" || exit 2
+lane_env || exit $?
 dependents=()
 if [ "${STUDIO_LANE_CHECK_NO_DEPENDENTS:-0}" != 1 ]; then
   mapfile -t dependents < <(command cargo metadata --no-deps --format-version 1 2>/dev/null | python -c '
