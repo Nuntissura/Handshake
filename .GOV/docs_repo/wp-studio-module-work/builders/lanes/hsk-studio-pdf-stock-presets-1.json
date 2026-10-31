@@ -1,0 +1,72 @@
+{
+  "crate": "hsk-studio-press (stock PDF preset catalogue STU-LAY-159 on the PdfPreset contract, preset codec)",
+  "lane": "SMB-PDF-STOCK-PRESETS-1",
+  "status": null,
+  "phase": "briefed (not dispatched)",
+  "worktree": "wt-studio-lanes/smb-pdf-stock-presets-1",
+  "base": "e9c46302",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": null,
+  "bg_pids": [],
+  "next": "wait for R49 verdict on SMB-PDF-PRESETS-1 and the lead naming disk and dispatch; then slice 1 red tests",
+  "updated_at": "2026-10-31T14:38:14Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "STU-LAY-159",
+      "STU-LAY-168",
+      "STU-IO-125",
+      "STU-IO-127",
+      "STU-IO-128",
+      "STU-IO-129",
+      "STU-IO-130",
+      "STU-IO-133",
+      "STU-SECTION-003",
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018"
+    ],
+    "refactor_exposure": "none",
+    "binding": "binds at dispatch: every commit of this lane follows the HOST INTEGRATION rules of the common brief",
+    "notes": {
+      "control_descriptors": "MT-30842 declares shared_typed_source; this lane adds no command, so its descriptor half stays open for a command lane",
+      "attribution": "the catalogue is static and shipped presets are read-only; edit_copy is in-memory, persisting it is a later host or Folio step",
+      "diagnostics": "refusals and receipts carry codes; terminal outcomes through press report (src/lib.rs:84)"
+    },
+    "recorded_at": "2026-10-31T14:38:14Z"
+  },
+  "notes": {
+    "brief": "builders/briefs/lane-smb-pdf-stock-presets-1.md",
+    "model_effort": "opus / high (spec tables, a hand-written hostile-text codec, spec conflicts to surface)",
+    "mts": "advances MT-30841 (AC-002..AC-004 all six; AC-001 three of six) and MT-30842 (codec round trip, name/compliance separation, real export of three); closes none: three PDF/X presets carry an open spec gap (output intent not captured) and SD-13 blocks their export",
+    "placement": "stock catalogue in press next to PdfPreset (no new module edge; layout has no press edge); layout records a preset by stable id only (lane SMB-ID-PDF-EXPORT-PREFS-1)",
+    "mt_contract_divergence": "MT-30841/MT-30842 allowed_write_paths and proof recipes name hsk-studio-layout; placement is press by the lead question; test targets keep the recipe names in press",
+    "spec_conflicts": "CCITT monochrome filter (STU-LAY-159) vs image_filter domain (STU-IO-128); nullable end page (STU-LAY-159) vs -1 (STU-IO-129); cannot_embed_font_policy Error captured (STU-LAY-159) vs studio-declared (STU-IO-128); JPEG-2000 tile/quality have no setting home (STU-IO-127); PDF/X output-intent profiles not captured (STU-IO-130)",
+    "root_inputs": "none; no Cargo.toml or feature change, no new dependency",
+    "operator_items": "none; vendor values UNVERIFIED (D5); Acrobat PDF/X oracle stays an Operator item"
+  }
+}

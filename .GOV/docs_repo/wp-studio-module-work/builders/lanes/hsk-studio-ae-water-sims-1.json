@@ -1,0 +1,70 @@
+{
+  "crate": "hsk-studio-composite (STU-CMP-075 simulations: Wave world, Caustics, Bubbles, Foam)",
+  "lane": "SMB-AE-WATER-SIMS-1",
+  "status": null,
+  "phase": "briefed (not dispatched)",
+  "worktree": "wt-studio-lanes/smb-ae-water-sims-1",
+  "base": "e9c46302",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": null,
+  "bg_pids": [],
+  "next": "wait for R49 verdict on SMB-AE-PARTICLES-2 and the lead naming disk and dispatch; then slice 1 red tests",
+  "updated_at": "2026-10-31T14:38:14Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "STU-CMP-075",
+      "STU-CMP-075a",
+      "STU-CMP-075b",
+      "STU-FX-011",
+      "STU-FX-146",
+      "STU-SECTION-003",
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "binding": "binds at dispatch: every commit of this lane follows the HOST INTEGRATION rules of the common brief",
+    "notes": {
+      "gpu": "frames reach render-cpu and render-gpu as StaticContent through the existing pigment route; simulation and raster are CPU",
+      "attribution": "the simulations are pure frame functions; no mutating command is added",
+      "jobs": "a frame is one bounded call; re-simulation from the start tick is bounded by the declared step budget, no queue or worker is added"
+    },
+    "recorded_at": "2026-10-31T14:38:14Z"
+  },
+  "notes": {
+    "brief": "builders/briefs/lane-smb-ae-water-sims-1.md",
+    "model_effort": "opus / high (wave-equation and refraction numerics, stateful re-simulation)",
+    "mts": "closes MT-34181 Wave world, MT-34182 Caustics, MT-34186 Bubbles, MT-34183 Foam (AC-001/AC-002 and the headless half of AC-003; tooltip half waits for D7)",
+    "carried_forward": "displacement-map effect consumer (STU-FX row), folio simulation-layer records, GPU parity; Shatter MT-34178, Card animation MT-34179, Fluid MT-34180, Hair MT-34187, Scatter MT-34188",
+    "root_inputs": "none; no Cargo.toml or feature change (F-R46-8), no new dependency",
+    "operator_items": "none; After Effects parity UNVERIFIED (D5)"
+  }
+}

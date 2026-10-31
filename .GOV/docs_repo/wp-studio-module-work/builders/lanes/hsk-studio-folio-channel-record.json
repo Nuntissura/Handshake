@@ -1,0 +1,68 @@
+{
+  "crate": "hsk-studio-folio + hsk-studio-pigment + hsk-studio-interop-psd (+ hsk-studio-package tests): persistent alpha/spot channel record, selection save/load, PSD alpha channels",
+  "lane": "SMB-FOLIO-CHANNEL-RECORD",
+  "status": null,
+  "phase": "briefed (not dispatched)",
+  "worktree": "wt-studio-lanes/smb-folio-channel-record",
+  "base": "e9c46302",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": null,
+  "bg_pids": [],
+  "next": "wait for R49 verdict on SMB-SETTINGS-SCHEMA-1 (pigment) and the lead naming disk and dispatch; push after SMB-AE-WATER-SIMS-1 and SMB-ID-PDF-EXPORT-PREFS-1",
+  "updated_at": "2026-10-31T14:38:14Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "STU-RAS-022",
+      "STU-RAS-031",
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "binding": "binds at dispatch: every commit of this lane follows the HOST INTEGRATION rules of the common brief",
+    "notes": {
+      "attribution": "every channel save, load and list operation takes an ActorContext from its caller and returns a new record set; no command id is registered until the Channels surface exists (D7)",
+      "gpu": "CPU sample conversion only; no device or GPU path",
+      "diagnostics": "codes and opaque ids only; channel names never reach observe"
+    },
+    "recorded_at": "2026-10-31T14:38:14Z"
+  },
+  "notes": {
+    "brief": "builders/briefs/lane-smb-folio-channel-record.md",
+    "model_effort": "opus / high (PSD channel format work, Folio record contract across four crates)",
+    "mts": "closes MT-038 and MT-30095; advances MT-050 (AC-005, record half of AC-001, Duplicate)",
+    "mt_contract_divergence": "MT-038 and MT-30095 allowed_write_paths name pigment only; a persistent channel needs the Folio record (folio), and the interchange AC needs interop-psd; package gets tests only",
+    "carried_forward": "harness-view migration from the interim session typed entry to the record; Split/Merge, Apply-Image, Calculations; TIFF extra samples",
+    "root_inputs": "none; no Cargo.toml or feature change, no new dependency",
+    "storage": "folio code change rebuilds every folio dependent (same artifact identities, no feature change); widest clippy set of the wave",
+    "operator_items": "none; Photoshop channel polarity and DisplayInfo semantics UNVERIFIED (D5)"
+  }
+}

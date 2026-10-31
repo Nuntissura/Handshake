@@ -1,0 +1,60 @@
+{
+  "crate": "hsk-studio-layout (PDF export preference record STU-LAY-158: six panels, relative bounds, read-back, security errors)",
+  "lane": "SMB-ID-PDF-EXPORT-PREFS-1",
+  "status": null,
+  "phase": "briefed (not dispatched)",
+  "worktree": "wt-studio-lanes/smb-id-pdf-export-prefs-1",
+  "base": "e9c46302",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": null,
+  "bg_pids": [],
+  "next": "wait for R49 verdict on SMB-ID-BOOKLET-1 and the lead naming disk and dispatch; then slice 1 red tests",
+  "updated_at": "2026-10-31T14:38:14Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "STU-LAY-158",
+      "STU-LAY-168",
+      "STU-LAY-159",
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "binding": "binds at dispatch: every commit of this lane follows the HOST INTEGRATION rules of the common brief",
+    "notes": {
+      "attribution": "typed records and validation only; no mutating command is added (persistence is a later folio lane)",
+      "diagnostics": "password values never reach observe, receipts or Debug output"
+    },
+    "recorded_at": "2026-10-31T14:38:14Z"
+  },
+  "notes": {
+    "brief": "builders/briefs/lane-smb-id-pdf-export-prefs-1.md",
+    "model_effort": "opus / high (format contract with relative bounds, undeclared domains to keep honest)",
+    "mts": "closes MT-30834, MT-30835, MT-30836, MT-30837, MT-30838, MT-30839, MT-30840 (headless halves; tooltip halves wait for D7); advances MT-30833 (AC-004 tagged PDF needs the exporter)",
+    "spec_conflicts": "threshold_to_compress_* unit stated as ratio while bounds are multiples of a dpi partner; pdf_magnification ten members unnamed; standards_compliance, interactive_elements_option, pdf_page_layout, sampling and compression methods name no members",
+    "root_inputs": "none; no Cargo.toml change, no new dependency",
+    "operator_items": "none; InDesign behaviour UNVERIFIED (D5)"
+  }
+}

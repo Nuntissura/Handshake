@@ -8245,8 +8245,8 @@
   },
   {
    "lane_id": "SMB-FOLIO-CHANNEL-RECORD",
-   "crate": "hsk-studio-folio",
-   "phase": "queued",
+   "crate": "hsk-studio-folio, hsk-studio-pigment, hsk-studio-interop-psd, hsk-studio-package (tests)",
+   "phase": "briefed (not dispatched); dispatch after STUDIO-R49 records",
    "status": null,
    "owner": null,
    "commits": [],
@@ -8254,12 +8254,17 @@
    "note": "STU-RAS-022: selection/alpha channel record in folio; UI-3 persists selection as a session typed entry studio/<token>.<sha256> as interim; migrate harness to the record",
    "host_integration": {
     "gui_host": "none",
-    "gpu": "none",
-    "refactor_exposure": "none",
-    "binding": "binds at dispatch: the brief must carry the HOST INTEGRATION rules and this block before the builder starts",
-    "recorded_at": "2026-10-30T23:34:39Z",
-    "lane_file_block": false
-   }
+    "gpu": "via_render_provider_port",
+    "refactor_exposure": "low",
+    "lane_file_block": true,
+    "binding": "HOST INTEGRATION rules + block in brief and lane file",
+    "recorded_at": "2026-10-31T14:42:57Z"
+   },
+   "lane_file": "builders/lanes/hsk-studio-folio-channel-record.json",
+   "brief": "builders/briefs/lane-smb-folio-channel-record.md",
+   "worktree": "wt-studio-lanes/smb-folio-channel-record",
+   "base": "e9c46302",
+   "updated_at": "2026-10-31T14:42:57Z"
   },
   {
    "lane_id": "SMB-RENDER-CONTENT-AWARE",
@@ -14531,6 +14536,63 @@
    },
    "note": "Closes MT-30820..MT-30831, advances MT-30819. Creep rule declared linear (InDesign formula UNVERIFIED, D5); rendering imposed sheets is a later lane.",
    "updated_at": "2026-10-31T13:29:12Z"
+  },
+  {
+   "lane_id": "SMB-PDF-STOCK-PRESETS-1",
+   "status": null,
+   "phase": "briefed (not dispatched); dispatch after STUDIO-R49 records",
+   "crate": "hsk-studio-press (stock preset catalogue)",
+   "lane_file": "builders/lanes/hsk-studio-pdf-stock-presets-1.json",
+   "brief": "builders/briefs/lane-smb-pdf-stock-presets-1.md",
+   "worktree": "wt-studio-lanes/smb-pdf-stock-presets-1",
+   "base": "e9c46302",
+   "host_integration": {
+    "gui_host": "none",
+    "gpu": "none",
+    "refactor_exposure": "none",
+    "lane_file_block": true,
+    "binding": "HOST INTEGRATION rules + block in brief and lane file",
+    "recorded_at": "2026-10-31T14:42:57Z"
+   },
+   "updated_at": "2026-10-31T14:42:57Z"
+  },
+  {
+   "lane_id": "SMB-AE-WATER-SIMS-1",
+   "status": null,
+   "phase": "briefed (not dispatched); dispatch after STUDIO-R49 records",
+   "crate": "hsk-studio-composite (Wave world, Caustics, Bubbles, Foam)",
+   "lane_file": "builders/lanes/hsk-studio-ae-water-sims-1.json",
+   "brief": "builders/briefs/lane-smb-ae-water-sims-1.md",
+   "worktree": "wt-studio-lanes/smb-ae-water-sims-1",
+   "base": "e9c46302",
+   "host_integration": {
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "refactor_exposure": "low",
+    "lane_file_block": true,
+    "binding": "HOST INTEGRATION rules + block in brief and lane file",
+    "recorded_at": "2026-10-31T14:42:57Z"
+   },
+   "updated_at": "2026-10-31T14:42:57Z"
+  },
+  {
+   "lane_id": "SMB-ID-PDF-EXPORT-PREFS-1",
+   "status": null,
+   "phase": "briefed (not dispatched); dispatch after STUDIO-R49 records",
+   "crate": "hsk-studio-layout (PDF export preference record)",
+   "lane_file": "builders/lanes/hsk-studio-id-pdf-export-prefs-1.json",
+   "brief": "builders/briefs/lane-smb-id-pdf-export-prefs-1.md",
+   "worktree": "wt-studio-lanes/smb-id-pdf-export-prefs-1",
+   "base": "e9c46302",
+   "host_integration": {
+    "gui_host": "none",
+    "gpu": "none",
+    "refactor_exposure": "none",
+    "lane_file_block": true,
+    "binding": "HOST INTEGRATION rules + block in brief and lane file",
+    "recorded_at": "2026-10-31T14:42:57Z"
+   },
+   "updated_at": "2026-10-31T14:42:57Z"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
