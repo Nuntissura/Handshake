@@ -1,0 +1,52 @@
+--- phase2-guarded-delete.ps1.orig	2026-10-31 11:06:13.160736600 +0100
++++ phase2-guarded-delete.ps1	2026-10-31 11:06:36.630447300 +0100
+@@ -40,7 +40,11 @@
+   # .fingerprint/<pkg>-<hash> dir + its listed debug/deps|examples files with the same hash; only with this switch, only
+   # pkgs harness / harness-view / render-gpu, only if every part was last written before -StaleBefore (UTC ISO)
+   [switch]$AllowRoundStale,
+-  [string]$StaleBefore = ''
++  [string]$StaleBefore = '',
++  # batch K (SMB-ATTRIBUTION-1 feature line): kind round-package-reset = every identity of harness / harness-view /
++  # harness-core in studio-round/target, regardless of successor; only with this switch; same guards as round-stale-identity
++  # except the cutoff, replaced by the base -RecentWriteMin rule (a part written < N min ago skips the item)
++  [switch]$AllowPackageReset
+ )
+ $ErrorActionPreference = 'Continue'
+ $outDir = $PSScriptRoot
+@@ -178,12 +182,15 @@
+ 
+ $rsShape = '^studio-round/target/debug/\.fingerprint/(hsk-studio-(?:harness|harness-view|render-gpu))-([0-9a-f]{16})$'
+ $rsForbidden = $forbiddenAlways -replace '\(studio-round\|', '('   # studio-round waived for this kind only; every other name stays
++$prShape = '^studio-round/target/debug/\.fingerprint/(hsk-studio-(?:harness|harness-view|harness-core))-([0-9a-f]{16})$'
+ $rsCut = $null; if ($StaleBefore) { $rsCut = [datetime]::Parse($StaleBefore, $null, [Globalization.DateTimeStyles]::AdjustToUniversal) }
+ function RoundStaleItem($it, $r) {   # returns the status; fills $r
+   $p = Norm $it.path; $rel = $(if ($p.StartsWith($root.TrimEnd('/') + '/')) { $p.Substring($root.Length) } else { '' })
+-  if (-not $AllowRoundStale -or -not $rsCut) { return 'SKIPPED_ROUND_STALE_NOT_ALLOWED' }
++  $reset = ($it.kind -eq 'round-package-reset')
++  if ($reset) { if (-not $AllowPackageReset) { return 'SKIPPED_PACKAGE_RESET_NOT_ALLOWED' } }
++  elseif (-not $AllowRoundStale -or -not $rsCut) { return 'SKIPPED_ROUND_STALE_NOT_ALLOWED' }
+   if ($Disk -ne 'C' -or -not $rel) { return 'SKIPPED_NOT_UNDER_ALLOWED_ROOT' }
+-  if ($rel -notmatch $rsShape) { return 'SKIPPED_UNEXPECTED_SHAPE' }
++  if ($rel -notmatch $(if ($reset) { $prShape } else { $rsShape })) { return 'SKIPPED_UNEXPECTED_SHAPE' }
+   $hash = $Matches[2]
+   if ($p -match $rsForbidden) { return 'SKIPPED_FORBIDDEN_NAME' }
+   $dbg = $root + 'studio-round/target/debug/'
+@@ -199,7 +206,8 @@
+   $newest = ($parts | Measure-Object LastWriteTimeUtc -Maximum).Maximum
+   $bytes = (@($parts | Where-Object { $_ -is [IO.FileInfo] }) | Measure-Object Length -Sum).Sum + 0
+   $r.newest_write_utc = $newest.ToString('yyyy-MM-ddTHH:mm:ssZ'); $r.size_gib_now = [math]::Round($bytes / 1GB, 3); $r.files = $parts.Count - 1
+-  if ($newest -ge $rsCut) { $r.detail = "newest write $($r.newest_write_utc) >= $StaleBefore"; return 'SKIPPED_WRITTEN_SINCE_FREEZE' }
++  if ($reset) { if (((Get-Date).ToUniversalTime() - $newest).TotalMinutes -lt $recentWriteMin) { $r.detail = "newest write $($r.newest_write_utc) < $recentWriteMin min ago"; return 'SKIPPED_RECENT_WRITE' } }
++  elseif ($newest -ge $rsCut) { $r.detail = "newest write $($r.newest_write_utc) >= $StaleBefore"; return 'SKIPPED_WRITTEN_SINCE_FREEZE' }
+   if (-not $Execute) { $r.gib_deleted = $r.size_gib_now; return 'WOULD_DELETE' }
+   Add-Content -LiteralPath $touchedFile -Value $p
+   $del = 0L; $left = @()
+@@ -223,7 +231,7 @@
+ 
+ $results = @()
+ foreach ($it in $items) {
+-  if ($it.kind -eq 'round-stale-identity') {
++  if ($it.kind -in 'round-stale-identity', 'round-package-reset') {
+     $r = [ordered]@{ id=$it.id; path=(Norm $it.path); disk=$Disk; owner=$it.owner; kind=$it.kind; group=$it.group; size_gib_plan=$it.size_gib; size_gib_now=$null; newest_write_utc=$null; status=''; detail=''; seconds=0; files=0; gib_deleted=0; gib_binned=0 }
+     $sw = [Diagnostics.Stopwatch]::StartNew(); $r.status = RoundStaleItem $it $r; $r.seconds = [math]::Round($sw.Elapsed.TotalSeconds, 1)
+     $r.disk_free_gib_after = [math]::Round((Get-PSDrive $Disk).Free / 1GB, 2)
