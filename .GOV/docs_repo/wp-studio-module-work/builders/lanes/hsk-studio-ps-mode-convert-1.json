@@ -1,0 +1,71 @@
+{
+  "crate": "hsk-studio-prism (document mode records and depth availability, grayscale -> bitmap, RGB -> indexed, indexed colour table and colour-table file codec)",
+  "lane": "SMB-PS-MODE-CONVERT-1",
+  "status": null,
+  "phase": "briefed (not dispatched)",
+  "worktree": "wt-studio-lanes/smb-ps-mode-convert-1",
+  "base": "63ecf5a6",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": null,
+  "bg_pids": [],
+  "next": "wait for the R50 verdict on SMB-R49-FOLLOWUPS-1 and the lead naming disk and dispatch; then slice 1 red tests",
+  "updated_at": "2026-10-31T18:38:25Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "STU-COL-106",
+      "STU-COL-118",
+      "STU-COL-119",
+      "STU-COL-120",
+      "STU-COL-121",
+      "STU-SECTION-003",
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018"
+    ],
+    "refactor_exposure": "low",
+    "binding": "binds at dispatch: every commit of this lane follows the HOST INTEGRATION rules of the common brief",
+    "notes": {
+      "gpu": "CPU conversions only; no device; via_render_provider_port is the MT default for Prism",
+      "attribution": "conversions are pure functions returning new buffers; the mode change that mutates a document is the host's one undoable commit and carries the ActorContext there",
+      "jobs": "a conversion is one bounded call; no queue or worker is added"
+    },
+    "recorded_at": "2026-10-31T18:38:25Z"
+  },
+  "notes": {
+    "brief": "builders/briefs/lane-smb-ps-mode-convert-1.md",
+    "model_effort": "opus / high (dither and quantisation numerics, a binary file codec on hostile input, recovered parameter tables)",
+    "mts": "closes MT-31176, MT-31177, MT-31179; advances MT-31174 (document record and one-undo commit are Folio/host), MT-31175 (duotone, multichannel, grayscale tonal mapping open), MT-31178 (HDR pixel processing not in this lane)",
+    "spec_records": "recovered STU-COL-119 :9913 (bitmap fields :9917-9921 and table :9924-9929, indexed fields :9932-9938 and table :9943-9946, colour table :9952-9955); STU-COL-121 depth matrix :9983-9992",
+    "spec_gaps": "entries of the shipped mac_os and windows colour tables are not in the spec; dither matrices, error-diffusion kernel, halftone spot functions and the local palette algorithms are not recovered (Studio readings, Photoshop parity UNVERIFIED D5)",
+    "root_inputs": "none; no Cargo.toml or feature change, no new dependency",
+    "operator_items": "none"
+  }
+}

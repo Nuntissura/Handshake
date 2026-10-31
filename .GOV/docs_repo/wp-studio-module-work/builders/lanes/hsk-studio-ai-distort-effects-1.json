@@ -1,0 +1,69 @@
+{
+  "crate": "hsk-studio-nib (vector live effects: Distort & Transform family on the recovered STU-VEC-155 records; convert-to-shape typed contract)",
+  "lane": "SMB-AI-DISTORT-EFFECTS-1",
+  "status": null,
+  "phase": "briefed (not dispatched)",
+  "worktree": "wt-studio-lanes/smb-ai-distort-effects-1",
+  "base": "63ecf5a6",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": null,
+  "bg_pids": [],
+  "next": "lead: confirm gate G1 (studio-declared effect laws, Illustrator parity UNVERIFIED), wait for the R50 verdict on SMB-R49-FOLLOWUPS-1, name disk and dispatch; then slice 1 red tests",
+  "updated_at": "2026-10-31T18:38:25Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "STU-FX-027",
+      "STU-FX-028",
+      "STU-VEC-100",
+      "STU-VEC-101",
+      "STU-VEC-154",
+      "STU-VEC-155",
+      "STU-VEC-158",
+      "STU-FX-011",
+      "STU-SECTION-003",
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "binding": "binds at dispatch: every commit of this lane follows the HOST INTEGRATION rules of the common brief",
+    "notes": {
+      "gui_host": "MT-30535/30540/30545..30550 are vulkan_shell_client with shared_typed_source descriptors and module_tab_feature_subtab settings; this lane builds only their engine half and registers no command, so their GUI, descriptor and settings halves stay open (D7)",
+      "attribution": "operators are pure functions of (source, record); the stack commit that mutates a document is a later Folio/host step and carries the ActorContext there",
+      "diagnostics": "refusal and outcome codes only; no geometry, names or parameter text reach observe"
+    },
+    "recorded_at": "2026-10-31T18:38:25Z"
+  },
+  "notes": {
+    "brief": "builders/briefs/lane-smb-ai-distort-effects-1.md",
+    "model_effort": "opus / high (geometry numerics, a projective map, recovered parameter tables with unknown cells)",
+    "mts": "closes MT-32980..32986 (STU-FX-028 Distort & Transform rows: AC-001..AC-004 and the headless half of AC-005); advances the engine half of MT-30535, MT-30540, MT-30545..30550 (vulkan_shell_client) and MT-30559, MT-33001..33003 (convert-to-shape: sizing law not recovered)",
+    "spec_records": "recovered STU-VEC-155 :4177 (roughen :4179-4196, zig zag :4198-4209, pucker and bloat :4211-4219, twist :4221-4229, tweak :4231-4244, free distort :4246-4251); STU-VEC-158 :4350; Transform (step-repeat) has no recovered record (studio_declared rows)",
+    "dispatch_gate_g1": "MT-32982/32983 steps ask for the source-defined law; the spec recovers parameters only. Brief follows the SMB-AE-WATER-SIMS-1 precedent (declared Studio reading, parity UNVERIFIED D5); lead confirms before dispatch",
+    "mt_contract_conflicts": "MT-30559 step 1 and MT-33001 step 1 forbid deriving convert-to-shape geometry before the sizing law is recovered, while MT-33001..33003 step 3 expects geometry; the lane ships the typed contract and a typed refusal",
+    "root_inputs": "none; no Cargo.toml or feature change, no new dependency",
+    "operator_items": "none; Illustrator parity UNVERIFIED (D5)"
+  }
+}

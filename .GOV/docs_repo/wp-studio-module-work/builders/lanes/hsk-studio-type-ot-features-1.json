@@ -1,0 +1,69 @@
+{
+  "crate": "hsk-studio-type (OpenType feature-tag registry and map, font feature availability query, legacy boolean / figure style / stylistic-set projections, special-character catalogs)",
+  "lane": "SMB-TYPE-OT-FEATURES-1",
+  "status": null,
+  "phase": "briefed (not dispatched)",
+  "worktree": "wt-studio-lanes/smb-type-ot-features-1",
+  "base": "63ecf5a6",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": null,
+  "bg_pids": [],
+  "next": "wait for the R50 verdict on SMB-R49-FOLLOWUPS-1 and the lead naming disk and dispatch; then slice 1 red tests",
+  "updated_at": "2026-10-31T18:38:25Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.225",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "STU-TYP-017",
+      "STU-TYP-170",
+      "STU-TYP-171",
+      "STU-TYP-172",
+      "STU-TYP-173",
+      "STU-TYP-174",
+      "STU-TYP-175",
+      "STU-TYP-207",
+      "STU-SECTION-003",
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045"
+    ],
+    "refactor_exposure": "none",
+    "binding": "binds at dispatch: every commit of this lane follows the HOST INTEGRATION rules of the common brief",
+    "notes": {
+      "gui_host": "MT-30956 and MT-30958 are vulkan_shell_client with shared_typed_source descriptors; this lane builds their engine half and registers no command, so the OpenType panel and its descriptors stay open (D7)",
+      "attribution": "queries and projections are pure; storing a tag map on a text range is a Folio/host commit outside this lane",
+      "diagnostics": "codes and opaque ids only; tags, text and font names never reach observe"
+    },
+    "recorded_at": "2026-10-31T18:38:25Z"
+  },
+  "notes": {
+    "brief": "builders/briefs/lane-smb-type-ot-features-1.md",
+    "model_effort": "opus / high (hostile OpenType table parsing, independent font oracle, spec tables)",
+    "mts": "closes MT-30957, MT-30959, MT-31140, MT-31141; advances MT-30955 (229-tag observed union not in the spec), MT-30960 (Package round trip outside type), MT-30956 and MT-30958 (vulkan_shell_client, engine half), MT-31005..31009 (catalog half; composition in layout)",
+    "spec_records": "STU-TYP-171 group table :8528-8549 (recovered tag groups); STU-TYP-174 boolean list :8562; STU-TYP-175 figure_style enumeration :8569; STU-TYP-207 catalogs :8936",
+    "mt_contract_defects": "MT-30960 step 2 requires a stylistic-set bitfield round trip through Package import/export ports, but its allowed_write_paths and Type's dependencies (accord, observe) exclude package",
+    "spec_gaps": "the 229 observed feature tags of STU-TYP-170 are not listed in the spec; stream sentinels for STU-TYP-207 markers and breaks are not assigned (spec-owner item)",
+    "root_inputs": "none; no Cargo.toml or feature change, no new dependency, no new fixture",
+    "operator_items": "none; the HarfRust provider path is untouched; vendor boolean-to-tag mappings UNVERIFIED (D5)"
+  }
+}
