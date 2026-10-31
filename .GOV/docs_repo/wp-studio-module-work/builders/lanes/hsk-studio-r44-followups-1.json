@@ -1,0 +1,167 @@
+{
+ "crate": "hsk-studio-pigment, hsk-studio-prism (additive decode), hsk-studio-harness-view (egui-free call sites and tests), hsk-studio-harness (CLI), hsk-studio-harness-core (manual entry), hsk-studio-pulse, hsk-studio-interop-vector-svg, hsk-studio-composite, hsk-studio-interop-fig-native, hsk-studio-layout",
+ "lane": "SMB-R44-FOLLOWUPS-1",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed 78f027c9 to origin/codex/handshake-studio-assets (base b425b54a, origin unmoved; push exit 0, origin re-read = 78f027c9); green bundled runs on ba719652 (+ focused re-run on 78f027c9 for its two-file clippy fix)",
+ "candidate": "78f027c9",
+ "commits": [
+  {
+   "sha": "2bb77d89",
+   "finding": "red tests (all slices) + additive Prism decode + compile stubs",
+   "subject": "SMB-R44-FOLLOWUPS-1: red tests for F-R44-1..7, -9, -10, -12, -13, -15 (+ additive Prism decode, compile stubs)"
+  },
+  {
+   "sha": "3ca71603",
+   "finding": "F-R44-1 (+ decode copy of F-R44-8)",
+   "subject": "pigment, harness-view: F-R44-1 unpainted fill pixels keep their bytes; the viewer decodes through Prism's exact inverse"
+  },
+  {
+   "sha": "4b0de8d5",
+   "finding": "F-R44-2, F-R44-15",
+   "subject": "harness, harness-core: F-R44-2 export-sequence --audio FILE, F-R44-15 typed output, range and total-size refusals"
+  },
+  {
+   "sha": "4f857ae5",
+   "finding": "F-R44-3, F-R44-12",
+   "subject": "harness-view: F-R44-3 export root mix is the bus stream the mixer plays; F-R44-12 clip lane points on the sample grid"
+  },
+  {
+   "sha": "05ba0f50",
+   "finding": "F-R44-7",
+   "subject": "pulse: F-R44-7 nested frame expansion charged per visited layer against max_layers"
+  },
+  {
+   "sha": "d9a20e75",
+   "finding": "F-R44-4, F-R44-10",
+   "subject": "interop-vector-svg, composite: F-R44-4 marker paint must be the stroke's; F-R44-10 closed-shape markers are typed"
+  },
+  {
+   "sha": "90df706f",
+   "finding": "F-R44-5",
+   "subject": "interop-fig-native, harness-view: F-R44-5 marked strokes painted once below full opacity"
+  },
+  {
+   "sha": "ba719652",
+   "finding": "F-R44-6, F-R44-9 (2)",
+   "subject": "layout: F-R44-6 plain reflow keeps the authored frame size; only reflow_autosize resizes"
+  },
+  {
+   "sha": "78f027c9",
+   "finding": "clippy clean-up",
+   "subject": "harness, harness-view tests: clippy clean-up from the bundled run"
+  }
+ ],
+ "tests": {
+  "red": {
+   "sha": "2bb77d89 (pushed)",
+   "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r44-followups-1/red-smb-r44-followups-1-2bb77d89.log (first line HEAD=2bb77d89)",
+   "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 STUDIO_LANE_CHECK_NO_DEPENDENTS=1 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-r44-followups-1 --disk d --tests <the 18 new/changed test names> -- cargo nextest run -p prism -p pigment -p pulse -p composite -p layout -p interop-vector-svg -p interop-fig-native -p harness-view -p harness --features hsk-studio-composite/motion,hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch,hsk-studio-harness/media --no-fail-fast",
+   "result": "compiles, clippy clean in every touched file; 21 run: 13 failed as intended (one or more per finding F-R44-1..7, -10, -12, -15), 8 passed (Prism decode tests: the additive API is green in the red commit; nest_2 refused_entry_write and export_with_moved_envelopes: F-R44-13 is a proof gap, the stricter tests pass on the existing behaviour; layout threaded_reflow refusal test with the stricter Ascent pin; 2 text-entry tests matched by the filter)",
+   "exit": 100
+  },
+  "run1": {
+   "sha": "ba719652",
+   "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r44-followups-1/lane-check-smb-r44-followups-1-ba719652-A.log (first line HEAD=ba719652)",
+   "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-r44-followups-1 --disk d -- cargo nextest run -p hsk-studio-prism -p hsk-studio-pigment -p hsk-studio-pulse -p hsk-studio-composite -p hsk-studio-layout -p hsk-studio-interop-vector-svg -p hsk-studio-interop-fig-native -p hsk-studio-harness-core -p hsk-studio-harness-view -p hsk-studio-harness -p hsk-studio-interop-layout -p hsk-studio-interop-vector -p hsk-studio-interop-fig --features hsk-studio-composite/motion,hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch,hsk-studio-harness/media --no-fail-fast",
+   "disk": "D:",
+   "scope": "step 0 clean; clippy over the 13 crates and direct dependents develop, interop-media, interop-psd, render-cpu, render-gpu; WHOLE suites (rules 4a/4b) of prism, pigment, pulse, composite (motion), layout, interop-vector-svg, interop-fig-native, harness-core, harness-view (desktop+audio-batch), harness (media), interop-layout, interop-vector, interop-fig",
+   "passed": 1343,
+   "failed": 3,
+   "skipped": 22,
+   "exit": 100,
+   "failures_explained": "harness viewer_panels audio_batch_panel_runs_the_queue_or_names_its_feature, audio_surfaces_are_reachable_or_name_their_feature, viewer_shell function_keys_and_workspace_entries_open_every_surface: feature-unification artifacts of this invocation (harness built with media only while harness-view got audio-batch from the -p feature list; the tests compare harness's own cfg with harness-view's surface state). All three PASS in run2 and run3, where both crates carry the same features (no lane code involved)"
+  },
+  "run2": {
+   "sha": "ba719652",
+   "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r44-followups-1/lane-check-smb-r44-followups-1-ba719652-B-media.log (first line HEAD=ba719652)",
+   "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 STUDIO_LANE_CHECK_NO_DEPENDENTS=1 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-r44-followups-1 --disk d -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/media --no-fail-fast",
+   "scope": "harness unit [media] (harness-view viewer+media without audio-batch: compiles the timeline_export bus path without the score effect builder)",
+   "passed": 328,
+   "failed": 0,
+   "skipped": 20,
+   "exit": 0
+  },
+  "run3": {
+   "sha": "ba719652",
+   "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r44-followups-1/lane-check-smb-r44-followups-1-ba719652-C-desktop-audio-batch.log (first line HEAD=ba719652)",
+   "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 STUDIO_LANE_CHECK_NO_DEPENDENTS=1 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-r44-followups-1 --disk d -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
+   "scope": "the lane-proven harness-view set [desktop, audio-batch] with harness at the same features",
+   "passed": 375,
+   "failed": 0,
+   "skipped": 20,
+   "exit": 0
+  },
+  "run4": {
+   "sha": "78f027c9 (pushed)",
+   "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r44-followups-1/lane-check-smb-r44-followups-1-78f027c9-D-fix.log (first line HEAD=78f027c9)",
+   "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 STUDIO_LANE_CHECK_NO_DEPENDENTS=1 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-r44-followups-1 --disk d -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/media --no-fail-fast -E 'binary(cli_export_sequence) | binary(viewer_timeline_nest_2)'",
+   "scope": "re-run of the two files 78f027c9 changes (cli.rs saturating_mul, nest_2 helper cfg gates); clippy clean for both",
+   "passed": 7,
+   "failed": 0,
+   "exit": 0
+  }
+ },
+ "blockers": [],
+ "bg_pids": [],
+ "updated_at": "2026-10-31T01:30:13Z",
+ "host_integration": {
+  "schema_id": "hsk.studio_mt_host_integration@1",
+  "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+  "spec_version": "v02.225",
+  "gui_host": "none",
+  "gpu": "via_render_provider_port",
+  "diagnostics": {
+   "internal_diagnostics": "producer_through_observe",
+   "flight_recorder": "none",
+   "palmistry": "none"
+  },
+  "control_descriptors": "none",
+  "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+  "jobs": "bounded_admission_via_job_port",
+  "settings": "none",
+  "spec_refs": [
+   "STU-ARC-002",
+   "STU-ARC-008",
+   "STU-ARC-012",
+   "STU-ARC-013",
+   "STU-VAL-002"
+  ],
+  "refactor_exposure": "low",
+  "binding": "binds at dispatch: every commit of this lane follows the HOST INTEGRATION rules of the common brief",
+  "notes": {
+   "gui_host": "no surface code: harness-view edits are call sites and tests in egui-free files plus the decode body in view/fill_tools.rs (D6 lead reading)",
+   "gpu": "pigment, prism and composite stay render providers behind the pigment RenderBackend trait; no device, queue or budget owner added",
+   "jobs": "the export path keeps reel's existing bounded queue and limits; this lane adds no queue, worker or job; JobPort adoption is RF-08",
+   "control_descriptors": "the CLI --audio flag extends an existing command's manual entry; no new command or control id",
+   "attribution": "no new mutating op; the ClipPan and clip-volume refusals tighten an existing op"
+  },
+  "recorded_at": "2026-10-31T00:07:10Z"
+ },
+ "notes": {
+  "spec_basis": "repair of validation/round-R44.json findings_not_failures F-R44-1..7, -9, -10, -12, -13, -15 (brief builders/briefs/lane-smb-r44-followups-1.md); vendor behaviour (Photoshop, Premiere, Audition, SVG viewers, Figma, InDesign) UNVERIFIED (D5)",
+  "F-R44-1": "pigment Region::paint: coverage 0 where source alpha x paint opacity == 0 and the target's own bytes are the replacement (masked_replace keeps the before bytes); a result whose every pixel is unpainted is nothing_to_fill (the existing all-zero refusal kept and applied after painting). Prism DisplayEncoding::decode (additive): srgb = CTL moncurve_f (2.4, 0.055; derived as the exact inverse of moncurve_r: breakpoint offs/(g-1), slope 1/rs), bt1886 V^2.4, gamma22 V^2.2, input clamped to [0,1]; pq refused with the new additive Error::DecodeUnsupported (decode_unsupported): Prism carries no ST 2084 inverse. Harness-view fill_tools decode() body = Srgb.decode (only edit in that file). Tests: pigment fill_tools unpainted_pixels_get_coverage_zero_and_keep_their_bytes; prism tests/view_transform_decode.rs (3); harness-view tests/viewer_fill_hdr.rs (32-bit PSD layer at linear 1.5 / 0.002: unpainted pixels bit-identical, painted = pigment result through Prism decode, undo/redo byte-identical)",
+  "F-R44-2 / F-R44-15": "preferred route: harness cli --audio FILE (repeatable) decoded by hsk_studio_reel::decode_audio_file (max frames = audio_import::ImportLimits default), keyed sha256:<hex> of the bytes (as bind_program_media), bound with Viewer::set_export_audio; port adapter CliAudio in cli.rs (no harness-view change, no manifest change). Refusals: audio_rate_mismatch, audio_decode, audio_empty, audio_port; audio_sources_missing carries hint '--audio FILE'. F-R44-15: absolute() error -> output_unresolved (stage output); --out past duration rounded up to a whole frame -> export_range (stage range) before any file is read; MAX_EXPORT_INPUT_BYTES = 2 GiB (Studio reading: the one-item in-memory limit view::media::MAX_MEDIA_BYTES also bounds the sum) checked from file sizes before reading -> media_too_large with total_limit. Manual entry (usage, summary, refusals) updated. Tests: harness cli_export_sequence export_sequence_cli_exports_the_sound_of_audio_files (CLI receipt and file = headless set_export_audio; the sound changes the file; without --audio the hint names --audio), export_sequence_cli_refuses_audio_range_output_and_total_size_typed",
+  "F-R44-3": "timeline_export_job_with: when NestedDocument.routing holds a non-default routing for the exported sequence (StudioAudioRouting::new compared) or the sequence has a submix track, the root mix is TimelineBusStream built exactly as Viewer::bus_stream composes it (NestedAudioSources::with_routing + NestedExtents + audio_session::build_bus_stream with bus_effect); without feature audio-batch the factory refuses effects (mixdown audio_unsupported). Otherwise the plain TimelineMixStream as before. Fallback export_root_mix_unsupported NOT needed: the Clone bound is met by sharing the sources in an Arc, which needs AS: Sync. PUBLIC BOUND CHANGE: timeline_export_job and timeline_export_job_with take AS: AudioSources + Send + Sync + 'static (every workspace caller's type is Sync: export_media SharedAudio, harness tests Ramp / NoAudio, nest tests Silent / Tone / NoAudio). Module docs of timeline_export and export_media updated; manual says the CLI mixes with the stored routing under audio-batch. Tests: nest_2 export::export_root_mix_equals_the_bus_stream_with_a_clip_pan_and_a_master_lane (clip pan envelope + master volume lane; export PCM = v.bus_stream within 1e-6; plain TimelineMixStream differs > 1e-3)",
+  "F-R44-12": "timeline/audio.rs LaneEdit::Clip and ::ClipPan carry the lanes' rate; put() refuses not_sample_aligned on clip.timeline_start + offset (AddPoint and MovePoint). Test: harness-view tests/viewer_timeline_lane_grid.rs (one tick off the grid refused, no history step, entry unchanged; on the grid one step; off-grid move refused)",
+  "F-R44-13": "nest_2 refused_entry_write_leaves_sequences_and_entry_unchanged: a second entry write (Run::set_tiles_and_entry, one undoable step) undone once before the refused write; asserts redo holds 1 entry and the history is unchanged after the refusal. New export::export_with_moved_envelopes_equals_the_pre_nest_mix (enveloped_routing, Nest, export with the document routing = pre-nest bus mix within 1e-6). Both pass at red too (proof gaps, not behaviour)",
+  "F-R44-7": "pulse nest::expand charges every visited layer (media, expanded Sequence, unresolved) against max_layers before its work (visit budget in the module docs). Test: pulse nest nested_frame_fan_out_is_bounded_by_the_layer_budget (4 tracks x 12 deep refused limit_exceeded, cancel untouched; one level = 20 visits ok at 20, refused at 19; 4 unresolved need 4). Existing nest tests unchanged and green",
+  "F-R44-4": "svg_adapter recognise_marker(.., line): maps only when the shape's own paint (fill of a filled shape, stroke of a hollow one; child property over the <marker>'s, which the content inherits) is absent, context-stroke or the same RGB and opacity (alpha x fill/stroke-opacity x opacity) as the element's solid stroke (currentColor via color); absent/context-stroke need opacity 1; a filled shape with its own stroke does not map. Keywords ASCII case-insensitive (V4-08). Tests: svg_markers marker_paint_must_be_the_strokes_paint (red on black lost, black maps, bare, CONTEXT-STROKE, outlined lost, half opacity lost / maps on a half line, currentColor, inherited marker fill)",
+  "F-R44-10": "SVG: markers on polygon or on a path with a closed subpath (Z, or unparsable data) are unsupported_marker at import (test markers_on_closed_shapes_are_typed_losses). Composite: new pub MarkerNote {layer_id, row, closed_subpaths, consumed_subpaths: (path index, subpath index)}, code() marker_closed_subpath | marker_subpath_consumed; PreparedVectors gains private field marker_notes (no struct literal of the type exists outside its Default; checked) and accessors marker_notes(layer_id) / all_marker_notes(); recorded through a RefCell on FolioCx per layer, dropped with a refused layer. Test: composite tests/vector_marker_notes.rs against nib's own marker_outlines report",
+  "F-R44-5": "fig-native export: below full opacity or under a blend mode a stroke row with marker outlines is drawn opaque into one press transparency group painted once with the row alpha and mode (begin_group/end_group); opaque exports unchanged. Test: fig_markers half_opacity_markers_are_painted_once_in_one_group (PDF content read back by press read_vector_pages: one group opacity 0.5, stroke and marker fills alpha 1 inside, none at 0.5 outside; render: no pixel darker than the stroke alone; opaque: no group). harness-view reviewer note READ AND PARTLY CONFIRMED: the file is src/view/vector/pdf_export.rs (egui-free); a row is one fill per fill rule, so same-rule rows were already painted once, but a row mixing the non-zero stroke outline and an even-odd nib ring marker (arrow.circle, arrow.square) was two fills each with the row alpha. Same repair (draw_parts: group when > 1 part and alpha < 1 or a blend mode); unit test pdf_export::tests::two_rule_parts_at_half_opacity_are_one_group_painted_once. Viewer-authored rows are 100 % Normal, so this reaches imported rows only",
+  "F-R44-6": "layout reflow_sized(.., autosize: bool): only reflow_autosize passes true; reflow / reflow_typeset / reflow_flow / reflow_grid / reflow_cjk compose the authored size. The autosize_threaded_frame / autosize_multi_column refusals come from folio_input and stay on every entry point. Module docs and DESCRIPTOR frame_autosize.auto_size sentence updated",
+  "F-R44-9": "(2) threaded_reflow Ascent pin: minimum_first_baseline_offset 4 below the ascent 10, baseline 10 asserted (fixed path would give 4). (1) confirmed after base b425b54a: interop-layout tests/layout_reflow_folio_export.rs:271 pins FirstBaselineMetricUnavailable(CapHeight) and tests/idml_frame_autosize.rs type_shaped_paragraphs_carry_first_baseline_metrics pins first_baseline_metric_unavailable for the toy shaper (AUTOSIZE-2); interop-layout not edited, suite green in run1",
+  "F-R44-8 (decode copy)": "closed by F-R44-1's decode; the block-core dedupe stays for the GUI lanes (brief)",
+  "changed_tests_of_other_lanes": [
+   "layout tests/frame_autosize.rs height_only_fits_the_last_line_and_grows_and_shrinks (SMB-ID-FRAME-AUTOSIZE-1/2): plain reflow now equals the authored-size composition (auto-size off) and, for the authored 20 pt case, oversets and differs from reflow_autosize; no other AUTOSIZE-1/2 test pins plain-entry auto-size (frame_autosize.rs:332 refusal and threaded_reflow.rs:706 refusal unchanged and green)",
+   "layout tests/threaded_reflow.rs folio_inputs_select_the_story_thread_and_unsupported_properties_are_refused Ascent pin (AUTOSIZE-1): stricter (minimum 4)",
+   "interop-vector-svg tests/svg_markers.rs export_then_import_gives_the_same_markers (SMB-AI-ARROWHEADS-2): the hollow chevron and circle on the red and blue lines now use stroke=context-stroke (a black hollow marker there is a loss under F-R44-4); expectations unchanged",
+   "harness-view tests/viewer_timeline_nest_2.rs (SMB-PR-NEST-2): refused_entry_write stricter (real redo history); job() helper bound + Sync; two new export tests; three helpers cfg(audio-batch)",
+   "harness tests/cli_export_sequence.rs (SMB-PR-SEQ-EXPORT-UI-1): package() delegates to package_with(dir, None) (same document); two new tests"
+  ],
+  "rule_4e": "harness-view viewer_fill_hdr.rs #![cfg(feature = \"viewer\")] -> unit [viewer]; viewer_timeline_lane_grid.rs #![cfg(feature = \"audio-batch\")] -> unit [desktop, audio-batch]; nest_2 export tests cfg(media)+cfg(audio-batch) -> unit [desktop, audio-batch]; pdf_export unit test in the viewer lib -> both units; harness cli_export_sequence.rs #![cfg(feature = \"media\")] -> harness unit [media]. No missing unit",
+  "step0": "lane-check step 0 clean on 2bb77d89 and ba719652; no machine path literals",
+  "doctests": "no doc example added or changed (rule 4d not triggered)",
+  "push": "first of this wave per the lead; render-gpu's closure changes through prism (additive decode, new Error variant) and pigment (fill_tools only)",
+  "observations_not_fixed": "pre-existing dead-code warnings in nest_2 (undo_labels, routing_bytes) under media without audio-batch, from base; not touched"
+ }
+}

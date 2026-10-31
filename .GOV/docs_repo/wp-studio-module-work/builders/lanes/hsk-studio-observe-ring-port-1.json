@@ -1,0 +1,127 @@
+{
+ "crate": "hsk-studio-observe (additive only)",
+ "lane": "SMB-OBSERVE-RING-PORT-1",
+ "status": null,
+ "phase": "green bundled run on ea811c0d (local, not pushed); waiting: SMB-R44-FOLLOWUPS-1 not on origin at 2026-10-31T00:24:49Z (origin tip b425b54a); then rebase, push with PUSH SAFETY, READY_FOR_VALIDATION",
+ "candidate": null,
+ "commits": [
+  {
+   "sha": "eae1d919",
+   "slice": "red",
+   "subject": "observe (SMB-OBSERVE-RING-PORT-1): red tests for the RF-04 phase 0 ring producer port"
+  },
+  {
+   "sha": "f85587bb",
+   "slice": "1 RingRecord",
+   "subject": "observe (SMB-OBSERVE-RING-PORT-1): RingRecord field-by-field little-endian bytes in the pinned 104-byte layout"
+  },
+  {
+   "sha": "a474dc13",
+   "slice": "2 RingCode + mapping",
+   "subject": "observe (SMB-OBSERVE-RING-PORT-1): RingCode in the proposed Studio block 0x5300..=0x53FF and the outcome/delivery mapping"
+  },
+  {
+   "sha": "6cd4be62",
+   "slice": "3 RingProducerPort",
+   "subject": "observe (SMB-OBSERVE-RING-PORT-1): RingProducerPort real-time contract"
+  },
+  {
+   "sha": "647019aa",
+   "slice": "4 constructors",
+   "subject": "observe (SMB-OBSERVE-RING-PORT-1): RingRecord::terminal and RingRecord::delivery_failure from observe state"
+  },
+  {
+   "sha": "ea811c0d",
+   "slice": "5 DESCRIPTOR",
+   "subject": "observe (SMB-OBSERVE-RING-PORT-1): DESCRIPTOR ring_port key"
+  }
+ ],
+ "capabilities_done": [
+  "RingRecord: repr(C) Copy 104 bytes align 8, no implicit padding (compile-time asserts), first 56 bytes = DiagEvent offsets @292d7a1c, identity tail module u32 / reserved u32 / correlation u64 / session [u64;2] / process [u64;2]; to_le_bytes",
+  "RingCode closed repr(u16) in PROPOSED block 0x5300..=0x53FF (7 outcome codes, 4 delivery codes, 7 reserved GPU codes), closed from_u16, host projection Other",
+  "ring_of_outcome / ring_of_delivery exhaustive Studio readings; RingPhase/RingSeverity = DiagPhase/DiagSeverity discriminants",
+  "RingProducerPort: Send { try_record(&mut self, &RingRecord) -> Result<(), RingRefusal{Saturated, Unavailable}> }",
+  "RingRecord::terminal(&Receipt, identity, timing), RingRecord::delivery_failure(error, correlation, attempted_sequence, identity, timing)",
+  "DESCRIPTOR ring_port key (JSON valid, 6 top-level keys)"
+ ],
+ "tests": {
+  "red": {
+   "sha": "eae1d919",
+   "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-observe-ring-port-1/red-smb-observe-ring-port-1-eae1d919.log (first line HEAD=eae1d919)",
+   "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 STUDIO_LANE_CHECK_NO_DEPENDENTS=1 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-observe-ring-port-1 --disk d -- cargo nextest run -p hsk-studio-observe --no-fail-fast",
+   "disk": "D:",
+   "result": "compiles; 27 run, 19 passed (foundation_contract unchanged), 8 failed as intended (all tests/ring_port.rs: unimplemented bodies, zero bytes, implicit discriminants, no ring_port key)",
+   "exit": 100
+  },
+  "focused": {
+   "sha": "ea811c0d",
+   "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-observe-ring-port-1/focused-smb-observe-ring-port-1-ea811c0d.log (first line HEAD=ea811c0d)",
+   "argv": "same lane-check, --disk d, no dependents, then cargo test --doc -p hsk-studio-observe (studio-env, STUDIO_BUILD_DISK=d)",
+   "result": "clippy: no warning in ring.rs or tests/ring_port.rs (2 pre-existing too_many_arguments in lib.rs:924/1024, untouched); nextest 27 run, 27 passed; doctests 3 passed (1 example, 2 compile_fail)",
+   "exit": 0
+  },
+  "run1": {
+   "sha": "ea811c0d",
+   "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-observe-ring-port-1/lane-check-smb-observe-ring-port-1-ea811c0d.log (first line HEAD=ea811c0d, started 2026-10-31T00:22:03Z)",
+   "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-observe-ring-port-1 --disk d -- cargo nextest run -p hsk-studio-observe -p hsk-studio-harness-core -p hsk-studio-harness --no-fail-fast",
+   "disk": "D:",
+   "result": "green",
+   "scope": "step 0 clean; clippy --tests over observe, harness-core, harness and the 36 other direct dependents of observe (38 total); whole suites of observe, harness-core and harness (default features; harness-core embeds observe DESCRIPTOR and harness_headless parses every descriptor); observe doctests from the focused log on the same tree ea811c0d",
+   "clippy": "no warning in ring.rs or tests/ring_port.rs; observe's only warnings are the 2 pre-existing too_many_arguments at lib.rs:924/1024; dependents' warnings are in untouched files",
+   "passed": 62,
+   "failed": 0,
+   "skipped": 0,
+   "exit": 0
+  }
+ },
+ "blockers": [],
+ "lock_wait_s": null,
+ "bg_pids": [],
+ "next": "wait for the lead's message that SMB-R44-FOLLOWUPS-1 is on origin; then fetch, rebase (re-run only if observe or accord changed or a conflict), diff --stat check, guarded push, READY_FOR_VALIDATION with candidate sha",
+ "updated_at": "2026-10-31T00:25:11Z",
+ "notes": {
+  "spec_basis": "STU-VAL-002 (module 14 v02.225 :22682) Studio modules implement Flight Recorder, internal_diagnostics and Palmistry posture through shared typed diagnostic ports and existing host owners; STU-ARC-010 (14:215); GUI-DESKTOP-049 (15:130); GUI-DESKTOP-050 (15:132) stable ids, real correlation and session identity, exact PID and process-birth binding, correlation is not permission or an invented process identity; inventory SC-4 correlation_id is not a host acceptance identity; RF-04 phase 0, SD-04",
+  "host_contract_read_only": "wtc-native-editors-v1 @292d7a1c src/frontend/handshake_native/diag_ring/src/schema.rs (DiagEvent 56-byte layout table, DiagEventCode 0..11 + 65535, DiagPhase 0..4, DiagSeverity 0..2) and src/diagnostics/recorder.rs record() (Mutex<VecDeque>, not RT-safe: Handshake prerequisite). Neither edited nor depended on; ring::host_mirror is a cited contract mirror",
+  "proposed_code_block": "0x5300..=0x53FF is a PROPOSAL to Handshake recorded in the DESCRIPTOR and module docs; the host has not accepted it. Until allocated, RingCode::host_event_code projects every Studio code to Other (65535) and the code survives only in the record's own code field, never in counter_a/counter_b",
+  "identity_tail": "module, reserved, correlation, session, process: what DiagEvent lacks (inventory gap 'no module or correlation field in DiagEvent'); Handshake must add it (MT-36233, SD-04). Observe never derives ids from text and never fills process identity (GUI-DESKTOP-050)",
+  "brief_deviations": "(1) delivery_failure takes an explicit CorrelationRef before attempted_sequence (brief signature: DeliveryError, attempted_sequence, identity, timing): a delivery failure has no receipt, and RingIdentity holds only the producer identity (module, thread, session, process), so terminal takes correlation from the receipt and delivery_failure from the caller; (2) counter_b of terminal = receipt revision (brief fixed only counter_a = delivered bytes); (3) a general typed RingRecord::new(kind, sequence, counters, correlation, identity, timing) exists so the render-gpu follow-up can emit the reserved GPU codes without a second observe change",
+  "realtime_proof": "by construction: RingRecord is Copy, fixed size, passed by &; Result<(), RingRefusal> is Copy; trait holds no lock; plus tests/ring_port.rs producer_records_from_a_second_thread_and_saturation_is_typed counts zero allocations (thread-local counting global allocator in the test binary; unsafe allowed there: no workspace lints; ring.rs has #![forbid(unsafe_code)]) for record construction and try_record through &mut dyn RingProducerPort on a second thread, with a counterfactual Vec allocation counted as 1",
+  "no_text_proof": "tests/ring_port.rs no_text_crosses_the_ring_port: Observations with decoy private_project_text, decoy DomainId and six decoy ActorContext strings through real Observe::emit (counterfactual: the SinkPort frame carries the decoys), records for all 7 outcomes and 4 delivery errors, no decoy and no 4-byte run of any input text in the record bytes; compile_fail doctests RingRecord::from(&str), ModuleId::from(&str)",
+  "public_api": "additive only: pub mod ring, re-exports in lib.rs, DESCRIPTOR key; no new variant on Outcome/FailureCode/DeliveryError/DeliveryClass/Error; MAX_FRAME_BYTES, MAX_PROGRESS_EVENTS, WIRE_VERSION, SinkPort and Observe::emit* unchanged; tests/foundation_contract.rs unchanged and green",
+  "4c_4d_4e": "4c: lane-check step 0 clean (no drive-letter literals); 4d: doc examples added (1 example + 2 compile_fail), cargo test --doc -p hsk-studio-observe green on ea811c0d; 4e: no feature-gated test files (observe has no features; harness/harness-core suites run with default features)",
+  "downstream": "observe is a direct dependency of 38 crates: this push invalidates the closure of every later lane (rebase onto it before their runs)",
+  "out_of_owned_paths": "none",
+  "lead_accepted": "lead message received 2026-10-31T00:25:11Z: all four accepted: (1) delivery_failure takes an explicit CorrelationRef; (2) terminal counter_b = receipt revision; (3) general typed RingRecord::new(kind, sequence, counters, correlation, identity, timing); (4) receiver stays &mut self (lead's '&self' meant the borrowed &RingRecord; the brief's receiver stands)"
+ },
+ "host_integration": {
+  "schema_id": "hsk.studio_mt_host_integration@1",
+  "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+  "spec_version": "v02.225",
+  "gui_host": "none",
+  "gpu": "none",
+  "diagnostics": {
+   "internal_diagnostics": "producer_through_observe",
+   "flight_recorder": "none",
+   "palmistry": "none"
+  },
+  "control_descriptors": "none",
+  "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+  "jobs": "none",
+  "settings": "none",
+  "spec_refs": [
+   "GUI-DESKTOP-049",
+   "GUI-DESKTOP-050",
+   "STU-ARC-010",
+   "STU-VAL-002"
+  ],
+  "refactor_exposure": "medium",
+  "binding": "binds at dispatch: every commit of this lane follows the HOST INTEGRATION rules of the common brief",
+  "notes": {
+   "internal_diagnostics": "phase 0 producer shape only; the host adapter onto DiagRingWriter and the RT-safe hand-off are Handshake work (MT-36190, MT-36233)",
+   "palmistry": "none in phase 0: no ring exists on the Studio side; ring visibility is proven in phase 2 on the Studio pane (MT-36233, MT-36251)",
+   "attribution": "session and process are opaque placeholders filled only by the host; observe never invents a process identity (GUI-DESKTOP-050)",
+   "exposure": "observe is a direct dependency of 38 crates at 3cf0f149 (the inventory says 35); the change is additive, so no dependent edits"
+  },
+  "recorded_at": "2026-10-31T00:07:10Z"
+ }
+}

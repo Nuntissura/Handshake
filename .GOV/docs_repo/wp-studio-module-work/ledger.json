@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-31T00:11:28Z",
+ "updated_at": "2026-10-31T01:32:28Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -12811,15 +12811,25 @@
   {
    "lane_id": "SMB-R44-FOLLOWUPS-1",
    "crate": "hsk-studio-pigment + prism (decode) + harness-view (two egui-free files + one function in fill_tools.rs) + harness CLI + harness-core manual + pulse + interop-vector-svg + composite + interop-fig-native + layout (last slice)",
-   "phase": "coding (dispatched 2026-10-31T00:11:28Z); runs on D:; pushes first of the wave",
-   "status": null,
+   "phase": "validation (R46)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-r44-followups-1.json",
    "brief": "builders/briefs/lane-smb-r44-followups-1.md",
    "worktree": "wt-studio-lanes/smb-r44-followups-1",
    "disk": "D:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "78f027c9",
+   "commits": [
+    "2bb77d89",
+    "3ca71603",
+    "4b0de8d5",
+    "4f857ae5",
+    "05ba0f50",
+    "d9a20e75",
+    "90df706f",
+    "ba719652",
+    "78f027c9"
+   ],
    "verdicts": [],
    "host_integration": {
     "gui_host": "none",
@@ -12831,12 +12841,12 @@
     "recorded_at": "2026-10-31T00:11:28Z",
     "lane_file_block": false
    },
-   "note": "R44 MEDIUM F-R44-1..6 + LOW 7/9/10/12/13/15 (F-R44-8 egui-file cleanup excluded under D1; F-R44-16 already closed by FIG-GRID-2). Lead decisions: the fill_tools.rs sRGB function edit is allowed (no toolkit code); F-R44-3 fixed in the egui-free timeline_export.rs; F-R44-6 reading: plain reflow keeps the authored size (AUTOSIZE pin frame_autosize.rs:243 changes, listed for the validator). Base b425b54a."
+   "note": "R44 MEDIUM F-R44-1..6 + LOW 7/9/10/12/13/15 (F-R44-8 egui-file cleanup excluded under D1; F-R44-16 already closed by FIG-GRID-2). Lead decisions: the fill_tools.rs sRGB function edit is allowed (no toolkit code); F-R44-3 fixed in the egui-free timeline_export.rs; F-R44-6 reading: plain reflow keeps the authored size (AUTOSIZE pin frame_autosize.rs:243 changes, listed for the validator). Base b425b54a.; 2026-10-31T01:32:28Z pushed b425b54a..78f027c9 (ls-remote verified, no root input changed); D: runs at ba719652: A all suites 1343/1346 (3 harness feature-check tests failed: viewer_panels audio_batch_panel_runs_the_queue_or_names_its_feature, audio_surfaces_are_reachable_or_name_their_feature, viewer_shell function_keys_and_workspace_entries_open_every_surface; they compare harness and harness-view features and the run mixed feature lists), B harness media unit 328/328 and C desktop+audio-batch 375/375 pass them; D after the clippy fix 78f027c9 7/7 (Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r44-followups-1/lane-check-*). Closes F-R44-1..7/9/10/12/13/15; F-R44-8 left to the GUI lanes (D1), F-R44-16 already closed by FIG-GRID-2. New prism DisplayEncoding::decode (PQ refused decode_unsupported); export-sequence --audio FILE; timeline_export_job bound AS: Sync. Changed tests of other lanes: layout frame_autosize.rs height_only + threaded_reflow.rs Ascent (AUTOSIZE-1/2), interop-vector-svg svg_markers.rs round-trip (ARROWHEADS-2), viewer_timeline_nest_2.rs (NEST-2, stricter), cli_export_sequence.rs (SEQ-EXPORT-UI-1, new tests)"
   },
   {
    "lane_id": "SMB-OBSERVE-RING-PORT-1",
    "crate": "hsk-studio-observe (additive)",
-   "phase": "coding (dispatched 2026-10-31T00:11:28Z); runs on D: (clippy over 38 dependents + harness-core/harness suites); pushes second",
+   "phase": "green on D: at ea811c0d (62/62); released to rebase onto 78f027c9 and push (2026-10-31T01:32:28Z)",
    "status": null,
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-observe-ring-port-1.json",
@@ -12861,7 +12871,7 @@
   {
    "lane_id": "SMB-GPU-CLIENT-PORT-1",
    "crate": "hsk-studio-render-gpu (+ one harness dev-dependency line)",
-   "phase": "coding (dispatched 2026-10-31T00:11:28Z); bundled run AFTER R45 on C: (GPU tests need the GPU lock free); pushes third",
+   "phase": "coded b8aef65c (clean on D:); bundled run on C: after R45 (2026-10-31T01:32:28Z)",
    "status": null,
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-gpu-client-port-1.json",

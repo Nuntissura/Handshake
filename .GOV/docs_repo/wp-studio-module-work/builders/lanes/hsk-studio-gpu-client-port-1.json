@@ -1,0 +1,141 @@
+{
+ "crate": "hsk-studio-render-gpu (+ hsk-studio-harness Cargo.toml: one dev-dependency line enabling the test-only feature)",
+ "lane": "SMB-GPU-CLIENT-PORT-1",
+ "status": null,
+ "phase": "local commit b8aef65c on lane/smb-gpu-client-port-1 (base b425b54a, not pushed); clippy and doctests green on D:; no GPU test run (R45 holds C: and the GPU lock); waiting for the lead go (disk + base), then rebase onto SMB-R44-FOLLOWUPS-1 and SMB-OBSERVE-RING-PORT-1 and the bundled run",
+ "candidate": null,
+ "commits": [
+  {
+   "sha": "b8aef65c",
+   "subject": "render-gpu, harness (SMB-GPU-CLIENT-PORT-1): typed GPU client port and transient asset-local adapter (RF-03 phase 0, MT-36248 asset side)",
+   "pushed": false,
+   "slices": "1 client port, 2 adapters, 3 GpuBackend on the port, 4 public API sheds the device owners, 5 DESCRIPTOR + diagnostics: compile-coupled (the backend state, the device split and the port land together; harness tests need the feature line in the same commit), so one commit instead of one per slice; the red-first tests reference the new API and could not compile, so per RED COMMITS they stay squashed"
+  }
+ ],
+ "capabilities_done": [
+  "GpuClientPort (admit, authorize, settle, rebind, counters) with AdmissionRequest attribution, non-Clone GpuGrant, Settlement Measured/Estimated/Unknown, ClientRefusal, SettleError, GrantLedger, PortEvent, PortCounters",
+  "TransientAdapter (asset_local, Vulkan first on Windows, budget studio_declared 256 MiB), UnavailablePort, external-device adapter behind SharedDevice::new (Host-shaped grant, budget from options)",
+  "GpuBackend::with_grant: residency budget = grant budget, authorize before every submission, reacquire = port rebind, release() settle-once, drop = abandoned (counted)",
+  "GpuContext crate-private, BackendChoice + DeviceOptions.backend behind test-only feature asset-local-backends, compile_fail doctests",
+  "DESCRIPTOR device section + TRANSIENT_DESCRIPTOR; report_port / port_outcome_of closed codes"
+ ],
+ "tests": {
+  "d_checks": {
+   "sha": "b8aef65c (tree identical to the checked working tree)",
+   "disk": "D:",
+   "clippy": {
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gpu-client-port-1/clippy2.log (first line HEAD=b425b54a dirty)",
+    "argv": "cargo clippy -p hsk-studio-render-gpu --all-targets [--features test-faults | shared-device | shared-device,test-faults | asset-local-backends,test-faults,shared-device] and --lib (product path)",
+    "result": "all 6 exit 0; no warning in render-gpu src/examples; one client_port.rs unused-import warning in the default unit fixed before the commit (compiled clean in the 5 later units); pre-existing warning only in composite tests/support/composition_scenes.rs"
+   },
+   "clippy_dependents": {
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gpu-client-port-1/clippy-dependents1.log",
+    "argv": "cargo clippy --all-targets: -p hsk-studio-harness-view --features viewer; --features desktop,audio-batch; -p hsk-studio-harness --features viewer; --features desktop,viewer",
+    "result": "4 exit 0, no warning in harness-view, harness or render-gpu"
+   },
+   "doctests": {
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gpu-client-port-1/doctest1.log",
+    "argv": "cargo test --doc -p hsk-studio-render-gpu in the four round units",
+    "result": "default 12 passed, test-faults 7, shared-device 10, shared-device+test-faults 5 (all compile_fail; error codes E0433/E0603/E0560/E0425/E0599 verified)"
+   }
+  },
+  "gpu_runs": "none yet (lead: wait for R45 verdicts and the disk)"
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "lead go -> fetch, rebase onto SMB-R44-FOLLOWUPS-1 and SMB-OBSERVE-RING-PORT-1, bundled lane-check (step 0, clippy over render-gpu + harness-view + harness, whole render-gpu suite in 4 units + doctests, harness-view [viewer] [desktop,audio-batch], harness [viewer] [desktop,viewer]), then HSK_STUDIO_TEST_GPU_BACKEND=vulkan run of the GPU tests; report Vulkan readback numbers vs the DX12 tolerances",
+ "updated_at": "2026-10-31T00:37:38Z",
+ "notes": {
+  "brief": "builders/briefs/lane-smb-gpu-client-port-1.md; MT-36248 asset side (RF-03 phase 0)",
+  "lead_decisions": "BackendChoice = test-only feature asset-local-backends; SharedDevice::new = the one asset-local wgpu crossing behind shared-device; Vulkan first on Windows (bundled run reports Vulkan readback numbers against the DX12-measured tolerances); harness-view display.rs/render.rs untouched",
+  "spec_basis": "MT-36248 AC-HOST-001..006 (asset-local evidence only, never host acceptance); GUI-DESKTOP-026/029/033/034/036/038, GPU-QUOTA-010/015, STU-ARC-002 per the brief host_integration spec_refs",
+  "deviations_for_lead": [
+   "GpuClientPort has two methods beyond the brief: authorize(&GpuGrant) (called before every submission, so a superseded, settled or revoked grant never submits across any port: GUI-DESKTOP-036) and counters() (closed counters, rule 5)",
+   "SettleOutcome adds Abandoned (drop without release); Settlement adds native_driver (always Unknown here) and in_flight (a settlement with work in flight is refused InFlight and changes nothing)",
+   "GpuError gains Denied(DenialCode) (additive; at the pigment port BackendError::Unavailable(grant_*))",
+   "GrantLedger is public (issue_host, rebind_host, revoke) so a host port and the tests can implement GpuClientPort outside render-gpu",
+   "SharedDevice backend reacquire no longer opens a render-gpu device: it is DeviceLost (recovery is the host's); no caller in harness-view or harness",
+   "GpuContext::acquire/acquire_next removed (not pub(crate)): the transient adapter opens leases (device::acquire_lease) and the backend builds the context on the lease (GpuContext::from_lease); unused pub(crate) functions would be dead code"
+  ],
+  "round_risk": [
+   "Vulkan first on Windows: rounds unset HSK_*, so after the push every Windows GPU proof of GpuBackend::new runs on Vulkan instead of DX12; the lead should check the validator host Vulkan driver and the tolerances measured on DX12",
+   "tests/gpu_pipeline_fault.rs (not an owned path): fxc_rejected_kernel_is_a_typed_refusal_before_any_dispatch expects a pipeline fault from a WGSL only FXC rejects; on Vulkan naga/SPIR-V likely accepts it, so the .expect(pipeline fault detail) would fail: UNVERIFIED until the bundled run",
+   "shared_device.rs, gpu_extended_envelope.rs and gpu_view_transform.rs create their own host device (DX12 on Windows): those shared-device proofs stay DX12 rows",
+   "feature unification: the harness dev-dependency enables asset-local-backends in any build that also builds harness tests (e.g. a multi-crate union); the lib.rs BACKEND_CHOICE_IS_TEST_ONLY compile_fail doctests are then compiled out; the four render-gpu-only units prove them",
+   "GpuBackend drop and release wait up to 10 s for the device to go idle before settling"
+  ],
+  "4c_4d_4e": "4c: no drive or profile path literal in changed files (grep); 4d: lib.rs adds 7 compile_fail doctests, run in all four units on D: (doctest1.log); 4e: no test target needs asset-local-backends (env selection degrades without it, vulkan accepted only when the default opened Vulkan); client_port.rs gates its loss test on test-faults and its shared test on shared-device, both in .config/round-features.toml render-gpu units; harness gets the feature through its dev-dependency in every harness unit; no steward unit needed",
+  "harness_view_call_sites_for_gui_lane": [
+   "src/view/mod.rs:209-210 Viewer holds Option<GpuBackend> + DeviceOptions; :285-290 with_gpu_options; :744 GpuBackend::new(self.gpu_options) -> GpuBackend::with_grant(host port, AdmissionRequest attributed to harness-view module and client)",
+   "src/view/mod.rs:465 self.gpu = None (drop = settlement abandoned, counted): call GpuBackend::release() on close/replace (pane close never releases in-flight work: release reports InFlight)",
+   "src/view/render.rs:198-261, :318-360 GPU then render-cpu chain -> typed, receipted choice (no silent CPU fallback, AC-HOST-004 / GUI-DESKTOP-038); use last_port_event/port_counters for the receipt",
+   "src/view/display.rs:11, 22, 30 SharedDevice::new on eframe RenderState device (signature unchanged, compiles) -> host-granted device once the owner exists (D1/D7)",
+   "src/view/info.rs:683, src/view/proof.rs:995 shared-device NOT_PROVEN notes restated against the grant",
+   "harness src/bin/studio-harness.rs eframe Renderer::Wgpu window device = asset-local test host only",
+   "harness tests/viewer_headless.rs:92 BackendChoice::None -> UnavailablePort through a Viewer API taking a port; then drop the harness dev-dependency line"
+  ],
+  "lead_accepted": {
+   "at": "2026-10-31T00:37:38Z",
+   "accepted": [
+    "authorize before every submission",
+    "counters",
+    "SettleOutcome::Abandoned and Settlement.in_flight",
+    "GpuError::Denied",
+    "public GrantLedger",
+    "SharedDevice reacquire = DeviceLost (no own device)",
+    "single commit instead of one per slice"
+   ],
+   "basis": "lead: matches GUI-DESKTOP-047/048 (bind before use, stale binding fails typed) and GUI-DESKTOP-033..038",
+   "refers_to": "notes.deviations_for_lead (all six) and commits[0].slices"
+  },
+  "lead_rules_for_bundled_run": {
+   "gpu_pipeline_fault": "if tests/gpu_pipeline_fault.rs fails on Vulkan because it assumes the DX12 shader compiler (FXC), this lane may make that one test backend-aware (skip-with-reason or per-backend expectation) and lists it here as a change to another lane's test with the exact failure text; any other failure: do not touch, report with numbers as a finding",
+   "tolerances": "a Vulkan readback outside a DX12-measured tolerance is reported with the measured delta, never widened"
+  }
+ },
+ "host_integration": {
+  "schema_id": "hsk.studio_mt_host_integration@1",
+  "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+  "spec_version": "v02.225",
+  "gui_host": "none",
+  "gpu": "central_broker_client",
+  "diagnostics": {
+   "internal_diagnostics": "producer_through_observe",
+   "flight_recorder": "none",
+   "palmistry": "ring_visible"
+  },
+  "control_descriptors": "none",
+  "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+  "jobs": "none",
+  "settings": "none",
+  "spec_refs": [
+   "GUI-DESKTOP-025",
+   "GUI-DESKTOP-026",
+   "GUI-DESKTOP-028",
+   "GUI-DESKTOP-029",
+   "GUI-DESKTOP-030",
+   "GUI-DESKTOP-032",
+   "GUI-DESKTOP-033",
+   "GUI-DESKTOP-034",
+   "GUI-DESKTOP-036",
+   "GUI-DESKTOP-038",
+   "GPU-QUOTA-010",
+   "GPU-QUOTA-013",
+   "GPU-QUOTA-014",
+   "GPU-QUOTA-015",
+   "NATIVE-RENDER-BOOT-007",
+   "STU-ARC-002",
+   "STU-ARC-018"
+  ],
+  "refactor_exposure": "high",
+  "binding": "binds at dispatch: every commit of this lane follows the HOST INTEGRATION rules of the common brief",
+  "notes": {
+   "gpu": "render-gpu is a typed client; the transient adapter is asset-local evidence only (MT-36248 AC-HOST-005); the real owner, issuer and quota are MT-203 work",
+   "palmistry": "every GPU failure is a closed observe code so the host ring and Palmistry can show it in phase 1; no ring exists in phase 0",
+   "flight_recorder": "MT-36248's business_event_ids row stays with the host MT and kernel-bindings; this lane emits no business event",
+   "jobs": "admission runs through the GPU client port, not the session JobPort; this lane adds no queue, worker or job"
+  },
+  "recorded_at": "2026-10-31T00:07:10Z"
+ }
+}
