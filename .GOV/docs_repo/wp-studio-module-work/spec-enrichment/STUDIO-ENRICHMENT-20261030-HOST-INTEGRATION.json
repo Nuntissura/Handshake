@@ -83,8 +83,9 @@
    "id": "SD-12",
    "gap": "Threshold compares lum(x) >= level - half code (pigment adjust_math THRESHOLD_HALF_CODE, D5 reading PS-C07); at an exact tie the result depends on precision: the CPU reference evaluates in binary64, the GPU kernel in binary32, and on Vulkan (RTX 3090) the tie pixel (7/16, 10/16, 0) lands on the other side of the cut than on DX12 and the CPU",
    "needs": "a defined tie rule at the cut (inclusive on the exact rational value, or a stated precision), so cross-backend parity has a target at measure-zero ties",
-   "lead_reading": "2026-10-31T03:05:58Z: boundary pixels within 2^-20 of the cut may be 0 or 1 on any backend and are reported NOT_PROVEN; all other pixels must match exactly (SMB-GPU-CLIENT-PORT-1 test change)",
-   "raised_by": "SMB-GPU-CLIENT-PORT-1 run 1 on Vulkan"
+   "lead_reading": "superseded: the boundary-band exemption in render-gpu tests is withdrawn by SMB-R46-FOLLOWUPS-1, which makes the WGSL tie decide as pigment does and restores exact parity",
+   "raised_by": "SMB-GPU-CLIENT-PORT-1 run 1 on Vulkan",
+   "correction": "2026-10-31T05:54:02Z lead correction after R46 F-R46-1: the binary64-vs-binary32 premise was FALSE. pigment Threshold is binary32 end to end (adjust_math.rs:807 apply(rgb: [f32; 3]), :878, blend_math.rs:463 lum -> f32) and kernel.wgsl:361-363 evaluates the same binary32 formula. The tie divergence is Vulkan-specific (pigment white, DX12 white, Vulkan black), most likely contraction (FMA) or evaluation order in the SPIR-V path: UNVERIFIED until the remediation lane measures it. The spec gap that remains is narrower: the Threshold reading should state whether the cut compares the exact rational luminance or round(255 lum) (PS-C07), so every backend has one target."
   }
  ],
  "edits": []
