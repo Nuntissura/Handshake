@@ -129,6 +129,27 @@
    "needs": "the output-intent profiles of the stock PDF/X-1a, X-3 and X-4 presets",
    "lead_reading": "2026-10-31T14:42:57Z: the three PDF/X stock presets refuse with typed stock_output_intent_not_captured; MT-30841/30842 stay open",
    "source": "builders/briefs/lane-smb-pdf-stock-presets-1.md (planner, 2026-10-31T14:42:57Z)"
+  },
+  {
+   "id": "SD-19",
+   "gap": "STU-IO-125..133 state no rule for a PDF preset that combines standard_compliant_only with standard_check_1a or standard_check_3; the press writer implements neither check",
+   "needs": "whether such a preset is refused, or what 'compliant only' means without a checker",
+   "lead_reading": "2026-10-31T16:35:22Z: typed refusal standard_compliance_not_provable kept until a check exists (builder-chosen, admissible per STUDIO-R49 F-R49-4); filed separately from SD-13",
+   "source": "validation/round-R49.json F-R49-4"
+  },
+  {
+   "id": "SD-20",
+   "gap": "MT-33392 AC-001 'asserting compliance with no intent profile is a validation error' does not say whether standard_compliant_only alone counts as asserting",
+   "needs": "the reading of 'asserting compliance'",
+   "lead_reading": "2026-10-31T16:35:22Z: the asset reads asserting as standard_check_1a or standard_check_3 only, so compliant_only with an empty output_intent_profile validates; if the spec owner reads it broader, refuse standard_without_output_intent for compliant_only too",
+   "source": "validation/round-R49.json F-R49-5"
+  },
+  {
+   "id": "SD-21",
+   "gap": "the Simulation effect table (14-studio-creative-suite.md:13267-13273) lists Rain (obsolete) / Rainfall, Snow (obsolete) / Snowfall and two Particle Systems Classic rows as separate effects",
+   "needs": "whether Rainfall and Snowfall are the Rain and Snow capabilities or separate identities",
+   "lead_reading": "2026-10-31T16:35:22Z: the asset maps each pair to one identity (studio_declared dedup under STU-SECTION-003, UNVERIFIED); an importer records a typed loss until the spec owner decides",
+   "source": "validation/round-R49.json F-R49-8"
   }
  ],
  "edits": [],

@@ -114,6 +114,6 @@
     "rebase": "rebased onto 729d2702 without conflict; accord src/lib.rs keeps both the SMB-R47-FOLLOWUPS-1 business_event re-exports and the settings module; DESCRIPTOR parses as JSON with model.business_events and model.settings; no egui in edit.rs additions, settings_catalog.rs or tests/settings_catalog.rs",
     "push": "git push origin <guarded e9c46302 sha>:refs/heads/codex/handshake-studio-assets exit 0 (729d2702..e9c46302); fetch + ls-remote show e9c46302; origin had not moved after the run",
     "rule_4b": "public API additions only (new modules/items); no dependent pins the changed API; dependents clippied",
-    "handshake_observation": "read-only wtc-native-editors-v1 @292d7a1c preferences/mod.rs: PREF_EDITOR_MINIMAP_ENABLED has constraint Bool with default json!({}), against its own default-validates invariant (UNVERIFIED whether that test runs there; not touched)"
+    "handshake_observation": "CORRECTED by lead 2026-10-31T16:35:22Z from STUDIO-R49 F-R49-7: the builder's reading was wrong. At wtc-native-editors-v1 @292d7a1c preferences/mod.rs:657-662 PREF_EDITOR_MINIMAP_ENABLED has a Bool constraint with default json!(true), which validates; the json!({}) defaults at :709 and :715 belong to PREF_EDITOR_SYNTAX_CUSTOM_COLORS and PREF_EDITOR_KEYBINDING_OVERRIDES (maps). Nothing to raise with WP-KERNEL-012."
   }
 }

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-31T11:37:50Z",
+ "updated_at": "2026-10-31T16:35:22Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -8430,7 +8430,7 @@
   {
    "lane_id": "SMB-FOLIO-CHANNEL-RECORD",
    "crate": "hsk-studio-folio, hsk-studio-pigment, hsk-studio-interop-psd, hsk-studio-package (tests)",
-   "phase": "briefed (not dispatched); dispatch after STUDIO-R49 records",
+   "phase": "dispatched",
    "status": null,
    "owner": null,
    "commits": [],
@@ -8447,8 +8447,9 @@
    "lane_file": "builders/lanes/hsk-studio-folio-channel-record.json",
    "brief": "builders/briefs/lane-smb-folio-channel-record.md",
    "worktree": "wt-studio-lanes/smb-folio-channel-record",
-   "base": "e9c46302",
-   "updated_at": "2026-10-31T14:42:57Z"
+   "base": "f8a1c5f3 (rebase from e9c46302)",
+   "updated_at": "2026-10-31T16:35:22Z",
+   "disk": "d"
   },
   {
    "lane_id": "SMB-RENDER-CONTENT-AWARE",
@@ -12287,7 +12288,8 @@
    "brief": "builders/briefs/lane-smb-ae-particles-2.md",
    "worktree": "wt-studio-lanes/smb-ae-particles-2",
    "candidate": "2b28b1e1",
-   "updated_at": "2026-10-31T13:37:51Z"
+   "updated_at": "2026-10-31T16:35:22Z",
+   "mt_closure_note": "2026-10-31T16:35:22Z (STUDIO-R49 F-R49-9): MT-34184, MT-34185, MT-34189, MT-34177 engine half proven at STUDIO-R49; the AC-003 operator-surface tooltip half stays open (D7); the MT JSON proof.checks are PLANNED commands naming targets that do not exist: rebind them when the MTs are activated. MT lifecycle stays PENDING."
   },
   {
    "lane_id": "SMB-ID-COMPOSER-PARITY",
@@ -14848,9 +14850,9 @@
    },
    "note": "RF-09 phase 0 (asset side of MT-36249, asset-local evidence; closes no MT). Push LAST of the wave (accord/pigment in every closure); dispatch only after the R48 verdicts. Namespace studio is spec_delta_pending (SD-07). Engine Profiles: phase 1.",
    "observations": [
-    "Handshake preferences/mod.rs @292d7a1c: minimap preference has a Bool constraint but json!({}) default, breaking its own default-validates rule (read-only; WP-KERNEL-012 owner)"
+    "CORRECTED 2026-10-31T16:35:22Z (STUDIO-R49 F-R49-7): Handshake preferences/mod.rs @292d7a1c minimap default is json!(true) and validates; the earlier 'json!({}) default' reading was wrong (those defaults belong to two map preferences). Nothing to raise with WP-KERNEL-012."
    ],
-   "updated_at": "2026-10-31T14:19:17Z"
+   "updated_at": "2026-10-31T16:35:22Z"
   },
   {
    "lane_id": "SMB-PDF-PRESETS-1",
@@ -14906,17 +14908,18 @@
     "reconciled_from": "lane file host_integration block (F-R48-7)"
    },
    "note": "Closes MT-30820..MT-30831, advances MT-30819. Creep rule declared linear (InDesign formula UNVERIFIED, D5); rendering imposed sheets is a later lane.",
-   "updated_at": "2026-10-31T13:29:12Z"
+   "updated_at": "2026-10-31T16:35:22Z",
+   "mt_closure_note": "2026-10-31T16:35:22Z (STUDIO-R49 F-R49-9): MT-30821..MT-30828 engine half proven at STUDIO-R49; the AC-003 operator-surface tooltip half stays open (D7); the MT JSON proof.checks are PLANNED commands naming targets that do not exist: rebind them when the MTs are activated. MT lifecycle stays PENDING."
   },
   {
    "lane_id": "SMB-PDF-STOCK-PRESETS-1",
    "status": null,
-   "phase": "briefed (not dispatched); dispatch after STUDIO-R49 records",
+   "phase": "dispatched",
    "crate": "hsk-studio-press (stock preset catalogue)",
    "lane_file": "builders/lanes/hsk-studio-pdf-stock-presets-1.json",
    "brief": "builders/briefs/lane-smb-pdf-stock-presets-1.md",
    "worktree": "wt-studio-lanes/smb-pdf-stock-presets-1",
-   "base": "e9c46302",
+   "base": "f8a1c5f3 (rebase from e9c46302)",
    "host_integration": {
     "gui_host": "none",
     "gpu": "none",
@@ -14925,17 +14928,18 @@
     "binding": "HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T14:42:57Z"
    },
-   "updated_at": "2026-10-31T14:42:57Z"
+   "updated_at": "2026-10-31T16:35:22Z",
+   "disk": "ssd"
   },
   {
    "lane_id": "SMB-AE-WATER-SIMS-1",
    "status": null,
-   "phase": "briefed (not dispatched); dispatch after STUDIO-R49 records",
+   "phase": "dispatched",
    "crate": "hsk-studio-composite (Wave world, Caustics, Bubbles, Foam)",
    "lane_file": "builders/lanes/hsk-studio-ae-water-sims-1.json",
    "brief": "builders/briefs/lane-smb-ae-water-sims-1.md",
    "worktree": "wt-studio-lanes/smb-ae-water-sims-1",
-   "base": "e9c46302",
+   "base": "f8a1c5f3 (rebase from e9c46302)",
    "host_integration": {
     "gui_host": "none",
     "gpu": "via_render_provider_port",
@@ -14944,17 +14948,18 @@
     "binding": "HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T14:42:57Z"
    },
-   "updated_at": "2026-10-31T14:42:57Z"
+   "updated_at": "2026-10-31T16:35:22Z",
+   "disk": "ssd"
   },
   {
    "lane_id": "SMB-ID-PDF-EXPORT-PREFS-1",
    "status": null,
-   "phase": "briefed (not dispatched); dispatch after STUDIO-R49 records",
+   "phase": "dispatched",
    "crate": "hsk-studio-layout (PDF export preference record)",
    "lane_file": "builders/lanes/hsk-studio-id-pdf-export-prefs-1.json",
    "brief": "builders/briefs/lane-smb-id-pdf-export-prefs-1.md",
    "worktree": "wt-studio-lanes/smb-id-pdf-export-prefs-1",
-   "base": "e9c46302",
+   "base": "f8a1c5f3 (rebase from e9c46302)",
    "host_integration": {
     "gui_host": "none",
     "gpu": "none",
@@ -14963,7 +14968,29 @@
     "binding": "HOST INTEGRATION rules + block in brief and lane file",
     "recorded_at": "2026-10-31T14:42:57Z"
    },
-   "updated_at": "2026-10-31T14:42:57Z"
+   "updated_at": "2026-10-31T16:35:22Z",
+   "disk": "ssd"
+  },
+  {
+   "lane_id": "SMB-R49-FOLLOWUPS-1",
+   "status": null,
+   "phase": "dispatched",
+   "crate": "hsk-studio-harness-view (viewer audio import sample budget) + hsk-studio-accord, hsk-studio-session (DESCRIPTOR text) + hsk-studio-observe (ring.rs doctest codes)",
+   "lane_file": "builders/lanes/hsk-studio-r49-followups-1.json",
+   "brief": "builders/briefs/lane-smb-r49-followups-1.md",
+   "worktree": "wt-studio-lanes/smb-r49-followups-1",
+   "base": "f8a1c5f3",
+   "disk": "d",
+   "host_integration": {
+    "gui_host": "none",
+    "gpu": "none",
+    "refactor_exposure": "low",
+    "lane_file_block": true,
+    "binding": "HOST INTEGRATION rules + block in brief and lane file",
+    "recorded_at": "2026-10-31T16:35:22Z"
+   },
+   "note": "closes F-R49-2 (viewer audio import sample budget), F-R49-3 (accord/session DESCRIPTOR), F-R46-12 (ring.rs doctest codes); pushes LAST of the wave (accord/observe in every closure)",
+   "updated_at": "2026-10-31T16:35:22Z"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
