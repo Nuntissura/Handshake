@@ -14454,14 +14454,14 @@
   {
    "lane_id": "SMB-SETTINGS-SCHEMA-1",
    "crate": "hsk-studio-accord (additive settings schema) + pigment + develop + harness-view (egui-free files only)",
-   "phase": "briefed (not dispatched) 2026-10-31T11:37:50Z; base 4f69b03b",
-   "status": null,
+   "phase": "READY_FOR_VALIDATION @e9c46302 (viewer 561/0, desktop+audio-batch 155/0, clippy 4+45 crates; D:); queued for R49",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder opus/high",
    "lane_file": "builders/lanes/hsk-studio-settings-schema-1.json",
    "brief": "builders/briefs/lane-smb-settings-schema-1.md",
    "worktree": "wt-studio-lanes/smb-settings-schema-1",
    "disk": null,
-   "candidate": null,
+   "candidate": "e9c46302",
    "commits": [],
    "verdicts": [],
    "host_integration": {
@@ -14474,7 +14474,11 @@
     "reconciled_at": "2026-10-31T13:08:07Z",
     "reconciled_from": "lane file host_integration block (F-R48-7)"
    },
-   "note": "RF-09 phase 0 (asset side of MT-36249, asset-local evidence; closes no MT). Push LAST of the wave (accord/pigment in every closure); dispatch only after the R48 verdicts. Namespace studio is spec_delta_pending (SD-07). Engine Profiles: phase 1."
+   "note": "RF-09 phase 0 (asset side of MT-36249, asset-local evidence; closes no MT). Push LAST of the wave (accord/pigment in every closure); dispatch only after the R48 verdicts. Namespace studio is spec_delta_pending (SD-07). Engine Profiles: phase 1.",
+   "observations": [
+    "Handshake preferences/mod.rs @292d7a1c: minimap preference has a Bool constraint but json!({}) default, breaking its own default-validates rule (read-only; WP-KERNEL-012 owner)"
+   ],
+   "updated_at": "2026-10-31T14:19:17Z"
   },
   {
    "lane_id": "SMB-PDF-PRESETS-1",

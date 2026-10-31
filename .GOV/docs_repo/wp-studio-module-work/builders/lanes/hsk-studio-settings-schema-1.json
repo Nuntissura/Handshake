@@ -1,20 +1,58 @@
 {
   "crate": "hsk-studio-accord (additive settings schema), hsk-studio-pigment (selection entries), hsk-studio-develop (export-stage entries), hsk-studio-harness-view (brush entries in src/view/edit.rs and new egui-free src/view/settings_catalog.rs)",
   "lane": "SMB-SETTINGS-SCHEMA-1",
-  "status": null,
-  "phase": "briefed (not dispatched)",
-  "candidate": null,
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed: 4 slices rebased onto 729d2702 (SMB-R47-FOLLOWUPS-1), bundled run green, origin verified at e9c46302",
+  "candidate": "e9c46302",
   "worktree": "wt-studio-lanes/smb-settings-schema-1",
   "base": "4f69b03b",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": [],
+  "commits": [
+    {
+      "sha": "05d27a72",
+      "subject": "accord (SMB-SETTINGS-SCHEMA-1, RF-09 phase 0 slice 1): typed settings schema"
+    },
+    {
+      "sha": "b4b75601",
+      "subject": "pigment (SMB-SETTINGS-SCHEMA-1, RF-09 phase 0 slice 2): selection-tool settings entries"
+    },
+    {
+      "sha": "5020122a",
+      "subject": "develop (SMB-SETTINGS-SCHEMA-1, RF-09 phase 0 slice 3): export-stage settings entries"
+    },
+    {
+      "sha": "e9c46302",
+      "subject": "harness-view (SMB-SETTINGS-SCHEMA-1, RF-09 phase 0 slice 4): brush entries and Studio settings catalog"
+    }
+  ],
+  "capabilities_done": [
+    "accord SettingsSchema (SettingId grammar, typed refusals, Handshake validate codes + unknown_setting, deterministic to_preference_json, tree); DESCRIPTOR settings key; CANONICAL_SCHEMAS still 38",
+    "pigment selection entries: 10 (wand 5, magnetic lasso 5)",
+    "develop export entries: 21 (sizing 10, sharpening 3, watermark 8; source has no entry)",
+    "harness-view brush entries: 4 (colour rgb8 has no entry); settings_catalog.rs: 35-entry catalog, find_route walk, audit through observe (codes + counters)"
+  ],
+  "tests": {
+    "argv": "lane-check.sh --owner smb-settings-schema-1 --disk d -- cargo nextest run -p hsk-studio-accord -p hsk-studio-pigment -p hsk-studio-develop -p hsk-studio-harness-view --features hsk-studio-harness-view/viewer --no-fail-fast; then STUDIO_LANE_CHECK_NO_DEPENDENTS=1 lane-check.sh --owner smb-settings-schema-1 --disk d -- cargo nextest run -p hsk-studio-harness-view --features desktop,audio-batch --no-fail-fast",
+    "exit": 0,
+    "sha": "e9c46302",
+    "passed": 716,
+    "failed": 0,
+    "units": {
+      "viewer (accord 26, pigment 260, develop 171, harness-view 104; 19 skipped = ignored)": "561 passed, 0 failed",
+      "harness-view [desktop, audio-batch]": "155 passed, 0 failed"
+    },
+    "clippy": "clippy --tests over the 4 crates (viewer) and 45 direct dependents in the first lock hold: exit 0",
+    "logs": [
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-settings-schema-1/smb-settings-schema-1-e9c46302-bundled-viewer.log",
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-settings-schema-1/smb-settings-schema-1-e9c46302-bundled-desktop-audio-batch.log"
+    ],
+    "new_tests": "accord tests/settings_schema.rs 5, pigment tests/settings_entries.rs 4, develop tests/settings_entries.rs 4, harness-view tests/settings_catalog.rs 4 (all PASS in the logs)"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "lead dispatches after the R48 verdicts; bundled run and push LAST of the wave (after SMB-AE-PARTICLES-2, SMB-PDF-PRESETS-1, SMB-ID-BOOKLET-1 and SMB-R47-FOLLOWUPS-1)",
-  "updated_at": "2026-10-31T11:29:59Z",
+  "next": "validator round on candidate e9c46302; MT-36249 phase 1 (host tab, PreferenceRecord persistence, Handpick, controls Registry ids) is host work",
+  "updated_at": "2026-10-31T14:18:23Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -30,7 +68,19 @@
     "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
     "jobs": "none",
     "settings": "module_tab_feature_subtab",
-    "spec_refs": ["GUI-DESKTOP-014", "GUI-DESKTOP-015", "GUI-DESKTOP-016", "GUI-DESKTOP-017", "GUI-DESKTOP-018", "GUI-DESKTOP-019", "SET-REC-001", "SET-REC-002", "SET-REC-003", "SET-REC-004", "SET-SCOPE-001"],
+    "spec_refs": [
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-015",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-017",
+      "GUI-DESKTOP-018",
+      "GUI-DESKTOP-019",
+      "SET-REC-001",
+      "SET-REC-002",
+      "SET-REC-003",
+      "SET-REC-004",
+      "SET-SCOPE-001"
+    ],
     "refactor_exposure": "low",
     "binding": "binds at dispatch: every commit of this lane follows the HOST INTEGRATION rules of the common brief",
     "notes": {
@@ -51,6 +101,17 @@
     "paperwork_defect_for_lead": "MT-36248..MT-36251 execution blocks (allowed_write_paths studio/diagnostics.rs + test_studio_three_tier.rs, inputs 'Route module diagnostic ports...') are copies of MT-36233's; MT-36249's execution block does not describe settings",
     "root_inputs": "none; no Cargo.toml or feature change (no new artifact identities)",
     "risks": "accord and pigment sit in every other lane's closure and harness-view's closure holds all of theirs: push last; R48 verdicts on SMB-ATTRIBUTION-1/BUSINESS-EVENTS-1 (accord) and SMB-JOB-ADMISSION-1 (harness-view) may reopen remediation there; SMB-FIG-GRID-3 (PAUSED, local harness-view commits) rebases over this lane",
-    "index_status": "MT-36249 index status PENDING, lifecycle phase ready (the index has no NOT_STARTED value)"
+    "index_status": "MT-36249 index status PENDING, lifecycle phase ready (the index has no NOT_STARTED value)",
+    "red_commits": "none pushed (tests authored first, committed with their green slice)",
+    "rule_4e": "accord, pigment, develop: default unit []; harness-view tests/settings_catalog.rs is #![cfg(feature = \"viewer\")], round unit [\"viewer\"] at .config/round-features.toml:44 (enabled)",
+    "rule_4d": "no doc examples added",
+    "step0": "lane-check --step0-only clean at the coded tree",
+    "sd07_gaps": "namespace studio marked spec_delta_pending (SET-SCOPE-001 admits only data-roots, view-defaults, retention, feature-toggles); every one of the 35 ids is outside the four namespaces; recorded, not resolved",
+    "bounds": "Studio-declared upper bounds inside engine domains: wand tolerance 0..255, sample size enum of odd sides {1,3,5,11,31,51,101}; magnetic width 0..256, contrast 0..100, frequency 1..100, margin 0..1024; export max width/height 1..65535, percentage 1..1000, megapixels 0.01..268, resolution 1..4000 (Matte at 4000 ppcm sigma 63.5 <= 64), watermark size percent 0.1..100; brush diameter 1..5000 (pigment BrushTip), spacing 1..1000. Vendor ranges UNVERIFIED (D5)",
+    "watermark_size_split": "EXPORT_STAGE_KEYS watermark_size is two entries: watermark-size (proportional|fit|fill) and watermark-size-percent (Studio reading)",
+    "rebase": "rebased onto 729d2702 without conflict; accord src/lib.rs keeps both the SMB-R47-FOLLOWUPS-1 business_event re-exports and the settings module; DESCRIPTOR parses as JSON with model.business_events and model.settings; no egui in edit.rs additions, settings_catalog.rs or tests/settings_catalog.rs",
+    "push": "git push origin <guarded e9c46302 sha>:refs/heads/codex/handshake-studio-assets exit 0 (729d2702..e9c46302); fetch + ls-remote show e9c46302; origin had not moved after the run",
+    "rule_4b": "public API additions only (new modules/items); no dependent pins the changed API; dependents clippied",
+    "handshake_observation": "read-only wtc-native-editors-v1 @292d7a1c preferences/mod.rs: PREF_EDITOR_MINIMAP_ENABLED has constraint Bool with default json!({}), against its own default-validates invariant (UNVERIFIED whether that test runs there; not touched)"
   }
 }
