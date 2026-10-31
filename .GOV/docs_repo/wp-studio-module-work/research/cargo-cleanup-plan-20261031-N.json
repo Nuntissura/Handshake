@@ -1,0 +1,109 @@
+{
+  "schema": "hsk.studio.cleanup_plan@1",
+  "file_id": "CARGO-CLEANUP-PLAN-20261031-N",
+  "generated_at": "2026-10-31T16:45:00Z",
+  "status": "PARTIALLY_EXECUTED: C-N02, D-N01, D-N02 DELETED; C-N01 deferred (tail.exe holders); D-N03 SKIPPED_LOCK_NOT_FREE (result research/cargo-cleanup-result-20261031-N.json)",
+  "authority": "Operator standing grant START_LOG 2026-10-24 (~600-601); rule P2 of research/cargo-plan-20261024.json; method precedent batch L",
+  "state_basis": {
+    "round": "STUDIO-R49 @e9c46302 (ledger.json: the four lanes PASS_V1 with R49 verdict; also smb-r47-followups-1 PASS_V1, KEEP)",
+    "locks": "C: free (no held, queue empty) at 16:38Z; D: builder lock held by smb-r47-followups-1 lane-check from 16:40:01Z",
+    "processes": "no cargo/rustc/nextest process; two tail.exe on the ae-particles-2 D: log"
+  },
+  "measure_at_dry_run": {
+    "at": "2026-10-31T16:40Z",
+    "C_free_gib": 426.01,
+    "D_free_gib": 1453.8,
+    "C_studio_round_gib": 219.56,
+    "C_studio_team_dev_gib": 4.67,
+    "C_studio_tree_gib": 224.23,
+    "C_cap_gib": 360
+  },
+  "disks": {
+    "C": {
+      "count": 2,
+      "gib": 4.665,
+      "candidates": [
+        {
+          "id": "C-N01",
+          "disk": "C",
+          "lane": "smb-ae-particles-2",
+          "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-ae-particles-2",
+          "gib": 3.479,
+          "files": 4935,
+          "newest_write_utc": "2026-10-31T13:35:59Z",
+          "ledger_status": "PASS_V1 (STUDIO-R49 PASS_V1 @e9c46302)",
+          "dry_run_status": "SKIPPED_IN_USE",
+          "detail": "tail.exe pids 36464 (started 14:30:41) and 82972 (14:32:20) follow D:/.../WP-KERNEL-STUDIO/smb-ae-particles-2/bundled-smb-ae-particles-2-ade6323d.log; matched by the lane ref_pattern WP-KERNEL-STUDIO/smb-ae-particles-2/. Not started by this session, not touched."
+        },
+        {
+          "id": "C-N02",
+          "disk": "C",
+          "lane": "smb-pdf-presets-1",
+          "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pdf-presets-1",
+          "gib": 1.186,
+          "files": 3079,
+          "newest_write_utc": "2026-10-31T13:36:39Z",
+          "ledger_status": "PASS_V1 (STUDIO-R49 PASS_V1 @e9c46302)",
+          "dry_run_status": "WOULD_DELETE"
+        }
+      ]
+    },
+    "D": {
+      "count": 2,
+      "gib": 18.414,
+      "candidates": [
+        {
+          "id": "D-N01",
+          "disk": "D",
+          "lane": "smb-id-booklet-1",
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-booklet-1/target",
+          "gib": 1.032,
+          "files": 2908,
+          "newest_write_utc": "2026-10-31T13:28:13Z",
+          "ledger_status": "PASS_V1 (STUDIO-R49 PASS_V1 @e9c46302)",
+          "dry_run_status": "SKIPPED_LOCK_NOT_FREE",
+          "detail": "D: lock held class=builder owner=smb-r47-followups-1 (lane-check), acquired 16:40:01Z, queued=0"
+        },
+        {
+          "id": "D-N02",
+          "disk": "D",
+          "lane": "smb-settings-schema-1",
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-settings-schema-1/target",
+          "gib": 17.382,
+          "files": 10810,
+          "newest_write_utc": "2026-10-31T14:18:08Z",
+          "ledger_status": "PASS_V1 (STUDIO-R49 PASS_V1 @e9c46302)",
+          "dry_run_status": "SKIPPED_LOCK_NOT_FREE",
+          "detail": "same D: builder lock holder"
+        }
+      ]
+    }
+  },
+  "other_pass_lane_targets": [],
+  "other_targets_not_candidates": [
+    "smb-r47-followups-1/target (PASS_V1 R49, KEEP: steward proof running)",
+    "smb-fig-grid-3/target (PAUSED)",
+    "studio-round/target (C: and D:)",
+    "prism-eng8-export/src/handshake-studio-assets/target",
+    "studio-team-dev/steward/dbl-test/{env,lane}/target (steward test dirs, not lane targets)",
+    "studio-team-dev/steward-export/target",
+    "studio-team-dev/sync-export/target"
+  ],
+  "keep": "smb-r47-followups-1/target; lane targets of smb-pdf-stock-presets-1, smb-ae-water-sims-1, smb-id-pdf-export-prefs-1, smb-folio-channel-record, smb-r49-followups-1; studio-round, logs, results, receipts, exports, oracle corpus, registry caches, locks",
+  "script_diff": {
+    "file": "research/cargo-cleanup-script-M-20261031.diff",
+    "base_sha256": "dd8d5380cf36db964f15625af39f86522b63286b3f0f39b4b16816ea306e1699",
+    "summary": "script M copied unchanged to scratchpad cargo-manager-20261031-N. C: lane items sit under studio-team-dev, so the script needs keep_slot_release=true in the plan, -Approve ids, -ReleaseKeepSlot and -AllowLanes (existing flags, script unmodified)"
+  },
+  "execute_commands": {
+    "C": "phase2-guarded-delete.ps1 -Plan batchN.json -Disk C -Approve C-N01,C-N02 -ReleaseKeepSlot -AllowLanes -KeepLanes smb-fig-grid-3|smb-r47-followups-1|smb-pdf-stock-presets-1|smb-ae-water-sims-1|smb-id-pdf-export-prefs-1|smb-folio-channel-record|smb-r49-followups-1 -NormalIo -KeepOrder -MaxFilesPerSec 600 -MaxBytesPerSec 524288000 -Execute",
+    "D": "same plan, -Disk D -ApproveAllCandidates (no -AllowLanes/-ReleaseKeepSlot) -Execute"
+  },
+  "approval": "coordinator message 2026-10-31 ~16:44Z: execute C-N02, D-N01, D-N02, add D-N03 (smb-r47-followups-1/target, steward done, commit 224e770f); leave C-N01 for a later batch; on lock skip record and stop",
+  "coordinator_update": {
+    "d_n03": "D:/.../smb-r47-followups-1/target added (PASS_V1 R49); only one target dir under the lane (per-sha-729d2702 holds logs only, KEPT); 3 tail.exe (104388, 103904, 104244) follow its logs, not touched",
+    "c_n01": "deferred to a later batch (tail.exe 36464, 82972)",
+    "dry_run_d": "phase2-D-dryrun-20261031T164428Z: all 3 SKIPPED_LOCK_NOT_FREE (builder smb-r49-followups-1 held the D lock)",
+    "executed": "C: C-N02 only; D: ids all, -Execute at 16:44:50Z (lock free for D-N01/D-N02, builder re-took it before D-N03)"
+  }
+}

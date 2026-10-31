@@ -1,0 +1,76 @@
+{
+  "schema": "hsk.studio.cleanup_result@2",
+  "file_id": "CARGO-CLEANUP-RESULT-20261031-N",
+  "generated_at": "2026-10-31T16:45:00Z",
+  "plan": "research/cargo-cleanup-plan-20261031-N.json",
+  "why": "rule P2: four lanes PASS_V1 in STUDIO-R49 @e9c46302",
+  "outcome": "PARTIAL: DELETED C-N02 1.186 GiB (C:), D-N01 1.032 + D-N02 17.382 GiB = 18.414 GiB (D:). SKIPPED: C-N01 (deferred, tail.exe holders, not touched), D-N03 smb-r47-followups-1/target (SKIPPED_LOCK_NOT_FREE: builder, recorded, no retry). Earlier no-delete dry runs retained below.",
+  "dry_runs": [
+    {
+      "disk": "C",
+      "first": "phase2-C-dryrun-20261031T164032Z (SKIPPED_KEEP_SLOT_NOT_RELEASED x2: plan lacked keep_slot_release; fixed in plan, script unchanged)"
+    },
+    {
+      "disk": "C",
+      "second": "phase2-C-dryrun-20261031T164042Z",
+      "counts": [
+        "SKIPPED_IN_USE 1",
+        "WOULD_DELETE 1 (1.186 GiB)"
+      ]
+    },
+    {
+      "disk": "D",
+      "file": "phase2-D-dryrun-20261031T164033Z",
+      "counts": [
+        "SKIPPED_LOCK_NOT_FREE 2"
+      ]
+    }
+  ],
+  "result_files_location": "scratchpad cargo-manager-20261031-N",
+  "summary": {
+    "deleted": {
+      "C": {
+        "count": 1,
+        "gib": 1.186,
+        "files": 3079
+      },
+      "D": {
+        "count": 2,
+        "gib": 18.414,
+        "files": 13718
+      }
+    },
+    "recycled_remainder_gib": 0,
+    "skipped": [
+      "C-N01 deferred to later batch (tail.exe 36464, 82972)",
+      "D-N03 SKIPPED_LOCK_NOT_FREE (D lock builder)"
+    ]
+  },
+  "recycle_bin_gib_for_operator": 0,
+  "free_space": {
+    "before": {
+      "C": 426.01,
+      "D": 1452.05
+    },
+    "after": {
+      "C": 427.14,
+      "D": 1469.96
+    }
+  },
+  "c_studio_tree_gib_after": {
+    "studio_round": 219.56,
+    "studio_team_dev": 3.48,
+    "total": 223.04
+  },
+  "p3": {
+    "note": "C live lane targets 1 (smb-ae-particles-2); D live lane targets: smb-r47-followups-1 plus fig-grid-3 PAUSED"
+  },
+  "execute_run": {
+    "at": "2026-10-31T16:44:37Z-16:46:57Z",
+    "files": "scratchpad cargo-manager-20261031-N: phase2-C-execute-*, phase2-D-execute-* (output tasks/bzq8n9cms.output)",
+    "D_n01": "DELETED 1.032 GiB 21.2s",
+    "D_n02": "DELETED 17.382 GiB 80.3s",
+    "D_n03": "SKIPPED_LOCK_NOT_FREE",
+    "C_n02": "DELETED 1.186 GiB 9.6s"
+  }
+}
