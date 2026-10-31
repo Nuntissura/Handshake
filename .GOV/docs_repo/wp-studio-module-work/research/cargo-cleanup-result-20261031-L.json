@@ -1,0 +1,183 @@
+{
+ "schema": "hsk.studio.cleanup_result@2",
+ "file_id": "CARGO-CLEANUP-RESULT-20261031-L",
+ "generated_at": "2026-10-31T13:25:17Z",
+ "plan": "research/cargo-plan-20261024.json; batch plan research/cargo-cleanup-plan-20261031-L.json",
+ "approval": "lead review 2026-10-31T13:25:17Z (coordinator: D-L01..D-L04 approved, 191.031 GiB, execute the listed command with the same plan file and guards) under the Operator standing grant (START_LOG 2026-10-24 ~600-601)",
+ "why": "rule P2: the four lanes are PASS in STUDIO-R48 @4f69b03b (kernel 81f67058; ledger.json smb-attribution-1, smb-business-events-1, smb-job-admission-1 PASS_V1, smb-r46-followups-1 PASS_V2)",
+ "keep": "smb-fig-grid-3/target (PAUSED) and paused-green-uncompiled; dispatched lanes smb-ae-particles-2, smb-pdf-presets-1, smb-id-booklet-1, smb-r47-followups-1, smb-settings-schema-1 (-KeepLanes); every lane's logs, tmp, scripts, stash, msg files; studio-round, steward/sync exports, oracle-corpus, registry caches, locks; nothing on C:",
+ "checks_before_run": {
+  "lock": "D: .disk-build-lock at 13:16:23Z: no held/, queue/ empty",
+  "processes": "script re-checked per item (item path + ref_patterns, command line and image path) twice before deleting; all clear",
+  "recent_write": "60-min rule per item: newest writes 07:31Z-10:16Z, all clear"
+ },
+ "method": "batch-K script unchanged; command: phase2-guarded-delete.ps1 -Plan batchL-D.json -Disk D -ApproveAllCandidates -KeepLanes 'smb-fig-grid-3|smb-ae-particles-2|smb-pdf-presets-1|smb-id-booklet-1|smb-r47-followups-1|smb-settings-schema-1' -NormalIo -MaxFilesPerSec 600 -MaxBytesPerSec 524288000 -Execute",
+ "script_diff": {
+  "file": null,
+  "lines": 0,
+  "base": "batch-K script sha256 82203723fe09c1c0ee378ca4f2aed222b3250e4727595a2652fbde44cb42c1c5",
+  "new_sha256": "82203723fe09c1c0ee378ca4f2aed222b3250e4727595a2652fbde44cb42c1c5",
+  "summary": "none"
+ },
+ "dry_run": {
+  "result_file": "phase2-D-dryrun-20261031T131507Z-result.json",
+  "at": "2026-10-31T13:15:19Z",
+  "counts": [
+   {
+    "status": "WOULD_DELETE",
+    "n": 4,
+    "gib_deleted": 191.031
+   }
+  ]
+ },
+ "runs": [
+  {
+   "disk": "D",
+   "batch": "L",
+   "script": "phase2-guarded-delete.ps1 (batch-K copy, sha256 82203723..., cargo-manager-20261031-L scratch)",
+   "result_file": "phase2-D-execute-20261031T131623Z-result.json",
+   "log": "phase2-D-execute-20261031T131623Z.log + phase2-D-execute.stdout.log",
+   "at": "2026-10-31T13:24:52Z",
+   "free_before": [
+    {
+     "drive": "C",
+     "free_gib": 431.8
+    },
+    {
+     "drive": "D",
+     "free_gib": 1366.54
+    }
+   ],
+   "free_after": [
+    {
+     "drive": "C",
+     "free_gib": 431.79
+    },
+    {
+     "drive": "D",
+     "free_gib": 1556.21
+    }
+   ],
+   "rate_limit": {
+    "mib_per_s": 500,
+    "files_per_s": 600
+   },
+   "counts": {
+    "status": "DELETED",
+    "n": 4,
+    "gib_deleted": 191.031
+   }
+  }
+ ],
+ "tree_measure": {
+  "method": "robocopy /L /S /BYTES /XJ listing of C:/HandshakeBuild/WP-KERNEL-STUDIO (read-only)",
+  "at": "2026-10-31T13:15:20Z",
+  "C_studio_tree_gib": 218.44,
+  "cap_gib": 360
+ },
+ "summary": {
+  "deleted": {
+   "count": 4,
+   "gib": 191.031,
+   "files": 48119
+  },
+  "recycled_remainder_gib": 0,
+  "skipped": [],
+  "post_check": "the four <lane>/target dirs are gone; each lane's logs and tmp remain; smb-fig-grid-3/target present"
+ },
+ "p3": {
+  "before": {
+   "C_live_lane_targets": 0,
+   "D_live_lane_targets": 5
+  },
+  "after": {
+   "C_live_lane_targets": 0,
+   "D_live_lane_targets": 1
+  }
+ },
+ "free_space": {
+  "before": [
+   {
+    "drive": "C",
+    "free_gib": 431.8
+   },
+   {
+    "drive": "D",
+    "free_gib": 1366.54
+   }
+  ],
+  "after": [
+   {
+    "drive": "C",
+    "free_gib": 431.79
+   },
+   {
+    "drive": "D",
+    "free_gib": 1556.21
+   }
+  ]
+ },
+ "recycle_bin_gib_for_operator": 0,
+ "items": [
+  {
+   "id": "D-L03",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-job-admission-1/target",
+   "owner": "smb-job-admission-1",
+   "kind": "D: lane target",
+   "size_gib_before": 27.294,
+   "files": 6164,
+   "newest_write_utc": "2026-10-31T10:16:16Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 70,
+   "gib_deleted": 27.294,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-L04",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r46-followups-1/target",
+   "owner": "smb-r46-followups-1",
+   "kind": "D: lane target",
+   "size_gib_before": 71.39,
+   "files": 14203,
+   "newest_write_utc": "2026-10-31T07:31:09Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 173.9,
+   "gib_deleted": 71.39,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-L01",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-attribution-1/target",
+   "owner": "smb-attribution-1",
+   "kind": "D: lane target",
+   "size_gib_before": 90.637,
+   "files": 20253,
+   "newest_write_utc": "2026-10-31T09:40:04Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 230.5,
+   "gib_deleted": 90.637,
+   "gib_binned": 0,
+   "result": "deleted"
+  },
+  {
+   "id": "D-L02",
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-business-events-1/target",
+   "owner": "smb-business-events-1",
+   "kind": "D: lane target",
+   "size_gib_before": 1.71,
+   "files": 7499,
+   "newest_write_utc": "2026-10-31T10:04:58Z",
+   "status": "DELETED",
+   "detail": "",
+   "seconds": 20.4,
+   "gib_deleted": 1.71,
+   "gib_binned": 0,
+   "result": "deleted"
+  }
+ ]
+}

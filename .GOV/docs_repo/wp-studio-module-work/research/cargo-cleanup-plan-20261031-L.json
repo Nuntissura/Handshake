@@ -1,0 +1,127 @@
+{
+ "schema": "hsk.studio.cleanup_plan@1",
+ "file_id": "CARGO-CLEANUP-PLAN-20261031-L",
+ "generated_at": "2026-10-31T13:20:00Z",
+ "status": "APPROVED_AND_EXECUTED (result research/cargo-cleanup-result-20261031-L.json)",
+ "authority": "Operator standing grant START_LOG 2026-10-24 (~600-601), lead-reviewed, guarded script; rules P2/P3 of research/cargo-plan-20261024.json",
+ "state_basis": {
+  "round": "STUDIO-R48 @4f69b03b recorded (kernel 81f67058)",
+  "locks": "C: and D: .disk-build-lock: no held/, queue/ empty at 13:15Z",
+  "processes": "0 cargo/rustc/cargo-nextest at 13:15Z",
+  "builders": "smb-ae-particles-2, smb-pdf-presets-1 (C:), smb-id-booklet-1, smb-r47-followups-1, smb-settings-schema-1 (D:) dispatching/coding; no owner dirs for them on D: or C: yet (studio-team-dev/target/lanes empty)"
+ },
+ "measure_at_dry_run": {
+  "at": "2026-10-31T13:15:20Z",
+  "C_free_gib": 431.8,
+  "D_free_gib": 1366.54,
+  "C_studio_tree_gib": 218.44,
+  "C_studio_round_gib": 218.44,
+  "C_studio_team_dev_gib": 0.0,
+  "C_cap_gib": 360,
+  "C_headroom_to_cap_gib": 141.56,
+  "note": "C: tree grew 56.8 -> 218.4 GiB during R48 (studio-round rebuilt); R49 (full round) on C: follows this wave; lane builds for ae-particles-2 / pdf-presets-1 add C: lane targets"
+ },
+ "disks": {
+  "D": {
+   "scope": "D:/.../WP-KERNEL-STUDIO/<lane>/target of the four STUDIO-R48 PASS lanes",
+   "count": 4,
+   "gib": 191.031,
+   "files": 48119,
+   "dry_run_result_file": "scratchpad cargo-manager-20261031-L/phase2-D-dryrun-20261031T131507Z-result.json",
+   "dry_run_log": "scratchpad cargo-manager-20261031-L/phase2-D-dryrun-20261031T131507Z.log",
+   "plan_items_file": "scratchpad cargo-manager-20261031-L/batchL-D.json",
+   "dry_run_counts": {
+    "status": "WOULD_DELETE",
+    "n": 4,
+    "gib_deleted": 191.031
+   },
+   "candidates": [
+    {
+     "id": "D-L01",
+     "lane": "smb-attribution-1",
+     "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-attribution-1/target",
+     "gib": 90.637,
+     "files": 20253,
+     "newest_write_utc": "2026-10-31T09:40:04Z",
+     "ledger_status": "PASS_V1 (ledger: done (STUDIO-R48 PASS_V1 @4f69b03b))",
+     "shape": "debug/.fingerprint present (no CACHEDIR.TAG)",
+     "rule": "P2: lane PASS in STUDIO-R48 @4f69b03b (kernel 81f67058)",
+     "dry_run_status": "WOULD_DELETE"
+    },
+    {
+     "id": "D-L02",
+     "lane": "smb-business-events-1",
+     "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-business-events-1/target",
+     "gib": 1.71,
+     "files": 7499,
+     "newest_write_utc": "2026-10-31T10:04:58Z",
+     "ledger_status": "PASS_V1 (ledger: done (STUDIO-R48 PASS_V1 @4f69b03b))",
+     "shape": "debug/.fingerprint present (no CACHEDIR.TAG)",
+     "rule": "P2: lane PASS in STUDIO-R48 @4f69b03b (kernel 81f67058)",
+     "dry_run_status": "WOULD_DELETE"
+    },
+    {
+     "id": "D-L03",
+     "lane": "smb-job-admission-1",
+     "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-job-admission-1/target",
+     "gib": 27.294,
+     "files": 6164,
+     "newest_write_utc": "2026-10-31T10:16:16Z",
+     "ledger_status": "PASS_V1 (ledger: done (STUDIO-R48 PASS_V1 @4f69b03b))",
+     "shape": "debug/.fingerprint present (no CACHEDIR.TAG)",
+     "rule": "P2: lane PASS in STUDIO-R48 @4f69b03b (kernel 81f67058)",
+     "dry_run_status": "WOULD_DELETE"
+    },
+    {
+     "id": "D-L04",
+     "lane": "smb-r46-followups-1",
+     "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r46-followups-1/target",
+     "gib": 71.39,
+     "files": 14203,
+     "newest_write_utc": "2026-10-31T07:31:09Z",
+     "ledger_status": "PASS_V2 (ledger: done (STUDIO-R48 PASS_V2 @4f69b03b))",
+     "shape": "debug/.fingerprint present (no CACHEDIR.TAG)",
+     "rule": "P2: lane PASS in STUDIO-R48 @4f69b03b (kernel 81f67058)",
+     "dry_run_status": "WOULD_DELETE"
+    }
+   ]
+  },
+  "C": {
+   "scope": "read-only measurement; no C: candidates in batch L"
+  }
+ },
+ "other_d_targets_for_decision": {
+  "pass_or_abandoned_lane_targets": [],
+  "scan": "find <D: root> depth 2-4 -name target",
+  "known_not_candidates": [
+   "smb-fig-grid-3/target (PAUSED, KEEP)",
+   "studio-round/target (P4, forbidden)",
+   "studio-team-dev/steward-export/target (forbidden)",
+   "studio-team-dev/sync-export/target (forbidden)",
+   "prism-eng8-export/src/handshake-studio-assets/target (kept since 2026-10-24: export-proof junit.xml only)"
+  ]
+ },
+ "keep": {
+  "D": "smb-fig-grid-3/target (PAUSED, + paused-green-uncompiled); smb-ae-particles-2, smb-pdf-presets-1, smb-id-booklet-1, smb-r47-followups-1, smb-settings-schema-1 (dispatching, passed in -KeepLanes; no dirs yet); studio-round/target; steward/sync exports; logs/results/receipts/exports; oracle-corpus; registry caches; locks",
+  "C": "entire tree (read-only this batch)"
+ },
+ "script_diff": {
+  "file": null,
+  "base_sha256": "82203723fe09c1c0ee378ca4f2aed222b3250e4727595a2652fbde44cb42c1c5",
+  "new_sha256": "82203723fe09c1c0ee378ca4f2aed222b3250e4727595a2652fbde44cb42c1c5",
+  "summary": "none: batch K script copied unchanged; plain D: lane-target kind with lock, in-use (command line + image path), recent-write (60 min), shape, marker, forbidden-name and keep-lane guards on"
+ },
+ "execute_commands": {
+  "D": "phase2-guarded-delete.ps1 -Plan batchL-D.json -Disk D -ApproveAllCandidates -KeepLanes 'smb-fig-grid-3|smb-ae-particles-2|smb-pdf-presets-1|smb-id-booklet-1|smb-r47-followups-1|smb-settings-schema-1' -NormalIo -MaxFilesPerSec 600 -MaxBytesPerSec 524288000 -Execute"
+ },
+ "p3_before": {
+  "C_live_lane_targets": 0,
+  "D_live_lane_targets": 5
+ },
+ "p3_after": {
+  "C_live_lane_targets": 0,
+  "D_live_lane_targets": 1,
+  "note": "the five dispatched lanes will add up to 2 (C:) and 3 (D:) when they build; within P3's 6"
+ },
+ "approval": "lead review 2026-10-31T13:25:17Z (coordinator: D-L01..D-L04 approved, 191.031 GiB, execute the listed command with the same plan file and guards) under the Operator standing grant (START_LOG 2026-10-24 ~600-601)"
+}
