@@ -1,45 +1,50 @@
 {
   "crate": "hsk-studio-layout (tables of contents, index, trap presets), hsk-studio-folio (additive record fields only)",
   "lane": "SMB-ID-TOC-INDEX-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-id-toc-index-1",
   "base": "31454a07",
   "commits": [
     {
-      "sha": "1d61c6c8",
+      "sha": "c28de1bd",
       "slice": "item 3 trap preset (red: panicking bodies, compiling)",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "9218a503",
+      "sha": "b4454586",
       "slice": "item 3 trap preset",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "78480e3b",
+      "sha": "fc307bf2",
       "slice": "item 1 TOC contract (red: panicking generation, compiling)",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "9f0a48c3",
+      "sha": "e0529052",
       "slice": "item 1 TOC generate/update/update-all",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "d1bad6a8",
+      "sha": "d6a7c3e0",
       "slice": "item 2 index contract (red: panicking bodies, compiling)",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "dd69e2e2",
+      "sha": "e735b57b",
       "slice": "item 2 index generate/capitalise/capture",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "3df5ad01",
+      "sha": "8a35e199",
       "slice": "DESCRIPTOR toc_index_trap entry",
-      "pushed": false
+      "pushed": true
+    },
+    {
+      "sha": "a7be22a1",
+      "slice": "clear the four warn-level clippy lints (no behaviour change)",
+      "pushed": true
     }
   ],
   "capabilities_done": [
@@ -59,21 +64,45 @@
       "failed": 0,
       "new_tests": 32,
       "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-toc-index-1/bundled-smb-id-toc-index-1-3df5ad01-run1.log",
-      "clippy_warnings_in_lane_files": "warn-level only: collapsible_if src/index_contract.rs:820; type_complexity tests/id_toc_contract.rs:36 and tests/id_index_contract.rs:36; cloned_ref_to_slice_refs tests/id_index_contract.rs:383"
+      "note": "pre-rebase run on 3df5ad01 (base 31454a07); superseded by bundled_run_2",
+      "clippy_warnings_in_lane_files": "4 warn-level lints, cleared in a7be22a1 (collapsible_if, 2x type_complexity, cloned_ref_to_slice_refs)"
     },
     "per_sha_prerebase": {
       "argv": "lane-check.sh --owner smb-id-toc-index-1 --per-sha 31454a07",
       "result": "PER_SHA_RESULT OK shas=7 range=31454a07..3df5ad01",
       "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-toc-index-1/persha-smb-id-toc-index-1-3df5ad01-prerebase.log",
       "note": "pre-check on the old base; the push still reruns --per-sha origin/codex/handshake-studio-assets after the rebase"
+    },
+    "bundled_run_2": {
+      "argv": "bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-id-toc-index-1 -- cargo nextest run -p hsk-studio-layout",
+      "scope": "rule 4a whole hsk-studio-layout suite + clippy over layout and dependents harness, harness-view, interop-layout; no clippy warning in lane files",
+      "exit": 0,
+      "sha": "1206d76ac4c2cef593ea0d631de85b9bcbb5d2d0",
+      "passed": 185,
+      "failed": 0,
+      "new_tests": 32,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-toc-index-1/bundled-smb-id-toc-index-1-1206d76a-run2.log",
+      "why_rerun": "the rebase onto fcc1c6d7 brought folio d9116a2d (composition/effects.rs enum variants) and hsk-studio-type features/catalog changes, both in layout's dependency closure, and the lint commit changed layout sources",
+      "pushed_tip_relation": "a7be22a1 = 1206d76a rebased over 3b7a6976 (SMB-PRESS-INK-COVERAGE-1), which touches only hsk-studio-press-write and hsk-studio-press; layout depends on accord, folio, observe, type (no press edge), so the run was not repeated; per-sha on the pushed range covers compilation"
+    },
+    "per_sha_origin_1": {
+      "argv": "lane-check.sh --owner smb-id-toc-index-1 --per-sha origin/codex/handshake-studio-assets",
+      "result": "PER_SHA_RESULT OK shas=8 range=fcc1c6d7..1206d76a",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-toc-index-1/persha-smb-id-toc-index-1-1206d76a-origin.log"
+    },
+    "per_sha_origin_2": {
+      "argv": "lane-check.sh --owner smb-id-toc-index-1 --per-sha origin/codex/handshake-studio-assets",
+      "result": "PER_SHA_RESULT OK shas=8 range=3b7a6976..a7be22a1",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-toc-index-1/persha-smb-id-toc-index-1-a7be22a1-origin.log",
+      "note": "the pushed range"
     }
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "waiting for R50 followups push",
-  "updated_at": "2026-11-01T03:58:23Z",
+  "next": "validator: judge commits c28de1bd..a7be22a1 on codex/handshake-studio-assets",
+  "updated_at": "2026-11-01T05:33:50Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -126,7 +155,13 @@
       "folio persistence follow-up for the new TOC/index/trap fields (steward)"
     ],
     "vendor_parity": "InDesign TOC, index and trapping behaviour UNVERIFIED (D5)",
-    "push_order": "SMB-R50-FOLLOWUPS-1 not on origin/codex/handshake-studio-assets at 2026-11-01T03:58:23Z; not pushed"
+    "push_order": "pushed after SMB-R50-FOLLOWUPS-1 (fcc1c6d7) and SMB-PRESS-INK-COVERAGE-1 (3b7a6976) were on origin; lead release",
+    "lead_decisions": [
+      "contracts beside the existing Folio-based toc.rs/index.rs: accepted",
+      "folio + interop-layout persistence of the new fields and page applied_trap_preset (no page object): follow-ups",
+      "spec gaps recorded as SD-31..SD-36; SD-31 black_density: 12.0 per the clause text, MT-30847 AC-004 regenerated once the table row is fixed",
+      "warn-level clippy lints fixed before the push (a7be22a1)"
+    ]
   },
   "mt_claims": {
     "MT-173": {
@@ -266,5 +301,11 @@
         ]
       }
     }
+  },
+  "pushed": {
+    "branch": "codex/handshake-studio-assets",
+    "range": "3b7a6976..a7be22a1",
+    "tip": "a7be22a15af174a66fa9803f654ee6f8c44c74de",
+    "verified_at": "2026-11-01T05:33:50Z"
   }
 }
