@@ -1,30 +1,40 @@
 {
   "crate": "hsk-studio-composite (Foam / Wave World recovered STU-FX-131a records), hsk-studio-folio (additive enum variants only), hsk-studio-interop-psd (channel_name_transcoded), hsk-studio-harness-core (import keeps channels without layer records), hsk-studio-harness (tests)",
   "lane": "SMB-R50-FOLLOWUPS-1",
-  "status": null,
-  "phase": "paused",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed 2026-11-01: rebased onto 4b5ba2da (nib, prism, type, motion all below it), per-sha OK, bundled run green on the rebased tip, one push of 5 commits",
   "worktree": "wt-studio-lanes/smb-r50-followups-1",
   "base": "63ecf5a6",
   "commits": [
     {
-      "sha": "401b6004",
-      "subject": "interop-psd F-R50-5 red test (local)"
+      "sha": "134f98fa",
+      "subject": "interop-psd (SMB-R50-FOLLOWUPS-1, F-R50-5): red test, a renamed channel name the 1006 Pascal entry cannot carry is a typed loss",
+      "pushed": true,
+      "pre_rebase_sha": "401b6004"
     },
     {
-      "sha": "efe7c928",
-      "subject": "harness F-R50-6 red test (local)"
+      "sha": "db5821f6",
+      "subject": "harness (SMB-R50-FOLLOWUPS-1, F-R50-6): red test, a PSD with alpha channels and no layer records keeps them on import",
+      "pushed": true,
+      "pre_rebase_sha": "efe7c928"
     },
     {
-      "sha": "ebaf6532",
-      "subject": "composite, folio F-R50-1 / G2: recovered Foam and Wave world records stored and mapped (local)"
+      "sha": "d9116a2d",
+      "subject": "composite, folio (SMB-R50-FOLLOWUPS-1, F-R50-1, G2): Foam and Wave world store their recovered STU-FX-131a records and map them, recovered first",
+      "pushed": true,
+      "pre_rebase_sha": "ebaf6532"
     },
     {
-      "sha": "ec198d47",
-      "subject": "interop-psd F-R50-5: channel_name_transcoded (local)"
+      "sha": "4a4799bc",
+      "subject": "interop-psd (SMB-R50-FOLLOWUPS-1, F-R50-5): a renamed channel name the 1006 Pascal entry cannot carry records channel_name_transcoded",
+      "pushed": true,
+      "pre_rebase_sha": "ec198d47"
     },
     {
-      "sha": "144d70ff",
-      "subject": "harness-core F-R50-6: records gate on layers or channels, channel tiles as assets (local)"
+      "sha": "fcc1c6d7",
+      "subject": "harness-core (SMB-R50-FOLLOWUPS-1, F-R50-6): import keeps alpha and spot channels of a PSD without layer records",
+      "pushed": true,
+      "pre_rebase_sha": "144d70ff"
     }
   ],
   "capabilities_done": [
@@ -35,23 +45,32 @@
     "F-R50-6: harness-core import writes the records entry on layers OR channels and stores channel tiles as package assets"
   ],
   "tests": {
-    "argv": "lane-check --owner smb-r50-followups-1 --disk ssd -- cargo nextest run -p hsk-studio-folio -p hsk-studio-composite -p hsk-studio-interop-psd -p hsk-studio-harness-core -p hsk-studio-harness --features hsk-studio-harness/import-psd --no-fail-fast (clippy over the 5 crates + 19 dependents clean for changed code); then cargo nextest run -p hsk-studio-composite --features motion",
+    "argv": "lane-check --owner smb-r50-followups-1 --disk ssd -- cargo nextest run -p hsk-studio-folio -p hsk-studio-composite -p hsk-studio-interop-psd -p hsk-studio-harness-core -p hsk-studio-harness --features hsk-studio-harness/import-psd --no-fail-fast; then lane-check --owner smb-r50-followups-1 --disk ssd -- cargo nextest run -p hsk-studio-composite --features motion --no-fail-fast",
     "exit": 0,
-    "sha": "144d70ff",
+    "sha": "fcc1c6d72c5d4d50718e06907fe9dd0c69a465c7",
     "passed": 659,
     "failed": 0,
     "logs": [
-      "smb-r50-followups-1-144d70ff-bundled.log (450 passed, 16 skipped)",
-      "smb-r50-followups-1-144d70ff-composite-motion.log (209 passed)",
-      "red-smb-r50-followups-1-efe7c928.log (2 red tests FAIL as intended)"
-    ]
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r50-followups-1/smb-r50-followups-1-fcc1c6d7-bundled.log (450 passed, 16 skipped)",
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r50-followups-1/smb-r50-followups-1-fcc1c6d7-composite-motion.log (209 passed)"
+    ],
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-r50-followups-1 --per-sha origin/codex/handshake-studio-assets",
+      "result": "PER_SHA_RESULT OK shas=5 range=4b5ba2da..fcc1c6d7",
+      "log_dir": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r50-followups-1/per-sha-fcc1c6d7/",
+      "scratch_log": "push-c/l3-persha.log"
+    },
+    "clippy": "clippy ran in the same lane-check holds; warnings printed are in other crates (observe too_many_arguments, non_minimal_cfg); none in the 10 files this lane changed",
+    "red_evidence": "red-first logs were taken on the pre-rebase shas (red-smb-r50-followups-1-efe7c928.log, red-smb-r50-followups-1-070ea2ab.log); after the rebase the red commits 134f98fa and db5821f6 were checked for compilation only (per-sha), not re-run red",
+    "pushed_sha": "fcc1c6d72c5d4d50718e06907fe9dd0c69a465c7",
+    "finished_at": "2026-11-01T04:26:26Z"
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": null,
   "bg_pids": [],
-  "next": "PAUSED by lead (Operator). Resume: git fetch; check origin/codex/handshake-studio-assets for the four wave lanes (nib SMB-AI-DISTORT-EFFECTS-1, motion SMB-AE-EXPR-LIBRARY-1, type SMB-TYPE-OT-FEATURES-1, prism SMB-PS-MODE-CONVERT-1; at pause none were on origin, origin tip 63ecf5a6); when all four are there or the lead releases: git rebase origin/codex/handshake-studio-assets, lane-check.sh --owner smb-r50-followups-1 --per-sha origin/codex/handshake-studio-assets, push on PER_SHA_RESULT OK only, then READY_FOR_VALIDATION. Doctests: none added.",
-  "updated_at": "2026-10-31T23:26:21Z",
+  "next": "validator round on pushed 134f98fa..fcc1c6d7",
+  "updated_at": "2026-11-01T04:26:26Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -225,6 +244,10 @@
         "angle rows 0..0: folio no-range reading vs MT-32012/32013 literal 0 bounds (spec owner, SD)",
         "mapping scope: only same-quantity same-unit rows mapped (6 engine scalars); lead may want more (e.g. Foam viscosity, Wave world damping/wave speed) despite undeclared units"
       ]
-    }
+    },
+    "resume": "Pushed 2026-11-01T04:26:26Z by the push-only builder (C: slot) after the four engine lanes (nib 4b5ba2da, prism 0ce2bc48, type 17f03d1c, motion 31454a07) were on origin: origin/codex/handshake-studio-assets = fcc1c6d7; nothing left to resume.",
+    "lead_answers_for_validator": [
+      "SD-26 and SD-27 are in research; the lead readings stand for now (angle rows 0..0 stored unbounded; viscosity, damping and wave speed stay authored with no unit in the record). No code changed for them."
+    ]
   }
 }
