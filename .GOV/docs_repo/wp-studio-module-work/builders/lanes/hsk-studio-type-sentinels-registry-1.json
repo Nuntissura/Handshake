@@ -1,7 +1,7 @@
 {
   "crate": "hsk-studio-type (stream sentinels SD-29, 245-tag feature registry SD-30)",
   "lane": "SMB-TYPE-SENTINELS-REGISTRY-1",
-  "status": null,
+  "status": "READY_FOR_VALIDATION",
   "phase": "build",
   "worktree": "wt-studio-lanes/smb-type-sentinels-registry-1",
   "base": "a7be22a1",
@@ -9,42 +9,42 @@
     {
       "sha": "30f8787a",
       "subject": "item 1 red: STU-TYP-207 stream sentinel tests",
-      "pushed": false
+      "pushed": true
     },
     {
       "sha": "4f5fafc2",
       "subject": "item 2 red: STU-TYP-170 245-tag registry tests",
-      "pushed": false
+      "pushed": true
     },
     {
       "sha": "c47306e2",
       "subject": "item 1: STU-TYP-207 stream sentinels (SD-29)",
-      "pushed": false
+      "pushed": true
     },
     {
       "sha": "41f223a5",
       "subject": "item 1: const-fn range helpers, Observe needle",
-      "pushed": false
+      "pushed": true
     },
     {
       "sha": "d2aa36d0",
       "subject": "item 2: STU-TYP-170 245-tag feature registry (SD-30)",
-      "pushed": false
+      "pushed": true
     },
     {
       "sha": "82957a8d",
       "subject": "bidi_class derivative hash in third-party provenance, DESCRIPTOR wording (superseded: the vendored edit and its hash change are reverted by cb887ea5; net diff of provider/ and third-party/ against base is empty)",
-      "pushed": false
+      "pushed": true
     },
     {
       "sha": "7210fdc0",
       "subject": "item 2: drop explicit deref flagged by clippy",
-      "pushed": false
+      "pushed": true
     },
     {
       "sha": "cb887ea5",
       "subject": "item 1: break sentinels end paragraphs in the crate's own code (validate::ends_paragraph, engine::bidi_text U+2029 stand-in); vendored unicode-bidi char_data/mod.rs and provenance.json restored to base",
-      "pushed": false
+      "pushed": true
     }
   ],
   "capabilities_done": [
@@ -122,14 +122,21 @@
       "7210fdc0 harfrust 106/106 and default 105/105 green (before the vendored revert), logs bundled-...-7210fdc0-*.log",
       "d2aa36d0 harfrust 104/106 (see first_run_failed)"
     ],
-    "doctests": "none added (4d)"
+    "doctests": "none added (4d)",
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-type-sentinels-registry-1 --disk d --per-sha origin/codex/handshake-studio-assets",
+      "result": "PER_SHA_RESULT OK shas=8 range=a7be22a1..cb887ea5",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-sentinels-registry-1/persha-smb-type-sentinels-registry-1-cb887ea5.log",
+      "rebase": "origin tip stayed a7be22a1, rebase a no-op, so the bundled run at cb887ea5 stands (no rerun)"
+    },
+    "push": "git push origin cb887ea5:refs/heads/codex/handshake-studio-assets exit 0; fetch shows origin = cb887ea5; diff-stat a7be22a1..cb887ea5 lists only crates/hsk-studio-type paths"
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "waiting for lead release after R51",
-  "updated_at": "2026-11-01T06:03:32Z",
+  "next": "validation round: judge pushed tip cb887ea5 (range a7be22a1..cb887ea5)",
+  "updated_at": "2026-11-01T08:55:00Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -189,7 +196,10 @@
     "host_integration_check": "no GUI, GPU, egui or wgpu line; no Cargo.toml change; pure functions on borrowed text take no ActorContext (no document mutation); outcomes through Observe (catalog_failure_code, report_catalog_outcome, report_import_outcome); no jobs, no settings",
     "vendor_parity": "UNVERIFIED (D5): source applications' own sentinel mapping and registry",
     "shared_files": "tests/support/mod.rs and third-party/unicode-bidi-0.3.18/provenance.json edited (type crate, no other lane's hunks); char_data/mod.rs is the vendored unicode-bidi derivative",
-    "push_plan": "red commits 30f8787a and 4f5fafc2 compile and fail, so they may be pushed as separate commits; the history has no squash need. fetch, rebase, lane-check --per-sha, guarded push after lead release",
-    "lint_note": "lane-check clippy: 6 explicit_auto_deref style warnings on `&ctx` in engine.rs, same pattern as the existing code (one new at the bidi_text call); not fixed, no failure"
-  }
+    "push_plan": "done: 8 commits pushed unsquashed (red commits compile and fail their new tests, see tests.red_proof)",
+    "lint_note": "lane-check clippy: 6 explicit_auto_deref style warnings on `&ctx` in engine.rs, same pattern as the existing code (one new at the bidi_text call); not fixed, no failure",
+    "pushed_at": "2026-11-01T08:55:00Z",
+    "r51_finding": "F-R51-4: R51 found MT-30955 and MT-31005 not met by SMB-TYPE-OT-FEATURES-1; this lane is the remedy (245-tag table with per-row assertions, SD-29 sentinel rows). Claims stay: MT-30955 and MT-31005 met per notes.microtasks; no PASS claimed"
+  },
+  "pushed_sha": "cb887ea5f033713a61f2680dd3931c7db995c6f2"
 }
