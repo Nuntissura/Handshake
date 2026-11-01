@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.8.23 Video Scopes and Legal Range",
-    "spec_line": 11999,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 12272,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -48,9 +49,45 @@
       "criterion": "Sub-black is the region below reference black down to the bottom of the video-data range, and super-white the region above nominal peak white up to its top; both are legal signal and MUST be displayed by a scope rather than clipped out of the trace, because a scope that hides them cannot show the operator the thing that is wrong.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-COL-333"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `Reference black, luma` with the exact meaning the spec states: 16 | 64 | 256. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-333 carried contract table row 1"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `Achromatic, colour-difference components` with the exact meaning the spec states: 128 | 512 | 2048. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-333 carried contract table row 2"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `Nominal peak white, luma` with the exact meaning the spec states: 235 | 940 | 3760. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-333 carried contract table row 3"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `Colour-difference peak, minus and plus` with the exact meaning the spec states: 16 and 240 | 64 and 960 | 256 and 3840. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-333 carried contract table row 4"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `Total video-data range, both ends reserved` with the exact meaning the spec states: 1 to 254 | 4 to 1019 | 16 to 4079. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-333 carried contract table row 5"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `Full-range coding, both components` with the exact meaning the spec states: 0 to 255 | 0 to 1023 | 0 to 4095. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-333 carried contract table row 6"
     }
   ],
-  "acceptance_criteria_count": 2,
+  "acceptance_criteria_count": 8,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1582,7 +1619,13 @@
     ],
     "acceptance_refs": [
       "AC-001",
-      "AC-002"
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008"
     ],
     "materialized_acceptance": [
       {
@@ -1594,6 +1637,30 @@
         "id": "AC-002",
         "text": "Sub-black is the region below reference black down to the bottom of the video-data range, and super-white the region above nominal peak white up to its top; both are legal signal and MUST be displayed by a scope rather than clipped out of the trace, because a scope that hides them cannot show the operator the thing that is wrong.",
         "fulfillment_ref": "MT-35507#/fulfillment/legacy_acceptance_map/1"
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `Reference black, luma` with the exact meaning the spec states: 16 | 64 | 256. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `Achromatic, colour-difference components` with the exact meaning the spec states: 128 | 512 | 2048. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `Nominal peak white, luma` with the exact meaning the spec states: 235 | 940 | 3760. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `Colour-difference peak, minus and plus` with the exact meaning the spec states: 16 and 240 | 64 and 960 | 256 and 3840. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `Total video-data range, both ends reserved` with the exact meaning the spec states: 1 to 254 | 4 to 1019 | 16 to 4079. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `Full-range coding, both components` with the exact meaning the spec states: 0 to 255 | 0 to 1023 | 0 to 4095. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1828,6 +1895,102 @@
           "selected_features": []
         },
         "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
+      },
+      {
+        "check_id": "MT-35507-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-COL-333"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Reference black, luma` with the exact meaning the spec states: 16 | 64 | 256. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35507-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-COL-333"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Achromatic, colour-difference components` with the exact meaning the spec states: 128 | 512 | 2048. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35507-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-COL-333"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Nominal peak white, luma` with the exact meaning the spec states: 235 | 940 | 3760. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35507-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-COL-333"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Colour-difference peak, minus and plus` with the exact meaning the spec states: 16 and 240 | 64 and 960 | 256 and 3840. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35507-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-COL-333"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Total video-data range, both ends reserved` with the exact meaning the spec states: 1 to 254 | 4 to 1019 | 16 to 4079. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35507-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-COL-333"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Full-range coding, both components` with the exact meaning the spec states: 0 to 255 | 0 to 1023 | 0 to 4095. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2356,11 +2519,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2396,5 +2559,60 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `Reference black, luma` with the exact meaning the spec states: 16 | 64 | 256. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `Achromatic, colour-difference components` with the exact meaning the spec states: 128 | 512 | 2048. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `Nominal peak white, luma` with the exact meaning the spec states: 235 | 940 | 3760. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `Colour-difference peak, minus and plus` with the exact meaning the spec states: 16 and 240 | 64 and 960 | 256 and 3840. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `Total video-data range, both ends reserved` with the exact meaning the spec states: 1 to 254 | 4 to 1019 | 16 to 4079. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `Full-range coding, both components` with the exact meaning the spec states: 0 to 255 | 0 to 1023 | 0 to 4095. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "Scales, units and reference levels",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "7. Obligations",
-    "spec_line": 21130,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 21426,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,11 +34,24 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "interop",
   "scope": {
-    "summary": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]).",
+    "summary": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite database/SQL engine, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]). The sole exception is bounded read-only decoding of an Operator-selected external Lightroom `.lrcat` file as untrusted file bytes. The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority. It emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger. Every other SQLite/PostgreSQL path remains prohibited. Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [],
-  "acceptance_criteria_count": 0,
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-IO-166"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-IO-166"
+    }
+  ],
+  "acceptance_criteria_count": 2,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1690,13 +1704,23 @@
       "STU-IO-166"
     ],
     "acceptance_refs": [
-      "ASSET-AC-001"
+      "ASSET-AC-001",
+      "AC-001",
+      "AC-002"
     ],
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
-        "text": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]).",
+        "text": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite database/SQL engine, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]). The sole exception is bounded read-only decoding of an Operator-selected external Lightroom `.lrcat` file as untrusted file bytes. The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority. It emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger. Every other SQLite/PostgreSQL path remains prohibited. Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
         "fulfillment_ref": "MT-33424#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-001",
+        "text": "The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority."
+      },
+      {
+        "id": "AC-002",
+        "text": "Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof."
       }
     ],
     "spec_basis_refs": [
@@ -1820,7 +1844,7 @@
     "inputs": [
       {
         "source_scope": {
-          "summary": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]).",
+          "summary": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite database/SQL engine, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]). The sole exception is bounded read-only decoding of an Operator-selected external Lightroom `.lrcat` file as untrusted file bytes. The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority. It emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger. Every other SQLite/PostgreSQL path remains prohibited. Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
           "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
         },
         "canonical_consumer": "Consume bounded read-only Operator-selected lrcat bytes through decoder-only port producing import proposal/provenance/loss, then inspect no SQL engine/query/connectivity/private cache binding.",
@@ -1901,7 +1925,7 @@
         ],
         "command_or_method": "Independent validator executes HBR-bound selected hsk-studio-package natural consumer mt_33424 for ASSET-AC-001; planned target is authored during implementation.",
         "expected": "Consume bounded read-only Operator-selected lrcat bytes through decoder-only port producing import proposal/provenance/loss, then inspect no SQL engine/query/connectivity/private cache binding. Attempt catalog write/repair, SQL linkage, private SQLite/libSQL/Turso/PostgreSQL state or rows-as-authority; reject, with canonical host ResourceBroker/promotion/SurrealDB/EventLedger proof distinct from byte parsing.",
-        "source_requirement_text": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]).",
+        "source_requirement_text": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite database/SQL engine, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]). The sole exception is bounded read-only decoding of an Operator-selected external Lightroom `.lrcat` file as untrusted file bytes. The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority. It emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger. Every other SQLite/PostgreSQL path remains prohibited. Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
         "timeout_seconds": 180,
         "on_timeout": "record_timeout",
         "method_recipe": {
@@ -1915,6 +1939,38 @@
           "feature_policy": "Only owning package closure; HBR entrypoint and per-test deadline/config bound before activation."
         },
         "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
+      },
+      {
+        "check_id": "MT-33424-SPEC-AC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-001",
+          "STU-IO-166"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33424-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-IO-166"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2235,7 +2291,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]).",
+        "semantic_fulfillment": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite database/SQL engine, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]). The sole exception is bounded read-only decoding of an Operator-selected external Lightroom `.lrcat` file as untrusted file bytes. The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority. It emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger. Every other SQLite/PostgreSQL path remains prohibited. Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33424-ASSET-PACKAGE"
@@ -2245,7 +2301,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-PACKAGE",
             "scope": "Native document container serialization, manifest/hash references, atomic recovery and bounded loading. Stream asset bytes through CKC/PRIM-ArtifactService provider ports; no private catalog, preview cache, metadata store, watcher or second CAS under STU-ASSET-004/009/010. Standalone fixtures supply scoped in-memory resolver inputs rather than kernel imports.",
-            "required_behavior": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]).",
+            "required_behavior": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite database/SQL engine, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]). The sole exception is bounded read-only decoding of an Operator-selected external Lightroom `.lrcat` file as untrusted file bytes. The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority. It emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger. Every other SQLite/PostgreSQL path remains prohibited. Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2261,7 +2317,7 @@
         },
         "later_embedding_ref": "MT-33424-KERNEL-ASSET-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite database/SQL engine, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]). The sole exception is bounded read-only decoding of an Operator-selected external Lightroom `.lrcat` file as untrusted file bytes. The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority. It emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger. Every other SQLite/PostgreSQL path remains prohibited. Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36207"
@@ -2289,7 +2345,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]).",
+          "semantic_fulfillment": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite database/SQL engine, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]). The sole exception is bounded read-only decoding of an Operator-selected external Lightroom `.lrcat` file as untrusted file bytes. The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority. It emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger. Every other SQLite/PostgreSQL path remains prohibited. Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33424-ASSET-PACKAGE"
@@ -2299,7 +2355,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-PACKAGE",
               "scope": "Native document container serialization, manifest/hash references, atomic recovery and bounded loading. Stream asset bytes through CKC/PRIM-ArtifactService provider ports; no private catalog, preview cache, metadata store, watcher or second CAS under STU-ASSET-004/009/010. Standalone fixtures supply scoped in-memory resolver inputs rather than kernel imports.",
-              "required_behavior": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]).",
+              "required_behavior": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite database/SQL engine, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]). The sole exception is bounded read-only decoding of an Operator-selected external Lightroom `.lrcat` file as untrusted file bytes. The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority. It emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger. Every other SQLite/PostgreSQL path remains prohibited. Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2308,13 +2364,13 @@
               "hsk-studio-package"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]).",
+            "consumer_assertion": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite database/SQL engine, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]). The sole exception is bounded read-only decoding of an Operator-selected external Lightroom `.lrcat` file as untrusted file bytes. The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority. It emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger. Every other SQLite/PostgreSQL path remains prohibited. Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-33424-KERNEL-ASSET-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite database/SQL engine, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]). The sole exception is bounded read-only decoding of an Operator-selected external Lightroom `.lrcat` file as untrusted file bytes. The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority. It emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger. Every other SQLite/PostgreSQL path remains prohibited. Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ],
@@ -2372,18 +2428,18 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
-      "criterion": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]).",
+      "criterion": "Storage constraint.** Recipes, presets, import profiles, receipts and the parameter registry are SurrealDB `SCHEMAFULL` tables. Exported bytes, imported preset containers and preservation blobs are content-addressed artifacts ([STU-IO-005], [STU-ASSET-008]). No SQLite database/SQL engine, libSQL, Turso or PostgreSQL anywhere, including fixtures and caches ([STU-OVR-003]). The sole exception is bounded read-only decoding of an Operator-selected external Lightroom `.lrcat` file as untrusted file bytes. The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority. It emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger. Every other SQLite/PostgreSQL path remains prohibited. Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
   ],
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2415,5 +2471,48 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": null,
+          "new": "The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority."
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-001",
+        "AC-002"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Storage constraint",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/execution/inputs[0]/source_scope/summary",
+        "/proof/checks[0]/source_requirement_text",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion",
+        "/active_acceptance_criteria[0]/criterion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

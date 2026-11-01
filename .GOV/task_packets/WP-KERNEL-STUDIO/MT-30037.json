@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "2. Cross-Cutting Raster Obligations",
-    "spec_line": 465,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 549,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "raster",
   "scope": {
-    "summary": "Raster pixel data MUST be stored and composited as `StudioRasterTile` tiles (14.23), not as monolithic full-frame buffers, so that large documents, partial edits, undo/redo (14.19), and CRDT collaborative editing operate on bounded tile deltas. All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the `studio-engine` crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]).",
+    "summary": "Raster pixel data MUST be stored and composited as `StudioRasterTile` tiles (14.23), not as monolithic full-frame buffers, so that large documents, partial edits, undo/redo (14.19), and CRDT collaborative editing operate on bounded tile deltas. All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the the owning modular Studio asset crate crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]).",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -45,7 +46,7 @@
     },
     {
       "id": "AC-002",
-      "criterion": "All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the `studio-engine` crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]).",
+      "criterion": "All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the the owning modular Studio asset crate crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]).",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-RAS-004"
     }
@@ -1576,7 +1577,7 @@
       },
       {
         "id": "AC-002",
-        "text": "All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the `studio-engine` crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]).",
+        "text": "All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the the owning modular Studio asset crate crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]).",
         "fulfillment_ref": "MT-30037#/fulfillment/legacy_acceptance_map/1"
       }
     ],
@@ -1866,7 +1867,7 @@
             "hsk-studio-pigment"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the `studio-engine` crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]).",
+          "consumer_assertion": "All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the the owning modular Studio asset crate crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]).",
           "negative_path": "missing or stale dependency/spec/document/grant, cancel/byte/time exhaustion leaves source and authority unchanged; typed reason/state observable, correct resource/current revision and retry; no synthetic/no-op/skip PASS.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN.",
           "selected_package": "hsk-studio-pigment",
@@ -1930,7 +1931,7 @@
       "Retain all original acceptance and independent later embedding proof"
     ]
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "activation": {
     "disposition": "NON_AI_CURRENT_SCOPE",
     "implementation_state": "PLANNED_NOT_IMPLEMENTED",
@@ -2274,7 +2275,7 @@
         "original_text": "All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the `studio-engine` crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]).",
         "original_row_sha256": "2f006c9bccaa8e56d320db1365ab81a7c34d609ca627707013d8d472b86f531a",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the `studio-engine` crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]).",
+        "semantic_fulfillment": "All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the the owning modular Studio asset crate crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]).",
         "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
         "asset_contribution_refs": [
           "MT-30037"
@@ -2284,7 +2285,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-PIGMENT",
             "scope": "CPU tiles, sample formats, masks, brush/raster operations; no GPU/device dependency.",
-            "required_behavior": "All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the `studio-engine` crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]).",
+            "required_behavior": "All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the the owning modular Studio asset crate crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]).",
             "only_owner_root_may_change": true
           }
         ],
@@ -2303,7 +2304,7 @@
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the `studio-engine` crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the the owning modular Studio asset crate crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json"
@@ -2389,7 +2390,7 @@
           "original_text": "All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the `studio-engine` crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]).",
           "original_row_sha256": "2f006c9bccaa8e56d320db1365ab81a7c34d609ca627707013d8d472b86f531a",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the `studio-engine` crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]).",
+          "semantic_fulfillment": "All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the the owning modular Studio asset crate crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]).",
           "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
           "asset_contribution_refs": [
             "MT-30037"
@@ -2399,7 +2400,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-PIGMENT",
               "scope": "CPU tiles, sample formats, masks, brush/raster operations; no GPU/device dependency.",
-              "required_behavior": "All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the `studio-engine` crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]).",
+              "required_behavior": "All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the the owning modular Studio asset crate crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]).",
               "only_owner_root_may_change": true
             }
           ],
@@ -2418,7 +2419,7 @@
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the `studio-engine` crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the the owning modular Studio asset crate crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json"
@@ -2439,7 +2440,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2477,5 +2478,37 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-002",
+          "old": "All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the `studio-engine` crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002]).",
+          "new": "All compute-heavy pixel work (compositing, filtering, transform resampling, ML selection/inpaint inference) MUST execute in the the owning modular Studio asset crate crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU dependencies into `handshake_core` ([STU-ARC-002])."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Raster pixel data MUST be stored and composited as `StudioRasterTile` tiles (14.23), not",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[1]/text",
+        "/proof/checks[1]/method_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[1]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[1]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[1]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

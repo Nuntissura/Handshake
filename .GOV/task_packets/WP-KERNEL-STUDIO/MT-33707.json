@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "2. Tracks and clips",
-    "spec_line": 23099,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 23636,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -36,8 +37,87 @@
     "summary": "`StudioClip` (schema id `hsk.studio.clip@1`).** A windowed, retimed reference to a media item placed on a track. Required fields: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Field | Contract | |---|---| | `clip_id` | Stable, prefixed `SCLP-{uuid_v7}`. | | `source_ref` | Content-addressed reference to the media item, or to a nested `StudioSequence` or `StudioComposition`. Never a filesystem path ([GLOBAL-PORTABILITY] posture). | | `source_in`, `source_out` | Tick positions in the SOURCE's time base. | | `timeline_start` | Tick position of the clip's first frame on the track. | | `duration` | Derived: `(source_out - source_in) / speed`. Stored redundantly for index efficiency, and validated against the derivation. | | `speed` | Rational multiplier. See [STU-VID-031]. | | `reversed` | bool. Reversal is a speed sign, and the source in/out do not swap. | | `enabled` | bool. A disabled clip occupies its time and renders nothing. | | `link_group` | Optional id joining a video clip and its audio clips as one selectable unit ([STU-VID-029]). | | `effect_stack` | `StudioEffectStack` ([STU-FX-002]). Includes the clip's intrinsic transform and opacity, which are ordinary keyframable properties, not special cases. | | `transitions` | Optional head and tail transition references ([STU-VID-032]). | | `markers` [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [],
-  "acceptance_criteria_count": 0,
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "The contract table holds the row `clip_id` with the exact meaning the spec states: Stable, prefixed `SCLP-{uuid_v7}`.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-020 carried contract table row 1"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The contract table holds the row `source_ref` with the exact meaning the spec states: Content-addressed reference to the media item, or to a nested `StudioSequence` or `StudioComposition`. Never a filesystem path ([GLOBAL-PORTABILITY] posture).. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-020 carried contract table row 2"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `source_in`, `source_out` with the exact meaning the spec states: Tick positions in the SOURCE's time base.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-020 carried contract table row 3"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `timeline_start` with the exact meaning the spec states: Tick position of the clip's first frame on the track.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-020 carried contract table row 4"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `duration` with the exact meaning the spec states: Derived: `(source_out - source_in) / speed`. Stored redundantly for index efficiency, and validated against the derivation.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-020 carried contract table row 5"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `speed` with the exact meaning the spec states: Rational multiplier. See [STU-VID-031].. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-020 carried contract table row 6"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `reversed` with the exact meaning the spec states: bool. Reversal is a speed sign, and the source in/out do not swap.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-020 carried contract table row 7"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `enabled` with the exact meaning the spec states: bool. A disabled clip occupies its time and renders nothing.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-020 carried contract table row 8"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The contract table holds the row `link_group` with the exact meaning the spec states: Optional id joining a video clip and its audio clips as one selectable unit ([STU-VID-029]).. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-020 carried contract table row 9"
+    },
+    {
+      "id": "AC-010",
+      "criterion": "The contract table holds the row `effect_stack` with the exact meaning the spec states: `StudioEffectStack` ([STU-FX-002]). Includes the clip's intrinsic transform and opacity, which are ordinary keyframable properties, not special cases.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-020 carried contract table row 10"
+    },
+    {
+      "id": "AC-011",
+      "criterion": "The contract table holds the row `transitions` with the exact meaning the spec states: Optional head and tail transition references ([STU-VID-032]).. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-020 carried contract table row 11"
+    },
+    {
+      "id": "AC-012",
+      "criterion": "The contract table holds the row `markers` with the exact meaning the spec states: Clip-local marker list.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-020 carried contract table row 12"
+    },
+    {
+      "id": "AC-013",
+      "criterion": "The contract table holds the row `label_color` with the exact meaning the spec states: One of the 16 declared label colours: Violet, Iris, Caribbean, Lavender, Cerulean, Forest, Rose, Mango, Purple, Blue, Teal, Magenta, Tan, Green, Brown, Yellow.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-020 carried contract table row 13"
+    }
+  ],
+  "acceptance_criteria_count": 13,
   "implementation_notes": {
     "source_repository": "https://github.com/Nuntissura/assets",
     "source_subdirectory": "handshake-studio-assets/crates/hsk-studio-pulse",
@@ -1519,13 +1599,78 @@
       "STU-VID-020"
     ],
     "acceptance_refs": [
-      "ASSET-AC-001"
+      "ASSET-AC-001",
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009",
+      "AC-010",
+      "AC-011",
+      "AC-012",
+      "AC-013"
     ],
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
         "text": "`StudioClip` (schema id `hsk.studio.clip@1`).** A windowed, retimed reference to a media item placed on a track. Required fields: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Field | Contract | |---|---| | `clip_id` | Stable, prefixed `SCLP-{uuid_v7}`. | | `source_ref` | Content-addressed reference to the media item, or to a nested `StudioSequence` or `StudioComposition`. Never a filesystem path ([GLOBAL-PORTABILITY] posture). | | `source_in`, `source_out` | Tick positions in the SOURCE's time base. | | `timeline_start` | Tick position of the clip's first frame on the track. | | `duration` | Derived: `(source_out - source_in) / speed`. Stored redundantly for index efficiency, and validated against the derivation. | | `speed` | Rational multiplier. See [STU-VID-031]. | | `reversed` | bool. Reversal is a speed sign, and the source in/out do not swap. | | `enabled` | bool. A disabled clip occupies its time and renders nothing. | | `link_group` | Optional id joining a video clip and its audio clips as one selectable unit ([STU-VID-029]). | | `effect_stack` | `StudioEffectStack` ([STU-FX-002]). Includes the clip's intrinsic transform and opacity, which are ordinary keyframable properties, not special cases. | | `transitions` | Optional head and tail transition references ([STU-VID-032]). | | `markers` [...]",
         "fulfillment_ref": "MT-33707#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-001",
+        "text": "The contract table holds the row `clip_id` with the exact meaning the spec states: Stable, prefixed `SCLP-{uuid_v7}`.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-002",
+        "text": "The contract table holds the row `source_ref` with the exact meaning the spec states: Content-addressed reference to the media item, or to a nested `StudioSequence` or `StudioComposition`. Never a filesystem path ([GLOBAL-PORTABILITY] posture).. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `source_in`, `source_out` with the exact meaning the spec states: Tick positions in the SOURCE's time base.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `timeline_start` with the exact meaning the spec states: Tick position of the clip's first frame on the track.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `duration` with the exact meaning the spec states: Derived: `(source_out - source_in) / speed`. Stored redundantly for index efficiency, and validated against the derivation.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `speed` with the exact meaning the spec states: Rational multiplier. See [STU-VID-031].. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `reversed` with the exact meaning the spec states: bool. Reversal is a speed sign, and the source in/out do not swap.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `enabled` with the exact meaning the spec states: bool. A disabled clip occupies its time and renders nothing.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-009",
+        "text": "The contract table holds the row `link_group` with the exact meaning the spec states: Optional id joining a video clip and its audio clips as one selectable unit ([STU-VID-029]).. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-010",
+        "text": "The contract table holds the row `effect_stack` with the exact meaning the spec states: `StudioEffectStack` ([STU-FX-002]). Includes the clip's intrinsic transform and opacity, which are ordinary keyframable properties, not special cases.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-011",
+        "text": "The contract table holds the row `transitions` with the exact meaning the spec states: Optional head and tail transition references ([STU-VID-032]).. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-012",
+        "text": "The contract table holds the row `markers` with the exact meaning the spec states: Clip-local marker list.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-013",
+        "text": "The contract table holds the row `label_color` with the exact meaning the spec states: One of the 16 declared label colours: Violet, Iris, Caribbean, Lavender, Cerulean, Forest, Rose, Mango, Purple, Blue, Teal, Magenta, Tan, Green, Brown, Yellow.. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1820,6 +1965,214 @@
           "before_handoff": "Actual target must exist and match nonzero tests; independent actual-output/device/native/original oracle proof per claim.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-33707-SPEC-AC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-001",
+          "STU-VID-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `clip_id` with the exact meaning the spec states: Stable, prefixed `SCLP-{uuid_v7}`.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33707-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-VID-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `source_ref` with the exact meaning the spec states: Content-addressed reference to the media item, or to a nested `StudioSequence` or `StudioComposition`. Never a filesystem path ([GLOBAL-PORTABILITY] posture).. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33707-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-VID-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `source_in`, `source_out` with the exact meaning the spec states: Tick positions in the SOURCE's time base.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33707-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-VID-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `timeline_start` with the exact meaning the spec states: Tick position of the clip's first frame on the track.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33707-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-VID-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `duration` with the exact meaning the spec states: Derived: `(source_out - source_in) / speed`. Stored redundantly for index efficiency, and validated against the derivation.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33707-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-VID-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `speed` with the exact meaning the spec states: Rational multiplier. See [STU-VID-031].. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33707-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-VID-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `reversed` with the exact meaning the spec states: bool. Reversal is a speed sign, and the source in/out do not swap.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33707-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-VID-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `enabled` with the exact meaning the spec states: bool. A disabled clip occupies its time and renders nothing.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33707-SPEC-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-VID-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `link_group` with the exact meaning the spec states: Optional id joining a video clip and its audio clips as one selectable unit ([STU-VID-029]).. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33707-SPEC-AC-010",
+        "kind": "test",
+        "claim_refs": [
+          "AC-010",
+          "STU-VID-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `effect_stack` with the exact meaning the spec states: `StudioEffectStack` ([STU-FX-002]). Includes the clip's intrinsic transform and opacity, which are ordinary keyframable properties, not special cases.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33707-SPEC-AC-011",
+        "kind": "test",
+        "claim_refs": [
+          "AC-011",
+          "STU-VID-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `transitions` with the exact meaning the spec states: Optional head and tail transition references ([STU-VID-032]).. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33707-SPEC-AC-012",
+        "kind": "test",
+        "claim_refs": [
+          "AC-012",
+          "STU-VID-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `markers` with the exact meaning the spec states: Clip-local marker list.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33707-SPEC-AC-013",
+        "kind": "test",
+        "claim_refs": [
+          "AC-013",
+          "STU-VID-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `label_color` with the exact meaning the spec states: One of the 16 declared label colours: Violet, Iris, Caribbean, Lavender, Cerulean, Forest, Rose, Mango, Purple, Blue, Teal, Magenta, Tan, Green, Brown, Yellow.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2272,7 +2625,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T23:52:25Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
@@ -2290,7 +2643,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2333,5 +2686,102 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": null,
+          "new": "The contract table holds the row `clip_id` with the exact meaning the spec states: Stable, prefixed `SCLP-{uuid_v7}`.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The contract table holds the row `source_ref` with the exact meaning the spec states: Content-addressed reference to the media item, or to a nested `StudioSequence` or `StudioComposition`. Never a filesystem path ([GLOBAL-PORTABILITY] posture).. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `source_in`, `source_out` with the exact meaning the spec states: Tick positions in the SOURCE's time base.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `timeline_start` with the exact meaning the spec states: Tick position of the clip's first frame on the track.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `duration` with the exact meaning the spec states: Derived: `(source_out - source_in) / speed`. Stored redundantly for index efficiency, and validated against the derivation.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `speed` with the exact meaning the spec states: Rational multiplier. See [STU-VID-031].. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `reversed` with the exact meaning the spec states: bool. Reversal is a speed sign, and the source in/out do not swap.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `enabled` with the exact meaning the spec states: bool. A disabled clip occupies its time and renders nothing.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-009",
+          "old": null,
+          "new": "The contract table holds the row `link_group` with the exact meaning the spec states: Optional id joining a video clip and its audio clips as one selectable unit ([STU-VID-029]).. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-010",
+          "old": null,
+          "new": "The contract table holds the row `effect_stack` with the exact meaning the spec states: `StudioEffectStack` ([STU-FX-002]). Includes the clip's intrinsic transform and opacity, which are ordinary keyframable properties, not special cases.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-011",
+          "old": null,
+          "new": "The contract table holds the row `transitions` with the exact meaning the spec states: Optional head and tail transition references ([STU-VID-032]).. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-012",
+          "old": null,
+          "new": "The contract table holds the row `markers` with the exact meaning the spec states: Clip-local marker list.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-013",
+          "old": null,
+          "new": "The contract table holds the row `label_color` with the exact meaning the spec states: One of the 16 declared label colours: Violet, Iris, Caribbean, Lavender, Cerulean, Forest, Rose, Mango, Purple, Blue, Teal, Magenta, Tan, Green, Brown, Yellow.. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012",
+        "AC-013"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "`StudioClip` (schema id `hsk.studio.clip@1`)",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "1. The two timelines are distinct surfaces",
-    "spec_line": 23063,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 23600,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -36,8 +37,45 @@
     "summary": "**The clip timeline and the keyframe timeline are DIFFERENT surfaces with different primitives, and conflating them is a specification error.** The distinction is normative: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | | Clip timeline (this sub-section) | Keyframe timeline (14.26) | |---|---|---| | Unit of arrangement | `StudioClip` -- a windowed reference to a media item, with source in/out and timeline in/out. | `StudioProperty` -- a value stream on a layer, holding keyframes or an expression. | | Vertical axis | `StudioTrack` -- an ordered lane holding non-overlapping clips. | The property tree of the selected layers, hierarchically disclosed. | | Horizontal edit | trim, ripple, roll, slip, slide, razor, lift, extract, insert, overwrite. | keyframe move, interpolation change, tangent edit, time remap. | | What a drag does | changes which frames of a source play, and when. | changes a value at a time. | | Time basis | sequence ticks ([STU-VID-012]). | composition time, in seconds and frames ([STU-MOT-020]). | | Selection | clips and edit points. | keyframes and property ranges. |",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [],
-  "acceptance_criteria_count": 0,
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "The contract table holds the row `Unit of arrangement` with the exact meaning the spec states: `StudioClip` -- a windowed reference to a media item, with source in/out and timeline in/out. | `StudioProperty` -- a value stream on a layer, holding keyframes or an expression.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-022 carried contract table row 1"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The contract table holds the row `Vertical axis` with the exact meaning the spec states: `StudioTrack` -- an ordered lane holding non-overlapping clips. | The property tree of the selected layers, hierarchically disclosed.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-022 carried contract table row 2"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `Horizontal edit` with the exact meaning the spec states: trim, ripple, roll, slip, slide, razor, lift, extract, insert, overwrite. | keyframe move, interpolation change, tangent edit, time remap.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-022 carried contract table row 3"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `What a drag does` with the exact meaning the spec states: changes which frames of a source play, and when. | changes a value at a time.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-022 carried contract table row 4"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `Time basis` with the exact meaning the spec states: sequence ticks ([STU-VID-012]). | composition time, in seconds and frames ([STU-MOT-020]).. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-022 carried contract table row 5"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `Selection` with the exact meaning the spec states: clips and edit points. | keyframes and property ranges.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-022 carried contract table row 6"
+    }
+  ],
+  "acceptance_criteria_count": 6,
   "implementation_notes": {
     "source_repository": "https://github.com/Nuntissura/assets",
     "source_subdirectory": "handshake-studio-assets/crates/hsk-studio-pulse",
@@ -1519,13 +1557,43 @@
       "STU-VID-022"
     ],
     "acceptance_refs": [
-      "ASSET-AC-001"
+      "ASSET-AC-001",
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006"
     ],
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
         "text": "**The clip timeline and the keyframe timeline are DIFFERENT surfaces with different primitives, and conflating them is a specification error.** The distinction is normative: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | | Clip timeline (this sub-section) | Keyframe timeline (14.26) | |---|---|---| | Unit of arrangement | `StudioClip` -- a windowed reference to a media item, with source in/out and timeline in/out. | `StudioProperty` -- a value stream on a layer, holding keyframes or an expression. | | Vertical axis | `StudioTrack` -- an ordered lane holding non-overlapping clips. | The property tree of the selected layers, hierarchically disclosed. | | Horizontal edit | trim, ripple, roll, slip, slide, razor, lift, extract, insert, overwrite. | keyframe move, interpolation change, tangent edit, time remap. | | What a drag does | changes which frames of a source play, and when. | changes a value at a time. | | Time basis | sequence ticks ([STU-VID-012]). | composition time, in seconds and frames ([STU-MOT-020]). | | Selection | clips and edit points. | keyframes and property ranges. |",
         "fulfillment_ref": "MT-33703#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-001",
+        "text": "The contract table holds the row `Unit of arrangement` with the exact meaning the spec states: `StudioClip` -- a windowed reference to a media item, with source in/out and timeline in/out. | `StudioProperty` -- a value stream on a layer, holding keyframes or an expression.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-002",
+        "text": "The contract table holds the row `Vertical axis` with the exact meaning the spec states: `StudioTrack` -- an ordered lane holding non-overlapping clips. | The property tree of the selected layers, hierarchically disclosed.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `Horizontal edit` with the exact meaning the spec states: trim, ripple, roll, slip, slide, razor, lift, extract, insert, overwrite. | keyframe move, interpolation change, tangent edit, time remap.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `What a drag does` with the exact meaning the spec states: changes which frames of a source play, and when. | changes a value at a time.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `Time basis` with the exact meaning the spec states: sequence ticks ([STU-VID-012]). | composition time, in seconds and frames ([STU-MOT-020]).. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `Selection` with the exact meaning the spec states: clips and edit points. | keyframes and property ranges.. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1818,6 +1886,102 @@
           "before_handoff": "Actual target must exist and match nonzero tests; independent actual-output/device/native/original oracle proof per claim.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-33703-SPEC-AC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-001",
+          "STU-VID-022"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Unit of arrangement` with the exact meaning the spec states: `StudioClip` -- a windowed reference to a media item, with source in/out and timeline in/out. | `StudioProperty` -- a value stream on a layer, holding keyframes or an expression.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33703-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-VID-022"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Vertical axis` with the exact meaning the spec states: `StudioTrack` -- an ordered lane holding non-overlapping clips. | The property tree of the selected layers, hierarchically disclosed.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33703-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-VID-022"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Horizontal edit` with the exact meaning the spec states: trim, ripple, roll, slip, slide, razor, lift, extract, insert, overwrite. | keyframe move, interpolation change, tangent edit, time remap.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33703-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-VID-022"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `What a drag does` with the exact meaning the spec states: changes which frames of a source play, and when. | changes a value at a time.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33703-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-VID-022"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Time basis` with the exact meaning the spec states: sequence ticks ([STU-VID-012]). | composition time, in seconds and frames ([STU-MOT-020]).. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33703-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-VID-022"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Selection` with the exact meaning the spec states: clips and edit points. | keyframes and property ranges.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2270,7 +2434,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T23:52:25Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
@@ -2288,7 +2452,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2331,5 +2495,60 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": null,
+          "new": "The contract table holds the row `Unit of arrangement` with the exact meaning the spec states: `StudioClip` -- a windowed reference to a media item, with source in/out and timeline in/out. | `StudioProperty` -- a value stream on a layer, holding keyframes or an expression.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The contract table holds the row `Vertical axis` with the exact meaning the spec states: `StudioTrack` -- an ordered lane holding non-overlapping clips. | The property tree of the selected layers, hierarchically disclosed.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `Horizontal edit` with the exact meaning the spec states: trim, ripple, roll, slip, slide, razor, lift, extract, insert, overwrite. | keyframe move, interpolation change, tangent edit, time remap.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `What a drag does` with the exact meaning the spec states: changes which frames of a source play, and when. | changes a value at a time.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `Time basis` with the exact meaning the spec states: sequence ticks ([STU-VID-012]). | composition time, in seconds and frames ([STU-MOT-020]).. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `Selection` with the exact meaning the spec states: clips and edit points. | keyframes and property ranges.. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "The clip timeline and the keyframe timeline are DIFFERENT surfaces with different",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

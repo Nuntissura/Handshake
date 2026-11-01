@@ -12,8 +12,9 @@
     "unit_kind": "validator",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.8.17 Validation and Acceptance",
-    "spec_line": 11107,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 11380,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,13 +34,13 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "colour",
   "scope": {
-    "summary": "No-platform-CMM tripwire.** The build MUST fail if any crate in the `studio-engine` or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library. The tripwire runs alongside the SQLite tripwire of [STU-OVR-003] and the text-engine tripwire of [STU-TYP-231].",
+    "summary": "No-platform-CMM tripwire.** The build MUST fail if any crate in the the owning modular Studio asset crate or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library. The tripwire runs alongside the SQLite tripwire of [STU-OVR-003] and the text-engine tripwire of [STU-TYP-231].",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "No-platform-CMM tripwire.** The build MUST fail if any crate in the `studio-engine` or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library.",
+      "criterion": "No-platform-CMM tripwire.** The build MUST fail if any crate in the the owning modular Studio asset crate or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-COL-261"
     }
@@ -1573,7 +1574,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "No-platform-CMM tripwire.** The build MUST fail if any crate in the `studio-engine` or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library.",
+        "text": "No-platform-CMM tripwire.** The build MUST fail if any crate in the the owning modular Studio asset crate or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library.",
         "fulfillment_ref": "MT-31374#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -1698,7 +1699,7 @@
     "inputs": [
       {
         "source_scope": {
-          "summary": "No-platform-CMM tripwire.** The build MUST fail if any crate in the `studio-engine` or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library. The tripwire runs alongside the SQLite tripwire of [STU-OVR-003] and the text-engine tripwire of [STU-TYP-231].",
+          "summary": "No-platform-CMM tripwire.** The build MUST fail if any crate in the the owning modular Studio asset crate or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library. The tripwire runs alongside the SQLite tripwire of [STU-OVR-003] and the text-engine tripwire of [STU-TYP-231].",
           "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
         },
         "canonical_consumer": "An independent source graph/link reader verifies owning Prism test/build closure and a deliberately forbidden dependency; mapped handshake_core graph proof stays with host adoption.",
@@ -2128,7 +2129,7 @@
         "original_text": "No-platform-CMM tripwire.** The build MUST fail if any crate in the `studio-engine` or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library.",
         "original_row_sha256": "49ed54a658fd7349d64b62936d13c2dd74acf97145c26cdc77a1ebb3f63f50dc",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "No-platform-CMM tripwire.** The build MUST fail if any crate in the `studio-engine` or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library.",
+        "semantic_fulfillment": "No-platform-CMM tripwire.** The build MUST fail if any crate in the the owning modular Studio asset crate or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library.",
         "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
         "asset_contribution_refs": [
           "MT-31374-ASSET-PRISM"
@@ -2138,7 +2139,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-PRISM",
             "scope": "Profiles, rendering intents, linearization/ICC transforms; cached results keyed by profile and engine version.",
-            "required_behavior": "No-platform-CMM tripwire.** The build MUST fail if any crate in the `studio-engine` or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library.",
+            "required_behavior": "No-platform-CMM tripwire.** The build MUST fail if any crate in the the owning modular Studio asset crate or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2157,7 +2158,7 @@
         },
         "later_embedding_ref": "MT-31374-KERNEL-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "No-platform-CMM tripwire.** The build MUST fail if any crate in the `studio-engine` or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "No-platform-CMM tripwire.** The build MUST fail if any crate in the the owning modular Studio asset crate or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36193"
@@ -2194,7 +2195,7 @@
           "original_text": "No-platform-CMM tripwire.** The build MUST fail if any crate in the `studio-engine` or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library.",
           "original_row_sha256": "49ed54a658fd7349d64b62936d13c2dd74acf97145c26cdc77a1ebb3f63f50dc",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "No-platform-CMM tripwire.** The build MUST fail if any crate in the `studio-engine` or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library.",
+          "semantic_fulfillment": "No-platform-CMM tripwire.** The build MUST fail if any crate in the the owning modular Studio asset crate or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library.",
           "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
           "asset_contribution_refs": [
             "MT-31374-ASSET-PRISM"
@@ -2204,7 +2205,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-PRISM",
               "scope": "Profiles, rendering intents, linearization/ICC transforms; cached results keyed by profile and engine version.",
-              "required_behavior": "No-platform-CMM tripwire.** The build MUST fail if any crate in the `studio-engine` or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library.",
+              "required_behavior": "No-platform-CMM tripwire.** The build MUST fail if any crate in the the owning modular Studio asset crate or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2223,7 +2224,7 @@
           },
           "later_embedding_ref": "MT-31374-KERNEL-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "No-platform-CMM tripwire.** The build MUST fail if any crate in the `studio-engine` or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "No-platform-CMM tripwire.** The build MUST fail if any crate in the the owning modular Studio asset crate or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "MT-36193"
@@ -2240,11 +2241,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T00:50:48.776285+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2280,5 +2281,37 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "No-platform-CMM tripwire.** The build MUST fail if any crate in the `studio-engine` or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library.",
+          "new": "No-platform-CMM tripwire.** The build MUST fail if any crate in the the owning modular Studio asset crate or `handshake_core` dependency graph links a platform colour-management module or a system-installed colour library."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "No-platform-CMM tripwire",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/execution/inputs[0]/source_scope/summary",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

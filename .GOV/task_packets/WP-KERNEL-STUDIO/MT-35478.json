@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.8.21 ACES Scene-Linear Default",
-    "spec_line": 11764,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 12037,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -48,9 +49,57 @@
       "criterion": "Studio MUST NOT infer one from the identifier string, and MUST NOT substitute the version it happens to know. | | `config_content_hash` | Content hash of the serialised configuration bytes, which is the identity [STU-COL-150] already requires. | | `config_closure_id` | A hash covering the serialised configuration AND every external LUT file it references.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-COL-314"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `config_identifier` with the exact meaning the spec states: The configuration's published identifier string, which by field convention carries the configuration version, the ACES version and the configuration-syntax version in one token, of the shape `<variant>-config-v<config>_aces-v<aces>_ocio-v<syntax>`. Stored verbatim as read; Studio does not reformat i [...]. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-314 carried contract table row 1"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `config_name` with the exact meaning the spec states: The configuration's own declared name key, which may differ from the file name it arrived in.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-314 carried contract table row 2"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `config_syntax_version` with the exact meaning the spec states: The configuration's declared profile-syntax version, which is what decides whether the two-stage display model of [STU-COL-313] is available at all.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-314 carried contract table row 3"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `aces_version` with the exact meaning the spec states: The ACES release the configuration declares. `UNKNOWN` where the configuration declares none; Studio MUST NOT infer one from the identifier string, and MUST NOT substitute the version it happens to know.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-314 carried contract table row 4"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `config_content_hash` with the exact meaning the spec states: Content hash of the serialised configuration bytes, which is the identity [STU-COL-150] already requires.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-314 carried contract table row 5"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `config_closure_id` with the exact meaning the spec states: A hash covering the serialised configuration AND every external LUT file it references. A configuration whose text is unchanged but whose referenced LUT file changed is a DIFFERENT transform graph, and `config_content_hash` alone cannot see that.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-314 carried contract table row 6"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The contract table holds the row `resolution_mode` with the exact meaning the spec states: `operator_supplied_file`, `named_identifier`, or `absent`.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-314 carried contract table row 7"
+    },
+    {
+      "id": "AC-010",
+      "criterion": "The contract table holds the row `display_view_selection` with the exact meaning the spec states: The (display, view) pair in force, which is the `ocio_display` selection [STU-COL-154] already defines.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-314 carried contract table row 8"
     }
   ],
-  "acceptance_criteria_count": 2,
+  "acceptance_criteria_count": 10,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1582,7 +1631,15 @@
     ],
     "acceptance_refs": [
       "AC-001",
-      "AC-002"
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009",
+      "AC-010"
     ],
     "materialized_acceptance": [
       {
@@ -1594,6 +1651,38 @@
         "id": "AC-002",
         "text": "Studio MUST NOT infer one from the identifier string, and MUST NOT substitute the version it happens to know. | | `config_content_hash` | Content hash of the serialised configuration bytes, which is the identity [STU-COL-150] already requires. | | `config_closure_id` | A hash covering the serialised configuration AND every external LUT file it references.",
         "fulfillment_ref": "MT-35478#/fulfillment/legacy_acceptance_map/1"
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `config_identifier` with the exact meaning the spec states: The configuration's published identifier string, which by field convention carries the configuration version, the ACES version and the configuration-syntax version in one token, of the shape `<variant>-config-v<config>_aces-v<aces>_ocio-v<syntax>`. Stored verbatim as read; Studio does not reformat i [...]. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `config_name` with the exact meaning the spec states: The configuration's own declared name key, which may differ from the file name it arrived in.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `config_syntax_version` with the exact meaning the spec states: The configuration's declared profile-syntax version, which is what decides whether the two-stage display model of [STU-COL-313] is available at all.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `aces_version` with the exact meaning the spec states: The ACES release the configuration declares. `UNKNOWN` where the configuration declares none; Studio MUST NOT infer one from the identifier string, and MUST NOT substitute the version it happens to know.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `config_content_hash` with the exact meaning the spec states: Content hash of the serialised configuration bytes, which is the identity [STU-COL-150] already requires.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `config_closure_id` with the exact meaning the spec states: A hash covering the serialised configuration AND every external LUT file it references. A configuration whose text is unchanged but whose referenced LUT file changed is a DIFFERENT transform graph, and `config_content_hash` alone cannot see that.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-009",
+        "text": "The contract table holds the row `resolution_mode` with the exact meaning the spec states: `operator_supplied_file`, `named_identifier`, or `absent`.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-010",
+        "text": "The contract table holds the row `display_view_selection` with the exact meaning the spec states: The (display, view) pair in force, which is the `ocio_display` selection [STU-COL-154] already defines.. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1828,6 +1917,134 @@
           "selected_features": []
         },
         "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
+      },
+      {
+        "check_id": "MT-35478-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-COL-314"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `config_identifier` with the exact meaning the spec states: The configuration's published identifier string, which by field convention carries the configuration version, the ACES version and the configuration-syntax version in one token, of the shape `<variant>-config-v<config>_aces-v<aces>_ocio-v<syntax>`. Stored verbatim as read; Studio does not reformat i [...]. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35478-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-COL-314"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `config_name` with the exact meaning the spec states: The configuration's own declared name key, which may differ from the file name it arrived in.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35478-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-COL-314"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `config_syntax_version` with the exact meaning the spec states: The configuration's declared profile-syntax version, which is what decides whether the two-stage display model of [STU-COL-313] is available at all.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35478-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-COL-314"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `aces_version` with the exact meaning the spec states: The ACES release the configuration declares. `UNKNOWN` where the configuration declares none; Studio MUST NOT infer one from the identifier string, and MUST NOT substitute the version it happens to know.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35478-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-COL-314"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `config_content_hash` with the exact meaning the spec states: Content hash of the serialised configuration bytes, which is the identity [STU-COL-150] already requires.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35478-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-COL-314"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `config_closure_id` with the exact meaning the spec states: A hash covering the serialised configuration AND every external LUT file it references. A configuration whose text is unchanged but whose referenced LUT file changed is a DIFFERENT transform graph, and `config_content_hash` alone cannot see that.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35478-SPEC-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-COL-314"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `resolution_mode` with the exact meaning the spec states: `operator_supplied_file`, `named_identifier`, or `absent`.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35478-SPEC-AC-010",
+        "kind": "test",
+        "claim_refs": [
+          "AC-010",
+          "STU-COL-314"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `display_view_selection` with the exact meaning the spec states: The (display, view) pair in force, which is the `ocio_display` selection [STU-COL-154] already defines.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2356,11 +2573,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2396,5 +2613,72 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `config_identifier` with the exact meaning the spec states: The configuration's published identifier string, which by field convention carries the configuration version, the ACES version and the configuration-syntax version in one token, of the shape `<variant>-config-v<config>_aces-v<aces>_ocio-v<syntax>`. Stored verbatim as read; Studio does not reformat i [...]. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `config_name` with the exact meaning the spec states: The configuration's own declared name key, which may differ from the file name it arrived in.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `config_syntax_version` with the exact meaning the spec states: The configuration's declared profile-syntax version, which is what decides whether the two-stage display model of [STU-COL-313] is available at all.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `aces_version` with the exact meaning the spec states: The ACES release the configuration declares. `UNKNOWN` where the configuration declares none; Studio MUST NOT infer one from the identifier string, and MUST NOT substitute the version it happens to know.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `config_content_hash` with the exact meaning the spec states: Content hash of the serialised configuration bytes, which is the identity [STU-COL-150] already requires.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `config_closure_id` with the exact meaning the spec states: A hash covering the serialised configuration AND every external LUT file it references. A configuration whose text is unchanged but whose referenced LUT file changed is a DIFFERENT transform graph, and `config_content_hash` alone cannot see that.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-009",
+          "old": null,
+          "new": "The contract table holds the row `resolution_mode` with the exact meaning the spec states: `operator_supplied_file`, `named_identifier`, or `absent`.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-010",
+          "old": null,
+          "new": "The contract table holds the row `display_view_selection` with the exact meaning the spec states: The (display, view) pair in force, which is the `ocio_display` selection [STU-COL-154] already defines.. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "Configuration provenance on the document",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

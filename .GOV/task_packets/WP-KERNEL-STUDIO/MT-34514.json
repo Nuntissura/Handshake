@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "4.3 The panel inventory and the shipping spine",
-    "spec_line": 31373,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 32066,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "operator_shell",
   "scope": {
-    "summary": "The eight-panel spine ships FIRST.** Exactly eight panels form the cross-profile invariant spine and are present in EVERY default layout: `context-bar`, `tools`, `properties`, `layers`, `colour`, `swatches`, `history`, `info`. These eight MUST be implemented and proven through the accessibility inspector BEFORE any further panel is authored. The remaining 82 panels follow behind the spine, behind a STABLE registry API, and are explicitly parallelisable content work fed by captured parameter metadata. The risk in this design is concentrated in the centre tree, the scrub widget and the slot resolver — not in the panels — so the spine exists to prove those three against a deliberately small panel set. Everything else varies by profile signature, which is what makes a default layout meaningful rather than cosmetic.",
+    "summary": "The eight-panel spine ships FIRST.** Exactly eight panels form the cross-profile invariant spine and are present in EVERY default layout: `context-bar`, `tools`, `properties`, `layers`, `colour`, `swatches`, `history`, `info`. These eight MUST be implemented and proven through the accessibility inspector BEFORE any further panel is authored. The remaining 82 panels follow behind the spine, behind a STABLE registry API, and are explicitly parallelisable content work fed by captured parameter metadata. The risk in this design is concentrated in the centre tree, the scrub widget and the slot resolver — not in the panels — so the spine exists to prove those three against a deliberately small panel set. Everything else varies by profile signature, which is what makes a default layout meaningful rather than cosmetic. The spine acceptance MUST also inspect actual rendered Studio layouts against inspected representative Adobe professional-workflow references, using Argus snapshots and the existing visual-debugging surface. Verify readable typography and content, discoverable controls, coherent docking and navigation, visible state, no text overlap, and responsive resizing at the supported display scales; retain the eight existing panel identities. Copying current Handshake palette values or declaring a theme does not prove the requested visual quality. Record the selected references an [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -42,9 +43,15 @@
       "criterion": "These eight MUST be implemented and proven through the accessibility inspector BEFORE any further panel is authored.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-SHL-078"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The spine acceptance MUST also inspect actual rendered Studio layouts against inspected representative Adobe professional-workflow references, using Argus snapshots and the existing visual-debugging surface.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-SHL-078"
     }
   ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria_count": 2,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1716,7 +1723,8 @@
     "acceptance_refs": [
       "AC-001",
       "V209-AC-001",
-      "V209-AC-002"
+      "V209-AC-002",
+      "AC-002"
     ],
     "materialized_acceptance": [
       {
@@ -1733,6 +1741,10 @@
         "id": "V209-AC-002",
         "text": "Inspect actual Studio layouts against inspected representative Adobe professional-workflow references using Argus snapshots and the existing visual-debugging surface. Verify readable typography/content, discoverable controls, coherent docking/navigation, visible state, no text overlap and responsive resizing at supported display scales; preserve the eight identities and use the single configurable shared panel/control asset and semantic theme. Copying palette values or declaring a theme does not prove visual quality. Record selected references and rendered evidence in the existing MT proof/manual surface without a separate GUI ceremony or duplicate screenshot suite.",
         "fulfillment_ref": "MT-34514#/fulfillment/spec_amendment_acceptance/1"
+      },
+      {
+        "id": "AC-002",
+        "text": "The spine acceptance MUST also inspect actual rendered Studio layouts against inspected representative Adobe professional-workflow references, using Argus snapshots and the existing visual-debugging surface."
       }
     ],
     "spec_basis_refs": [
@@ -1862,7 +1874,7 @@
         "requirement_refs": [
           "STU-SHL-078"
         ],
-        "current_normative_instructions": "**[STU-SHL-078] The eight-panel spine ships FIRST.** Exactly eight panels form the cross-profile invariant spine and are present in EVERY default layout: `context-bar`, `tools`, `properties`, `layers`, `colour`, `swatches`, `history`, `info`. These eight MUST be implemented and proven through the accessibility inspector BEFORE any further panel is authored. The remaining 82 panels follow behind the spine, behind a STABLE registry API, and are explicitly parallelisable content work fed by captured parameter metadata. The risk in this design is concentrated in the centre tree, the scrub widget and the slot resolver — not in the panels — so the spine exists to prove those three against a deliberately small panel set. Everything else varies by profile signature, which is what makes a default layout meaningful rather than cosmetic.",
+        "current_normative_instructions": "**[STU-SHL-078] The eight-panel spine ships FIRST.** Exactly eight panels form the cross-profile invariant spine and are present in EVERY default layout: `context-bar`, `tools`, `properties`, `layers`, `colour`, `swatches`, `history`, `info`. These eight MUST be implemented and proven through the accessibility inspector BEFORE any further panel is authored. The remaining 82 panels follow behind the spine, behind a STABLE registry API, and are explicitly parallelisable content work fed by captured parameter metadata. The risk in this design is concentrated in the centre tree, the scrub widget and the slot resolver — not in the panels — so the spine exists to prove those three against a deliberately small panel set. Everything else varies by profile signature, which is what makes a default layout meaningful rather than cosmetic. The spine acceptance MUST also inspect actual rendered Studio layouts against inspected representative Adobe professional-workflow references, using Argus snapshots and the existing visual-debugging surface. Verify readable typography and content, discoverable controls, coherent docking and navigation, visible state, no text overlap, and responsive resizing at the supported display scales; retain the eight existing panel identities. Copying current Handshake palette values or declaring a theme does not prove the requested visual quality. Record the selected references an [...]",
         "declared_table_keys": [],
         "source_fields": [
           "context-bar",
@@ -2105,6 +2117,22 @@
         },
         "proof_status": "PENDING_NOT_RUN",
         "reference_inspection_status": "PENDING_NOT_INSPECTED"
+      },
+      {
+        "check_id": "MT-34514-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-SHL-078"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The spine acceptance MUST also inspect actual rendered Studio layouts against inspected representative Adobe professional-workflow references, using Argus snapshots and the existing visual-debugging surface.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2634,11 +2662,11 @@
       }
     ]
   },
-  "updated_at_utc": "2026-10-10T05:44:05.513657Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2680,5 +2708,32 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The spine acceptance MUST also inspect actual rendered Studio layouts against inspected representative Adobe professional-workflow references, using Argus snapshots and the existing visual-debugging surface."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-002"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "The eight-panel spine ships FIRST",
+      "propagated_paths": [
+        "/execution/inputs[0]/current_normative_instructions"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

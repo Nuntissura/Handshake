@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "6. Pixelate Family",
-    "spec_line": 19243,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 19514,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,14 +27,14 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "Cell-mosaic effects reuse the `studio-engine` tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in o [...]",
+  "clause": "Cell-mosaic effects reuse the the owning modular Studio asset crate tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consis [...]",
   "spec_anchor": [
     "STU-FX-016a"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "effects",
   "scope": {
-    "summary": "Cell-mosaic effects reuse the `studio-engine` tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Color Halftone | R | Opt | Simulates enlarged per-channel halftone screens; dot radius 4-127, per-channel screen angles. | | Halftone Screen | R,V | Opt | Dot / line / circular halftone screening with continuous-tone option. Dedup of the halftone pattern filter and the halftone live filter. | | Crystallize | R | Opt | Clumps pixels into solid-color polygonal cells. | | Facet | R | Opt | Clumps similar-color pixels into blocks for a hand-painted look. | | Fragment | R | Opt | Averages four offset copies of the region's pixels. | | Mezzotint | R | Opt | Random black/white or saturated dot/line/stroke patterns from a type menu. | | Mosaic | R | Opt | Clumps pixels into uniform square color blocks. | | Pointillize | R | Opt | Random pointillist dots with the background color as canvas between dots. | | Voronoi | R | Opt | Voronoi cell-mosaic tessellation. | --- ### 7. Render & Generative-Pattern Family (GPU)",
+    "summary": "Cell-mosaic effects reuse the the owning modular Studio asset crate tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Color Halftone | R | Opt | Simulates enlarged per-channel halftone screens; dot radius 4-127, per-channel screen angles. | | Halftone Screen | R,V | Opt | Dot / line / circular halftone screening with continuous-tone option. Dedup of the halftone pattern filter and the halftone live filter. | | Crystallize | R | Opt | Clumps pixels into solid-color polygonal cells. | | Facet | R | Opt | Clumps similar-color pixels into blocks for a hand-painted look. | | Fragment | R | Opt | Averages four offset copies of the region's pixels. | | Mezzotint | R | Opt | Random black/white or saturated dot/line/stroke patterns from a type menu. | | Mosaic | R | Opt | Clumps pixels into uniform square color blocks. | | Pointillize | R | Opt | Random pointillist dots with the background color as canvas between dots. | | Voronoi | R | Opt | Voronoi cell-mosaic tessellation. | --- ### 7. Render & Generative-Pattern Family (GPU)",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [],
@@ -127,7 +128,7 @@
   "identity": {
     "mt_id": "MT-32856",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "Cell-mosaic effects reuse the `studio-engine` tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in o [...]",
+    "title": "Cell-mosaic effects reuse the the owning modular Studio asset crate tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consis [...]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 3
@@ -1581,7 +1582,7 @@
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
-        "text": "Cell-mosaic effects reuse the `studio-engine` tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Color Halftone | R | Opt | Simulates enlarged per-channel halftone screens; dot radius 4-127, per-channel screen angles. | | Halftone Screen | R,V | Opt | Dot / line / circular halftone screening with continuous-tone option. Dedup of the halftone pattern filter and the halftone live filter. | | Crystallize | R | Opt | Clumps pixels into solid-color polygonal cells. | | Facet | R | Opt | Clumps similar-color pixels into blocks for a hand-painted look. | | Fragment | R | Opt | Averages four offset copies of the region's pixels. | | Mezzotint | R | Opt | Random black/white or saturated dot/line/stroke patterns from a type menu. | | Mosaic | R | Opt | Clumps pixels into uniform square color blocks. | | Pointillize | R | Opt | Random pointillist dots with the background color as canvas between dots. | | Voronoi | R | Opt | Voronoi cell-mosaic tessellation. | --- ### 7. Render & Generative-Pattern Family (GPU)",
+        "text": "Cell-mosaic effects reuse the the owning modular Studio asset crate tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Color Halftone | R | Opt | Simulates enlarged per-channel halftone screens; dot radius 4-127, per-channel screen angles. | | Halftone Screen | R,V | Opt | Dot / line / circular halftone screening with continuous-tone option. Dedup of the halftone pattern filter and the halftone live filter. | | Crystallize | R | Opt | Clumps pixels into solid-color polygonal cells. | | Facet | R | Opt | Clumps similar-color pixels into blocks for a hand-painted look. | | Fragment | R | Opt | Averages four offset copies of the region's pixels. | | Mezzotint | R | Opt | Random black/white or saturated dot/line/stroke patterns from a type menu. | | Mosaic | R | Opt | Clumps pixels into uniform square color blocks. | | Pointillize | R | Opt | Random pointillist dots with the background color as canvas between dots. | | Voronoi | R | Opt | Voronoi cell-mosaic tessellation. | --- ### 7. Render & Generative-Pattern Family (GPU)",
         "fulfillment_ref": "MT-32856#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -2145,7 +2146,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "Cell-mosaic effects reuse the `studio-engine` tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Color Halftone | R | Opt | Simulates enlarged per-channel halftone screens; dot radius 4-127, per-channel screen angles. | | Halftone Screen | R,V | Opt | Dot / line / circular halftone screening with continuous-tone option. Dedup of the halftone pattern filter and the halftone live filter. | | Crystallize | R | Opt | Clumps pixels into solid-color polygonal cells. | | Facet | R | Opt | Clumps similar-color pixels into blocks for a hand-painted look. | | Fragment | R | Opt | Averages four offset copies of the region's pixels. | | Mezzotint | R | Opt | Random black/white or saturated dot/line/stroke patterns from a type menu. | | Mosaic | R | Opt | Clumps pixels into uniform square color blocks. | | Pointillize | R | Opt | Random pointillist dots with the background color as canvas between dots. | | Voronoi | R | Opt | Voronoi cell-mosaic tessellation. | --- ### 7. Render & Generative-Pattern Family (GPU)",
+        "semantic_fulfillment": "Cell-mosaic effects reuse the the owning modular Studio asset crate tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Color Halftone | R | Opt | Simulates enlarged per-channel halftone screens; dot radius 4-127, per-channel screen angles. | | Halftone Screen | R,V | Opt | Dot / line / circular halftone screening with continuous-tone option. Dedup of the halftone pattern filter and the halftone live filter. | | Crystallize | R | Opt | Clumps pixels into solid-color polygonal cells. | | Facet | R | Opt | Clumps similar-color pixels into blocks for a hand-painted look. | | Fragment | R | Opt | Averages four offset copies of the region's pixels. | | Mezzotint | R | Opt | Random black/white or saturated dot/line/stroke patterns from a type menu. | | Mosaic | R | Opt | Clumps pixels into uniform square color blocks. | | Pointillize | R | Opt | Random pointillist dots with the background color as canvas between dots. | | Voronoi | R | Opt | Voronoi cell-mosaic tessellation. | --- ### 7. Render & Generative-Pattern Family (GPU)",
         "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
         "asset_contribution_refs": [
           "MT-32856"
@@ -2155,7 +2156,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-COMPOSITE",
             "scope": "Static render-plan evaluator consumes immutable snapshot; same semantics for previews/export. Temporal/effect providers attach through typed ports; no unconditional motion/pulse engine dependency in the static render closure.",
-            "required_behavior": "Cell-mosaic effects reuse the `studio-engine` tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Color Halftone | R | Opt | Simulates enlarged per-channel halftone screens; dot radius 4-127, per-channel screen angles. | | Halftone Screen | R,V | Opt | Dot / line / circular halftone screening with continuous-tone option. Dedup of the halftone pattern filter and the halftone live filter. | | Crystallize | R | Opt | Clumps pixels into solid-color polygonal cells. | | Facet | R | Opt | Clumps similar-color pixels into blocks for a hand-painted look. | | Fragment | R | Opt | Averages four offset copies of the region's pixels. | | Mezzotint | R | Opt | Random black/white or saturated dot/line/stroke patterns from a type menu. | | Mosaic | R | Opt | Clumps pixels into uniform square color blocks. | | Pointillize | R | Opt | Random pointillist dots with the background color as canvas between dots. | | Voronoi | R | Opt | Voronoi cell-mosaic tessellation. | --- ### 7. Render & Generative-Pattern Family (GPU)",
+            "required_behavior": "Cell-mosaic effects reuse the the owning modular Studio asset crate tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Color Halftone | R | Opt | Simulates enlarged per-channel halftone screens; dot radius 4-127, per-channel screen angles. | | Halftone Screen | R,V | Opt | Dot / line / circular halftone screening with continuous-tone option. Dedup of the halftone pattern filter and the halftone live filter. | | Crystallize | R | Opt | Clumps pixels into solid-color polygonal cells. | | Facet | R | Opt | Clumps similar-color pixels into blocks for a hand-painted look. | | Fragment | R | Opt | Averages four offset copies of the region's pixels. | | Mezzotint | R | Opt | Random black/white or saturated dot/line/stroke patterns from a type menu. | | Mosaic | R | Opt | Clumps pixels into uniform square color blocks. | | Pointillize | R | Opt | Random pointillist dots with the background color as canvas between dots. | | Voronoi | R | Opt | Voronoi cell-mosaic tessellation. | --- ### 7. Render & Generative-Pattern Family (GPU)",
             "only_owner_root_may_change": true
           }
         ],
@@ -2170,7 +2171,7 @@
         },
         "later_embedding_ref": "MT-36204#/source_acceptance_coverage",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Cell-mosaic effects reuse the `studio-engine` tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Color Halftone | R | Opt | Simulates enlarged per-channel halftone screens; dot radius 4-127, per-channel screen angles. | | Halftone Screen | R,V | Opt | Dot / line / circular halftone screening with continuous-tone option. Dedup of the halftone pattern filter and the halftone live filter. | | Crystallize | R | Opt | Clumps pixels into solid-color polygonal cells. | | Facet | R | Opt | Clumps similar-color pixels into blocks for a hand-painted look. | | Fragment | R | Opt | Averages four offset copies of the region's pixels. | | Mezzotint | R | Opt | Random black/white or saturated dot/line/stroke patterns from a type menu. | | Mosaic | R | Opt | Clumps pixels into uniform square color blocks. | | Pointillize | R | Opt | Random pointillist dots with the background color as canvas between dots. | | Voronoi | R | Opt | Voronoi cell-mosaic tessellation. | --- ### 7. Render & Generative-Pattern Family (GPU) Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Cell-mosaic effects reuse the the owning modular Studio asset crate tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Color Halftone | R | Opt | Simulates enlarged per-channel halftone screens; dot radius 4-127, per-channel screen angles. | | Halftone Screen | R,V | Opt | Dot / line / circular halftone screening with continuous-tone option. Dedup of the halftone pattern filter and the halftone live filter. | | Crystallize | R | Opt | Clumps pixels into solid-color polygonal cells. | | Facet | R | Opt | Clumps similar-color pixels into blocks for a hand-painted look. | | Fragment | R | Opt | Averages four offset copies of the region's pixels. | | Mezzotint | R | Opt | Random black/white or saturated dot/line/stroke patterns from a type menu. | | Mosaic | R | Opt | Clumps pixels into uniform square color blocks. | | Pointillize | R | Opt | Random pointillist dots with the background color as canvas between dots. | | Voronoi | R | Opt | Voronoi cell-mosaic tessellation. | --- ### 7. Render & Generative-Pattern Family (GPU) Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "later_embedding_refs": [
           "MT-36204#/source_acceptance_coverage"
@@ -2200,7 +2201,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Cell-mosaic effects reuse the `studio-engine` tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Color Halftone | R | Opt | Simulates enlarged per-channel halftone screens; dot radius 4-127, per-channel screen angles. | | Halftone Screen | R,V | Opt | Dot / line / circular halftone screening with continuous-tone option. Dedup of the halftone pattern filter and the halftone live filter. | | Crystallize | R | Opt | Clumps pixels into solid-color polygonal cells. | | Facet | R | Opt | Clumps similar-color pixels into blocks for a hand-painted look. | | Fragment | R | Opt | Averages four offset copies of the region's pixels. | | Mezzotint | R | Opt | Random black/white or saturated dot/line/stroke patterns from a type menu. | | Mosaic | R | Opt | Clumps pixels into uniform square color blocks. | | Pointillize | R | Opt | Random pointillist dots with the background color as canvas between dots. | | Voronoi | R | Opt | Voronoi cell-mosaic tessellation. | --- ### 7. Render & Generative-Pattern Family (GPU)",
+          "semantic_fulfillment": "Cell-mosaic effects reuse the the owning modular Studio asset crate tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Color Halftone | R | Opt | Simulates enlarged per-channel halftone screens; dot radius 4-127, per-channel screen angles. | | Halftone Screen | R,V | Opt | Dot / line / circular halftone screening with continuous-tone option. Dedup of the halftone pattern filter and the halftone live filter. | | Crystallize | R | Opt | Clumps pixels into solid-color polygonal cells. | | Facet | R | Opt | Clumps similar-color pixels into blocks for a hand-painted look. | | Fragment | R | Opt | Averages four offset copies of the region's pixels. | | Mezzotint | R | Opt | Random black/white or saturated dot/line/stroke patterns from a type menu. | | Mosaic | R | Opt | Clumps pixels into uniform square color blocks. | | Pointillize | R | Opt | Random pointillist dots with the background color as canvas between dots. | | Voronoi | R | Opt | Voronoi cell-mosaic tessellation. | --- ### 7. Render & Generative-Pattern Family (GPU)",
           "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
           "asset_contribution_refs": [
             "MT-32856"
@@ -2210,7 +2211,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-COMPOSITE",
               "scope": "Static render-plan evaluator consumes immutable snapshot; same semantics for previews/export. Temporal/effect providers attach through typed ports; no unconditional motion/pulse engine dependency in the static render closure.",
-              "required_behavior": "Cell-mosaic effects reuse the `studio-engine` tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Color Halftone | R | Opt | Simulates enlarged per-channel halftone screens; dot radius 4-127, per-channel screen angles. | | Halftone Screen | R,V | Opt | Dot / line / circular halftone screening with continuous-tone option. Dedup of the halftone pattern filter and the halftone live filter. | | Crystallize | R | Opt | Clumps pixels into solid-color polygonal cells. | | Facet | R | Opt | Clumps similar-color pixels into blocks for a hand-painted look. | | Fragment | R | Opt | Averages four offset copies of the region's pixels. | | Mezzotint | R | Opt | Random black/white or saturated dot/line/stroke patterns from a type menu. | | Mosaic | R | Opt | Clumps pixels into uniform square color blocks. | | Pointillize | R | Opt | Random pointillist dots with the background color as canvas between dots. | | Voronoi | R | Opt | Voronoi cell-mosaic tessellation. | --- ### 7. Render & Generative-Pattern Family (GPU)",
+              "required_behavior": "Cell-mosaic effects reuse the the owning modular Studio asset crate tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Color Halftone | R | Opt | Simulates enlarged per-channel halftone screens; dot radius 4-127, per-channel screen angles. | | Halftone Screen | R,V | Opt | Dot / line / circular halftone screening with continuous-tone option. Dedup of the halftone pattern filter and the halftone live filter. | | Crystallize | R | Opt | Clumps pixels into solid-color polygonal cells. | | Facet | R | Opt | Clumps similar-color pixels into blocks for a hand-painted look. | | Fragment | R | Opt | Averages four offset copies of the region's pixels. | | Mezzotint | R | Opt | Random black/white or saturated dot/line/stroke patterns from a type menu. | | Mosaic | R | Opt | Clumps pixels into uniform square color blocks. | | Pointillize | R | Opt | Random pointillist dots with the background color as canvas between dots. | | Voronoi | R | Opt | Voronoi cell-mosaic tessellation. | --- ### 7. Render & Generative-Pattern Family (GPU)",
               "only_owner_root_may_change": true
             }
           ],
@@ -2225,7 +2226,7 @@
           },
           "later_embedding_ref": "MT-36204#/source_acceptance_coverage",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Cell-mosaic effects reuse the `studio-engine` tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Color Halftone | R | Opt | Simulates enlarged per-channel halftone screens; dot radius 4-127, per-channel screen angles. | | Halftone Screen | R,V | Opt | Dot / line / circular halftone screening with continuous-tone option. Dedup of the halftone pattern filter and the halftone live filter. | | Crystallize | R | Opt | Clumps pixels into solid-color polygonal cells. | | Facet | R | Opt | Clumps similar-color pixels into blocks for a hand-painted look. | | Fragment | R | Opt | Averages four offset copies of the region's pixels. | | Mezzotint | R | Opt | Random black/white or saturated dot/line/stroke patterns from a type menu. | | Mosaic | R | Opt | Clumps pixels into uniform square color blocks. | | Pointillize | R | Opt | Random pointillist dots with the background color as canvas between dots. | | Voronoi | R | Opt | Voronoi cell-mosaic tessellation. | --- ### 7. Render & Generative-Pattern Family (GPU) Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Cell-mosaic effects reuse the the owning modular Studio asset crate tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Color Halftone | R | Opt | Simulates enlarged per-channel halftone screens; dot radius 4-127, per-channel screen angles. | | Halftone Screen | R,V | Opt | Dot / line / circular halftone screening with continuous-tone option. Dedup of the halftone pattern filter and the halftone live filter. | | Crystallize | R | Opt | Clumps pixels into solid-color polygonal cells. | | Facet | R | Opt | Clumps similar-color pixels into blocks for a hand-painted look. | | Fragment | R | Opt | Averages four offset copies of the region's pixels. | | Mezzotint | R | Opt | Random black/white or saturated dot/line/stroke patterns from a type menu. | | Mosaic | R | Opt | Clumps pixels into uniform square color blocks. | | Pointillize | R | Opt | Random pointillist dots with the background color as canvas between dots. | | Voronoi | R | Opt | Voronoi cell-mosaic tessellation. | --- ### 7. Render & Generative-Pattern Family (GPU) Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "later_embedding_refs": [
             "MT-36204#/source_acceptance_coverage"
@@ -2278,11 +2279,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T03:27:37.229Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
-      "criterion": "Cell-mosaic effects reuse the `studio-engine` tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Color Halftone | R | Opt | Simulates enlarged per-channel halftone screens; dot radius 4-127, per-channel screen angles. | | Halftone Screen | R,V | Opt | Dot / line / circular halftone screening with continuous-tone option. Dedup of the halftone pattern filter and the halftone live filter. | | Crystallize | R | Opt | Clumps pixels into solid-color polygonal cells. | | Facet | R | Opt | Clumps similar-color pixels into blocks for a hand-painted look. | | Fragment | R | Opt | Averages four offset copies of the region's pixels. | | Mezzotint | R | Opt | Random black/white or saturated dot/line/stroke patterns from a type menu. | | Mosaic | R | Opt | Clumps pixels into uniform square color blocks. | | Pointillize | R | Opt | Random pointillist dots with the background color as canvas between dots. | | Voronoi | R | Opt | Voronoi cell-mosaic tessellation. | --- ### 7. Render & Generative-Pattern Family (GPU)",
+      "criterion": "Cell-mosaic effects reuse the the owning modular Studio asset crate tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Color Halftone | R | Opt | Simulates enlarged per-channel halftone screens; dot radius 4-127, per-channel screen angles. | | Halftone Screen | R,V | Opt | Dot / line / circular halftone screening with continuous-tone option. Dedup of the halftone pattern filter and the halftone live filter. | | Crystallize | R | Opt | Clumps pixels into solid-color polygonal cells. | | Facet | R | Opt | Clumps similar-color pixels into blocks for a hand-painted look. | | Fragment | R | Opt | Averages four offset copies of the region's pixels. | | Mezzotint | R | Opt | Random black/white or saturated dot/line/stroke patterns from a type menu. | | Mosaic | R | Opt | Clumps pixels into uniform square color blocks. | | Pointillize | R | Opt | Random pointillist dots with the background color as canvas between dots. | | Voronoi | R | Opt | Voronoi cell-mosaic tessellation. | --- ### 7. Render & Generative-Pattern Family (GPU)",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
   ],
@@ -2328,7 +2329,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2376,5 +2377,32 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "Cell-mosaic effects reuse the `studio-engine` tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in o [...]",
+      "propagated_paths": [
+        "/identity/title",
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion",
+        "/active_acceptance_criteria[0]/criterion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

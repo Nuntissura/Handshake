@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.6.1 Page and Spread Model",
-    "spec_line": 5432,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 5516,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -42,9 +43,57 @@
       "criterion": "Studio MUST carry all of them and MUST NOT reduce them to visible/locked: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-LAY-109"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The contract table holds the row `visible` with the exact meaning the spec states: boolean. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-109 carried contract table row 1"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `locked` with the exact meaning the spec states: boolean | A move onto a locked layer is a typed error, as is moving locked items to another layer.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-109 carried contract table row 2"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `printable` with the exact meaning the spec states: boolean | Independent of `visible`: a layer may be visible on screen and suppressed from output.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-109 carried contract table row 3"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `layer_colour` with the exact meaning the spec states: colour or UI-colour token | Selection-handle colour for items on this layer.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-109 carried contract table row 4"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `show_guides` with the exact meaning the spec states: boolean | Per-layer guide visibility.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-109 carried contract table row 5"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `lock_guides` with the exact meaning the spec states: boolean | Per-layer guide lock, independent of `show_guides`.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-109 carried contract table row 6"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `ignore_text_wrap` with the exact meaning the spec states: boolean | When true, objects on this layer do not displace text even when hidden -- the wrap-when-hidden policy.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-109 carried contract table row 7"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The contract table holds the row `expendable` with the exact meaning the spec states: boolean | Whether the layer may be discarded by cleanup/flatten operations.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-109 carried contract table row 8"
     }
   ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria_count": 9,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1547,13 +1596,53 @@
       "STU-LAY-109"
     ],
     "acceptance_refs": [
-      "AC-001"
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
         "text": "Studio MUST carry all of them and MUST NOT reduce them to visible/locked: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.",
         "fulfillment_ref": "MT-30666#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-002",
+        "text": "The contract table holds the row `visible` with the exact meaning the spec states: boolean. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `locked` with the exact meaning the spec states: boolean | A move onto a locked layer is a typed error, as is moving locked items to another layer.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `printable` with the exact meaning the spec states: boolean | Independent of `visible`: a layer may be visible on screen and suppressed from output.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `layer_colour` with the exact meaning the spec states: colour or UI-colour token | Selection-handle colour for items on this layer.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `show_guides` with the exact meaning the spec states: boolean | Per-layer guide visibility.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `lock_guides` with the exact meaning the spec states: boolean | Per-layer guide lock, independent of `show_guides`.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `ignore_text_wrap` with the exact meaning the spec states: boolean | When true, objects on this layer do not displace text even when hidden -- the wrap-when-hidden policy.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-009",
+        "text": "The contract table holds the row `expendable` with the exact meaning the spec states: boolean | Whether the layer may be discarded by cleanup/flatten operations.. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1784,6 +1873,134 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-30666-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-LAY-109"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `visible` with the exact meaning the spec states: boolean. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30666-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-LAY-109"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `locked` with the exact meaning the spec states: boolean | A move onto a locked layer is a typed error, as is moving locked items to another layer.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30666-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-LAY-109"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `printable` with the exact meaning the spec states: boolean | Independent of `visible`: a layer may be visible on screen and suppressed from output.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30666-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-LAY-109"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `layer_colour` with the exact meaning the spec states: colour or UI-colour token | Selection-handle colour for items on this layer.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30666-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-LAY-109"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `show_guides` with the exact meaning the spec states: boolean | Per-layer guide visibility.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30666-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-LAY-109"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `lock_guides` with the exact meaning the spec states: boolean | Per-layer guide lock, independent of `show_guides`.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30666-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-LAY-109"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `ignore_text_wrap` with the exact meaning the spec states: boolean | When true, objects on this layer do not displace text even when hidden -- the wrap-when-hidden policy.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30666-SPEC-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-LAY-109"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `expendable` with the exact meaning the spec states: boolean | Whether the layer may be discarded by cleanup/flatten operations.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2232,11 +2449,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T00:00:00Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2283,5 +2500,72 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The contract table holds the row `visible` with the exact meaning the spec states: boolean. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `locked` with the exact meaning the spec states: boolean | A move onto a locked layer is a typed error, as is moving locked items to another layer.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `printable` with the exact meaning the spec states: boolean | Independent of `visible`: a layer may be visible on screen and suppressed from output.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `layer_colour` with the exact meaning the spec states: colour or UI-colour token | Selection-handle colour for items on this layer.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `show_guides` with the exact meaning the spec states: boolean | Per-layer guide visibility.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `lock_guides` with the exact meaning the spec states: boolean | Per-layer guide lock, independent of `show_guides`.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `ignore_text_wrap` with the exact meaning the spec states: boolean | When true, objects on this layer do not displace text even when hidden -- the wrap-when-hidden policy.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-009",
+          "old": null,
+          "new": "The contract table holds the row `expendable` with the exact meaning the spec states: boolean | Whether the layer may be discarded by cleanup/flatten operations.. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "Document layer contract",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

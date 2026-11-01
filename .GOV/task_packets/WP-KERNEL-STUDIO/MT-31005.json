@@ -14,7 +14,7 @@
     "spec_heading": "14.7.16 Glyphs, Special Characters and Text Variables",
     "spec_line": 9106,
     "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
-    "spec_version": "v02.228"
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -43,9 +43,99 @@
       "criterion": "U+FDDE..U+FDEF are reserved for later Studio sentinels and MUST NOT be given another meaning. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Member | Catalog | Stored as | |---|---|---| | current page number | Markers | U+FDD0 | | next page number | Markers | U+FDD1 | | previous page number | Markers | U+FDD2 | | section marker | Markers | U+FDD3 | | footnote reference | Markers | U+FDD4 | | endnote reference | Markers | U+FDD5 | | anchored-object marker | Markers | U+FFFC OBJECT REPLACEMENT CHARACTER (the placeho [...]",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-TYP-207"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The contract table holds the row `current page number` with the exact meaning the spec states: Markers | U+FDD0. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-207 carried contract table row 1"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `next page number` with the exact meaning the spec states: Markers | U+FDD1. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-207 carried contract table row 2"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `previous page number` with the exact meaning the spec states: Markers | U+FDD2. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-207 carried contract table row 3"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `section marker` with the exact meaning the spec states: Markers | U+FDD3. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-207 carried contract table row 4"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `footnote reference` with the exact meaning the spec states: Markers | U+FDD4. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-207 carried contract table row 5"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `endnote reference` with the exact meaning the spec states: Markers | U+FDD5. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-207 carried contract table row 6"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `anchored-object marker` with the exact meaning the spec states: Markers | U+FFFC OBJECT REPLACEMENT CHARACTER (the placeholder at the anchored item's story byte). No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-207 carried contract table row 7"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The contract table holds the row `cross-reference marker` with the exact meaning the spec states: Markers | U+FDD6. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-207 carried contract table row 8"
+    },
+    {
+      "id": "AC-010",
+      "criterion": "The contract table holds the row `index marker` with the exact meaning the spec states: Markers | U+FDD7. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-207 carried contract table row 9"
+    },
+    {
+      "id": "AC-011",
+      "criterion": "The contract table holds the row `column break` with the exact meaning the spec states: Break characters | U+FDD8. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-207 carried contract table row 10"
+    },
+    {
+      "id": "AC-012",
+      "criterion": "The contract table holds the row `frame break` with the exact meaning the spec states: Break characters | U+FDD9. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-207 carried contract table row 11"
+    },
+    {
+      "id": "AC-013",
+      "criterion": "The contract table holds the row `page break` with the exact meaning the spec states: Break characters | U+FDDA. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-207 carried contract table row 12"
+    },
+    {
+      "id": "AC-014",
+      "criterion": "The contract table holds the row `odd-page break` with the exact meaning the spec states: Break characters | U+FDDB. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-207 carried contract table row 13"
+    },
+    {
+      "id": "AC-015",
+      "criterion": "The contract table holds the row `even-page break` with the exact meaning the spec states: Break characters | U+FDDC. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-207 carried contract table row 14"
+    },
+    {
+      "id": "AC-016",
+      "criterion": "The contract table holds the row `flush space` with the exact meaning the spec states: White-space characters | U+FDDD. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-207 carried contract table row 15"
     }
   ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria_count": 16,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1577,7 +1667,22 @@
     ],
     "acceptance_refs": [
       "ASSET-AC-001",
-      "AC-001"
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009",
+      "AC-010",
+      "AC-011",
+      "AC-012",
+      "AC-013",
+      "AC-014",
+      "AC-015",
+      "AC-016"
     ],
     "materialized_acceptance": [
       {
@@ -1588,6 +1693,66 @@
       {
         "id": "AC-001",
         "text": "U+FDDE..U+FDEF are reserved for later Studio sentinels and MUST NOT be given another meaning. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Member | Catalog | Stored as | |---|---|---| | current page number | Markers | U+FDD0 | | next page number | Markers | U+FDD1 | | previous page number | Markers | U+FDD2 | | section marker | Markers | U+FDD3 | | footnote reference | Markers | U+FDD4 | | endnote reference | Markers | U+FDD5 | | anchored-object marker | Markers | U+FFFC OBJECT REPLACEMENT CHARACTER (the placeho [...]"
+      },
+      {
+        "id": "AC-002",
+        "text": "The contract table holds the row `current page number` with the exact meaning the spec states: Markers | U+FDD0. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `next page number` with the exact meaning the spec states: Markers | U+FDD1. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `previous page number` with the exact meaning the spec states: Markers | U+FDD2. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `section marker` with the exact meaning the spec states: Markers | U+FDD3. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `footnote reference` with the exact meaning the spec states: Markers | U+FDD4. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `endnote reference` with the exact meaning the spec states: Markers | U+FDD5. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `anchored-object marker` with the exact meaning the spec states: Markers | U+FFFC OBJECT REPLACEMENT CHARACTER (the placeholder at the anchored item's story byte). No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-009",
+        "text": "The contract table holds the row `cross-reference marker` with the exact meaning the spec states: Markers | U+FDD6. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-010",
+        "text": "The contract table holds the row `index marker` with the exact meaning the spec states: Markers | U+FDD7. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-011",
+        "text": "The contract table holds the row `column break` with the exact meaning the spec states: Break characters | U+FDD8. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-012",
+        "text": "The contract table holds the row `frame break` with the exact meaning the spec states: Break characters | U+FDD9. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-013",
+        "text": "The contract table holds the row `page break` with the exact meaning the spec states: Break characters | U+FDDA. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-014",
+        "text": "The contract table holds the row `odd-page break` with the exact meaning the spec states: Break characters | U+FDDB. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-015",
+        "text": "The contract table holds the row `even-page break` with the exact meaning the spec states: Break characters | U+FDDC. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-016",
+        "text": "The contract table holds the row `flush space` with the exact meaning the spec states: White-space characters | U+FDDD. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1828,6 +1993,246 @@
         ],
         "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
         "expected": "U+FDDE..U+FDEF are reserved for later Studio sentinels and MUST NOT be given another meaning. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Member | Catalog | Stored as | |---|---|---| | current page number | Markers | U+FDD0 | | next page number | Markers | U+FDD1 | | previous page number | Markers | U+FDD2 | | section marker | Markers | U+FDD3 | | footnote reference | Markers | U+FDD4 | | endnote reference | Markers | U+FDD5 | | anchored-object marker | Markers | U+FFFC OBJECT REPLACEMENT CHARACTER (the placeho [...]",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31005-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-TYP-207"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `current page number` with the exact meaning the spec states: Markers | U+FDD0. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31005-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-TYP-207"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `next page number` with the exact meaning the spec states: Markers | U+FDD1. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31005-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-TYP-207"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `previous page number` with the exact meaning the spec states: Markers | U+FDD2. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31005-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-TYP-207"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `section marker` with the exact meaning the spec states: Markers | U+FDD3. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31005-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-TYP-207"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `footnote reference` with the exact meaning the spec states: Markers | U+FDD4. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31005-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-TYP-207"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `endnote reference` with the exact meaning the spec states: Markers | U+FDD5. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31005-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-TYP-207"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `anchored-object marker` with the exact meaning the spec states: Markers | U+FFFC OBJECT REPLACEMENT CHARACTER (the placeholder at the anchored item's story byte). No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31005-SPEC-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-TYP-207"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `cross-reference marker` with the exact meaning the spec states: Markers | U+FDD6. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31005-SPEC-AC-010",
+        "kind": "test",
+        "claim_refs": [
+          "AC-010",
+          "STU-TYP-207"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `index marker` with the exact meaning the spec states: Markers | U+FDD7. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31005-SPEC-AC-011",
+        "kind": "test",
+        "claim_refs": [
+          "AC-011",
+          "STU-TYP-207"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `column break` with the exact meaning the spec states: Break characters | U+FDD8. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31005-SPEC-AC-012",
+        "kind": "test",
+        "claim_refs": [
+          "AC-012",
+          "STU-TYP-207"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `frame break` with the exact meaning the spec states: Break characters | U+FDD9. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31005-SPEC-AC-013",
+        "kind": "test",
+        "claim_refs": [
+          "AC-013",
+          "STU-TYP-207"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `page break` with the exact meaning the spec states: Break characters | U+FDDA. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31005-SPEC-AC-014",
+        "kind": "test",
+        "claim_refs": [
+          "AC-014",
+          "STU-TYP-207"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `odd-page break` with the exact meaning the spec states: Break characters | U+FDDB. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31005-SPEC-AC-015",
+        "kind": "test",
+        "claim_refs": [
+          "AC-015",
+          "STU-TYP-207"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `even-page break` with the exact meaning the spec states: Break characters | U+FDDC. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31005-SPEC-AC-016",
+        "kind": "test",
+        "claim_refs": [
+          "AC-016",
+          "STU-TYP-207"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `flush space` with the exact meaning the spec states: White-space characters | U+FDDD. No row is added, renamed, or silently mapped onto another.",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2293,7 +2698,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-11-01T03:23:08Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
@@ -2304,7 +2709,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.228",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2366,6 +2771,113 @@
         "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion",
         "/active_acceptance_criteria[0]/criterion"
       ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    },
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The contract table holds the row `current page number` with the exact meaning the spec states: Markers | U+FDD0. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `next page number` with the exact meaning the spec states: Markers | U+FDD1. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `previous page number` with the exact meaning the spec states: Markers | U+FDD2. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `section marker` with the exact meaning the spec states: Markers | U+FDD3. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `footnote reference` with the exact meaning the spec states: Markers | U+FDD4. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `endnote reference` with the exact meaning the spec states: Markers | U+FDD5. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `anchored-object marker` with the exact meaning the spec states: Markers | U+FFFC OBJECT REPLACEMENT CHARACTER (the placeholder at the anchored item's story byte). No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-009",
+          "old": null,
+          "new": "The contract table holds the row `cross-reference marker` with the exact meaning the spec states: Markers | U+FDD6. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-010",
+          "old": null,
+          "new": "The contract table holds the row `index marker` with the exact meaning the spec states: Markers | U+FDD7. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-011",
+          "old": null,
+          "new": "The contract table holds the row `column break` with the exact meaning the spec states: Break characters | U+FDD8. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-012",
+          "old": null,
+          "new": "The contract table holds the row `frame break` with the exact meaning the spec states: Break characters | U+FDD9. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-013",
+          "old": null,
+          "new": "The contract table holds the row `page break` with the exact meaning the spec states: Break characters | U+FDDA. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-014",
+          "old": null,
+          "new": "The contract table holds the row `odd-page break` with the exact meaning the spec states: Break characters | U+FDDB. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-015",
+          "old": null,
+          "new": "The contract table holds the row `even-page break` with the exact meaning the spec states: Break characters | U+FDDC. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-016",
+          "old": null,
+          "new": "The contract table holds the row `flush space` with the exact meaning the spec states: White-space characters | U+FDDD. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012",
+        "AC-013",
+        "AC-014",
+        "AC-015",
+        "AC-016"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "Special-character, break and white-space catalogs",
+      "propagated_paths": [],
       "lineage_untouched": "preserved_original and every *original* field keep the captured text"
     }
   ]

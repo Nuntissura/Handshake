@@ -1,0 +1,1577 @@
+{
+ "schema_id": "hsk.studio_spec_roundtrip_resolution@1",
+ "generated_at": "2026-11-01T03:43:09Z",
+ "pass": "final pass, Master Spec v02.229 (kernel a00965d9)",
+ "operator_request": "doe the spec's round trip and resolve issues with your agents. then generate the contracts",
+ "acceptance_test": "i want the master spec to be updated so we could extract the same exact microtasks from the master spec.",
+ "counts": {
+  "before": {
+   "forward_uncovered": 0,
+   "backward_dangling": 0,
+   "verdict": "PASS",
+   "forward_declared_non_yielding": 11,
+   "normative_clauses": 1601,
+   "params_complete": 197,
+   "params_incomplete": 10,
+   "params_collapsed": 8,
+   "dropped_from_previous": 4,
+   "vendor_names": 0,
+   "binding_check_normative_without_binding": 0,
+   "binding_check_undefined_citations": 0
+  },
+  "after": {
+   "forward_uncovered": 0,
+   "backward_dangling": 0,
+   "verdict": "PASS",
+   "forward_declared_non_yielding": 11,
+   "normative_clauses": 1601,
+   "params_complete": 197,
+   "params_incomplete": 10,
+   "params_collapsed": 8,
+   "dropped_from_previous": 4,
+   "vendor_names": 0,
+   "binding_check_normative_without_binding": 0,
+   "binding_check_undefined_citations": 0
+  },
+  "deriver_vs_mt_mismatch_before": {
+   "regenerated_by_spec_change_v228_to_v229": 57,
+   "group_a_older_spec_changes": 145,
+   "group_b_hand_written_on_derived_ids": 44,
+   "group_c_verdict_pinned": 5
+  },
+  "deriver_vs_mt_mismatch_after": {
+   "unlisted": 0,
+   "listed_b": 44,
+   "listed_c": 5
+  },
+  "units": "v02.229 yields the same 5062 units; no new key, no new MT, id map unchanged",
+  "param_note": "v02.229 applied the 10 bound-field edits: complete 187 -> 197, collapsed 18 -> 8; the remaining 10 incomplete / 8 collapsed are exactly the 10 false positives listed in the first pass (rule, mapping or example clauses)."
+ },
+ "deriver_fix": {
+  "file": ".GOV/reference/studio_app_feature_research/_tools/greenroom/spec-derive-microtasks.py",
+  "change": "A table marked \"contract table carried into this clause's own microtask as acceptance criteria\" is classed \"carried\": it still yields no microtask, and each of its rows becomes one acceptance row of the clause's own MT, appended after the sentence rows (existing ids never shift), in the parameter-table row style for a seven-field header and the enumeration row style (\"The contract table holds the row `x` with the exact meaning the spec states: ...\") otherwise. A carried table under a non-yielding clause is reported as an unrecognised marker (0 in v02.229). Parameter and enumeration output is byte-identical to before (shared helpers).",
+  "tables": 53,
+  "mts_gaining_carried_rows": 51,
+  "carried_rows_total": 574,
+  "examples": {
+   "MT-31005": "STU-TYP-207 sentinel table rows (U+FDD0..)",
+   "MT-30955": "STU-TYP-170 245-tag registry, 128 table rows"
+  },
+  "per_mt": [
+   {
+    "mt": "MT-30024",
+    "carried_rows": 8
+   },
+   {
+    "mt": "MT-30295",
+    "carried_rows": 7
+   },
+   {
+    "mt": "MT-30350",
+    "carried_rows": 13
+   },
+   {
+    "mt": "MT-30373",
+    "carried_rows": 8
+   },
+   {
+    "mt": "MT-30383",
+    "carried_rows": 3
+   },
+   {
+    "mt": "MT-30447",
+    "carried_rows": 5
+   },
+   {
+    "mt": "MT-30663",
+    "carried_rows": 15
+   },
+   {
+    "mt": "MT-30666",
+    "carried_rows": 8
+   },
+   {
+    "mt": "MT-30678",
+    "carried_rows": 6
+   },
+   {
+    "mt": "MT-30697",
+    "carried_rows": 6
+   },
+   {
+    "mt": "MT-30700",
+    "carried_rows": 4
+   },
+   {
+    "mt": "MT-30777",
+    "carried_rows": 17
+   },
+   {
+    "mt": "MT-30779",
+    "carried_rows": 16
+   },
+   {
+    "mt": "MT-30858",
+    "carried_rows": 7
+   },
+   {
+    "mt": "MT-30868",
+    "carried_rows": 7
+   },
+   {
+    "mt": "MT-30871",
+    "carried_rows": 10
+   },
+   {
+    "mt": "MT-30955",
+    "carried_rows": 128
+   },
+   {
+    "mt": "MT-30956",
+    "carried_rows": 20
+   },
+   {
+    "mt": "MT-30973",
+    "carried_rows": 7
+   },
+   {
+    "mt": "MT-31005",
+    "carried_rows": 15
+   },
+   {
+    "mt": "MT-31161",
+    "carried_rows": 7
+   },
+   {
+    "mt": "MT-31179",
+    "carried_rows": 8
+   },
+   {
+    "mt": "MT-31218",
+    "carried_rows": 9
+   },
+   {
+    "mt": "MT-31467",
+    "carried_rows": 17
+   },
+   {
+    "mt": "MT-32617",
+    "carried_rows": 6
+   },
+   {
+    "mt": "MT-33056",
+    "carried_rows": 3
+   },
+   {
+    "mt": "MT-33686",
+    "carried_rows": 17
+   },
+   {
+    "mt": "MT-33703",
+    "carried_rows": 6
+   },
+   {
+    "mt": "MT-33707",
+    "carried_rows": 13
+   },
+   {
+    "mt": "MT-33745",
+    "carried_rows": 2
+   },
+   {
+    "mt": "MT-33854",
+    "carried_rows": 19
+   },
+   {
+    "mt": "MT-33860",
+    "carried_rows": 12
+   },
+   {
+    "mt": "MT-33862",
+    "carried_rows": 13
+   },
+   {
+    "mt": "MT-33871",
+    "carried_rows": 9
+   },
+   {
+    "mt": "MT-33946",
+    "carried_rows": 20
+   },
+   {
+    "mt": "MT-33969",
+    "carried_rows": 3
+   },
+   {
+    "mt": "MT-34031",
+    "carried_rows": 3
+   },
+   {
+    "mt": "MT-34394",
+    "carried_rows": 5
+   },
+   {
+    "mt": "MT-35431",
+    "carried_rows": 13
+   },
+   {
+    "mt": "MT-35432",
+    "carried_rows": 9
+   },
+   {
+    "mt": "MT-35453",
+    "carried_rows": 7
+   },
+   {
+    "mt": "MT-35468",
+    "carried_rows": 9
+   },
+   {
+    "mt": "MT-35478",
+    "carried_rows": 8
+   },
+   {
+    "mt": "MT-35485",
+    "carried_rows": 4
+   },
+   {
+    "mt": "MT-35507",
+    "carried_rows": 6
+   },
+   {
+    "mt": "MT-35509",
+    "carried_rows": 4
+   },
+   {
+    "mt": "MT-35515",
+    "carried_rows": 2
+   },
+   {
+    "mt": "MT-35519",
+    "carried_rows": 5
+   },
+   {
+    "mt": "MT-33277",
+    "carried_rows": 8
+   },
+   {
+    "mt": "MT-34237",
+    "carried_rows": 11
+   },
+   {
+    "mt": "MT-35461",
+    "carried_rows": 6
+   }
+  ]
+ },
+ "mts_changed": {
+  "total": 202,
+  "acceptance_changed": 127,
+  "quoted_clause_text_only": 75,
+  "by_cause": {
+   "v02.228 -> v02.229 deriver output change (carried rows + the 10 bound-field sentences)": 57,
+   "group (a): older spec changes never carried into the MT": 145
+  },
+  "group_a_ids": [
+   "MT-30000",
+   "MT-30009",
+   "MT-30010",
+   "MT-30012",
+   "MT-30013",
+   "MT-30014",
+   "MT-30015",
+   "MT-30019",
+   "MT-30020",
+   "MT-30037",
+   "MT-30097",
+   "MT-30171",
+   "MT-30191",
+   "MT-30235",
+   "MT-30236",
+   "MT-30294",
+   "MT-30318",
+   "MT-30367",
+   "MT-30644",
+   "MT-30841",
+   "MT-30842",
+   "MT-30864",
+   "MT-30894",
+   "MT-31055",
+   "MT-31116",
+   "MT-31201",
+   "MT-31374",
+   "MT-31416",
+   "MT-31477",
+   "MT-31478",
+   "MT-32786",
+   "MT-32808",
+   "MT-32809",
+   "MT-32810",
+   "MT-32811",
+   "MT-32812",
+   "MT-32813",
+   "MT-32814",
+   "MT-32815",
+   "MT-32816",
+   "MT-32817",
+   "MT-32818",
+   "MT-32819",
+   "MT-32820",
+   "MT-32821",
+   "MT-32822",
+   "MT-32823",
+   "MT-32824",
+   "MT-32825",
+   "MT-32826",
+   "MT-32827",
+   "MT-32828",
+   "MT-32829",
+   "MT-32830",
+   "MT-32856",
+   "MT-32857",
+   "MT-32858",
+   "MT-32859",
+   "MT-32860",
+   "MT-32861",
+   "MT-32862",
+   "MT-32863",
+   "MT-32864",
+   "MT-32865",
+   "MT-33050",
+   "MT-33100",
+   "MT-33261",
+   "MT-33277",
+   "MT-33387",
+   "MT-33388",
+   "MT-33389",
+   "MT-33390",
+   "MT-33391",
+   "MT-33392",
+   "MT-33424",
+   "MT-33438",
+   "MT-33439",
+   "MT-33566",
+   "MT-33569",
+   "MT-33580",
+   "MT-33603",
+   "MT-33604",
+   "MT-33605",
+   "MT-33635",
+   "MT-33651",
+   "MT-33665",
+   "MT-33667",
+   "MT-33668",
+   "MT-33671",
+   "MT-33672",
+   "MT-33675",
+   "MT-33678",
+   "MT-33679",
+   "MT-33912",
+   "MT-33940",
+   "MT-33972",
+   "MT-34154",
+   "MT-34210",
+   "MT-34211",
+   "MT-34232",
+   "MT-34237",
+   "MT-34251",
+   "MT-34254",
+   "MT-34255",
+   "MT-34258",
+   "MT-34259",
+   "MT-34260",
+   "MT-34262",
+   "MT-34264",
+   "MT-34275",
+   "MT-34276",
+   "MT-34316",
+   "MT-34378",
+   "MT-34395",
+   "MT-34423",
+   "MT-34424",
+   "MT-34428",
+   "MT-34430",
+   "MT-34498",
+   "MT-34500",
+   "MT-34507",
+   "MT-34508",
+   "MT-34514",
+   "MT-34645",
+   "MT-34658",
+   "MT-35068",
+   "MT-35069",
+   "MT-35072",
+   "MT-35112",
+   "MT-35133",
+   "MT-35335",
+   "MT-35336",
+   "MT-35337",
+   "MT-35338",
+   "MT-35339",
+   "MT-35344",
+   "MT-35347",
+   "MT-35348",
+   "MT-35362",
+   "MT-35363",
+   "MT-35402",
+   "MT-35403",
+   "MT-35404",
+   "MT-35408",
+   "MT-35461"
+  ],
+  "v229_change_ids": [
+   "MT-30024",
+   "MT-30295",
+   "MT-30350",
+   "MT-30373",
+   "MT-30383",
+   "MT-30447",
+   "MT-30663",
+   "MT-30666",
+   "MT-30678",
+   "MT-30697",
+   "MT-30700",
+   "MT-30777",
+   "MT-30779",
+   "MT-30858",
+   "MT-30868",
+   "MT-30871",
+   "MT-30955",
+   "MT-30956",
+   "MT-30973",
+   "MT-31005",
+   "MT-31161",
+   "MT-31179",
+   "MT-31218",
+   "MT-31467",
+   "MT-32617",
+   "MT-33056",
+   "MT-33102",
+   "MT-33103",
+   "MT-33104",
+   "MT-33106",
+   "MT-33111",
+   "MT-33233",
+   "MT-33382",
+   "MT-33686",
+   "MT-33690",
+   "MT-33703",
+   "MT-33707",
+   "MT-33745",
+   "MT-33854",
+   "MT-33860",
+   "MT-33862",
+   "MT-33871",
+   "MT-33946",
+   "MT-33969",
+   "MT-34024",
+   "MT-34031",
+   "MT-34394",
+   "MT-35431",
+   "MT-35432",
+   "MT-35453",
+   "MT-35468",
+   "MT-35478",
+   "MT-35485",
+   "MT-35507",
+   "MT-35509",
+   "MT-35515",
+   "MT-35519"
+  ],
+  "acceptance_changed_ids": [
+   "MT-30000",
+   "MT-30009",
+   "MT-30010",
+   "MT-30013",
+   "MT-30014",
+   "MT-30015",
+   "MT-30019",
+   "MT-30024",
+   "MT-30037",
+   "MT-30097",
+   "MT-30171",
+   "MT-30191",
+   "MT-30235",
+   "MT-30294",
+   "MT-30295",
+   "MT-30318",
+   "MT-30350",
+   "MT-30367",
+   "MT-30373",
+   "MT-30383",
+   "MT-30447",
+   "MT-30644",
+   "MT-30663",
+   "MT-30666",
+   "MT-30678",
+   "MT-30697",
+   "MT-30700",
+   "MT-30777",
+   "MT-30779",
+   "MT-30841",
+   "MT-30842",
+   "MT-30858",
+   "MT-30864",
+   "MT-30868",
+   "MT-30871",
+   "MT-30894",
+   "MT-30955",
+   "MT-30956",
+   "MT-30973",
+   "MT-31005",
+   "MT-31055",
+   "MT-31116",
+   "MT-31161",
+   "MT-31179",
+   "MT-31218",
+   "MT-31374",
+   "MT-31467",
+   "MT-31477",
+   "MT-31478",
+   "MT-32617",
+   "MT-33056",
+   "MT-33100",
+   "MT-33261",
+   "MT-33277",
+   "MT-33388",
+   "MT-33389",
+   "MT-33391",
+   "MT-33392",
+   "MT-33424",
+   "MT-33438",
+   "MT-33439",
+   "MT-33566",
+   "MT-33569",
+   "MT-33580",
+   "MT-33603",
+   "MT-33604",
+   "MT-33605",
+   "MT-33635",
+   "MT-33651",
+   "MT-33665",
+   "MT-33667",
+   "MT-33671",
+   "MT-33675",
+   "MT-33678",
+   "MT-33679",
+   "MT-33686",
+   "MT-33703",
+   "MT-33707",
+   "MT-33745",
+   "MT-33854",
+   "MT-33860",
+   "MT-33862",
+   "MT-33871",
+   "MT-33912",
+   "MT-33946",
+   "MT-33969",
+   "MT-34031",
+   "MT-34211",
+   "MT-34232",
+   "MT-34237",
+   "MT-34251",
+   "MT-34255",
+   "MT-34259",
+   "MT-34260",
+   "MT-34262",
+   "MT-34264",
+   "MT-34276",
+   "MT-34316",
+   "MT-34378",
+   "MT-34394",
+   "MT-34395",
+   "MT-34424",
+   "MT-34428",
+   "MT-34430",
+   "MT-34514",
+   "MT-34645",
+   "MT-35068",
+   "MT-35072",
+   "MT-35133",
+   "MT-35336",
+   "MT-35337",
+   "MT-35344",
+   "MT-35347",
+   "MT-35348",
+   "MT-35362",
+   "MT-35363",
+   "MT-35431",
+   "MT-35432",
+   "MT-35453",
+   "MT-35461",
+   "MT-35468",
+   "MT-35478",
+   "MT-35485",
+   "MT-35507",
+   "MT-35509",
+   "MT-35515",
+   "MT-35519"
+  ],
+  "superseded_rows": {
+   "MT-30009": [
+    "AC-001"
+   ],
+   "MT-31478": [
+    "AC-002"
+   ],
+   "MT-33651": [
+    "AC-001"
+   ],
+   "MT-33912": [
+    "AC-001"
+   ],
+   "MT-34211": [
+    "AC-002"
+   ],
+   "MT-35068": [
+    "AC-002",
+    "AC-003"
+   ],
+   "MT-35072": [
+    "AC-001"
+   ]
+  },
+  "superseded_note": "Rows whose sentence the spec no longer contains moved to closure_unit.superseded_materialized_acceptance (kept, never deleted); e.g. MT-30009 AC-001, the wgpu/WGSL rule removed by D7 in v02.226.",
+  "spec_version": "v02.229 on derivation.spec_version and host_integration.spec_version of every changed MT",
+  "untouched": "lifecycle/status, validator_verdict, verdicts, submissions, preserved_original and every *original* field; verified against HEAD for all changed files",
+  "index": "112 entries changed (clause / acceptance counts); totals unchanged (no new MT); HEAD serialisation kept; nothing else differs",
+  "regeneration_report": "research/mt-regenerate-v02.229-write-20261101T033953Z.json"
+ },
+ "listed_not_regenerated": {
+  "group_b": [
+   {
+    "group": "b",
+    "mt": "MT-35538",
+    "unit_kind": "asset_foundation",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "5 14.23 foundation-transport keys map to this one asset_foundation MT by the section derivation marker; the MT is the hand-authored foundation contract, not a deriver product",
+    "proposed_resolution": "Keep. Deriver output for these keys is reference only; the context_capsule field-binding block is the acceptance link (id map crosswalk in the spec-idmap-backfill report).",
+    "keys": [
+     "STU-CON-042#clause#0",
+     "STU-CON-043#clause#0",
+     "STU-CON-044#clause#0",
+     "STU-CON-045#clause#0",
+     "STU-CON-046#clause#0"
+    ]
+   },
+   {
+    "group": "b",
+    "mt": "MT-35564",
+    "key": "STU-ARC-007#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-ARC-007#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35565",
+    "key": "STU-ARC-008#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-ARC-008#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35566",
+    "key": "STU-ARC-009#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-ARC-009#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35567",
+    "key": "STU-ARC-010#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-ARC-010#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35568",
+    "key": "STU-ARC-011#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-ARC-011#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35569",
+    "key": "STU-ARC-012#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-ARC-012#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35570",
+    "key": "STU-ARC-013#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-ARC-013#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35571",
+    "key": "STU-ARC-014#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-ARC-014#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35572",
+    "key": "STU-ARC-015#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-ARC-015#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35573",
+    "key": "STU-ARC-016#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-ARC-016#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35574",
+    "key": "STU-ARC-017#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-ARC-017#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35575",
+    "key": "STU-ARC-018#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-ARC-018#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35576",
+    "key": "STU-ARC-019#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-ARC-019#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35577",
+    "key": "STU-ARC-020#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-ARC-020#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35578",
+    "key": "STU-ARC-021#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-ARC-021#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35579",
+    "key": "STU-ARC-022#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-ARC-022#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35580",
+    "key": "STU-CON-008#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-CON-008#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35581",
+    "key": "STU-CON-009#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-CON-009#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35582",
+    "key": "STU-CON-010#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-CON-010#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35583",
+    "key": "STU-CON-011#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-CON-011#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35584",
+    "key": "STU-CON-012#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-CON-012#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35585",
+    "key": "STU-CON-013#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-CON-013#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35586",
+    "key": "STU-CON-014#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-CON-014#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35587",
+    "key": "STU-IO-186#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-IO-186#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35588",
+    "key": "STU-IO-187#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-IO-187#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35589",
+    "key": "STU-IO-188#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-IO-188#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35590",
+    "key": "STU-IO-189#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-IO-189#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35591",
+    "key": "STU-IO-190#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-IO-190#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35592",
+    "key": "STU-PDF-001#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-PDF-001#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35593",
+    "key": "STU-PDF-002#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-PDF-002#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35594",
+    "key": "STU-MOT-255#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-MOT-255#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35595",
+    "key": "STU-MOT-256#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-MOT-256#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35596",
+    "key": "STU-MOT-257#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-MOT-257#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35597",
+    "key": "STU-MOT-258#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-MOT-258#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-35598",
+    "key": "STU-MOT-259#clause#0",
+    "unit_kind": "spec207_amendment",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "v02.207 amendment MT authored by hand (\"explicit current amendment fulfillment\") on a clause the deriver now yields; backfilled to the map on 2026-11-01",
+    "proposed_resolution": "Keep the amendment MT as owner. If a deriver-shaped contract is wanted, append a fresh key-variant (e.g. STU-MOT-259#clause#derived) to the append-only map with a new id and link it as a source companion; do not overwrite."
+   },
+   {
+    "group": "b",
+    "mt": "MT-36234",
+    "key": "STU-PRO-167#clause#0",
+    "unit_kind": "clause",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "hand-authored clause MT (generated_by null) on a derived key; v02.209 scoped amendment authoring",
+    "proposed_resolution": "Keep the authored contract (richer, Operator-approved under ilja091020261912). Same fresh-id option as above if the deriver product must exist as its own MT."
+   },
+   {
+    "group": "b",
+    "mt": "MT-36235",
+    "key": "STU-PRO-168#clause#0",
+    "unit_kind": "clause",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "hand-authored clause MT (generated_by null) on a derived key; v02.209 scoped amendment authoring",
+    "proposed_resolution": "Keep the authored contract (richer, Operator-approved under ilja091020261912). Same fresh-id option as above if the deriver product must exist as its own MT."
+   },
+   {
+    "group": "b",
+    "mt": "MT-36236",
+    "key": "STU-PRO-169#clause#0",
+    "unit_kind": "clause",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "hand-authored clause MT (generated_by null) on a derived key; v02.209 scoped amendment authoring",
+    "proposed_resolution": "Keep the authored contract (richer, Operator-approved under ilja091020261912). Same fresh-id option as above if the deriver product must exist as its own MT."
+   },
+   {
+    "group": "b",
+    "mt": "MT-36237",
+    "key": "STU-PRO-170#clause#0",
+    "unit_kind": "clause",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "hand-authored clause MT (generated_by null) on a derived key; v02.209 scoped amendment authoring",
+    "proposed_resolution": "Keep the authored contract (richer, Operator-approved under ilja091020261912). Same fresh-id option as above if the deriver product must exist as its own MT."
+   },
+   {
+    "group": "b",
+    "mt": "MT-36238",
+    "key": "STU-PRO-171#clause#0",
+    "unit_kind": "clause",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "hand-authored clause MT (generated_by null) on a derived key; v02.209 scoped amendment authoring",
+    "proposed_resolution": "Keep the authored contract (richer, Operator-approved under ilja091020261912). Same fresh-id option as above if the deriver product must exist as its own MT."
+   },
+   {
+    "group": "b",
+    "mt": "MT-36239",
+    "key": "STU-PRO-172#clause#0",
+    "unit_kind": "clause",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "hand-authored clause MT (generated_by null) on a derived key; v02.209 scoped amendment authoring",
+    "proposed_resolution": "Keep the authored contract (richer, Operator-approved under ilja091020261912). Same fresh-id option as above if the deriver product must exist as its own MT."
+   },
+   {
+    "group": "b",
+    "mt": "MT-36240",
+    "key": "STU-PRO-173#clause#0",
+    "unit_kind": "clause",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "hand-authored clause MT (generated_by null) on a derived key; v02.209 scoped amendment authoring",
+    "proposed_resolution": "Keep the authored contract (richer, Operator-approved under ilja091020261912). Same fresh-id option as above if the deriver product must exist as its own MT."
+   },
+   {
+    "group": "b",
+    "mt": "MT-36241",
+    "key": "STU-PRO-174#clause#0",
+    "unit_kind": "clause",
+    "status": "PENDING",
+    "verdicts": 0,
+    "why_it_collides": "hand-authored clause MT (generated_by null) on a derived key; v02.209 scoped amendment authoring",
+    "proposed_resolution": "Keep the authored contract (richer, Operator-approved under ilja091020261912). Same fresh-id option as above if the deriver product must exist as its own MT."
+   }
+  ],
+  "group_c": [
+   {
+    "group": "c",
+    "mt": "MT-35531",
+    "unit_kind": "asset_foundation",
+    "status": "PASS_V1",
+    "verdicts": 1,
+    "why_it_collides": "7 14.23 foundation-transport keys map to this one asset_foundation MT by the section derivation marker; the MT is the hand-authored foundation contract, not a deriver product",
+    "proposed_resolution": "Keep. Deriver output for these keys is reference only; the context_capsule field-binding block is the acceptance link (id map crosswalk in the spec-idmap-backfill report).",
+    "keys": [
+     "STU-CON-015#clause#0",
+     "STU-CON-016#clause#0",
+     "STU-CON-017#clause#0",
+     "STU-CON-018#clause#0",
+     "STU-CON-019#clause#0",
+     "STU-CON-020#clause#0",
+     "STU-CON-021#clause#0"
+    ]
+   },
+   {
+    "group": "c",
+    "mt": "MT-35532",
+    "unit_kind": "asset_foundation",
+    "status": "PASS_V2",
+    "verdicts": 2,
+    "why_it_collides": "5 14.23 foundation-transport keys map to this one asset_foundation MT by the section derivation marker; the MT is the hand-authored foundation contract, not a deriver product",
+    "proposed_resolution": "Keep. Deriver output for these keys is reference only; the context_capsule field-binding block is the acceptance link (id map crosswalk in the spec-idmap-backfill report).",
+    "keys": [
+     "STU-CON-022#clause#0",
+     "STU-CON-023#clause#0",
+     "STU-CON-024#clause#0",
+     "STU-CON-025#clause#0",
+     "STU-CON-026#clause#0"
+    ]
+   },
+   {
+    "group": "c",
+    "mt": "MT-35534",
+    "unit_kind": "asset_foundation",
+    "status": "PASS_V2",
+    "verdicts": 2,
+    "why_it_collides": "5 14.23 foundation-transport keys map to this one asset_foundation MT by the section derivation marker; the MT is the hand-authored foundation contract, not a deriver product",
+    "proposed_resolution": "Keep. Deriver output for these keys is reference only; the context_capsule field-binding block is the acceptance link (id map crosswalk in the spec-idmap-backfill report).",
+    "keys": [
+     "STU-CON-027#clause#0",
+     "STU-CON-028#clause#0",
+     "STU-CON-029#clause#0",
+     "STU-CON-030#clause#0",
+     "STU-CON-031#clause#0"
+    ]
+   },
+   {
+    "group": "c",
+    "mt": "MT-35535",
+    "unit_kind": "asset_foundation",
+    "status": "PASS_V1",
+    "verdicts": 1,
+    "why_it_collides": "5 14.23 foundation-transport keys map to this one asset_foundation MT by the section derivation marker; the MT is the hand-authored foundation contract, not a deriver product",
+    "proposed_resolution": "Keep. Deriver output for these keys is reference only; the context_capsule field-binding block is the acceptance link (id map crosswalk in the spec-idmap-backfill report).",
+    "keys": [
+     "STU-CON-032#clause#0",
+     "STU-CON-033#clause#0",
+     "STU-CON-034#clause#0",
+     "STU-CON-035#clause#0",
+     "STU-CON-036#clause#0"
+    ]
+   },
+   {
+    "group": "c",
+    "mt": "MT-35536",
+    "unit_kind": "asset_foundation",
+    "status": "PASS_V5",
+    "verdicts": 5,
+    "why_it_collides": "5 14.23 foundation-transport keys map to this one asset_foundation MT by the section derivation marker; the MT is the hand-authored foundation contract, not a deriver product",
+    "proposed_resolution": "Keep. Deriver output for these keys is reference only; the context_capsule field-binding block is the acceptance link (id map crosswalk in the spec-idmap-backfill report).",
+    "keys": [
+     "STU-CON-037#clause#0",
+     "STU-CON-038#clause#0",
+     "STU-CON-039#clause#0",
+     "STU-CON-040#clause#0",
+     "STU-CON-041#clause#0"
+    ]
+   }
+  ],
+  "note": "Only MTs whose content is a spec-derive product (generated_by spec_derive.v1, top-level acceptance equal to the preserved derivation) and that carry no verdict were regenerated. Group c are the five 14.23 foundation MTs with PASS verdicts (MT-35531, 35532, 35534, 35535, 35536); their transport keys share the MT by design and their acceptance is pinned to the verdicts."
+ },
+ "reusable_tools": [
+  "tools/spec-anchor-binding.py",
+  "tools/spec-idmap-backfill.py",
+  "tools/mt-bind-clauses.py",
+  "tools/mt-promote-derived.py",
+  "tools/mt-regenerate-derived.py (superseded-row handling added)",
+  ".GOV/reference/studio_app_feature_research/_tools/greenroom/spec-derive-microtasks.py (--existing-mts; carried contract tables)"
+ ],
+ "tool_reports": {
+  "before": {
+   "schema_id": "handshake.reference.studio_spec_roundtrip@1",
+   "generated_at": "2026-11-01T03:36:09+00:00",
+   "purpose": "Proves the operator's acceptance test: the Master Spec must be complete enough that the same microtask set falls out of it, and no microtask may cite a clause that does not exist.",
+   "modules": {
+    "count": 1,
+    "per_module": [
+     {
+      "module": "14-studio-creative-suite.md",
+      "bytes": 3063683,
+      "lines": 33658,
+      "clauses": 2431,
+      "normative_clauses": 1601,
+      "has_frontmatter": true,
+      "heading_level": 1
+     }
+    ],
+    "missing_frontmatter": [],
+    "heading_level_histogram": {
+     "1": 1
+    },
+    "heading_drift": false,
+    "definition_rule": "An anchor at line start whose preceding line is blank. Style-independent, so a wrapped prose line beginning with an anchor reference is not a definition."
+   },
+   "anchors": {
+    "total_in_staged_spec": 2477,
+    "normative": 1601,
+    "collisions_across_modules": [],
+    "duplicate_definitions_within_a_file": [],
+    "duplicate_definitions_within_a_file_count": 0,
+    "dropped_from_v02_205_without_a_home": [
+     "STU-CON-007c",
+     "STU-RAS-001c",
+     "STU-RAS-140",
+     "STU-RAW-014c"
+    ],
+    "dropped_count": 4
+   },
+   "microtasks": {
+    "count": 6224,
+    "still_provisional_anchor_status": 0,
+    "distinct_anchors_referenced": 2455
+   },
+   "roundtrip": {
+    "forward_spec_clauses_with_no_microtask": [],
+    "forward_uncovered_count": 0,
+    "excluded_by_module_declaration": [
+     "STU-CMP-120",
+     "STU-CMP-121",
+     "STU-CMP-124",
+     "STU-MOT-250",
+     "STU-MOT-251",
+     "STU-MOT-253",
+     "STU-MOT-254",
+     "STU-VID-100",
+     "STU-VID-101",
+     "STU-VID-103",
+     "STU-VID-104"
+    ],
+    "excluded_by_module_declaration_count": 11,
+    "exclusion_note": "These clauses are declared non-yielding by the module that owns them, almost always a Microtask Derivation sub-section. A clause stating how the microtask set is derived is not itself a unit of work, so it is not a coverage gap.",
+    "backward_microtask_anchors_not_in_spec": [],
+    "backward_dangling_count": 0,
+    "cited_but_recorded_as_never_assigned": [
+     "STU-CON-007c",
+     "STU-RAS-001c",
+     "STU-RAS-140",
+     "STU-RAW-014c"
+    ],
+    "never_assigned_note": "The spec records these anchors as never assigned. A microtask quoting that register is not citing a missing clause.",
+    "verdict": "PASS"
+   },
+   "parameter_contract": {
+    "clauses_carrying_bounds": 214,
+    "complete": 197,
+    "stated_unknown": 7,
+    "incomplete_without_stating_unknown": [
+     {
+      "anchor": "STU-VEC-102",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-TYP-107",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-COL-108",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-FX-105a",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "unit"
+      ]
+     },
+     {
+      "anchor": "STU-FX-145",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MOT-010a",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MOT-020c",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MDL-105",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-SHL-192",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MDL-111",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "precision"
+      ]
+     }
+    ],
+    "collapsed_hard_and_soft": [
+     "STU-TYP-107",
+     "STU-COL-108",
+     "STU-FX-145",
+     "STU-MOT-010a",
+     "STU-MOT-020c",
+     "STU-MDL-105",
+     "STU-SHL-192",
+     "STU-MDL-111"
+    ],
+    "collapsed_count": 8
+   },
+   "naming_discipline": {
+    "vendor_names_inside_normative_sentences": [],
+    "count": 0,
+    "rule": "[STU-SECTION-003]: a source product name is never a Studio tool, command, panel or manual name. Provenance mentions are legitimate; obligations must not name a vendor product."
+   }
+  },
+  "after": {
+   "schema_id": "handshake.reference.studio_spec_roundtrip@1",
+   "generated_at": "2026-11-01T03:41:36+00:00",
+   "purpose": "Proves the operator's acceptance test: the Master Spec must be complete enough that the same microtask set falls out of it, and no microtask may cite a clause that does not exist.",
+   "modules": {
+    "count": 1,
+    "per_module": [
+     {
+      "module": "14-studio-creative-suite.md",
+      "bytes": 3063683,
+      "lines": 33658,
+      "clauses": 2431,
+      "normative_clauses": 1601,
+      "has_frontmatter": true,
+      "heading_level": 1
+     }
+    ],
+    "missing_frontmatter": [],
+    "heading_level_histogram": {
+     "1": 1
+    },
+    "heading_drift": false,
+    "definition_rule": "An anchor at line start whose preceding line is blank. Style-independent, so a wrapped prose line beginning with an anchor reference is not a definition."
+   },
+   "anchors": {
+    "total_in_staged_spec": 2477,
+    "normative": 1601,
+    "collisions_across_modules": [],
+    "duplicate_definitions_within_a_file": [],
+    "duplicate_definitions_within_a_file_count": 0,
+    "dropped_from_v02_205_without_a_home": [
+     "STU-CON-007c",
+     "STU-RAS-001c",
+     "STU-RAS-140",
+     "STU-RAW-014c"
+    ],
+    "dropped_count": 4
+   },
+   "microtasks": {
+    "count": 6224,
+    "still_provisional_anchor_status": 0,
+    "distinct_anchors_referenced": 2455
+   },
+   "roundtrip": {
+    "forward_spec_clauses_with_no_microtask": [],
+    "forward_uncovered_count": 0,
+    "excluded_by_module_declaration": [
+     "STU-CMP-120",
+     "STU-CMP-121",
+     "STU-CMP-124",
+     "STU-MOT-250",
+     "STU-MOT-251",
+     "STU-MOT-253",
+     "STU-MOT-254",
+     "STU-VID-100",
+     "STU-VID-101",
+     "STU-VID-103",
+     "STU-VID-104"
+    ],
+    "excluded_by_module_declaration_count": 11,
+    "exclusion_note": "These clauses are declared non-yielding by the module that owns them, almost always a Microtask Derivation sub-section. A clause stating how the microtask set is derived is not itself a unit of work, so it is not a coverage gap.",
+    "backward_microtask_anchors_not_in_spec": [],
+    "backward_dangling_count": 0,
+    "cited_but_recorded_as_never_assigned": [
+     "STU-CON-007c",
+     "STU-RAS-001c",
+     "STU-RAS-140",
+     "STU-RAW-014c"
+    ],
+    "never_assigned_note": "The spec records these anchors as never assigned. A microtask quoting that register is not citing a missing clause.",
+    "verdict": "PASS"
+   },
+   "parameter_contract": {
+    "clauses_carrying_bounds": 214,
+    "complete": 197,
+    "stated_unknown": 7,
+    "incomplete_without_stating_unknown": [
+     {
+      "anchor": "STU-VEC-102",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-TYP-107",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-COL-108",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-FX-105a",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "unit"
+      ]
+     },
+     {
+      "anchor": "STU-FX-145",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MOT-010a",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MOT-020c",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MDL-105",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-SHL-192",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MDL-111",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "precision"
+      ]
+     }
+    ],
+    "collapsed_hard_and_soft": [
+     "STU-TYP-107",
+     "STU-COL-108",
+     "STU-FX-145",
+     "STU-MOT-010a",
+     "STU-MOT-020c",
+     "STU-MDL-105",
+     "STU-SHL-192",
+     "STU-MDL-111"
+    ],
+    "collapsed_count": 8
+   },
+   "naming_discipline": {
+    "vendor_names_inside_normative_sentences": [],
+    "count": 0,
+    "rule": "[STU-SECTION-003]: a source product name is never a Studio tool, command, panel or manual name. Provenance mentions are legitimate; obligations must not name a vendor product."
+   }
+  }
+ },
+ "proposed_spec_edits_count": 0,
+ "proposed_spec_edits": []
+}

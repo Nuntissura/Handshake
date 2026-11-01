@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "4.1 Structure",
-    "spec_line": 31302,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 31993,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "operator_shell",
   "scope": {
-    "summary": "Region structure.** Five regions plus two rails plus the centre, per [STU-SHL-003]. Each EDGE dock is a stack of GROUPS; each group is a TAB STACK; each tab is one panel instance. The two rails are single-occupant strips, not tab stacks. Studio owns the edge, rail and slot semantics and uses `egui_tiles` for the tiling INSIDE each region. There MUST be one `Tree` PER REGION, never one global tree, so a stray drag cannot dissolve the edge structure. A single free-form tile tree is rejected: it has no concept of edge affinity, icon-rail collapse or a single-occupant contextual slot, and four of the six captured applications with workspace files serialise edge-anchored docks.",
+    "summary": "Region structure.** Five regions plus two rails plus the centre, per [STU-SHL-003]. Each EDGE dock is a stack of GROUPS; each group is a TAB STACK; each tab is one panel instance. The two rails are single-occupant strips, not tab stacks. Studio owns the edge, rail and slot semantics and uses a tiling tree for the tiling INSIDE each region. There MUST be one `Tree` PER REGION, never one global tree, so a stray drag cannot dissolve the edge structure. A single free-form tile tree is rejected: it has no concept of edge affinity, icon-rail collapse or a single-occupant contextual slot, and four of the six captured applications with workspace files serialise edge-anchored docks.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -160,7 +161,7 @@
       {
         "id": "STU-SHL-063",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31344",
-        "verbatim": "**[STU-SHL-063] Region structure.** Five regions plus two rails plus the centre, per [STU-SHL-003]. Each EDGE dock is a stack of GROUPS; each group is a TAB STACK; each tab is one panel instance. The two rails are single-occupant strips, not tab stacks. Studio owns the edge, rail and slot semantics and uses `egui_tiles` for the tiling INSIDE each region. There MUST be one `Tree` PER REGION, never one global tree, so a stray drag cannot dissolve the edge structure. A single free-form tile tree is rejected: it has no concept of edge affinity, icon-rail collapse or a single-occupant contextual slot, and four of the six captured applications with workspace files serialise edge-anchored docks.",
+        "verbatim": "**[STU-SHL-063] Region structure.** Five regions plus two rails plus the centre, per [STU-SHL-003]. Each EDGE dock is a stack of GROUPS; each group is a TAB STACK; each tab is one panel instance. The two rails are single-occupant strips, not tab stacks. Studio owns the edge, rail and slot semantics and uses a tiling tree for the tiling INSIDE each region. There MUST be one `Tree` PER REGION, never one global tree, so a stray drag cannot dissolve the edge structure. A single free-form tile tree is rejected: it has no concept of edge affinity, icon-rail collapse or a single-occupant contextual slot, and four of the six captured applications with workspace files serialise edge-anchored docks.",
         "heading": "#### 4.1 Structure",
         "section": "14.30",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -1823,7 +1824,7 @@
         "requirement_refs": [
           "STU-SHL-063"
         ],
-        "current_normative_instructions": "**[STU-SHL-063] Region structure.** Five regions plus two rails plus the centre, per [STU-SHL-003]. Each EDGE dock is a stack of GROUPS; each group is a TAB STACK; each tab is one panel instance. The two rails are single-occupant strips, not tab stacks. Studio owns the edge, rail and slot semantics and uses `egui_tiles` for the tiling INSIDE each region. There MUST be one `Tree` PER REGION, never one global tree, so a stray drag cannot dissolve the edge structure. A single free-form tile tree is rejected: it has no concept of edge affinity, icon-rail collapse or a single-occupant contextual slot, and four of the six captured applications with workspace files serialise edge-anchored docks.",
+        "current_normative_instructions": "**[STU-SHL-063] Region structure.** Five regions plus two rails plus the centre, per [STU-SHL-003]. Each EDGE dock is a stack of GROUPS; each group is a TAB STACK; each tab is one panel instance. The two rails are single-occupant strips, not tab stacks. Studio owns the edge, rail and slot semantics and uses a tiling tree for the tiling INSIDE each region. There MUST be one `Tree` PER REGION, never one global tree, so a stray drag cannot dissolve the edge structure. A single free-form tile tree is rejected: it has no concept of edge affinity, icon-rail collapse or a single-occupant contextual slot, and four of the six captured applications with workspace files serialise edge-anchored docks.",
         "declared_table_keys": [],
         "source_fields": [
           "egui_tiles",
@@ -2217,7 +2218,7 @@
             "line": 31344,
             "section": "14.30",
             "heading": "#### 4.1 Structure",
-            "verbatim": "**[STU-SHL-063] Region structure.** Five regions plus two rails plus the centre, per [STU-SHL-003]. Each EDGE dock is a stack of GROUPS; each group is a TAB STACK; each tab is one panel instance. The two rails are single-occupant strips, not tab stacks. Studio owns the edge, rail and slot semantics and uses `egui_tiles` for the tiling INSIDE each region. There MUST be one `Tree` PER REGION, never one global tree, so a stray drag cannot dissolve the edge structure. A single free-form tile tree is rejected: it has no concept of edge affinity, icon-rail collapse or a single-occupant contextual slot, and four of the six captured applications with workspace files serialise edge-anchored docks.",
+            "verbatim": "**[STU-SHL-063] Region structure.** Five regions plus two rails plus the centre, per [STU-SHL-003]. Each EDGE dock is a stack of GROUPS; each group is a TAB STACK; each tab is one panel instance. The two rails are single-occupant strips, not tab stacks. Studio owns the edge, rail and slot semantics and uses a tiling tree for the tiling INSIDE each region. There MUST be one `Tree` PER REGION, never one global tree, so a stray drag cannot dissolve the edge structure. A single free-form tile tree is rejected: it has no concept of edge affinity, icon-rail collapse or a single-occupant contextual slot, and four of the six captured applications with workspace files serialise edge-anchored docks.",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2396,11 +2397,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2442,5 +2443,26 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Region structure",
+      "propagated_paths": [
+        "/context_capsule/specification_anchor_refs[0]/verbatim",
+        "/execution/inputs[0]/current_normative_instructions",
+        "/fulfillment/asset_slices[0]/scope_basis[0]/verbatim"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

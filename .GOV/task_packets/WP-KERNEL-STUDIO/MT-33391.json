@@ -12,8 +12,9 @@
     "unit_kind": "parameter_table",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "3. Document PDF export",
-    "spec_line": 20963,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 21259,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "interop",
   "scope": {
-    "summary": "PDF numeric setting contracts (from the shipped spread).** | Setting | Observed values | hard_min | hard_max | soft_min | soft_max | default | unit | precision | |---|---|---|---|---|---|---|---|---| | `colour_image_resolution` | 100, 300, 350 | 1 | unknown | 72 | 600 | 300 | ppi | 0 | | `greyscale_image_resolution` | 150, 300, 350 | 1 | unknown | 72 | 600 | 300 | ppi | 0 | | `monochrome_image_resolution` | 300, 1200 | 1 | unknown | 300 | 2400 | 1200 | ppi | 0 | | `downsample_threshold` | 1.50000 | 1.0 | unknown | 1.0 | 3.0 | 1.5 | ratio | 5 | | `max_subset_percent` | 100 | 0 | 100 | 0 | 100 | 100 | percent | 0 | | `image_memory` | 1048576 | unknown | unknown | absent | absent | 1048576 | bytes | 0 | | `start_page` | 1 | 1 | unknown | 1 | unknown | 1 | page number | 0 | | `end_page` | -1 | -1 | unknown | -1 | unknown | -1 | page number (-1 = last) | 0 | | `dsc_reporting_level` | 0 | 0 | unknown | 0 | 3 | 0 | level | 0 | | `bit_depth` (per image family) | -1, 1, 2 | -1 | unknown | -1 | 16 | -1 | bits (-1 = unchanged) | 0 | Every `unknown` above is honest: the source presets declare a VALUE, not a bound. Studio MUST NOT convert an observed value into a bound. Clamping to an observed set would forbid legal values.",
+    "summary": "PDF numeric setting contracts (from the shipped spread).** | Setting | Observed values | hard_min | hard_max | soft_min | soft_max | default | unit | precision | |---|---|---|---|---|---|---|---|---| | `colour_image_resolution` | 100, 300, 350 | 1 | unknown | 72 | 600 | 300 | ppi | 0 | | `greyscale_image_resolution` | 150, 300, 350 | 1 | unknown | 72 | 600 | 300 | ppi | 0 | | `monochrome_image_resolution` | 300, 1200 | 1 | unknown | 300 | 2400 | 1200 | ppi | 0 | | `downsample_threshold` | 1.50000 | 1.0 | unknown | 1.0 | 3.0 | 1.5 | ratio | 5 | | `max_subset_percent` | 100 | 0 | 100 | 0 | 100 | 100 | percent | 0 | | `image_memory` | 1048576 | unknown | unknown | absent | absent | 1048576 | bytes | 0 | | `start_page` | 1 | 1 | unknown | 1 | unknown | 1 | page number | 0 | | `end_page` | -1 | -1 | unknown | -1 | unknown | -1 | page number (-1 = last; the preset API returns it as `Option<u32>`, [STU-LAY-159], v02.226 SD-15) | 0 | | `dsc_reporting_level` | 0 | 0 | unknown | 0 | 3 | 0 | level | 0 | | `bit_depth` (per image family) | -1, 1, 2 | -1 | unknown | -1 | 16 | -1 | bits (-1 = unchanged) | 0 | Every `unknown` above is honest: the source presets declare a VALUE, not a bound. Studio MUST NOT convert an observed value into a bound. Clamping to an observed set would forbid legal values.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -102,7 +103,7 @@
     },
     {
       "id": "AC-008",
-      "criterion": "The parameter `end_page` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-1, hard_max=unknown, soft_min=-1, soft_max=unknown, default=-1, unit=page number (-1 = last), precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "criterion": "The parameter `end_page` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-1, hard_max=unknown, soft_min=-1, soft_max=unknown, default=-1, unit=page number (-1 = last; the preset API returns it as `Option<u32>`, [STU-LAY-159], v02.226 SD-15), precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
       "evidence_kind": "runtime_assertion",
       "unknown_fields": [
         "hard_max",
@@ -1703,7 +1704,7 @@
       },
       {
         "id": "AC-008",
-        "text": "The parameter `end_page` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-1, hard_max=unknown, soft_min=-1, soft_max=unknown, default=-1, unit=page number (-1 = last), precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "text": "The parameter `end_page` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-1, hard_max=unknown, soft_min=-1, soft_max=unknown, default=-1, unit=page number (-1 = last; the preset API returns it as `Option<u32>`, [STU-LAY-159], v02.226 SD-15), precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
         "fulfillment_ref": "MT-33391#/fulfillment/legacy_acceptance_map/7"
       },
       {
@@ -2979,7 +2980,7 @@
         "original_text": "The parameter `end_page` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-1, hard_max=unknown, soft_min=-1, soft_max=unknown, default=-1, unit=page number (-1 = last), precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
         "original_row_sha256": "3abe876e4b41add5ffa7b60b69ad6cd38fb1db4f087a39a47c7a2a948fcfbb74",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "The parameter `end_page` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-1, hard_max=unknown, soft_min=-1, soft_max=unknown, default=-1, unit=page number (-1 = last), precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "semantic_fulfillment": "The parameter `end_page` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-1, hard_max=unknown, soft_min=-1, soft_max=unknown, default=-1, unit=page number (-1 = last; the preset API returns it as `Option<u32>`, [STU-LAY-159], v02.226 SD-15), precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33391"
@@ -2989,7 +2990,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-PRESS",
             "scope": "Bounded PDF object editing, projection proposals, forms/annotations/signature states, prepress/accessibility/redaction/full-save. PDF bytes are provider transport, never separate live document authority.",
-            "required_behavior": "The parameter `end_page` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-1, hard_max=unknown, soft_min=-1, soft_max=unknown, default=-1, unit=page number (-1 = last), precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+            "required_behavior": "The parameter `end_page` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-1, hard_max=unknown, soft_min=-1, soft_max=unknown, default=-1, unit=page number (-1 = last; the preset API returns it as `Option<u32>`, [STU-LAY-159], v02.226 SD-15), precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
             "only_owner_root_may_change": true
           }
         ],
@@ -3004,7 +3005,7 @@
         },
         "later_embedding_ref": "MT-36217#/source_acceptance_coverage",
         "later_embedding_required": true,
-        "later_embedding_assertion": "The parameter `end_page` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-1, hard_max=unknown, soft_min=-1, soft_max=unknown, default=-1, unit=page number (-1 = last), precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "The parameter `end_page` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-1, hard_max=unknown, soft_min=-1, soft_max=unknown, default=-1, unit=page number (-1 = last; the preset API returns it as `Option<u32>`, [STU-LAY-159], v02.226 SD-15), precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "later_embedding_refs": [
           "MT-36217#/source_acceptance_coverage"
@@ -3459,7 +3460,7 @@
           "original_text": "The parameter `end_page` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-1, hard_max=unknown, soft_min=-1, soft_max=unknown, default=-1, unit=page number (-1 = last), precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
           "original_row_sha256": "3abe876e4b41add5ffa7b60b69ad6cd38fb1db4f087a39a47c7a2a948fcfbb74",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "The parameter `end_page` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-1, hard_max=unknown, soft_min=-1, soft_max=unknown, default=-1, unit=page number (-1 = last), precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+          "semantic_fulfillment": "The parameter `end_page` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-1, hard_max=unknown, soft_min=-1, soft_max=unknown, default=-1, unit=page number (-1 = last; the preset API returns it as `Option<u32>`, [STU-LAY-159], v02.226 SD-15), precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33391"
@@ -3469,7 +3470,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-PRESS",
               "scope": "Bounded PDF object editing, projection proposals, forms/annotations/signature states, prepress/accessibility/redaction/full-save. PDF bytes are provider transport, never separate live document authority.",
-              "required_behavior": "The parameter `end_page` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-1, hard_max=unknown, soft_min=-1, soft_max=unknown, default=-1, unit=page number (-1 = last), precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+              "required_behavior": "The parameter `end_page` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-1, hard_max=unknown, soft_min=-1, soft_max=unknown, default=-1, unit=page number (-1 = last; the preset API returns it as `Option<u32>`, [STU-LAY-159], v02.226 SD-15), precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
               "only_owner_root_may_change": true
             }
           ],
@@ -3484,7 +3485,7 @@
           },
           "later_embedding_ref": "MT-36217#/source_acceptance_coverage",
           "later_embedding_required": true,
-          "later_embedding_assertion": "The parameter `end_page` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-1, hard_max=unknown, soft_min=-1, soft_max=unknown, default=-1, unit=page number (-1 = last), precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "The parameter `end_page` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-1, hard_max=unknown, soft_min=-1, soft_max=unknown, default=-1, unit=page number (-1 = last; the preset API returns it as `Option<u32>`, [STU-LAY-159], v02.226 SD-15), precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "later_embedding_refs": [
             "MT-36217#/source_acceptance_coverage"
@@ -3575,7 +3576,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T23:48:38.821Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "rule_refs": [
     "CX-SPEC-TRUTH-001",
     "CX-TPL-001",
@@ -3618,7 +3619,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -3648,5 +3649,36 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-008",
+          "old": "The parameter `end_page` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-1, hard_max=unknown, soft_min=-1, soft_max=unknown, default=-1, unit=page number (-1 = last), precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+          "new": "The parameter `end_page` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-1, hard_max=unknown, soft_min=-1, soft_max=unknown, default=-1, unit=page number (-1 = last; the preset API returns it as `Option<u32>`, [STU-LAY-159], v02.226 SD-15), precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "PDF numeric setting contracts (from the shipped spread) - parameter bounds",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[7]/text",
+        "/fulfillment/legacy_acceptance_map[7]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[7]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[7]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[7]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[7]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[7]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

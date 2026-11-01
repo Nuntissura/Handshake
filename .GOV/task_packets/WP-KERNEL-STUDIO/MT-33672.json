@@ -11,9 +11,10 @@
     "derivation_key": "STU-CON-006#clause#0",
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
-    "spec_heading": "14.23 Canonical Studio Authority Contracts",
-    "spec_line": 22359,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_heading": "14.23.6 Develop decoded-CFA foundation transport",
+    "spec_line": 22857,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,14 +27,14 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-freque [...]",
+  "clause": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [...]",
   "spec_anchor": [
     "STU-CON-006"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "cross_cutting",
   "scope": {
-    "summary": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved.",
+    "summary": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [STU-CON-013] and 5.1.6. These are implementation/proof obligations, not open product decisions or claims of existing support. Original owner MTs and acceptance scope remain; missing host consumers are explicit prerequisites.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [],
@@ -134,7 +135,7 @@
   "identity": {
     "mt_id": "MT-33672",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-freque [...]",
+    "title": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [...]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 3
@@ -1682,7 +1683,7 @@
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
-        "text": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved.",
+        "text": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [STU-CON-013] and 5.1.6. These are implementation/proof obligations, not open product decisions or claims of existing support. Original owner MTs and acceptance scope remain; missing host consumers are explicit prerequisites.",
         "fulfillment_ref": "MT-33672#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -1895,7 +1896,7 @@
           "Independent actual output"
         ],
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
-        "expected": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved. Source consumer/manifest inspection additionally proves: Replace operational open-point interpretation with current CON009..013 typed contracts while retaining original captured openpoint lineage unchanged. Consume explicit retained-history,gesturebatch,hostapproval,rasterref and FRbusiness envelopes plus platform plugin ownership ports. Reject locally invented policy/storage/event/redo meaning and missing host capabilities; declared resolved decision never claims its production implementation already exists.",
+        "expected": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [STU-CON-013] and 5.1.6. These are implementation/proof obligations, not open product decisions or claims of existing support. Original owner MTs and acceptance scope remain; missing host consumers are explicit prerequisites. Source consumer/manifest inspection additionally proves: Replace operational open-point interpretation with current CON009..013 typed contracts while retaining original captured openpoint lineage unchanged. Consume explicit retained-history,gesturebatch,hostapproval,rasterref and FRbusiness envelopes plus platform plugin ownership ports. Reject locally invented policy/storage/event/redo meaning and missing host capabilities; declared resolved decision never claims its production implementation already exists.",
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-accord"
@@ -3009,7 +3010,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved.",
+        "semantic_fulfillment": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [STU-CON-013] and 5.1.6. These are implementation/proof obligations, not open product decisions or claims of existing support. Original owner MTs and acceptance scope remain; missing host consumers are explicit prerequisites.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33672-ASSET-ACCORD",
@@ -3023,31 +3024,31 @@
           {
             "owning_module_ref": "STUDIO-MODULE-ACCORD",
             "scope": "Stable IDs, units, revision and capability schemas, cancellation/result/loss contracts; no GUI/GPU/database/media dependencies.",
-            "required_behavior": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved.",
+            "required_behavior": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [STU-CON-013] and 5.1.6. These are implementation/proof obligations, not open product decisions or claims of existing support. Original owner MTs and acceptance scope remain; missing host consumers are explicit prerequisites.",
             "only_owner_root_may_change": true
           },
           {
             "owning_module_ref": "STUDIO-MODULE-CHRONICLE",
             "scope": "Pure typed transactions, proposed patches, conflict/undo validation; kernel remains durable EventLedger/CRDT owner.",
-            "required_behavior": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved.",
+            "required_behavior": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [STU-CON-013] and 5.1.6. These are implementation/proof obligations, not open product decisions or claims of existing support. Original owner MTs and acceptance scope remain; missing host consumers are explicit prerequisites.",
             "only_owner_root_may_change": true
           },
           {
             "owning_module_ref": "STUDIO-MODULE-FOLIO",
             "scope": "One StudioDocument graph/schema and immutable snapshots shared by all domains, not per-vendor models. Photo virtual-copy/develop recipe links reference CKC asset identities; catalog keywords/collections/relink authority is CKC, never a Folio-private catalog.",
-            "required_behavior": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved.",
+            "required_behavior": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [STU-CON-013] and 5.1.6. These are implementation/proof obligations, not open product decisions or claims of existing support. Original owner MTs and acceptance scope remain; missing host consumers are explicit prerequisites.",
             "only_owner_root_may_change": true
           },
           {
             "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
             "scope": "Host-neutral integration bridge port schemas and executable in-memory adapter consumer. Concrete AppState/SurrealDB/Argus/native adapters live later in Handshake product integration target and are excluded from this assets workspace.",
-            "required_behavior": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved.",
+            "required_behavior": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [STU-CON-013] and 5.1.6. These are implementation/proof obligations, not open product decisions or claims of existing support. Original owner MTs and acceptance scope remain; missing host consumers are explicit prerequisites.",
             "only_owner_root_may_change": true
           },
           {
             "owning_module_ref": "STUDIO-MODULE-SCORE_PLUGIN",
             "scope": "Optional native plugin hosting provider; scoped process/lifetime/timeout and foreign resource budgets separate from pure DSP.",
-            "required_behavior": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved.",
+            "required_behavior": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [STU-CON-013] and 5.1.6. These are implementation/proof obligations, not open product decisions or claims of existing support. Original owner MTs and acceptance scope remain; missing host consumers are explicit prerequisites.",
             "only_owner_root_may_change": true
           }
         ],
@@ -3060,13 +3061,13 @@
             "hsk-studio-score-plugin"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved.",
+          "consumer_assertion": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [STU-CON-013] and 5.1.6. These are implementation/proof obligations, not open product decisions or claims of existing support. Original owner MTs and acceptance scope remain; missing host consumers are explicit prerequisites.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-33672-KERNEL-ASSET-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [STU-CON-013] and 5.1.6. These are implementation/proof obligations, not open product decisions or claims of existing support. Original owner MTs and acceptance scope remain; missing host consumers are explicit prerequisites. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36189",
@@ -3098,7 +3099,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved.",
+          "semantic_fulfillment": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [STU-CON-013] and 5.1.6. These are implementation/proof obligations, not open product decisions or claims of existing support. Original owner MTs and acceptance scope remain; missing host consumers are explicit prerequisites.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33672-ASSET-ACCORD",
@@ -3112,31 +3113,31 @@
             {
               "owning_module_ref": "STUDIO-MODULE-ACCORD",
               "scope": "Stable IDs, units, revision and capability schemas, cancellation/result/loss contracts; no GUI/GPU/database/media dependencies.",
-              "required_behavior": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved.",
+              "required_behavior": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [STU-CON-013] and 5.1.6. These are implementation/proof obligations, not open product decisions or claims of existing support. Original owner MTs and acceptance scope remain; missing host consumers are explicit prerequisites.",
               "only_owner_root_may_change": true
             },
             {
               "owning_module_ref": "STUDIO-MODULE-CHRONICLE",
               "scope": "Pure typed transactions, proposed patches, conflict/undo validation; kernel remains durable EventLedger/CRDT owner.",
-              "required_behavior": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved.",
+              "required_behavior": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [STU-CON-013] and 5.1.6. These are implementation/proof obligations, not open product decisions or claims of existing support. Original owner MTs and acceptance scope remain; missing host consumers are explicit prerequisites.",
               "only_owner_root_may_change": true
             },
             {
               "owning_module_ref": "STUDIO-MODULE-FOLIO",
               "scope": "One StudioDocument graph/schema and immutable snapshots shared by all domains, not per-vendor models. Photo virtual-copy/develop recipe links reference CKC asset identities; catalog keywords/collections/relink authority is CKC, never a Folio-private catalog.",
-              "required_behavior": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved.",
+              "required_behavior": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [STU-CON-013] and 5.1.6. These are implementation/proof obligations, not open product decisions or claims of existing support. Original owner MTs and acceptance scope remain; missing host consumers are explicit prerequisites.",
               "only_owner_root_may_change": true
             },
             {
               "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
               "scope": "Host-neutral integration bridge port schemas and executable in-memory adapter consumer. Concrete AppState/SurrealDB/Argus/native adapters live later in Handshake product integration target and are excluded from this assets workspace.",
-              "required_behavior": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved.",
+              "required_behavior": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [STU-CON-013] and 5.1.6. These are implementation/proof obligations, not open product decisions or claims of existing support. Original owner MTs and acceptance scope remain; missing host consumers are explicit prerequisites.",
               "only_owner_root_may_change": true
             },
             {
               "owning_module_ref": "STUDIO-MODULE-SCORE_PLUGIN",
               "scope": "Optional native plugin hosting provider; scoped process/lifetime/timeout and foreign resource budgets separate from pure DSP.",
-              "required_behavior": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved.",
+              "required_behavior": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [STU-CON-013] and 5.1.6. These are implementation/proof obligations, not open product decisions or claims of existing support. Original owner MTs and acceptance scope remain; missing host consumers are explicit prerequisites.",
               "only_owner_root_may_change": true
             }
           ],
@@ -3149,13 +3150,13 @@
               "hsk-studio-score-plugin"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved.",
+            "consumer_assertion": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [STU-CON-013] and 5.1.6. These are implementation/proof obligations, not open product decisions or claims of existing support. Original owner MTs and acceptance scope remain; missing host consumers are explicit prerequisites.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-33672-KERNEL-ASSET-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [STU-CON-013] and 5.1.6. These are implementation/proof obligations, not open product decisions or claims of existing support. Original owner MTs and acceptance scope remain; missing host consumers are explicit prerequisites. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ],
@@ -3253,18 +3254,18 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
-      "criterion": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-frequency raster/vector edits; (3) auto-accept policy class for low-risk model proposals (14.18); (4) raster authority storage shape (tile table vs artifact-ref) and its CRDT representation; (5) FR-EVT-STUDIO-* family registration; (6) the plugin capability/permission schema (14.14). These are tracked as spec-debt until resolved.",
+      "criterion": "RESOLVED CONTRACT POINTS. Redo depth, semantic batching, auto-accept, raster authority, Flight Recorder registration and plugin ownership are selected respectively in [STU-CON-009] through [STU-CON-013] and 5.1.6. These are implementation/proof obligations, not open product decisions or claims of existing support. Original owner MTs and acceptance scope remain; missing host consumers are explicit prerequisites.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
   ],
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -3303,5 +3304,43 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "OPEN CONTRACT POINTS (resolve via governed enrichment/refinement before the implementing MT hardens): (1) redo depth beyond one level (14.19); (2) STUDIO_* event granularity/coalescing for high-freque [...]",
+      "propagated_paths": [
+        "/identity/title",
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/expected",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[1]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[2]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[3]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[4]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[1]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[2]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[3]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[4]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion",
+        "/active_acceptance_criteria[0]/criterion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

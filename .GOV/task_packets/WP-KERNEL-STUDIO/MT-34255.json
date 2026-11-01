@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.28.2 Contextual property-panel binding (Studio-wide contract)",
-    "spec_line": 30058,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 30667,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,19 +34,19 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "web_authoring",
   "scope": {
-    "summary": "Discriminator.** A `discriminator` narrows a match on a field of the matched node — for example `binds_to: meta` with `discriminator: {field: \"name\", value: \"viewport\"}`. When two panels bind the same `binds_to` and one carries a discriminator, the discriminated panel MUST declare a lower-winning priority (typically band 6 over band 5) so the refinement pre-empts the generic panel. A discriminated panel that does NOT outrank its generic sibling is a registry defect and MUST be reported at registration, not at selection time.",
+    "summary": "Discriminator.** A `discriminator` narrows a match on a field of the matched node, for example `binds_to: meta` with `discriminator: {field: \"name\", value: \"viewport\"}`. An eligible band-6 panel whose discriminator is satisfied on the matched node MUST suppress only its registered band-5 generic sibling named by `refines_panel_id`, with reason `refinement_superseded`, before the unchanged numeric ascending sort. The pair MUST satisfy [STU-WEB-033]; an absent or invalid target or invalid same-node refinement pair is a registry defect reported at registration. A discriminator alone grants no override to another band, including band 50, and a band-1 candidate remains eligible.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "When two panels bind the same `binds_to` and one carries a discriminator, the discriminated panel MUST declare a lower-winning priority (typically band 6 over band 5) so the refinement pre-empts the generic panel.",
+      "criterion": "An eligible band-6 panel whose discriminator is satisfied on the matched node MUST suppress only its registered band-5 generic sibling named by `refines_panel_id`, with reason `refinement_superseded`, before the unchanged numeric ascending sort.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-WEB-037"
     },
     {
       "id": "AC-002",
-      "criterion": "A discriminated panel that does NOT outrank its generic sibling is a registry defect and MUST be reported at registration, not at selection time.",
+      "criterion": "The pair MUST satisfy [STU-WEB-033]; an absent or invalid target or invalid same-node refinement pair is a registry defect reported at registration.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-WEB-037"
     }
@@ -2582,7 +2583,7 @@
             "line": 30096,
             "section": "14.28",
             "heading": "### 14.28.2 Contextual property-panel binding (Studio-wide contract)",
-            "verbatim": "**[STU-WEB-037] Discriminator.** A `discriminator` narrows a match on a field of the matched node — for example `binds_to: meta` with `discriminator: {field: \"name\", value: \"viewport\"}`. When two panels bind the same `binds_to` and one carries a discriminator, the discriminated panel MUST declare a lower-winning priority (typically band 6 over band 5) so the refinement pre-empts the generic panel. A discriminated panel that does NOT outrank its generic sibling is a registry defect and MUST be reported at registration, not at selection time.",
+            "verbatim": "**[STU-WEB-037] Discriminator.** A `discriminator` narrows a match on a field of the matched node — for example `binds_to: meta` with `discriminator: {field: \"name\", value: \"viewport\"}`. An eligible band-6 panel whose discriminator is satisfied on the matched node MUST suppress only its registered band-5 generic sibling named by `refines_panel_id`, with reason `refinement_superseded`, before the unchanged numeric ascending sort. The pair MUST satisfy [STU-WEB-033]; an absent or invalid target or invalid same-node refinement pair is a registry defect reported at registration.",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2846,11 +2847,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T02:58:55.671201+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2892,5 +2893,35 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "When two panels bind the same `binds_to` and one carries a discriminator, the discriminated panel MUST declare a lower-winning priority (typically band 6 over band 5) so the refinement pre-empts the generic panel.",
+          "new": "An eligible band-6 panel whose discriminator is satisfied on the matched node MUST suppress only its registered band-5 generic sibling named by `refines_panel_id`, with reason `refinement_superseded`, before the unchanged numeric ascending sort."
+        },
+        {
+          "id": "AC-002",
+          "old": "A discriminated panel that does NOT outrank its generic sibling is a registry defect and MUST be reported at registration, not at selection time.",
+          "new": "The pair MUST satisfy [STU-WEB-033]; an absent or invalid target or invalid same-node refinement pair is a registry defect reported at registration."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Discriminator",
+      "propagated_paths": [
+        "/fulfillment/asset_slices[0]/scope_basis[0]/verbatim"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

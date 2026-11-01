@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.2 Architecture: Kernel Binding and Engine Crates",
-    "spec_line": 181,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 187,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,25 +27,43 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "`handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio. All GPU/compute code is isolated in the `studio-engine` workspace crate and reached through the `Ras [...]",
+  "clause": "`handshake_core` MUST NOT gain Studio GPU/compute implementation dependencies. GPU, CPU render, raster, vector, layout, text, color, RAW, sequence, audio, motion, composition and import/export provide [...]",
   "spec_anchor": [
     "STU-ARC-002"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "architecture",
   "scope": {
-    "summary": "`handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio. All GPU/compute code is isolated in the `studio-engine` workspace crate and reached through the `RasterEngine`/`VectorEngine`/`LayoutEngine`/`TextEngine`/`ColorEngine`/`RenderEngine: Send + Sync` trait boundaries defined in `studio-engine/src/lib.rs` (mirrors [TAI-OVR-009]).",
+    "summary": "`handshake_core` MUST NOT gain Studio GPU/compute implementation dependencies. GPU, CPU render, raster, vector, layout, text, color, RAW, sequence, audio, motion, composition and import/export providers MUST be independently selectable crates behind typed `Send + Sync` ports. The existing RasterEngine, VectorEngine, LayoutEngine, TextEngine, ColorEngine and RenderEngine contract semantics remain preserved; new domain ports MUST be specified in canonical contracts before implementation. Contract/document crates MUST NOT depend on provider implementations, kernel, native shell, database, GPU or codec runtimes. No mandatory all-engine dependency facade is permitted.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "`handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio.",
+      "criterion": "`handshake_core` MUST NOT gain Studio GPU/compute implementation dependencies.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-ARC-002"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "GPU, CPU render, raster, vector, layout, text, color, RAW, sequence, audio, motion, composition and import/export providers MUST be independently selectable crates behind typed `Send + Sync` ports.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-ARC-002"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The existing RasterEngine, VectorEngine, LayoutEngine, TextEngine, ColorEngine and RenderEngine contract semantics remain preserved; new domain ports MUST be specified in canonical contracts before implementation.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-ARC-002"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "Contract/document crates MUST NOT depend on provider implementations, kernel, native shell, database, GPU or codec runtimes.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-ARC-002"
     }
   ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria_count": 4,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -141,7 +160,7 @@
   "identity": {
     "mt_id": "MT-30015",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "`handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio. All GPU/compute code is isolated in the `studio-engine` workspace crate and reached through the `Ras [...]",
+    "title": "`handshake_core` MUST NOT gain Studio GPU/compute implementation dependencies. GPU, CPU render, raster, vector, layout, text, color, RAW, sequence, audio, motion, composition and import/export provide [...]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 3
@@ -1577,13 +1596,28 @@
       "STU-ARC-002"
     ],
     "acceptance_refs": [
-      "AC-001"
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "`handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio.",
+        "text": "`handshake_core` MUST NOT gain Studio GPU/compute implementation dependencies.",
         "fulfillment_ref": "MT-30015#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-002",
+        "text": "GPU, CPU render, raster, vector, layout, text, color, RAW, sequence, audio, motion, composition and import/export providers MUST be independently selectable crates behind typed `Send + Sync` ports."
+      },
+      {
+        "id": "AC-003",
+        "text": "The existing RasterEngine, VectorEngine, LayoutEngine, TextEngine, ColorEngine and RenderEngine contract semantics remain preserved; new domain ports MUST be specified in canonical contracts before implementation."
+      },
+      {
+        "id": "AC-004",
+        "text": "Contract/document crates MUST NOT depend on provider implementations, kernel, native shell, database, GPU or codec runtimes."
       }
     ],
     "spec_basis_refs": [
@@ -1783,7 +1817,7 @@
           "AC-001"
         ],
         "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-kernel-bindings --no-default-features --test mt_30015 -- --nocapture",
-        "expected": "`handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio. Portable authority/platform consumer additionally proves: Compile purebinding/contracts without GPU/compute/native/database/codec implementations and no allenginefacade. Reject providerhandle leakage and mandatoryunrelateddomain edge; actual handshake_core dependencygraph proof remains distincthost adoption.",
+        "expected": "`handshake_core` MUST NOT gain Studio GPU/compute implementation dependencies. Portable authority/platform consumer additionally proves: Compile purebinding/contracts without GPU/compute/native/database/codec implementations and no allenginefacade. Reject providerhandle leakage and mandatoryunrelateddomain edge; actual handshake_core dependencygraph proof remains distincthost adoption.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1807,6 +1841,54 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-30015-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-ARC-002"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "GPU, CPU render, raster, vector, layout, text, color, RAW, sequence, audio, motion, composition and import/export providers MUST be independently selectable crates behind typed `Send + Sync` ports.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30015-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-ARC-002"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The existing RasterEngine, VectorEngine, LayoutEngine, TextEngine, ColorEngine and RenderEngine contract semantics remain preserved; new domain ports MUST be specified in canonical contracts before implementation.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30015-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-ARC-002"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Contract/document crates MUST NOT depend on provider implementations, kernel, native shell, database, GPU or codec runtimes.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2127,7 +2209,7 @@
         "original_text": "`handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio.",
         "original_row_sha256": "65bed7ab626ee9737991c166732f295c074a6e1a96830ed9413d22cd03fb4c03",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "`handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio.",
+        "semantic_fulfillment": "`handshake_core` MUST NOT gain Studio GPU/compute implementation dependencies.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-30015-ASSET-KERNEL_BINDINGS"
@@ -2137,7 +2219,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
             "scope": "Host-neutral integration bridge port schemas and executable in-memory adapter consumer. Concrete AppState/SurrealDB/Argus/native adapters live later in Handshake product integration target and are excluded from this assets workspace.",
-            "required_behavior": "`handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio.",
+            "required_behavior": "`handshake_core` MUST NOT gain Studio GPU/compute implementation dependencies.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2146,13 +2228,13 @@
             "hsk-studio-kernel-bindings"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio.",
+          "consumer_assertion": "`handshake_core` MUST NOT gain Studio GPU/compute implementation dependencies.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-30015-KERNEL-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "`handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "`handshake_core` MUST NOT gain Studio GPU/compute implementation dependencies. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36216"
@@ -2189,7 +2271,7 @@
           "original_text": "`handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio.",
           "original_row_sha256": "65bed7ab626ee9737991c166732f295c074a6e1a96830ed9413d22cd03fb4c03",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "`handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio.",
+          "semantic_fulfillment": "`handshake_core` MUST NOT gain Studio GPU/compute implementation dependencies.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-30015-ASSET-KERNEL_BINDINGS"
@@ -2199,7 +2281,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
               "scope": "Host-neutral integration bridge port schemas and executable in-memory adapter consumer. Concrete AppState/SurrealDB/Argus/native adapters live later in Handshake product integration target and are excluded from this assets workspace.",
-              "required_behavior": "`handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio.",
+              "required_behavior": "`handshake_core` MUST NOT gain Studio GPU/compute implementation dependencies.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2208,13 +2290,13 @@
               "hsk-studio-kernel-bindings"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "`handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio.",
+            "consumer_assertion": "`handshake_core` MUST NOT gain Studio GPU/compute implementation dependencies.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-30015-KERNEL-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "`handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "`handshake_core` MUST NOT gain Studio GPU/compute implementation dependencies. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ],
@@ -2236,11 +2318,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2272,5 +2354,59 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "`handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio.",
+          "new": "`handshake_core` MUST NOT gain Studio GPU/compute implementation dependencies."
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "GPU, CPU render, raster, vector, layout, text, color, RAW, sequence, audio, motion, composition and import/export providers MUST be independently selectable crates behind typed `Send + Sync` ports."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The existing RasterEngine, VectorEngine, LayoutEngine, TextEngine, ColorEngine and RenderEngine contract semantics remain preserved; new domain ports MUST be specified in canonical contracts before implementation."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "Contract/document crates MUST NOT depend on provider implementations, kernel, native shell, database, GPU or codec runtimes."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-002",
+        "AC-003",
+        "AC-004"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "`handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio. All GPU/compute code is isolated in the `studio-engine` workspace crate and reached through the `Ras [...]",
+      "propagated_paths": [
+        "/identity/title",
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/expected",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

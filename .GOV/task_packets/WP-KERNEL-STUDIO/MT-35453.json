@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.8.20 Display Device Characterisation",
-    "spec_line": 11511,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 11784,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -54,9 +55,51 @@
       "criterion": "Three failure modes are known and MUST be handled rather than assumed away, and the first two are documented failures of the field service that solves this problem on one platform, not hypotheticals.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-COL-302"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `display_device_id` with the exact meaning the spec states: The stable identity: a hash over the monitor descriptor's manufacturer id, product code, and serial-number and monitor-name descriptor blocks. Stable across reconnection because it is derived from the monitor, not from the host's enumeration.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-302 carried contract table row 1"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `descriptor_bytes_hash` with the exact meaning the spec states: Content hash of the whole raw monitor descriptor as read, so two units that collide on the fields above are still distinguishable by their full descriptor.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-302 carried contract table row 2"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `identity_confidence` with the exact meaning the spec states: `unique` when the descriptor carries a serial-number or monitor-name descriptor block; `ambiguous` when it does not, or when two connected monitors resolve to the same `display_device_id`; `absent` when no descriptor was readable at all.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-302 carried contract table row 3"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `host_enumeration_key` with the exact meaning the spec states: The platform's own current handle or device name. VOLATILE by contract, stored for diagnosis, and MUST NOT be used as identity.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-302 carried contract table row 4"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `active_profile_ref` with the exact meaning the spec states: The `content_hash` of the `StudioColorProfile` in force ([STU-COL-125]), or the unmanaged marker of [STU-COL-306].. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-302 carried contract table row 5"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The contract table holds the row `profile_source` with the exact meaning the spec states: Which mechanism of [STU-COL-301] produced it, or `operator_supplied` under [STU-COL-304].. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-302 carried contract table row 6"
+    },
+    {
+      "id": "AC-010",
+      "criterion": "The contract table holds the row `acquired_at` with the exact meaning the spec states: When the association was last read, so a stale association is visible rather than assumed current.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-302 carried contract table row 7"
     }
   ],
-  "acceptance_criteria_count": 3,
+  "acceptance_criteria_count": 10,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1589,7 +1632,14 @@
     "acceptance_refs": [
       "AC-001",
       "AC-002",
-      "AC-003"
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009",
+      "AC-010"
     ],
     "materialized_acceptance": [
       {
@@ -1606,6 +1656,34 @@
         "id": "AC-003",
         "text": "Three failure modes are known and MUST be handled rather than assumed away, and the first two are documented failures of the field service that solves this problem on one platform, not hypotheticals.",
         "fulfillment_ref": "MT-35453#/fulfillment/legacy_acceptance_map/2"
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `display_device_id` with the exact meaning the spec states: The stable identity: a hash over the monitor descriptor's manufacturer id, product code, and serial-number and monitor-name descriptor blocks. Stable across reconnection because it is derived from the monitor, not from the host's enumeration.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `descriptor_bytes_hash` with the exact meaning the spec states: Content hash of the whole raw monitor descriptor as read, so two units that collide on the fields above are still distinguishable by their full descriptor.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `identity_confidence` with the exact meaning the spec states: `unique` when the descriptor carries a serial-number or monitor-name descriptor block; `ambiguous` when it does not, or when two connected monitors resolve to the same `display_device_id`; `absent` when no descriptor was readable at all.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `host_enumeration_key` with the exact meaning the spec states: The platform's own current handle or device name. VOLATILE by contract, stored for diagnosis, and MUST NOT be used as identity.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `active_profile_ref` with the exact meaning the spec states: The `content_hash` of the `StudioColorProfile` in force ([STU-COL-125]), or the unmanaged marker of [STU-COL-306].. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-009",
+        "text": "The contract table holds the row `profile_source` with the exact meaning the spec states: Which mechanism of [STU-COL-301] produced it, or `operator_supplied` under [STU-COL-304].. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-010",
+        "text": "The contract table holds the row `acquired_at` with the exact meaning the spec states: When the association was last read, so a stale association is visible rather than assumed current.. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1841,6 +1919,118 @@
           "selected_features": []
         },
         "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
+      },
+      {
+        "check_id": "MT-35453-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-COL-302"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `display_device_id` with the exact meaning the spec states: The stable identity: a hash over the monitor descriptor's manufacturer id, product code, and serial-number and monitor-name descriptor blocks. Stable across reconnection because it is derived from the monitor, not from the host's enumeration.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35453-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-COL-302"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `descriptor_bytes_hash` with the exact meaning the spec states: Content hash of the whole raw monitor descriptor as read, so two units that collide on the fields above are still distinguishable by their full descriptor.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35453-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-COL-302"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `identity_confidence` with the exact meaning the spec states: `unique` when the descriptor carries a serial-number or monitor-name descriptor block; `ambiguous` when it does not, or when two connected monitors resolve to the same `display_device_id`; `absent` when no descriptor was readable at all.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35453-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-COL-302"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `host_enumeration_key` with the exact meaning the spec states: The platform's own current handle or device name. VOLATILE by contract, stored for diagnosis, and MUST NOT be used as identity.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35453-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-COL-302"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `active_profile_ref` with the exact meaning the spec states: The `content_hash` of the `StudioColorProfile` in force ([STU-COL-125]), or the unmanaged marker of [STU-COL-306].. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35453-SPEC-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-COL-302"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `profile_source` with the exact meaning the spec states: Which mechanism of [STU-COL-301] produced it, or `operator_supplied` under [STU-COL-304].. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35453-SPEC-AC-010",
+        "kind": "test",
+        "claim_refs": [
+          "AC-010",
+          "STU-COL-302"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `acquired_at` with the exact meaning the spec states: When the association was last read, so a stale association is visible rather than assumed current.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2465,11 +2655,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2505,5 +2695,66 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `display_device_id` with the exact meaning the spec states: The stable identity: a hash over the monitor descriptor's manufacturer id, product code, and serial-number and monitor-name descriptor blocks. Stable across reconnection because it is derived from the monitor, not from the host's enumeration.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `descriptor_bytes_hash` with the exact meaning the spec states: Content hash of the whole raw monitor descriptor as read, so two units that collide on the fields above are still distinguishable by their full descriptor.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `identity_confidence` with the exact meaning the spec states: `unique` when the descriptor carries a serial-number or monitor-name descriptor block; `ambiguous` when it does not, or when two connected monitors resolve to the same `display_device_id`; `absent` when no descriptor was readable at all.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `host_enumeration_key` with the exact meaning the spec states: The platform's own current handle or device name. VOLATILE by contract, stored for diagnosis, and MUST NOT be used as identity.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `active_profile_ref` with the exact meaning the spec states: The `content_hash` of the `StudioColorProfile` in force ([STU-COL-125]), or the unmanaged marker of [STU-COL-306].. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-009",
+          "old": null,
+          "new": "The contract table holds the row `profile_source` with the exact meaning the spec states: Which mechanism of [STU-COL-301] produced it, or `operator_supplied` under [STU-COL-304].. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-010",
+          "old": null,
+          "new": "The contract table holds the row `acquired_at` with the exact meaning the spec states: When the association was last read, so a stale association is visible rather than assumed current.. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "`StudioDisplayDevice` and stable monitor identity",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

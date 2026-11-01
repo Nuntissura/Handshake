@@ -12,8 +12,9 @@
     "unit_kind": "parameter_table",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "11. Transforms and Content-Aware Operations",
-    "spec_line": 1530,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 1614,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "raster",
   "scope": {
-    "summary": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in `studio-engine`. Any generative/provider-model variant is an optional adapter lane (§14) and MUST NOT be the only implementation. The content-aware fill surface's control set is: *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | classification | |---|---|---|---|---|---|---|---|---| | `sampling_area_overlay` | — | — | — | — | unknown | none | — | boolean plus an overlay colour and an `indicates` enum selecting whether the overlay marks the sampled or the excluded region; the overlay is inspectable state, required by [STU-RAS-001] obligation (c) | | `sampling_overlay_opacity` | unknown | unknown | unknown | unknown | unknown | percent | unknown | unit `declared`; no bound, precision or default declared | | `sampling_area_mode` | enum | enum | — | — | unknown | none | — | closed set: `auto` \\| `rectangular` \\| `custom`; plus a `sample_all_layers` boolean | | `colour_adaptation` | enum | enum | — | — | unknown | none | — | closed set: `none` \\| `default` \\| `high` \\| `very_high` | | `rotation_adaptation` | enum | enum | — | — | [...]",
+    "summary": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in the owning modular Studio asset crate. Any generative/provider-model variant is an optional adapter lane (§14) and MUST NOT be the only implementation. The content-aware fill surface's control set is: *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | classification | |---|---|---|---|---|---|---|---|---| | `sampling_area_overlay` | — | — | — | — | unknown | none | — | boolean plus an overlay colour and an `indicates` enum selecting whether the overlay marks the sampled or the excluded region; the overlay is inspectable state, required by [STU-RAS-001] obligation (c) | | `sampling_overlay_opacity` | unknown | unknown | unknown | unknown | unknown | percent | unknown | unit `declared`; no bound, precision or default declared | | `sampling_area_mode` | enum | enum | — | — | unknown | none | — | closed set: `auto` \\| `rectangular` \\| `custom`; plus a `sample_all_layers` boolean | | `colour_adaptation` | enum | enum | — | — | unknown | none | — | closed set: `none` \\| `default` \\| `high` \\| `very_high` | | `rotation_adaptation` | [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -3746,11 +3747,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -3786,5 +3787,22 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]) - parameter bounds",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

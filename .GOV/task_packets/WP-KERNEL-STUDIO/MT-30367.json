@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "16. HDR, Lens Blur, and Enhance",
-    "spec_line": 2566,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 2650,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,13 +34,13 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "raster",
   "scope": {
-    "summary": "ENHANCE TIERS AND THE LENS-BLUR STAGE.** Enhance operations split into two tiers and the split is normative. (a) **Native deterministic tier.** The demosaic / raw-detail refinement (edge rendition, colour rendering and artifact suppression at native resolution for Bayer and X-Trans sources) and integer/linear super-resolution upscale MUST run on the deterministic `studio-engine` path and MUST produce reproducible output under a fixed process version. (b) **Adapter tier.** Model-backed denoise, model-backed raw-detail, model-backed super-resolution and the model-assisted mask sources of [STU-RAW-123] MUST be implemented only as an optional `StudioModelAdapter` with a local model preferred and no required cloud or account dependency. When no adapter is installed the pipeline MUST fall back to the deterministic tier and surface a capability receipt rather than failing. The metered-adapter obligations of [STU-RAS-164] apply in full. (c) **Re-editability and lifecycle.** An enhance result MUST remain re-editable. An update/flatten lifecycle MUST let model results be refreshed when models change and flattened to a baked buffer with a documented reset path back to the editable state, and every enhance run MUST emit a receipt naming the adapter, the model identity and version, and whether it ran locally. A **lens-blur** stage exists as a single structured develop parameter (a depth-awa [...]",
+    "summary": "ENHANCE TIERS AND THE LENS-BLUR STAGE.** Enhance operations split into two tiers and the split is normative. (a) **Native deterministic tier.** The demosaic / raw-detail refinement (edge rendition, colour rendering and artifact suppression at native resolution for Bayer and X-Trans sources) and integer/linear super-resolution upscale MUST run on the deterministic the owning modular Studio asset crate path and MUST produce reproducible output under a fixed process version. (b) **Adapter tier.** Model-backed denoise, model-backed raw-detail, model-backed super-resolution and the model-assisted mask sources of [STU-RAW-123] MUST be implemented only as an optional `StudioModelAdapter` with a local model preferred and no required cloud or account dependency. When no adapter is installed the pipeline MUST fall back to the deterministic tier and surface a capability receipt rather than failing. The metered-adapter obligations of [STU-RAS-164] apply in full. (c) **Re-editability and lifecycle.** An enhance result MUST remain re-editable. An update/flatten lifecycle MUST let model results be refreshed when models change and flattened to a baked buffer with a documented reset path back to the editable state, and every enhance run MUST emit a receipt naming the adapter, the model identity and version, and whether it ran locally. A **lens-blur** stage exists as a single structured develop [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "ENHANCE TIERS AND THE LENS-BLUR STAGE.** Enhance operations split into two tiers and the split is normative. (a) **Native deterministic tier.** The demosaic / raw-detail refinement (edge rendition, colour rendering and artifact suppression at native resolution for Bayer and X-Trans sources) and integer/linear super-resolution upscale MUST run on the deterministic `studio-engine` path and MUST produce reproducible output under a fixed process version. (b) **Adapter tier.** Model-backed denoise, model-backed raw-detail, model-backed super-resolution and the model-assisted mask sources of [...]",
+      "criterion": "ENHANCE TIERS AND THE LENS-BLUR STAGE.** Enhance operations split into two tiers and the split is normative. (a) **Native deterministic tier.** The demosaic / raw-detail refinement (edge rendition, colour rendering and artifact suppression at native resolution for Bayer and X-Trans sources) and integer/linear super-resolution upscale MUST run on the deterministic the owning modular Studio asset crate path and MUST produce reproducible output under a fixed process version. (b) **Adapter tier.** Model-backed denoise, model-backed raw-detail, model-backed super-resolution and the model-assisted m [...]",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-RAW-130"
     },
@@ -1613,7 +1614,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "ENHANCE TIERS AND THE LENS-BLUR STAGE.** Enhance operations split into two tiers and the split is normative. (a) **Native deterministic tier.** The demosaic / raw-detail refinement (edge rendition, colour rendering and artifact suppression at native resolution for Bayer and X-Trans sources) and integer/linear super-resolution upscale MUST run on the deterministic `studio-engine` path and MUST produce reproducible output under a fixed process version. (b) **Adapter tier.** Model-backed denoise, model-backed raw-detail, model-backed super-resolution and the model-assisted mask sources of [...]",
+        "text": "ENHANCE TIERS AND THE LENS-BLUR STAGE.** Enhance operations split into two tiers and the split is normative. (a) **Native deterministic tier.** The demosaic / raw-detail refinement (edge rendition, colour rendering and artifact suppression at native resolution for Bayer and X-Trans sources) and integer/linear super-resolution upscale MUST run on the deterministic the owning modular Studio asset crate path and MUST produce reproducible output under a fixed process version. (b) **Adapter tier.** Model-backed denoise, model-backed raw-detail, model-backed super-resolution and the model-assisted m [...]",
         "fulfillment_ref": "MT-30367#/fulfillment/legacy_acceptance_map/0"
       },
       {
@@ -2386,7 +2387,7 @@
         "original_text": "ENHANCE TIERS AND THE LENS-BLUR STAGE.** Enhance operations split into two tiers and the split is normative. (a) **Native deterministic tier.** The demosaic / raw-detail refinement (edge rendition, colour rendering and artifact suppression at native resolution for Bayer and X-Trans sources) and integer/linear super-resolution upscale MUST run on the deterministic `studio-engine` path and MUST produce reproducible output under a fixed process version. (b) **Adapter tier.** Model-backed denoise, model-backed raw-detail, model-backed super-resolution and the model-assisted mask sources of [...]",
         "original_row_sha256": "2db6daf336d93f829ca9bdb5e032d877dd08e5b0ea9dbfdbb99839fa291d6e21",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "ENHANCE TIERS AND THE LENS-BLUR STAGE.** Enhance operations split into two tiers and the split is normative. (a) **Native deterministic tier.** The demosaic / raw-detail refinement (edge rendition, colour rendering and artifact suppression at native resolution for Bayer and X-Trans sources) and integer/linear super-resolution upscale MUST run on the deterministic `studio-engine` path and MUST produce reproducible output under a fixed process version. (b) **Adapter tier.** Model-backed denoise, model-backed raw-detail, model-backed super-resolution and the model-assisted mask sources of [...]",
+        "semantic_fulfillment": "ENHANCE TIERS AND THE LENS-BLUR STAGE.** Enhance operations split into two tiers and the split is normative. (a) **Native deterministic tier.** The demosaic / raw-detail refinement (edge rendition, colour rendering and artifact suppression at native resolution for Bayer and X-Trans sources) and integer/linear super-resolution upscale MUST run on the deterministic the owning modular Studio asset crate path and MUST produce reproducible output under a fixed process version. (b) **Adapter tier.** Model-backed denoise, model-backed raw-detail, model-backed super-resolution and the model-assisted m [...]",
         "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
         "asset_contribution_refs": [
           "MT-30367"
@@ -2396,7 +2397,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-DEVELOP",
             "scope": "RAW decode/develop recipes; originals immutable through CKC/ArtifactService provider identity, target-independent scalar oracle and SIMD dispatch. Imported catalog semantics adapt into existing CKC owner, not a private Studio catalog.",
-            "required_behavior": "ENHANCE TIERS AND THE LENS-BLUR STAGE.** Enhance operations split into two tiers and the split is normative. (a) **Native deterministic tier.** The demosaic / raw-detail refinement (edge rendition, colour rendering and artifact suppression at native resolution for Bayer and X-Trans sources) and integer/linear super-resolution upscale MUST run on the deterministic `studio-engine` path and MUST produce reproducible output under a fixed process version. (b) **Adapter tier.** Model-backed denoise, model-backed raw-detail, model-backed super-resolution and the model-assisted mask sources of [...]",
+            "required_behavior": "ENHANCE TIERS AND THE LENS-BLUR STAGE.** Enhance operations split into two tiers and the split is normative. (a) **Native deterministic tier.** The demosaic / raw-detail refinement (edge rendition, colour rendering and artifact suppression at native resolution for Bayer and X-Trans sources) and integer/linear super-resolution upscale MUST run on the deterministic the owning modular Studio asset crate path and MUST produce reproducible output under a fixed process version. (b) **Adapter tier.** Model-backed denoise, model-backed raw-detail, model-backed super-resolution and the model-assisted m [...]",
             "only_owner_root_may_change": true
           }
         ],
@@ -2411,7 +2412,7 @@
         },
         "later_embedding_ref": "MT-36198#/source_acceptance_coverage",
         "later_embedding_required": true,
-        "later_embedding_assertion": "ENHANCE TIERS AND THE LENS-BLUR STAGE.** Enhance operations split into two tiers and the split is normative. (a) **Native deterministic tier.** The demosaic / raw-detail refinement (edge rendition, colour rendering and artifact suppression at native resolution for Bayer and X-Trans sources) and integer/linear super-resolution upscale MUST run on the deterministic `studio-engine` path and MUST produce reproducible output under a fixed process version. (b) **Adapter tier.** Model-backed denoise, model-backed raw-detail, model-backed super-resolution and the model-assisted mask sources of [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "ENHANCE TIERS AND THE LENS-BLUR STAGE.** Enhance operations split into two tiers and the split is normative. (a) **Native deterministic tier.** The demosaic / raw-detail refinement (edge rendition, colour rendering and artifact suppression at native resolution for Bayer and X-Trans sources) and integer/linear super-resolution upscale MUST run on the deterministic the owning modular Studio asset crate path and MUST produce reproducible output under a fixed process version. (b) **Adapter tier.** Model-backed denoise, model-backed raw-detail, model-backed super-resolution and the model-assisted m [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "later_embedding_refs": [
           "MT-36198#/source_acceptance_coverage"
@@ -2620,7 +2621,7 @@
           "original_text": "ENHANCE TIERS AND THE LENS-BLUR STAGE.** Enhance operations split into two tiers and the split is normative. (a) **Native deterministic tier.** The demosaic / raw-detail refinement (edge rendition, colour rendering and artifact suppression at native resolution for Bayer and X-Trans sources) and integer/linear super-resolution upscale MUST run on the deterministic `studio-engine` path and MUST produce reproducible output under a fixed process version. (b) **Adapter tier.** Model-backed denoise, model-backed raw-detail, model-backed super-resolution and the model-assisted mask sources of [...]",
           "original_row_sha256": "2db6daf336d93f829ca9bdb5e032d877dd08e5b0ea9dbfdbb99839fa291d6e21",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "ENHANCE TIERS AND THE LENS-BLUR STAGE.** Enhance operations split into two tiers and the split is normative. (a) **Native deterministic tier.** The demosaic / raw-detail refinement (edge rendition, colour rendering and artifact suppression at native resolution for Bayer and X-Trans sources) and integer/linear super-resolution upscale MUST run on the deterministic `studio-engine` path and MUST produce reproducible output under a fixed process version. (b) **Adapter tier.** Model-backed denoise, model-backed raw-detail, model-backed super-resolution and the model-assisted mask sources of [...]",
+          "semantic_fulfillment": "ENHANCE TIERS AND THE LENS-BLUR STAGE.** Enhance operations split into two tiers and the split is normative. (a) **Native deterministic tier.** The demosaic / raw-detail refinement (edge rendition, colour rendering and artifact suppression at native resolution for Bayer and X-Trans sources) and integer/linear super-resolution upscale MUST run on the deterministic the owning modular Studio asset crate path and MUST produce reproducible output under a fixed process version. (b) **Adapter tier.** Model-backed denoise, model-backed raw-detail, model-backed super-resolution and the model-assisted m [...]",
           "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
           "asset_contribution_refs": [
             "MT-30367"
@@ -2630,7 +2631,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-DEVELOP",
               "scope": "RAW decode/develop recipes; originals immutable through CKC/ArtifactService provider identity, target-independent scalar oracle and SIMD dispatch. Imported catalog semantics adapt into existing CKC owner, not a private Studio catalog.",
-              "required_behavior": "ENHANCE TIERS AND THE LENS-BLUR STAGE.** Enhance operations split into two tiers and the split is normative. (a) **Native deterministic tier.** The demosaic / raw-detail refinement (edge rendition, colour rendering and artifact suppression at native resolution for Bayer and X-Trans sources) and integer/linear super-resolution upscale MUST run on the deterministic `studio-engine` path and MUST produce reproducible output under a fixed process version. (b) **Adapter tier.** Model-backed denoise, model-backed raw-detail, model-backed super-resolution and the model-assisted mask sources of [...]",
+              "required_behavior": "ENHANCE TIERS AND THE LENS-BLUR STAGE.** Enhance operations split into two tiers and the split is normative. (a) **Native deterministic tier.** The demosaic / raw-detail refinement (edge rendition, colour rendering and artifact suppression at native resolution for Bayer and X-Trans sources) and integer/linear super-resolution upscale MUST run on the deterministic the owning modular Studio asset crate path and MUST produce reproducible output under a fixed process version. (b) **Adapter tier.** Model-backed denoise, model-backed raw-detail, model-backed super-resolution and the model-assisted m [...]",
               "only_owner_root_may_change": true
             }
           ],
@@ -2645,7 +2646,7 @@
           },
           "later_embedding_ref": "MT-36198#/source_acceptance_coverage",
           "later_embedding_required": true,
-          "later_embedding_assertion": "ENHANCE TIERS AND THE LENS-BLUR STAGE.** Enhance operations split into two tiers and the split is normative. (a) **Native deterministic tier.** The demosaic / raw-detail refinement (edge rendition, colour rendering and artifact suppression at native resolution for Bayer and X-Trans sources) and integer/linear super-resolution upscale MUST run on the deterministic `studio-engine` path and MUST produce reproducible output under a fixed process version. (b) **Adapter tier.** Model-backed denoise, model-backed raw-detail, model-backed super-resolution and the model-assisted mask sources of [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "ENHANCE TIERS AND THE LENS-BLUR STAGE.** Enhance operations split into two tiers and the split is normative. (a) **Native deterministic tier.** The demosaic / raw-detail refinement (edge rendition, colour rendering and artifact suppression at native resolution for Bayer and X-Trans sources) and integer/linear super-resolution upscale MUST run on the deterministic the owning modular Studio asset crate path and MUST produce reproducible output under a fixed process version. (b) **Adapter tier.** Model-backed denoise, model-backed raw-detail, model-backed super-resolution and the model-assisted m [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "later_embedding_refs": [
             "MT-36198#/source_acceptance_coverage"
@@ -2810,7 +2811,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T02:02:46.806Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "rule_refs": [
     "CX-SPEC-TRUTH-001",
     "CX-TPL-001",
@@ -2853,7 +2854,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2896,5 +2897,36 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "ENHANCE TIERS AND THE LENS-BLUR STAGE.** Enhance operations split into two tiers and the split is normative. (a) **Native deterministic tier.** The demosaic / raw-detail refinement (edge rendition, colour rendering and artifact suppression at native resolution for Bayer and X-Trans sources) and integer/linear super-resolution upscale MUST run on the deterministic `studio-engine` path and MUST produce reproducible output under a fixed process version. (b) **Adapter tier.** Model-backed denoise, model-backed raw-detail, model-backed super-resolution and the model-assisted mask sources of [...]",
+          "new": "ENHANCE TIERS AND THE LENS-BLUR STAGE.** Enhance operations split into two tiers and the split is normative. (a) **Native deterministic tier.** The demosaic / raw-detail refinement (edge rendition, colour rendering and artifact suppression at native resolution for Bayer and X-Trans sources) and integer/linear super-resolution upscale MUST run on the deterministic the owning modular Studio asset crate path and MUST produce reproducible output under a fixed process version. (b) **Adapter tier.** Model-backed denoise, model-backed raw-detail, model-backed super-resolution and the model-assisted m [...]"
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "ENHANCE TIERS AND THE LENS-BLUR STAGE",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

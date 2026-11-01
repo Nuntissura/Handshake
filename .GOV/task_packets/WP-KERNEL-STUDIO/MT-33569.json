@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "7. Plugin / extension surface",
-    "spec_line": 21920,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 22222,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,20 +27,20 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "Studio's plugin distribution MUST be a local/native tool-and-extension registry, not a runtime dependency on any vendor's hosted marketplace or account. Importing a source suite's plugin ecosystem is [...]",
+  "clause": "Plugin distribution MUST use the shared local/native Handshake registry, without a hosted marketplace/account dependency. The approved scope now includes explicitly supported native CLAP/VST3 provider [...]",
   "spec_anchor": [
     "STU-AUT-020"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "automation",
   "scope": {
-    "summary": "Studio's plugin distribution MUST be a local/native tool-and-extension registry, not a runtime dependency on any vendor's hosted marketplace or account. Importing a source suite's plugin ecosystem is out of scope; the manifest/capability/consent contract is the Studio-native model. This preserves the local-first, no-account posture of [STU-OVR-002]. ### 8. External API, inspect / codegen, and MCP posture",
+    "summary": "Plugin distribution MUST use the shared local/native Handshake registry, without a hosted marketplace/account dependency. The approved scope now includes explicitly supported native CLAP/VST3 provider adapters under [HSK-PLG-002], [HSK-PLG-010] and [HSK-PLG-017]; each exact platform/ABI/editor/state combination requires its own capability and proof. This does not imply universal binary compatibility with every source-suite plugin ecosystem. Unsupported plugins remain disclosed, preserved where safe and unavailable; no unsandboxed fallback or separate Studio library is permitted. The earlier ecosystem exclusion is superseded only for these selected adapters; [STU-OVR-002]'s local-first posture remains. ### 8. External API, inspect / codegen, and MCP posture",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Studio's plugin distribution MUST be a local/native tool-and-extension registry, not a runtime dependency on any vendor's hosted marketplace or account.",
+      "criterion": "Plugin distribution MUST use the shared local/native Handshake registry, without a hosted marketplace/account dependency.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-AUT-020"
     }
@@ -141,7 +142,7 @@
   "identity": {
     "mt_id": "MT-33569",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "Studio's plugin distribution MUST be a local/native tool-and-extension registry, not a runtime dependency on any vendor's hosted marketplace or account. Importing a source suite's plugin ecosystem is [...]",
+    "title": "Plugin distribution MUST use the shared local/native Handshake registry, without a hosted marketplace/account dependency. The approved scope now includes explicitly supported native CLAP/VST3 provider [...]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 3
@@ -1588,7 +1589,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Studio's plugin distribution MUST be a local/native tool-and-extension registry, not a runtime dependency on any vendor's hosted marketplace or account.",
+        "text": "Plugin distribution MUST use the shared local/native Handshake registry, without a hosted marketplace/account dependency.",
         "fulfillment_ref": "MT-33569#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -1798,7 +1799,7 @@
           "AC-001"
         ],
         "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-kernel-bindings --no-default-features --test mt_33569 -- --nocapture",
-        "expected": "Studio's plugin distribution MUST be a local/native tool-and-extension registry, not a runtime dependency on any vendor's hosted marketplace or account.",
+        "expected": "Plugin distribution MUST use the shared local/native Handshake registry, without a hosted marketplace/account dependency.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1812,7 +1813,7 @@
           ],
           "features": [],
           "feature_policy": "Locked selected package/dependency closure; no whole-host/all-engine source requirement.",
-          "consumer_assertion": "Resolve exact supported CLAP/VST3/platform/ABI/editor/state provider capability independently of sourcevendor ecosystems. Acceptance retained: Studio's plugin distribution MUST be a local/native tool-and-extension registry, not a runtime dependency on any vendor's hosted marketplace or account.",
+          "consumer_assertion": "Resolve exact supported CLAP/VST3/platform/ABI/editor/state provider capability independently of sourcevendor ecosystems. Acceptance retained: Plugin distribution MUST use the shared local/native Handshake registry, without a hosted marketplace/account dependency.",
           "negative_path": "Reject unsupportedbinary,ungrantedinstallation and unsandboxedfallback; absent hostedaccount cannot disable local plugin operations and actual platform consumer remains host proof.",
           "oracle": "Independent selected consumer output inspection against current canonical clause and exact candidate; mocks or unavailable oracle are NOT_PROVEN.",
           "hbr_test_entrypoint_binding": "Bind current HBR test_entrypoint/config before activation; unresolved REPLACE_ME remains NON_EXECUTABLE."
@@ -2143,7 +2144,7 @@
         "original_text": "Studio's plugin distribution MUST be a local/native tool-and-extension registry, not a runtime dependency on any vendor's hosted marketplace or account.",
         "original_row_sha256": "8ee0dcd58e2d0122fd265e8dd18bd93237be20905e81de160c8202b68d0b1df0",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Studio's plugin distribution MUST be a local/native tool-and-extension registry, not a runtime dependency on any vendor's hosted marketplace or account.",
+        "semantic_fulfillment": "Plugin distribution MUST use the shared local/native Handshake registry, without a hosted marketplace/account dependency.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33569-ASSET-KERNEL_BINDINGS"
@@ -2153,7 +2154,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
             "scope": "Host-neutral integration bridge port schemas and executable in-memory adapter consumer. Concrete AppState/SurrealDB/Argus/native adapters live later in Handshake product integration target and are excluded from this assets workspace.",
-            "required_behavior": "Studio's plugin distribution MUST be a local/native tool-and-extension registry, not a runtime dependency on any vendor's hosted marketplace or account.",
+            "required_behavior": "Plugin distribution MUST use the shared local/native Handshake registry, without a hosted marketplace/account dependency.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2162,13 +2163,13 @@
             "hsk-studio-kernel-bindings"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Studio's plugin distribution MUST be a local/native tool-and-extension registry, not a runtime dependency on any vendor's hosted marketplace or account.",
+          "consumer_assertion": "Plugin distribution MUST use the shared local/native Handshake registry, without a hosted marketplace/account dependency.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-33569-KERNEL-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Studio's plugin distribution MUST be a local/native tool-and-extension registry, not a runtime dependency on any vendor's hosted marketplace or account. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Plugin distribution MUST use the shared local/native Handshake registry, without a hosted marketplace/account dependency. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36216"
@@ -2205,7 +2206,7 @@
           "original_text": "Studio's plugin distribution MUST be a local/native tool-and-extension registry, not a runtime dependency on any vendor's hosted marketplace or account.",
           "original_row_sha256": "8ee0dcd58e2d0122fd265e8dd18bd93237be20905e81de160c8202b68d0b1df0",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Studio's plugin distribution MUST be a local/native tool-and-extension registry, not a runtime dependency on any vendor's hosted marketplace or account.",
+          "semantic_fulfillment": "Plugin distribution MUST use the shared local/native Handshake registry, without a hosted marketplace/account dependency.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33569-ASSET-KERNEL_BINDINGS"
@@ -2215,7 +2216,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
               "scope": "Host-neutral integration bridge port schemas and executable in-memory adapter consumer. Concrete AppState/SurrealDB/Argus/native adapters live later in Handshake product integration target and are excluded from this assets workspace.",
-              "required_behavior": "Studio's plugin distribution MUST be a local/native tool-and-extension registry, not a runtime dependency on any vendor's hosted marketplace or account.",
+              "required_behavior": "Plugin distribution MUST use the shared local/native Handshake registry, without a hosted marketplace/account dependency.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2224,13 +2225,13 @@
               "hsk-studio-kernel-bindings"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Studio's plugin distribution MUST be a local/native tool-and-extension registry, not a runtime dependency on any vendor's hosted marketplace or account.",
+            "consumer_assertion": "Plugin distribution MUST use the shared local/native Handshake registry, without a hosted marketplace/account dependency.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-33569-KERNEL-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Studio's plugin distribution MUST be a local/native tool-and-extension registry, not a runtime dependency on any vendor's hosted marketplace or account. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Plugin distribution MUST use the shared local/native Handshake registry, without a hosted marketplace/account dependency. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ],
@@ -2252,11 +2253,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2288,5 +2289,41 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "Studio's plugin distribution MUST be a local/native tool-and-extension registry, not a runtime dependency on any vendor's hosted marketplace or account.",
+          "new": "Plugin distribution MUST use the shared local/native Handshake registry, without a hosted marketplace/account dependency."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "Studio's plugin distribution MUST be a local/native tool-and-extension registry, not a runtime dependency on any vendor's hosted marketplace or account. Importing a source suite's plugin ecosystem is [...]",
+      "propagated_paths": [
+        "/identity/title",
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/expected",
+        "/proof/checks[0]/method_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

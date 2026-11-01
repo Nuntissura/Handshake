@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.8.21 ACES Scene-Linear Default",
-    "spec_line": 11704,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 11977,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -42,9 +43,63 @@
       "criterion": "Role bindings under the default.** [STU-COL-152] fixes the role vocabulary Studio MUST recognise and states it as a minimum.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-COL-312"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The contract table holds the row `scene_linear` with the exact meaning the spec states: `ACEScg` | The working space every render, composite and adjustment evaluates in.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-312 carried contract table row 1"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `compositing_log` with the exact meaning the spec states: `ACEScct` | The log encoding a log-domain operation converts through.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-312 carried contract table row 2"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `color_timing` with the exact meaning the spec states: `ACEScct` | The encoding the grade stack of [STU-COL-160] operates in, so wheels and curves behave as a colourist expects.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-312 carried contract table row 3"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `matte_paint` with the exact meaning the spec states: `ACEScct` | Paint work needs the same log response as grading, not a linear one.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-312 carried contract table row 4"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `texture_paint` with the exact meaning the spec states: A display-encoded BT.709 space | Texture authoring happens against a display encoding, not a scene encoding.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-312 carried contract table row 5"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `color_picking` with the exact meaning the spec states: A display-encoded BT.709 space | The picker of [STU-COL-230] shows the operator display-referred numbers; picking in scene-linear presents values no operator can reason about.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-312 carried contract table row 6"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `data` with the exact meaning the spec states: The configuration's raw pass-through space | Non-colour channels. A transform applied to a data channel corrupts it, which is why the role exists at all.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-312 carried contract table row 7"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The contract table holds the row `aces_interchange` with the exact meaning the spec states: `ACES2065-1` | The scene-referred interchange anchor of [STU-COL-316].. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-312 carried contract table row 8"
+    },
+    {
+      "id": "AC-010",
+      "criterion": "The contract table holds the row `cie_xyz_d65_interchange` with the exact meaning the spec states: The configuration's display-referred CIE XYZ D65 space | The display-referred interchange anchor of [STU-COL-316].. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-312 carried contract table row 9"
     }
   ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria_count": 10,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1575,13 +1630,58 @@
       "STU-COL-312"
     ],
     "acceptance_refs": [
-      "AC-001"
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009",
+      "AC-010"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
         "text": "Role bindings under the default.** [STU-COL-152] fixes the role vocabulary Studio MUST recognise and states it as a minimum.",
         "fulfillment_ref": "MT-35468#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-002",
+        "text": "The contract table holds the row `scene_linear` with the exact meaning the spec states: `ACEScg` | The working space every render, composite and adjustment evaluates in.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `compositing_log` with the exact meaning the spec states: `ACEScct` | The log encoding a log-domain operation converts through.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `color_timing` with the exact meaning the spec states: `ACEScct` | The encoding the grade stack of [STU-COL-160] operates in, so wheels and curves behave as a colourist expects.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `matte_paint` with the exact meaning the spec states: `ACEScct` | Paint work needs the same log response as grading, not a linear one.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `texture_paint` with the exact meaning the spec states: A display-encoded BT.709 space | Texture authoring happens against a display encoding, not a scene encoding.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `color_picking` with the exact meaning the spec states: A display-encoded BT.709 space | The picker of [STU-COL-230] shows the operator display-referred numbers; picking in scene-linear presents values no operator can reason about.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `data` with the exact meaning the spec states: The configuration's raw pass-through space | Non-colour channels. A transform applied to a data channel corrupts it, which is why the role exists at all.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-009",
+        "text": "The contract table holds the row `aces_interchange` with the exact meaning the spec states: `ACES2065-1` | The scene-referred interchange anchor of [STU-COL-316].. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-010",
+        "text": "The contract table holds the row `cie_xyz_d65_interchange` with the exact meaning the spec states: The configuration's display-referred CIE XYZ D65 space | The display-referred interchange anchor of [STU-COL-316].. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1815,6 +1915,150 @@
           "selected_features": []
         },
         "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
+      },
+      {
+        "check_id": "MT-35468-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-COL-312"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `scene_linear` with the exact meaning the spec states: `ACEScg` | The working space every render, composite and adjustment evaluates in.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35468-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-COL-312"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `compositing_log` with the exact meaning the spec states: `ACEScct` | The log encoding a log-domain operation converts through.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35468-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-COL-312"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `color_timing` with the exact meaning the spec states: `ACEScct` | The encoding the grade stack of [STU-COL-160] operates in, so wheels and curves behave as a colourist expects.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35468-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-COL-312"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `matte_paint` with the exact meaning the spec states: `ACEScct` | Paint work needs the same log response as grading, not a linear one.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35468-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-COL-312"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `texture_paint` with the exact meaning the spec states: A display-encoded BT.709 space | Texture authoring happens against a display encoding, not a scene encoding.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35468-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-COL-312"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `color_picking` with the exact meaning the spec states: A display-encoded BT.709 space | The picker of [STU-COL-230] shows the operator display-referred numbers; picking in scene-linear presents values no operator can reason about.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35468-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-COL-312"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `data` with the exact meaning the spec states: The configuration's raw pass-through space | Non-colour channels. A transform applied to a data channel corrupts it, which is why the role exists at all.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35468-SPEC-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-COL-312"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `aces_interchange` with the exact meaning the spec states: `ACES2065-1` | The scene-referred interchange anchor of [STU-COL-316].. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35468-SPEC-AC-010",
+        "kind": "test",
+        "claim_refs": [
+          "AC-010",
+          "STU-COL-312"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `cie_xyz_d65_interchange` with the exact meaning the spec states: The configuration's display-referred CIE XYZ D65 space | The display-referred interchange anchor of [STU-COL-316].. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2247,11 +2491,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2287,5 +2531,78 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The contract table holds the row `scene_linear` with the exact meaning the spec states: `ACEScg` | The working space every render, composite and adjustment evaluates in.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `compositing_log` with the exact meaning the spec states: `ACEScct` | The log encoding a log-domain operation converts through.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `color_timing` with the exact meaning the spec states: `ACEScct` | The encoding the grade stack of [STU-COL-160] operates in, so wheels and curves behave as a colourist expects.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `matte_paint` with the exact meaning the spec states: `ACEScct` | Paint work needs the same log response as grading, not a linear one.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `texture_paint` with the exact meaning the spec states: A display-encoded BT.709 space | Texture authoring happens against a display encoding, not a scene encoding.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `color_picking` with the exact meaning the spec states: A display-encoded BT.709 space | The picker of [STU-COL-230] shows the operator display-referred numbers; picking in scene-linear presents values no operator can reason about.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `data` with the exact meaning the spec states: The configuration's raw pass-through space | Non-colour channels. A transform applied to a data channel corrupts it, which is why the role exists at all.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-009",
+          "old": null,
+          "new": "The contract table holds the row `aces_interchange` with the exact meaning the spec states: `ACES2065-1` | The scene-referred interchange anchor of [STU-COL-316].. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-010",
+          "old": null,
+          "new": "The contract table holds the row `cie_xyz_d65_interchange` with the exact meaning the spec states: The configuration's display-referred CIE XYZ D65 space | The display-referred interchange anchor of [STU-COL-316].. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "Role bindings under the default",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

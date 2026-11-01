@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.30 Operator Shell — Menu, Availability, Docks, and Gesture Arbitration",
-    "spec_line": 30818,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 31509,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "operator_shell",
   "scope": {
-    "summary": "Observability and quiet operation.** Every surface specified here MUST be discoverable, inspectable and steerable out of process through the AccessKit tree by stable `author_id` per [STU-MDL-002] and [STU-MDL-004], and MUST satisfy [STU-QUIET-001] through [STU-QUIET-005]: no foreground window, no focus steal, no OS-level input injection, no cursor warping, no pane popping while an operator or another agent works elsewhere. `handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in `studio-engine`. --- ### 1. The menu #### 1.1 Position, order and the index promise",
+    "summary": "Observability and quiet operation.** Every surface specified here MUST be discoverable, inspectable and steerable out of process through the AccessKit tree by stable `author_id` per [STU-MDL-002] and [STU-MDL-004], and MUST satisfy [STU-QUIET-001] through [STU-QUIET-005]: no foreground window, no focus steal, no OS-level input injection, no cursor warping, no pane popping while an operator or another agent works elsewhere. `handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in the owning modular Studio asset crate. --- ### 1. The menu #### 1.1 Position, order and the index promise",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -45,7 +46,7 @@
     },
     {
       "id": "AC-002",
-      "criterion": "`handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in `studio-engine`. --- ### 1.",
+      "criterion": "`handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in the owning modular Studio asset crate. --- ### 1.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-SHL-009"
     }
@@ -1530,7 +1531,7 @@
       },
       {
         "id": "AC-002",
-        "text": "`handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in `studio-engine`. --- ### 1.",
+        "text": "`handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in the owning modular Studio asset crate. --- ### 1.",
         "fulfillment_ref": "MT-34430#/fulfillment/legacy_acceptance_map/1"
       }
     ],
@@ -1763,7 +1764,7 @@
           "AC-002"
         ],
         "command_or_method": "Planned target: cargo test --locked -p hsk-studio-controls --no-default-features --test mt_34430 contract_consumer -- --exact. Independent validator invokes actual descriptor/action/conformance consumers against cases in execution steps; source oracle .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:30860. Implementer separately cargo check --locked -p hsk-studio-controls --no-default-features --tests; exact lock/actor/external roots activation-bound. No execution/target existence claimed.",
-        "expected": "Observed output satisfies `handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in `studio-engine`. --- ### 1. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
+        "expected": "Observed output satisfies `handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in the owning modular Studio asset crate. --- ### 1. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1776,7 +1777,7 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-          "consumer_assertion": "Observed output satisfies `handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in `studio-engine`. --- ### 1. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
+          "consumer_assertion": "Observed output satisfies `handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in the owning modular Studio asset crate. --- ### 1. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
           "negative_path": "Exact cases in MT-34430#/execution/implementation_steps",
           "oracle": "Independent actual outputs specified by MT-34430-ASSET-AC-002; unavailable provider means NOT_PROVEN."
         },
@@ -2148,7 +2149,7 @@
         "original_text": "`handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in `studio-engine`. --- ### 1.",
         "original_row_sha256": "2f4a52d69b902921e4c50734ff11254e39575a6fd58b2b33b14ac956e86aaf40",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "`handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in `studio-engine`. --- ### 1.",
+        "semantic_fulfillment": "`handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in the owning modular Studio asset crate. --- ### 1.",
         "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
         "asset_contribution_refs": [
           "MT-34430-ASSET-CONTROLS"
@@ -2158,7 +2159,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "`handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in `studio-engine`. --- ### 1.",
+            "required_behavior": "`handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in the owning modular Studio asset crate. --- ### 1.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2167,13 +2168,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-          "consumer_assertion": "Observed output satisfies `handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in `studio-engine`. --- ### 1. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
+          "consumer_assertion": "Observed output satisfies `handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in the owning modular Studio asset crate. --- ### 1. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
           "negative_path": "Exact cases in MT-34430#/execution/implementation_steps",
           "oracle": "Independent actual outputs specified by MT-34430-ASSET-AC-002; unavailable provider means NOT_PROVEN."
         },
         "later_embedding_ref": "MT-36213",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Qualified source MT-34430/AC-002; actual host adoption MT-36213 independently proves: `handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in `studio-engine`. --- ### 1.",
+        "later_embedding_assertion": "Qualified source MT-34430/AC-002; actual host adoption MT-36213 independently proves: `handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in the owning modular Studio asset crate. --- ### 1.",
         "status": "PENDING"
       }
     ],
@@ -2248,7 +2249,7 @@
           "original_text": "`handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in `studio-engine`. --- ### 1.",
           "original_row_sha256": "2f4a52d69b902921e4c50734ff11254e39575a6fd58b2b33b14ac956e86aaf40",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "`handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in `studio-engine`. --- ### 1.",
+          "semantic_fulfillment": "`handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in the owning modular Studio asset crate. --- ### 1.",
           "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
           "asset_contribution_refs": [
             "MT-34430-ASSET-CONTROLS"
@@ -2258,7 +2259,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "`handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in `studio-engine`. --- ### 1.",
+              "required_behavior": "`handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in the owning modular Studio asset crate. --- ### 1.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2267,13 +2268,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-            "consumer_assertion": "Observed output satisfies `handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in `studio-engine`. --- ### 1. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
+            "consumer_assertion": "Observed output satisfies `handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in the owning modular Studio asset crate. --- ### 1. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
             "negative_path": "Exact cases in MT-34430#/execution/implementation_steps",
             "oracle": "Independent actual outputs specified by MT-34430-ASSET-AC-002; unavailable provider means NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36213",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Qualified source MT-34430/AC-002; actual host adoption MT-36213 independently proves: `handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in `studio-engine`. --- ### 1.",
+          "later_embedding_assertion": "Qualified source MT-34430/AC-002; actual host adoption MT-36213 independently proves: `handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in the owning modular Studio asset crate. --- ### 1.",
           "status": "PENDING"
         }
       ]
@@ -2287,11 +2288,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2333,5 +2334,40 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-002",
+          "old": "`handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in `studio-engine`. --- ### 1.",
+          "new": "`handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in the owning modular Studio asset crate. --- ### 1."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Observability and quiet operation",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[1]/text",
+        "/proof/checks[1]/expected",
+        "/proof/checks[1]/method_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[1]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[1]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[1]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[1]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

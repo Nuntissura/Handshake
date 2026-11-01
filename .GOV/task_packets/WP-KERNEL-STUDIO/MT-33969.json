@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.26.8 Shape operators",
-    "spec_line": 27616,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 28140,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -36,8 +37,27 @@
     "summary": "21 shape operator families are normative.** They divide into three roles: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Role | Operators | |---|---| | Path generators | Rectangle path (position, size, roundness, direction), Ellipse path (position, size, direction), Polystar path (type, points, position, rotation, inner and outer radius, inner and outer roundness, direction), Bezier path (an editable path plus direction). | | Paint operators | Fill (colour, opacity, fill rule, blend mode, composite order), Stroke (colour, opacity, width, line cap, line join, miter limit, dashes, taper, wave, blend mode, composite order), Gradient Fill, Gradient Stroke. | | Path modifiers | Merge Paths, Offset Paths, Pucker & Bloat, Repeater, Round Corners, Trim Paths, Twist, Wiggle Paths, Wiggle Transform, Zig Zag, and a Trim reveal helper. | Two further groups complete the model: a per-group TRANSFORM and a per-group MATERIALS group for 3D shape extrusion.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [],
-  "acceptance_criteria_count": 0,
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "The contract table holds the row `Path generators` with the exact meaning the spec states: Rectangle path (position, size, roundness, direction), Ellipse path (position, size, direction), Polystar path (type, points, position, rotation, inner and outer radius, inner and outer roundness, direction), Bezier path (an editable path plus direction).. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-101 carried contract table row 1"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The contract table holds the row `Paint operators` with the exact meaning the spec states: Fill (colour, opacity, fill rule, blend mode, composite order), Stroke (colour, opacity, width, line cap, line join, miter limit, dashes, taper, wave, blend mode, composite order), Gradient Fill, Gradient Stroke.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-101 carried contract table row 2"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `Path modifiers` with the exact meaning the spec states: Merge Paths, Offset Paths, Pucker & Bloat, Repeater, Round Corners, Trim Paths, Twist, Wiggle Paths, Wiggle Transform, Zig Zag, and a Trim reveal helper.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-101 carried contract table row 3"
+    }
+  ],
+  "acceptance_criteria_count": 3,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1528,13 +1548,28 @@
       "STU-MOT-101"
     ],
     "acceptance_refs": [
-      "ASSET-AC-001"
+      "ASSET-AC-001",
+      "AC-001",
+      "AC-002",
+      "AC-003"
     ],
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
         "text": "21 shape operator families are normative.** They divide into three roles: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Role | Operators | |---|---| | Path generators | Rectangle path (position, size, roundness, direction), Ellipse path (position, size, direction), Polystar path (type, points, position, rotation, inner and outer radius, inner and outer roundness, direction), Bezier path (an editable path plus direction). | | Paint operators | Fill (colour, opacity, fill rule, blend mode, composite order), Stroke (colour, opacity, width, line cap, line join, miter limit, dashes, taper, wave, blend mode, composite order), Gradient Fill, Gradient Stroke. | | Path modifiers | Merge Paths, Offset Paths, Pucker & Bloat, Repeater, Round Corners, Trim Paths, Twist, Wiggle Paths, Wiggle Transform, Zig Zag, and a Trim reveal helper. | Two further groups complete the model: a per-group TRANSFORM and a per-group MATERIALS group for 3D shape extrusion.",
         "fulfillment_ref": "MT-33969#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-001",
+        "text": "The contract table holds the row `Path generators` with the exact meaning the spec states: Rectangle path (position, size, roundness, direction), Ellipse path (position, size, direction), Polystar path (type, points, position, rotation, inner and outer radius, inner and outer roundness, direction), Bezier path (an editable path plus direction).. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-002",
+        "text": "The contract table holds the row `Paint operators` with the exact meaning the spec states: Fill (colour, opacity, fill rule, blend mode, composite order), Stroke (colour, opacity, width, line cap, line join, miter limit, dashes, taper, wave, blend mode, composite order), Gradient Fill, Gradient Stroke.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `Path modifiers` with the exact meaning the spec states: Merge Paths, Offset Paths, Pucker & Bloat, Repeater, Round Corners, Trim Paths, Twist, Wiggle Paths, Wiggle Transform, Zig Zag, and a Trim reveal helper.. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1810,6 +1845,54 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-33969-SPEC-AC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-001",
+          "STU-MOT-101"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Path generators` with the exact meaning the spec states: Rectangle path (position, size, roundness, direction), Ellipse path (position, size, direction), Polystar path (type, points, position, rotation, inner and outer radius, inner and outer roundness, direction), Bezier path (an editable path plus direction).. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33969-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-MOT-101"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Paint operators` with the exact meaning the spec states: Fill (colour, opacity, fill rule, blend mode, composite order), Stroke (colour, opacity, width, line cap, line join, miter limit, dashes, taper, wave, blend mode, composite order), Gradient Fill, Gradient Stroke.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33969-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-MOT-101"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Path modifiers` with the exact meaning the spec states: Merge Paths, Offset Paths, Pucker & Bloat, Repeater, Round Corners, Trim Paths, Twist, Wiggle Paths, Wiggle Transform, Zig Zag, and a Trim reveal helper.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2266,7 +2349,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
@@ -2277,7 +2360,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2313,5 +2396,42 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": null,
+          "new": "The contract table holds the row `Path generators` with the exact meaning the spec states: Rectangle path (position, size, roundness, direction), Ellipse path (position, size, direction), Polystar path (type, points, position, rotation, inner and outer radius, inner and outer roundness, direction), Bezier path (an editable path plus direction).. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The contract table holds the row `Paint operators` with the exact meaning the spec states: Fill (colour, opacity, fill rule, blend mode, composite order), Stroke (colour, opacity, width, line cap, line join, miter limit, dashes, taper, wave, blend mode, composite order), Gradient Fill, Gradient Stroke.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `Path modifiers` with the exact meaning the spec states: Merge Paths, Offset Paths, Pucker & Bloat, Repeater, Round Corners, Trim Paths, Twist, Wiggle Paths, Wiggle Transform, Zig Zag, and a Trim reveal helper.. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-001",
+        "AC-002",
+        "AC-003"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "21 shape operator families are normative",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

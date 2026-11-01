@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.8.22 Colour Accuracy Metric and Reference Patch Sets",
-    "spec_line": 11854,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 12127,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -60,9 +61,33 @@
       "criterion": "The hue MUST be set to zero by convention rather than left to whatever the platform returns. | | The chroma correction factor | The `a` axis is scaled by a chroma-dependent factor computed from the MEAN chroma of the PAIR before hue and chroma are taken.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-COL-322"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `Hue-difference quadrant` with the exact meaning the spec states: The hue difference branches on whether the absolute difference exceeds 180 degrees, subtracting or adding 360 depending on which hue is larger. Getting the branch wrong is invisible on most pairs and badly wrong on a few. The mean hue has its OWN, different branch and MUST NOT reuse the first one.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-322 carried contract table row 1"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `Undefined hue at the achromatic point` with the exact meaning the spec states: With both the chroma-corrected `a` and `b` at zero the two-argument arctangent is undefined in most languages. The hue MUST be set to zero by convention rather than left to whatever the platform returns.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-322 carried contract table row 2"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `The chroma correction factor` with the exact meaning the spec states: The `a` axis is scaled by a chroma-dependent factor computed from the MEAN chroma of the PAIR before hue and chroma are taken. An implementation that computes hue from the uncorrected `a` is a different formula.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-322 carried contract table row 3"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `The blue-region rotation term` with the exact meaning the spec states: A rotation term centred near hue 275 degrees couples the chroma and hue terms. Omitting it leaves the formula numerically close on most pairs and wrong exactly where the formula was designed to be right.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-322 carried contract table row 4"
     }
   ],
-  "acceptance_criteria_count": 4,
+  "acceptance_criteria_count": 8,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1596,7 +1621,11 @@
       "AC-001",
       "AC-002",
       "AC-003",
-      "AC-004"
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008"
     ],
     "materialized_acceptance": [
       {
@@ -1618,6 +1647,22 @@
         "id": "AC-004",
         "text": "The hue MUST be set to zero by convention rather than left to whatever the platform returns. | | The chroma correction factor | The `a` axis is scaled by a chroma-dependent factor computed from the MEAN chroma of the PAIR before hue and chroma are taken.",
         "fulfillment_ref": "MT-35485#/fulfillment/legacy_acceptance_map/3"
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `Hue-difference quadrant` with the exact meaning the spec states: The hue difference branches on whether the absolute difference exceeds 180 degrees, subtracting or adding 360 depending on which hue is larger. Getting the branch wrong is invisible on most pairs and badly wrong on a few. The mean hue has its OWN, different branch and MUST NOT reuse the first one.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `Undefined hue at the achromatic point` with the exact meaning the spec states: With both the chroma-corrected `a` and `b` at zero the two-argument arctangent is undefined in most languages. The hue MUST be set to zero by convention rather than left to whatever the platform returns.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `The chroma correction factor` with the exact meaning the spec states: The `a` axis is scaled by a chroma-dependent factor computed from the MEAN chroma of the PAIR before hue and chroma are taken. An implementation that computes hue from the uncorrected `a` is a different formula.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `The blue-region rotation term` with the exact meaning the spec states: A rotation term centred near hue 275 degrees couples the chroma and hue terms. Omitting it leaves the formula numerically close on most pairs and wrong exactly where the formula was designed to be right.. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1854,6 +1899,70 @@
           "selected_features": []
         },
         "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
+      },
+      {
+        "check_id": "MT-35485-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-COL-322"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Hue-difference quadrant` with the exact meaning the spec states: The hue difference branches on whether the absolute difference exceeds 180 degrees, subtracting or adding 360 depending on which hue is larger. Getting the branch wrong is invisible on most pairs and badly wrong on a few. The mean hue has its OWN, different branch and MUST NOT reuse the first one.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35485-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-COL-322"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Undefined hue at the achromatic point` with the exact meaning the spec states: With both the chroma-corrected `a` and `b` at zero the two-argument arctangent is undefined in most languages. The hue MUST be set to zero by convention rather than left to whatever the platform returns.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35485-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-COL-322"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `The chroma correction factor` with the exact meaning the spec states: The `a` axis is scaled by a chroma-dependent factor computed from the MEAN chroma of the PAIR before hue and chroma are taken. An implementation that computes hue from the uncorrected `a` is a different formula.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35485-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-COL-322"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `The blue-region rotation term` with the exact meaning the spec states: A rotation term centred near hue 275 degrees couples the chroma and hue terms. Omitting it leaves the formula numerically close on most pairs and wrong exactly where the formula was designed to be right.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2574,11 +2683,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2614,5 +2723,48 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `Hue-difference quadrant` with the exact meaning the spec states: The hue difference branches on whether the absolute difference exceeds 180 degrees, subtracting or adding 360 depending on which hue is larger. Getting the branch wrong is invisible on most pairs and badly wrong on a few. The mean hue has its OWN, different branch and MUST NOT reuse the first one.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `Undefined hue at the achromatic point` with the exact meaning the spec states: With both the chroma-corrected `a` and `b` at zero the two-argument arctangent is undefined in most languages. The hue MUST be set to zero by convention rather than left to whatever the platform returns.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `The chroma correction factor` with the exact meaning the spec states: The `a` axis is scaled by a chroma-dependent factor computed from the MEAN chroma of the PAIR before hue and chroma are taken. An implementation that computes hue from the uncorrected `a` is a different formula.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `The blue-region rotation term` with the exact meaning the spec states: A rotation term centred near hue 275 degrees couples the chroma and hue terms. Omitting it leaves the formula numerically close on most pairs and wrong exactly where the formula was designed to be right.. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "Metric implementation conformance",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

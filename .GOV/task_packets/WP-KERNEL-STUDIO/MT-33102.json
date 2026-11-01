@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "8. Auto layout — full parameter contract",
-    "spec_line": 19870,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 20141,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "design_systems",
   "scope": {
-    "summary": "Grid flow contract (normative).** When `layout_mode = GRID`, the container additionally exposes exactly these eight fields plus three commands: | Field | Type / domain | Default | |---|---|---| | `grid_row_count` | integer, hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, precision integer | 1 | | `grid_column_count` | integer, same contract as `grid_row_count` | 1 | | `grid_row_gap` | number, see [STU-DS-145] | 0 | | `grid_column_gap` | number, see [STU-DS-145] | 0 | | `grid_row_sizes` | ordered array of track-size records ([STU-DS-147]) | one `HUG` track | | `grid_column_sizes` | ordered array of track-size records | one `HUG` track | | `grid_auto_tracks` | `NONE` \\| `ROWS` | `NONE` | | `grid_items_positioning` | `MANUAL` \\| `ROW_AUTO_FLOW` | `ROW_AUTO_FLOW` | Commands: `grid.append_child_at(node, row_index, column_index)`, `grid.reorder_rows(options)`, `grid.reorder_columns(options)`. Both reorder commands MUST return the resulting ordered track entries so a model can verify the move without a second read.",
+    "summary": "Grid flow contract (normative).** When `layout_mode = GRID`, the container additionally exposes exactly these eight fields plus three commands: | Field | Type / domain | Default | |---|---|---| | `grid_row_count` | integer, hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, precision integer | 1 | | `grid_column_count` | integer, same contract as `grid_row_count` | 1 | | `grid_row_gap` | number, see [STU-DS-145] | 0 | | `grid_column_gap` | number, see [STU-DS-145] | 0 | | `grid_row_sizes` | ordered array of track-size records ([STU-DS-147]) | one `HUG` track | | `grid_column_sizes` | ordered array of track-size records | one `HUG` track | | `grid_auto_tracks` | `NONE` \\| `ROWS` | `NONE` | | `grid_items_positioning` | `MANUAL` \\| `ROW_AUTO_FLOW` | `ROW_AUTO_FLOW` | Commands: `grid.append_child_at(node, row_index, column_index)`, `grid.reorder_rows(options)`, `grid.reorder_columns(options)`. Both reorder commands MUST return the resulting ordered track entries so a model can verify the move without a second read. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -2387,11 +2388,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T03:19:45.770Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2435,5 +2436,22 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Grid flow contract (normative)",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "5. ScrubValue \u2014 the scrubbable numeric control",
-    "spec_line": 32549,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 33244,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "operator_shell",
   "scope": {
-    "summary": "Sensitivity.** `step_default = max(10^(\u2212precision), soft_range / 200)`, so one 200px drag traverses the SOFT range exactly once. `step_coarse = step_default \u00d7 10`, `step_fine = step_default / 10`. A parameter with `bounds_unknown` falls back to a magnitude-relative step derived from the current value.",
+    "summary": "Sensitivity.** Continuous pointer/wheel step is `max(q, soft_range/200)` where `q = 10^(-precision)` if declared, otherwise zero, and soft range requires two declared finite increasing endpoints. Before resistance/quantization this takes at most 200px to span the range, exactly 200px only when the range term dominates. Without a usable declared soft range, capture finite `v_anchor` on press/first notch and use `max(q, max(abs(v_anchor),1)/200)` in canonical stored units per pixel/notch. Display conversion does not change sensitivity. Freeze anchor/step for the gesture, multiply once by [STU-SHL-190] roles and retain fractional accumulation. Preference changes apply next gesture. Unknown/observed bounds never manufacture constraints; nonfinite/nonrepresentable arithmetic rejects with a typed diagnostic. Discrete integer/enumeration actions remain [STU-FX-110].",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [],
@@ -1728,7 +1729,7 @@
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
-        "text": "Sensitivity.** `step_default = max(10^(\u2212precision), soft_range / 200)`, so one 200px drag traverses the SOFT range exactly once. `step_coarse = step_default \u00d7 10`, `step_fine = step_default / 10`. A parameter with `bounds_unknown` falls back to a magnitude-relative step derived from the current value.",
+        "text": "Sensitivity.** Continuous pointer/wheel step is `max(q, soft_range/200)` where `q = 10^(-precision)` if declared, otherwise zero, and soft range requires two declared finite increasing endpoints. Before resistance/quantization this takes at most 200px to span the range, exactly 200px only when the range term dominates. Without a usable declared soft range, capture finite `v_anchor` on press/first notch and use `max(q, max(abs(v_anchor),1)/200)` in canonical stored units per pixel/notch. Display conversion does not change sensitivity. Freeze anchor/step for the gesture, multiply once by [STU-SHL-190] roles and retain fractional accumulation. Preference changes apply next gesture. Unknown/observed bounds never manufacture constraints; nonfinite/nonrepresentable arithmetic rejects with a typed diagnostic. Discrete integer/enumeration actions remain [STU-FX-110].",
         "fulfillment_ref": "MT-35069#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -1983,13 +1984,13 @@
           "Independent actual output"
         ],
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
-        "expected": "Actual Sensitivity output obeys Sensitivity.** `step_default = max(10^(\u2212precision), soft_range / 200)`, so one 200px drag traverses the SOFT range exactly once. `step_coarse = step_default \u00d7 10`, `step_fine = step_default / 10`. A parameter with `bounds_unknown` falls back to a magnitude-relative step derived from the current value.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
+        "expected": "Actual Sensitivity output obeys Sensitivity.** Continuous pointer/wheel step is `max(q, soft_range/200)` where `q = 10^(-precision)` if declared, otherwise zero, and soft range requires two declared finite increasing endpoints. Before resistance/quantization this takes at most 200px to span the range, exactly 200px only when the range term dominates. Without a usable declared soft range, capture finite `v_anchor` on press/first notch and use `max(q, max(abs(v_anchor),1)/200)` in canonical stored units per pixel/notch. Display conversion does not change sensitivity. Freeze anchor/step for the gesture, multiply once by [STU-SHL-190] roles and retain fractional accumulation. Preference changes apply next gesture. Unknown/observed bounds never manufacture constraints; nonfinite/nonrepresentable arithmetic rejects with a typed diagnostic. Discrete integer/enumeration actions remain [STU-FX-110].; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Sensitivity.** `step_default = max(10^(\u2212precision), soft_range / 200)`, so one 200px drag traverses the SOFT range exactly once. `step_coarse = step_default \u00d7 10`, `step_fine = step_default / 10`. A parameter with `bounds_unknown` falls back to a magnitude-relative step derived from the current value. Drive range-dominant/precision-dominant/no-range/negative-anchor/displayconversion and next-gesture preference changes.",
+          "consumer_assertion": "Sensitivity.** Continuous pointer/wheel step is `max(q, soft_range/200)` where `q = 10^(-precision)` if declared, otherwise zero, and soft range requires two declared finite increasing endpoints. Before resistance/quantization this takes at most 200px to span the range, exactly 200px only when the range term dominates. Without a usable declared soft range, capture finite `v_anchor` on press/first notch and use `max(q, max(abs(v_anchor),1)/200)` in canonical stored units per pixel/notch. Display conversion does not change sensitivity. Freeze anchor/step for the gesture, multiply once by [STU-SHL-190] roles and retain fractional accumulation. Preference changes apply next gesture. Unknown/observed bounds never manufacture constraints; nonfinite/nonrepresentable arithmetic rejects with a typed diagnostic. Discrete integer/enumeration actions remain [STU-FX-110]. Drive range-dominant/precision-dominant/no-range/negative-anchor/displayconversion and next-gesture preference changes.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Reject nonfinite/nonrepresentable arithmetic; no fabricated observed bounds, recomputed anchor midgesture or double role factor.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
@@ -2325,7 +2326,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "Sensitivity.** `step_default = max(10^(\u2212precision), soft_range / 200)`, so one 200px drag traverses the SOFT range exactly once. `step_coarse = step_default \u00d7 10`, `step_fine = step_default / 10`. A parameter with `bounds_unknown` falls back to a magnitude-relative step derived from the current value.",
+        "semantic_fulfillment": "Sensitivity.** Continuous pointer/wheel step is `max(q, soft_range/200)` where `q = 10^(-precision)` if declared, otherwise zero, and soft range requires two declared finite increasing endpoints. Before resistance/quantization this takes at most 200px to span the range, exactly 200px only when the range term dominates. Without a usable declared soft range, capture finite `v_anchor` on press/first notch and use `max(q, max(abs(v_anchor),1)/200)` in canonical stored units per pixel/notch. Display conversion does not change sensitivity. Freeze anchor/step for the gesture, multiply once by [STU-SHL-190] roles and retain fractional accumulation. Preference changes apply next gesture. Unknown/observed bounds never manufacture constraints; nonfinite/nonrepresentable arithmetic rejects with a typed diagnostic. Discrete integer/enumeration actions remain [STU-FX-110].",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-35069-ASSET-CONTROLS"
@@ -2335,7 +2336,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "Sensitivity.** `step_default = max(10^(\u2212precision), soft_range / 200)`, so one 200px drag traverses the SOFT range exactly once. `step_coarse = step_default \u00d7 10`, `step_fine = step_default / 10`. A parameter with `bounds_unknown` falls back to a magnitude-relative step derived from the current value.",
+            "required_behavior": "Sensitivity.** Continuous pointer/wheel step is `max(q, soft_range/200)` where `q = 10^(-precision)` if declared, otherwise zero, and soft range requires two declared finite increasing endpoints. Before resistance/quantization this takes at most 200px to span the range, exactly 200px only when the range term dominates. Without a usable declared soft range, capture finite `v_anchor` on press/first notch and use `max(q, max(abs(v_anchor),1)/200)` in canonical stored units per pixel/notch. Display conversion does not change sensitivity. Freeze anchor/step for the gesture, multiply once by [STU-SHL-190] roles and retain fractional accumulation. Preference changes apply next gesture. Unknown/observed bounds never manufacture constraints; nonfinite/nonrepresentable arithmetic rejects with a typed diagnostic. Discrete integer/enumeration actions remain [STU-FX-110].",
             "only_owner_root_may_change": true
           }
         ],
@@ -2344,13 +2345,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Sensitivity.** `step_default = max(10^(\u2212precision), soft_range / 200)`, so one 200px drag traverses the SOFT range exactly once. `step_coarse = step_default \u00d7 10`, `step_fine = step_default / 10`. A parameter with `bounds_unknown` falls back to a magnitude-relative step derived from the current value. Drive range-dominant/precision-dominant/no-range/negative-anchor/displayconversion and next-gesture preference changes.",
+          "consumer_assertion": "Sensitivity.** Continuous pointer/wheel step is `max(q, soft_range/200)` where `q = 10^(-precision)` if declared, otherwise zero, and soft range requires two declared finite increasing endpoints. Before resistance/quantization this takes at most 200px to span the range, exactly 200px only when the range term dominates. Without a usable declared soft range, capture finite `v_anchor` on press/first notch and use `max(q, max(abs(v_anchor),1)/200)` in canonical stored units per pixel/notch. Display conversion does not change sensitivity. Freeze anchor/step for the gesture, multiply once by [STU-SHL-190] roles and retain fractional accumulation. Preference changes apply next gesture. Unknown/observed bounds never manufacture constraints; nonfinite/nonrepresentable arithmetic rejects with a typed diagnostic. Discrete integer/enumeration actions remain [STU-FX-110]. Drive range-dominant/precision-dominant/no-range/negative-anchor/displayconversion and next-gesture preference changes.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Reject nonfinite/nonrepresentable arithmetic; no fabricated observed bounds, recomputed anchor midgesture or double role factor.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-35069-KERNEL-ASSET-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Sensitivity.** `step_default = max(10^(\u2212precision), soft_range / 200)`, so one 200px drag traverses the SOFT range exactly once. `step_coarse = step_default \u00d7 10`, `step_fine = step_default / 10`. A parameter with `bounds_unknown` falls back to a magnitude-relative step derived from the current value. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Sensitivity.** Continuous pointer/wheel step is `max(q, soft_range/200)` where `q = 10^(-precision)` if declared, otherwise zero, and soft range requires two declared finite increasing endpoints. Before resistance/quantization this takes at most 200px to span the range, exactly 200px only when the range term dominates. Without a usable declared soft range, capture finite `v_anchor` on press/first notch and use `max(q, max(abs(v_anchor),1)/200)` in canonical stored units per pixel/notch. Display conversion does not change sensitivity. Freeze anchor/step for the gesture, multiply once by [STU-SHL-190] roles and retain fractional accumulation. Preference changes apply next gesture. Unknown/observed bounds never manufacture constraints; nonfinite/nonrepresentable arithmetic rejects with a typed diagnostic. Discrete integer/enumeration actions remain [STU-FX-110]. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36213"
@@ -2378,7 +2379,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Sensitivity.** `step_default = max(10^(\u2212precision), soft_range / 200)`, so one 200px drag traverses the SOFT range exactly once. `step_coarse = step_default \u00d7 10`, `step_fine = step_default / 10`. A parameter with `bounds_unknown` falls back to a magnitude-relative step derived from the current value.",
+          "semantic_fulfillment": "Sensitivity.** Continuous pointer/wheel step is `max(q, soft_range/200)` where `q = 10^(-precision)` if declared, otherwise zero, and soft range requires two declared finite increasing endpoints. Before resistance/quantization this takes at most 200px to span the range, exactly 200px only when the range term dominates. Without a usable declared soft range, capture finite `v_anchor` on press/first notch and use `max(q, max(abs(v_anchor),1)/200)` in canonical stored units per pixel/notch. Display conversion does not change sensitivity. Freeze anchor/step for the gesture, multiply once by [STU-SHL-190] roles and retain fractional accumulation. Preference changes apply next gesture. Unknown/observed bounds never manufacture constraints; nonfinite/nonrepresentable arithmetic rejects with a typed diagnostic. Discrete integer/enumeration actions remain [STU-FX-110].",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-35069-ASSET-CONTROLS"
@@ -2388,7 +2389,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "Sensitivity.** `step_default = max(10^(\u2212precision), soft_range / 200)`, so one 200px drag traverses the SOFT range exactly once. `step_coarse = step_default \u00d7 10`, `step_fine = step_default / 10`. A parameter with `bounds_unknown` falls back to a magnitude-relative step derived from the current value.",
+              "required_behavior": "Sensitivity.** Continuous pointer/wheel step is `max(q, soft_range/200)` where `q = 10^(-precision)` if declared, otherwise zero, and soft range requires two declared finite increasing endpoints. Before resistance/quantization this takes at most 200px to span the range, exactly 200px only when the range term dominates. Without a usable declared soft range, capture finite `v_anchor` on press/first notch and use `max(q, max(abs(v_anchor),1)/200)` in canonical stored units per pixel/notch. Display conversion does not change sensitivity. Freeze anchor/step for the gesture, multiply once by [STU-SHL-190] roles and retain fractional accumulation. Preference changes apply next gesture. Unknown/observed bounds never manufacture constraints; nonfinite/nonrepresentable arithmetic rejects with a typed diagnostic. Discrete integer/enumeration actions remain [STU-FX-110].",
               "only_owner_root_may_change": true
             }
           ],
@@ -2397,13 +2398,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Sensitivity.** `step_default = max(10^(\u2212precision), soft_range / 200)`, so one 200px drag traverses the SOFT range exactly once. `step_coarse = step_default \u00d7 10`, `step_fine = step_default / 10`. A parameter with `bounds_unknown` falls back to a magnitude-relative step derived from the current value.",
+            "consumer_assertion": "Sensitivity.** Continuous pointer/wheel step is `max(q, soft_range/200)` where `q = 10^(-precision)` if declared, otherwise zero, and soft range requires two declared finite increasing endpoints. Before resistance/quantization this takes at most 200px to span the range, exactly 200px only when the range term dominates. Without a usable declared soft range, capture finite `v_anchor` on press/first notch and use `max(q, max(abs(v_anchor),1)/200)` in canonical stored units per pixel/notch. Display conversion does not change sensitivity. Freeze anchor/step for the gesture, multiply once by [STU-SHL-190] roles and retain fractional accumulation. Preference changes apply next gesture. Unknown/observed bounds never manufacture constraints; nonfinite/nonrepresentable arithmetic rejects with a typed diagnostic. Discrete integer/enumeration actions remain [STU-FX-110].",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-35069-KERNEL-ASSET-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Sensitivity.** `step_default = max(10^(\u2212precision), soft_range / 200)`, so one 200px drag traverses the SOFT range exactly once. `step_coarse = step_default \u00d7 10`, `step_fine = step_default / 10`. A parameter with `bounds_unknown` falls back to a magnitude-relative step derived from the current value. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Sensitivity.** Continuous pointer/wheel step is `max(q, soft_range/200)` where `q = 10^(-precision)` if declared, otherwise zero, and soft range requires two declared finite increasing endpoints. Before resistance/quantization this takes at most 200px to span the range, exactly 200px only when the range term dominates. Without a usable declared soft range, capture finite `v_anchor` on press/first notch and use `max(q, max(abs(v_anchor),1)/200)` in canonical stored units per pixel/notch. Display conversion does not change sensitivity. Freeze anchor/step for the gesture, multiply once by [STU-SHL-190] roles and retain fractional accumulation. Preference changes apply next gesture. Unknown/observed bounds never manufacture constraints; nonfinite/nonrepresentable arithmetic rejects with a typed diagnostic. Discrete integer/enumeration actions remain [STU-FX-110]. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "MT-36213"
@@ -2470,18 +2471,18 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
-      "criterion": "Sensitivity.** `step_default = max(10^(\u2212precision), soft_range / 200)`, so one 200px drag traverses the SOFT range exactly once. `step_coarse = step_default \u00d7 10`, `step_fine = step_default / 10`. A parameter with `bounds_unknown` falls back to a magnitude-relative step derived from the current value.",
+      "criterion": "Sensitivity.** Continuous pointer/wheel step is `max(q, soft_range/200)` where `q = 10^(-precision)` if declared, otherwise zero, and soft range requires two declared finite increasing endpoints. Before resistance/quantization this takes at most 200px to span the range, exactly 200px only when the range term dominates. Without a usable declared soft range, capture finite `v_anchor` on press/first notch and use `max(q, max(abs(v_anchor),1)/200)` in canonical stored units per pixel/notch. Display conversion does not change sensitivity. Freeze anchor/step for the gesture, multiply once by [STU-SHL-190] roles and retain fractional accumulation. Preference changes apply next gesture. Unknown/observed bounds never manufacture constraints; nonfinite/nonrepresentable arithmetic rejects with a typed diagnostic. Discrete integer/enumeration actions remain [STU-FX-110].",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
   ],
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2523,5 +2524,35 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Sensitivity",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/expected",
+        "/proof/checks[0]/method_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion",
+        "/active_acceptance_criteria[0]/criterion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

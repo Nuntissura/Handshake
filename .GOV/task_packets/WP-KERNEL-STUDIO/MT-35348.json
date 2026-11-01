@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "8. Microtask Derivation",
-    "spec_line": 21171,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 21468,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,13 +34,13 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "interop",
   "scope": {
-    "summary": "Anchor binding.** A microtask derived from this module cites its clause anchor directly. A microtask staged before this module landed carries `spec_anchor_status = \"PROVISIONAL\"`; binding it to an anchor in [STU-IO-100]–[STU-IO-185], or to a preserved v02.205 anchor in [STU-IO-001]–[STU-IO-014], clears that status. A microtask that cannot cite either is out of scope for the interoperability domain and MUST be re-derived or retired, not activated. --- ### 9. Validation Descriptor Catalogue Each descriptor below is its own clause because each is its own unit of implementable, independently provable work: feed the runtime a document that violates the rule and assert the check fires with the stated diagnostic. [STU-IO-165] names the set; the clauses in this sub-section state what each member catches, which clause it enforces, its severity, and what its diagnostic MUST name. Every one is a `StudioValidationDescriptor` in the catalogue of 14.24.",
+    "summary": "Anchor binding.** A microtask derived from this interoperability domain cites its clause anchor directly. A microtask staged before its source module landed carries `spec_anchor_status = \"PROVISIONAL\"`; binding it to [STU-IO-100] through [STU-IO-190], or a preserved [STU-IO-001] through [STU-IO-014], clears that status only after the exact source-unit and acceptance mapping is verified. New amendment units use append-only, noncolliding IDs under [STU-ARC-022]; binding alone does not prove scope or acceptance coverage. A microtask outside these anchor sets requires an explicit approved domain/source mapping or re-derivation before activation. Retirement requires explicit authority and MUST preserve original lineage and scope history; it is not a remedy for newly added clauses omitted by a legacy extractor. --- ### 9. Validation Descriptor Catalogue Each descriptor below is its own clause because each is its own unit of implementable, independently provable work: feed the runtime a document that violates the rule and assert the check fires with the stated diagnostic. [STU-IO-165] names the set; the clauses in this sub-section state what each member catches, which clause it enforces, its severity, and what its diagnostic MUST name. Every one is a `StudioValidationDescriptor` in the catalogue of 14.24.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "A microtask that cannot cite either is out of scope for the interoperability domain and MUST be re-derived or retired, not activated. --- ### 9.",
+      "criterion": "Retirement requires explicit authority and MUST preserve original lineage and scope history; it is not a remedy for newly added clauses omitted by a legacy extractor. --- ### 9.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-IO-172"
     },
@@ -1710,7 +1711,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "A microtask that cannot cite either is out of scope for the interoperability domain and MUST be re-derived or retired, not activated. --- ### 9.",
+        "text": "Retirement requires explicit authority and MUST preserve original lineage and scope history; it is not a remedy for newly added clauses omitted by a legacy extractor. --- ### 9.",
         "fulfillment_ref": "MT-35348#/fulfillment/legacy_acceptance_map/0"
       },
       {
@@ -2061,7 +2062,7 @@
         "original_text": "A microtask that cannot cite either is out of scope for the interoperability domain and MUST be re-derived or retired, not activated. --- ### 9.",
         "original_row_sha256": "79d7c8ee58baed4ab5a9e783c7afb8204b3d51f530ac3d66352b18491dbe2e9d",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "A microtask that cannot cite either is out of scope for the interoperability domain and MUST be re-derived or retired, not activated. --- ### 9.",
+        "semantic_fulfillment": "Retirement requires explicit authority and MUST preserve original lineage and scope history; it is not a remedy for newly added clauses omitted by a legacy extractor. --- ### 9.",
         "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_AUTHORITY_REFERENCE",
         "asset_contribution_refs": [
           "MT-35348-ASSET-PACKAGE"
@@ -2153,7 +2154,7 @@
           "original_text": "A microtask that cannot cite either is out of scope for the interoperability domain and MUST be re-derived or retired, not activated. --- ### 9.",
           "original_row_sha256": "79d7c8ee58baed4ab5a9e783c7afb8204b3d51f530ac3d66352b18491dbe2e9d",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "A microtask that cannot cite either is out of scope for the interoperability domain and MUST be re-derived or retired, not activated. --- ### 9.",
+          "semantic_fulfillment": "Retirement requires explicit authority and MUST preserve original lineage and scope history; it is not a remedy for newly added clauses omitted by a legacy extractor. --- ### 9.",
           "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_AUTHORITY_REFERENCE",
           "asset_contribution_refs": [
             "MT-35348-ASSET-PACKAGE"
@@ -2224,11 +2225,11 @@
     },
     "authority_reference_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35348"
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2258,5 +2259,32 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "A microtask that cannot cite either is out of scope for the interoperability domain and MUST be re-derived or retired, not activated. --- ### 9.",
+          "new": "Retirement requires explicit authority and MUST preserve original lineage and scope history; it is not a remedy for newly added clauses omitted by a legacy extractor. --- ### 9."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Anchor binding (3)",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

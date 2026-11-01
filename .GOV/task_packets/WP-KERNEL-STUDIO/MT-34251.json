@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.28.2 Contextual property-panel binding (Studio-wide contract)",
-    "spec_line": 30009,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 30613,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,11 +34,24 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "web_authoring",
   "scope": {
-    "summary": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) |",
+    "summary": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) | | `refines_panel_id` | registered `panel_id` or null | required only for band 6 | explicit band-5 generic sibling refined by this panel; other bands receive no refinement privilege | The nine original fields remain unchanged. A band-6 record MUST name a registered band-5 target in `refines_panel_id`, MUST carry a nonnull discriminator, and MUST share the target's `binds_to`, `selection_scope` [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [],
-  "acceptance_criteria_count": 0,
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "A band-6 record MUST name a registered band-5 target in `refines_panel_id`, MUST carry a nonnull discriminator, and MUST share the target's `binds_to`, `selection_scope`, `document_types` set (or the same `*`) and `context_requirement` key/value mapping.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-WEB-033"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "A non-band-6 panel MUST NOT use this field to suppress any candidate.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-WEB-033"
+    }
+  ],
+  "acceptance_criteria_count": 2,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1912,13 +1926,23 @@
       "STU-WEB-033"
     ],
     "acceptance_refs": [
-      "ASSET-AC-001"
+      "ASSET-AC-001",
+      "AC-001",
+      "AC-002"
     ],
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
-        "text": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) | Current v02.208 enrichment: Preserve all nine original binding fields; require refines_panel_id only for band6, naming registered band5 with equal binds_to/selection_scope/document_types set-or-same-star/context_requirement map and nonnull discriminator; other bands gain no suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34251.json#/execution/inputs/1/complete_clause_body",
+        "text": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) | | `refines_panel_id` | registered `panel_id` or null | required only for band 6 | explicit band-5 generic sibling refined by this panel; other bands receive no refinement privilege | The nine original fields remain unchanged. A band-6 record MUST name a registered band-5 target in `refines_panel_id`, MUST carry a nonnull discriminator, and MUST share the target's `binds_to`, `selection_scope` [...] Current v02.208 enrichment: Preserve all nine original binding fields; require refines_panel_id only for band6, naming registered band5 with equal binds_to/selection_scope/document_types set-or-same-star/context_requirement map and nonnull discriminator; other bands gain no suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34251.json#/execution/inputs/1/complete_clause_body",
         "fulfillment_ref": "MT-34251#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-001",
+        "text": "A band-6 record MUST name a registered band-5 target in `refines_panel_id`, MUST carry a nonnull discriminator, and MUST share the target's `binds_to`, `selection_scope`, `document_types` set (or the same `*`) and `context_requirement` key/value mapping."
+      },
+      {
+        "id": "AC-002",
+        "text": "A non-band-6 panel MUST NOT use this field to suppress any candidate."
       }
     ],
     "spec_basis_refs": [
@@ -2180,7 +2204,7 @@
           "Canonical v02.208 STU-WEB-033 definition and active materialized acceptance; prior native scope/AC remains preserved history."
         ],
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
-        "expected": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) | Current v02.208 enrichment: Preserve all nine original binding fields; require refines_panel_id only for band6, naming registered band5 with equal binds_to/selection_scope/document_types set-or-same-star/context_requirement map and nonnull discriminator; other bands gain no suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34251.json#/execution/inputs/1/complete_clause_body",
+        "expected": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) | | `refines_panel_id` | registered `panel_id` or null | required only for band 6 | explicit band-5 generic sibling refined by this panel; other bands receive no refinement privilege | The nine original fields remain unchanged. A band-6 record MUST name a registered band-5 target in `refines_panel_id`, MUST carry a nonnull discriminator, and MUST share the target's `binds_to`, `selection_scope` [...] Current v02.208 enrichment: Preserve all nine original binding fields; require refines_panel_id only for band6, naming registered band5 with equal binds_to/selection_scope/document_types set-or-same-star/context_requirement map and nonnull discriminator; other bands gain no suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34251.json#/execution/inputs/1/complete_clause_body",
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-web"
@@ -2200,6 +2224,38 @@
         "planned_source_requirement_ref": "STU-WEB-033",
         "timeout_resolution": "PENDING_ACTUAL_TARGET_AND_APPROVED_BOUNDED_TIMEOUT_BEFORE_DISPATCH",
         "status": "PENDING_NOT_RUN"
+      },
+      {
+        "check_id": "MT-34251-SPEC-AC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-001",
+          "STU-WEB-033"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "A band-6 record MUST name a registered band-5 target in `refines_panel_id`, MUST carry a nonnull discriminator, and MUST share the target's `binds_to`, `selection_scope`, `document_types` set (or the same `*`) and `context_requirement` key/value mapping.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-34251-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-WEB-033"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "A non-band-6 panel MUST NOT use this field to suppress any candidate.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2435,12 +2491,12 @@
         "native_contract_commit": "bc5569fb4d9da4920c3ba4e5b7b52bae99e986af",
         "native_contract_path": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34251.json",
         "native_contract_raw_sha256": "db755250aeebd4dbcd163bc5a6366e3a645dceaefeae71ff921c22bdc38d92ff",
-        "raw_json_utf8": "[\n    {\n      \"id\": \"ASSET-AC-001\",\n      \"criterion\": \"Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) |\",\n      \"source\": \"Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim.\"\n    }\n  ]",
+        "raw_json_utf8": "[\n    {\n      \"id\": \"ASSET-AC-001\",\n      \"criterion\": \"Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) | | `refines_panel_id` | registered `panel_id` or null | required only for band 6 | explicit band-5 generic sibling refined by this panel; other bands receive no refinement privilege | The nine original fields remain unchanged. A band-6 record MUST name a registered band-5 target in `refines_panel_id`, MUST carry a nonnull discriminator, and MUST share the target's `binds_to`, `selection_scope` [...]\",\n      \"source\": \"Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim.\"\n    }\n  ]",
         "raw_json_sha256": "65e94405044912eff7d65150b621052531aa00a1abdfe746fe29aa09201ec91c",
         "payload": [
           {
             "id": "ASSET-AC-001",
-            "criterion": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) |",
+            "criterion": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) | | `refines_panel_id` | registered `panel_id` or null | required only for band 6 | explicit band-5 generic sibling refined by this panel; other bands receive no refinement privilege | The nine original fields remain unchanged. A band-6 record MUST name a registered band-5 target in `refines_panel_id`, MUST carry a nonnull discriminator, and MUST share the target's `binds_to`, `selection_scope` [...]",
             "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
           }
         ],
@@ -2578,7 +2634,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) | Current v02.208 enrichment: Preserve all nine original binding fields; require refines_panel_id only for band6, naming registered band5 with equal binds_to/selection_scope/document_types set-or-same-star/context_requirement map and nonnull discriminator; other bands gain no suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34251.json#/execution/inputs/1/complete_clause_body",
+        "semantic_fulfillment": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) | | `refines_panel_id` | registered `panel_id` or null | required only for band 6 | explicit band-5 generic sibling refined by this panel; other bands receive no refinement privilege | The nine original fields remain unchanged. A band-6 record MUST name a registered band-5 target in `refines_panel_id`, MUST carry a nonnull discriminator, and MUST share the target's `binds_to`, `selection_scope` [...] Current v02.208 enrichment: Preserve all nine original binding fields; require refines_panel_id only for band6, naming registered band5 with equal binds_to/selection_scope/document_types set-or-same-star/context_requirement map and nonnull discriminator; other bands gain no suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34251.json#/execution/inputs/1/complete_clause_body",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34251-ASSET-WEB"
@@ -2588,7 +2644,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-WEB",
             "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-            "required_behavior": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) | Current v02.208 enrichment: Preserve all nine original binding fields; require refines_panel_id only for band6, naming registered band5 with equal binds_to/selection_scope/document_types set-or-same-star/context_requirement map and nonnull discriminator; other bands gain no suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34251.json#/execution/inputs/1/complete_clause_body",
+            "required_behavior": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) | | `refines_panel_id` | registered `panel_id` or null | required only for band 6 | explicit band-5 generic sibling refined by this panel; other bands receive no refinement privilege | The nine original fields remain unchanged. A band-6 record MUST name a registered band-5 target in `refines_panel_id`, MUST carry a nonnull discriminator, and MUST share the target's `binds_to`, `selection_scope` [...] Current v02.208 enrichment: Preserve all nine original binding fields; require refines_panel_id only for band6, naming registered band5 with equal binds_to/selection_scope/document_types set-or-same-star/context_requirement map and nonnull discriminator; other bands gain no suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34251.json#/execution/inputs/1/complete_clause_body",
             "only_owner_root_may_change": true
           }
         ],
@@ -2603,7 +2659,7 @@
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) | Current v02.208 enrichment: Preserve all nine original binding fields; require refines_panel_id only for band6, naming registered band5 with equal binds_to/selection_scope/document_types set-or-same-star/context_requirement map and nonnull discriminator; other bands gain no suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34251.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) | | `refines_panel_id` | registered `panel_id` or null | required only for band 6 | explicit band-5 generic sibling refined by this panel; other bands receive no refinement privilege | The nine original fields remain unchanged. A band-6 record MUST name a registered band-5 target in `refines_panel_id`, MUST carry a nonnull discriminator, and MUST share the target's `binds_to`, `selection_scope` [...] Current v02.208 enrichment: Preserve all nine original binding fields; require refines_panel_id only for band6, naming registered band5 with equal binds_to/selection_scope/document_types set-or-same-star/context_requirement map and nonnull discriminator; other bands gain no suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34251.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2633,7 +2689,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) | Current v02.208 enrichment: Preserve all nine original binding fields; require refines_panel_id only for band6, naming registered band5 with equal binds_to/selection_scope/document_types set-or-same-star/context_requirement map and nonnull discriminator; other bands gain no suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34251.json#/execution/inputs/1/complete_clause_body",
+          "semantic_fulfillment": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) | | `refines_panel_id` | registered `panel_id` or null | required only for band 6 | explicit band-5 generic sibling refined by this panel; other bands receive no refinement privilege | The nine original fields remain unchanged. A band-6 record MUST name a registered band-5 target in `refines_panel_id`, MUST carry a nonnull discriminator, and MUST share the target's `binds_to`, `selection_scope` [...] Current v02.208 enrichment: Preserve all nine original binding fields; require refines_panel_id only for band6, naming registered band5 with equal binds_to/selection_scope/document_types set-or-same-star/context_requirement map and nonnull discriminator; other bands gain no suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34251.json#/execution/inputs/1/complete_clause_body",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34251-ASSET-WEB"
@@ -2643,7 +2699,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-WEB",
               "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-              "required_behavior": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) | Current v02.208 enrichment: Preserve all nine original binding fields; require refines_panel_id only for band6, naming registered band5 with equal binds_to/selection_scope/document_types set-or-same-star/context_requirement map and nonnull discriminator; other bands gain no suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34251.json#/execution/inputs/1/complete_clause_body",
+              "required_behavior": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) | | `refines_panel_id` | registered `panel_id` or null | required only for band 6 | explicit band-5 generic sibling refined by this panel; other bands receive no refinement privilege | The nine original fields remain unchanged. A band-6 record MUST name a registered band-5 target in `refines_panel_id`, MUST carry a nonnull discriminator, and MUST share the target's `binds_to`, `selection_scope` [...] Current v02.208 enrichment: Preserve all nine original binding fields; require refines_panel_id only for band6, naming registered band5 with equal binds_to/selection_scope/document_types set-or-same-star/context_requirement map and nonnull discriminator; other bands gain no suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34251.json#/execution/inputs/1/complete_clause_body",
               "only_owner_root_may_change": true
             }
           ],
@@ -2658,7 +2714,7 @@
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) | Current v02.208 enrichment: Preserve all nine original binding fields; require refines_panel_id only for band6, naming registered band5 with equal binds_to/selection_scope/document_types set-or-same-star/context_requirement map and nonnull discriminator; other bands gain no suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34251.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) | | `refines_panel_id` | registered `panel_id` or null | required only for band 6 | explicit band-5 generic sibling refined by this panel; other bands receive no refinement privilege | The nine original fields remain unchanged. A band-6 record MUST name a registered band-5 target in `refines_panel_id`, MUST carry a nonnull discriminator, and MUST share the target's `binds_to`, `selection_scope` [...] Current v02.208 enrichment: Preserve all nine original binding fields; require refines_panel_id only for band6, naming registered band5 with equal binds_to/selection_scope/document_types set-or-same-star/context_requirement map and nonnull discriminator; other bands gain no suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34251.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2718,18 +2774,18 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T02:58:55.671201+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
-      "criterion": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) | Current v02.208 enrichment: Preserve all nine original binding fields; require refines_panel_id only for band6, naming registered band5 with equal binds_to/selection_scope/document_types set-or-same-star/context_requirement map and nonnull discriminator; other bands gain no suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34251.json#/execution/inputs/1/complete_clause_body",
+      "criterion": "Panel binding record (normative shape).** A contextual panel declares exactly: | Field | Type | Required | Semantics | |---|---|---|---| | `panel_id` | stable string | yes | unique across the registry | | `binds_to` | selector expression ([STU-WEB-034]) | yes | what selection this panel claims | | `priority` | integer ([STU-WEB-036]) | yes | lower wins | | `selection_scope` | token ([STU-WEB-035]) | yes | how the selection must relate to the matched node | | `document_types` | array of `type_id`, or `*` | yes | which document types this panel is eligible in | | `discriminator` | `{field, value}` or null | no | secondary match on a field of the matched node ([STU-WEB-037]) | | `context_requirement` | key/value map or null | no | additional runtime context that must hold ([STU-WEB-038]) | | `render_flags` | set of tokens ([STU-WEB-039]) | no | chrome hints | | `author_id_prefix` | stable string | yes | the AccessKit / Argus id namespace for every control this panel renders ([STU-WEB-043]) | | `refines_panel_id` | registered `panel_id` or null | required only for band 6 | explicit band-5 generic sibling refined by this panel; other bands receive no refinement privilege | The nine original fields remain unchanged. A band-6 record MUST name a registered band-5 target in `refines_panel_id`, MUST carry a nonnull discriminator, and MUST share the target's `binds_to`, `selection_scope` [...] Current v02.208 enrichment: Preserve all nine original binding fields; require refines_panel_id only for band6, naming registered band5 with equal binds_to/selection_scope/document_types set-or-same-star/context_requirement map and nonnull discriminator; other bands gain no suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34251.json#/execution/inputs/1/complete_clause_body",
       "source": "Current v02.208 verified full clause plus preserved native original scope; mirrors closure_unit.materialized_acceptance under the same ID."
     }
   ],
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2771,5 +2827,48 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": null,
+          "new": "A band-6 record MUST name a registered band-5 target in `refines_panel_id`, MUST carry a nonnull discriminator, and MUST share the target's `binds_to`, `selection_scope`, `document_types` set (or the same `*`) and `context_requirement` key/value mapping."
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "A non-band-6 panel MUST NOT use this field to suppress any candidate."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-001",
+        "AC-002"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Panel binding record (normative shape)",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/expected",
+        "/authority_migration/prior_derivation_snapshots[0]/raw_json_utf8",
+        "/authority_migration/prior_derivation_snapshots[0]/payload[0]/criterion",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion",
+        "/active_acceptance_criteria[0]/criterion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

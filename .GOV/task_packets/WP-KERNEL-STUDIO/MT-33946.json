@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.26.7 Text animators",
-    "spec_line": 27531,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 28055,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -42,9 +43,129 @@
       "criterion": "Where a row reads `_children not recovered_` the containment is UNKNOWN and MUST NOT be inferred from a sibling.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-MOT-095"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The contract table holds the row `ADBE Text Properties` with the exact meaning the spec states: Text property root | `ADBE Text Animators`, `ADBE Text Document`, `ADBE Text More Options`, `ADBE Text Path Options`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-095 carried contract table row 1"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `ADBE Text Document` with the exact meaning the spec states: Source Text document | --. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-095 carried contract table row 2"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `ADBE Text Path Options` with the exact meaning the spec states: Path Options | `ADBE Text First Margin`, `ADBE Text Force Align Path`, `ADBE Text Last Margin`, `ADBE Text Path`, `ADBE Text Perpendicular To Path`, `ADBE Text Reverse Path`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-095 carried contract table row 3"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `ADBE Text More Options` with the exact meaning the spec states: More Options | `ADBE Text Anchor Point Align`, `ADBE Text Anchor Point Option`, `ADBE Text Character Blend Mode`, `ADBE Text Render Order`, `ADBE Text Variable Font Spacing`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-095 carried contract table row 4"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `ADBE Text Animators` with the exact meaning the spec states: Animators collection | `ADBE Text Animator`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-095 carried contract table row 5"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `ADBE Text Animator` with the exact meaning the spec states: One text animator | `ADBE Text Animator Properties`, `ADBE Text Selectors`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-095 carried contract table row 6"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `ADBE Text Animator Properties` with the exact meaning the spec states: Animatable text properties | `ADBE 3DText Back Ambient`, `ADBE 3DText Back Bright`, `ADBE 3DText Back Diffuse`, `ADBE 3DText Back Fresnel`, `ADBE 3DText Back Gloss`, `ADBE 3DText Back Hue`, `ADBE 3DText Back IOR`, `ADBE 3DText Back Metal`, `ADBE 3DText Back Opacity`, `ADBE 3DText Back RGB`, `ADBE 3D [...]. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-095 carried contract table row 7"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The contract table holds the row `ADBE Text Selectors` with the exact meaning the spec states: Selectors collection | `ADBE Text Expressible Selector`, `ADBE Text Selector`, `ADBE Text Wiggly Selector`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-095 carried contract table row 8"
+    },
+    {
+      "id": "AC-010",
+      "criterion": "The contract table holds the row `ADBE Text Selector` with the exact meaning the spec states: Range selector | `ADBE Text Index End`, `ADBE Text Index Offset`, `ADBE Text Index Start`, `ADBE Text Percent End`, `ADBE Text Percent Offset`, `ADBE Text Percent Start`, `ADBE Text Range Advanced`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-095 carried contract table row 9"
+    },
+    {
+      "id": "AC-011",
+      "criterion": "The contract table holds the row `ADBE Text Wiggly Selector` with the exact meaning the spec states: Wiggly selector | `ADBE Text Character Correlation`, `ADBE Text Range Type2`, `ADBE Text Selector Mode`, `ADBE Text Spatial Phase`, `ADBE Text Temporal Freq`, `ADBE Text Temporal Phase`, `ADBE Text Wiggly Lock Dim`, `ADBE Text Wiggly Max Amount`, `ADBE Text Wiggly Min Amount`, `ADBE Text Wiggly Rand [...]. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-095 carried contract table row 10"
+    },
+    {
+      "id": "AC-012",
+      "criterion": "The contract table holds the row `ADBE Text Expressible Selector` with the exact meaning the spec states: Expression selector | `ADBE Text Expressible Amount`, `ADBE Text Range Type2`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-095 carried contract table row 11"
+    },
+    {
+      "id": "AC-013",
+      "criterion": "The contract table holds the row `ADBE Text Range Advanced` with the exact meaning the spec states: Range selector advanced options | `ADBE Text Levels Max Ease`, `ADBE Text Levels Min Ease`, `ADBE Text Random Seed`, `ADBE Text Randomize Order`, `ADBE Text Range Shape`, `ADBE Text Range Type2`, `ADBE Text Range Units`, `ADBE Text Selector Max Amount`, `ADBE Text Selector Mode`, `ADBE Text Selector [...]. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-095 carried contract table row 12"
+    },
+    {
+      "id": "AC-014",
+      "criterion": "The contract table holds the row `ADBE Text Per Char 3D` with the exact meaning the spec states: Enable Per-character 3D | --. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-095 carried contract table row 13"
+    },
+    {
+      "id": "AC-015",
+      "criterion": "The contract table holds the row `ADBE Mask Parade` with the exact meaning the spec states: Masks collection | `ADBE Mask Atom`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-095 carried contract table row 1"
+    },
+    {
+      "id": "AC-016",
+      "criterion": "The contract table holds the row `ADBE Mask Atom` with the exact meaning the spec states: One mask | `ADBE Mask Feather`, `ADBE Mask Offset`, `ADBE Mask Opacity`, `ADBE Mask Shape`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-095 carried contract table row 2"
+    },
+    {
+      "id": "AC-017",
+      "criterion": "The contract table holds the row `ADBE Mask Shape` with the exact meaning the spec states: Mask Path | --. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-095 carried contract table row 3"
+    },
+    {
+      "id": "AC-018",
+      "criterion": "The contract table holds the row `ADBE Mask Opacity` with the exact meaning the spec states: Mask Opacity | --. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-095 carried contract table row 4"
+    },
+    {
+      "id": "AC-019",
+      "criterion": "The contract table holds the row `ADBE Mask Offset` with the exact meaning the spec states: Mask Expansion | --. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-095 carried contract table row 5"
+    },
+    {
+      "id": "AC-020",
+      "criterion": "The contract table holds the row `ADBE Mask Feather` with the exact meaning the spec states: Mask Feather (uniform) | --. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-095 carried contract table row 6"
+    },
+    {
+      "id": "AC-021",
+      "criterion": "The contract table holds the row `ADBE Mask Interp` with the exact meaning the spec states: Variable-width mask feather points | --. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-095 carried contract table row 7"
     }
   ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria_count": 21,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1535,13 +1656,113 @@
       "STU-MOT-095"
     ],
     "acceptance_refs": [
-      "AC-001"
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009",
+      "AC-010",
+      "AC-011",
+      "AC-012",
+      "AC-013",
+      "AC-014",
+      "AC-015",
+      "AC-016",
+      "AC-017",
+      "AC-018",
+      "AC-019",
+      "AC-020",
+      "AC-021"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
         "text": "Where a row reads `_children not recovered_` the containment is UNKNOWN and MUST NOT be inferred from a sibling.",
         "fulfillment_ref": "MT-33946#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-002",
+        "text": "The contract table holds the row `ADBE Text Properties` with the exact meaning the spec states: Text property root | `ADBE Text Animators`, `ADBE Text Document`, `ADBE Text More Options`, `ADBE Text Path Options`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `ADBE Text Document` with the exact meaning the spec states: Source Text document | --. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `ADBE Text Path Options` with the exact meaning the spec states: Path Options | `ADBE Text First Margin`, `ADBE Text Force Align Path`, `ADBE Text Last Margin`, `ADBE Text Path`, `ADBE Text Perpendicular To Path`, `ADBE Text Reverse Path`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `ADBE Text More Options` with the exact meaning the spec states: More Options | `ADBE Text Anchor Point Align`, `ADBE Text Anchor Point Option`, `ADBE Text Character Blend Mode`, `ADBE Text Render Order`, `ADBE Text Variable Font Spacing`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `ADBE Text Animators` with the exact meaning the spec states: Animators collection | `ADBE Text Animator`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `ADBE Text Animator` with the exact meaning the spec states: One text animator | `ADBE Text Animator Properties`, `ADBE Text Selectors`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `ADBE Text Animator Properties` with the exact meaning the spec states: Animatable text properties | `ADBE 3DText Back Ambient`, `ADBE 3DText Back Bright`, `ADBE 3DText Back Diffuse`, `ADBE 3DText Back Fresnel`, `ADBE 3DText Back Gloss`, `ADBE 3DText Back Hue`, `ADBE 3DText Back IOR`, `ADBE 3DText Back Metal`, `ADBE 3DText Back Opacity`, `ADBE 3DText Back RGB`, `ADBE 3D [...]. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-009",
+        "text": "The contract table holds the row `ADBE Text Selectors` with the exact meaning the spec states: Selectors collection | `ADBE Text Expressible Selector`, `ADBE Text Selector`, `ADBE Text Wiggly Selector`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-010",
+        "text": "The contract table holds the row `ADBE Text Selector` with the exact meaning the spec states: Range selector | `ADBE Text Index End`, `ADBE Text Index Offset`, `ADBE Text Index Start`, `ADBE Text Percent End`, `ADBE Text Percent Offset`, `ADBE Text Percent Start`, `ADBE Text Range Advanced`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-011",
+        "text": "The contract table holds the row `ADBE Text Wiggly Selector` with the exact meaning the spec states: Wiggly selector | `ADBE Text Character Correlation`, `ADBE Text Range Type2`, `ADBE Text Selector Mode`, `ADBE Text Spatial Phase`, `ADBE Text Temporal Freq`, `ADBE Text Temporal Phase`, `ADBE Text Wiggly Lock Dim`, `ADBE Text Wiggly Max Amount`, `ADBE Text Wiggly Min Amount`, `ADBE Text Wiggly Rand [...]. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-012",
+        "text": "The contract table holds the row `ADBE Text Expressible Selector` with the exact meaning the spec states: Expression selector | `ADBE Text Expressible Amount`, `ADBE Text Range Type2`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-013",
+        "text": "The contract table holds the row `ADBE Text Range Advanced` with the exact meaning the spec states: Range selector advanced options | `ADBE Text Levels Max Ease`, `ADBE Text Levels Min Ease`, `ADBE Text Random Seed`, `ADBE Text Randomize Order`, `ADBE Text Range Shape`, `ADBE Text Range Type2`, `ADBE Text Range Units`, `ADBE Text Selector Max Amount`, `ADBE Text Selector Mode`, `ADBE Text Selector [...]. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-014",
+        "text": "The contract table holds the row `ADBE Text Per Char 3D` with the exact meaning the spec states: Enable Per-character 3D | --. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-015",
+        "text": "The contract table holds the row `ADBE Mask Parade` with the exact meaning the spec states: Masks collection | `ADBE Mask Atom`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-016",
+        "text": "The contract table holds the row `ADBE Mask Atom` with the exact meaning the spec states: One mask | `ADBE Mask Feather`, `ADBE Mask Offset`, `ADBE Mask Opacity`, `ADBE Mask Shape`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-017",
+        "text": "The contract table holds the row `ADBE Mask Shape` with the exact meaning the spec states: Mask Path | --. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-018",
+        "text": "The contract table holds the row `ADBE Mask Opacity` with the exact meaning the spec states: Mask Opacity | --. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-019",
+        "text": "The contract table holds the row `ADBE Mask Offset` with the exact meaning the spec states: Mask Expansion | --. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-020",
+        "text": "The contract table holds the row `ADBE Mask Feather` with the exact meaning the spec states: Mask Feather (uniform) | --. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-021",
+        "text": "The contract table holds the row `ADBE Mask Interp` with the exact meaning the spec states: Variable-width mask feather points | --. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -2141,6 +2362,326 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-33946-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-MOT-095"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `ADBE Text Properties` with the exact meaning the spec states: Text property root | `ADBE Text Animators`, `ADBE Text Document`, `ADBE Text More Options`, `ADBE Text Path Options`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33946-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-MOT-095"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `ADBE Text Document` with the exact meaning the spec states: Source Text document | --. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33946-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-MOT-095"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `ADBE Text Path Options` with the exact meaning the spec states: Path Options | `ADBE Text First Margin`, `ADBE Text Force Align Path`, `ADBE Text Last Margin`, `ADBE Text Path`, `ADBE Text Perpendicular To Path`, `ADBE Text Reverse Path`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33946-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-MOT-095"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `ADBE Text More Options` with the exact meaning the spec states: More Options | `ADBE Text Anchor Point Align`, `ADBE Text Anchor Point Option`, `ADBE Text Character Blend Mode`, `ADBE Text Render Order`, `ADBE Text Variable Font Spacing`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33946-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-MOT-095"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `ADBE Text Animators` with the exact meaning the spec states: Animators collection | `ADBE Text Animator`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33946-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-MOT-095"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `ADBE Text Animator` with the exact meaning the spec states: One text animator | `ADBE Text Animator Properties`, `ADBE Text Selectors`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33946-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-MOT-095"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `ADBE Text Animator Properties` with the exact meaning the spec states: Animatable text properties | `ADBE 3DText Back Ambient`, `ADBE 3DText Back Bright`, `ADBE 3DText Back Diffuse`, `ADBE 3DText Back Fresnel`, `ADBE 3DText Back Gloss`, `ADBE 3DText Back Hue`, `ADBE 3DText Back IOR`, `ADBE 3DText Back Metal`, `ADBE 3DText Back Opacity`, `ADBE 3DText Back RGB`, `ADBE 3D [...]. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33946-SPEC-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-MOT-095"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `ADBE Text Selectors` with the exact meaning the spec states: Selectors collection | `ADBE Text Expressible Selector`, `ADBE Text Selector`, `ADBE Text Wiggly Selector`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33946-SPEC-AC-010",
+        "kind": "test",
+        "claim_refs": [
+          "AC-010",
+          "STU-MOT-095"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `ADBE Text Selector` with the exact meaning the spec states: Range selector | `ADBE Text Index End`, `ADBE Text Index Offset`, `ADBE Text Index Start`, `ADBE Text Percent End`, `ADBE Text Percent Offset`, `ADBE Text Percent Start`, `ADBE Text Range Advanced`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33946-SPEC-AC-011",
+        "kind": "test",
+        "claim_refs": [
+          "AC-011",
+          "STU-MOT-095"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `ADBE Text Wiggly Selector` with the exact meaning the spec states: Wiggly selector | `ADBE Text Character Correlation`, `ADBE Text Range Type2`, `ADBE Text Selector Mode`, `ADBE Text Spatial Phase`, `ADBE Text Temporal Freq`, `ADBE Text Temporal Phase`, `ADBE Text Wiggly Lock Dim`, `ADBE Text Wiggly Max Amount`, `ADBE Text Wiggly Min Amount`, `ADBE Text Wiggly Rand [...]. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33946-SPEC-AC-012",
+        "kind": "test",
+        "claim_refs": [
+          "AC-012",
+          "STU-MOT-095"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `ADBE Text Expressible Selector` with the exact meaning the spec states: Expression selector | `ADBE Text Expressible Amount`, `ADBE Text Range Type2`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33946-SPEC-AC-013",
+        "kind": "test",
+        "claim_refs": [
+          "AC-013",
+          "STU-MOT-095"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `ADBE Text Range Advanced` with the exact meaning the spec states: Range selector advanced options | `ADBE Text Levels Max Ease`, `ADBE Text Levels Min Ease`, `ADBE Text Random Seed`, `ADBE Text Randomize Order`, `ADBE Text Range Shape`, `ADBE Text Range Type2`, `ADBE Text Range Units`, `ADBE Text Selector Max Amount`, `ADBE Text Selector Mode`, `ADBE Text Selector [...]. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33946-SPEC-AC-014",
+        "kind": "test",
+        "claim_refs": [
+          "AC-014",
+          "STU-MOT-095"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `ADBE Text Per Char 3D` with the exact meaning the spec states: Enable Per-character 3D | --. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33946-SPEC-AC-015",
+        "kind": "test",
+        "claim_refs": [
+          "AC-015",
+          "STU-MOT-095"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `ADBE Mask Parade` with the exact meaning the spec states: Masks collection | `ADBE Mask Atom`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33946-SPEC-AC-016",
+        "kind": "test",
+        "claim_refs": [
+          "AC-016",
+          "STU-MOT-095"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `ADBE Mask Atom` with the exact meaning the spec states: One mask | `ADBE Mask Feather`, `ADBE Mask Offset`, `ADBE Mask Opacity`, `ADBE Mask Shape`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33946-SPEC-AC-017",
+        "kind": "test",
+        "claim_refs": [
+          "AC-017",
+          "STU-MOT-095"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `ADBE Mask Shape` with the exact meaning the spec states: Mask Path | --. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33946-SPEC-AC-018",
+        "kind": "test",
+        "claim_refs": [
+          "AC-018",
+          "STU-MOT-095"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `ADBE Mask Opacity` with the exact meaning the spec states: Mask Opacity | --. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33946-SPEC-AC-019",
+        "kind": "test",
+        "claim_refs": [
+          "AC-019",
+          "STU-MOT-095"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `ADBE Mask Offset` with the exact meaning the spec states: Mask Expansion | --. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33946-SPEC-AC-020",
+        "kind": "test",
+        "claim_refs": [
+          "AC-020",
+          "STU-MOT-095"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `ADBE Mask Feather` with the exact meaning the spec states: Mask Feather (uniform) | --. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33946-SPEC-AC-021",
+        "kind": "test",
+        "claim_refs": [
+          "AC-021",
+          "STU-MOT-095"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `ADBE Mask Interp` with the exact meaning the spec states: Variable-width mask feather points | --. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2573,11 +3114,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2613,5 +3154,144 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The contract table holds the row `ADBE Text Properties` with the exact meaning the spec states: Text property root | `ADBE Text Animators`, `ADBE Text Document`, `ADBE Text More Options`, `ADBE Text Path Options`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `ADBE Text Document` with the exact meaning the spec states: Source Text document | --. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `ADBE Text Path Options` with the exact meaning the spec states: Path Options | `ADBE Text First Margin`, `ADBE Text Force Align Path`, `ADBE Text Last Margin`, `ADBE Text Path`, `ADBE Text Perpendicular To Path`, `ADBE Text Reverse Path`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `ADBE Text More Options` with the exact meaning the spec states: More Options | `ADBE Text Anchor Point Align`, `ADBE Text Anchor Point Option`, `ADBE Text Character Blend Mode`, `ADBE Text Render Order`, `ADBE Text Variable Font Spacing`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `ADBE Text Animators` with the exact meaning the spec states: Animators collection | `ADBE Text Animator`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `ADBE Text Animator` with the exact meaning the spec states: One text animator | `ADBE Text Animator Properties`, `ADBE Text Selectors`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `ADBE Text Animator Properties` with the exact meaning the spec states: Animatable text properties | `ADBE 3DText Back Ambient`, `ADBE 3DText Back Bright`, `ADBE 3DText Back Diffuse`, `ADBE 3DText Back Fresnel`, `ADBE 3DText Back Gloss`, `ADBE 3DText Back Hue`, `ADBE 3DText Back IOR`, `ADBE 3DText Back Metal`, `ADBE 3DText Back Opacity`, `ADBE 3DText Back RGB`, `ADBE 3D [...]. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-009",
+          "old": null,
+          "new": "The contract table holds the row `ADBE Text Selectors` with the exact meaning the spec states: Selectors collection | `ADBE Text Expressible Selector`, `ADBE Text Selector`, `ADBE Text Wiggly Selector`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-010",
+          "old": null,
+          "new": "The contract table holds the row `ADBE Text Selector` with the exact meaning the spec states: Range selector | `ADBE Text Index End`, `ADBE Text Index Offset`, `ADBE Text Index Start`, `ADBE Text Percent End`, `ADBE Text Percent Offset`, `ADBE Text Percent Start`, `ADBE Text Range Advanced`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-011",
+          "old": null,
+          "new": "The contract table holds the row `ADBE Text Wiggly Selector` with the exact meaning the spec states: Wiggly selector | `ADBE Text Character Correlation`, `ADBE Text Range Type2`, `ADBE Text Selector Mode`, `ADBE Text Spatial Phase`, `ADBE Text Temporal Freq`, `ADBE Text Temporal Phase`, `ADBE Text Wiggly Lock Dim`, `ADBE Text Wiggly Max Amount`, `ADBE Text Wiggly Min Amount`, `ADBE Text Wiggly Rand [...]. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-012",
+          "old": null,
+          "new": "The contract table holds the row `ADBE Text Expressible Selector` with the exact meaning the spec states: Expression selector | `ADBE Text Expressible Amount`, `ADBE Text Range Type2`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-013",
+          "old": null,
+          "new": "The contract table holds the row `ADBE Text Range Advanced` with the exact meaning the spec states: Range selector advanced options | `ADBE Text Levels Max Ease`, `ADBE Text Levels Min Ease`, `ADBE Text Random Seed`, `ADBE Text Randomize Order`, `ADBE Text Range Shape`, `ADBE Text Range Type2`, `ADBE Text Range Units`, `ADBE Text Selector Max Amount`, `ADBE Text Selector Mode`, `ADBE Text Selector [...]. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-014",
+          "old": null,
+          "new": "The contract table holds the row `ADBE Text Per Char 3D` with the exact meaning the spec states: Enable Per-character 3D | --. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-015",
+          "old": null,
+          "new": "The contract table holds the row `ADBE Mask Parade` with the exact meaning the spec states: Masks collection | `ADBE Mask Atom`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-016",
+          "old": null,
+          "new": "The contract table holds the row `ADBE Mask Atom` with the exact meaning the spec states: One mask | `ADBE Mask Feather`, `ADBE Mask Offset`, `ADBE Mask Opacity`, `ADBE Mask Shape`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-017",
+          "old": null,
+          "new": "The contract table holds the row `ADBE Mask Shape` with the exact meaning the spec states: Mask Path | --. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-018",
+          "old": null,
+          "new": "The contract table holds the row `ADBE Mask Opacity` with the exact meaning the spec states: Mask Opacity | --. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-019",
+          "old": null,
+          "new": "The contract table holds the row `ADBE Mask Offset` with the exact meaning the spec states: Mask Expansion | --. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-020",
+          "old": null,
+          "new": "The contract table holds the row `ADBE Mask Feather` with the exact meaning the spec states: Mask Feather (uniform) | --. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-021",
+          "old": null,
+          "new": "The contract table holds the row `ADBE Mask Interp` with the exact meaning the spec states: Variable-width mask feather points | --. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012",
+        "AC-013",
+        "AC-014",
+        "AC-015",
+        "AC-016",
+        "AC-017",
+        "AC-018",
+        "AC-019",
+        "AC-020",
+        "AC-021"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "Recovered group topology appendix, and which clause each part of it serves",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

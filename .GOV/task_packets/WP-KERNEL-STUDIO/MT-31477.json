@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "8. The scrubbable numeric control",
-    "spec_line": 12606,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 12879,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,18 +27,25 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "Every numeric parameter is scrubbable, and the scrub increments are part of the",
+  "clause": "Numeric increments and pointer sensitivity are distinct descriptor fields",
   "spec_anchor": [
     "STU-FX-110"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "effects",
   "scope": {
-    "summary": "**Every numeric parameter is scrubbable, and the scrub increments are part of the parameter record.** `step` is the increment for one unit of scrub travel or one arrow-key press; `coarse_step` and `fine_step` are the modified increments. Their derivation rule is normative and deterministic so that two Studio builds agree: - If `precision` is declared, `step = 10^(-precision)`, `fine_step = 10^(-(precision+1))`, `coarse_step = step * 10`. - If `precision` is null and a soft range exists, `step = (soft_max - soft_min) / 200`, `fine_step = step / 10`, `coarse_step = step * 10`. - If neither exists, `step = 1`, `fine_step = 0.1`, `coarse_step = 10`. - An `integer` or `enumeration` kind forces `step = coarse_step = fine_step = 1`.",
+    "summary": "**Numeric increments and pointer sensitivity are distinct descriptor fields.** For continuous discrete arrow/accessibility increments, declared precision gives `step = 10^(-precision)`, `fine_step = step/10`, `coarse_step = step*10`; without precision use the shared resolved [STU-SHL-191] step. Pointer/wheel sensitivity uses [STU-SHL-191] independently and applies [STU-SHL-190] factors once, never double-multiplying an already modified descriptor step. Integer/enumeration discrete actions retain `step = coarse_step = fine_step = 1`, walking exactly one legal domain step; floating sensitivity or modifiers MUST NOT skip enum choices. Missing bounds remain nonconstraints, not manufactured ranges.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [],
-  "acceptance_criteria_count": 0,
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "Integer/enumeration discrete actions retain `step = coarse_step = fine_step = 1`, walking exactly one legal domain step; floating sensitivity or modifiers MUST NOT skip enum choices.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-FX-110"
+    }
+  ],
+  "acceptance_criteria_count": 1,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -134,7 +142,7 @@
   "identity": {
     "mt_id": "MT-31477",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "Every numeric parameter is scrubbable, and the scrub increments are part of the",
+    "title": "Numeric increments and pointer sensitivity are distinct descriptor fields",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 2
@@ -1354,7 +1362,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "module_or_asset_is_created_or_materially_modified",
         "assessment": "APPLIES",
-        "reason": "Controls descriptor/reducer mechanic is an independently selected source contribution; bounded real consumer, public operator/model/manual/inspection and recovery routes required. Task MT-31477 exact basis: Every numeric parameter is scrubbable, and the scrub increments are part of the",
+        "reason": "Controls descriptor/reducer mechanic is an independently selected source contribution; bounded real consumer, public operator/model/manual/inspection and recovery routes required. Task MT-31477 exact basis: Numeric increments and pointer sensitivity are distinct descriptor fields",
         "scope_evidence_refs": [
           "MT-31477#/execution/implementation_steps",
           "MT-31477#/context_capsule/specification_anchor_refs",
@@ -1372,7 +1380,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "module_or_asset_is_public_contract_or_resource_behavior_changes",
         "assessment": "APPLIES",
-        "reason": "This Controls public UI contract changes exact command inputs, events, egui styling/accessibility/headless behavior; invalid/stale/revoke/cancel/shutdown paths preserve accepted state. Task MT-31477 exact basis: Every numeric parameter is scrubbable, and the scrub increments are part of the",
+        "reason": "This Controls public UI contract changes exact command inputs, events, egui styling/accessibility/headless behavior; invalid/stale/revoke/cancel/shutdown paths preserve accepted state. Task MT-31477 exact basis: Numeric increments and pointer sensitivity are distinct descriptor fields",
         "scope_evidence_refs": [
           "MT-31477#/execution/implementation_steps",
           "MT-31477#/context_capsule/specification_anchor_refs",
@@ -1390,7 +1398,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "module_or_asset_is_released_or_consumed",
         "assessment": "APPLIES",
-        "reason": "Standalone Controls source release and provider consumption require immutable source/tree/lock/toolchain/artifact digests and API compatibility, never an unpinned local checkout. Task MT-31477 exact basis: Every numeric parameter is scrubbable, and the scrub increments are part of the",
+        "reason": "Standalone Controls source release and provider consumption require immutable source/tree/lock/toolchain/artifact digests and API compatibility, never an unpinned local checkout. Task MT-31477 exact basis: Numeric increments and pointer sensitivity are distinct descriptor fields",
         "scope_evidence_refs": [
           "MT-31477#/execution/implementation_steps",
           "MT-31477#/context_capsule/specification_anchor_refs",
@@ -1408,7 +1416,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "module_or_asset_is_embedded_in_a_host",
         "assessment": "DEFERRED_TO_DISTINCT_HOST_ADOPTION",
-        "reason": "Actual AppState/native/auth/data/lifecycle services are consumed only by separate pinned Controls host adoption MT-36213; source-only preparation never supplies these services. Task MT-31477 exact basis: Every numeric parameter is scrubbable, and the scrub increments are part of the",
+        "reason": "Actual AppState/native/auth/data/lifecycle services are consumed only by separate pinned Controls host adoption MT-36213; source-only preparation never supplies these services. Task MT-31477 exact basis: Numeric increments and pointer sensitivity are distinct descriptor fields",
         "scope_evidence_refs": [
           "MT-31477#/execution/implementation_steps",
           "MT-31477#/context_capsule/specification_anchor_refs",
@@ -1426,7 +1434,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "module_or_asset_is_published_upgraded_or_moved",
         "assessment": "APPLIES",
-        "reason": "Publishing or upgrading Controls must exclude private credentials/config; portable resource roots, state owners, migration/rollback and affected standalone/host recovery proofs remain mandatory. Task MT-31477 exact basis: Every numeric parameter is scrubbable, and the scrub increments are part of the",
+        "reason": "Publishing or upgrading Controls must exclude private credentials/config; portable resource roots, state owners, migration/rollback and affected standalone/host recovery proofs remain mandatory. Task MT-31477 exact basis: Numeric increments and pointer sensitivity are distinct descriptor fields",
         "scope_evidence_refs": [
           "MT-31477#/execution/implementation_steps",
           "MT-31477#/context_capsule/specification_anchor_refs",
@@ -1444,7 +1452,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "module_or_asset_is_published_or_mirrored",
         "assessment": "APPLIES",
-        "reason": "Canonical assets publication and later mirror retain source/base/target digests, explicit allowlist/patch provenance and destination customizations; drift rejects refresh. Task MT-31477 exact basis: Every numeric parameter is scrubbable, and the scrub increments are part of the",
+        "reason": "Canonical assets publication and later mirror retain source/base/target digests, explicit allowlist/patch provenance and destination customizations; drift rejects refresh. Task MT-31477 exact basis: Numeric increments and pointer sensitivity are distinct descriptor fields",
         "scope_evidence_refs": [
           "MT-31477#/execution/implementation_steps",
           "MT-31477#/context_capsule/specification_anchor_refs",
@@ -1462,7 +1470,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "module_or_asset_changes_or_host_adopts_a_revision",
         "assessment": "APPLIES",
-        "reason": "Canonical https://github.com/Nuntissura/assets source publication and independent remote reread/source proof precede distinct host immutable pin/adapter compatibility; local receipts/copies do not establish adoption. Task MT-31477 exact basis: Every numeric parameter is scrubbable, and the scrub increments are part of the",
+        "reason": "Canonical https://github.com/Nuntissura/assets source publication and independent remote reread/source proof precede distinct host immutable pin/adapter compatibility; local receipts/copies do not establish adoption. Task MT-31477 exact basis: Numeric increments and pointer sensitivity are distinct descriptor fields",
         "scope_evidence_refs": [
           "MT-31477#/execution/implementation_steps",
           "MT-31477#/context_capsule/specification_anchor_refs",
@@ -1506,13 +1514,18 @@
       "STU-FX-110"
     ],
     "acceptance_refs": [
-      "ASSET-AC-001"
+      "ASSET-AC-001",
+      "AC-001"
     ],
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
-        "text": "**Every numeric parameter is scrubbable, and the scrub increments are part of the parameter record.** `step` is the increment for one unit of scrub travel or one arrow-key press; `coarse_step` and `fine_step` are the modified increments. Their derivation rule is normative and deterministic so that two Studio builds agree: - If `precision` is declared, `step = 10^(-precision)`, `fine_step = 10^(-(precision+1))`, `coarse_step = step * 10`. - If `precision` is null and a soft range exists, `step = (soft_max - soft_min) / 200`, `fine_step = step / 10`, `coarse_step = step * 10`. - If neither exists, `step = 1`, `fine_step = 0.1`, `coarse_step = 10`. - An `integer` or `enumeration` kind forces `step = coarse_step = fine_step = 1`.",
+        "text": "**Numeric increments and pointer sensitivity are distinct descriptor fields.** For continuous discrete arrow/accessibility increments, declared precision gives `step = 10^(-precision)`, `fine_step = step/10`, `coarse_step = step*10`; without precision use the shared resolved [STU-SHL-191] step. Pointer/wheel sensitivity uses [STU-SHL-191] independently and applies [STU-SHL-190] factors once, never double-multiplying an already modified descriptor step. Integer/enumeration discrete actions retain `step = coarse_step = fine_step = 1`, walking exactly one legal domain step; floating sensitivity or modifiers MUST NOT skip enum choices. Missing bounds remain nonconstraints, not manufactured ranges.",
         "fulfillment_ref": "MT-31477#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-001",
+        "text": "Integer/enumeration discrete actions retain `step = coarse_step = fine_step = 1`, walking exactly one legal domain step; floating sensitivity or modifiers MUST NOT skip enum choices."
       }
     ],
     "spec_basis_refs": [
@@ -1730,13 +1743,13 @@
           "Independent actual output"
         ],
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
-        "expected": "Actual consumer satisfies **Every numeric parameter is scrubbable, and the scrub increments are part of the parameter record.** `step` is the increment for one unit of scrub travel or one arrow-key press; `coarse_step` and `fine_step` are the modified increments. Their derivation rule is normative and deterministic so that two Studio builds agree: - If `precision` is declared, `step = 10^(-precision)`, `fine_step = 10^(-(precision+1))`, `coarse_step = step * 10`. - If `precision` is null and a soft range exists, `step = (soft_max - soft_min) / 200`, `fine_step = step / 10`, `coarse_step = step * 10`. - If neither exists, `step = 1`, `fine_step = 0.1`, `coarse_step = 10`. - An `integer` or `enumeration` kind forces `step = coarse_step = fine_step = 1`. with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
+        "expected": "Actual consumer satisfies **Numeric increments and pointer sensitivity are distinct descriptor fields.** For continuous discrete arrow/accessibility increments, declared precision gives `step = 10^(-precision)`, `fine_step = step/10`, `coarse_step = step*10`; without precision use the shared resolved [STU-SHL-191] step. Pointer/wheel sensitivity uses [STU-SHL-191] independently and applies [STU-SHL-190] factors once, never double-multiplying an already modified descriptor step. Integer/enumeration discrete actions retain `step = coarse_step = fine_step = 1`, walking exactly one legal domain step; floating sensitivity or modifiers MUST NOT skip enum choices. Missing bounds remain nonconstraints, not manufactured ranges. with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-controls"
           ],
           "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-          "consumer_assertion": "Actual consumer satisfies **Every numeric parameter is scrubbable, and the scrub increments are part of the parameter record.** `step` is the increment for one unit of scrub travel or one arrow-key press; `coarse_step` and `fine_step` are the modified increments. Their derivation rule is normative and deterministic so that two Studio builds agree: - If `precision` is declared, `step = 10^(-precision)`, `fine_step = 10^(-(precision+1))`, `coarse_step = step * 10`. - If `precision` is null and a soft range exists, `step = (soft_max - soft_min) / 200`, `fine_step = step / 10`, `coarse_step = step * 10`. - If neither exists, `step = 1`, `fine_step = 0.1`, `coarse_step = 10`. - An `integer` or `enumeration` kind forces `step = coarse_step = fine_step = 1`. with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
+          "consumer_assertion": "Actual consumer satisfies **Numeric increments and pointer sensitivity are distinct descriptor fields.** For continuous discrete arrow/accessibility increments, declared precision gives `step = 10^(-precision)`, `fine_step = step/10`, `coarse_step = step*10`; without precision use the shared resolved [STU-SHL-191] step. Pointer/wheel sensitivity uses [STU-SHL-191] independently and applies [STU-SHL-190] factors once, never double-multiplying an already modified descriptor step. Integer/enumeration discrete actions retain `step = coarse_step = fine_step = 1`, walking exactly one legal domain step; floating sensitivity or modifiers MUST NOT skip enum choices. Missing bounds remain nonconstraints, not manufactured ranges. with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
           "negative_path": "Exact cases in MT-31477#/execution/implementation_steps",
           "oracle": "Independent actual outputs specified by MT-31477-ASSET-ASSET-AC-001; unavailable provider means NOT_PROVEN."
         },
@@ -1745,6 +1758,22 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-31477-SPEC-AC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-001",
+          "STU-FX-110"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Integer/enumeration discrete actions retain `step = coarse_step = fine_step = 1`, walking exactly one legal domain step; floating sensitivity or modifiers MUST NOT skip enum choices.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2142,7 +2171,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "**Every numeric parameter is scrubbable, and the scrub increments are part of the parameter record.** `step` is the increment for one unit of scrub travel or one arrow-key press; `coarse_step` and `fine_step` are the modified increments. Their derivation rule is normative and deterministic so that two Studio builds agree: - If `precision` is declared, `step = 10^(-precision)`, `fine_step = 10^(-(precision+1))`, `coarse_step = step * 10`. - If `precision` is null and a soft range exists, `step = (soft_max - soft_min) / 200`, `fine_step = step / 10`, `coarse_step = step * 10`. - If neither exists, `step = 1`, `fine_step = 0.1`, `coarse_step = 10`. - An `integer` or `enumeration` kind forces `step = coarse_step = fine_step = 1`.",
+        "semantic_fulfillment": "**Numeric increments and pointer sensitivity are distinct descriptor fields.** For continuous discrete arrow/accessibility increments, declared precision gives `step = 10^(-precision)`, `fine_step = step/10`, `coarse_step = step*10`; without precision use the shared resolved [STU-SHL-191] step. Pointer/wheel sensitivity uses [STU-SHL-191] independently and applies [STU-SHL-190] factors once, never double-multiplying an already modified descriptor step. Integer/enumeration discrete actions retain `step = coarse_step = fine_step = 1`, walking exactly one legal domain step; floating sensitivity or modifiers MUST NOT skip enum choices. Missing bounds remain nonconstraints, not manufactured ranges.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-31477-ASSET-CONTROLS"
@@ -2152,7 +2181,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "**Every numeric parameter is scrubbable, and the scrub increments are part of the parameter record.** `step` is the increment for one unit of scrub travel or one arrow-key press; `coarse_step` and `fine_step` are the modified increments. Their derivation rule is normative and deterministic so that two Studio builds agree: - If `precision` is declared, `step = 10^(-precision)`, `fine_step = 10^(-(precision+1))`, `coarse_step = step * 10`. - If `precision` is null and a soft range exists, `step = (soft_max - soft_min) / 200`, `fine_step = step / 10`, `coarse_step = step * 10`. - If neither exists, `step = 1`, `fine_step = 0.1`, `coarse_step = 10`. - An `integer` or `enumeration` kind forces `step = coarse_step = fine_step = 1`.",
+            "required_behavior": "**Numeric increments and pointer sensitivity are distinct descriptor fields.** For continuous discrete arrow/accessibility increments, declared precision gives `step = 10^(-precision)`, `fine_step = step/10`, `coarse_step = step*10`; without precision use the shared resolved [STU-SHL-191] step. Pointer/wheel sensitivity uses [STU-SHL-191] independently and applies [STU-SHL-190] factors once, never double-multiplying an already modified descriptor step. Integer/enumeration discrete actions retain `step = coarse_step = fine_step = 1`, walking exactly one legal domain step; floating sensitivity or modifiers MUST NOT skip enum choices. Missing bounds remain nonconstraints, not manufactured ranges.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2161,13 +2190,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-          "consumer_assertion": "Actual consumer satisfies **Every numeric parameter is scrubbable, and the scrub increments are part of the parameter record.** `step` is the increment for one unit of scrub travel or one arrow-key press; `coarse_step` and `fine_step` are the modified increments. Their derivation rule is normative and deterministic so that two Studio builds agree: - If `precision` is declared, `step = 10^(-precision)`, `fine_step = 10^(-(precision+1))`, `coarse_step = step * 10`. - If `precision` is null and a soft range exists, `step = (soft_max - soft_min) / 200`, `fine_step = step / 10`, `coarse_step = step * 10`. - If neither exists, `step = 1`, `fine_step = 0.1`, `coarse_step = 10`. - An `integer` or `enumeration` kind forces `step = coarse_step = fine_step = 1`. with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
+          "consumer_assertion": "Actual consumer satisfies **Numeric increments and pointer sensitivity are distinct descriptor fields.** For continuous discrete arrow/accessibility increments, declared precision gives `step = 10^(-precision)`, `fine_step = step/10`, `coarse_step = step*10`; without precision use the shared resolved [STU-SHL-191] step. Pointer/wheel sensitivity uses [STU-SHL-191] independently and applies [STU-SHL-190] factors once, never double-multiplying an already modified descriptor step. Integer/enumeration discrete actions retain `step = coarse_step = fine_step = 1`, walking exactly one legal domain step; floating sensitivity or modifiers MUST NOT skip enum choices. Missing bounds remain nonconstraints, not manufactured ranges. with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
           "negative_path": "Exact cases in MT-31477#/execution/implementation_steps",
           "oracle": "Independent actual outputs specified by MT-31477-ASSET-ASSET-AC-001; unavailable provider means NOT_PROVEN."
         },
         "later_embedding_ref": "MT-36213",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Qualified source MT-31477/ASSET-AC-001; actual host adoption MT-36213 independently proves: **Every numeric parameter is scrubbable, and the scrub increments are part of the parameter record.** `step` is the increment for one unit of scrub travel or one arrow-key press; `coarse_step` and `fine_step` are the modified increments. Their derivation rule is normative and deterministic so that two Studio builds agree: - If `precision` is declared, `step = 10^(-precision)`, `fine_step = 10^(-(precision+1))`, `coarse_step = step * 10`. - If `precision` is null and a soft range exists, `step = (soft_max - soft_min) / 200`, `fine_step = step / 10`, `coarse_step = step * 10`. - If neither exists, `step = 1`, `fine_step = 0.1`, `coarse_step = 10`. - An `integer` or `enumeration` kind forces `step = coarse_step = fine_step = 1`.",
+        "later_embedding_assertion": "Qualified source MT-31477/ASSET-AC-001; actual host adoption MT-36213 independently proves: **Numeric increments and pointer sensitivity are distinct descriptor fields.** For continuous discrete arrow/accessibility increments, declared precision gives `step = 10^(-precision)`, `fine_step = step/10`, `coarse_step = step*10`; without precision use the shared resolved [STU-SHL-191] step. Pointer/wheel sensitivity uses [STU-SHL-191] independently and applies [STU-SHL-190] factors once, never double-multiplying an already modified descriptor step. Integer/enumeration discrete actions retain `step = coarse_step = fine_step = 1`, walking exactly one legal domain step; floating sensitivity or modifiers MUST NOT skip enum choices. Missing bounds remain nonconstraints, not manufactured ranges.",
         "status": "PENDING"
       }
     ],
@@ -2192,7 +2221,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "**Every numeric parameter is scrubbable, and the scrub increments are part of the parameter record.** `step` is the increment for one unit of scrub travel or one arrow-key press; `coarse_step` and `fine_step` are the modified increments. Their derivation rule is normative and deterministic so that two Studio builds agree: - If `precision` is declared, `step = 10^(-precision)`, `fine_step = 10^(-(precision+1))`, `coarse_step = step * 10`. - If `precision` is null and a soft range exists, `step = (soft_max - soft_min) / 200`, `fine_step = step / 10`, `coarse_step = step * 10`. - If neither exists, `step = 1`, `fine_step = 0.1`, `coarse_step = 10`. - An `integer` or `enumeration` kind forces `step = coarse_step = fine_step = 1`.",
+          "semantic_fulfillment": "**Numeric increments and pointer sensitivity are distinct descriptor fields.** For continuous discrete arrow/accessibility increments, declared precision gives `step = 10^(-precision)`, `fine_step = step/10`, `coarse_step = step*10`; without precision use the shared resolved [STU-SHL-191] step. Pointer/wheel sensitivity uses [STU-SHL-191] independently and applies [STU-SHL-190] factors once, never double-multiplying an already modified descriptor step. Integer/enumeration discrete actions retain `step = coarse_step = fine_step = 1`, walking exactly one legal domain step; floating sensitivity or modifiers MUST NOT skip enum choices. Missing bounds remain nonconstraints, not manufactured ranges.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-31477-ASSET-CONTROLS"
@@ -2202,7 +2231,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "**Every numeric parameter is scrubbable, and the scrub increments are part of the parameter record.** `step` is the increment for one unit of scrub travel or one arrow-key press; `coarse_step` and `fine_step` are the modified increments. Their derivation rule is normative and deterministic so that two Studio builds agree: - If `precision` is declared, `step = 10^(-precision)`, `fine_step = 10^(-(precision+1))`, `coarse_step = step * 10`. - If `precision` is null and a soft range exists, `step = (soft_max - soft_min) / 200`, `fine_step = step / 10`, `coarse_step = step * 10`. - If neither exists, `step = 1`, `fine_step = 0.1`, `coarse_step = 10`. - An `integer` or `enumeration` kind forces `step = coarse_step = fine_step = 1`.",
+              "required_behavior": "**Numeric increments and pointer sensitivity are distinct descriptor fields.** For continuous discrete arrow/accessibility increments, declared precision gives `step = 10^(-precision)`, `fine_step = step/10`, `coarse_step = step*10`; without precision use the shared resolved [STU-SHL-191] step. Pointer/wheel sensitivity uses [STU-SHL-191] independently and applies [STU-SHL-190] factors once, never double-multiplying an already modified descriptor step. Integer/enumeration discrete actions retain `step = coarse_step = fine_step = 1`, walking exactly one legal domain step; floating sensitivity or modifiers MUST NOT skip enum choices. Missing bounds remain nonconstraints, not manufactured ranges.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2211,13 +2240,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-            "consumer_assertion": "Actual consumer satisfies **Every numeric parameter is scrubbable, and the scrub increments are part of the parameter record.** `step` is the increment for one unit of scrub travel or one arrow-key press; `coarse_step` and `fine_step` are the modified increments. Their derivation rule is normative and deterministic so that two Studio builds agree: - If `precision` is declared, `step = 10^(-precision)`, `fine_step = 10^(-(precision+1))`, `coarse_step = step * 10`. - If `precision` is null and a soft range exists, `step = (soft_max - soft_min) / 200`, `fine_step = step / 10`, `coarse_step = step * 10`. - If neither exists, `step = 1`, `fine_step = 0.1`, `coarse_step = 10`. - An `integer` or `enumeration` kind forces `step = coarse_step = fine_step = 1`. with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
+            "consumer_assertion": "Actual consumer satisfies **Numeric increments and pointer sensitivity are distinct descriptor fields.** For continuous discrete arrow/accessibility increments, declared precision gives `step = 10^(-precision)`, `fine_step = step/10`, `coarse_step = step*10`; without precision use the shared resolved [STU-SHL-191] step. Pointer/wheel sensitivity uses [STU-SHL-191] independently and applies [STU-SHL-190] factors once, never double-multiplying an already modified descriptor step. Integer/enumeration discrete actions retain `step = coarse_step = fine_step = 1`, walking exactly one legal domain step; floating sensitivity or modifiers MUST NOT skip enum choices. Missing bounds remain nonconstraints, not manufactured ranges. with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
             "negative_path": "Exact cases in MT-31477#/execution/implementation_steps",
             "oracle": "Independent actual outputs specified by MT-31477-ASSET-ASSET-AC-001; unavailable provider means NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36213",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Qualified source MT-31477/ASSET-AC-001; actual host adoption MT-36213 independently proves: **Every numeric parameter is scrubbable, and the scrub increments are part of the parameter record.** `step` is the increment for one unit of scrub travel or one arrow-key press; `coarse_step` and `fine_step` are the modified increments. Their derivation rule is normative and deterministic so that two Studio builds agree: - If `precision` is declared, `step = 10^(-precision)`, `fine_step = 10^(-(precision+1))`, `coarse_step = step * 10`. - If `precision` is null and a soft range exists, `step = (soft_max - soft_min) / 200`, `fine_step = step / 10`, `coarse_step = step * 10`. - If neither exists, `step = 1`, `fine_step = 0.1`, `coarse_step = 10`. - An `integer` or `enumeration` kind forces `step = coarse_step = fine_step = 1`.",
+          "later_embedding_assertion": "Qualified source MT-31477/ASSET-AC-001; actual host adoption MT-36213 independently proves: **Numeric increments and pointer sensitivity are distinct descriptor fields.** For continuous discrete arrow/accessibility increments, declared precision gives `step = 10^(-precision)`, `fine_step = step/10`, `coarse_step = step*10`; without precision use the shared resolved [STU-SHL-191] step. Pointer/wheel sensitivity uses [STU-SHL-191] independently and applies [STU-SHL-190] factors once, never double-multiplying an already modified descriptor step. Integer/enumeration discrete actions retain `step = coarse_step = fine_step = 1`, walking exactly one legal domain step; floating sensitivity or modifiers MUST NOT skip enum choices. Missing bounds remain nonconstraints, not manufactured ranges.",
           "status": "PENDING"
         }
       ],
@@ -2267,18 +2296,18 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
-      "criterion": "**Every numeric parameter is scrubbable, and the scrub increments are part of the parameter record.** `step` is the increment for one unit of scrub travel or one arrow-key press; `coarse_step` and `fine_step` are the modified increments. Their derivation rule is normative and deterministic so that two Studio builds agree: - If `precision` is declared, `step = 10^(-precision)`, `fine_step = 10^(-(precision+1))`, `coarse_step = step * 10`. - If `precision` is null and a soft range exists, `step = (soft_max - soft_min) / 200`, `fine_step = step / 10`, `coarse_step = step * 10`. - If neither exists, `step = 1`, `fine_step = 0.1`, `coarse_step = 10`. - An `integer` or `enumeration` kind forces `step = coarse_step = fine_step = 1`.",
+      "criterion": "**Numeric increments and pointer sensitivity are distinct descriptor fields.** For continuous discrete arrow/accessibility increments, declared precision gives `step = 10^(-precision)`, `fine_step = step/10`, `coarse_step = step*10`; without precision use the shared resolved [STU-SHL-191] step. Pointer/wheel sensitivity uses [STU-SHL-191] independently and applies [STU-SHL-190] factors once, never double-multiplying an already modified descriptor step. Integer/enumeration discrete actions retain `step = coarse_step = fine_step = 1`, walking exactly one legal domain step; floating sensitivity or modifiers MUST NOT skip enum choices. Missing bounds remain nonconstraints, not manufactured ranges.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
   ],
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2320,5 +2349,51 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": null,
+          "new": "Integer/enumeration discrete actions retain `step = coarse_step = fine_step = 1`, walking exactly one legal domain step; floating sensitivity or modifiers MUST NOT skip enum choices."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-001"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "Every numeric parameter is scrubbable, and the scrub increments are part of the",
+      "propagated_paths": [
+        "/identity/title",
+        "/context_capsule/pillar_refs[45]/reason",
+        "/context_capsule/pillar_refs[46]/reason",
+        "/context_capsule/pillar_refs[47]/reason",
+        "/context_capsule/pillar_refs[48]/reason",
+        "/context_capsule/pillar_refs[49]/reason",
+        "/context_capsule/pillar_refs[50]/reason",
+        "/context_capsule/pillar_refs[51]/reason",
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/expected",
+        "/proof/checks[0]/method_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion",
+        "/active_acceptance_criteria[0]/criterion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

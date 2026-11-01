@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "5. ScrubValue — the scrubbable numeric control",
-    "spec_line": 32555,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 33250,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,25 +27,18 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "Undo",
+  "clause": "Gesture disposition",
   "spec_anchor": [
     "STU-SHL-194"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "operator_shell",
   "scope": {
-    "summary": "Undo.** One entry per GESTURE, per [STU-SHL-107]. The press, or the first wheel notch, opens a coalescing scope keyed by `author_id`. Intermediate values update the document LIVE but write into the open scope. The scope closes into ONE entry on release, on focus loss, on a modal opening, on `Escape` (which aborts and restores the pre-press value), or 400ms after the last wheel notch. A test MUST drive EACH exit path and assert exactly one entry.",
+    "summary": "Gesture disposition.** Press/first wheel notch opens one actor/session/document/property scope and updates its private live preview. Release, focus loss, modal opening or 400ms after the last notch finalizes valid work once through actor-specific host approval/promotion, rechecking grants and foreign-write footprints. Escape restores the pre-press private draft value and closes exactly one receipted ABORTED scope disposition with unchanged document content; explicit cancellation does likewise. Aborted/failed scopes are not promoted semantic `StudioHistoryEntry` edits and are excluded from Undo/Redo navigation. Successful acceptance yields one promoted semantic history entry; pending approval is not acceptance. Stale epoch/conflict closes failed scope without overwriting foreign accepted work. After acceptance cancellation requires Chronicle Undo. Drive every exit and prove exactly one disposition, its class, content/head and history cursor, including restart/idempotency.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [
-    {
-      "id": "AC-001",
-      "criterion": "A test MUST drive EACH exit path and assert exactly one entry.",
-      "evidence_kind": "runtime_assertion",
-      "source": "14-studio-creative-suite.md STU-SHL-194"
-    }
-  ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria": [],
+  "acceptance_criteria_count": 0,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -141,7 +135,7 @@
   "identity": {
     "mt_id": "MT-35072",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "Undo",
+    "title": "Gesture disposition",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 3
@@ -1756,21 +1750,22 @@
       "STU-CON-010",
       "STU-CON-011"
     ],
-    "acceptance_refs": [
-      "AC-001"
-    ],
-    "materialized_acceptance": [
-      {
-        "id": "AC-001",
-        "text": "A test MUST drive EACH exit path and assert exactly one entry.",
-        "fulfillment_ref": "MT-35072#/fulfillment/legacy_acceptance_map/0"
-      }
-    ],
+    "acceptance_refs": [],
+    "materialized_acceptance": [],
     "spec_basis_refs": [
       ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md"
     ],
     "operator_decision_refs": [
       "ilja091020261912"
+    ],
+    "superseded_materialized_acceptance": [
+      {
+        "id": "AC-001",
+        "text": "A test MUST drive EACH exit path and assert exactly one entry.",
+        "fulfillment_ref": "MT-35072#/fulfillment/legacy_acceptance_map/0",
+        "superseded_at_spec_version": "v02.229",
+        "reason": "the sentence is absent from the spec text; the deriver no longer yields this row"
+      }
     ]
   },
   "execution": {
@@ -2032,7 +2027,10 @@
           "prior_method_retained": true,
           "consumer": "Drive every exit, conflicts/restart/idempotency and retained multi-actor undo/redo with actual cursor/head; verify22event identities/inputsamples retained and one promoted semantic entry.",
           "negative_path": "No autoaccept without enrolled immutablepolicy, counterfeit review, foreign overwrite, aborted historyedit, doublecharge or receipt-undo loop."
-        }
+        },
+        "superseded_claim_refs": [
+          "AC-001"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2481,11 +2479,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2527,5 +2525,34 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "A test MUST drive EACH exit path and assert exactly one entry.",
+          "new": null
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [
+        "AC-001"
+      ],
+      "superseded_materialized_rows": [
+        "AC-001"
+      ],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "Undo",
+      "propagated_paths": [
+        "/identity/title"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

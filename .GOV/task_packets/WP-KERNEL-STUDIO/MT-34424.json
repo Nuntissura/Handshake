@@ -12,8 +12,9 @@
     "unit_kind": "enumeration",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.30 Operator Shell — Menu, Availability, Docks, and Gesture Arbitration",
-    "spec_line": 30796,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 31485,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "operator_shell",
   "scope": {
-    "summary": "Region names (normative, closed).** The shell has exactly seven addressable regions. Their `region_id` values are stable identifiers and their display names are the operator-facing labels. | region_id | Display name | Kind | |---|---|---| | `top` | Context Bar | two-zone single-occupant strip | | `left-rail` | Tool Rail | single-occupant rail | | `left` | Browse Dock | group stack | | `right` | Inspect Dock | group stack | | `right-rail` | Meter Rail | single-occupant rail | | `bottom` | Time & Results Dock | group stack | | `centre` | Viewport | unbounded `egui_tiles` tree of editor groups |",
+    "summary": "Region names (normative, closed).** The shell has exactly seven addressable regions. Their `region_id` values are stable identifiers and their display names are the operator-facing labels. | region_id | Display name | Kind | |---|---|---| | `top` | Context Bar | two-zone single-occupant strip | | `left-rail` | Tool Rail | single-occupant rail | | `left` | Browse Dock | group stack | | `right` | Inspect Dock | group stack | | `right-rail` | Meter Rail | single-occupant rail | | `bottom` | Time & Results Dock | group stack | | `centre` | Viewport | unbounded tiling tree of editor groups |",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -75,7 +76,7 @@
     },
     {
       "id": "AC-007",
-      "criterion": "The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded `egui_tiles` tree of editor groups. No member is added, renamed, or silently mapped onto another.",
+      "criterion": "The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded tiling tree of editor groups. No member is added, renamed, or silently mapped onto another.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-SHL-003 enumeration row 7"
     }
@@ -1590,7 +1591,7 @@
       },
       {
         "id": "AC-007",
-        "text": "The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded `egui_tiles` tree of editor groups. No member is added, renamed, or silently mapped onto another.",
+        "text": "The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded tiling tree of editor groups. No member is added, renamed, or silently mapped onto another.",
         "fulfillment_ref": "MT-34424#/fulfillment/legacy_acceptance_map/6"
       }
     ],
@@ -1978,7 +1979,7 @@
           "AC-007"
         ],
         "command_or_method": "Planned target: cargo test --locked -p hsk-studio-controls --no-default-features --test mt_34424 contract_consumer -- --exact. Independent validator invokes actual descriptor/action/conformance consumers against cases in execution steps; source oracle .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:30836. Implementer separately cargo check --locked -p hsk-studio-controls --no-default-features --tests; exact lock/actor/external roots activation-bound. No execution/target existence claimed.",
-        "expected": "Observed output satisfies The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded `egui_tiles` tree of editor groups. No member is added, renamed, or silently mapped onto another. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
+        "expected": "Observed output satisfies The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded tiling tree of editor groups. No member is added, renamed, or silently mapped onto another. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1991,7 +1992,7 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-          "consumer_assertion": "Observed output satisfies The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded `egui_tiles` tree of editor groups. No member is added, renamed, or silently mapped onto another. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
+          "consumer_assertion": "Observed output satisfies The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded tiling tree of editor groups. No member is added, renamed, or silently mapped onto another. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
           "negative_path": "Exact cases in MT-34424#/execution/implementation_steps",
           "oracle": "Independent actual outputs specified by MT-34424-ASSET-AC-007; unavailable provider means NOT_PROVEN."
         },
@@ -2568,7 +2569,7 @@
         "original_text": "The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded `egui_tiles` tree of editor groups. No member is added, renamed, or silently mapped onto another.",
         "original_row_sha256": "ef9146b3b4d497b36c431810acda7079bf70ef1930686507f5ca19e70a878461",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded `egui_tiles` tree of editor groups. No member is added, renamed, or silently mapped onto another.",
+        "semantic_fulfillment": "The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded tiling tree of editor groups. No member is added, renamed, or silently mapped onto another.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34424-ASSET-CONTROLS"
@@ -2578,7 +2579,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded `egui_tiles` tree of editor groups. No member is added, renamed, or silently mapped onto another.",
+            "required_behavior": "The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded tiling tree of editor groups. No member is added, renamed, or silently mapped onto another.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2587,13 +2588,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-          "consumer_assertion": "Observed output satisfies The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded `egui_tiles` tree of editor groups. No member is added, renamed, or silently mapped onto another. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
+          "consumer_assertion": "Observed output satisfies The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded tiling tree of editor groups. No member is added, renamed, or silently mapped onto another. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
           "negative_path": "Exact cases in MT-34424#/execution/implementation_steps",
           "oracle": "Independent actual outputs specified by MT-34424-ASSET-AC-007; unavailable provider means NOT_PROVEN."
         },
         "later_embedding_ref": "MT-36213",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Qualified source MT-34424/AC-007; actual host adoption MT-36213 independently proves: The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded `egui_tiles` tree of editor groups. No member is added, renamed, or silently mapped onto another.",
+        "later_embedding_assertion": "Qualified source MT-34424/AC-007; actual host adoption MT-36213 independently proves: The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded tiling tree of editor groups. No member is added, renamed, or silently mapped onto another.",
         "status": "PENDING"
       }
     ],
@@ -2873,7 +2874,7 @@
           "original_text": "The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded `egui_tiles` tree of editor groups. No member is added, renamed, or silently mapped onto another.",
           "original_row_sha256": "ef9146b3b4d497b36c431810acda7079bf70ef1930686507f5ca19e70a878461",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded `egui_tiles` tree of editor groups. No member is added, renamed, or silently mapped onto another.",
+          "semantic_fulfillment": "The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded tiling tree of editor groups. No member is added, renamed, or silently mapped onto another.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34424-ASSET-CONTROLS"
@@ -2883,7 +2884,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded `egui_tiles` tree of editor groups. No member is added, renamed, or silently mapped onto another.",
+              "required_behavior": "The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded tiling tree of editor groups. No member is added, renamed, or silently mapped onto another.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2892,13 +2893,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-            "consumer_assertion": "Observed output satisfies The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded `egui_tiles` tree of editor groups. No member is added, renamed, or silently mapped onto another. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
+            "consumer_assertion": "Observed output satisfies The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded tiling tree of editor groups. No member is added, renamed, or silently mapped onto another. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
             "negative_path": "Exact cases in MT-34424#/execution/implementation_steps",
             "oracle": "Independent actual outputs specified by MT-34424-ASSET-AC-007; unavailable provider means NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36213",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Qualified source MT-34424/AC-007; actual host adoption MT-36213 independently proves: The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded `egui_tiles` tree of editor groups. No member is added, renamed, or silently mapped onto another.",
+          "later_embedding_assertion": "Qualified source MT-34424/AC-007; actual host adoption MT-36213 independently proves: The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded tiling tree of editor groups. No member is added, renamed, or silently mapped onto another.",
           "status": "PENDING"
         }
       ]
@@ -2912,11 +2913,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2958,5 +2959,40 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-007",
+          "old": "The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded `egui_tiles` tree of editor groups. No member is added, renamed, or silently mapped onto another.",
+          "new": "The enumeration accepts the member `centre` with the exact meaning the spec states: Viewport | unbounded tiling tree of editor groups. No member is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Region names (normative, closed) - enumeration",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[6]/text",
+        "/proof/checks[6]/expected",
+        "/proof/checks[6]/method_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[6]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[6]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[6]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[6]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[6]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[6]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[6]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[6]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

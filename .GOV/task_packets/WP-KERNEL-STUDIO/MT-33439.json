@@ -11,9 +11,10 @@
     "derivation_key": "STU-IO-001#clause#0",
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
-    "spec_heading": "14.13.CARRIED Clauses carried forward unchanged from v02.205",
-    "spec_line": 21209,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_heading": "14.13.CARRIED Preserved v02.205 clauses, with STU-IO-001 revised for the current native container contract",
+    "spec_line": 21506,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,25 +27,49 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "NATIVE-FORMAT DECLARATION. Studio MUST NOT invent a new interchange document format to replace the existing creative formats. The native Studio document is the unified `StudioDocument` (14.3) persiste [...]",
+  "clause": "NATIVE-FORMAT DECLARATION. Studio MUST provide a versioned portable Handshake-native document snapshot/container for the unified StudioDocument and its linked domain graphs. It MUST preserve canonical [...]",
   "spec_anchor": [
     "STU-IO-001"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "interop",
   "scope": {
-    "summary": "NATIVE-FORMAT DECLARATION. Studio MUST NOT invent a new interchange document format to replace the existing creative formats. The native Studio document is the unified `StudioDocument` (14.3) persisted through Handshake document/project storage under SurrealDB/EventLedger authority ([STU-ARC-003]/[STU-ARC-004]) with CRDT live state; it is not a new file-on-disk interchange format competing with PSD/AI/IDML/`.af`/`.fig`. This restates and is bound by [STU-OVR-002]: interoperability with the source formats is in scope as import / edit-preserve / export / round-trip; a replacement interchange format and any runtime dependency on the source applications are out of scope. Where a deliverable file must leave Studio, it leaves through a `StudioExportRecipe` into one of the matrix formats below, never through a bespoke Studio-only container. --- ### 1. StudioImportProfile / StudioExportRecipe primitives and the round-trip contract",
+    "summary": "NATIVE-FORMAT DECLARATION. Studio MUST provide a versioned portable Handshake-native document snapshot/container for the unified StudioDocument and its linked domain graphs. It MUST preserve canonical IDs, schemas, units, integer timebase, color and provenance without workflow-switch flattening. The container is import/export/recovery transport; integrated durable and collaborative authority remains SurrealDB/EventLedger/CRDT, never a second database or catalog. Saving/loading MUST validate versions, graph/blob references and integrity, preserve originals and unknown safely retained semantics with explicit loss receipts, bound all untrusted materialization and perform crash-safe copy-first publication. Fresh permissions MUST be resolved on import; serialized grants never confer authority. Existing PSD/AI/INDD/IDML/Affinity/Figma/media interchange/edit-preserve/export/round-trip obligations survive; a native snapshot does not replace them or introduce vendor runtime dependencies. Integrated artifact bytes, caches and placed assets use existing ArtifactService/ArtifactManifest and CKC owners. The portable extension is `.handshake`; its bounded streaming ZIP64 transport carries a versioned typed manifest, Studio graph, content-hash asset references, optional granted packed payloads, previews and preservation records. Exact field/schema and migration contracts MUST be executable be [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Studio MUST NOT invent a new interchange document format to replace the existing creative formats.",
+      "criterion": "Studio MUST provide a versioned portable Handshake-native document snapshot/container for the unified StudioDocument and its linked domain graphs.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-IO-001"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "It MUST preserve canonical IDs, schemas, units, integer timebase, color and provenance without workflow-switch flattening.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-IO-001"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "Saving/loading MUST validate versions, graph/blob references and integrity, preserve originals and unknown safely retained semantics with explicit loss receipts, bound all untrusted materialization and perform crash-safe copy-first publication.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-IO-001"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "Fresh permissions MUST be resolved on import; serialized grants never confer authority.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-IO-001"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "Exact field/schema and migration contracts MUST be executable before container feature activation. --- ### 1.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-IO-001"
     }
   ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria_count": 5,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -134,7 +159,7 @@
   "identity": {
     "mt_id": "MT-33439",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "NATIVE-FORMAT DECLARATION. Studio MUST NOT invent a new interchange document format to replace the existing creative formats. The native Studio document is the unified `StudioDocument` (14.3) persiste [...]",
+    "title": "NATIVE-FORMAT DECLARATION. Studio MUST provide a versioned portable Handshake-native document snapshot/container for the unified StudioDocument and its linked domain graphs. It MUST preserve canonical [...]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 4
@@ -1578,13 +1603,33 @@
       "STU-IO-001"
     ],
     "acceptance_refs": [
-      "AC-001"
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Studio MUST NOT invent a new interchange document format to replace the existing creative formats.",
+        "text": "Studio MUST provide a versioned portable Handshake-native document snapshot/container for the unified StudioDocument and its linked domain graphs.",
         "fulfillment_ref": "MT-33439#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-002",
+        "text": "It MUST preserve canonical IDs, schemas, units, integer timebase, color and provenance without workflow-switch flattening."
+      },
+      {
+        "id": "AC-003",
+        "text": "Saving/loading MUST validate versions, graph/blob references and integrity, preserve originals and unknown safely retained semantics with explicit loss receipts, bound all untrusted materialization and perform crash-safe copy-first publication."
+      },
+      {
+        "id": "AC-004",
+        "text": "Fresh permissions MUST be resolved on import; serialized grants never confer authority."
+      },
+      {
+        "id": "AC-005",
+        "text": "Exact field/schema and migration contracts MUST be executable before container feature activation. --- ### 1."
       }
     ],
     "spec_basis_refs": [
@@ -1837,6 +1882,70 @@
           "Unchanged input digest across implementer check"
         ],
         "materialization_status": "PLANNED_NOT_EXECUTED"
+      },
+      {
+        "check_id": "MT-33439-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-IO-001"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "It MUST preserve canonical IDs, schemas, units, integer timebase, color and provenance without workflow-switch flattening.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33439-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-IO-001"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Saving/loading MUST validate versions, graph/blob references and integrity, preserve originals and unknown safely retained semantics with explicit loss receipts, bound all untrusted materialization and perform crash-safe copy-first publication.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33439-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-IO-001"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Fresh permissions MUST be resolved on import; serialized grants never confer authority.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33439-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-IO-001"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Exact field/schema and migration contracts MUST be executable before container feature activation. --- ### 1.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2161,7 +2270,7 @@
         "original_text": "Studio MUST NOT invent a new interchange document format to replace the existing creative formats.",
         "original_row_sha256": "d40e238b5b0fdf60f3ecbbddcf8f44218802886a7621b1d78695414b53605f79",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Studio MUST NOT invent a new interchange document format to replace the existing creative formats.",
+        "semantic_fulfillment": "Studio MUST provide a versioned portable Handshake-native document snapshot/container for the unified StudioDocument and its linked domain graphs.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33439"
@@ -2171,7 +2280,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-INTEROP_PSD",
             "scope": "PSD/PSB conversion with provenance and structured unsupported/loss report; preserve originals/unknown bytes.",
-            "required_behavior": "Studio MUST NOT invent a new interchange document format to replace the existing creative formats.",
+            "required_behavior": "Studio MUST provide a versioned portable Handshake-native document snapshot/container for the unified StudioDocument and its linked domain graphs.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2186,7 +2295,7 @@
         },
         "later_embedding_ref": "MT-36208#/source_acceptance_coverage",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Studio MUST NOT invent a new interchange document format to replace the existing creative formats. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Studio MUST provide a versioned portable Handshake-native document snapshot/container for the unified StudioDocument and its linked domain graphs. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "later_embedding_refs": [
           "MT-36208#/source_acceptance_coverage"
@@ -2223,7 +2332,7 @@
           "original_text": "Studio MUST NOT invent a new interchange document format to replace the existing creative formats.",
           "original_row_sha256": "d40e238b5b0fdf60f3ecbbddcf8f44218802886a7621b1d78695414b53605f79",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Studio MUST NOT invent a new interchange document format to replace the existing creative formats.",
+          "semantic_fulfillment": "Studio MUST provide a versioned portable Handshake-native document snapshot/container for the unified StudioDocument and its linked domain graphs.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33439"
@@ -2233,7 +2342,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-INTEROP_PSD",
               "scope": "PSD/PSB conversion with provenance and structured unsupported/loss report; preserve originals/unknown bytes.",
-              "required_behavior": "Studio MUST NOT invent a new interchange document format to replace the existing creative formats.",
+              "required_behavior": "Studio MUST provide a versioned portable Handshake-native document snapshot/container for the unified StudioDocument and its linked domain graphs.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2248,7 +2357,7 @@
           },
           "later_embedding_ref": "MT-36208#/source_acceptance_coverage",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Studio MUST NOT invent a new interchange document format to replace the existing creative formats. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Studio MUST provide a versioned portable Handshake-native document snapshot/container for the unified StudioDocument and its linked domain graphs. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "later_embedding_refs": [
             "MT-36208#/source_acceptance_coverage"
@@ -2265,7 +2374,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T23:27:33.427Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "rule_refs": [
     "CX-SPEC-TRUTH-001",
     "CX-TPL-001",
@@ -2308,7 +2417,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2340,5 +2449,62 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "Studio MUST NOT invent a new interchange document format to replace the existing creative formats.",
+          "new": "Studio MUST provide a versioned portable Handshake-native document snapshot/container for the unified StudioDocument and its linked domain graphs."
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "It MUST preserve canonical IDs, schemas, units, integer timebase, color and provenance without workflow-switch flattening."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "Saving/loading MUST validate versions, graph/blob references and integrity, preserve originals and unknown safely retained semantics with explicit loss receipts, bound all untrusted materialization and perform crash-safe copy-first publication."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "Fresh permissions MUST be resolved on import; serialized grants never confer authority."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "Exact field/schema and migration contracts MUST be executable before container feature activation. --- ### 1."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "NATIVE-FORMAT DECLARATION. Studio MUST NOT invent a new interchange document format to replace the existing creative formats. The native Studio document is the unified `StudioDocument` (14.3) persiste [...]",
+      "propagated_paths": [
+        "/identity/title",
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

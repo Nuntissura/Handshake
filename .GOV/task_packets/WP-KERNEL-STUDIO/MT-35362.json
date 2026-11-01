@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "5. Microtask Derivation",
-    "spec_line": 22097,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 22399,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,20 +27,20 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "Open items and blocked dependencies (5)",
+  "clause": "Declared dependency dispositions and retained first acceptance criteria",
   "spec_anchor": [
     "STU-WB-138"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "whiteboard",
   "scope": {
-    "summary": "Open items and blocked dependencies.** This module declares three, and every one of them YIELDS a microtask whose FIRST acceptance criterion is resolving the named dependency: | Declared gap | Clause | First acceptance criterion of its microtask | |---|---|---| | The diagram shape-type vocabulary was never recovered as an explicit value union | [STU-WB-129] | Either recover the union from a capture and replace the Studio-declared set, or record operator acceptance of the twelve Studio-declared shapes and remove the `studio_declared` caveat. The clause is amended either way before any shape-authoring microtask activates. | | Presentation and slide node kinds exist in the capture but section 14 has no presentation domain | [STU-WB-130] | Obtain the operator's scope decision on whether a presentation domain is created, folded elsewhere, or declared out of scope, and record it. These four node kinds MUST NOT be silently absorbed into whiteboard mode. | | The whole domain rests on one source object model with no corroborating capture | [STU-WB-131] | Either obtain a second capture that corroborates the twelve board node kinds and their fields, or record operator acceptance of the single-witness basis with its reliability stated in the UserManual. | A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently and is rediscovered at i [...]",
+    "summary": "Declared dependency dispositions and retained first acceptance criteria.** The three original gap MTs remain in the yields index and retain their history. Their first acceptance criteria MUST bind the resolved decisions and any remaining deliverable obligation below; a decision recorded in the spec is not a completed manual or runtime result. | Retained dependency | Clause | First acceptance criterion of its microtask | |---|---|---| | Shape vocabulary | [STU-WB-129] | Bind the inspected thirty-token source union and all twelve preserved native shapes from [STU-WB-105], distinguish their provenance, and retain every native capability without guessed aliases before dependent shape authoring activates. | | Four presentation kinds | [STU-WB-130] | Record the Operator's fold decision and map all four kinds plus transition/timing contracts to their actual Layout, Components, Pulse, Interop-Fig and Controls source MTs; do not assign their implementation to the whiteboard owner. | | Single-witness board basis | [STU-WB-131] | Bind the Operator's acceptance and the exact human/model manual disclosures; prove those disclosures in the shipped manual before feature acceptance, while leaving runtime fidelity separately pending. | A declared gap MUST NOT be dropped from the yields index. Any later unresolved dependency yields work whose FIRST acceptance criterion resolves that dependency; u [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "These four node kinds MUST NOT be silently absorbed into whiteboard mode. | | The whole domain rests on one source object model with no corroborating capture | [STU-WB-131] | Either obtain a second capture that corroborates the twelve board node kinds and their fields, or record operator acceptance of the single-witness basis with its reliability stated in the UserManual. | A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently and is rediscovered at implementation time.",
+      "criterion": "Their first acceptance criteria MUST bind the resolved decisions and any remaining deliverable obligation below; a decision recorded in the spec is not a completed manual or runtime result. | Retained dependency | Clause | First acceptance criterion of its microtask | |---|---|---| | Shape vocabulary | [STU-WB-129] | Bind the inspected thirty-token source union and all twelve preserved native shapes from [STU-WB-105], distinguish their provenance, and retain every native capability without guessed aliases before dependent shape authoring activates. | | Four presentation kinds | [STU-WB-130] | [...]",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-WB-138"
     }
@@ -134,7 +135,7 @@
   "identity": {
     "mt_id": "MT-35362",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "Open items and blocked dependencies (5)",
+    "title": "Declared dependency dispositions and retained first acceptance criteria",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 5
@@ -1853,7 +1854,7 @@
     "prior_materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "These four node kinds MUST NOT be silently absorbed into whiteboard mode. | | The whole domain rests on one source object model with no corroborating capture | [STU-WB-131] | Either obtain a second capture that corroborates the twelve board node kinds and their fields, or record operator acceptance of the single-witness basis with its reliability stated in the UserManual. | A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently and is rediscovered at implementation time.",
+        "text": "Their first acceptance criteria MUST bind the resolved decisions and any remaining deliverable obligation below; a decision recorded in the spec is not a completed manual or runtime result. | Retained dependency | Clause | First acceptance criterion of its microtask | |---|---|---| | Shape vocabulary | [STU-WB-129] | Bind the inspected thirty-token source union and all twelve preserved native shapes from [STU-WB-105], distinguish their provenance, and retain every native capability without guessed aliases before dependent shape authoring activates. | | Four presentation kinds | [STU-WB-130] | [...]",
         "fulfillment_ref": "MT-35362#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -2122,7 +2123,7 @@
       }
     }
   },
-  "updated_at_utc": "2026-10-10T05:47:17+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "rule_refs": [
     "CX-SPEC-TRUTH-001",
     "CX-TPL-001",
@@ -2172,7 +2173,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2202,5 +2203,31 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "These four node kinds MUST NOT be silently absorbed into whiteboard mode. | | The whole domain rests on one source object model with no corroborating capture | [STU-WB-131] | Either obtain a second capture that corroborates the twelve board node kinds and their fields, or record operator acceptance of the single-witness basis with its reliability stated in the UserManual. | A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently and is rediscovered at implementation time.",
+          "new": "Their first acceptance criteria MUST bind the resolved decisions and any remaining deliverable obligation below; a decision recorded in the spec is not a completed manual or runtime result. | Retained dependency | Clause | First acceptance criterion of its microtask | |---|---|---| | Shape vocabulary | [STU-WB-129] | Bind the inspected thirty-token source union and all twelve preserved native shapes from [STU-WB-105], distinguish their provenance, and retain every native capability without guessed aliases before dependent shape authoring activates. | | Four presentation kinds | [STU-WB-130] | [...]"
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "Open items and blocked dependencies (5)",
+      "propagated_paths": [
+        "/identity/title",
+        "/authority_migration/prior_materialized_acceptance[0]/text"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

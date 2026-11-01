@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "1. The component object contract",
-    "spec_line": 19641,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 19912,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -42,9 +43,27 @@
       "criterion": "Component node kinds.** Studio MUST model three distinct authority node kinds in the component system, and MUST NOT collapse them into fewer: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Studio node kind | Role | Container of | |---|---|---| | `component` | one reusable definition | ordinary `StudioLayer` children | | `component_set` | a variant set: the container that owns a variant-property schema | two or more `component` nodes, each a variant member | | `component_instance` | a live reference to exactly one [...]",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-DS-102"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The contract table holds the row `component` with the exact meaning the spec states: one reusable definition | ordinary `StudioLayer` children. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-DS-102 carried contract table row 1"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `component_set` with the exact meaning the spec states: a variant set: the container that owns a variant-property schema | two or more `component` nodes, each a variant member. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-DS-102 carried contract table row 2"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `component_instance` with the exact meaning the spec states: a live reference to exactly one `component` | override records only. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-DS-102 carried contract table row 3"
     }
   ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria_count": 4,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1570,13 +1589,28 @@
       "STU-DS-102"
     ],
     "acceptance_refs": [
-      "AC-001"
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
         "text": "Component node kinds.** Studio MUST model three distinct authority node kinds in the component system, and MUST NOT collapse them into fewer: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Studio node kind | Role | Container of | |---|---|---| | `component` | one reusable definition | ordinary `StudioLayer` children | | `component_set` | a variant set: the container that owns a variant-property schema | two or more `component` nodes, each a variant member | | `component_instance` | a live reference to exactly one [...]",
         "fulfillment_ref": "MT-33056#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-002",
+        "text": "The contract table holds the row `component` with the exact meaning the spec states: one reusable definition | ordinary `StudioLayer` children. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `component_set` with the exact meaning the spec states: a variant set: the container that owns a variant-property schema | two or more `component` nodes, each a variant member. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `component_instance` with the exact meaning the spec states: a live reference to exactly one `component` | override records only. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1809,6 +1843,54 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-33056-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-DS-102"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `component` with the exact meaning the spec states: one reusable definition | ordinary `StudioLayer` children. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33056-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-DS-102"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `component_set` with the exact meaning the spec states: a variant set: the container that owns a variant-property schema | two or more `component` nodes, each a variant member. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33056-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-DS-102"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `component_instance` with the exact meaning the spec states: a live reference to exactly one `component` | override records only. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2257,11 +2339,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T00:00:00Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2305,5 +2387,42 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The contract table holds the row `component` with the exact meaning the spec states: one reusable definition | ordinary `StudioLayer` children. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `component_set` with the exact meaning the spec states: a variant set: the container that owns a variant-property schema | two or more `component` nodes, each a variant member. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `component_instance` with the exact meaning the spec states: a live reference to exactly one `component` | override records only. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-002",
+        "AC-003",
+        "AC-004"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "Component node kinds",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

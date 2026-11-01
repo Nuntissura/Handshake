@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "1. What Studio Is",
-    "spec_line": 140,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 142,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,14 +27,14 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "[ADD v02.200] Editing imported VIDEO FOOTAGE as a clip-timeline (trimming/sequencing/encoding video clips as raster-video layers, i.e. a non-linear video editor) is OUT of Studio scope. Studio's motio [...]",
+  "clause": "The former exclusion of imported-footage clip editing is retired and superseded by [STU-VID-001] through [STU-VID-001b]. Professional clip timeline editing, motion graphics/keyframing, compositing/VFX [...]",
   "spec_anchor": [
     "STU-OVR-015"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "cross_cutting",
   "scope": {
-    "summary": "[ADD v02.200] Editing imported VIDEO FOOTAGE as a clip-timeline (trimming/sequencing/encoding video clips as raster-video layers, i.e. a non-linear video editor) is OUT of Studio scope. Studio's motion surface (14.11) is keyframe animation + motion export (video/GIF/animated-SVG) and placing/rendering media; footage-clip non-linear editing is a separate Handshake concern (the `engine.director` mechanical engine, Spec §11.8). Studio MAY place and render video media (14.6/14.11) but does not own footage clip-editing. This is recorded as an explicit, intentional scope edge, not an omission.",
+    "summary": "The former exclusion of imported-footage clip editing is retired and superseded by [STU-VID-001] through [STU-VID-001b]. Professional clip timeline editing, motion graphics/keyframing, compositing/VFX, grading, media delivery and audio-post remain in Studio scope at their current specified depth. `engine.director` is a consumer of StudioSequence output where applicable, not owner of interactive clip editing.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [],
@@ -156,7 +157,7 @@
   "identity": {
     "mt_id": "MT-30012",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "[ADD v02.200] Editing imported VIDEO FOOTAGE as a clip-timeline (trimming/sequencing/encoding video clips as raster-video layers, i.e. a non-linear video editor) is OUT of Studio scope. Studio's motio [...]",
+    "title": "The former exclusion of imported-footage clip editing is retired and superseded by [STU-VID-001] through [STU-VID-001b]. Professional clip timeline editing, motion graphics/keyframing, compositing/VFX [...]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 4
@@ -1447,7 +1448,7 @@
         "trigger": "module_or_asset_is_created_or_materially_modified",
         "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
         "assessment": "APPLIES",
-        "reason": "This source MT changes [ADD v02.200] Editing imported VIDEO FOOTAGE as a clip-timeline (trimming/sequencing/encoding video clips as raster-video layers, i.e. a non-linear video editor) is OUT of Studio scope. Studio's motio [...] in hsk-studio-pulse; As a mandatory baseline for future Handshake-governed modules and reusable assets, give every module and reusable asset an accountable owner and independently selectable source, dependency, build, test and artifact closure in its existing manifest. Provide a standalone library, executable or asset harness with public contract proof, manual, model tools, inspection, diagnostics and recovery routes; no full host build is required for a module-only patch unless its declared dependency closure requires it.",
+        "reason": "This source MT changes The former exclusion of imported-footage clip editing is retired and superseded by [STU-VID-001] through [STU-VID-001b]. Professional clip timeline editing, motion graphics/keyframing, compositing/VFX [...] in hsk-studio-pulse; As a mandatory baseline for future Handshake-governed modules and reusable assets, give every module and reusable asset an accountable owner and independently selectable source, dependency, build, test and artifact closure in its existing manifest. Provide a standalone library, executable or asset harness with public contract proof, manual, model tools, inspection, diagnostics and recovery routes; no full host build is required for a module-only patch unless its declared dependency closure requires it.",
         "scope_evidence_refs": [
           "MT-30012#/execution",
           "MT-30012#/context_capsule/module_maintenance_refs"
@@ -1464,7 +1465,7 @@
         "trigger": "module_or_asset_is_public_contract_or_resource_behavior_changes",
         "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
         "assessment": "APPLIES",
-        "reason": "This source MT changes [ADD v02.200] Editing imported VIDEO FOOTAGE as a clip-timeline (trimming/sequencing/encoding video clips as raster-video layers, i.e. a non-linear video editor) is OUT of Studio scope. Studio's motio [...] in hsk-studio-pulse; Declare errors, concurrency and queue bounds, admission, backpressure, overflow, cancellation, drain, shutdown and recovery through public contracts. Reusable GUI/control assets declare inputs, events, styling, accessibility and headless inspection contracts; compose them without copying private implementation.",
+        "reason": "This source MT changes The former exclusion of imported-footage clip editing is retired and superseded by [STU-VID-001] through [STU-VID-001b]. Professional clip timeline editing, motion graphics/keyframing, compositing/VFX [...] in hsk-studio-pulse; Declare errors, concurrency and queue bounds, admission, backpressure, overflow, cancellation, drain, shutdown and recovery through public contracts. Reusable GUI/control assets declare inputs, events, styling, accessibility and headless inspection contracts; compose them without copying private implementation.",
         "scope_evidence_refs": [
           "MT-30012#/execution",
           "MT-30012#/context_capsule/module_maintenance_refs"
@@ -1481,7 +1482,7 @@
         "trigger": "module_or_asset_is_released_or_consumed",
         "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
         "assessment": "APPLIES",
-        "reason": "This source MT changes [ADD v02.200] Editing imported VIDEO FOOTAGE as a clip-timeline (trimming/sequencing/encoding video clips as raster-video layers, i.e. a non-linear video editor) is OUT of Studio scope. Studio's motio [...] in hsk-studio-pulse; Publish immutable versioned artifacts with canonical source revision, build inputs, toolchain and artifact digests, dependency closure, public API versioning, compatibility and deprecation policy. Consume exact pinned releases through existing bindings and lock; a version label alone never proves compatibility.",
+        "reason": "This source MT changes The former exclusion of imported-footage clip editing is retired and superseded by [STU-VID-001] through [STU-VID-001b]. Professional clip timeline editing, motion graphics/keyframing, compositing/VFX [...] in hsk-studio-pulse; Publish immutable versioned artifacts with canonical source revision, build inputs, toolchain and artifact digests, dependency closure, public API versioning, compatibility and deprecation policy. Consume exact pinned releases through existing bindings and lock; a version label alone never proves compatibility.",
         "scope_evidence_refs": [
           "MT-30012#/execution",
           "MT-30012#/context_capsule/module_maintenance_refs"
@@ -1498,7 +1499,7 @@
         "trigger": "module_or_asset_is_embedded_in_a_host",
         "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
         "assessment": "NOT_APPLICABLE",
-        "reason": "This source MT changes [ADD v02.200] Editing imported VIDEO FOOTAGE as a clip-timeline (trimming/sequencing/encoding video clips as raster-video layers, i.e. a non-linear video editor) is OUT of Studio scope. Studio's motio [...] in hsk-studio-pulse; the embedding adapter and host services are owned by the separate mapped host-adoption MT.",
+        "reason": "This source MT changes The former exclusion of imported-footage clip editing is retired and superseded by [STU-VID-001] through [STU-VID-001b]. Professional clip timeline editing, motion graphics/keyframing, compositing/VFX [...] in hsk-studio-pulse; the embedding adapter and host services are owned by the separate mapped host-adoption MT.",
         "scope_evidence_refs": [
           "MT-30012#/execution",
           "MT-30012#/context_capsule/module_maintenance_refs"
@@ -1515,7 +1516,7 @@
         "trigger": "module_or_asset_is_published_upgraded_or_moved",
         "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
         "assessment": "APPLIES",
-        "reason": "This source MT changes [ADD v02.200] Editing imported VIDEO FOOTAGE as a clip-timeline (trimming/sequencing/encoding video clips as raster-video layers, i.e. a non-linear video editor) is OUT of Studio scope. Studio's motio [...] in hsk-studio-pulse; Separate private state, credentials and machine-local configuration from publishable source/assets with an explicit publication allowlist and exclusion contract. Declare portable roots and state owners, upgrade prerequisites, migration versions and rollback reversibility, in-flight settlement and recovery boundary; prove standalone and affected host compatibility before integration.",
+        "reason": "This source MT changes The former exclusion of imported-footage clip editing is retired and superseded by [STU-VID-001] through [STU-VID-001b]. Professional clip timeline editing, motion graphics/keyframing, compositing/VFX [...] in hsk-studio-pulse; Separate private state, credentials and machine-local configuration from publishable source/assets with an explicit publication allowlist and exclusion contract. Declare portable roots and state owners, upgrade prerequisites, migration versions and rollback reversibility, in-flight settlement and recovery boundary; prove standalone and affected host compatibility before integration.",
         "scope_evidence_refs": [
           "MT-30012#/execution",
           "MT-30012#/context_capsule/module_maintenance_refs"
@@ -1532,7 +1533,7 @@
         "trigger": "module_or_asset_is_published_or_mirrored",
         "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
         "assessment": "APPLIES",
-        "reason": "This source MT changes [ADD v02.200] Editing imported VIDEO FOOTAGE as a clip-timeline (trimming/sequencing/encoding video clips as raster-video layers, i.e. a non-linear video editor) is OUT of Studio scope. Studio's motio [...] in hsk-studio-pulse; Publish and mirror from one canonical source with provenance and base/source/target digests checked at planning and commit. Reject concurrent drift, preserve customized destinations and provide recoverable publication; do not silently overwrite edits or substitute an installed copy for its source owner.",
+        "reason": "This source MT changes The former exclusion of imported-footage clip editing is retired and superseded by [STU-VID-001] through [STU-VID-001b]. Professional clip timeline editing, motion graphics/keyframing, compositing/VFX [...] in hsk-studio-pulse; Publish and mirror from one canonical source with provenance and base/source/target digests checked at planning and commit. Reject concurrent drift, preserve customized destinations and provide recoverable publication; do not silently overwrite edits or substitute an installed copy for its source owner.",
         "scope_evidence_refs": [
           "MT-30012#/execution",
           "MT-30012#/context_capsule/module_maintenance_refs"
@@ -1549,7 +1550,7 @@
         "trigger": "module_or_asset_changes_or_host_adopts_a_revision",
         "evidence_kind": "canonical_remote_revision_and_standalone_proof_then_pinned_host_compatibility_and_integration_proof",
         "assessment": "APPLIES",
-        "reason": "This source MT changes [ADD v02.200] Editing imported VIDEO FOOTAGE as a clip-timeline (trimming/sequencing/encoding video clips as raster-video layers, i.e. a non-linear video editor) is OUT of Studio scope. Studio's motio [...] in hsk-studio-pulse; Land every module or reusable asset change first in its declared canonical module GitHub repository through a standalone_source MT. Independently re-read the canonical remote revision and verify the source contract proof before a distinct host_adoption MT changes a host. The adoption MT consumes an explicit immutable source revision and artifact/dependency pins through existing bindings, declares the exact embedding adapter, and proves compatibility and integration. A local commit, copied source, test fixture or self-authored receipt never substitutes for canonical GitHub landing. Preserve host-specific law in the host adaptation; do not implement standalone module changes inside the host first.",
+        "reason": "This source MT changes The former exclusion of imported-footage clip editing is retired and superseded by [STU-VID-001] through [STU-VID-001b]. Professional clip timeline editing, motion graphics/keyframing, compositing/VFX [...] in hsk-studio-pulse; Land every module or reusable asset change first in its declared canonical module GitHub repository through a standalone_source MT. Independently re-read the canonical remote revision and verify the source contract proof before a distinct host_adoption MT changes a host. The adoption MT consumes an explicit immutable source revision and artifact/dependency pins through existing bindings, declares the exact embedding adapter, and proves compatibility and integration. A local commit, copied source, test fixture or self-authored receipt never substitutes for canonical GitHub landing. Preserve host-specific law in the host adaptation; do not implement standalone module changes inside the host first.",
         "scope_evidence_refs": [
           "MT-30012#/execution",
           "MT-30012#/context_capsule/module_maintenance_refs"
@@ -1818,7 +1819,7 @@
     },
     "module_change_stage": "standalone_source",
     "task_method": {
-      "operation": "[ADD v02.200] Editing imported VIDEO FOOTAGE as a clip-timeline (trimming/sequencing/encoding video clips as raster-video layers, i.e. a non-linear video editor) is OUT of Studio scope. Studio's motio [...]",
+      "operation": "The former exclusion of imported-footage clip editing is retired and superseded by [STU-VID-001] through [STU-VID-001b]. Professional clip timeline editing, motion graphics/keyframing, compositing/VFX [...]",
       "cases": [
         "imported-footage trim capability -> StudioSequence/Pulse, no superseded OUT-scope rejection",
         "motion and compositing in same document -> distinct owners and shared document/history identity",
@@ -1866,7 +1867,7 @@
           "consumer": "handshake-studio-assets/crates/hsk-studio-pulse/tests/contracts.rs::add_v02_200_editing_imported_video_footage_as_a_clip_timeline_trimming_mt_30012:: (planned actual public-port target, not present/ executed evidence)",
           "scenario": {
             "case_ref": "MT-30012#/execution/task_method/cases",
-            "operation": "[ADD v02.200] Editing imported VIDEO FOOTAGE as a clip-timeline (trimming/sequencing/encoding video clips as raster-video layers, i.e. a non-linear video editor) is OUT of Studio scope. Studio's motio [...]",
+            "operation": "The former exclusion of imported-footage clip editing is retired and superseded by [STU-VID-001] through [STU-VID-001b]. Professional clip timeline editing, motion graphics/keyframing, compositing/VFX [...]",
             "inputs": [
               "Current STU-OVR-015 and STU-VID-001/001a/001b supersession clauses; legacy v02.200 payload is history only",
               "Existing StudioDocument capability/domain graph and sequence/motion/compositing ports; engine.director consumption binding"
@@ -3361,11 +3362,11 @@
       "old_requirement_is_historical_only": true
     }
   },
-  "updated_at_utc": "2026-10-09T22:58:30.986Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
-      "criterion": "[ADD v02.200] Editing imported VIDEO FOOTAGE as a clip-timeline (trimming/sequencing/encoding video clips as raster-video layers, i.e. a non-linear video editor) is OUT of Studio scope. Studio's motion surface (14.11) is keyframe animation + motion export (video/GIF/animated-SVG) and placing/rendering media; footage-clip non-linear editing is a separate Handshake concern (the `engine.director` mechanical engine, Spec §11.8). Studio MAY place and render video media (14.6/14.11) but does not own footage clip-editing. This is recorded as an explicit, intentional scope edge, not an omission.",
+      "criterion": "The former exclusion of imported-footage clip editing is retired and superseded by [STU-VID-001] through [STU-VID-001b]. Professional clip timeline editing, motion graphics/keyframing, compositing/VFX, grading, media delivery and audio-post remain in Studio scope at their current specified depth. `engine.director` is a consumer of StudioSequence output where applicable, not owner of interactive clip editing.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
   ],
@@ -3379,7 +3380,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -3422,5 +3423,34 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "[ADD v02.200] Editing imported VIDEO FOOTAGE as a clip-timeline (trimming/sequencing/encoding video clips as raster-video layers, i.e. a non-linear video editor) is OUT of Studio scope. Studio's motio [...]",
+      "propagated_paths": [
+        "/identity/title",
+        "/context_capsule/pillar_refs[45]/reason",
+        "/context_capsule/pillar_refs[46]/reason",
+        "/context_capsule/pillar_refs[47]/reason",
+        "/context_capsule/pillar_refs[48]/reason",
+        "/context_capsule/pillar_refs[49]/reason",
+        "/context_capsule/pillar_refs[50]/reason",
+        "/context_capsule/pillar_refs[51]/reason",
+        "/execution/task_method/operation",
+        "/proof/checks[0]/method_recipe/scenario/operation",
+        "/active_acceptance_criteria[0]/criterion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

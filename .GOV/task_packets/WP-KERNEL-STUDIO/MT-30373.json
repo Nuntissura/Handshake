@@ -12,8 +12,9 @@
     "unit_kind": "validator",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "18. Model Steerability, Headless Operation, and Validation",
-    "spec_line": 2635,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 2719,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -42,9 +43,57 @@
       "criterion": "DEVELOP-SPECIFIC VALIDATION CHECKS.** `StudioValidationDescriptor` (14.24) MUST carry these blocking checks for the develop domain, each of which exists because the captured behaviour makes the corresponding mistake easy and silent: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Check | Fails when | |---|---| | `RAW-SCALE-001` | a develop parameter is written or read without the declared conversion of [STU-RAW-101], or a local slider is handled on the global scale | | `RAW-DEFAULT-001` | an absent interchange key [...]",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-RAW-132"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The contract table holds the row `RAW-SCALE-001` with the exact meaning the spec states: a develop parameter is written or read without the declared conversion of [STU-RAW-101], or a local slider is handled on the global scale. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAW-132 carried contract table row 1"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `RAW-DEFAULT-001` with the exact meaning the spec states: an absent interchange key is treated as zero rather than as the parameter's default ([STU-RAW-102]). No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAW-132 carried contract table row 2"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `RAW-DEFAULT-002` with the exact meaning the spec states: a parameter whose default is `unknown` is shipped with an invented default. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAW-132 carried contract table row 3"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `RAW-PV-001` with the exact meaning the spec states: a document is re-rendered under a different process version without a migration receipt. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAW-132 carried contract table row 4"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `RAW-PROFILE-001` with the exact meaning the spec states: a camera profile is evaluated with an assumed lattice dimension, a single illuminant, or an `f32` lens coefficient. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAW-132 carried contract table row 5"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `RAW-MASK-001` with the exact meaning the spec states: a mask is applied without checking its content digests, or a brush mask is stored rasterized rather than as its dab list. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAW-132 carried contract table row 6"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `RAW-ADAPTER-001` with the exact meaning the spec states: a model-backed enhance or mask result is produced without an adapter receipt naming model identity, version and locality. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAW-132 carried contract table row 7"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The contract table holds the row `RAW-DETERM-001` with the exact meaning the spec states: a stochastic develop stage renders without an explicit stored seed. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAW-132 carried contract table row 8"
     }
   ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria_count": 9,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1580,13 +1629,53 @@
       "STU-RAW-132"
     ],
     "acceptance_refs": [
-      "AC-001"
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
         "text": "DEVELOP-SPECIFIC VALIDATION CHECKS.** `StudioValidationDescriptor` (14.24) MUST carry these blocking checks for the develop domain, each of which exists because the captured behaviour makes the corresponding mistake easy and silent: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Check | Fails when | |---|---| | `RAW-SCALE-001` | a develop parameter is written or read without the declared conversion of [STU-RAW-101], or a local slider is handled on the global scale | | `RAW-DEFAULT-001` | an absent interchange key [...]",
         "fulfillment_ref": "MT-30373#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-002",
+        "text": "The contract table holds the row `RAW-SCALE-001` with the exact meaning the spec states: a develop parameter is written or read without the declared conversion of [STU-RAW-101], or a local slider is handled on the global scale. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `RAW-DEFAULT-001` with the exact meaning the spec states: an absent interchange key is treated as zero rather than as the parameter's default ([STU-RAW-102]). No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `RAW-DEFAULT-002` with the exact meaning the spec states: a parameter whose default is `unknown` is shipped with an invented default. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `RAW-PV-001` with the exact meaning the spec states: a document is re-rendered under a different process version without a migration receipt. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `RAW-PROFILE-001` with the exact meaning the spec states: a camera profile is evaluated with an assumed lattice dimension, a single illuminant, or an `f32` lens coefficient. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `RAW-MASK-001` with the exact meaning the spec states: a mask is applied without checking its content digests, or a brush mask is stored rasterized rather than as its dab list. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `RAW-ADAPTER-001` with the exact meaning the spec states: a model-backed enhance or mask result is produced without an adapter receipt naming model identity, version and locality. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-009",
+        "text": "The contract table holds the row `RAW-DETERM-001` with the exact meaning the spec states: a stochastic develop stage renders without an explicit stored seed. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1834,6 +1923,134 @@
           "Unchanged input digest across implementer check"
         ],
         "materialization_status": "PLANNED_NOT_EXECUTED"
+      },
+      {
+        "check_id": "MT-30373-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-RAW-132"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `RAW-SCALE-001` with the exact meaning the spec states: a develop parameter is written or read without the declared conversion of [STU-RAW-101], or a local slider is handled on the global scale. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30373-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-RAW-132"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `RAW-DEFAULT-001` with the exact meaning the spec states: an absent interchange key is treated as zero rather than as the parameter's default ([STU-RAW-102]). No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30373-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-RAW-132"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `RAW-DEFAULT-002` with the exact meaning the spec states: a parameter whose default is `unknown` is shipped with an invented default. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30373-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-RAW-132"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `RAW-PV-001` with the exact meaning the spec states: a document is re-rendered under a different process version without a migration receipt. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30373-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-RAW-132"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `RAW-PROFILE-001` with the exact meaning the spec states: a camera profile is evaluated with an assumed lattice dimension, a single illuminant, or an `f32` lens coefficient. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30373-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-RAW-132"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `RAW-MASK-001` with the exact meaning the spec states: a mask is applied without checking its content digests, or a brush mask is stored rasterized rather than as its dab list. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30373-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-RAW-132"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `RAW-ADAPTER-001` with the exact meaning the spec states: a model-backed enhance or mask result is produced without an adapter receipt naming model identity, version and locality. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30373-SPEC-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-RAW-132"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `RAW-DETERM-001` with the exact meaning the spec states: a stochastic develop stage renders without an explicit stored seed. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2262,7 +2479,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T02:06:49.295Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "rule_refs": [
     "CX-SPEC-TRUTH-001",
     "CX-TPL-001",
@@ -2305,7 +2522,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2358,5 +2575,72 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The contract table holds the row `RAW-SCALE-001` with the exact meaning the spec states: a develop parameter is written or read without the declared conversion of [STU-RAW-101], or a local slider is handled on the global scale. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `RAW-DEFAULT-001` with the exact meaning the spec states: an absent interchange key is treated as zero rather than as the parameter's default ([STU-RAW-102]). No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `RAW-DEFAULT-002` with the exact meaning the spec states: a parameter whose default is `unknown` is shipped with an invented default. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `RAW-PV-001` with the exact meaning the spec states: a document is re-rendered under a different process version without a migration receipt. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `RAW-PROFILE-001` with the exact meaning the spec states: a camera profile is evaluated with an assumed lattice dimension, a single illuminant, or an `f32` lens coefficient. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `RAW-MASK-001` with the exact meaning the spec states: a mask is applied without checking its content digests, or a brush mask is stored rasterized rather than as its dab list. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `RAW-ADAPTER-001` with the exact meaning the spec states: a model-backed enhance or mask result is produced without an adapter receipt naming model identity, version and locality. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-009",
+          "old": null,
+          "new": "The contract table holds the row `RAW-DETERM-001` with the exact meaning the spec states: a stochastic develop stage renders without an explicit stored seed. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "DEVELOP-SPECIFIC VALIDATION CHECKS",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

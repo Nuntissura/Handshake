@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "8. Microtask Derivation",
-    "spec_line": 21138,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 21436,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,11 +34,30 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "interop",
   "scope": {
-    "summary": "Derivation rule (NORMATIVE).** The interoperability microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **parameter-model rule** ([STU-IO-101], [STU-IO-102], [STU-IO-103], [STU-IO-106], [STU-IO-107], [STU-IO-108], [STU-IO-109], [STU-IO-110], [STU-IO-144], [STU-IO-145]), a **closed enumeration or value domain** ([STU-IO-104], [STU-IO-105], [STU-IO-128], [STU-IO-136], [STU-IO-150], [STU-IO-151]), a **settings record shape** ([STU-IO-111], [STU-IO-112], [STU-IO-113], [STU-IO-114], [STU-IO-115], [STU-IO-116], [STU-IO-117], [STU-IO-127], [STU-IO-130], [STU-IO-131], [STU-IO-132], [STU-IO-133], [STU-IO-139], [STU-IO-141], [STU-IO-143], [STU-IO-146], [STU-IO-147], [STU-IO-148]), a **numeric contract table** ([STU-IO-129], [STU-IO-137], [STU-IO-138]), a **preset or group contract** ([STU-IO-125], [STU-IO-126], [STU-IO-134], [STU-IO-135]), an **encoding contract** ([STU-IO-142]), a **scale contract** ([STU-IO-140], [STU-IO-152], [STU-IO-153], [STU-IO-154]), or an **execution guarantee** ([STU-IO-162], [STU-IO-163]), where that clause can be implemented and proven independently of its siblings. 2. Each **validation-descriptor clause** in sub-section 9, [STU-IO-173] through [STU-IO-185]. Each of the 13 descriptors named in [STU-IO-165] is stated as its ow [...]",
+    "summary": "Derivation rule (NORMATIVE).** The interoperability microtask set is derived mechanically from explicit source units, not editorially. Preserved baseline units retain their original identities and acceptance payloads under [STU-ARC-017] and [STU-ARC-022]. ONE new microtask corresponds to ONE of the following units; the baseline lists below remain applicable to their captured clauses: 1. Each numbered clause that states a **parameter-model rule** ([STU-IO-101], [STU-IO-102], [STU-IO-103], [STU-IO-106], [STU-IO-107], [STU-IO-108], [STU-IO-109], [STU-IO-110], [STU-IO-144], [STU-IO-145]), a **closed enumeration or value domain** ([STU-IO-104], [STU-IO-105], [STU-IO-128], [STU-IO-136], [STU-IO-150], [STU-IO-151]), a **settings record shape** ([STU-IO-111], [STU-IO-112], [STU-IO-113], [STU-IO-114], [STU-IO-115], [STU-IO-116], [STU-IO-117], [STU-IO-127], [STU-IO-130], [STU-IO-131], [STU-IO-132], [STU-IO-133], [STU-IO-139], [STU-IO-141], [STU-IO-143], [STU-IO-146], [STU-IO-147], [STU-IO-148]), a **numeric contract table** ([STU-IO-129], [STU-IO-137], [STU-IO-138]), a **preset or group contract** ([STU-IO-125], [STU-IO-126], [STU-IO-134], [STU-IO-135]), an **encoding contract** ([STU-IO-142]), a **scale contract** ([STU-IO-140], [STU-IO-152], [STU-IO-153], [STU-IO-154]), or an **execution guarantee** ([STU-IO-162], [STU-IO-163]), where that clause can be implemented and proven independe [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [],
-  "acceptance_criteria_count": 0,
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "Their compound obligations MUST remain fully represented in acceptance criteria and contributing-owner mappings; one clause unit does not imply one implementation owner or one proof.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-IO-168"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "This no-yield disposition applies only to those named anchors; it MUST NOT suppress amendment units or their required fulfillment mappings.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-IO-168"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "Prior numeric IDs, original unit identities and acceptance payloads MUST NOT be regenerated or renumbered.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-IO-168"
+    }
+  ],
+  "acceptance_criteria_count": 3,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1685,13 +1705,28 @@
       "STU-IO-168"
     ],
     "acceptance_refs": [
-      "ASSET-AC-001"
+      "ASSET-AC-001",
+      "AC-001",
+      "AC-002",
+      "AC-003"
     ],
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
-        "text": "Derivation rule (NORMATIVE).** The interoperability microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **parameter-model rule** ([STU-IO-101], [STU-IO-102], [STU-IO-103], [STU-IO-106], [STU-IO-107], [STU-IO-108], [STU-IO-109], [STU-IO-110], [STU-IO-144], [STU-IO-145]), a **closed enumeration or value domain** ([STU-IO-104], [STU-IO-105], [STU-IO-128], [STU-IO-136], [STU-IO-150], [STU-IO-151]), a **settings record shape** ([STU-IO-111], [STU-IO-112], [STU-IO-113], [STU-IO-114], [STU-IO-115], [STU-IO-116], [STU-IO-117], [STU-IO-127], [STU-IO-130], [STU-IO-131], [STU-IO-132], [STU-IO-133], [STU-IO-139], [STU-IO-141], [STU-IO-143], [STU-IO-146], [STU-IO-147], [STU-IO-148]), a **numeric contract table** ([STU-IO-129], [STU-IO-137], [STU-IO-138]), a **preset or group contract** ([STU-IO-125], [STU-IO-126], [STU-IO-134], [STU-IO-135]), an **encoding contract** ([STU-IO-142]), a **scale contract** ([STU-IO-140], [STU-IO-152], [STU-IO-153], [STU-IO-154]), or an **execution guarantee** ([STU-IO-162], [STU-IO-163]), where that clause can be implemented and proven independently of its siblings. 2. Each **validation-descriptor clause** in sub-section 9, [STU-IO-173] through [STU-IO-185]. Each of the 13 descriptors named in [STU-IO-165] is stated as its ow [...]",
+        "text": "Derivation rule (NORMATIVE).** The interoperability microtask set is derived mechanically from explicit source units, not editorially. Preserved baseline units retain their original identities and acceptance payloads under [STU-ARC-017] and [STU-ARC-022]. ONE new microtask corresponds to ONE of the following units; the baseline lists below remain applicable to their captured clauses: 1. Each numbered clause that states a **parameter-model rule** ([STU-IO-101], [STU-IO-102], [STU-IO-103], [STU-IO-106], [STU-IO-107], [STU-IO-108], [STU-IO-109], [STU-IO-110], [STU-IO-144], [STU-IO-145]), a **closed enumeration or value domain** ([STU-IO-104], [STU-IO-105], [STU-IO-128], [STU-IO-136], [STU-IO-150], [STU-IO-151]), a **settings record shape** ([STU-IO-111], [STU-IO-112], [STU-IO-113], [STU-IO-114], [STU-IO-115], [STU-IO-116], [STU-IO-117], [STU-IO-127], [STU-IO-130], [STU-IO-131], [STU-IO-132], [STU-IO-133], [STU-IO-139], [STU-IO-141], [STU-IO-143], [STU-IO-146], [STU-IO-147], [STU-IO-148]), a **numeric contract table** ([STU-IO-129], [STU-IO-137], [STU-IO-138]), a **preset or group contract** ([STU-IO-125], [STU-IO-126], [STU-IO-134], [STU-IO-135]), an **encoding contract** ([STU-IO-142]), a **scale contract** ([STU-IO-140], [STU-IO-152], [STU-IO-153], [STU-IO-154]), or an **execution guarantee** ([STU-IO-162], [STU-IO-163]), where that clause can be implemented and proven independe [...]",
         "fulfillment_ref": "MT-35344#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-001",
+        "text": "Their compound obligations MUST remain fully represented in acceptance criteria and contributing-owner mappings; one clause unit does not imply one implementation owner or one proof."
+      },
+      {
+        "id": "AC-002",
+        "text": "This no-yield disposition applies only to those named anchors; it MUST NOT suppress amendment units or their required fulfillment mappings."
+      },
+      {
+        "id": "AC-003",
+        "text": "Prior numeric IDs, original unit identities and acceptance payloads MUST NOT be regenerated or renumbered."
       }
     ],
     "spec_basis_refs": [
@@ -1782,7 +1817,56 @@
   },
   "proof": {
     "parent_proof_refs": [],
-    "checks": [],
+    "checks": [
+      {
+        "check_id": "MT-35344-SPEC-AC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-001",
+          "STU-IO-168"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Their compound obligations MUST remain fully represented in acceptance criteria and contributing-owner mappings; one clause unit does not imply one implementation owner or one proof.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35344-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-IO-168"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "This no-yield disposition applies only to those named anchors; it MUST NOT suppress amendment units or their required fulfillment mappings.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35344-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-IO-168"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Prior numeric IDs, original unit identities and acceptance payloads MUST NOT be regenerated or renumbered.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      }
+    ],
     "independent_review_required": true,
     "relevant_input_paths": [],
     "extra_build_proofs": [],
@@ -2020,7 +2104,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "Derivation rule (NORMATIVE).** The interoperability microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **parameter-model rule** ([STU-IO-101], [STU-IO-102], [STU-IO-103], [STU-IO-106], [STU-IO-107], [STU-IO-108], [STU-IO-109], [STU-IO-110], [STU-IO-144], [STU-IO-145]), a **closed enumeration or value domain** ([STU-IO-104], [STU-IO-105], [STU-IO-128], [STU-IO-136], [STU-IO-150], [STU-IO-151]), a **settings record shape** ([STU-IO-111], [STU-IO-112], [STU-IO-113], [STU-IO-114], [STU-IO-115], [STU-IO-116], [STU-IO-117], [STU-IO-127], [STU-IO-130], [STU-IO-131], [STU-IO-132], [STU-IO-133], [STU-IO-139], [STU-IO-141], [STU-IO-143], [STU-IO-146], [STU-IO-147], [STU-IO-148]), a **numeric contract table** ([STU-IO-129], [STU-IO-137], [STU-IO-138]), a **preset or group contract** ([STU-IO-125], [STU-IO-126], [STU-IO-134], [STU-IO-135]), an **encoding contract** ([STU-IO-142]), a **scale contract** ([STU-IO-140], [STU-IO-152], [STU-IO-153], [STU-IO-154]), or an **execution guarantee** ([STU-IO-162], [STU-IO-163]), where that clause can be implemented and proven independently of its siblings. 2. Each **validation-descriptor clause** in sub-section 9, [STU-IO-173] through [STU-IO-185]. Each of the 13 descriptors named in [STU-IO-165] is stated as its ow [...]",
+        "semantic_fulfillment": "Derivation rule (NORMATIVE).** The interoperability microtask set is derived mechanically from explicit source units, not editorially. Preserved baseline units retain their original identities and acceptance payloads under [STU-ARC-017] and [STU-ARC-022]. ONE new microtask corresponds to ONE of the following units; the baseline lists below remain applicable to their captured clauses: 1. Each numbered clause that states a **parameter-model rule** ([STU-IO-101], [STU-IO-102], [STU-IO-103], [STU-IO-106], [STU-IO-107], [STU-IO-108], [STU-IO-109], [STU-IO-110], [STU-IO-144], [STU-IO-145]), a **closed enumeration or value domain** ([STU-IO-104], [STU-IO-105], [STU-IO-128], [STU-IO-136], [STU-IO-150], [STU-IO-151]), a **settings record shape** ([STU-IO-111], [STU-IO-112], [STU-IO-113], [STU-IO-114], [STU-IO-115], [STU-IO-116], [STU-IO-117], [STU-IO-127], [STU-IO-130], [STU-IO-131], [STU-IO-132], [STU-IO-133], [STU-IO-139], [STU-IO-141], [STU-IO-143], [STU-IO-146], [STU-IO-147], [STU-IO-148]), a **numeric contract table** ([STU-IO-129], [STU-IO-137], [STU-IO-138]), a **preset or group contract** ([STU-IO-125], [STU-IO-126], [STU-IO-134], [STU-IO-135]), an **encoding contract** ([STU-IO-142]), a **scale contract** ([STU-IO-140], [STU-IO-152], [STU-IO-153], [STU-IO-154]), or an **execution guarantee** ([STU-IO-162], [STU-IO-163]), where that clause can be implemented and proven independe [...]",
         "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_AUTHORITY_REFERENCE",
         "asset_contribution_refs": [
           "MT-35344-ASSET-PACKAGE"
@@ -2066,7 +2150,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Derivation rule (NORMATIVE).** The interoperability microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **parameter-model rule** ([STU-IO-101], [STU-IO-102], [STU-IO-103], [STU-IO-106], [STU-IO-107], [STU-IO-108], [STU-IO-109], [STU-IO-110], [STU-IO-144], [STU-IO-145]), a **closed enumeration or value domain** ([STU-IO-104], [STU-IO-105], [STU-IO-128], [STU-IO-136], [STU-IO-150], [STU-IO-151]), a **settings record shape** ([STU-IO-111], [STU-IO-112], [STU-IO-113], [STU-IO-114], [STU-IO-115], [STU-IO-116], [STU-IO-117], [STU-IO-127], [STU-IO-130], [STU-IO-131], [STU-IO-132], [STU-IO-133], [STU-IO-139], [STU-IO-141], [STU-IO-143], [STU-IO-146], [STU-IO-147], [STU-IO-148]), a **numeric contract table** ([STU-IO-129], [STU-IO-137], [STU-IO-138]), a **preset or group contract** ([STU-IO-125], [STU-IO-126], [STU-IO-134], [STU-IO-135]), an **encoding contract** ([STU-IO-142]), a **scale contract** ([STU-IO-140], [STU-IO-152], [STU-IO-153], [STU-IO-154]), or an **execution guarantee** ([STU-IO-162], [STU-IO-163]), where that clause can be implemented and proven independently of its siblings. 2. Each **validation-descriptor clause** in sub-section 9, [STU-IO-173] through [STU-IO-185]. Each of the 13 descriptors named in [STU-IO-165] is stated as its ow [...]",
+          "semantic_fulfillment": "Derivation rule (NORMATIVE).** The interoperability microtask set is derived mechanically from explicit source units, not editorially. Preserved baseline units retain their original identities and acceptance payloads under [STU-ARC-017] and [STU-ARC-022]. ONE new microtask corresponds to ONE of the following units; the baseline lists below remain applicable to their captured clauses: 1. Each numbered clause that states a **parameter-model rule** ([STU-IO-101], [STU-IO-102], [STU-IO-103], [STU-IO-106], [STU-IO-107], [STU-IO-108], [STU-IO-109], [STU-IO-110], [STU-IO-144], [STU-IO-145]), a **closed enumeration or value domain** ([STU-IO-104], [STU-IO-105], [STU-IO-128], [STU-IO-136], [STU-IO-150], [STU-IO-151]), a **settings record shape** ([STU-IO-111], [STU-IO-112], [STU-IO-113], [STU-IO-114], [STU-IO-115], [STU-IO-116], [STU-IO-117], [STU-IO-127], [STU-IO-130], [STU-IO-131], [STU-IO-132], [STU-IO-133], [STU-IO-139], [STU-IO-141], [STU-IO-143], [STU-IO-146], [STU-IO-147], [STU-IO-148]), a **numeric contract table** ([STU-IO-129], [STU-IO-137], [STU-IO-138]), a **preset or group contract** ([STU-IO-125], [STU-IO-126], [STU-IO-134], [STU-IO-135]), an **encoding contract** ([STU-IO-142]), a **scale contract** ([STU-IO-140], [STU-IO-152], [STU-IO-153], [STU-IO-154]), or an **execution guarantee** ([STU-IO-162], [STU-IO-163]), where that clause can be implemented and proven independe [...]",
           "architecture_disposition": "SPEC_EXPLICIT_NO_MT_RETAINED_AUTHORITY_REFERENCE",
           "asset_contribution_refs": [
             "MT-35344-ASSET-PACKAGE"
@@ -2139,18 +2223,18 @@
     },
     "authority_reference_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json#/module_lifecycle_authoring/retained_authority_references/MT-35344"
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
-      "criterion": "Derivation rule (NORMATIVE).** The interoperability microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **parameter-model rule** ([STU-IO-101], [STU-IO-102], [STU-IO-103], [STU-IO-106], [STU-IO-107], [STU-IO-108], [STU-IO-109], [STU-IO-110], [STU-IO-144], [STU-IO-145]), a **closed enumeration or value domain** ([STU-IO-104], [STU-IO-105], [STU-IO-128], [STU-IO-136], [STU-IO-150], [STU-IO-151]), a **settings record shape** ([STU-IO-111], [STU-IO-112], [STU-IO-113], [STU-IO-114], [STU-IO-115], [STU-IO-116], [STU-IO-117], [STU-IO-127], [STU-IO-130], [STU-IO-131], [STU-IO-132], [STU-IO-133], [STU-IO-139], [STU-IO-141], [STU-IO-143], [STU-IO-146], [STU-IO-147], [STU-IO-148]), a **numeric contract table** ([STU-IO-129], [STU-IO-137], [STU-IO-138]), a **preset or group contract** ([STU-IO-125], [STU-IO-126], [STU-IO-134], [STU-IO-135]), an **encoding contract** ([STU-IO-142]), a **scale contract** ([STU-IO-140], [STU-IO-152], [STU-IO-153], [STU-IO-154]), or an **execution guarantee** ([STU-IO-162], [STU-IO-163]), where that clause can be implemented and proven independently of its siblings. 2. Each **validation-descriptor clause** in sub-section 9, [STU-IO-173] through [STU-IO-185]. Each of the 13 descriptors named in [STU-IO-165] is stated as its ow [...]",
+      "criterion": "Derivation rule (NORMATIVE).** The interoperability microtask set is derived mechanically from explicit source units, not editorially. Preserved baseline units retain their original identities and acceptance payloads under [STU-ARC-017] and [STU-ARC-022]. ONE new microtask corresponds to ONE of the following units; the baseline lists below remain applicable to their captured clauses: 1. Each numbered clause that states a **parameter-model rule** ([STU-IO-101], [STU-IO-102], [STU-IO-103], [STU-IO-106], [STU-IO-107], [STU-IO-108], [STU-IO-109], [STU-IO-110], [STU-IO-144], [STU-IO-145]), a **closed enumeration or value domain** ([STU-IO-104], [STU-IO-105], [STU-IO-128], [STU-IO-136], [STU-IO-150], [STU-IO-151]), a **settings record shape** ([STU-IO-111], [STU-IO-112], [STU-IO-113], [STU-IO-114], [STU-IO-115], [STU-IO-116], [STU-IO-117], [STU-IO-127], [STU-IO-130], [STU-IO-131], [STU-IO-132], [STU-IO-133], [STU-IO-139], [STU-IO-141], [STU-IO-143], [STU-IO-146], [STU-IO-147], [STU-IO-148]), a **numeric contract table** ([STU-IO-129], [STU-IO-137], [STU-IO-138]), a **preset or group contract** ([STU-IO-125], [STU-IO-126], [STU-IO-134], [STU-IO-135]), an **encoding contract** ([STU-IO-142]), a **scale contract** ([STU-IO-140], [STU-IO-152], [STU-IO-153], [STU-IO-154]), or an **execution guarantee** ([STU-IO-162], [STU-IO-163]), where that clause can be implemented and proven independe [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
   ],
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2180,5 +2264,47 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": null,
+          "new": "Their compound obligations MUST remain fully represented in acceptance criteria and contributing-owner mappings; one clause unit does not imply one implementation owner or one proof."
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "This no-yield disposition applies only to those named anchors; it MUST NOT suppress amendment units or their required fulfillment mappings."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "Prior numeric IDs, original unit identities and acceptance payloads MUST NOT be regenerated or renumbered."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-001",
+        "AC-002",
+        "AC-003"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Derivation rule (NORMATIVE) (3)",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/active_acceptance_criteria[0]/criterion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

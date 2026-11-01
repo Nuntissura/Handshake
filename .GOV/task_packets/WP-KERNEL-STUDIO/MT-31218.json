@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.8.8 Where Colour Management Sits Relative to the Compositor",
-    "spec_line": 10227,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 10500,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -36,8 +37,63 @@
     "summary": "Pipeline position (NORMATIVE).** Colour management sits BELOW the compositor on the input side and ABOVE the compositor on the output side. The compositor never sees a device value and never performs a profile conversion. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own. Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.* | Stage | Owner | Operates in | |---|---|---| | 1. Decode | interop (14.13) | The asset's own encoding | | 2. Input transform | `ColorEngine` | Asset space -> document working space | | 3. Layer content evaluation, adjustments, filters, effects | `RasterEngine` / `VectorEngine` / `RenderEngine` | Document working space, document precision | | 4. Blending and compositing | `RenderEngine` | Document BLENDING space ([STU-COL-162]) | | 5. Document grade and LUT stack | `ColorEngine` + `RenderEngine` | Working space, in the order of [STU-COL-160] | | 6a. Display transform | `ColorEngine` | Working space -> display | | 6b. Export transform | `ColorEngine` | Working space -> destination profile, with intent and BPC | | 6c. Proof transform | `ColorEngine` | Working -> proof device -> display, two intents ([STU-COL-241]) | | 7. Inspection overlays (gamut warning [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [],
-  "acceptance_criteria_count": 0,
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "The contract table holds the row `1. Decode` with the exact meaning the spec states: interop (14.13) | The asset's own encoding. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-161 carried contract table row 1"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The contract table holds the row `2. Input transform` with the exact meaning the spec states: `ColorEngine` | Asset space -> document working space. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-161 carried contract table row 2"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `3. Layer content evaluation, adjustments, filters, effects` with the exact meaning the spec states: `RasterEngine` / `VectorEngine` / `RenderEngine` | Document working space, document precision. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-161 carried contract table row 3"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `4. Blending and compositing` with the exact meaning the spec states: `RenderEngine` | Document BLENDING space ([STU-COL-162]). No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-161 carried contract table row 4"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `5. Document grade and LUT stack` with the exact meaning the spec states: `ColorEngine` + `RenderEngine` | Working space, in the order of [STU-COL-160]. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-161 carried contract table row 5"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `6a. Display transform` with the exact meaning the spec states: `ColorEngine` | Working space -> display. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-161 carried contract table row 6"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `6b. Export transform` with the exact meaning the spec states: `ColorEngine` | Working space -> destination profile, with intent and BPC. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-161 carried contract table row 7"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `6c. Proof transform` with the exact meaning the spec states: `ColorEngine` | Working -> proof device -> display, two intents ([STU-COL-241]). No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-161 carried contract table row 8"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The contract table holds the row `7. Inspection overlays (gamut warning, separations preview, ink limit)` with the exact meaning the spec states: `ColorEngine` | Computed on the 6c branch, never on authority values. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-161 carried contract table row 9"
+    }
+  ],
+  "acceptance_criteria_count": 9,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1568,13 +1624,58 @@
       "STU-COL-161"
     ],
     "acceptance_refs": [
-      "ASSET-AC-001"
+      "ASSET-AC-001",
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009"
     ],
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
         "text": "Pipeline position (NORMATIVE).** Colour management sits BELOW the compositor on the input side and ABOVE the compositor on the output side. The compositor never sees a device value and never performs a profile conversion. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own. Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.* | Stage | Owner | Operates in | |---|---|---| | 1. Decode | interop (14.13) | The asset's own encoding | | 2. Input transform | `ColorEngine` | Asset space -> document working space | | 3. Layer content evaluation, adjustments, filters, effects | `RasterEngine` / `VectorEngine` / `RenderEngine` | Document working space, document precision | | 4. Blending and compositing | `RenderEngine` | Document BLENDING space ([STU-COL-162]) | | 5. Document grade and LUT stack | `ColorEngine` + `RenderEngine` | Working space, in the order of [STU-COL-160] | | 6a. Display transform | `ColorEngine` | Working space -> display | | 6b. Export transform | `ColorEngine` | Working space -> destination profile, with intent and BPC | | 6c. Proof transform | `ColorEngine` | Working -> proof device -> display, two intents ([STU-COL-241]) | | 7. Inspection overlays (gamut warning [...]",
         "fulfillment_ref": "MT-31218#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-001",
+        "text": "The contract table holds the row `1. Decode` with the exact meaning the spec states: interop (14.13) | The asset's own encoding. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-002",
+        "text": "The contract table holds the row `2. Input transform` with the exact meaning the spec states: `ColorEngine` | Asset space -> document working space. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `3. Layer content evaluation, adjustments, filters, effects` with the exact meaning the spec states: `RasterEngine` / `VectorEngine` / `RenderEngine` | Document working space, document precision. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `4. Blending and compositing` with the exact meaning the spec states: `RenderEngine` | Document BLENDING space ([STU-COL-162]). No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `5. Document grade and LUT stack` with the exact meaning the spec states: `ColorEngine` + `RenderEngine` | Working space, in the order of [STU-COL-160]. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `6a. Display transform` with the exact meaning the spec states: `ColorEngine` | Working space -> display. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `6b. Export transform` with the exact meaning the spec states: `ColorEngine` | Working space -> destination profile, with intent and BPC. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `6c. Proof transform` with the exact meaning the spec states: `ColorEngine` | Working -> proof device -> display, two intents ([STU-COL-241]). No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-009",
+        "text": "The contract table holds the row `7. Inspection overlays (gamut warning, separations preview, ink limit)` with the exact meaning the spec states: `ColorEngine` | Computed on the 6c branch, never on authority values. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1805,6 +1906,150 @@
           "selected_features": []
         },
         "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
+      },
+      {
+        "check_id": "MT-31218-SPEC-AC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-001",
+          "STU-COL-161"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `1. Decode` with the exact meaning the spec states: interop (14.13) | The asset's own encoding. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31218-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-COL-161"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `2. Input transform` with the exact meaning the spec states: `ColorEngine` | Asset space -> document working space. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31218-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-COL-161"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `3. Layer content evaluation, adjustments, filters, effects` with the exact meaning the spec states: `RasterEngine` / `VectorEngine` / `RenderEngine` | Document working space, document precision. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31218-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-COL-161"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `4. Blending and compositing` with the exact meaning the spec states: `RenderEngine` | Document BLENDING space ([STU-COL-162]). No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31218-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-COL-161"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `5. Document grade and LUT stack` with the exact meaning the spec states: `ColorEngine` + `RenderEngine` | Working space, in the order of [STU-COL-160]. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31218-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-COL-161"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `6a. Display transform` with the exact meaning the spec states: `ColorEngine` | Working space -> display. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31218-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-COL-161"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `6b. Export transform` with the exact meaning the spec states: `ColorEngine` | Working space -> destination profile, with intent and BPC. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31218-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-COL-161"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `6c. Proof transform` with the exact meaning the spec states: `ColorEngine` | Working -> proof device -> display, two intents ([STU-COL-241]). No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31218-SPEC-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-COL-161"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `7. Inspection overlays (gamut warning, separations preview, ink limit)` with the exact meaning the spec states: `ColorEngine` | Computed on the 6c branch, never on authority values. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2264,7 +2509,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
@@ -2275,7 +2520,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2311,5 +2556,78 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": null,
+          "new": "The contract table holds the row `1. Decode` with the exact meaning the spec states: interop (14.13) | The asset's own encoding. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The contract table holds the row `2. Input transform` with the exact meaning the spec states: `ColorEngine` | Asset space -> document working space. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `3. Layer content evaluation, adjustments, filters, effects` with the exact meaning the spec states: `RasterEngine` / `VectorEngine` / `RenderEngine` | Document working space, document precision. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `4. Blending and compositing` with the exact meaning the spec states: `RenderEngine` | Document BLENDING space ([STU-COL-162]). No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `5. Document grade and LUT stack` with the exact meaning the spec states: `ColorEngine` + `RenderEngine` | Working space, in the order of [STU-COL-160]. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `6a. Display transform` with the exact meaning the spec states: `ColorEngine` | Working space -> display. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `6b. Export transform` with the exact meaning the spec states: `ColorEngine` | Working space -> destination profile, with intent and BPC. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `6c. Proof transform` with the exact meaning the spec states: `ColorEngine` | Working -> proof device -> display, two intents ([STU-COL-241]). No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-009",
+          "old": null,
+          "new": "The contract table holds the row `7. Inspection overlays (gamut warning, separations preview, ink limit)` with the exact meaning the spec states: `ColorEngine` | Computed on the 6c branch, never on authority values. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "Pipeline position (NORMATIVE)",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

@@ -12,8 +12,9 @@
     "unit_kind": "validator",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.7.19 Validation and Acceptance",
-    "spec_line": 9026,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 9299,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,13 +34,13 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "typography",
   "scope": {
-    "summary": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the `studio-engine` or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU. The tripwire runs in the same place as the SQLite tripwire of [STU-OVR-003] and is equally non-negotiable.",
+    "summary": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the the owning modular Studio asset crate or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU. The tripwire runs in the same place as the SQLite tripwire of [STU-OVR-003] and is equally non-negotiable.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the `studio-engine` or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU.",
+      "criterion": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the the owning modular Studio asset crate or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-TYP-231"
     }
@@ -1580,7 +1581,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the `studio-engine` or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU.",
+        "text": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the the owning modular Studio asset crate or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU.",
         "fulfillment_ref": "MT-31055#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -1704,7 +1705,7 @@
     "shared_resource_locks": [],
     "inputs": [
       {
-        "source_scope": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the `studio-engine` or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU. The tripwire runs in the same place as the SQLite tripwire of [STU-OVR-003] and is equally non-negotiable.",
+        "source_scope": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the the owning modular Studio asset crate or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU. The tripwire runs in the same place as the SQLite tripwire of [STU-OVR-003] and is equally non-negotiable.",
         "canonical_consumer": "Consume the real locked dependency/link metadata through the existing tripwire placement and inspect source/host graph evidence separately.",
         "source_root": "handshake-studio-assets/crates/hsk-studio-type",
         "resource_inputs": "Actual composed ranges and provenance; exact locked dependency/link metadata for source and distinct host; complete hashed composition closures and two-host positioned-glyph/raster artifacts; immutable golden references and existing tripwire/descriptor ports.",
@@ -2132,7 +2133,7 @@
         "original_text": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the `studio-engine` or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU.",
         "original_row_sha256": "b2312f760a83491493dc1f89cf386b61ba0934eef1cd0ee053e8ebbf562ce203",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the `studio-engine` or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU.",
+        "semantic_fulfillment": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the the owning modular Studio asset crate or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU.",
         "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
         "asset_contribution_refs": [
           "MT-31055-ASSET-TYPE"
@@ -2142,7 +2143,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-TYPE",
             "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
-            "required_behavior": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the `studio-engine` or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU.",
+            "required_behavior": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the the owning modular Studio asset crate or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2161,7 +2162,7 @@
         },
         "later_embedding_ref": "MT-31055-KERNEL-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the `studio-engine` or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the the owning modular Studio asset crate or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36196"
@@ -2198,7 +2199,7 @@
           "original_text": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the `studio-engine` or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU.",
           "original_row_sha256": "b2312f760a83491493dc1f89cf386b61ba0934eef1cd0ee053e8ebbf562ce203",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the `studio-engine` or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU.",
+          "semantic_fulfillment": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the the owning modular Studio asset crate or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU.",
           "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
           "asset_contribution_refs": [
             "MT-31055-ASSET-TYPE"
@@ -2208,7 +2209,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-TYPE",
               "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
-              "required_behavior": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the `studio-engine` or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU.",
+              "required_behavior": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the the owning modular Studio asset crate or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2227,7 +2228,7 @@
           },
           "later_embedding_ref": "MT-31055-KERNEL-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the `studio-engine` or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the the owning modular Studio asset crate or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "MT-36196"
@@ -2244,11 +2245,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2278,5 +2279,37 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the `studio-engine` or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU.",
+          "new": "No-platform-text-engine tripwire.** The build MUST carry a dependency tripwire that fails the build if any crate in the the owning modular Studio asset crate or `handshake_core` dependency graph links DirectWrite, Core Text, Pango, fontconfig, or a C HarfBuzz or C ICU."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "No-platform-text-engine tripwire",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/execution/inputs[0]/source_scope",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

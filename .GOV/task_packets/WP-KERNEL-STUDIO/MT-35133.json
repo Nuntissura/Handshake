@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "5. Binding to the existing manual obligations",
-    "spec_line": 32901,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 33596,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,11 +34,24 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "tooltips_and_manual",
   "scope": {
-    "summary": "Diagnostic-posture linkage.** [STU-MAN-003] requires the three-tier diagnostic posture per entry ([STU-VAL-002]). For generated entries the posture is generated too: Tier 1 (Flight Recorder business events) is WIRED for every command; Tiers 2 and 3 carry `DEFERRED-with-reason` inherited from the module-level posture until those surfaces ship. Deferral is typed and per entry, never silently skipped. --- ### 6. Declared spec debt for this sub-section",
+    "summary": "Diagnostic-posture linkage.** Generated entries MUST carry the applicable Flight Recorder/internal_diagnostics/Palmistry posture, error/recovery behavior and proof linkage for their actual owning module and embedding target. Asset-local ports and real integrated diagnostic wiring are distinct proof surfaces. Entries MUST NOT inherit blanket deferred tiers from [STU-VAL-002]; unresolved required posture remains an explicit activation/acceptance blocker. Same-change generated descriptor/manual currency and the canonical UserManual owner remain mandatory. --- ### 6. Declared spec debt for this sub-section",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [],
-  "acceptance_criteria_count": 0,
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "Diagnostic-posture linkage.** Generated entries MUST carry the applicable Flight Recorder/internal_diagnostics/Palmistry posture, error/recovery behavior and proof linkage for their actual owning module and embedding target.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MAN-118"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "Entries MUST NOT inherit blanket deferred tiers from [STU-VAL-002]; unresolved required posture remains an explicit activation/acceptance blocker.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MAN-118"
+    }
+  ],
+  "acceptance_criteria_count": 2,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1681,13 +1695,23 @@
       "STU-MAN-118"
     ],
     "acceptance_refs": [
-      "ASSET-AC-001"
+      "ASSET-AC-001",
+      "AC-001",
+      "AC-002"
     ],
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
-        "text": "Diagnostic-posture linkage.** [STU-MAN-003] requires the three-tier diagnostic posture per entry ([STU-VAL-002]). For generated entries the posture is generated too: Tier 1 (Flight Recorder business events) is WIRED for every command; Tiers 2 and 3 carry `DEFERRED-with-reason` inherited from the module-level posture until those surfaces ship. Deferral is typed and per entry, never silently skipped. --- ### 6. Declared spec debt for this sub-section",
+        "text": "Diagnostic-posture linkage.** Generated entries MUST carry the applicable Flight Recorder/internal_diagnostics/Palmistry posture, error/recovery behavior and proof linkage for their actual owning module and embedding target. Asset-local ports and real integrated diagnostic wiring are distinct proof surfaces. Entries MUST NOT inherit blanket deferred tiers from [STU-VAL-002]; unresolved required posture remains an explicit activation/acceptance blocker. Same-change generated descriptor/manual currency and the canonical UserManual owner remain mandatory. --- ### 6. Declared spec debt for this sub-section",
         "fulfillment_ref": "MT-35133#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-001",
+        "text": "Diagnostic-posture linkage.** Generated entries MUST carry the applicable Flight Recorder/internal_diagnostics/Palmistry posture, error/recovery behavior and proof linkage for their actual owning module and embedding target."
+      },
+      {
+        "id": "AC-002",
+        "text": "Entries MUST NOT inherit blanket deferred tiers from [STU-VAL-002]; unresolved required posture remains an explicit activation/acceptance blocker."
       }
     ],
     "spec_basis_refs": [
@@ -1930,13 +1954,13 @@
           "Independent actual output"
         ],
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
-        "expected": "Actual Diagnostic-posture linkage output obeys Diagnostic-posture linkage.** [STU-MAN-003] requires the three-tier diagnostic posture per entry ([STU-VAL-002]). For generated entries the posture is generated too: Tier 1 (Flight Recorder business events) is WIRED for every command; Tiers 2 and 3 carry `DEFERRED-with-reason` inherited from the module-level posture until those surfaces ship. Deferral is typed and per entry, never silently skipped. --- ### 6. Declared spec debt for this sub-section; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
+        "expected": "Actual Diagnostic-posture linkage output obeys Diagnostic-posture linkage.** Generated entries MUST carry the applicable Flight Recorder/internal_diagnostics/Palmistry posture, error/recovery behavior and proof linkage for their actual owning module and embedding target. Asset-local ports and real integrated diagnostic wiring are distinct proof surfaces. Entries MUST NOT inherit blanket deferred tiers from [STU-VAL-002]; unresolved required posture remains an explicit activation/acceptance blocker. Same-change generated descriptor/manual currency and the canonical UserManual owner remain mandatory. --- ### 6. Declared spec debt for this sub-section; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Diagnostic-posture linkage.** [STU-MAN-003] requires the three-tier diagnostic posture per entry ([STU-VAL-002]). For generated entries the posture is generated too: Tier 1 (Flight Recorder business events) is WIRED for every command; Tiers 2 and 3 carry `DEFERRED-with-reason` inherited from the module-level posture until those surfaces ship. Deferral is typed and per entry, never silently skipped. --- ### 6. Declared spec debt for this sub-section Inspect generated diagnostic contracts and independently real integrated wiring; unresolved required posture blocks activation, no inherited blanket deferral.",
+          "consumer_assertion": "Diagnostic-posture linkage.** Generated entries MUST carry the applicable Flight Recorder/internal_diagnostics/Palmistry posture, error/recovery behavior and proof linkage for their actual owning module and embedding target. Asset-local ports and real integrated diagnostic wiring are distinct proof surfaces. Entries MUST NOT inherit blanket deferred tiers from [STU-VAL-002]; unresolved required posture remains an explicit activation/acceptance blocker. Same-change generated descriptor/manual currency and the canonical UserManual owner remain mandatory. --- ### 6. Declared spec debt for this sub-section Inspect generated diagnostic contracts and independently real integrated wiring; unresolved required posture blocks activation, no inherited blanket deferral.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Preserve all current inputs, scope, proof and source obligations cumulatively. Unresolved operator decision or unavailable required owner stops dependent implementation; invalid/stale/cancelled requests leave accepted state unchanged. Runtime and host verdicts remain pending.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
@@ -1950,6 +1974,38 @@
           "consumer": "Inspect generated diagnostic contracts and independently real integrated wiring; unresolved required posture blocks activation, no inherited blanket deferral.",
           "negative_path": "Preserve all current inputs, scope, proof and source obligations cumulatively. Unresolved operator decision or unavailable required owner stops dependent implementation; invalid/stale/cancelled requests leave accepted state unchanged. Runtime and host verdicts remain pending."
         }
+      },
+      {
+        "check_id": "MT-35133-SPEC-AC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-001",
+          "STU-MAN-118"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Diagnostic-posture linkage.** Generated entries MUST carry the applicable Flight Recorder/internal_diagnostics/Palmistry posture, error/recovery behavior and proof linkage for their actual owning module and embedding target.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35133-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-MAN-118"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Entries MUST NOT inherit blanket deferred tiers from [STU-VAL-002]; unresolved required posture remains an explicit activation/acceptance blocker.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2270,7 +2326,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "Diagnostic-posture linkage.** [STU-MAN-003] requires the three-tier diagnostic posture per entry ([STU-VAL-002]). For generated entries the posture is generated too: Tier 1 (Flight Recorder business events) is WIRED for every command; Tiers 2 and 3 carry `DEFERRED-with-reason` inherited from the module-level posture until those surfaces ship. Deferral is typed and per entry, never silently skipped. --- ### 6. Declared spec debt for this sub-section",
+        "semantic_fulfillment": "Diagnostic-posture linkage.** Generated entries MUST carry the applicable Flight Recorder/internal_diagnostics/Palmistry posture, error/recovery behavior and proof linkage for their actual owning module and embedding target. Asset-local ports and real integrated diagnostic wiring are distinct proof surfaces. Entries MUST NOT inherit blanket deferred tiers from [STU-VAL-002]; unresolved required posture remains an explicit activation/acceptance blocker. Same-change generated descriptor/manual currency and the canonical UserManual owner remain mandatory. --- ### 6. Declared spec debt for this sub-section",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-35133-ASSET-CONTROLS"
@@ -2280,7 +2336,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "Diagnostic-posture linkage.** [STU-MAN-003] requires the three-tier diagnostic posture per entry ([STU-VAL-002]). For generated entries the posture is generated too: Tier 1 (Flight Recorder business events) is WIRED for every command; Tiers 2 and 3 carry `DEFERRED-with-reason` inherited from the module-level posture until those surfaces ship. Deferral is typed and per entry, never silently skipped. --- ### 6. Declared spec debt for this sub-section",
+            "required_behavior": "Diagnostic-posture linkage.** Generated entries MUST carry the applicable Flight Recorder/internal_diagnostics/Palmistry posture, error/recovery behavior and proof linkage for their actual owning module and embedding target. Asset-local ports and real integrated diagnostic wiring are distinct proof surfaces. Entries MUST NOT inherit blanket deferred tiers from [STU-VAL-002]; unresolved required posture remains an explicit activation/acceptance blocker. Same-change generated descriptor/manual currency and the canonical UserManual owner remain mandatory. --- ### 6. Declared spec debt for this sub-section",
             "only_owner_root_may_change": true
           }
         ],
@@ -2289,13 +2345,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Diagnostic-posture linkage.** [STU-MAN-003] requires the three-tier diagnostic posture per entry ([STU-VAL-002]). For generated entries the posture is generated too: Tier 1 (Flight Recorder business events) is WIRED for every command; Tiers 2 and 3 carry `DEFERRED-with-reason` inherited from the module-level posture until those surfaces ship. Deferral is typed and per entry, never silently skipped. --- ### 6. Declared spec debt for this sub-section Inspect generated diagnostic contracts and independently real integrated wiring; unresolved required posture blocks activation, no inherited blanket deferral.",
+          "consumer_assertion": "Diagnostic-posture linkage.** Generated entries MUST carry the applicable Flight Recorder/internal_diagnostics/Palmistry posture, error/recovery behavior and proof linkage for their actual owning module and embedding target. Asset-local ports and real integrated diagnostic wiring are distinct proof surfaces. Entries MUST NOT inherit blanket deferred tiers from [STU-VAL-002]; unresolved required posture remains an explicit activation/acceptance blocker. Same-change generated descriptor/manual currency and the canonical UserManual owner remain mandatory. --- ### 6. Declared spec debt for this sub-section Inspect generated diagnostic contracts and independently real integrated wiring; unresolved required posture blocks activation, no inherited blanket deferral.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. Preserve all current inputs, scope, proof and source obligations cumulatively. Unresolved operator decision or unavailable required owner stops dependent implementation; invalid/stale/cancelled requests leave accepted state unchanged. Runtime and host verdicts remain pending.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-35133-KERNEL-ASSET-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Diagnostic-posture linkage.** [STU-MAN-003] requires the three-tier diagnostic posture per entry ([STU-VAL-002]). For generated entries the posture is generated too: Tier 1 (Flight Recorder business events) is WIRED for every command; Tiers 2 and 3 carry `DEFERRED-with-reason` inherited from the module-level posture until those surfaces ship. Deferral is typed and per entry, never silently skipped. --- ### 6. Declared spec debt for this sub-section Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Diagnostic-posture linkage.** Generated entries MUST carry the applicable Flight Recorder/internal_diagnostics/Palmistry posture, error/recovery behavior and proof linkage for their actual owning module and embedding target. Asset-local ports and real integrated diagnostic wiring are distinct proof surfaces. Entries MUST NOT inherit blanket deferred tiers from [STU-VAL-002]; unresolved required posture remains an explicit activation/acceptance blocker. Same-change generated descriptor/manual currency and the canonical UserManual owner remain mandatory. --- ### 6. Declared spec debt for this sub-section Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36213"
@@ -2323,7 +2379,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Diagnostic-posture linkage.** [STU-MAN-003] requires the three-tier diagnostic posture per entry ([STU-VAL-002]). For generated entries the posture is generated too: Tier 1 (Flight Recorder business events) is WIRED for every command; Tiers 2 and 3 carry `DEFERRED-with-reason` inherited from the module-level posture until those surfaces ship. Deferral is typed and per entry, never silently skipped. --- ### 6. Declared spec debt for this sub-section",
+          "semantic_fulfillment": "Diagnostic-posture linkage.** Generated entries MUST carry the applicable Flight Recorder/internal_diagnostics/Palmistry posture, error/recovery behavior and proof linkage for their actual owning module and embedding target. Asset-local ports and real integrated diagnostic wiring are distinct proof surfaces. Entries MUST NOT inherit blanket deferred tiers from [STU-VAL-002]; unresolved required posture remains an explicit activation/acceptance blocker. Same-change generated descriptor/manual currency and the canonical UserManual owner remain mandatory. --- ### 6. Declared spec debt for this sub-section",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-35133-ASSET-CONTROLS"
@@ -2333,7 +2389,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "Diagnostic-posture linkage.** [STU-MAN-003] requires the three-tier diagnostic posture per entry ([STU-VAL-002]). For generated entries the posture is generated too: Tier 1 (Flight Recorder business events) is WIRED for every command; Tiers 2 and 3 carry `DEFERRED-with-reason` inherited from the module-level posture until those surfaces ship. Deferral is typed and per entry, never silently skipped. --- ### 6. Declared spec debt for this sub-section",
+              "required_behavior": "Diagnostic-posture linkage.** Generated entries MUST carry the applicable Flight Recorder/internal_diagnostics/Palmistry posture, error/recovery behavior and proof linkage for their actual owning module and embedding target. Asset-local ports and real integrated diagnostic wiring are distinct proof surfaces. Entries MUST NOT inherit blanket deferred tiers from [STU-VAL-002]; unresolved required posture remains an explicit activation/acceptance blocker. Same-change generated descriptor/manual currency and the canonical UserManual owner remain mandatory. --- ### 6. Declared spec debt for this sub-section",
               "only_owner_root_may_change": true
             }
           ],
@@ -2342,13 +2398,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Diagnostic-posture linkage.** [STU-MAN-003] requires the three-tier diagnostic posture per entry ([STU-VAL-002]). For generated entries the posture is generated too: Tier 1 (Flight Recorder business events) is WIRED for every command; Tiers 2 and 3 carry `DEFERRED-with-reason` inherited from the module-level posture until those surfaces ship. Deferral is typed and per entry, never silently skipped. --- ### 6. Declared spec debt for this sub-section",
+            "consumer_assertion": "Diagnostic-posture linkage.** Generated entries MUST carry the applicable Flight Recorder/internal_diagnostics/Palmistry posture, error/recovery behavior and proof linkage for their actual owning module and embedding target. Asset-local ports and real integrated diagnostic wiring are distinct proof surfaces. Entries MUST NOT inherit blanket deferred tiers from [STU-VAL-002]; unresolved required posture remains an explicit activation/acceptance blocker. Same-change generated descriptor/manual currency and the canonical UserManual owner remain mandatory. --- ### 6. Declared spec debt for this sub-section",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-35133-KERNEL-ASSET-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Diagnostic-posture linkage.** [STU-MAN-003] requires the three-tier diagnostic posture per entry ([STU-VAL-002]). For generated entries the posture is generated too: Tier 1 (Flight Recorder business events) is WIRED for every command; Tiers 2 and 3 carry `DEFERRED-with-reason` inherited from the module-level posture until those surfaces ship. Deferral is typed and per entry, never silently skipped. --- ### 6. Declared spec debt for this sub-section Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Diagnostic-posture linkage.** Generated entries MUST carry the applicable Flight Recorder/internal_diagnostics/Palmistry posture, error/recovery behavior and proof linkage for their actual owning module and embedding target. Asset-local ports and real integrated diagnostic wiring are distinct proof surfaces. Entries MUST NOT inherit blanket deferred tiers from [STU-VAL-002]; unresolved required posture remains an explicit activation/acceptance blocker. Same-change generated descriptor/manual currency and the canonical UserManual owner remain mandatory. --- ### 6. Declared spec debt for this sub-section Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "MT-36213"
@@ -2415,18 +2471,18 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
-      "criterion": "Diagnostic-posture linkage.** [STU-MAN-003] requires the three-tier diagnostic posture per entry ([STU-VAL-002]). For generated entries the posture is generated too: Tier 1 (Flight Recorder business events) is WIRED for every command; Tiers 2 and 3 carry `DEFERRED-with-reason` inherited from the module-level posture until those surfaces ship. Deferral is typed and per entry, never silently skipped. --- ### 6. Declared spec debt for this sub-section",
+      "criterion": "Diagnostic-posture linkage.** Generated entries MUST carry the applicable Flight Recorder/internal_diagnostics/Palmistry posture, error/recovery behavior and proof linkage for their actual owning module and embedding target. Asset-local ports and real integrated diagnostic wiring are distinct proof surfaces. Entries MUST NOT inherit blanket deferred tiers from [STU-VAL-002]; unresolved required posture remains an explicit activation/acceptance blocker. Same-change generated descriptor/manual currency and the canonical UserManual owner remain mandatory. --- ### 6. Declared spec debt for this sub-section",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
   ],
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2468,5 +2524,49 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": null,
+          "new": "Diagnostic-posture linkage.** Generated entries MUST carry the applicable Flight Recorder/internal_diagnostics/Palmistry posture, error/recovery behavior and proof linkage for their actual owning module and embedding target."
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "Entries MUST NOT inherit blanket deferred tiers from [STU-VAL-002]; unresolved required posture remains an explicit activation/acceptance blocker."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-001",
+        "AC-002"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Diagnostic-posture linkage",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/expected",
+        "/proof/checks[0]/method_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion",
+        "/active_acceptance_criteria[0]/criterion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.9.7 The audio effect domain",
-    "spec_line": 18410,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 18683,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -36,8 +37,45 @@
     "summary": "Audio routing is a first-class part of the document, not an effect property.** Recovered from the sequence model: a sequence declares a master channel configuration, a per-track channel type, submix tracks, sends, panner assignments, per-track volume, pan, mute, solo, lock and sync-lock, and a keyframe mode. Studio's normative audio routing model is: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Concept | Contract | |---|---| | Master configuration | One per sequence. Enumeration: `mono`, `stereo`, `5.1`, `multichannel_adaptive`, `sixteen_channel`. Of 392 shipped sequence configurations read, 373 declare `stereo` and 19 declare `multichannel_adaptive`; the other three values are declared by the model and unused by the shipped set. | | Channel layout presets | Three shipped: Mono (1 channel), Stereo (2 channels: labels 100, 101), 5.1 (6 channels). Each carries an ordered channel-label list; the layout is data, and a custom layout is an ordinary instance of the same record. | | Track | Carries `channel_type`, `volume` (default 1.0, linear gain), `pan` (default 0), `mute`, `solo`, `locked`, `sync_locked`, `targeted`, `is_submix`, `keyframe_mode`, an ordered send list and an ordered panner-assignment list. | | Send | A named routing from a track to a submix with its own level. | | Sample rate | Declar [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [],
-  "acceptance_criteria_count": 0,
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "The contract table holds the row `Master configuration` with the exact meaning the spec states: One per sequence. Enumeration: `mono`, `stereo`, `5.1`, `multichannel_adaptive`, `sixteen_channel`. Of 392 shipped sequence configurations read, 373 declare `stereo` and 19 declare `multichannel_adaptive`; the other three values are declared by the model and unused by the shipped set.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-FX-137 carried contract table row 1"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The contract table holds the row `Channel layout presets` with the exact meaning the spec states: Three shipped: Mono (1 channel), Stereo (2 channels: labels 100, 101), 5.1 (6 channels). Each carries an ordered channel-label list; the layout is data, and a custom layout is an ordinary instance of the same record.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-FX-137 carried contract table row 2"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `Track` with the exact meaning the spec states: Carries `channel_type`, `volume` (default 1.0, linear gain), `pan` (default 0), `mute`, `solo`, `locked`, `sync_locked`, `targeted`, `is_submix`, `keyframe_mode`, an ordered send list and an ordered panner-assignment list.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-FX-137 carried contract table row 3"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `Send` with the exact meaning the spec states: A named routing from a track to a submix with its own level.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-FX-137 carried contract table row 4"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `Sample rate` with the exact meaning the spec states: Declared per sequence. 386 of 392 shipped configurations declare 48000 Hz; 6 declare 32000 Hz. Studio's default is 48000 Hz.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-FX-137 carried contract table row 5"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `Audio time display` with the exact meaning the spec states: Audio time is displayed in samples in all 392 shipped configurations; `milliseconds` is the other declared display mode. Video and audio time displays are independent ([STU-VID-012]).. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-FX-137 carried contract table row 6"
+    }
+  ],
+  "acceptance_criteria_count": 6,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1506,13 +1544,43 @@
       "STU-FX-137"
     ],
     "acceptance_refs": [
-      "ASSET-AC-001"
+      "ASSET-AC-001",
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006"
     ],
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
         "text": "Audio routing is a first-class part of the document, not an effect property.** Recovered from the sequence model: a sequence declares a master channel configuration, a per-track channel type, submix tracks, sends, panner assignments, per-track volume, pan, mute, solo, lock and sync-lock, and a keyframe mode. Studio's normative audio routing model is: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Concept | Contract | |---|---| | Master configuration | One per sequence. Enumeration: `mono`, `stereo`, `5.1`, `multichannel_adaptive`, `sixteen_channel`. Of 392 shipped sequence configurations read, 373 declare `stereo` and 19 declare `multichannel_adaptive`; the other three values are declared by the model and unused by the shipped set. | | Channel layout presets | Three shipped: Mono (1 channel), Stereo (2 channels: labels 100, 101), 5.1 (6 channels). Each carries an ordered channel-label list; the layout is data, and a custom layout is an ordinary instance of the same record. | | Track | Carries `channel_type`, `volume` (default 1.0, linear gain), `pan` (default 0), `mute`, `solo`, `locked`, `sync_locked`, `targeted`, `is_submix`, `keyframe_mode`, an ordered send list and an ordered panner-assignment list. | | Send | A named routing from a track to a submix with its own level. | | Sample rate | Declar [...]",
         "fulfillment_ref": "MT-32617#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-001",
+        "text": "The contract table holds the row `Master configuration` with the exact meaning the spec states: One per sequence. Enumeration: `mono`, `stereo`, `5.1`, `multichannel_adaptive`, `sixteen_channel`. Of 392 shipped sequence configurations read, 373 declare `stereo` and 19 declare `multichannel_adaptive`; the other three values are declared by the model and unused by the shipped set.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-002",
+        "text": "The contract table holds the row `Channel layout presets` with the exact meaning the spec states: Three shipped: Mono (1 channel), Stereo (2 channels: labels 100, 101), 5.1 (6 channels). Each carries an ordered channel-label list; the layout is data, and a custom layout is an ordinary instance of the same record.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `Track` with the exact meaning the spec states: Carries `channel_type`, `volume` (default 1.0, linear gain), `pan` (default 0), `mute`, `solo`, `locked`, `sync_locked`, `targeted`, `is_submix`, `keyframe_mode`, an ordered send list and an ordered panner-assignment list.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `Send` with the exact meaning the spec states: A named routing from a track to a submix with its own level.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `Sample rate` with the exact meaning the spec states: Declared per sequence. 386 of 392 shipped configurations declare 48000 Hz; 6 declare 32000 Hz. Studio's default is 48000 Hz.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `Audio time display` with the exact meaning the spec states: Audio time is displayed in samples in all 392 shipped configurations; `milliseconds` is the other declared display mode. Video and audio time displays are independent ([STU-VID-012]).. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1753,6 +1821,102 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-32617-SPEC-AC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-001",
+          "STU-FX-137"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Master configuration` with the exact meaning the spec states: One per sequence. Enumeration: `mono`, `stereo`, `5.1`, `multichannel_adaptive`, `sixteen_channel`. Of 392 shipped sequence configurations read, 373 declare `stereo` and 19 declare `multichannel_adaptive`; the other three values are declared by the model and unused by the shipped set.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-32617-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-FX-137"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Channel layout presets` with the exact meaning the spec states: Three shipped: Mono (1 channel), Stereo (2 channels: labels 100, 101), 5.1 (6 channels). Each carries an ordered channel-label list; the layout is data, and a custom layout is an ordinary instance of the same record.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-32617-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-FX-137"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Track` with the exact meaning the spec states: Carries `channel_type`, `volume` (default 1.0, linear gain), `pan` (default 0), `mute`, `solo`, `locked`, `sync_locked`, `targeted`, `is_submix`, `keyframe_mode`, an ordered send list and an ordered panner-assignment list.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-32617-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-FX-137"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Send` with the exact meaning the spec states: A named routing from a track to a submix with its own level.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-32617-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-FX-137"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Sample rate` with the exact meaning the spec states: Declared per sequence. 386 of 392 shipped configurations declare 48000 Hz; 6 declare 32000 Hz. Studio's default is 48000 Hz.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-32617-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-FX-137"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Audio time display` with the exact meaning the spec states: Audio time is displayed in samples in all 392 shipped configurations; `milliseconds` is the other declared display mode. Video and audio time displays are independent ([STU-VID-012]).. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2200,7 +2364,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
@@ -2211,7 +2375,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2254,5 +2418,60 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": null,
+          "new": "The contract table holds the row `Master configuration` with the exact meaning the spec states: One per sequence. Enumeration: `mono`, `stereo`, `5.1`, `multichannel_adaptive`, `sixteen_channel`. Of 392 shipped sequence configurations read, 373 declare `stereo` and 19 declare `multichannel_adaptive`; the other three values are declared by the model and unused by the shipped set.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The contract table holds the row `Channel layout presets` with the exact meaning the spec states: Three shipped: Mono (1 channel), Stereo (2 channels: labels 100, 101), 5.1 (6 channels). Each carries an ordered channel-label list; the layout is data, and a custom layout is an ordinary instance of the same record.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `Track` with the exact meaning the spec states: Carries `channel_type`, `volume` (default 1.0, linear gain), `pan` (default 0), `mute`, `solo`, `locked`, `sync_locked`, `targeted`, `is_submix`, `keyframe_mode`, an ordered send list and an ordered panner-assignment list.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `Send` with the exact meaning the spec states: A named routing from a track to a submix with its own level.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `Sample rate` with the exact meaning the spec states: Declared per sequence. 386 of 392 shipped configurations declare 48000 Hz; 6 declare 32000 Hz. Studio's default is 48000 Hz.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `Audio time display` with the exact meaning the spec states: Audio time is displayed in samples in all 392 shipped configurations; `milliseconds` is the other declared display mode. Video and audio time displays are independent ([STU-VID-012]).. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "Audio routing is a first-class part of the document, not an effect property",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

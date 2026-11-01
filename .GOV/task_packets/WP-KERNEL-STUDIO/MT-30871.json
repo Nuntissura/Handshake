@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.7.1 The Typography Parameter Contract",
-    "spec_line": 7801,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 7889,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -36,8 +37,69 @@
     "summary": "Typographic unit table (NORMATIVE).** Extends [STU-TYP-051]. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Quantity | Studio unit | Note | |---|---|---| | Type size, leading, baseline shift, indents, spacing, tab position, rule weight, offsets | `points` | Stored as points regardless of the document ruler unit. | | Tracking, kerning | `em/1000` | Signed thousandths of an em. Illustrator names this \"thousandths of an em\" on `CharacterAttributes.Tracking` and \"milli-ems\" on `TextRange.Kerning`; Studio uses ONE unit token for both. | | Horizontal/vertical scale, glyph scaling, letter spacing, word spacing, tsume, small-cap size, super/subscript size and position, ruby/kenten/warichu scaling, tint | `percent` | 100 = 100%. | | Auto-leading amount | `percent` | Percentage of type size. | | Character rotation, shatai angle, gradient angle on text fill | `degrees` | | | Aki (leading aki, left/right aki) | `em` | Em fraction, not percent. | | Hyphenation minimums, keep-line counts, drop-cap counts, warichu line counts, list levels, jidori, gyoudori | `count` | Integer. | | Hyphenation zone | `points` | | | Optical margin size | `points` | | | Text-frame geometry, insets, gutters, column widths | `document_unit` | The unit declared by the `StudioDocument` per [STU-DOC-003], carried on the field. | Conversi [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [],
-  "acceptance_criteria_count": 0,
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "The contract table holds the row `Type size, leading, baseline shift, indents, spacing, tab position, rule weight, offsets` with the exact meaning the spec states: `points` | Stored as points regardless of the document ruler unit.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-108 carried contract table row 1"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The contract table holds the row `Tracking, kerning` with the exact meaning the spec states: `em/1000` | Signed thousandths of an em. Illustrator names this \"thousandths of an em\" on `CharacterAttributes.Tracking` and \"milli-ems\" on `TextRange.Kerning`; Studio uses ONE unit token for both.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-108 carried contract table row 2"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `Horizontal/vertical scale, glyph scaling, letter spacing, word spacing, tsume, small-cap size, super/subscript size and position, ruby/kenten/warichu scaling, tint` with the exact meaning the spec states: `percent` | 100 = 100%.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-108 carried contract table row 3"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `Auto-leading amount` with the exact meaning the spec states: `percent` | Percentage of type size.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-108 carried contract table row 4"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `Character rotation, shatai angle, gradient angle on text fill` with the exact meaning the spec states: `degrees`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-108 carried contract table row 5"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `Aki (leading aki, left/right aki)` with the exact meaning the spec states: `em` | Em fraction, not percent.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-108 carried contract table row 6"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `Hyphenation minimums, keep-line counts, drop-cap counts, warichu line counts, list levels, jidori, gyoudori` with the exact meaning the spec states: `count` | Integer.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-108 carried contract table row 7"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `Hyphenation zone` with the exact meaning the spec states: `points`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-108 carried contract table row 8"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The contract table holds the row `Optical margin size` with the exact meaning the spec states: `points`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-108 carried contract table row 9"
+    },
+    {
+      "id": "AC-010",
+      "criterion": "The contract table holds the row `Text-frame geometry, insets, gutters, column widths` with the exact meaning the spec states: `document_unit` | The unit declared by the `StudioDocument` per [STU-DOC-003], carried on the field.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-108 carried contract table row 10"
+    }
+  ],
+  "acceptance_criteria_count": 10,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1568,13 +1630,63 @@
       "STU-TYP-108"
     ],
     "acceptance_refs": [
-      "ASSET-AC-001"
+      "ASSET-AC-001",
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009",
+      "AC-010"
     ],
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
         "text": "Typographic unit table (NORMATIVE).** Extends [STU-TYP-051]. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Quantity | Studio unit | Note | |---|---|---| | Type size, leading, baseline shift, indents, spacing, tab position, rule weight, offsets | `points` | Stored as points regardless of the document ruler unit. | | Tracking, kerning | `em/1000` | Signed thousandths of an em. Illustrator names this \"thousandths of an em\" on `CharacterAttributes.Tracking` and \"milli-ems\" on `TextRange.Kerning`; Studio uses ONE unit token for both. | | Horizontal/vertical scale, glyph scaling, letter spacing, word spacing, tsume, small-cap size, super/subscript size and position, ruby/kenten/warichu scaling, tint | `percent` | 100 = 100%. | | Auto-leading amount | `percent` | Percentage of type size. | | Character rotation, shatai angle, gradient angle on text fill | `degrees` | | | Aki (leading aki, left/right aki) | `em` | Em fraction, not percent. | | Hyphenation minimums, keep-line counts, drop-cap counts, warichu line counts, list levels, jidori, gyoudori | `count` | Integer. | | Hyphenation zone | `points` | | | Optical margin size | `points` | | | Text-frame geometry, insets, gutters, column widths | `document_unit` | The unit declared by the `StudioDocument` per [STU-DOC-003], carried on the field. | Conversi [...]",
         "fulfillment_ref": "MT-30871#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-001",
+        "text": "The contract table holds the row `Type size, leading, baseline shift, indents, spacing, tab position, rule weight, offsets` with the exact meaning the spec states: `points` | Stored as points regardless of the document ruler unit.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-002",
+        "text": "The contract table holds the row `Tracking, kerning` with the exact meaning the spec states: `em/1000` | Signed thousandths of an em. Illustrator names this \"thousandths of an em\" on `CharacterAttributes.Tracking` and \"milli-ems\" on `TextRange.Kerning`; Studio uses ONE unit token for both.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `Horizontal/vertical scale, glyph scaling, letter spacing, word spacing, tsume, small-cap size, super/subscript size and position, ruby/kenten/warichu scaling, tint` with the exact meaning the spec states: `percent` | 100 = 100%.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `Auto-leading amount` with the exact meaning the spec states: `percent` | Percentage of type size.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `Character rotation, shatai angle, gradient angle on text fill` with the exact meaning the spec states: `degrees`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `Aki (leading aki, left/right aki)` with the exact meaning the spec states: `em` | Em fraction, not percent.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `Hyphenation minimums, keep-line counts, drop-cap counts, warichu line counts, list levels, jidori, gyoudori` with the exact meaning the spec states: `count` | Integer.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `Hyphenation zone` with the exact meaning the spec states: `points`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-009",
+        "text": "The contract table holds the row `Optical margin size` with the exact meaning the spec states: `points`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-010",
+        "text": "The contract table holds the row `Text-frame geometry, insets, gutters, column widths` with the exact meaning the spec states: `document_unit` | The unit declared by the `StudioDocument` per [STU-DOC-003], carried on the field.. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1807,6 +1919,166 @@
           "selected_features": []
         },
         "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
+      },
+      {
+        "check_id": "MT-30871-SPEC-AC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-001",
+          "STU-TYP-108"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Type size, leading, baseline shift, indents, spacing, tab position, rule weight, offsets` with the exact meaning the spec states: `points` | Stored as points regardless of the document ruler unit.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30871-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-TYP-108"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Tracking, kerning` with the exact meaning the spec states: `em/1000` | Signed thousandths of an em. Illustrator names this \"thousandths of an em\" on `CharacterAttributes.Tracking` and \"milli-ems\" on `TextRange.Kerning`; Studio uses ONE unit token for both.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30871-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-TYP-108"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Horizontal/vertical scale, glyph scaling, letter spacing, word spacing, tsume, small-cap size, super/subscript size and position, ruby/kenten/warichu scaling, tint` with the exact meaning the spec states: `percent` | 100 = 100%.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30871-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-TYP-108"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Auto-leading amount` with the exact meaning the spec states: `percent` | Percentage of type size.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30871-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-TYP-108"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Character rotation, shatai angle, gradient angle on text fill` with the exact meaning the spec states: `degrees`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30871-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-TYP-108"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Aki (leading aki, left/right aki)` with the exact meaning the spec states: `em` | Em fraction, not percent.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30871-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-TYP-108"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Hyphenation minimums, keep-line counts, drop-cap counts, warichu line counts, list levels, jidori, gyoudori` with the exact meaning the spec states: `count` | Integer.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30871-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-TYP-108"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Hyphenation zone` with the exact meaning the spec states: `points`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30871-SPEC-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-TYP-108"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Optical margin size` with the exact meaning the spec states: `points`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30871-SPEC-AC-010",
+        "kind": "test",
+        "claim_refs": [
+          "AC-010",
+          "STU-TYP-108"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Text-frame geometry, insets, gutters, column widths` with the exact meaning the spec states: `document_unit` | The unit declared by the `StudioDocument` per [STU-DOC-003], carried on the field.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2266,7 +2538,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
@@ -2277,7 +2549,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2307,5 +2579,84 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": null,
+          "new": "The contract table holds the row `Type size, leading, baseline shift, indents, spacing, tab position, rule weight, offsets` with the exact meaning the spec states: `points` | Stored as points regardless of the document ruler unit.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The contract table holds the row `Tracking, kerning` with the exact meaning the spec states: `em/1000` | Signed thousandths of an em. Illustrator names this \"thousandths of an em\" on `CharacterAttributes.Tracking` and \"milli-ems\" on `TextRange.Kerning`; Studio uses ONE unit token for both.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `Horizontal/vertical scale, glyph scaling, letter spacing, word spacing, tsume, small-cap size, super/subscript size and position, ruby/kenten/warichu scaling, tint` with the exact meaning the spec states: `percent` | 100 = 100%.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `Auto-leading amount` with the exact meaning the spec states: `percent` | Percentage of type size.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `Character rotation, shatai angle, gradient angle on text fill` with the exact meaning the spec states: `degrees`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `Aki (leading aki, left/right aki)` with the exact meaning the spec states: `em` | Em fraction, not percent.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `Hyphenation minimums, keep-line counts, drop-cap counts, warichu line counts, list levels, jidori, gyoudori` with the exact meaning the spec states: `count` | Integer.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `Hyphenation zone` with the exact meaning the spec states: `points`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-009",
+          "old": null,
+          "new": "The contract table holds the row `Optical margin size` with the exact meaning the spec states: `points`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-010",
+          "old": null,
+          "new": "The contract table holds the row `Text-frame geometry, insets, gutters, column widths` with the exact meaning the spec states: `document_unit` | The unit declared by the `StudioDocument` per [STU-DOC-003], carried on the field.. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "Typographic unit table (NORMATIVE)",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

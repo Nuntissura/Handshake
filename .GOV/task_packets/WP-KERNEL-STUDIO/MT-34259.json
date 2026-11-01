@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.28.2 Contextual property-panel binding (Studio-wide contract)",
-    "spec_line": 30073,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 30684,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "web_authoring",
   "scope": {
-    "summary": "Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression. The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. The receipt is diagnostic output, not authority.",
+    "summary": "Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression. The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. The receipt is diagnostic output, not authority. Each candidate entry MUST preserve its original candidate identity and matched-node identity. A `refinement_superseded` suppression MUST name the band-6 panel, its named band-5 generic sibling, their priorities and the shared matched node, while retaining the generic candidate in the original candidate set. Other suppressions retain their distinct reasons.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -48,9 +49,21 @@
       "criterion": "The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-WEB-041"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "Each candidate entry MUST preserve its original candidate identity and matched-node identity.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-WEB-041"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "A `refinement_superseded` suppression MUST name the band-6 panel, its named band-5 generic sibling, their priorities and the shared matched node, while retaining the generic candidate in the original candidate set.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-WEB-041"
     }
   ],
-  "acceptance_criteria_count": 2,
+  "acceptance_criteria_count": 4,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -163,7 +176,7 @@
       {
         "id": "STU-WEB-041",
         "anchor": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md:30133",
-        "verbatim": "**[STU-WEB-041] Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression. The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. The receipt is diagnostic output, not authority. Each candidate entry MUST preserve its original candidate identity and matched-node identity. A `refinement_superseded` suppression MUST name the band-6 panel, its named band-5 generic sibling, their priorities and the shared matched node, while retaining the generic candidate in the original candidate set. Other suppressions retain their distinct reasons.",
+        "verbatim": "**[STU-WEB-041] Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression. The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. The receipt is diagnostic output, not authority. Each candidate entry MUST preserve its original candidate identity and matched-node identity. A `refinement_superseded` suppression MUST name the band-6 panel, its named band-5 generic sibling, their priorities and the shared matched node, while retaining the generic candidate in the original candidate set. Other suppressions retain their distinct reasons. Each candidate entry MUST preserve its original candidate identity and matched-node identity. A `refinement_superseded` suppression MUST name the band-6 panel, its named band-5 generic sibling, their priorities and the shared matched node, while retaining the generic candidate in the original candidate set. Other suppressions retain their distinct reasons.",
         "heading": "### 14.28.2 Contextual property-panel binding (Studio-wide contract)",
         "section": "14.28",
         "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
@@ -1932,7 +1945,9 @@
     ],
     "acceptance_refs": [
       "AC-001",
-      "AC-002"
+      "AC-002",
+      "AC-003",
+      "AC-004"
     ],
     "materialized_acceptance": [
       {
@@ -1944,6 +1959,14 @@
         "id": "AC-002",
         "text": "The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. Current v02.208 enrichment: Receipt preserves original candidate and selected matched-node identities, full priority/scope/discriminator/reason, primary/ordered secondaries/suppressions and exact refinement_superseded pair/priorities/shared node. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34259.json#/execution/inputs/1/complete_clause_body",
         "fulfillment_ref": "MT-34259#/fulfillment/legacy_acceptance_map/1"
+      },
+      {
+        "id": "AC-003",
+        "text": "Each candidate entry MUST preserve its original candidate identity and matched-node identity."
+      },
+      {
+        "id": "AC-004",
+        "text": "A `refinement_superseded` suppression MUST name the band-6 panel, its named band-5 generic sibling, their priorities and the shared matched node, while retaining the generic candidate in the original candidate set."
       }
     ],
     "spec_basis_refs": [
@@ -2081,7 +2104,7 @@
             "range_kind": "normative_clause"
           }
         ],
-        "complete_clause_body": "**[STU-WEB-041] Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression. The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. The receipt is diagnostic output, not authority. Each candidate entry MUST preserve its original candidate identity and matched-node identity. A `refinement_superseded` suppression MUST name the band-6 panel, its named band-5 generic sibling, their priorities and the shared matched node, while retaining the generic candidate in the original candidate set. Other suppressions retain their distinct reasons.",
+        "complete_clause_body": "**[STU-WEB-041] Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression. The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. The receipt is diagnostic output, not authority. Each candidate entry MUST preserve its original candidate identity and matched-node identity. A `refinement_superseded` suppression MUST name the band-6 panel, its named band-5 generic sibling, their priorities and the shared matched node, while retaining the generic candidate in the original candidate set. Other suppressions retain their distinct reasons. Each candidate entry MUST preserve its original candidate identity and matched-node identity. A `refinement_superseded` suppression MUST name the band-6 panel, its named band-5 generic sibling, their priorities and the shared matched node, while retaining the generic candidate in the original candidate set. Other suppressions retain their distinct reasons.",
         "method_operands": "Exact fields, ordered vocabularies, tables, numeric provenance and defaults in complete_clause_body; missing upstream assets remain gaps",
         "source_revision_precondition": "One immutable source text/document revision; grants and external resources supplied by published ports",
         "unit_kind": "clause",
@@ -2263,6 +2286,38 @@
         "planned_source_requirement_ref": "STU-WEB-041",
         "timeout_resolution": "PENDING_ACTUAL_TARGET_AND_APPROVED_BOUNDED_TIMEOUT_BEFORE_DISPATCH",
         "status": "PENDING_NOT_RUN"
+      },
+      {
+        "check_id": "MT-34259-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-WEB-041"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Each candidate entry MUST preserve its original candidate identity and matched-node identity.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-34259-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-WEB-041"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "A `refinement_superseded` suppression MUST name the band-6 panel, its named band-5 generic sibling, their priorities and the shared matched node, while retaining the generic candidate in the original candidate set.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2565,7 +2620,7 @@
             "line": 30111,
             "section": "14.28",
             "heading": "### 14.28.2 Contextual property-panel binding (Studio-wide contract)",
-            "verbatim": "**[STU-WEB-041] Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression. The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. The receipt is diagnostic output, not authority.",
+            "verbatim": "**[STU-WEB-041] Resolution receipt.** Every resolution MUST produce a machine-readable receipt: the selection identity, the candidate set with each candidate's priority, scope, discriminator and match reason, the chosen primary, the ordered secondaries, and the suppressed set with the reason for each suppression. The receipt MUST be readable by a model through the command surface, because \"why is this panel showing\" is otherwise unanswerable without a screenshot. The receipt is diagnostic output, not authority. Each candidate entry MUST preserve its original candidate identity and matched-node identity. A `refinement_superseded` suppression MUST name the band-6 panel, its named band-5 generic sibling, their priorities and the shared matched node, while retaining the generic candidate in the original candidate set. Other suppressions retain their distinct reasons.",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2829,11 +2884,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T02:58:55.671201+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2875,5 +2930,40 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "Each candidate entry MUST preserve its original candidate identity and matched-node identity."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "A `refinement_superseded` suppression MUST name the band-6 panel, its named band-5 generic sibling, their priorities and the shared matched node, while retaining the generic candidate in the original candidate set."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-003",
+        "AC-004"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Resolution receipt",
+      "propagated_paths": [
+        "/context_capsule/specification_anchor_refs[0]/verbatim",
+        "/execution/inputs[1]/complete_clause_body",
+        "/fulfillment/asset_slices[0]/scope_basis[0]/verbatim"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

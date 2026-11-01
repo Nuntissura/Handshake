@@ -12,8 +12,9 @@
     "unit_kind": "catalogue_row",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "6. Pixelate Family",
-    "spec_line": 19243,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 19514,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "effects",
   "scope": {
-    "summary": "Cell-mosaic effects reuse the `studio-engine` tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Color Halftone | R | Opt | Simulates enlarged per-channel halftone screens; dot radius 4-127, per-channel screen angles. | | Halftone Screen | R,V | Opt | Dot / line / circular halftone screening with continuous-tone option. Dedup of the halftone pattern filter and the halftone live filter. | | Crystallize | R | Opt | Clumps pixels into solid-color polygonal cells. | | Facet | R | Opt | Clumps similar-color pixels into blocks for a hand-painted look. | | Fragment | R | Opt | Averages four offset copies of the region's pixels. | | Mezzotint | R | Opt | Random black/white or saturated dot/line/stroke patterns from a type menu. | | Mosaic | R | Opt | Clumps pixels into uniform square color blocks. | | Pointillize | R | Opt | Random pointillist dots with the background color as canvas between dots. | | Voronoi | R | Opt | Voronoi cell-mosaic tessellation. | --- ### 7. Render & Generative-Pattern Family (GPU)",
+    "summary": "Cell-mosaic effects reuse the the owning modular Studio asset crate tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Color Halftone | R | Opt | Simulates enlarged per-channel halftone screens; dot radius 4-127, per-channel screen angles. | | Halftone Screen | R,V | Opt | Dot / line / circular halftone screening with continuous-tone option. Dedup of the halftone pattern filter and the halftone live filter. | | Crystallize | R | Opt | Clumps pixels into solid-color polygonal cells. | | Facet | R | Opt | Clumps similar-color pixels into blocks for a hand-painted look. | | Fragment | R | Opt | Averages four offset copies of the region's pixels. | | Mezzotint | R | Opt | Random black/white or saturated dot/line/stroke patterns from a type menu. | | Mosaic | R | Opt | Clumps pixels into uniform square color blocks. | | Pointillize | R | Opt | Random pointillist dots with the background color as canvas between dots. | | Voronoi | R | Opt | Voronoi cell-mosaic tessellation. | --- ### 7. Render & Generative-Pattern Family (GPU)",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -2811,7 +2812,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T03:28:11.919Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "rule_refs": [
     "CX-SPEC-TRUTH-001",
     "CX-TPL-001",
@@ -2854,7 +2855,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2902,5 +2903,22 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Mezzotint",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

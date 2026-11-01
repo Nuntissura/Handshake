@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.8.1 The Colour Parameter Contract",
-    "spec_line": 9714,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 9987,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -48,9 +49,51 @@
       "criterion": "A user or model MAY type past it. | | `default` | Factory value when the parameter is unset. | | `unit` | The real unit token. | | `precision` | Decimal places carried and round-tripped. | `hard` and `soft` MUST be emitted as four distinct fields from the first schema version, even when a source declares only one of them, with the other marked `UNKNOWN`.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-COL-106"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `hard_min` with the exact meaning the spec states: Lowest value the engine accepts. Below it is an error, not a clamp.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-106 carried contract table row 1"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `hard_max` with the exact meaning the spec states: Highest value the engine accepts. Above it is an error, not a clamp.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-106 carried contract table row 2"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `soft_min` with the exact meaning the spec states: Lowest value the default control presents. A user or model MAY type past it.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-106 carried contract table row 3"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `soft_max` with the exact meaning the spec states: Highest value the default control presents. A user or model MAY type past it.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-106 carried contract table row 4"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `default` with the exact meaning the spec states: Factory value when the parameter is unset.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-106 carried contract table row 5"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `unit` with the exact meaning the spec states: The real unit token.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-106 carried contract table row 6"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The contract table holds the row `precision` with the exact meaning the spec states: Decimal places carried and round-tripped.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-106 carried contract table row 7"
     }
   ],
-  "acceptance_criteria_count": 2,
+  "acceptance_criteria_count": 9,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1582,7 +1625,14 @@
     ],
     "acceptance_refs": [
       "AC-001",
-      "AC-002"
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009"
     ],
     "materialized_acceptance": [
       {
@@ -1594,6 +1644,34 @@
         "id": "AC-002",
         "text": "A user or model MAY type past it. | | `default` | Factory value when the parameter is unset. | | `unit` | The real unit token. | | `precision` | Decimal places carried and round-tripped. | `hard` and `soft` MUST be emitted as four distinct fields from the first schema version, even when a source declares only one of them, with the other marked `UNKNOWN`.",
         "fulfillment_ref": "MT-31161#/fulfillment/legacy_acceptance_map/1"
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `hard_min` with the exact meaning the spec states: Lowest value the engine accepts. Below it is an error, not a clamp.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `hard_max` with the exact meaning the spec states: Highest value the engine accepts. Above it is an error, not a clamp.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `soft_min` with the exact meaning the spec states: Lowest value the default control presents. A user or model MAY type past it.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `soft_max` with the exact meaning the spec states: Highest value the default control presents. A user or model MAY type past it.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `default` with the exact meaning the spec states: Factory value when the parameter is unset.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `unit` with the exact meaning the spec states: The real unit token.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-009",
+        "text": "The contract table holds the row `precision` with the exact meaning the spec states: Decimal places carried and round-tripped.. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1825,6 +1903,118 @@
           "selected_features": []
         },
         "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
+      },
+      {
+        "check_id": "MT-31161-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-COL-106"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `hard_min` with the exact meaning the spec states: Lowest value the engine accepts. Below it is an error, not a clamp.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31161-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-COL-106"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `hard_max` with the exact meaning the spec states: Highest value the engine accepts. Above it is an error, not a clamp.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31161-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-COL-106"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `soft_min` with the exact meaning the spec states: Lowest value the default control presents. A user or model MAY type past it.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31161-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-COL-106"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `soft_max` with the exact meaning the spec states: Highest value the default control presents. A user or model MAY type past it.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31161-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-COL-106"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `default` with the exact meaning the spec states: Factory value when the parameter is unset.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31161-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-COL-106"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `unit` with the exact meaning the spec states: The real unit token.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-31161-SPEC-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-COL-106"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `precision` with the exact meaning the spec states: Decimal places carried and round-tripped.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2353,11 +2543,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2393,5 +2583,66 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `hard_min` with the exact meaning the spec states: Lowest value the engine accepts. Below it is an error, not a clamp.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `hard_max` with the exact meaning the spec states: Highest value the engine accepts. Above it is an error, not a clamp.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `soft_min` with the exact meaning the spec states: Lowest value the default control presents. A user or model MAY type past it.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `soft_max` with the exact meaning the spec states: Highest value the default control presents. A user or model MAY type past it.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `default` with the exact meaning the spec states: Factory value when the parameter is unset.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `unit` with the exact meaning the spec states: The real unit token.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-009",
+          "old": null,
+          "new": "The contract table holds the row `precision` with the exact meaning the spec states: Decimal places carried and round-tripped.. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "Seven-field parameter record (NORMATIVE, applies to every numeric colour parameter",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

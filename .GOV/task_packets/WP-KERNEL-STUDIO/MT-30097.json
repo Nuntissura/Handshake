@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "6. The Brush Engine",
-    "spec_line": 774,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 858,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,13 +34,13 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "raster",
   "scope": {
-    "summary": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in `studio-engine` behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush. [STU-RAS-023]'s statement that there is one engine is retained. Its enumeration of that engine's parameters as \"brush tip/preset, size, hardness, blend mode, opacity, flow, spacing, angle/roundness, pressure and tilt dynamics, and a stroke-smoothing option set (0–100 ...)\" is SUPERSEDED and MUST NOT be implemented: it is roughly a tenth of the real surface and its smoothing range is wrong. The parsed brush libraries carry 223 distinct parameter keys across 643 shipped presets in one source serialization, and a 38-tag parameter schema over 455 shipped brushes in another; the engine is a tip model plus a five-sub-engine composition (dual tip, scatter, texture, colour dynamics, wet mixing) plus eleven independently-controlled dynamics channels. [STU-RAS-126] through [STU-RAS-136] are the replacement.",
+    "summary": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in the owning modular Studio asset crate behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush. [STU-RAS-023]'s statement that there is one engine is retained. Its enumeration of that engine's parameters as \"brush tip/preset, size, hardness, blend mode, opacity, flow, spacing, angle/roundness, pressure and tilt dynamics, and a stroke-smoothing option set (0–100 ...)\" is SUPERSEDED and MUST NOT be implemented: it is roughly a tenth of the real surface and its smoothing range is wrong. The parsed brush libraries carry 223 distinct parameter keys across 643 shipped presets in one source serialization, and a 38-tag parameter schema over 455 shipped brushes in another; the engine is a tip model plus a five-sub-engine composition (dual tip, scatter, texture, colour dynamics, wet mixing) plus eleven independently-controlled dynamics channels. [STU-RAS-126] through [STU-RAS-136] are the replacement.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in `studio-engine` behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush.",
+      "criterion": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in the owning modular Studio asset crate behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-RAS-125"
     },
@@ -1571,7 +1572,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in `studio-engine` behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush.",
+        "text": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in the owning modular Studio asset crate behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush.",
         "fulfillment_ref": "MT-30097#/fulfillment/legacy_acceptance_map/0"
       },
       {
@@ -1822,7 +1823,7 @@
             "hsk-studio-pigment"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in `studio-engine` behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush.",
+          "consumer_assertion": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in the owning modular Studio asset crate behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush.",
           "negative_path": "Missing resource/profile/provider or invalid schema/units, cancel/stale revision/exhausted lease returns typed error/no partial selection/stroke/source mutation; restore verified resource/current revision then retry. No name-based identity, guessed bounds, substitute codec or mock PASS.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN.",
           "selected_package": "hsk-studio-pigment",
@@ -1923,7 +1924,7 @@
       "Retain all original acceptance and independent later embedding proof"
     ]
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "activation": {
     "disposition": "NON_AI_CURRENT_SCOPE",
     "implementation_state": "PLANNED_NOT_IMPLEMENTED",
@@ -2225,7 +2226,7 @@
         "original_text": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in `studio-engine` behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush.",
         "original_row_sha256": "ec102a1cc5bfa98d61339be39affca966872a0cec16d341158a39a6e7dd2aaeb",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in `studio-engine` behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush.",
+        "semantic_fulfillment": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in the owning modular Studio asset crate behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush.",
         "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
         "asset_contribution_refs": [
           "MT-30097"
@@ -2235,7 +2236,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-PIGMENT",
             "scope": "CPU tiles, sample formats, masks, brush/raster operations; no GPU/device dependency.",
-            "required_behavior": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in `studio-engine` behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush.",
+            "required_behavior": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in the owning modular Studio asset crate behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2254,7 +2255,7 @@
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in `studio-engine` behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in the owning modular Studio asset crate behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json"
@@ -2340,7 +2341,7 @@
           "original_text": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in `studio-engine` behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush.",
           "original_row_sha256": "ec102a1cc5bfa98d61339be39affca966872a0cec16d341158a39a6e7dd2aaeb",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in `studio-engine` behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush.",
+          "semantic_fulfillment": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in the owning modular Studio asset crate behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush.",
           "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
           "asset_contribution_refs": [
             "MT-30097"
@@ -2350,7 +2351,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-PIGMENT",
               "scope": "CPU tiles, sample formats, masks, brush/raster operations; no GPU/device dependency.",
-              "required_behavior": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in `studio-engine` behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush.",
+              "required_behavior": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in the owning modular Studio asset crate behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2369,7 +2370,7 @@
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in `studio-engine` behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in the owning modular Studio asset crate behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json"
@@ -2432,7 +2433,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2468,5 +2469,37 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in `studio-engine` behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush.",
+          "new": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in the owning modular Studio asset crate behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023])",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/method_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

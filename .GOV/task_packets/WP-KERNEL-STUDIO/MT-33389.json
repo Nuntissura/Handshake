@@ -12,8 +12,9 @@
     "unit_kind": "enumeration",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "3. Document PDF export",
-    "spec_line": 20942,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 21238,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,13 +34,13 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "interop",
   "scope": {
-    "summary": "PDF enumerated value domains (normative, from the shipped preset spread).** | Setting | Observed value set | Notes | |---|---|---| | `compatibility_level` | `1.3`, `1.4`, `1.5` | 1.3 on the strictest standards presets, 1.4 on general-purpose, 1.5 on the newest standard preset | | `colour_conversion_strategy` | `LeaveColorUnchanged`, `UseDeviceIndependentColor`, `CMYK`, `sRGB` | | | `downsample_type` | `Bicubic`, `None` | `None` appears only where downsampling is disabled | | `image_filter` | `DCTEncode`, `FlateEncode` | lossy versus lossless | | `auto_filter_strategy` | `JPEG`, `JPEG2000` | | | `minimum_resolution_policy` | `OK`, `Warning` | | | `transfer_function_info` | `Apply`, `Remove` | | | `ucr_and_black_generation` | `Preserve`, `Remove` | | | `auto_rotate_pages` | `All`, `None` | | | `binding` | `Left` | only one value observed; Studio MUST also offer `Right` and MUST label it `studio_declared` | | `compress_objects` | `Tags`, `Off`, `All` | | | `overprint_mode` | `1` | integer; only one value observed | | `cannot_embed_font_policy` | `Warning`, `Error`, `OK` | `Warning` observed; the other two are Studio-declared | | `default_rendering_intent` | `Default` | only one value observed | Every \"only one value observed\" row above MUST be carried in the machine contract with `domain_completeness: partial` so a later capture can extend it without ambiguity, and Studio MUST NOT [...]",
+    "summary": "PDF enumerated value domains (normative, from the shipped preset spread).** | Setting | Observed value set | Notes | |---|---|---| | `compatibility_level` | `1.3`, `1.4`, `1.5` | 1.3 on the strictest standards presets, 1.4 on general-purpose, 1.5 on the newest standard preset. DECLARED CONFLICT (v02.226, SD-13), not resolved: the writer emits 1.4, 1.5, 1.6, 1.7 and 2.0 and PDF/X-4 only at 1.6 or later; whether this domain gains 1.6/1.7/2.0 or standards presets override the level, and whether 1.3 is a writer obligation, is undecided. Meanwhile a preset at 1.3, or a standards preset whose level the writer cannot honour, is refused with a typed error and reported | | `colour_conversion_strategy` | `LeaveColorUnchanged`, `UseDeviceIndependentColor`, `CMYK`, `sRGB` | | | `downsample_type` | `Bicubic`, `None` | `None` appears only where downsampling is disabled | | `image_filter` | `DCTEncode`, `FlateEncode`; `CCITTFaxEncode` on `monochrome_images.filter` only (v02.226, SD-14) | lossy versus lossless; `CCITTFaxEncode` is the stock monochrome filter of [STU-LAY-159] and on any other group is refused with `filter_not_admitted_for_group` | | `auto_filter_strategy` | `JPEG`, `JPEG2000` | | | `minimum_resolution_policy` | `OK`, `Warning` | | | `transfer_function_info` | `Apply`, `Remove` | | | `ucr_and_black_generation` | `Preserve`, `Remove` | | | `auto_rotate_pages` | `All`, `None` | | [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "The enumeration accepts the member `compatibility_level` with the exact meaning the spec states: `1.3`, `1.4`, `1.5` | 1.3 on the strictest standards presets, 1.4 on general-purpose, 1.5 on the newest standard preset. No member is added, renamed, or silently mapped onto another.",
+      "criterion": "The enumeration accepts the member `compatibility_level` with the exact meaning the spec states: `1.3`, `1.4`, `1.5` | 1.3 on the strictest standards presets, 1.4 on general-purpose, 1.5 on the newest standard preset. DECLARED CONFLICT (v02.226, SD-13), not resolved: the writer emits 1.4, 1.5, 1.6, 1.7 and 2.0 and PDF/X-4 only at 1.6 or later; whether this domain gains 1.6/1.7/2.0 or standards [...]. No member is added, renamed, or silently mapped onto another.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-IO-128 enumeration row 1"
     },
@@ -57,7 +58,7 @@
     },
     {
       "id": "AC-004",
-      "criterion": "The enumeration accepts the member `image_filter` with the exact meaning the spec states: `DCTEncode`, `FlateEncode` | lossy versus lossless. No member is added, renamed, or silently mapped onto another.",
+      "criterion": "The enumeration accepts the member `image_filter` with the exact meaning the spec states: `DCTEncode`, `FlateEncode`; `CCITTFaxEncode` on `monochrome_images.filter` only (v02.226, SD-14) | lossy versus lossless; `CCITTFaxEncode` is the stock monochrome filter of [STU-LAY-159] and on any other group is refused with `filter_not_admitted_for_group`. No member is added, renamed, or silently mapped onto another.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-IO-128 enumeration row 4"
     },
@@ -111,7 +112,7 @@
     },
     {
       "id": "AC-013",
-      "criterion": "The enumeration accepts the member `cannot_embed_font_policy` with the exact meaning the spec states: `Warning`, `Error`, `OK` | `Warning` observed; the other two are Studio-declared. No member is added, renamed, or silently mapped onto another.",
+      "criterion": "The enumeration accepts the member `cannot_embed_font_policy` with the exact meaning the spec states: `Warning`, `Error`, `OK` | `Warning` observed; the other two are Studio-declared. DECLARED CONFLICT (v02.226, SD-16), not resolved: [STU-LAY-159] shows `Error` as captured on stock presets; this row keeps its `studio_declared` label. No member is added, renamed, or silently mapped onto another.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-IO-128 enumeration row 13"
     },
@@ -1665,7 +1666,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "The enumeration accepts the member `compatibility_level` with the exact meaning the spec states: `1.3`, `1.4`, `1.5` | 1.3 on the strictest standards presets, 1.4 on general-purpose, 1.5 on the newest standard preset. No member is added, renamed, or silently mapped onto another.",
+        "text": "The enumeration accepts the member `compatibility_level` with the exact meaning the spec states: `1.3`, `1.4`, `1.5` | 1.3 on the strictest standards presets, 1.4 on general-purpose, 1.5 on the newest standard preset. DECLARED CONFLICT (v02.226, SD-13), not resolved: the writer emits 1.4, 1.5, 1.6, 1.7 and 2.0 and PDF/X-4 only at 1.6 or later; whether this domain gains 1.6/1.7/2.0 or standards [...]. No member is added, renamed, or silently mapped onto another.",
         "fulfillment_ref": "MT-33389#/fulfillment/legacy_acceptance_map/0"
       },
       {
@@ -1680,7 +1681,7 @@
       },
       {
         "id": "AC-004",
-        "text": "The enumeration accepts the member `image_filter` with the exact meaning the spec states: `DCTEncode`, `FlateEncode` | lossy versus lossless. No member is added, renamed, or silently mapped onto another.",
+        "text": "The enumeration accepts the member `image_filter` with the exact meaning the spec states: `DCTEncode`, `FlateEncode`; `CCITTFaxEncode` on `monochrome_images.filter` only (v02.226, SD-14) | lossy versus lossless; `CCITTFaxEncode` is the stock monochrome filter of [STU-LAY-159] and on any other group is refused with `filter_not_admitted_for_group`. No member is added, renamed, or silently mapped onto another.",
         "fulfillment_ref": "MT-33389#/fulfillment/legacy_acceptance_map/3"
       },
       {
@@ -1725,7 +1726,7 @@
       },
       {
         "id": "AC-013",
-        "text": "The enumeration accepts the member `cannot_embed_font_policy` with the exact meaning the spec states: `Warning`, `Error`, `OK` | `Warning` observed; the other two are Studio-declared. No member is added, renamed, or silently mapped onto another.",
+        "text": "The enumeration accepts the member `cannot_embed_font_policy` with the exact meaning the spec states: `Warning`, `Error`, `OK` | `Warning` observed; the other two are Studio-declared. DECLARED CONFLICT (v02.226, SD-16), not resolved: [STU-LAY-159] shows `Error` as captured on stock presets; this row keeps its `studio_declared` label. No member is added, renamed, or silently mapped onto another.",
         "fulfillment_ref": "MT-33389#/fulfillment/legacy_acceptance_map/12"
       },
       {
@@ -2886,7 +2887,7 @@
         "original_text": "The enumeration accepts the member `compatibility_level` with the exact meaning the spec states: `1.3`, `1.4`, `1.5` | 1.3 on the strictest standards presets, 1.4 on general-purpose, 1.5 on the newest standard preset. No member is added, renamed, or silently mapped onto another.",
         "original_row_sha256": "4451ff0270f78b20ed2f3248063c31b02c6d5ea574991847449c42fe8e1b28c3",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "The enumeration accepts the member `compatibility_level` with the exact meaning the spec states: `1.3`, `1.4`, `1.5` | 1.3 on the strictest standards presets, 1.4 on general-purpose, 1.5 on the newest standard preset. No member is added, renamed, or silently mapped onto another.",
+        "semantic_fulfillment": "The enumeration accepts the member `compatibility_level` with the exact meaning the spec states: `1.3`, `1.4`, `1.5` | 1.3 on the strictest standards presets, 1.4 on general-purpose, 1.5 on the newest standard preset. DECLARED CONFLICT (v02.226, SD-13), not resolved: the writer emits 1.4, 1.5, 1.6, 1.7 and 2.0 and PDF/X-4 only at 1.6 or later; whether this domain gains 1.6/1.7/2.0 or standards [...]. No member is added, renamed, or silently mapped onto another.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33389"
@@ -2896,7 +2897,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-PRESS",
             "scope": "Bounded PDF object editing, projection proposals, forms/annotations/signature states, prepress/accessibility/redaction/full-save. PDF bytes are provider transport, never separate live document authority.",
-            "required_behavior": "The enumeration accepts the member `compatibility_level` with the exact meaning the spec states: `1.3`, `1.4`, `1.5` | 1.3 on the strictest standards presets, 1.4 on general-purpose, 1.5 on the newest standard preset. No member is added, renamed, or silently mapped onto another.",
+            "required_behavior": "The enumeration accepts the member `compatibility_level` with the exact meaning the spec states: `1.3`, `1.4`, `1.5` | 1.3 on the strictest standards presets, 1.4 on general-purpose, 1.5 on the newest standard preset. DECLARED CONFLICT (v02.226, SD-13), not resolved: the writer emits 1.4, 1.5, 1.6, 1.7 and 2.0 and PDF/X-4 only at 1.6 or later; whether this domain gains 1.6/1.7/2.0 or standards [...]. No member is added, renamed, or silently mapped onto another.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2911,7 +2912,7 @@
         },
         "later_embedding_ref": "MT-36217#/source_acceptance_coverage",
         "later_embedding_required": true,
-        "later_embedding_assertion": "The enumeration accepts the member `compatibility_level` with the exact meaning the spec states: `1.3`, `1.4`, `1.5` | 1.3 on the strictest standards presets, 1.4 on general-purpose, 1.5 on the newest standard preset. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "The enumeration accepts the member `compatibility_level` with the exact meaning the spec states: `1.3`, `1.4`, `1.5` | 1.3 on the strictest standards presets, 1.4 on general-purpose, 1.5 on the newest standard preset. DECLARED CONFLICT (v02.226, SD-13), not resolved: the writer emits 1.4, 1.5, 1.6, 1.7 and 2.0 and PDF/X-4 only at 1.6 or later; whether this domain gains 1.6/1.7/2.0 or standards [...]. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "later_embedding_refs": [
           "MT-36217#/source_acceptance_coverage"
@@ -2997,7 +2998,7 @@
         "original_text": "The enumeration accepts the member `image_filter` with the exact meaning the spec states: `DCTEncode`, `FlateEncode` | lossy versus lossless. No member is added, renamed, or silently mapped onto another.",
         "original_row_sha256": "4abe4103b2cf3672b72a537577b927a942cc40a1e533c4c38198b7045a1c088e",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "The enumeration accepts the member `image_filter` with the exact meaning the spec states: `DCTEncode`, `FlateEncode` | lossy versus lossless. No member is added, renamed, or silently mapped onto another.",
+        "semantic_fulfillment": "The enumeration accepts the member `image_filter` with the exact meaning the spec states: `DCTEncode`, `FlateEncode`; `CCITTFaxEncode` on `monochrome_images.filter` only (v02.226, SD-14) | lossy versus lossless; `CCITTFaxEncode` is the stock monochrome filter of [STU-LAY-159] and on any other group is refused with `filter_not_admitted_for_group`. No member is added, renamed, or silently mapped onto another.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33389"
@@ -3007,7 +3008,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-PRESS",
             "scope": "Bounded PDF object editing, projection proposals, forms/annotations/signature states, prepress/accessibility/redaction/full-save. PDF bytes are provider transport, never separate live document authority.",
-            "required_behavior": "The enumeration accepts the member `image_filter` with the exact meaning the spec states: `DCTEncode`, `FlateEncode` | lossy versus lossless. No member is added, renamed, or silently mapped onto another.",
+            "required_behavior": "The enumeration accepts the member `image_filter` with the exact meaning the spec states: `DCTEncode`, `FlateEncode`; `CCITTFaxEncode` on `monochrome_images.filter` only (v02.226, SD-14) | lossy versus lossless; `CCITTFaxEncode` is the stock monochrome filter of [STU-LAY-159] and on any other group is refused with `filter_not_admitted_for_group`. No member is added, renamed, or silently mapped onto another.",
             "only_owner_root_may_change": true
           }
         ],
@@ -3022,7 +3023,7 @@
         },
         "later_embedding_ref": "MT-36217#/source_acceptance_coverage",
         "later_embedding_required": true,
-        "later_embedding_assertion": "The enumeration accepts the member `image_filter` with the exact meaning the spec states: `DCTEncode`, `FlateEncode` | lossy versus lossless. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "The enumeration accepts the member `image_filter` with the exact meaning the spec states: `DCTEncode`, `FlateEncode`; `CCITTFaxEncode` on `monochrome_images.filter` only (v02.226, SD-14) | lossy versus lossless; `CCITTFaxEncode` is the stock monochrome filter of [STU-LAY-159] and on any other group is refused with `filter_not_admitted_for_group`. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "later_embedding_refs": [
           "MT-36217#/source_acceptance_coverage"
@@ -3330,7 +3331,7 @@
         "original_text": "The enumeration accepts the member `cannot_embed_font_policy` with the exact meaning the spec states: `Warning`, `Error`, `OK` | `Warning` observed; the other two are Studio-declared. No member is added, renamed, or silently mapped onto another.",
         "original_row_sha256": "b868856afc56eb81b991b29307b2952f875c95e803cd4e0a3d0e548faa63d8e6",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "The enumeration accepts the member `cannot_embed_font_policy` with the exact meaning the spec states: `Warning`, `Error`, `OK` | `Warning` observed; the other two are Studio-declared. No member is added, renamed, or silently mapped onto another.",
+        "semantic_fulfillment": "The enumeration accepts the member `cannot_embed_font_policy` with the exact meaning the spec states: `Warning`, `Error`, `OK` | `Warning` observed; the other two are Studio-declared. DECLARED CONFLICT (v02.226, SD-16), not resolved: [STU-LAY-159] shows `Error` as captured on stock presets; this row keeps its `studio_declared` label. No member is added, renamed, or silently mapped onto another.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33389"
@@ -3340,7 +3341,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-PRESS",
             "scope": "Bounded PDF object editing, projection proposals, forms/annotations/signature states, prepress/accessibility/redaction/full-save. PDF bytes are provider transport, never separate live document authority.",
-            "required_behavior": "The enumeration accepts the member `cannot_embed_font_policy` with the exact meaning the spec states: `Warning`, `Error`, `OK` | `Warning` observed; the other two are Studio-declared. No member is added, renamed, or silently mapped onto another.",
+            "required_behavior": "The enumeration accepts the member `cannot_embed_font_policy` with the exact meaning the spec states: `Warning`, `Error`, `OK` | `Warning` observed; the other two are Studio-declared. DECLARED CONFLICT (v02.226, SD-16), not resolved: [STU-LAY-159] shows `Error` as captured on stock presets; this row keeps its `studio_declared` label. No member is added, renamed, or silently mapped onto another.",
             "only_owner_root_may_change": true
           }
         ],
@@ -3355,7 +3356,7 @@
         },
         "later_embedding_ref": "MT-36217#/source_acceptance_coverage",
         "later_embedding_required": true,
-        "later_embedding_assertion": "The enumeration accepts the member `cannot_embed_font_policy` with the exact meaning the spec states: `Warning`, `Error`, `OK` | `Warning` observed; the other two are Studio-declared. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "The enumeration accepts the member `cannot_embed_font_policy` with the exact meaning the spec states: `Warning`, `Error`, `OK` | `Warning` observed; the other two are Studio-declared. DECLARED CONFLICT (v02.226, SD-16), not resolved: [STU-LAY-159] shows `Error` as captured on stock presets; this row keeps its `studio_declared` label. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "later_embedding_refs": [
           "MT-36217#/source_acceptance_coverage"
@@ -3507,7 +3508,7 @@
           "original_text": "The enumeration accepts the member `compatibility_level` with the exact meaning the spec states: `1.3`, `1.4`, `1.5` | 1.3 on the strictest standards presets, 1.4 on general-purpose, 1.5 on the newest standard preset. No member is added, renamed, or silently mapped onto another.",
           "original_row_sha256": "4451ff0270f78b20ed2f3248063c31b02c6d5ea574991847449c42fe8e1b28c3",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "The enumeration accepts the member `compatibility_level` with the exact meaning the spec states: `1.3`, `1.4`, `1.5` | 1.3 on the strictest standards presets, 1.4 on general-purpose, 1.5 on the newest standard preset. No member is added, renamed, or silently mapped onto another.",
+          "semantic_fulfillment": "The enumeration accepts the member `compatibility_level` with the exact meaning the spec states: `1.3`, `1.4`, `1.5` | 1.3 on the strictest standards presets, 1.4 on general-purpose, 1.5 on the newest standard preset. DECLARED CONFLICT (v02.226, SD-13), not resolved: the writer emits 1.4, 1.5, 1.6, 1.7 and 2.0 and PDF/X-4 only at 1.6 or later; whether this domain gains 1.6/1.7/2.0 or standards [...]. No member is added, renamed, or silently mapped onto another.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33389"
@@ -3517,7 +3518,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-PRESS",
               "scope": "Bounded PDF object editing, projection proposals, forms/annotations/signature states, prepress/accessibility/redaction/full-save. PDF bytes are provider transport, never separate live document authority.",
-              "required_behavior": "The enumeration accepts the member `compatibility_level` with the exact meaning the spec states: `1.3`, `1.4`, `1.5` | 1.3 on the strictest standards presets, 1.4 on general-purpose, 1.5 on the newest standard preset. No member is added, renamed, or silently mapped onto another.",
+              "required_behavior": "The enumeration accepts the member `compatibility_level` with the exact meaning the spec states: `1.3`, `1.4`, `1.5` | 1.3 on the strictest standards presets, 1.4 on general-purpose, 1.5 on the newest standard preset. DECLARED CONFLICT (v02.226, SD-13), not resolved: the writer emits 1.4, 1.5, 1.6, 1.7 and 2.0 and PDF/X-4 only at 1.6 or later; whether this domain gains 1.6/1.7/2.0 or standards [...]. No member is added, renamed, or silently mapped onto another.",
               "only_owner_root_may_change": true
             }
           ],
@@ -3532,7 +3533,7 @@
           },
           "later_embedding_ref": "MT-36217#/source_acceptance_coverage",
           "later_embedding_required": true,
-          "later_embedding_assertion": "The enumeration accepts the member `compatibility_level` with the exact meaning the spec states: `1.3`, `1.4`, `1.5` | 1.3 on the strictest standards presets, 1.4 on general-purpose, 1.5 on the newest standard preset. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "The enumeration accepts the member `compatibility_level` with the exact meaning the spec states: `1.3`, `1.4`, `1.5` | 1.3 on the strictest standards presets, 1.4 on general-purpose, 1.5 on the newest standard preset. DECLARED CONFLICT (v02.226, SD-13), not resolved: the writer emits 1.4, 1.5, 1.6, 1.7 and 2.0 and PDF/X-4 only at 1.6 or later; whether this domain gains 1.6/1.7/2.0 or standards [...]. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "later_embedding_refs": [
             "MT-36217#/source_acceptance_coverage"
@@ -3618,7 +3619,7 @@
           "original_text": "The enumeration accepts the member `image_filter` with the exact meaning the spec states: `DCTEncode`, `FlateEncode` | lossy versus lossless. No member is added, renamed, or silently mapped onto another.",
           "original_row_sha256": "4abe4103b2cf3672b72a537577b927a942cc40a1e533c4c38198b7045a1c088e",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "The enumeration accepts the member `image_filter` with the exact meaning the spec states: `DCTEncode`, `FlateEncode` | lossy versus lossless. No member is added, renamed, or silently mapped onto another.",
+          "semantic_fulfillment": "The enumeration accepts the member `image_filter` with the exact meaning the spec states: `DCTEncode`, `FlateEncode`; `CCITTFaxEncode` on `monochrome_images.filter` only (v02.226, SD-14) | lossy versus lossless; `CCITTFaxEncode` is the stock monochrome filter of [STU-LAY-159] and on any other group is refused with `filter_not_admitted_for_group`. No member is added, renamed, or silently mapped onto another.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33389"
@@ -3628,7 +3629,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-PRESS",
               "scope": "Bounded PDF object editing, projection proposals, forms/annotations/signature states, prepress/accessibility/redaction/full-save. PDF bytes are provider transport, never separate live document authority.",
-              "required_behavior": "The enumeration accepts the member `image_filter` with the exact meaning the spec states: `DCTEncode`, `FlateEncode` | lossy versus lossless. No member is added, renamed, or silently mapped onto another.",
+              "required_behavior": "The enumeration accepts the member `image_filter` with the exact meaning the spec states: `DCTEncode`, `FlateEncode`; `CCITTFaxEncode` on `monochrome_images.filter` only (v02.226, SD-14) | lossy versus lossless; `CCITTFaxEncode` is the stock monochrome filter of [STU-LAY-159] and on any other group is refused with `filter_not_admitted_for_group`. No member is added, renamed, or silently mapped onto another.",
               "only_owner_root_may_change": true
             }
           ],
@@ -3643,7 +3644,7 @@
           },
           "later_embedding_ref": "MT-36217#/source_acceptance_coverage",
           "later_embedding_required": true,
-          "later_embedding_assertion": "The enumeration accepts the member `image_filter` with the exact meaning the spec states: `DCTEncode`, `FlateEncode` | lossy versus lossless. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "The enumeration accepts the member `image_filter` with the exact meaning the spec states: `DCTEncode`, `FlateEncode`; `CCITTFaxEncode` on `monochrome_images.filter` only (v02.226, SD-14) | lossy versus lossless; `CCITTFaxEncode` is the stock monochrome filter of [STU-LAY-159] and on any other group is refused with `filter_not_admitted_for_group`. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "later_embedding_refs": [
             "MT-36217#/source_acceptance_coverage"
@@ -3951,7 +3952,7 @@
           "original_text": "The enumeration accepts the member `cannot_embed_font_policy` with the exact meaning the spec states: `Warning`, `Error`, `OK` | `Warning` observed; the other two are Studio-declared. No member is added, renamed, or silently mapped onto another.",
           "original_row_sha256": "b868856afc56eb81b991b29307b2952f875c95e803cd4e0a3d0e548faa63d8e6",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "The enumeration accepts the member `cannot_embed_font_policy` with the exact meaning the spec states: `Warning`, `Error`, `OK` | `Warning` observed; the other two are Studio-declared. No member is added, renamed, or silently mapped onto another.",
+          "semantic_fulfillment": "The enumeration accepts the member `cannot_embed_font_policy` with the exact meaning the spec states: `Warning`, `Error`, `OK` | `Warning` observed; the other two are Studio-declared. DECLARED CONFLICT (v02.226, SD-16), not resolved: [STU-LAY-159] shows `Error` as captured on stock presets; this row keeps its `studio_declared` label. No member is added, renamed, or silently mapped onto another.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33389"
@@ -3961,7 +3962,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-PRESS",
               "scope": "Bounded PDF object editing, projection proposals, forms/annotations/signature states, prepress/accessibility/redaction/full-save. PDF bytes are provider transport, never separate live document authority.",
-              "required_behavior": "The enumeration accepts the member `cannot_embed_font_policy` with the exact meaning the spec states: `Warning`, `Error`, `OK` | `Warning` observed; the other two are Studio-declared. No member is added, renamed, or silently mapped onto another.",
+              "required_behavior": "The enumeration accepts the member `cannot_embed_font_policy` with the exact meaning the spec states: `Warning`, `Error`, `OK` | `Warning` observed; the other two are Studio-declared. DECLARED CONFLICT (v02.226, SD-16), not resolved: [STU-LAY-159] shows `Error` as captured on stock presets; this row keeps its `studio_declared` label. No member is added, renamed, or silently mapped onto another.",
               "only_owner_root_may_change": true
             }
           ],
@@ -3976,7 +3977,7 @@
           },
           "later_embedding_ref": "MT-36217#/source_acceptance_coverage",
           "later_embedding_required": true,
-          "later_embedding_assertion": "The enumeration accepts the member `cannot_embed_font_policy` with the exact meaning the spec states: `Warning`, `Error`, `OK` | `Warning` observed; the other two are Studio-declared. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "The enumeration accepts the member `cannot_embed_font_policy` with the exact meaning the spec states: `Warning`, `Error`, `OK` | `Warning` observed; the other two are Studio-declared. DECLARED CONFLICT (v02.226, SD-16), not resolved: [STU-LAY-159] shows `Error` as captured on stock presets; this row keeps its `studio_declared` label. No member is added, renamed, or silently mapped onto another. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "later_embedding_refs": [
             "MT-36217#/source_acceptance_coverage"
@@ -4030,7 +4031,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T23:48:24.298Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "rule_refs": [
     "CX-SPEC-TRUTH-001",
     "CX-TPL-001",
@@ -4073,7 +4074,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -4103,5 +4104,60 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "The enumeration accepts the member `compatibility_level` with the exact meaning the spec states: `1.3`, `1.4`, `1.5` | 1.3 on the strictest standards presets, 1.4 on general-purpose, 1.5 on the newest standard preset. No member is added, renamed, or silently mapped onto another.",
+          "new": "The enumeration accepts the member `compatibility_level` with the exact meaning the spec states: `1.3`, `1.4`, `1.5` | 1.3 on the strictest standards presets, 1.4 on general-purpose, 1.5 on the newest standard preset. DECLARED CONFLICT (v02.226, SD-13), not resolved: the writer emits 1.4, 1.5, 1.6, 1.7 and 2.0 and PDF/X-4 only at 1.6 or later; whether this domain gains 1.6/1.7/2.0 or standards [...]. No member is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": "The enumeration accepts the member `image_filter` with the exact meaning the spec states: `DCTEncode`, `FlateEncode` | lossy versus lossless. No member is added, renamed, or silently mapped onto another.",
+          "new": "The enumeration accepts the member `image_filter` with the exact meaning the spec states: `DCTEncode`, `FlateEncode`; `CCITTFaxEncode` on `monochrome_images.filter` only (v02.226, SD-14) | lossy versus lossless; `CCITTFaxEncode` is the stock monochrome filter of [STU-LAY-159] and on any other group is refused with `filter_not_admitted_for_group`. No member is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-013",
+          "old": "The enumeration accepts the member `cannot_embed_font_policy` with the exact meaning the spec states: `Warning`, `Error`, `OK` | `Warning` observed; the other two are Studio-declared. No member is added, renamed, or silently mapped onto another.",
+          "new": "The enumeration accepts the member `cannot_embed_font_policy` with the exact meaning the spec states: `Warning`, `Error`, `OK` | `Warning` observed; the other two are Studio-declared. DECLARED CONFLICT (v02.226, SD-16), not resolved: [STU-LAY-159] shows `Error` as captured on stock presets; this row keeps its `studio_declared` label. No member is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "PDF enumerated value domains (normative, from the shipped preset spread) - enumeration",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/closure_unit/materialized_acceptance[3]/text",
+        "/closure_unit/materialized_acceptance[12]/text",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/legacy_acceptance_map[3]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[3]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[3]/later_embedding_assertion",
+        "/fulfillment/legacy_acceptance_map[12]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[12]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[12]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[3]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[3]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[3]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[12]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[12]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[12]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

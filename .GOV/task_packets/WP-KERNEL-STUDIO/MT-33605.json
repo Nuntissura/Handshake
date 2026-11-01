@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "4. Declared gaps and obligations",
-    "spec_line": 22067,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 22369,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,18 +27,31 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "DECLARED GAP — no second corroborating capture",
+  "clause": "Accepted single-witness basis with explicit manual limits",
   "spec_anchor": [
     "STU-WB-131"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "whiteboard",
   "scope": {
-    "summary": "DECLARED GAP — no second corroborating capture.** Every board node kind in this module comes from one source object model. Unlike raster, vector, layout and colour, where several source applications corroborate each other, whiteboard has one witness. A field named here is exactly as reliable as that one capture, and the reliability is stated rather than implied.",
+    "summary": "Accepted single-witness basis with explicit manual limits.** The Operator accepted the twelve board node contracts on their single-witness basis. This acceptance resolves the research-basis decision; it does not corroborate missing original bytes or prove runtime fidelity. Before the affected feature's acceptance, both human and model UserManual layers MUST disclose that the original capture bytes and version remain unverified, the inspected Plugin API 1.141.0 is later pinned evidence, SDK/npm/documentation views of the same upstream are not independent witnesses, and available REST corroboration is partial. The manual MUST distinguish vendor declarations from Studio-native CKC, CRDT, actor, auto-size, broken-reference, thumbnail, widget-override and native-shape obligations. A later conflicting capture requires explicit version/provenance reconciliation and a typed preservation or loss decision, never silent replacement. The retained gap MT binds these disclosure obligations and leaves actual manual/runtime proof pending until performed.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [],
-  "acceptance_criteria_count": 0,
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "Before the affected feature's acceptance, both human and model UserManual layers MUST disclose that the original capture bytes and version remain unverified, the inspected Plugin API 1.141.0 is later pinned evidence, SDK/npm/documentation views of the same upstream are not independent witnesses, and available REST corroboration is partial.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-WB-131"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The manual MUST distinguish vendor declarations from Studio-native CKC, CRDT, actor, auto-size, broken-reference, thumbnail, widget-override and native-shape obligations.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-WB-131"
+    }
+  ],
+  "acceptance_criteria_count": 2,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -147,7 +161,7 @@
   "identity": {
     "mt_id": "MT-33605",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "DECLARED GAP — no second corroborating capture",
+    "title": "Accepted single-witness basis with explicit manual limits",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 4
@@ -1578,13 +1592,23 @@
       "STU-WB-131"
     ],
     "acceptance_refs": [
-      "ASSET-AC-001"
+      "ASSET-AC-001",
+      "AC-001",
+      "AC-002"
     ],
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
         "text": "First acceptance binds the published Operator acceptance of the twelve board node contracts on a single-witness basis AND every exact human/model UserManual disclosure from WB131. Acceptance resolves the research-basis decision, does not corroborate missing capture bytes or prove runtime fidelity. Actual disclosures must be proven in both shipped manual layers before feature acceptance; later conflict requires explicit provenance/version and typed preservation/loss reconciliation. **[STU-WB-131] Accepted single-witness basis with explicit manual limits.** The Operator accepted the twelve board node contracts on their single-witness basis. This acceptance resolves the research-basis decision; it does not corroborate missing original bytes or prove runtime fidelity. Before the affected feature's acceptance, both human and model UserManual layers MUST disclose that the original capture bytes and version remain unverified, the inspected Plugin API 1.141.0 is later pinned evidence, SDK/npm/documentation views of the same upstream are not independent witnesses, and available REST corroboration is partial. The manual MUST distinguish vendor declarations from Studio-native CKC, CRDT, actor, auto-size, broken-reference, thumbnail, widget-override and native-shape obligations. A later conflicting capture requires explicit version/provenance reconciliation and a typed preservation or loss decision, never silent replacement. The retained gap MT binds these disclosure obligations and leaves actual manual/runtime proof pending until performed.",
         "fulfillment_ref": "MT-33605#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-001",
+        "text": "Before the affected feature's acceptance, both human and model UserManual layers MUST disclose that the original capture bytes and version remain unverified, the inspected Plugin API 1.141.0 is later pinned evidence, SDK/npm/documentation views of the same upstream are not independent witnesses, and available REST corroboration is partial."
+      },
+      {
+        "id": "AC-002",
+        "text": "The manual MUST distinguish vendor declarations from Studio-native CKC, CRDT, actor, auto-size, broken-reference, thumbnail, widget-override and native-shape obligations."
       }
     ],
     "spec_basis_refs": [
@@ -1827,6 +1851,38 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-33605-SPEC-AC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-001",
+          "STU-WB-131"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Before the affected feature's acceptance, both human and model UserManual layers MUST disclose that the original capture bytes and version remain unverified, the inspected Plugin API 1.141.0 is later pinned evidence, SDK/npm/documentation views of the same upstream are not independent witnesses, and available REST corroboration is partial.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33605-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-WB-131"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The manual MUST distinguish vendor declarations from Studio-native CKC, CRDT, actor, auto-size, broken-reference, thumbnail, widget-override and native-shape obligations.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2142,7 +2198,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "DECLARED GAP — no second corroborating capture.** Every board node kind in this module comes from one source object model. Unlike raster, vector, layout and colour, where several source applications corroborate each other, whiteboard has one witness. A field named here is exactly as reliable as that one capture, and the reliability is stated rather than implied.",
+        "semantic_fulfillment": "Accepted single-witness basis with explicit manual limits.** The Operator accepted the twelve board node contracts on their single-witness basis. This acceptance resolves the research-basis decision; it does not corroborate missing original bytes or prove runtime fidelity. Before the affected feature's acceptance, both human and model UserManual layers MUST disclose that the original capture bytes and version remain unverified, the inspected Plugin API 1.141.0 is later pinned evidence, SDK/npm/documentation views of the same upstream are not independent witnesses, and available REST corroboration is partial. The manual MUST distinguish vendor declarations from Studio-native CKC, CRDT, actor, auto-size, broken-reference, thumbnail, widget-override and native-shape obligations. A later conflicting capture requires explicit version/provenance reconciliation and a typed preservation or loss decision, never silent replacement. The retained gap MT binds these disclosure obligations and leaves actual manual/runtime proof pending until performed.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33605-ASSET-NIB"
@@ -2152,7 +2208,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-NIB",
             "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
-            "required_behavior": "DECLARED GAP — no second corroborating capture.** Every board node kind in this module comes from one source object model. Unlike raster, vector, layout and colour, where several source applications corroborate each other, whiteboard has one witness. A field named here is exactly as reliable as that one capture, and the reliability is stated rather than implied.",
+            "required_behavior": "Accepted single-witness basis with explicit manual limits.** The Operator accepted the twelve board node contracts on their single-witness basis. This acceptance resolves the research-basis decision; it does not corroborate missing original bytes or prove runtime fidelity. Before the affected feature's acceptance, both human and model UserManual layers MUST disclose that the original capture bytes and version remain unverified, the inspected Plugin API 1.141.0 is later pinned evidence, SDK/npm/documentation views of the same upstream are not independent witnesses, and available REST corroboration is partial. The manual MUST distinguish vendor declarations from Studio-native CKC, CRDT, actor, auto-size, broken-reference, thumbnail, widget-override and native-shape obligations. A later conflicting capture requires explicit version/provenance reconciliation and a typed preservation or loss decision, never silent replacement. The retained gap MT binds these disclosure obligations and leaves actual manual/runtime proof pending until performed.",
             "only_owner_root_may_change": true,
             "spec209_requirement": "First acceptance binds the published Operator acceptance of the twelve board node contracts on a single-witness basis AND every exact human/model UserManual disclosure from WB131. Acceptance resolves the research-basis decision, does not corroborate missing capture bytes or prove runtime fidelity. Actual disclosures must be proven in both shipped manual layers before feature acceptance; later conflict requires explicit provenance/version and typed preservation/loss reconciliation."
           }
@@ -2168,7 +2224,7 @@
         },
         "later_embedding_ref": "MT-36195#/scope",
         "later_embedding_required": true,
-        "later_embedding_assertion": "DECLARED GAP — no second corroborating capture.** Every board node kind in this module comes from one source object model. Unlike raster, vector, layout and colour, where several source applications corroborate each other, whiteboard has one witness. A field named here is exactly as reliable as that one capture, and the reliability is stated rather than implied. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Accepted single-witness basis with explicit manual limits.** The Operator accepted the twelve board node contracts on their single-witness basis. This acceptance resolves the research-basis decision; it does not corroborate missing original bytes or prove runtime fidelity. Before the affected feature's acceptance, both human and model UserManual layers MUST disclose that the original capture bytes and version remain unverified, the inspected Plugin API 1.141.0 is later pinned evidence, SDK/npm/documentation views of the same upstream are not independent witnesses, and available REST corroboration is partial. The manual MUST distinguish vendor declarations from Studio-native CKC, CRDT, actor, auto-size, broken-reference, thumbnail, widget-override and native-shape obligations. A later conflicting capture requires explicit version/provenance reconciliation and a typed preservation or loss decision, never silent replacement. The retained gap MT binds these disclosure obligations and leaves actual manual/runtime proof pending until performed. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36195"
@@ -2197,7 +2253,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "DECLARED GAP — no second corroborating capture.** Every board node kind in this module comes from one source object model. Unlike raster, vector, layout and colour, where several source applications corroborate each other, whiteboard has one witness. A field named here is exactly as reliable as that one capture, and the reliability is stated rather than implied.",
+          "semantic_fulfillment": "Accepted single-witness basis with explicit manual limits.** The Operator accepted the twelve board node contracts on their single-witness basis. This acceptance resolves the research-basis decision; it does not corroborate missing original bytes or prove runtime fidelity. Before the affected feature's acceptance, both human and model UserManual layers MUST disclose that the original capture bytes and version remain unverified, the inspected Plugin API 1.141.0 is later pinned evidence, SDK/npm/documentation views of the same upstream are not independent witnesses, and available REST corroboration is partial. The manual MUST distinguish vendor declarations from Studio-native CKC, CRDT, actor, auto-size, broken-reference, thumbnail, widget-override and native-shape obligations. A later conflicting capture requires explicit version/provenance reconciliation and a typed preservation or loss decision, never silent replacement. The retained gap MT binds these disclosure obligations and leaves actual manual/runtime proof pending until performed.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33605-ASSET-NIB"
@@ -2207,7 +2263,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-NIB",
               "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
-              "required_behavior": "DECLARED GAP — no second corroborating capture.** Every board node kind in this module comes from one source object model. Unlike raster, vector, layout and colour, where several source applications corroborate each other, whiteboard has one witness. A field named here is exactly as reliable as that one capture, and the reliability is stated rather than implied.",
+              "required_behavior": "Accepted single-witness basis with explicit manual limits.** The Operator accepted the twelve board node contracts on their single-witness basis. This acceptance resolves the research-basis decision; it does not corroborate missing original bytes or prove runtime fidelity. Before the affected feature's acceptance, both human and model UserManual layers MUST disclose that the original capture bytes and version remain unverified, the inspected Plugin API 1.141.0 is later pinned evidence, SDK/npm/documentation views of the same upstream are not independent witnesses, and available REST corroboration is partial. The manual MUST distinguish vendor declarations from Studio-native CKC, CRDT, actor, auto-size, broken-reference, thumbnail, widget-override and native-shape obligations. A later conflicting capture requires explicit version/provenance reconciliation and a typed preservation or loss decision, never silent replacement. The retained gap MT binds these disclosure obligations and leaves actual manual/runtime proof pending until performed.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2216,13 +2272,13 @@
               "hsk-studio-nib"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "DECLARED GAP — no second corroborating capture.** Every board node kind in this module comes from one source object model. Unlike raster, vector, layout and colour, where several source applications corroborate each other, whiteboard has one witness. A field named here is exactly as reliable as that one capture, and the reliability is stated rather than implied.",
+            "consumer_assertion": "Accepted single-witness basis with explicit manual limits.** The Operator accepted the twelve board node contracts on their single-witness basis. This acceptance resolves the research-basis decision; it does not corroborate missing original bytes or prove runtime fidelity. Before the affected feature's acceptance, both human and model UserManual layers MUST disclose that the original capture bytes and version remain unverified, the inspected Plugin API 1.141.0 is later pinned evidence, SDK/npm/documentation views of the same upstream are not independent witnesses, and available REST corroboration is partial. The manual MUST distinguish vendor declarations from Studio-native CKC, CRDT, actor, auto-size, broken-reference, thumbnail, widget-override and native-shape obligations. A later conflicting capture requires explicit version/provenance reconciliation and a typed preservation or loss decision, never silent replacement. The retained gap MT binds these disclosure obligations and leaves actual manual/runtime proof pending until performed.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
           "later_embedding_required": true,
-          "later_embedding_assertion": "DECLARED GAP — no second corroborating capture.** Every board node kind in this module comes from one source object model. Unlike raster, vector, layout and colour, where several source applications corroborate each other, whiteboard has one witness. A field named here is exactly as reliable as that one capture, and the reliability is stated rather than implied. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Accepted single-witness basis with explicit manual limits.** The Operator accepted the twelve board node contracts on their single-witness basis. This acceptance resolves the research-basis decision; it does not corroborate missing original bytes or prove runtime fidelity. Before the affected feature's acceptance, both human and model UserManual layers MUST disclose that the original capture bytes and version remain unverified, the inspected Plugin API 1.141.0 is later pinned evidence, SDK/npm/documentation views of the same upstream are not independent witnesses, and available REST corroboration is partial. The manual MUST distinguish vendor declarations from Studio-native CKC, CRDT, actor, auto-size, broken-reference, thumbnail, widget-override and native-shape obligations. A later conflicting capture requires explicit version/provenance reconciliation and a typed preservation or loss decision, never silent replacement. The retained gap MT binds these disclosure obligations and leaves actual manual/runtime proof pending until performed. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "MT-36195"
@@ -2301,7 +2357,7 @@
       ]
     }
   },
-  "updated_at_utc": "2026-10-10T05:47:17+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
@@ -2351,7 +2407,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2381,5 +2437,45 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": null,
+          "new": "Before the affected feature's acceptance, both human and model UserManual layers MUST disclose that the original capture bytes and version remain unverified, the inspected Plugin API 1.141.0 is later pinned evidence, SDK/npm/documentation views of the same upstream are not independent witnesses, and available REST corroboration is partial."
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The manual MUST distinguish vendor declarations from Studio-native CKC, CRDT, actor, auto-size, broken-reference, thumbnail, widget-override and native-shape obligations."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-001",
+        "AC-002"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "DECLARED GAP — no second corroborating capture",
+      "propagated_paths": [
+        "/identity/title",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

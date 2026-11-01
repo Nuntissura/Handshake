@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.28.1 Document types, tag libraries and the attribute vocabulary",
-    "spec_line": 29937,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 30541,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,25 +27,91 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "Formatting-rule record (normative, closed set of ten keys)",
+  "clause": "Formatting-rule record (normative, closed set of eleven keys)",
   "spec_anchor": [
     "STU-WEB-020"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "web_authoring",
   "scope": {
-    "summary": "Formatting-rule record (normative, closed set of ten keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closing tag | | `nlaftertag_min` | 0 | lower clamp | | `nlaftertag_max` | 2 | upper clamp | | `nlbeforecontents` | 0 \\| 1 | newlines before the tag's contents | | `nlaftercontents` | 0 \\| 1 | newlines after the tag's contents | | `indentcontents` | yes \\| no | indent the contents one level | | `formatcontents` | yes \\| no | when `no`, the contents are verbatim and the formatter MUST NOT touch them | | `preserveattrcase` | yes | when present, attribute-name case is preserved verbatim | `formatcontents: no` is what protects `<pre>`, `<script>`, `<style>` and `<textarea>` content; a formatter that reflows inside those elements is a defect. `preserveattrcase` is what protects the SVG and namespaced attribute vocabularies.",
+    "summary": "Formatting-rule record (normative, closed set of eleven keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closing tag | | `nlaftertag_min` | 0 | lower clamp | | `nlaftertag_max` | 2 | upper clamp | | `nlbeforecontents` | 0 \\| 1 | newlines before the tag's contents | | `nlaftercontents` | 0 \\| 1 | newlines after the tag's contents | | `indentcontents` | yes \\| no | indent the contents one level | | `formatcontents` | yes \\| no | when `no`, the contents are verbatim and the formatter MUST NOT touch them | | `preserveattrcase` | yes | when present, attribute-name case is preserved verbatim | `formatcontents: no` is what protects `<pre>`, `<script>`, `<style>` and `<textarea>` content; a formatter that reflows inside those elements is a defect. `preserveattrcase` is what protects the SVG and namespaced attribute vocabularies.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Formatting-rule record (normative, closed set of ten keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...]",
+      "criterion": "Formatting-rule record (normative, closed set of eleven keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the clo [...]",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-WEB-020"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The contract table holds the row `nlbeforetag` with the exact meaning the spec states: 0 \\ | 1 | newlines emitted before the opening tag. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-WEB-020 carried contract table row 1"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `nlbeforetag_min` with the exact meaning the spec states: 0 | lower clamp when the formatter compresses. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-WEB-020 carried contract table row 2"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `nlbeforetag_max` with the exact meaning the spec states: 2 | upper clamp when the formatter expands. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-WEB-020 carried contract table row 3"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `nlaftertag` with the exact meaning the spec states: 0 \\ | 1 | newlines after the closing tag. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-WEB-020 carried contract table row 4"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `nlaftertag_min` with the exact meaning the spec states: 0 | lower clamp. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-WEB-020 carried contract table row 5"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `nlaftertag_max` with the exact meaning the spec states: 2 | upper clamp. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-WEB-020 carried contract table row 6"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `nlbeforecontents` with the exact meaning the spec states: 0 \\ | 1 | newlines before the tag's contents. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-WEB-020 carried contract table row 7"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The contract table holds the row `nlaftercontents` with the exact meaning the spec states: 0 \\ | 1 | newlines after the tag's contents. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-WEB-020 carried contract table row 8"
+    },
+    {
+      "id": "AC-010",
+      "criterion": "The contract table holds the row `indentcontents` with the exact meaning the spec states: yes \\ | no | indent the contents one level. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-WEB-020 carried contract table row 9"
+    },
+    {
+      "id": "AC-011",
+      "criterion": "The contract table holds the row `formatcontents` with the exact meaning the spec states: yes \\ | no | when `no`, the contents are verbatim and the formatter MUST NOT touch them. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-WEB-020 carried contract table row 10"
+    },
+    {
+      "id": "AC-012",
+      "criterion": "The contract table holds the row `preserveattrcase` with the exact meaning the spec states: yes | when present, attribute-name case is preserved verbatim. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-WEB-020 carried contract table row 11"
     }
   ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria_count": 12,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -141,7 +208,7 @@
   "identity": {
     "mt_id": "MT-34237",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "Formatting-rule record (normative, closed set of ten keys)",
+    "title": "Formatting-rule record (normative, closed set of eleven keys)",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 2
@@ -1919,13 +1986,68 @@
       "STU-WEB-020"
     ],
     "acceptance_refs": [
-      "AC-001"
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009",
+      "AC-010",
+      "AC-011",
+      "AC-012"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
         "text": "Formatting-rule record (normative, closed set of eleven keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...] Current v02.208 enrichment: All eleven explicit formatting keys and domains govern, including preserveattrcase; protected contents remain verbatim. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34237.json#/execution/inputs/1/complete_clause_body",
         "fulfillment_ref": "MT-34237#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-002",
+        "text": "The contract table holds the row `nlbeforetag` with the exact meaning the spec states: 0 \\ | 1 | newlines emitted before the opening tag. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `nlbeforetag_min` with the exact meaning the spec states: 0 | lower clamp when the formatter compresses. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `nlbeforetag_max` with the exact meaning the spec states: 2 | upper clamp when the formatter expands. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `nlaftertag` with the exact meaning the spec states: 0 \\ | 1 | newlines after the closing tag. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `nlaftertag_min` with the exact meaning the spec states: 0 | lower clamp. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `nlaftertag_max` with the exact meaning the spec states: 2 | upper clamp. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `nlbeforecontents` with the exact meaning the spec states: 0 \\ | 1 | newlines before the tag's contents. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-009",
+        "text": "The contract table holds the row `nlaftercontents` with the exact meaning the spec states: 0 \\ | 1 | newlines after the tag's contents. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-010",
+        "text": "The contract table holds the row `indentcontents` with the exact meaning the spec states: yes \\ | no | indent the contents one level. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-011",
+        "text": "The contract table holds the row `formatcontents` with the exact meaning the spec states: yes \\ | no | when `no`, the contents are verbatim and the formatter MUST NOT touch them. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-012",
+        "text": "The contract table holds the row `preserveattrcase` with the exact meaning the spec states: yes | when present, attribute-name case is preserved verbatim. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -2216,6 +2338,182 @@
         "planned_source_requirement_ref": "STU-WEB-020",
         "timeout_resolution": "PENDING_ACTUAL_TARGET_AND_APPROVED_BOUNDED_TIMEOUT_BEFORE_DISPATCH",
         "status": "PENDING_NOT_RUN"
+      },
+      {
+        "check_id": "MT-34237-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-WEB-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `nlbeforetag` with the exact meaning the spec states: 0 \\ | 1 | newlines emitted before the opening tag. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-34237-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-WEB-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `nlbeforetag_min` with the exact meaning the spec states: 0 | lower clamp when the formatter compresses. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-34237-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-WEB-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `nlbeforetag_max` with the exact meaning the spec states: 2 | upper clamp when the formatter expands. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-34237-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-WEB-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `nlaftertag` with the exact meaning the spec states: 0 \\ | 1 | newlines after the closing tag. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-34237-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-WEB-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `nlaftertag_min` with the exact meaning the spec states: 0 | lower clamp. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-34237-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-WEB-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `nlaftertag_max` with the exact meaning the spec states: 2 | upper clamp. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-34237-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-WEB-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `nlbeforecontents` with the exact meaning the spec states: 0 \\ | 1 | newlines before the tag's contents. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-34237-SPEC-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-WEB-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `nlaftercontents` with the exact meaning the spec states: 0 \\ | 1 | newlines after the tag's contents. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-34237-SPEC-AC-010",
+        "kind": "test",
+        "claim_refs": [
+          "AC-010",
+          "STU-WEB-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `indentcontents` with the exact meaning the spec states: yes \\ | no | indent the contents one level. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-34237-SPEC-AC-011",
+        "kind": "test",
+        "claim_refs": [
+          "AC-011",
+          "STU-WEB-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `formatcontents` with the exact meaning the spec states: yes \\ | no | when `no`, the contents are verbatim and the formatter MUST NOT touch them. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-34237-SPEC-AC-012",
+        "kind": "test",
+        "claim_refs": [
+          "AC-012",
+          "STU-WEB-020"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `preserveattrcase` with the exact meaning the spec states: yes | when present, attribute-name case is preserved verbatim. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2514,7 +2812,7 @@
             "line": 29975,
             "section": "14.28",
             "heading": "### 14.28.1 Document types, tag libraries and the attribute vocabulary",
-            "verbatim": "**[STU-WEB-020] Formatting-rule record (normative, closed set of ten keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain:",
+            "verbatim": "**[STU-WEB-020] Formatting-rule record (normative, closed set of eleven keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain:",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2692,11 +2990,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T02:58:55.671201+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2738,5 +3036,98 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "Formatting-rule record (normative, closed set of ten keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the closin [...]",
+          "new": "Formatting-rule record (normative, closed set of eleven keys).** Every tag definition carries a formatting-rule record drawn from exactly these keys, each with the stated domain: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Key | Domain | Meaning | |---|---|---| | `nlbeforetag` | 0 \\| 1 | newlines emitted before the opening tag | | `nlbeforetag_min` | 0 | lower clamp when the formatter compresses | | `nlbeforetag_max` | 2 | upper clamp when the formatter expands | | `nlaftertag` | 0 \\| 1 | newlines after the clo [...]"
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The contract table holds the row `nlbeforetag` with the exact meaning the spec states: 0 \\ | 1 | newlines emitted before the opening tag. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `nlbeforetag_min` with the exact meaning the spec states: 0 | lower clamp when the formatter compresses. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `nlbeforetag_max` with the exact meaning the spec states: 2 | upper clamp when the formatter expands. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `nlaftertag` with the exact meaning the spec states: 0 \\ | 1 | newlines after the closing tag. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `nlaftertag_min` with the exact meaning the spec states: 0 | lower clamp. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `nlaftertag_max` with the exact meaning the spec states: 2 | upper clamp. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `nlbeforecontents` with the exact meaning the spec states: 0 \\ | 1 | newlines before the tag's contents. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-009",
+          "old": null,
+          "new": "The contract table holds the row `nlaftercontents` with the exact meaning the spec states: 0 \\ | 1 | newlines after the tag's contents. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-010",
+          "old": null,
+          "new": "The contract table holds the row `indentcontents` with the exact meaning the spec states: yes \\ | no | indent the contents one level. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-011",
+          "old": null,
+          "new": "The contract table holds the row `formatcontents` with the exact meaning the spec states: yes \\ | no | when `no`, the contents are verbatim and the formatter MUST NOT touch them. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-012",
+          "old": null,
+          "new": "The contract table holds the row `preserveattrcase` with the exact meaning the spec states: yes | when present, attribute-name case is preserved verbatim. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "Formatting-rule record (normative, closed set of ten keys)",
+      "propagated_paths": [
+        "/identity/title",
+        "/fulfillment/asset_slices[0]/scope_basis[0]/verbatim"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

@@ -13,7 +13,8 @@
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.0 SurrealDB Authority Override (v02.204) [STU-SDB-001]",
     "spec_line": 36,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "storage",
   "scope": {
-    "summary": "Runtime authority.** Studio durable authority MUST use the Handshake-managed SurrealDB service through the official SurrealDB Rust SDK and the kernel's typed authority-store abstraction. `AppState` supplies that shared SurrealDB authority client; Studio and its standalone engine crates MUST NOT create a private authority database, use `PgPool`, issue `sqlx` queries, accept a PostgreSQL connection URL, or attempt PostgreSQL connectivity for migration or verification. PostgreSQL drivers, runtime lifecycle code, environment variables, configuration keys, startup modes, provisioning scripts, health checks, and proof fixtures MUST be retired from the active Studio dependency and acceptance surface. SQLite remains prohibited for authority, caches, fixtures offered as runtime proof, and tests that claim production-storage equivalence. There is no PostgreSQL fallback, dual authority, import lane, or transitional runtime.",
+    "summary": "Runtime authority.** Studio durable authority MUST use the Handshake-managed SurrealDB service through the official SurrealDB Rust SDK and the kernel's typed authority-store abstraction. `AppState` supplies that shared SurrealDB authority client; Studio and its standalone engine crates MUST NOT create a private authority database, use `PgPool`, issue `sqlx` queries, accept a PostgreSQL connection URL, or attempt PostgreSQL connectivity for migration or verification. PostgreSQL drivers, runtime lifecycle code, environment variables, configuration keys, startup modes, provisioning scripts, health checks, and proof fixtures MUST be retired from the active Studio dependency and acceptance surface. SQLite remains prohibited for authority, caches, fixtures offered as runtime proof, and tests that claim production-storage equivalence. There is no PostgreSQL fallback, dual authority, import lane, or transitional runtime. The sole exception is bounded read-only decoding of an Operator-selected external Lightroom `.lrcat` file as untrusted file bytes. The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority. It emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -54,9 +55,21 @@
       "criterion": "PostgreSQL drivers, runtime lifecycle code, environment variables, configuration keys, startup modes, provisioning scripts, health checks, and proof fixtures MUST be retired from the active Studio dependency and acceptance surface.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-SDB-002"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-SDB-002"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-SDB-002"
     }
   ],
-  "acceptance_criteria_count": 3,
+  "acceptance_criteria_count": 5,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1597,7 +1610,9 @@
     "acceptance_refs": [
       "AC-001",
       "AC-002",
-      "AC-003"
+      "AC-003",
+      "AC-004",
+      "AC-005"
     ],
     "materialized_acceptance": [
       {
@@ -1614,6 +1629,14 @@
         "id": "AC-003",
         "text": "PostgreSQL drivers, runtime lifecycle code, environment variables, configuration keys, startup modes, provisioning scripts, health checks, and proof fixtures MUST be retired from the active Studio dependency and acceptance surface.",
         "fulfillment_ref": "MT-30000#/fulfillment/legacy_acceptance_map/2"
+      },
+      {
+        "id": "AC-004",
+        "text": "The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority."
+      },
+      {
+        "id": "AC-005",
+        "text": "Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof."
       }
     ],
     "spec_basis_refs": [
@@ -1901,6 +1924,38 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-30000-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-SDB-002"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30000-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-SDB-002"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2506,11 +2561,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2542,5 +2597,36 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-004",
+        "AC-005"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Runtime authority",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

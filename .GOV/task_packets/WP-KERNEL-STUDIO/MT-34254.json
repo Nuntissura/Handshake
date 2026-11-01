@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.28.2 Contextual property-panel binding (Studio-wide contract)",
-    "spec_line": 30046,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 30653,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "web_authoring",
   "scope": {
-    "summary": "Priority band enumeration (normative).** `priority` is an integer; LOWER wins. Studio MUST reserve exactly these five bands and MUST NOT introduce a sixth without amending this clause: | Band | Reserved for | Example | |---|---|---| | 1 | generated, locked or server-owned constructs whose editing surface must pre-empt the underlying element | a server behaviour's parameter inspector over its host element | | 5 | the built-in inspector for a specific element or node kind | the video-element inspector | | 6 | a discriminated refinement of a band-5 panel | the viewport-meta inspector, which refines the generic meta inspector | | 10 | template-construct inspectors | the editable-region inspector | | 50 | component and widget inspectors, including plugin-supplied ones | a plugin's carousel inspector | The shipped evidence uses exactly these five values across sixty inspectors; the band meanings above are Studio's normative reading of them.",
+    "summary": "Priority band enumeration (normative).** `priority` is an integer; LOWER wins. Studio MUST reserve exactly these five bands and MUST NOT introduce a sixth without amending this clause: | Band | Reserved for | Example | |---|---|---| | 1 | generated, locked or server-owned constructs whose editing surface must pre-empt the underlying element | a server behaviour's parameter inspector over its host element | | 5 | the built-in inspector for a specific element or node kind | the video-element inspector | | 6 | a discriminated refinement of a band-5 panel | the viewport-meta inspector, which refines the generic meta inspector | | 10 | template-construct inspectors | the editable-region inspector | | 50 | component and widget inspectors, including plugin-supplied ones | a plugin's carousel inspector | The shipped evidence uses exactly these five values across sixty inspectors; the band meanings above are Studio's normative reading of them. Numeric ordering remains ascending. Before sorting, the eligible band-6 refinement rule of [STU-WEB-037] suppresses only its explicitly named band-5 generic sibling on the same matched node. Band 1 remains eligible and pre-empts band 6 numerically; band 50 gains no discriminator or refinement override. These are Studio design rules, not a reconstruction of the vendor runtime comparator.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -2704,11 +2705,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T02:58:55.671201+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2750,5 +2751,22 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Priority band enumeration (normative)",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

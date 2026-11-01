@@ -122,10 +122,32 @@ def regenerate(d, new, spec_ver, spec_commit, now):
                 'evidence_required': ['Exact candidate commit, toolchain, features and lock',
                                       'Nonzero executed case count with independent expected values']})
             appended.append(r['id'])
+    # A row the new spec no longer yields is not active acceptance any more: its materialized row
+    # moves to closure_unit.superseded_materialized_acceptance (kept, never deleted) and its id
+    # leaves acceptance_refs; proof checks keep their claim but record the supersession.
+    superseded = []
+    for r in rows:
+        if r['new'] is None:
+            keep = []
+            for mrow in mat:
+                if mrow['id'] == r['id'] and mrow['text'] == r['old']:
+                    cu.setdefault('superseded_materialized_acceptance', []).append(
+                        dict(mrow, superseded_at_spec_version=spec_ver,
+                             reason='the sentence is absent from the spec text; the deriver no longer yields this row'))
+                    superseded.append(r['id'])
+                else:
+                    keep.append(mrow)
+            mat[:] = keep
+            if r['id'] in superseded and r['id'] in (cu.get('acceptance_refs') or []):
+                cu['acceptance_refs'] = [x for x in cu['acceptance_refs'] if x != r['id']]
+            for chk in (d.get('proof') or {}).get('checks') or []:
+                if r['id'] in superseded and r['id'] in (chk.get('claim_refs') or []):
+                    chk.setdefault('superseded_claim_refs', []).append(r['id'])
     d.setdefault('spec_regeneration', []).append({
         'spec_version': spec_ver, 'spec_commit': spec_commit, 'at': now,
         'mechanism': 'spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py',
         'acceptance_rows': rows, 'appended_materialized_rows': appended, 'rows_absent_from_new_spec': removed,
+        'superseded_materialized_rows': superseded,
         'scope_summary_changed': bool(old_scope and old_scope != new['scope']['summary']),
         'clause_changed': old_clause != new['clause'], 'old_clause': old_clause,
         'propagated_paths': hits,

@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.28.3 Code intelligence",
-    "spec_line": 30120,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 30731,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "web_authoring",
   "scope": {
-    "summary": "Linter rule sets (normative, three languages with shipped defaults).** Studio MUST ship a configurable linter per language with these exact shipped default configurations. Every rule is operator-overridable per site and per document. - **CSS — 35 rules.** Enabled by default: `duplicate-properties`, `floats`, `vendor-prefix`. Disabled by default (32): `important`, `adjoining-classes`, `known-properties`, `box-sizing`, `box-model`, `overqualified-elements`, `display-property-grouping`, `bulletproof-font-face`, `compatible-vendor-prefixes`, `regex-selectors`, `errors`, `duplicate-background-images`, `empty-rules`, `selector-max-approaching`, `gradients`, `fallback-colors`, `font-sizes`, `font-faces`, `star-property-hack`, `outline-none`, `import`, `ids`, `underscore-property-hack`, `rules-count`, `qualified-headings`, `selector-max`, `shorthand`, `text-indent`, `unique-headings`, `universal-selector`, `unqualified-attributes`, `zero-units`. - **Markup — 23 rules.** Enabled by default (8): `tagname-lowercase`, `attr-value-double-quotes`, `attr-no-duplication`, `doctype-first`, `tag-pair`, `spec-char-escape`, `id-unique`, `src-not-empty`, `alt-require`. Disabled by default (15): `attr-lowercase`, `attr-value-not-empty`, `tag-self-close`, `title-require`, `head-script-disabled`, `doctype-html5`, `id-class-value`, `style-disabled`, `inline-style-disabled`, `inline-script-disabled`, `s [...]",
+    "summary": "Linter rule sets (normative, three languages with shipped defaults).** Studio MUST ship a configurable linter per language with these exact shipped default configurations. Every rule is operator-overridable per site and per document. - **CSS — 35 rules.** Enabled by default: `duplicate-properties`, `floats`, `vendor-prefix`. Disabled by default (32): `important`, `adjoining-classes`, `known-properties`, `box-sizing`, `box-model`, `overqualified-elements`, `display-property-grouping`, `bulletproof-font-face`, `compatible-vendor-prefixes`, `regex-selectors`, `errors`, `duplicate-background-images`, `empty-rules`, `selector-max-approaching`, `gradients`, `fallback-colors`, `font-sizes`, `font-faces`, `star-property-hack`, `outline-none`, `import`, `ids`, `underscore-property-hack`, `rules-count`, `qualified-headings`, `selector-max`, `shorthand`, `text-indent`, `unique-headings`, `universal-selector`, `unqualified-attributes`, `zero-units`. - **Markup — 23 rules.** Enabled by default (9): `tagname-lowercase`, `attr-value-double-quotes`, `attr-no-duplication`, `doctype-first`, `tag-pair`, `spec-char-escape`, `id-unique`, `src-not-empty`, `alt-require`. Disabled by default (14): `attr-lowercase`, `attr-value-not-empty`, `tag-self-close`, `title-require`, `head-script-disabled`, `doctype-html5`, `id-class-value`, `style-disabled`, `inline-style-disabled`, `inline-script-disabled`, `s [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -2840,11 +2841,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T02:58:55.671201+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2886,5 +2887,22 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Linter rule sets (normative, three languages with shipped defaults)",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

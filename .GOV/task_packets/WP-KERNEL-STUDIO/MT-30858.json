@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.6.10 Interactive/EPUB Touchpoint and Collaboration Posture",
-    "spec_line": 7426,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 7514,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -54,9 +55,51 @@
       "criterion": "Studio MUST carry the legal direction set per transition type and MUST validate the pair.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-LAY-165"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `Version and structure` with the exact meaning the spec states: `version` (`{epub.v2, epub.v3, epub.v3_with_layout}`), `export_order` (`{order.layout, order.article_panel, order.xml_structure}`), `break_document` and `paragraph_style_name` (split points), `toc_style_name`, `epub_create_page_navigation`, `navigation_style` (`{nav.none, nav.filename, nav.toc_style [...]. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-165 carried contract table row 1"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `Cover` with the exact meaning the spec states: `epub_cover` (`{cover.none, cover.first_page, cover.external_image}`), `cover_image_file`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-165 carried contract table row 2"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `Images` with the exact meaning the spec states: `custom_image_size_option`, `image_export_resolution`, `image_alignment` (`{image_align.left, image_align.center, image_align.right}`), `image_space_before`, `image_space_after`, `use_image_page_break`, `image_page_break` (`{page_break.before, page_break.after, page_break.before_and_after}`), `image [...]. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-165 carried contract table row 3"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `Layout and CSS` with the exact meaning the spec states: `preserve_layout_appearance`, `generate_cascade_style_sheet`, `include_classes_in_html`, `external_style_sheets`, `javascripts`, `preserve_local_override`, `strip_soft_return`, `embed_font`, `left_margin`, `right_margin`, `top_margin`, `bottom_margin`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-165 carried contract table row 4"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `Lists and notes` with the exact meaning the spec states: `bullet_export_option`, `numbered_list_export_option`, `footnote_placement` ([STU-LAY-150]). No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-165 carried contract table row 5"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The contract table holds the row `Metadata` with the exact meaning the spec states: `epub_publisher`, `id`, `epub_title`, `epub_creator`, `epub_date`, `epub_description`, `epub_rights`, `epub_subject`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-165 carried contract table row 6"
+    },
+    {
+      "id": "AC-010",
+      "criterion": "The contract table holds the row `Accessibility` with the exact meaning the spec states: `epub_accessibility_feature`, `epub_accessibility_hazard`, `epub_accessibility_mode`, `epub_accessibility_mode_sufficient`, `epub_accessibility_summary`, `epub_accessibility_conforms_to`, `epub_accessibility_certified_by`, `epub_accessibility_credentials`, `epub_accessibility_report_link`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-165 carried contract table row 7"
     }
   ],
-  "acceptance_criteria_count": 3,
+  "acceptance_criteria_count": 10,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1597,7 +1640,14 @@
     "acceptance_refs": [
       "AC-001",
       "AC-002",
-      "AC-003"
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009",
+      "AC-010"
     ],
     "materialized_acceptance": [
       {
@@ -1614,6 +1664,34 @@
         "id": "AC-003",
         "text": "Studio MUST carry the legal direction set per transition type and MUST validate the pair.",
         "fulfillment_ref": "MT-30858#/fulfillment/legacy_acceptance_map/2"
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `Version and structure` with the exact meaning the spec states: `version` (`{epub.v2, epub.v3, epub.v3_with_layout}`), `export_order` (`{order.layout, order.article_panel, order.xml_structure}`), `break_document` and `paragraph_style_name` (split points), `toc_style_name`, `epub_create_page_navigation`, `navigation_style` (`{nav.none, nav.filename, nav.toc_style [...]. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `Cover` with the exact meaning the spec states: `epub_cover` (`{cover.none, cover.first_page, cover.external_image}`), `cover_image_file`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `Images` with the exact meaning the spec states: `custom_image_size_option`, `image_export_resolution`, `image_alignment` (`{image_align.left, image_align.center, image_align.right}`), `image_space_before`, `image_space_after`, `use_image_page_break`, `image_page_break` (`{page_break.before, page_break.after, page_break.before_and_after}`), `image [...]. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `Layout and CSS` with the exact meaning the spec states: `preserve_layout_appearance`, `generate_cascade_style_sheet`, `include_classes_in_html`, `external_style_sheets`, `javascripts`, `preserve_local_override`, `strip_soft_return`, `embed_font`, `left_margin`, `right_margin`, `top_margin`, `bottom_margin`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `Lists and notes` with the exact meaning the spec states: `bullet_export_option`, `numbered_list_export_option`, `footnote_placement` ([STU-LAY-150]). No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-009",
+        "text": "The contract table holds the row `Metadata` with the exact meaning the spec states: `epub_publisher`, `id`, `epub_title`, `epub_creator`, `epub_date`, `epub_description`, `epub_rights`, `epub_subject`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-010",
+        "text": "The contract table holds the row `Accessibility` with the exact meaning the spec states: `epub_accessibility_feature`, `epub_accessibility_hazard`, `epub_accessibility_mode`, `epub_accessibility_mode_sufficient`, `epub_accessibility_summary`, `epub_accessibility_conforms_to`, `epub_accessibility_certified_by`, `epub_accessibility_credentials`, `epub_accessibility_report_link`. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1928,6 +2006,118 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-30858-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-LAY-165"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Version and structure` with the exact meaning the spec states: `version` (`{epub.v2, epub.v3, epub.v3_with_layout}`), `export_order` (`{order.layout, order.article_panel, order.xml_structure}`), `break_document` and `paragraph_style_name` (split points), `toc_style_name`, `epub_create_page_navigation`, `navigation_style` (`{nav.none, nav.filename, nav.toc_style [...]. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30858-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-LAY-165"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Cover` with the exact meaning the spec states: `epub_cover` (`{cover.none, cover.first_page, cover.external_image}`), `cover_image_file`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30858-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-LAY-165"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Images` with the exact meaning the spec states: `custom_image_size_option`, `image_export_resolution`, `image_alignment` (`{image_align.left, image_align.center, image_align.right}`), `image_space_before`, `image_space_after`, `use_image_page_break`, `image_page_break` (`{page_break.before, page_break.after, page_break.before_and_after}`), `image [...]. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30858-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-LAY-165"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Layout and CSS` with the exact meaning the spec states: `preserve_layout_appearance`, `generate_cascade_style_sheet`, `include_classes_in_html`, `external_style_sheets`, `javascripts`, `preserve_local_override`, `strip_soft_return`, `embed_font`, `left_margin`, `right_margin`, `top_margin`, `bottom_margin`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30858-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-LAY-165"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Lists and notes` with the exact meaning the spec states: `bullet_export_option`, `numbered_list_export_option`, `footnote_placement` ([STU-LAY-150]). No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30858-SPEC-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-LAY-165"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Metadata` with the exact meaning the spec states: `epub_publisher`, `id`, `epub_title`, `epub_creator`, `epub_date`, `epub_description`, `epub_rights`, `epub_subject`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30858-SPEC-AC-010",
+        "kind": "test",
+        "claim_refs": [
+          "AC-010",
+          "STU-LAY-165"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Accessibility` with the exact meaning the spec states: `epub_accessibility_feature`, `epub_accessibility_hazard`, `epub_accessibility_mode`, `epub_accessibility_mode_sufficient`, `epub_accessibility_summary`, `epub_accessibility_conforms_to`, `epub_accessibility_certified_by`, `epub_accessibility_credentials`, `epub_accessibility_report_link`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2568,11 +2758,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T00:00:00Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2602,5 +2792,66 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `Version and structure` with the exact meaning the spec states: `version` (`{epub.v2, epub.v3, epub.v3_with_layout}`), `export_order` (`{order.layout, order.article_panel, order.xml_structure}`), `break_document` and `paragraph_style_name` (split points), `toc_style_name`, `epub_create_page_navigation`, `navigation_style` (`{nav.none, nav.filename, nav.toc_style [...]. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `Cover` with the exact meaning the spec states: `epub_cover` (`{cover.none, cover.first_page, cover.external_image}`), `cover_image_file`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `Images` with the exact meaning the spec states: `custom_image_size_option`, `image_export_resolution`, `image_alignment` (`{image_align.left, image_align.center, image_align.right}`), `image_space_before`, `image_space_after`, `use_image_page_break`, `image_page_break` (`{page_break.before, page_break.after, page_break.before_and_after}`), `image [...]. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `Layout and CSS` with the exact meaning the spec states: `preserve_layout_appearance`, `generate_cascade_style_sheet`, `include_classes_in_html`, `external_style_sheets`, `javascripts`, `preserve_local_override`, `strip_soft_return`, `embed_font`, `left_margin`, `right_margin`, `top_margin`, `bottom_margin`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `Lists and notes` with the exact meaning the spec states: `bullet_export_option`, `numbered_list_export_option`, `footnote_placement` ([STU-LAY-150]). No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-009",
+          "old": null,
+          "new": "The contract table holds the row `Metadata` with the exact meaning the spec states: `epub_publisher`, `id`, `epub_title`, `epub_creator`, `epub_date`, `epub_description`, `epub_rights`, `epub_subject`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-010",
+          "old": null,
+          "new": "The contract table holds the row `Accessibility` with the exact meaning the spec states: `epub_accessibility_feature`, `epub_accessibility_hazard`, `epub_accessibility_mode`, `epub_accessibility_mode_sufficient`, `epub_accessibility_summary`, `epub_accessibility_conforms_to`, `epub_accessibility_certified_by`, `epub_accessibility_credentials`, `epub_accessibility_report_link`. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "Reflowable-export handoff contract",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

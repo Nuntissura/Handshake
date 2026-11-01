@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.30 Operator Shell — Menu, Availability, Docks, and Gesture Arbitration",
-    "spec_line": 30814,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 31503,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "operator_shell",
   "scope": {
-    "summary": "Storage law.** Every durable artefact this sub-section introduces — dock layouts, Layout Presets, panel registry rows, descriptor sets, manual seed rows, shortcut sets — MUST persist through Handshake-managed SurrealDB with the EventLedger as sole durable authority, embedded (no separate database process), per [STU-SDB-002]. SQLite, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003]. Operator-scoped preference layers persist through the shell preference client; document-scoped layers persist as a Studio-owned sibling schema discriminated by `schema_id`, never by extending the shell's own layout schema.",
+    "summary": "Storage law.** Every durable artefact this sub-section introduces — dock layouts, Layout Presets, panel registry rows, descriptor sets, manual seed rows, shortcut sets — MUST persist through Handshake-managed SurrealDB with the EventLedger as sole durable authority, embedded (no separate database process), per [STU-SDB-002]. SQLite database/SQL-engine dependencies, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003]. Operator-scoped preference layers persist through the shell preference client; document-scoped layers persist as a Studio-owned sibling schema discriminated by `schema_id`, never by extending the shell's own layout schema. The sole exception is bounded read-only decoding of an Operator-selected external Lightroom `.lrcat` file as untrusted file bytes. The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority. It emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger. Every other SQLite/PostgreSQL path remains prohibited. Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage pr [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -45,12 +46,24 @@
     },
     {
       "id": "AC-002",
-      "criterion": "SQLite, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003].",
+      "criterion": "SQLite database/SQL-engine dependencies, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003].",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-SHL-007"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-SHL-007"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-SHL-007"
     }
   ],
-  "acceptance_criteria_count": 2,
+  "acceptance_criteria_count": 4,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1526,7 +1539,9 @@
     ],
     "acceptance_refs": [
       "AC-001",
-      "AC-002"
+      "AC-002",
+      "AC-003",
+      "AC-004"
     ],
     "materialized_acceptance": [
       {
@@ -1536,8 +1551,16 @@
       },
       {
         "id": "AC-002",
-        "text": "SQLite, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003].",
+        "text": "SQLite database/SQL-engine dependencies, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003].",
         "fulfillment_ref": "MT-34428#/fulfillment/legacy_acceptance_map/1"
+      },
+      {
+        "id": "AC-003",
+        "text": "The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority."
+      },
+      {
+        "id": "AC-004",
+        "text": "Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof."
       }
     ],
     "spec_basis_refs": [
@@ -1769,7 +1792,7 @@
           "AC-002"
         ],
         "command_or_method": "Planned target: cargo test --locked -p hsk-studio-controls --no-default-features --test mt_34428 contract_consumer -- --exact. Independent validator invokes actual descriptor/action/conformance consumers against cases in execution steps; source oracle .GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:30854. Implementer separately cargo check --locked -p hsk-studio-controls --no-default-features --tests; exact lock/actor/external roots activation-bound. No execution/target existence claimed.",
-        "expected": "Observed output satisfies SQLite, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003]. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
+        "expected": "Observed output satisfies SQLite database/SQL-engine dependencies, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003]. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1782,7 +1805,7 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-          "consumer_assertion": "Observed output satisfies SQLite, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003]. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
+          "consumer_assertion": "Observed output satisfies SQLite database/SQL-engine dependencies, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003]. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
           "negative_path": "Exact cases in MT-34428#/execution/implementation_steps",
           "oracle": "Independent actual outputs specified by MT-34428-ASSET-AC-002; unavailable provider means NOT_PROVEN."
         },
@@ -1792,6 +1815,38 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-34428-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-SHL-007"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-34428-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-SHL-007"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2154,7 +2209,7 @@
         "original_text": "SQLite, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003].",
         "original_row_sha256": "9a21b4fb7605b25fca7865e00782af1dd1a1057ff8992fc2ea2f828cf280821d",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "SQLite, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003].",
+        "semantic_fulfillment": "SQLite database/SQL-engine dependencies, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003].",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34428-ASSET-CONTROLS"
@@ -2164,7 +2219,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "SQLite, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003].",
+            "required_behavior": "SQLite database/SQL-engine dependencies, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003].",
             "only_owner_root_may_change": true
           }
         ],
@@ -2173,13 +2228,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-          "consumer_assertion": "Observed output satisfies SQLite, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003]. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
+          "consumer_assertion": "Observed output satisfies SQLite database/SQL-engine dependencies, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003]. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
           "negative_path": "Exact cases in MT-34428#/execution/implementation_steps",
           "oracle": "Independent actual outputs specified by MT-34428-ASSET-AC-002; unavailable provider means NOT_PROVEN."
         },
         "later_embedding_ref": "MT-36213",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Qualified source MT-34428/AC-002; actual host adoption MT-36213 independently proves: SQLite, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003].",
+        "later_embedding_assertion": "Qualified source MT-34428/AC-002; actual host adoption MT-36213 independently proves: SQLite database/SQL-engine dependencies, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003].",
         "status": "PENDING"
       }
     ],
@@ -2254,7 +2309,7 @@
           "original_text": "SQLite, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003].",
           "original_row_sha256": "9a21b4fb7605b25fca7865e00782af1dd1a1057ff8992fc2ea2f828cf280821d",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "SQLite, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003].",
+          "semantic_fulfillment": "SQLite database/SQL-engine dependencies, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003].",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34428-ASSET-CONTROLS"
@@ -2264,7 +2319,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "SQLite, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003].",
+              "required_behavior": "SQLite database/SQL-engine dependencies, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003].",
               "only_owner_root_may_change": true
             }
           ],
@@ -2273,13 +2328,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-            "consumer_assertion": "Observed output satisfies SQLite, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003]. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
+            "consumer_assertion": "Observed output satisfies SQLite database/SQL-engine dependencies, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003]. and the explicit invalid/stale/cancel/refusal outcomes in steps. Native host obligations remain PENDING, not proved by source declaration or registry presence.",
             "negative_path": "Exact cases in MT-34428#/execution/implementation_steps",
             "oracle": "Independent actual outputs specified by MT-34428-ASSET-AC-002; unavailable provider means NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36213",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Qualified source MT-34428/AC-002; actual host adoption MT-36213 independently proves: SQLite, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003].",
+          "later_embedding_assertion": "Qualified source MT-34428/AC-002; actual host adoption MT-36213 independently proves: SQLite database/SQL-engine dependencies, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003].",
           "status": "PENDING"
         }
       ]
@@ -2293,11 +2348,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2339,5 +2394,53 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-002",
+          "old": "SQLite, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003].",
+          "new": "SQLite database/SQL-engine dependencies, libSQL, Turso and PostgreSQL MUST NOT appear anywhere in the Studio dependency, test, cache or acceptance surface, per [STU-OVR-003]."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-003",
+        "AC-004"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Storage law",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[1]/text",
+        "/proof/checks[1]/expected",
+        "/proof/checks[1]/method_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[1]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[1]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[1]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[1]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

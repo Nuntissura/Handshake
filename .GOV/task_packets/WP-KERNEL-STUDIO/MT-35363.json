@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "5. Microtask Derivation",
-    "spec_line": 22107,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 22409,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,13 +34,13 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "whiteboard",
   "scope": {
-    "summary": "Microtask content obligation.** A microtask derived under [STU-WB-137] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all twelve board node kinds, all twelve connector stroke caps, all three connector line types, all three endpoint variants; the additional field set of the node kind it implements, distinguished from the shared `StudioLayer` surface it inherits; the CKC placed-asset binding of [STU-WB-132] where it touches bytes; and the `studio_declared` label of [STU-WB-105] where it touches the shape vocabulary. A microtask that says \"implement connectors\" without the twelve stroke caps and the three endpoint variants does not satisfy this clause.",
+    "summary": "Microtask content obligation.** A microtask derived under [STU-WB-137] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all twelve board node kinds, all twelve connector stroke caps, all three connector line types, all three endpoint variants; the additional field set of the node kind it implements, distinguished from the shared `StudioLayer` surface it inherits; the CKC placed-asset binding of [STU-WB-132] where it touches bytes; and both complete shape vocabularies, their literal tokens, origin/version labels and preserved `studio_declared` native scope from [STU-WB-105] where it touches shapes. A microtask that says \"implement connectors\" without the twelve stroke caps and the three endpoint variants does not satisfy this clause.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Microtask content obligation.** A microtask derived under [STU-WB-137] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all twelve board node kinds, all twelve connector stroke caps, all three connector line types, all three endpoint variants; the additional field set of the node kind it implements, distinguished from the shared `StudioLayer` surface it inherits; the CKC placed-asset binding of [STU-WB-132] where it touches bytes; and the `studio_declared` label of [STU-WB-105] where it touches the shape vocab [...]",
+      "criterion": "Microtask content obligation.** A microtask derived under [STU-WB-137] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all twelve board node kinds, all twelve connector stroke caps, all three connector line types, all three endpoint variants; the additional field set of the node kind it implements, distinguished from the shared `StudioLayer` surface it inherits; the CKC placed-asset binding of [STU-WB-132] where it touches bytes; and both complete shape vocabularies, their literal tokens, origin/version label [...]",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-WB-139"
     }
@@ -1855,7 +1856,7 @@
     "prior_materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Microtask content obligation.** A microtask derived under [STU-WB-137] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all twelve board node kinds, all twelve connector stroke caps, all three connector line types, all three endpoint variants; the additional field set of the node kind it implements, distinguished from the shared `StudioLayer` surface it inherits; the CKC placed-asset binding of [STU-WB-132] where it touches bytes; and the `studio_declared` label of [STU-WB-105] where it touches the shape vocab [...]",
+        "text": "Microtask content obligation.** A microtask derived under [STU-WB-137] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all twelve board node kinds, all twelve connector stroke caps, all three connector line types, all three endpoint variants; the additional field set of the node kind it implements, distinguished from the shared `StudioLayer` surface it inherits; the CKC placed-asset binding of [STU-WB-132] where it touches bytes; and both complete shape vocabularies, their literal tokens, origin/version label [...]",
         "fulfillment_ref": "MT-35363#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -2124,7 +2125,7 @@
       }
     }
   },
-  "updated_at_utc": "2026-10-10T05:47:17+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "rule_refs": [
     "CX-SPEC-TRUTH-001",
     "CX-TPL-001",
@@ -2174,7 +2175,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2204,5 +2205,30 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "Microtask content obligation.** A microtask derived under [STU-WB-137] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all twelve board node kinds, all twelve connector stroke caps, all three connector line types, all three endpoint variants; the additional field set of the node kind it implements, distinguished from the shared `StudioLayer` surface it inherits; the CKC placed-asset binding of [STU-WB-132] where it touches bytes; and the `studio_declared` label of [STU-WB-105] where it touches the shape vocab [...]",
+          "new": "Microtask content obligation.** A microtask derived under [STU-WB-137] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all twelve board node kinds, all twelve connector stroke caps, all three connector line types, all three endpoint variants; the additional field set of the node kind it implements, distinguished from the shared `StudioLayer` surface it inherits; the CKC placed-asset binding of [STU-WB-132] where it touches bytes; and both complete shape vocabularies, their literal tokens, origin/version label [...]"
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Microtask content obligation (5)",
+      "propagated_paths": [
+        "/authority_migration/prior_materialized_acceptance[0]/text"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

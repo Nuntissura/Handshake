@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.8.CARRIED Clauses carried forward unchanged from v02.205",
-    "spec_line": 12300,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 12573,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,14 +27,14 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "Native color engine: the color transform/CMM, ICC and OCIO handling, gamut mapping, and separation math are owned by the `studio-engine` crate behind the `ColorEngine: Send + Sync` trait ( [...]",
+  "clause": "Native color engine: the color transform/CMM, ICC and OCIO handling, gamut mapping, and separation math are owned by the owning modular Studio asset crate behind the `ColorEngine: Send + Sync` trait ( [...]",
   "spec_anchor": [
     "STU-COL-006"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "colour",
   "scope": {
-    "summary": "Native color engine: the color transform/CMM, ICC and OCIO handling, gamut mapping, and separation math are owned by the `studio-engine` crate behind the `ColorEngine: Send + Sync` trait ([STU-ARC-002]); Studio MUST NOT depend on a platform CMM or subscription color service ([STU-OVR-002]). Transforms are deterministic given identical profiles and intents (a promotion-equivalence requirement of 14.24).",
+    "summary": "Native color engine: the color transform/CMM, ICC and OCIO handling, gamut mapping, and separation math are owned by the owning modular Studio asset crate behind the `ColorEngine: Send + Sync` trait ([STU-ARC-002]); Studio MUST NOT depend on a platform CMM or subscription color service ([STU-OVR-002]). Transforms are deterministic given identical profiles and intents (a promotion-equivalence requirement of 14.24).",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -134,7 +135,7 @@
   "identity": {
     "mt_id": "MT-31416",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "Native color engine: the color transform/CMM, ICC and OCIO handling, gamut mapping, and separation math are owned by the `studio-engine` crate behind the `ColorEngine: Send + Sync` trait ( [...]",
+    "title": "Native color engine: the color transform/CMM, ICC and OCIO handling, gamut mapping, and separation math are owned by the owning modular Studio asset crate behind the `ColorEngine: Send + Sync` trait ( [...]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 4
@@ -1704,7 +1705,7 @@
     "inputs": [
       {
         "source_scope": {
-          "summary": "Native color engine: the color transform/CMM, ICC and OCIO handling, gamut mapping, and separation math are owned by the `studio-engine` crate behind the `ColorEngine: Send + Sync` trait ([STU-ARC-002]); Studio MUST NOT depend on a platform CMM or subscription color service ([STU-OVR-002]). Transforms are deterministic given identical profiles and intents (a promotion-equivalence requirement of 14.24).",
+          "summary": "Native color engine: the color transform/CMM, ICC and OCIO handling, gamut mapping, and separation math are owned by the owning modular Studio asset crate behind the `ColorEngine: Send + Sync` trait ([STU-ARC-002]); Studio MUST NOT depend on a platform CMM or subscription color service ([STU-OVR-002]). Transforms are deterministic given identical profiles and intents (a promotion-equivalence requirement of 14.24).",
           "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
         },
         "canonical_consumer": "An independent source dependency/transform consumer reads the actual locked/native link closure and materialised outputs for identical profiles and intents.",
@@ -2246,11 +2247,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T00:56:23.382315+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2286,5 +2287,25 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "Native color engine: the color transform/CMM, ICC and OCIO handling, gamut mapping, and separation math are owned by the `studio-engine` crate behind the `ColorEngine: Send + Sync` trait ( [...]",
+      "propagated_paths": [
+        "/identity/title",
+        "/execution/inputs[0]/source_scope/summary"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

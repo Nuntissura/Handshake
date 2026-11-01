@@ -12,8 +12,9 @@
     "unit_kind": "validator",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "9. Validation Descriptor Catalogue",
-    "spec_line": 21203,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 21500,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "interop",
   "scope": {
-    "summary": "`export_credential_in_recipe_record`.** The interoperability validator MUST reject, with severity `error`, a document or command in which a recipe record contains a credential, token, password or private key rather than a reference into the kernel credential store, enforcing [STU-IO-147]. The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Clauses carried forward unchanged from v02.205 These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written. They are gathered here rather than left in place so that the rebuilt text reads in one sequence and nothing is lost in the merge.",
+    "summary": "`export_credential_in_recipe_record`.** The interoperability validator MUST reject, with severity `error`, a document or command in which a recipe record contains a credential, token, password or private key rather than a reference into the kernel credential store, enforcing [STU-IO-147]. The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Preserved v02.205 clauses, with STU-IO-001 revised for the current native container contract These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written. They are gathered here rather than left in place so that the rebuilt text reads in one sequence and nothing is lost in the merge.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -45,7 +46,7 @@
     },
     {
       "id": "AC-002",
-      "criterion": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Clauses carried forward unchanged from v02.205 These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written.",
+      "criterion": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Preserved v02.205 clauses, with STU-IO-001 revised for the current native container contract These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-IO-185"
     }
@@ -1708,7 +1709,7 @@
       },
       {
         "id": "AC-002",
-        "text": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Clauses carried forward unchanged from v02.205 These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written.",
+        "text": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Preserved v02.205 clauses, with STU-IO-001 revised for the current native container contract These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written.",
         "fulfillment_ref": "MT-33438#/fulfillment/legacy_acceptance_map/1"
       }
     ],
@@ -1833,7 +1834,7 @@
     "inputs": [
       {
         "source_scope": {
-          "summary": "`export_credential_in_recipe_record`.** The interoperability validator MUST reject, with severity `error`, a document or command in which a recipe record contains a credential, token, password or private key rather than a reference into the kernel credential store, enforcing [STU-IO-147]. The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Clauses carried forward unchanged from v02.205 These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written. They are gathered here rather than left in place so that the rebuilt text reads in one sequence and nothing is lost in the merge.",
+          "summary": "`export_credential_in_recipe_record`.** The interoperability validator MUST reject, with severity `error`, a document or command in which a recipe record contains a credential, token, password or private key rather than a reference into the kernel credential store, enforcing [STU-IO-147]. The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Preserved v02.205 clauses, with STU-IO-001 revised for the current native container contract These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written. They are gathered here rather than left in place so that the rebuilt text reads in one sequence and nothing is lost in the merge.",
           "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
         },
         "canonical_consumer": "Drive actual recipe validator with each secret field class and valid opaque credential-store reference, inspect recipeID and offending field name only.",
@@ -1937,7 +1938,7 @@
         ],
         "command_or_method": "Independent validator executes HBR-bound selected hsk-studio-package natural consumer mt_33438 for AC-002; planned target is authored during implementation.",
         "expected": "Drive actual recipe validator with each secret field class and valid opaque credential-store reference, inspect recipeID and offending field name only. Search actual diagnostics/serialized outputs for seeded secret and require absence; reject raw value before persistence and never echo it in error/manual/proof receipt.",
-        "source_requirement_text": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Clauses carried forward unchanged from v02.205 These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written.",
+        "source_requirement_text": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Preserved v02.205 clauses, with STU-IO-001 revised for the current native container contract These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written.",
         "timeout_seconds": 180,
         "on_timeout": "record_timeout",
         "method_recipe": {
@@ -2323,7 +2324,7 @@
         "original_text": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Clauses carried forward unchanged from v02.205 These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written.",
         "original_row_sha256": "b4494bcd11b611e9398116bbdd8f57638156dcaa0e5c7efe5b18c2eacf798262",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Clauses carried forward unchanged from v02.205 These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written.",
+        "semantic_fulfillment": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Preserved v02.205 clauses, with STU-IO-001 revised for the current native container contract These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33438-ASSET-PACKAGE"
@@ -2333,7 +2334,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-PACKAGE",
             "scope": "Native document container serialization, manifest/hash references, atomic recovery and bounded loading. Stream asset bytes through CKC/PRIM-ArtifactService provider ports; no private catalog, preview cache, metadata store, watcher or second CAS under STU-ASSET-004/009/010. Standalone fixtures supply scoped in-memory resolver inputs rather than kernel imports.",
-            "required_behavior": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Clauses carried forward unchanged from v02.205 These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written.",
+            "required_behavior": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Preserved v02.205 clauses, with STU-IO-001 revised for the current native container contract These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2349,7 +2350,7 @@
         },
         "later_embedding_ref": "MT-33438-KERNEL-AC-002",
         "later_embedding_required": true,
-        "later_embedding_assertion": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Clauses carried forward unchanged from v02.205 These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Preserved v02.205 clauses, with STU-IO-001 revised for the current native container contract These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36207"
@@ -2427,7 +2428,7 @@
           "original_text": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Clauses carried forward unchanged from v02.205 These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written.",
           "original_row_sha256": "b4494bcd11b611e9398116bbdd8f57638156dcaa0e5c7efe5b18c2eacf798262",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Clauses carried forward unchanged from v02.205 These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written.",
+          "semantic_fulfillment": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Preserved v02.205 clauses, with STU-IO-001 revised for the current native container contract These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33438-ASSET-PACKAGE"
@@ -2437,7 +2438,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-PACKAGE",
               "scope": "Native document container serialization, manifest/hash references, atomic recovery and bounded loading. Stream asset bytes through CKC/PRIM-ArtifactService provider ports; no private catalog, preview cache, metadata store, watcher or second CAS under STU-ASSET-004/009/010. Standalone fixtures supply scoped in-memory resolver inputs rather than kernel imports.",
-              "required_behavior": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Clauses carried forward unchanged from v02.205 These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written.",
+              "required_behavior": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Preserved v02.205 clauses, with STU-IO-001 revised for the current native container contract These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2446,13 +2447,13 @@
               "hsk-studio-package"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Clauses carried forward unchanged from v02.205 These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written.",
+            "consumer_assertion": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Preserved v02.205 clauses, with STU-IO-001 revised for the current native container contract These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-33438-KERNEL-AC-002",
           "later_embedding_required": true,
-          "later_embedding_assertion": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Clauses carried forward unchanged from v02.205 These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Preserved v02.205 clauses, with STU-IO-001 revised for the current native container contract These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ],
@@ -2477,11 +2478,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2513,5 +2514,39 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-002",
+          "old": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Clauses carried forward unchanged from v02.205 These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written.",
+          "new": "The diagnostic MUST name the recipe and the offending field name only, never the secret value. ### 14.13.CARRIED Preserved v02.205 clauses, with STU-IO-001 revised for the current native container contract These clauses were NOT redefined by the rebuilt sub-section above, so they remain in force exactly as written."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "`export_credential_in_recipe_record`",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[1]/text",
+        "/execution/inputs[0]/source_scope/summary",
+        "/proof/checks[1]/source_requirement_text",
+        "/fulfillment/legacy_acceptance_map[1]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[1]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[1]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

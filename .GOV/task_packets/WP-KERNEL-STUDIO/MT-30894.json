@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.7.5 The Native Shaping Engine",
-    "spec_line": 7977,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 8065,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,13 +34,13 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "typography",
   "scope": {
-    "summary": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]). Studio MUST NOT depend on DirectWrite, Core Text, Pango, HarfBuzz-via-C, ICU-via-C, or any platform, OS, browser or subscription-gated shaping, line-breaking, bidi, normalisation, hyphenation or font-enumeration service at runtime, on any platform, in any build profile, including tests. This prohibition is NOT relaxed for convenience, for a single script, for emoji, or for a platform-specific build. The reason is promotion equivalence: shaping MUST be deterministic and byte-identical across hosts so that model-authored and operator-authored layout agree ([STU-TYP-131]).",
+    "summary": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]). Studio MUST NOT depend on DirectWrite, Core Text, Pango, HarfBuzz-via-C, ICU-via-C, or any platform, OS, browser or subscription-gated shaping, line-breaking, bidi, normalisation, hyphenation or font-enumeration service at runtime, on any platform, in any build profile, including tests. This prohibition is NOT relaxed for convenience, for a single script, for emoji, or for a platform-specific build. The reason is promotion equivalence: shaping MUST be deterministic and byte-identical across hosts so that model-authored and operator-authored layout agree ([STU-TYP-131]).",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
+      "criterion": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-TYP-126"
     },
@@ -1600,7 +1601,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
+        "text": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
         "fulfillment_ref": "MT-30894#/fulfillment/legacy_acceptance_map/0"
       },
       {
@@ -1734,7 +1735,7 @@
     "shared_resource_locks": [],
     "inputs": [
       {
-        "source_scope": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]). Studio MUST NOT depend on DirectWrite, Core Text, Pango, HarfBuzz-via-C, ICU-via-C, or any platform, OS, browser or subscription-gated shaping, line-breaking, bidi, normalisation, hyphenation or font-enumeration service at runtime, on any platform, in any build profile, including tests. This prohibition is NOT relaxed for convenience, for a single script, for emoji, or for a platform-specific build. The reason is promotion equivalence: shaping MUST be deterministic and byte-identical across hosts so that model-authored and operator-authored layout agree ([STU-TYP-131]).",
+        "source_scope": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]). Studio MUST NOT depend on DirectWrite, Core Text, Pango, HarfBuzz-via-C, ICU-via-C, or any platform, OS, browser or subscription-gated shaping, line-breaking, bidi, normalisation, hyphenation or font-enumeration service at runtime, on any platform, in any build profile, including tests. This prohibition is NOT relaxed for convenience, for a single script, for emoji, or for a platform-specific build. The reason is promotion equivalence: shaping MUST be deterministic and byte-identical across hosts so that model-authored and operator-authored layout agree ([STU-TYP-131]).",
         "canonical_consumer": "Shape mixed-script text from actual font bytes through the independently packaged Type engine and compare positioned glyphs across hosts.",
         "source_root": "handshake-studio-assets/crates/hsk-studio-type",
         "resource_inputs": "Actual hashed font bytes and multilingual UTF-8 corpus; explicit story/range/composer records; canonical StudioVectorPath and StudioPageSpread ports; hashed dictionaries and versioned composition closures; two independent host artifact sets for determinism proof.",
@@ -2178,7 +2179,7 @@
         "original_text": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
         "original_row_sha256": "bddf108111dcb58ab3cb9034f0bbf3c7a80f3c9ec4a7af286150b30d554a1e7d",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
+        "semantic_fulfillment": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
         "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
         "asset_contribution_refs": [
           "MT-30894-ASSET-TYPE"
@@ -2188,7 +2189,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-TYPE",
             "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
-            "required_behavior": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
+            "required_behavior": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
             "only_owner_root_may_change": true
           }
         ],
@@ -2207,7 +2208,7 @@
         },
         "later_embedding_ref": "MT-30894-KERNEL-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36196"
@@ -2340,7 +2341,7 @@
           "original_text": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
           "original_row_sha256": "bddf108111dcb58ab3cb9034f0bbf3c7a80f3c9ec4a7af286150b30d554a1e7d",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
+          "semantic_fulfillment": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
           "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
           "asset_contribution_refs": [
             "MT-30894-ASSET-TYPE"
@@ -2350,7 +2351,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-TYPE",
               "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
-              "required_behavior": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
+              "required_behavior": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
               "only_owner_root_may_change": true
             }
           ],
@@ -2369,7 +2370,7 @@
           },
           "later_embedding_ref": "MT-30894-KERNEL-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "MT-36196"
@@ -2468,11 +2469,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2502,5 +2503,37 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
+          "new": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008]).** The Studio text-shaping and text-layout stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002])."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Native-Rust shaping mandate (RESTATEMENT AND REINFORCEMENT of [STU-TYP-008])",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/execution/inputs[0]/source_scope",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

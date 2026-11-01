@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.6.9.3 PDF and Ink/Separation Output",
-    "spec_line": 7238,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 7326,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -42,9 +43,87 @@
       "criterion": "Ink-limit violation finding.** A violation MUST be reported as a typed structured finding in the vocabulary of [STU-LAY-166] and MUST reach the model-steerable command surface on the same terms as every other preflight finding under [STU-LAY-057], not only as a highlight drawn over the page.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-LAY-253"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The contract table holds the row `rule_id` with the exact meaning the spec states: Stable identifier of the ink-limit rule instance that fired.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-253 carried contract table row 1"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `severity` with the exact meaning the spec states: The `ink_limit_severity` member in force for that rule instance.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-253 carried contract table row 2"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `check_state` with the exact meaning the spec states: The `ink_limit_check_state` member the evaluation reached.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-253 carried contract table row 3"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `effective_limit` with the exact meaning the spec states: The percentage actually applied.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-253 carried contract table row 4"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `limit_source` with the exact meaning the spec states: The `ink_limit_source` member that supplied `effective_limit`.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-253 carried contract table row 5"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `measured_maximum` with the exact meaning the spec states: Highest total coverage found in the evaluated region, in percent.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-253 carried contract table row 6"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `measured_mean` with the exact meaning the spec states: Mean total coverage over the evaluated region, in percent.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-253 carried contract table row 7"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The contract table holds the row `area_above_limit` with the exact meaning the spec states: Fraction of the evaluated region above the limit, in percent of that region.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-253 carried contract table row 8"
+    },
+    {
+      "id": "AC-010",
+      "criterion": "The contract table holds the row `per_ink_contribution` with the exact meaning the spec states: Per-plate tone value at the worst location, so the offending ink is named rather than inferred.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-253 carried contract table row 9"
+    },
+    {
+      "id": "AC-011",
+      "criterion": "The contract table holds the row `page_reference` with the exact meaning the spec states: Page or spread identity, plus the offending region in document coordinates.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-253 carried contract table row 10"
+    },
+    {
+      "id": "AC-012",
+      "criterion": "The contract table holds the row `object_references` with the exact meaning the spec states: The page items composing at the worst location, placed assets carried by link reference.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-253 carried contract table row 11"
+    },
+    {
+      "id": "AC-013",
+      "criterion": "The contract table holds the row `introduced_by` with the exact meaning the spec states: The `coverage_input_stage` member that raised the value above the limit.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-253 carried contract table row 12"
+    },
+    {
+      "id": "AC-014",
+      "criterion": "The contract table holds the row `sample_resolution` with the exact meaning the spec states: The resolution the evaluation ran at.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-253 carried contract table row 13"
     }
   ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria_count": 14,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1593,13 +1672,78 @@
       "STU-LAY-253"
     ],
     "acceptance_refs": [
-      "AC-001"
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009",
+      "AC-010",
+      "AC-011",
+      "AC-012",
+      "AC-013",
+      "AC-014"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
         "text": "Ink-limit violation finding.** A violation MUST be reported as a typed structured finding in the vocabulary of [STU-LAY-166] and MUST reach the model-steerable command surface on the same terms as every other preflight finding under [STU-LAY-057], not only as a highlight drawn over the page.",
         "fulfillment_ref": "MT-35431#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-002",
+        "text": "The contract table holds the row `rule_id` with the exact meaning the spec states: Stable identifier of the ink-limit rule instance that fired.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `severity` with the exact meaning the spec states: The `ink_limit_severity` member in force for that rule instance.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `check_state` with the exact meaning the spec states: The `ink_limit_check_state` member the evaluation reached.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `effective_limit` with the exact meaning the spec states: The percentage actually applied.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `limit_source` with the exact meaning the spec states: The `ink_limit_source` member that supplied `effective_limit`.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `measured_maximum` with the exact meaning the spec states: Highest total coverage found in the evaluated region, in percent.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `measured_mean` with the exact meaning the spec states: Mean total coverage over the evaluated region, in percent.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-009",
+        "text": "The contract table holds the row `area_above_limit` with the exact meaning the spec states: Fraction of the evaluated region above the limit, in percent of that region.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-010",
+        "text": "The contract table holds the row `per_ink_contribution` with the exact meaning the spec states: Per-plate tone value at the worst location, so the offending ink is named rather than inferred.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-011",
+        "text": "The contract table holds the row `page_reference` with the exact meaning the spec states: Page or spread identity, plus the offending region in document coordinates.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-012",
+        "text": "The contract table holds the row `object_references` with the exact meaning the spec states: The page items composing at the worst location, placed assets carried by link reference.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-013",
+        "text": "The contract table holds the row `introduced_by` with the exact meaning the spec states: The `coverage_input_stage` member that raised the value above the limit.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-014",
+        "text": "The contract table holds the row `sample_resolution` with the exact meaning the spec states: The resolution the evaluation ran at.. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1830,6 +1974,214 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-35431-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-LAY-253"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `rule_id` with the exact meaning the spec states: Stable identifier of the ink-limit rule instance that fired.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35431-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-LAY-253"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `severity` with the exact meaning the spec states: The `ink_limit_severity` member in force for that rule instance.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35431-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-LAY-253"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `check_state` with the exact meaning the spec states: The `ink_limit_check_state` member the evaluation reached.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35431-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-LAY-253"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `effective_limit` with the exact meaning the spec states: The percentage actually applied.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35431-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-LAY-253"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `limit_source` with the exact meaning the spec states: The `ink_limit_source` member that supplied `effective_limit`.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35431-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-LAY-253"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `measured_maximum` with the exact meaning the spec states: Highest total coverage found in the evaluated region, in percent.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35431-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-LAY-253"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `measured_mean` with the exact meaning the spec states: Mean total coverage over the evaluated region, in percent.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35431-SPEC-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-LAY-253"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `area_above_limit` with the exact meaning the spec states: Fraction of the evaluated region above the limit, in percent of that region.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35431-SPEC-AC-010",
+        "kind": "test",
+        "claim_refs": [
+          "AC-010",
+          "STU-LAY-253"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `per_ink_contribution` with the exact meaning the spec states: Per-plate tone value at the worst location, so the offending ink is named rather than inferred.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35431-SPEC-AC-011",
+        "kind": "test",
+        "claim_refs": [
+          "AC-011",
+          "STU-LAY-253"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `page_reference` with the exact meaning the spec states: Page or spread identity, plus the offending region in document coordinates.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35431-SPEC-AC-012",
+        "kind": "test",
+        "claim_refs": [
+          "AC-012",
+          "STU-LAY-253"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `object_references` with the exact meaning the spec states: The page items composing at the worst location, placed assets carried by link reference.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35431-SPEC-AC-013",
+        "kind": "test",
+        "claim_refs": [
+          "AC-013",
+          "STU-LAY-253"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `introduced_by` with the exact meaning the spec states: The `coverage_input_stage` member that raised the value above the limit.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35431-SPEC-AC-014",
+        "kind": "test",
+        "claim_refs": [
+          "AC-014",
+          "STU-LAY-253"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `sample_resolution` with the exact meaning the spec states: The resolution the evaluation ran at.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2278,11 +2630,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T00:00:00Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2312,5 +2664,102 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The contract table holds the row `rule_id` with the exact meaning the spec states: Stable identifier of the ink-limit rule instance that fired.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `severity` with the exact meaning the spec states: The `ink_limit_severity` member in force for that rule instance.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `check_state` with the exact meaning the spec states: The `ink_limit_check_state` member the evaluation reached.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `effective_limit` with the exact meaning the spec states: The percentage actually applied.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `limit_source` with the exact meaning the spec states: The `ink_limit_source` member that supplied `effective_limit`.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `measured_maximum` with the exact meaning the spec states: Highest total coverage found in the evaluated region, in percent.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `measured_mean` with the exact meaning the spec states: Mean total coverage over the evaluated region, in percent.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-009",
+          "old": null,
+          "new": "The contract table holds the row `area_above_limit` with the exact meaning the spec states: Fraction of the evaluated region above the limit, in percent of that region.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-010",
+          "old": null,
+          "new": "The contract table holds the row `per_ink_contribution` with the exact meaning the spec states: Per-plate tone value at the worst location, so the offending ink is named rather than inferred.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-011",
+          "old": null,
+          "new": "The contract table holds the row `page_reference` with the exact meaning the spec states: Page or spread identity, plus the offending region in document coordinates.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-012",
+          "old": null,
+          "new": "The contract table holds the row `object_references` with the exact meaning the spec states: The page items composing at the worst location, placed assets carried by link reference.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-013",
+          "old": null,
+          "new": "The contract table holds the row `introduced_by` with the exact meaning the spec states: The `coverage_input_stage` member that raised the value above the limit.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-014",
+          "old": null,
+          "new": "The contract table holds the row `sample_resolution` with the exact meaning the spec states: The resolution the evaluation ran at.. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012",
+        "AC-013",
+        "AC-014"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "Ink-limit violation finding",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.28.10 Microtask Derivation",
-    "spec_line": 30500,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 31187,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "web_authoring",
   "scope": {
-    "summary": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] — including the nine-field binding record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...]",
+    "summary": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] — including the nine original binding fields plus conditional `refines_panel_id` record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tr [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [],
@@ -2464,7 +2465,7 @@
         "payload": [
           {
             "id": "ASSET-AC-001",
-            "criterion": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] — including the nine-field binding record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tripwire** ([STU-WEB-001], [STU-WEB-002]), a **d [...]",
+            "criterion": "Derivation rule (NORMATIVE).** The web-authoring microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **document-type or vocabulary contract** ([STU-WEB-011]-[STU-WEB-029]), a **panel binding record or a resolution rule** ([STU-WEB-031]-[STU-WEB-044] — including the nine original binding fields plus conditional `refines_panel_id` record of [STU-WEB-033], the closed selector grammar of [STU-WEB-034], the selection-scope set of [STU-WEB-035], the priority bands of [STU-WEB-036], the deterministic resolution algorithm of [STU-WEB-040], the resolution receipt of [STU-WEB-041], the registry static analysis of [STU-WEB-042] and the four lifecycle hooks of [STU-WEB-044]), a **code-intelligence rule set** ([STU-WEB-045]-[STU-WEB-059]), a **CSS property or unit contract** ([STU-WEB-060]-[STU-WEB-075]), a **responsive constant set, framework descriptor or breakpoint contract** ([STU-WEB-076]-[STU-WEB-089]), a **template, region, locking or snippet contract** ([STU-WEB-090]-[STU-WEB-099]), an **Insert-object, behaviour or event-model contract** ([STU-WEB-100]-[STU-WEB-112]), a **site, transport, server-model or publishing contract** ([STU-WEB-113]-[STU-WEB-127]), a **view or inspection contract** ([STU-WEB-128], [STU-WEB-129], [STU-WEB-130]), a **scope tr [...]",
             "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
           }
         ],
@@ -2757,7 +2758,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T04:40:41.410378+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
@@ -2768,7 +2769,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2810,5 +2811,24 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Derivation rule (NORMATIVE) (6)",
+      "propagated_paths": [
+        "/authority_migration/prior_derivation_snapshots[0]/payload[0]/criterion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

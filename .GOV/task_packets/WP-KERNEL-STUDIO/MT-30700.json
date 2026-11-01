@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.6.3 Text Frames and Story Threading",
-    "spec_line": 5812,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 5896,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -48,9 +49,33 @@
       "criterion": "These are the layout-side storage; the composer that consumes them is owned by 14.7. *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | |---|---|---|---|---|---|---|---| | `minimum_word_spacing` | 0 | 1000 | unknown | unknown | unknown | `percent` | unknown | | `desired_word_spacing` | 0 | 1000 | unknown | unknown | unknown | `percent` | unknown | | `maximum_word_spacing` | 0 | 1000 | unknown | unknown | unknown | `percent` | unknown [...]",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-LAY-125"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `Rule above` with the exact meaning the spec states: `rule_above` (boolean), `rule_above_line_weight`, `rule_above_colour`, `rule_above_tint` (0..100 `percent`), `rule_above_gap_colour`, `rule_above_gap_tint` (0..100 `percent`), `rule_above_type`, `rule_above_offset`, `rule_above_left_indent`, `rule_above_right_indent`, `rule_above_width` (enumeration [...]. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-125 carried contract table row 1"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `Rule below` with the exact meaning the spec states: the same thirteen fields with `rule_below` prefixes. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-125 carried contract table row 2"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `Paragraph shading` with the exact meaning the spec states: `paragraph_shading_on` (boolean), `paragraph_shading_tint` (0..100 `percent`), `paragraph_shading_top_origin`, `paragraph_shading_bottom_origin`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-125 carried contract table row 3"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `Paragraph border` with the exact meaning the spec states: `paragraph_border_tint` (0..100 `percent`), `paragraph_border_gap_tint` (0..100 `percent`), `paragraph_border_gap_colour`, `paragraph_border_gap_overprint`, plus per-side widths, corner shapes, offsets, merge-consecutive, clip-to-frame and do-not-print. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-125 carried contract table row 4"
     }
   ],
-  "acceptance_criteria_count": 2,
+  "acceptance_criteria_count": 6,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1554,7 +1579,11 @@
     ],
     "acceptance_refs": [
       "AC-001",
-      "AC-002"
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006"
     ],
     "materialized_acceptance": [
       {
@@ -1566,6 +1595,22 @@
         "id": "AC-002",
         "text": "These are the layout-side storage; the composer that consumes them is owned by 14.7. *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | |---|---|---|---|---|---|---|---| | `minimum_word_spacing` | 0 | 1000 | unknown | unknown | unknown | `percent` | unknown | | `desired_word_spacing` | 0 | 1000 | unknown | unknown | unknown | `percent` | unknown | | `maximum_word_spacing` | 0 | 1000 | unknown | unknown | unknown | `percent` | unknown [...]",
         "fulfillment_ref": "MT-30700#/fulfillment/legacy_acceptance_map/1"
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `Rule above` with the exact meaning the spec states: `rule_above` (boolean), `rule_above_line_weight`, `rule_above_colour`, `rule_above_tint` (0..100 `percent`), `rule_above_gap_colour`, `rule_above_gap_tint` (0..100 `percent`), `rule_above_type`, `rule_above_offset`, `rule_above_left_indent`, `rule_above_right_indent`, `rule_above_width` (enumeration [...]. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `Rule below` with the exact meaning the spec states: the same thirteen fields with `rule_below` prefixes. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `Paragraph shading` with the exact meaning the spec states: `paragraph_shading_on` (boolean), `paragraph_shading_tint` (0..100 `percent`), `paragraph_shading_top_origin`, `paragraph_shading_bottom_origin`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `Paragraph border` with the exact meaning the spec states: `paragraph_border_tint` (0..100 `percent`), `paragraph_border_gap_tint` (0..100 `percent`), `paragraph_border_gap_colour`, `paragraph_border_gap_overprint`, plus per-side widths, corner shapes, offsets, merge-consecutive, clip-to-frame and do-not-print. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1838,6 +1883,70 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-30700-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-LAY-125"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Rule above` with the exact meaning the spec states: `rule_above` (boolean), `rule_above_line_weight`, `rule_above_colour`, `rule_above_tint` (0..100 `percent`), `rule_above_gap_colour`, `rule_above_gap_tint` (0..100 `percent`), `rule_above_type`, `rule_above_offset`, `rule_above_left_indent`, `rule_above_right_indent`, `rule_above_width` (enumeration [...]. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30700-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-LAY-125"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Rule below` with the exact meaning the spec states: the same thirteen fields with `rule_below` prefixes. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30700-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-LAY-125"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Paragraph shading` with the exact meaning the spec states: `paragraph_shading_on` (boolean), `paragraph_shading_tint` (0..100 `percent`), `paragraph_shading_top_origin`, `paragraph_shading_bottom_origin`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30700-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-LAY-125"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Paragraph border` with the exact meaning the spec states: `paragraph_border_tint` (0..100 `percent`), `paragraph_border_gap_tint` (0..100 `percent`), `paragraph_border_gap_colour`, `paragraph_border_gap_overprint`, plus per-side widths, corner shapes, offsets, merge-consecutive, clip-to-frame and do-not-print. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2382,11 +2491,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T00:00:00Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2416,5 +2525,48 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `Rule above` with the exact meaning the spec states: `rule_above` (boolean), `rule_above_line_weight`, `rule_above_colour`, `rule_above_tint` (0..100 `percent`), `rule_above_gap_colour`, `rule_above_gap_tint` (0..100 `percent`), `rule_above_type`, `rule_above_offset`, `rule_above_left_indent`, `rule_above_right_indent`, `rule_above_width` (enumeration [...]. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `Rule below` with the exact meaning the spec states: the same thirteen fields with `rule_below` prefixes. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `Paragraph shading` with the exact meaning the spec states: `paragraph_shading_on` (boolean), `paragraph_shading_tint` (0..100 `percent`), `paragraph_shading_top_origin`, `paragraph_shading_bottom_origin`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `Paragraph border` with the exact meaning the spec states: `paragraph_border_tint` (0..100 `percent`), `paragraph_border_gap_tint` (0..100 `percent`), `paragraph_border_gap_colour`, `paragraph_border_gap_overprint`, plus per-side widths, corner shapes, offsets, merge-consecutive, clip-to-frame and do-not-print. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "Paragraph-level layout-flow attribute contract",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

@@ -11,9 +11,10 @@
     "derivation_key": "STU-CON-005#clause#0",
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
-    "spec_heading": "14.23 Canonical Studio Authority Contracts",
-    "spec_line": 22357,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_heading": "14.23.6 Develop decoded-CFA foundation transport",
+    "spec_line": 22855,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,25 +27,31 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "UNITS & DETERMINISM. Unit law per [STU-DOC-003]. Promotion equivalence for renders validated across different GPU backends/drivers MUST use a pixel/vertex tolerance comparator (max per-channel/positio [...]",
+  "clause": "UNITS & DETERMINISM. Unit law per [STU-DOC-003]. Render equivalence across GPU backends/drivers MUST use a declared pixel/vertex tolerance comparator, not content-hash equality (mirrors [TAI-OVR-006]) [...]",
   "spec_anchor": [
     "STU-CON-005"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "cross_cutting",
   "scope": {
-    "summary": "UNITS & DETERMINISM. Unit law per [STU-DOC-003]. Promotion equivalence for renders validated across different GPU backends/drivers MUST use a pixel/vertex tolerance comparator (max per-channel/position deviation <= a declared epsilon), NOT SHA-256 content-hash equality; content hashes are reserved for same-machine same-run idempotency and EventLedger receipt fingerprinting (mirrors [TAI-OVR-006]).",
+    "summary": "UNITS & DETERMINISM. Unit law per [STU-DOC-003]. Render equivalence across GPU backends/drivers MUST use a declared pixel/vertex tolerance comparator, not content-hash equality (mirrors [TAI-OVR-006]). Exact source/artifact/package bytes retain hashes for portable cross-host identity, integrity, transport, replay inputs and receipt/idempotency fingerprinting. Byte identity MUST NOT substitute for cross-backend render-equivalence proof, and epsilon comparison MUST NOT accept corrupted artifact bytes.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Promotion equivalence for renders validated across different GPU backends/drivers MUST use a pixel/vertex tolerance comparator (max per-channel/position deviation <= a declared epsilon), NOT SHA-256 content-hash equality; content hashes are reserved for same-machine same-run idempotency and EventLedger receipt fingerprinting (mirrors [TAI-OVR-006]).",
+      "criterion": "Render equivalence across GPU backends/drivers MUST use a declared pixel/vertex tolerance comparator, not content-hash equality (mirrors [TAI-OVR-006]).",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-CON-005"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "Byte identity MUST NOT substitute for cross-backend render-equivalence proof, and epsilon comparison MUST NOT accept corrupted artifact bytes.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-CON-005"
     }
   ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria_count": 2,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -141,7 +148,7 @@
   "identity": {
     "mt_id": "MT-33671",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "UNITS & DETERMINISM. Unit law per [STU-DOC-003]. Promotion equivalence for renders validated across different GPU backends/drivers MUST use a pixel/vertex tolerance comparator (max per-channel/positio [...]",
+    "title": "UNITS & DETERMINISM. Unit law per [STU-DOC-003]. Render equivalence across GPU backends/drivers MUST use a declared pixel/vertex tolerance comparator, not content-hash equality (mirrors [TAI-OVR-006]) [...]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 3
@@ -1579,13 +1586,18 @@
       "STU-CON-005"
     ],
     "acceptance_refs": [
-      "AC-001"
+      "AC-001",
+      "AC-002"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Promotion equivalence for renders validated across different GPU backends/drivers MUST use a pixel/vertex tolerance comparator (max per-channel/position deviation <= a declared epsilon), NOT SHA-256 content-hash equality; content hashes are reserved for same-machine same-run idempotency and EventLedger receipt fingerprinting (mirrors [TAI-OVR-006]).",
+        "text": "Render equivalence across GPU backends/drivers MUST use a declared pixel/vertex tolerance comparator, not content-hash equality (mirrors [TAI-OVR-006]).",
         "fulfillment_ref": "MT-33671#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-002",
+        "text": "Byte identity MUST NOT substitute for cross-backend render-equivalence proof, and epsilon comparison MUST NOT accept corrupted artifact bytes."
       }
     ],
     "spec_basis_refs": [
@@ -1785,7 +1797,7 @@
           "AC-001"
         ],
         "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-accord --no-default-features --test mt_33671 -- --nocapture",
-        "expected": "Promotion equivalence for renders validated across different GPU backends/drivers MUST use a pixel/vertex tolerance comparator (max per-channel/position deviation <= a declared epsilon), NOT SHA-256 content-hash equality; content hashes are reserved for same-machine same-run idempotency and EventLedger receipt fingerprinting (mirrors [TAI-OVR-006]). Source consumer/manifest inspection additionally proves: Declare explicit typed units/profile and distinct integrity-hash versus render-equivalence contracts. Compare exact artifact bytes by digest and rendered pixel/vertex values by the declared epsilon across backend/driver descriptors. Reject corrupted bytes even when rendered tolerance passes, and reject hashonly cross-backend comparison; mixedunit or implicit profile input fails decode.",
+        "expected": "Render equivalence across GPU backends/drivers MUST use a declared pixel/vertex tolerance comparator, not content-hash equality (mirrors [TAI-OVR-006]). Source consumer/manifest inspection additionally proves: Declare explicit typed units/profile and distinct integrity-hash versus render-equivalence contracts. Compare exact artifact bytes by digest and rendered pixel/vertex values by the declared epsilon across backend/driver descriptors. Reject corrupted bytes even when rendered tolerance passes, and reject hashonly cross-backend comparison; mixedunit or implicit profile input fails decode.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1809,6 +1821,22 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-33671-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-CON-005"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Byte identity MUST NOT substitute for cross-backend render-equivalence proof, and epsilon comparison MUST NOT accept corrupted artifact bytes.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2129,7 +2157,7 @@
         "original_text": "Promotion equivalence for renders validated across different GPU backends/drivers MUST use a pixel/vertex tolerance comparator (max per-channel/position deviation <= a declared epsilon), NOT SHA-256 content-hash equality; content hashes are reserved for same-machine same-run idempotency and EventLedger receipt fingerprinting (mirrors [TAI-OVR-006]).",
         "original_row_sha256": "e5050aba2ae9c6851523985b657ca9e190c632a157a2015310b80236af214424",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Promotion equivalence for renders validated across different GPU backends/drivers MUST use a pixel/vertex tolerance comparator (max per-channel/position deviation <= a declared epsilon), NOT SHA-256 content-hash equality; content hashes are reserved for same-machine same-run idempotency and EventLedger receipt fingerprinting (mirrors [TAI-OVR-006]).",
+        "semantic_fulfillment": "Render equivalence across GPU backends/drivers MUST use a declared pixel/vertex tolerance comparator, not content-hash equality (mirrors [TAI-OVR-006]).",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33671-ASSET-ACCORD"
@@ -2139,7 +2167,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-ACCORD",
             "scope": "Stable IDs, units, revision and capability schemas, cancellation/result/loss contracts; no GUI/GPU/database/media dependencies.",
-            "required_behavior": "Promotion equivalence for renders validated across different GPU backends/drivers MUST use a pixel/vertex tolerance comparator (max per-channel/position deviation <= a declared epsilon), NOT SHA-256 content-hash equality; content hashes are reserved for same-machine same-run idempotency and EventLedger receipt fingerprinting (mirrors [TAI-OVR-006]).",
+            "required_behavior": "Render equivalence across GPU backends/drivers MUST use a declared pixel/vertex tolerance comparator, not content-hash equality (mirrors [TAI-OVR-006]).",
             "only_owner_root_may_change": true
           }
         ],
@@ -2148,13 +2176,13 @@
             "hsk-studio-accord"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Promotion equivalence for renders validated across different GPU backends/drivers MUST use a pixel/vertex tolerance comparator (max per-channel/position deviation <= a declared epsilon), NOT SHA-256 content-hash equality; content hashes are reserved for same-machine same-run idempotency and EventLedger receipt fingerprinting (mirrors [TAI-OVR-006]).",
+          "consumer_assertion": "Render equivalence across GPU backends/drivers MUST use a declared pixel/vertex tolerance comparator, not content-hash equality (mirrors [TAI-OVR-006]).",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-33671-KERNEL-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Promotion equivalence for renders validated across different GPU backends/drivers MUST use a pixel/vertex tolerance comparator (max per-channel/position deviation <= a declared epsilon), NOT SHA-256 content-hash equality; content hashes are reserved for same-machine same-run idempotency and EventLedger receipt fingerprinting (mirrors [TAI-OVR-006]). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Render equivalence across GPU backends/drivers MUST use a declared pixel/vertex tolerance comparator, not content-hash equality (mirrors [TAI-OVR-006]). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36189"
@@ -2191,7 +2219,7 @@
           "original_text": "Promotion equivalence for renders validated across different GPU backends/drivers MUST use a pixel/vertex tolerance comparator (max per-channel/position deviation <= a declared epsilon), NOT SHA-256 content-hash equality; content hashes are reserved for same-machine same-run idempotency and EventLedger receipt fingerprinting (mirrors [TAI-OVR-006]).",
           "original_row_sha256": "e5050aba2ae9c6851523985b657ca9e190c632a157a2015310b80236af214424",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Promotion equivalence for renders validated across different GPU backends/drivers MUST use a pixel/vertex tolerance comparator (max per-channel/position deviation <= a declared epsilon), NOT SHA-256 content-hash equality; content hashes are reserved for same-machine same-run idempotency and EventLedger receipt fingerprinting (mirrors [TAI-OVR-006]).",
+          "semantic_fulfillment": "Render equivalence across GPU backends/drivers MUST use a declared pixel/vertex tolerance comparator, not content-hash equality (mirrors [TAI-OVR-006]).",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33671-ASSET-ACCORD"
@@ -2201,7 +2229,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-ACCORD",
               "scope": "Stable IDs, units, revision and capability schemas, cancellation/result/loss contracts; no GUI/GPU/database/media dependencies.",
-              "required_behavior": "Promotion equivalence for renders validated across different GPU backends/drivers MUST use a pixel/vertex tolerance comparator (max per-channel/position deviation <= a declared epsilon), NOT SHA-256 content-hash equality; content hashes are reserved for same-machine same-run idempotency and EventLedger receipt fingerprinting (mirrors [TAI-OVR-006]).",
+              "required_behavior": "Render equivalence across GPU backends/drivers MUST use a declared pixel/vertex tolerance comparator, not content-hash equality (mirrors [TAI-OVR-006]).",
               "only_owner_root_may_change": true
             }
           ],
@@ -2210,13 +2238,13 @@
               "hsk-studio-accord"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Promotion equivalence for renders validated across different GPU backends/drivers MUST use a pixel/vertex tolerance comparator (max per-channel/position deviation <= a declared epsilon), NOT SHA-256 content-hash equality; content hashes are reserved for same-machine same-run idempotency and EventLedger receipt fingerprinting (mirrors [TAI-OVR-006]).",
+            "consumer_assertion": "Render equivalence across GPU backends/drivers MUST use a declared pixel/vertex tolerance comparator, not content-hash equality (mirrors [TAI-OVR-006]).",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-33671-KERNEL-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Promotion equivalence for renders validated across different GPU backends/drivers MUST use a pixel/vertex tolerance comparator (max per-channel/position deviation <= a declared epsilon), NOT SHA-256 content-hash equality; content hashes are reserved for same-machine same-run idempotency and EventLedger receipt fingerprinting (mirrors [TAI-OVR-006]). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Render equivalence across GPU backends/drivers MUST use a declared pixel/vertex tolerance comparator, not content-hash equality (mirrors [TAI-OVR-006]). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ],
@@ -2238,11 +2266,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2272,5 +2300,47 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "Promotion equivalence for renders validated across different GPU backends/drivers MUST use a pixel/vertex tolerance comparator (max per-channel/position deviation <= a declared epsilon), NOT SHA-256 content-hash equality; content hashes are reserved for same-machine same-run idempotency and EventLedger receipt fingerprinting (mirrors [TAI-OVR-006]).",
+          "new": "Render equivalence across GPU backends/drivers MUST use a declared pixel/vertex tolerance comparator, not content-hash equality (mirrors [TAI-OVR-006])."
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "Byte identity MUST NOT substitute for cross-backend render-equivalence proof, and epsilon comparison MUST NOT accept corrupted artifact bytes."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-002"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "UNITS & DETERMINISM. Unit law per [STU-DOC-003]. Promotion equivalence for renders validated across different GPU backends/drivers MUST use a pixel/vertex tolerance comparator (max per-channel/positio [...]",
+      "propagated_paths": [
+        "/identity/title",
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/expected",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

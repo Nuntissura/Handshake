@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "11. Microtask Derivation",
-    "spec_line": 20505,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 20780,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,24 +34,30 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "prototyping",
   "scope": {
-    "summary": "Open items and blocked dependencies.** This module declares no open item and no BLOCKED dependency. Four parameter contracts ([STU-PRO-107], [STU-PRO-108], [STU-PRO-114], [STU-PRO-121]) rest on a Studio-declared millisecond unit because the source capture declares none; that is a RESOLVED decision recorded in the clause, not an open item, and it yields an ordinary microtask. Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency. A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently.",
+    "summary": "Open items and blocked dependencies.** The four existing parameter contracts ([STU-PRO-107], [STU-PRO-108], [STU-PRO-114], [STU-PRO-121]) retain their resolved Studio-declared millisecond units because their original capture declares none. The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds. The folded presentation contracts record two feature-specific evidence gaps: the interactive-role discriminator supplies no complete working payload contract, and named source easing presets supply no numerical curve parameters or original-produced appearance oracle. The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity. Typed preservation with an explicit unavailable/loss outcome is permitted during development but MUST NOT be accepted as working feature parity. Source clone behavior that conflicts with required hierarchy remains explicitly unsupported until its affected original-runtime fixture resolves it. These dependencies block only the affected feature/proof; usable standalone foundations may proceed. Every declared gap remains part of a yielding clause and is carried into its actual owner MT, never hidden by a disposition-only task.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency.",
+      "criterion": "The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-PRO-147"
     },
     {
       "id": "AC-002",
-      "criterion": "A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently.",
+      "criterion": "The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-PRO-147"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "Typed preservation with an explicit unavailable/loss outcome is permitted during development but MUST NOT be accepted as working feature parity.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-PRO-147"
     }
   ],
-  "acceptance_criteria_count": 2,
+  "acceptance_criteria_count": 3,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -156,7 +163,7 @@
       {
         "id": "STU-PRO-147",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:20547",
-        "verbatim": "**[STU-PRO-147] Open items and blocked dependencies.** This module declares no open item and no BLOCKED dependency. Four parameter contracts ([STU-PRO-107], [STU-PRO-108], [STU-PRO-114], [STU-PRO-121]) rest on a Studio-declared millisecond unit because the source capture declares none; that is a RESOLVED decision recorded in the clause, not an open item, and it yields an ordinary microtask. Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency. A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently.",
+        "verbatim": "**[STU-PRO-147] Open items and blocked dependencies.** This module declares no open item and no BLOCKED dependency. Four parameter contracts ([STU-PRO-107], [STU-PRO-108], [STU-PRO-114], [STU-PRO-121]) rest on a Studio-declared millisecond unit because the source capture declares none; that is a RESOLVED decision recorded in the clause, not an open item, and it yields an ordinary microtask. The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds. The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity.",
         "heading": "### 11. Microtask Derivation",
         "section": "14.11",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -1572,18 +1579,23 @@
     ],
     "acceptance_refs": [
       "AC-001",
-      "AC-002"
+      "AC-002",
+      "AC-003"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency. Current v02.209 amendment (prior wording retained as history): **[STU-PRO-147] Open items and blocked dependencies.** The four existing parameter contracts ([STU-PRO-107], [STU-PRO-108], [STU-PRO-114], [STU-PRO-121]) retain their resolved Studio-declared millisecond units because their original capture declares none. The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds. The folded presentation contracts record two feature-specific evidence gaps: the interactive-role discriminator supplies no complete working payload contract, and named source easing presets supply no numerical curve parameters or original-produced appearance oracle. The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity. Typed preservation with an explicit unavailable/loss outcome is permitted during development but MUST NOT be accepted as working feature parity. Source clone behavior that conflicts with required hierarchy remains explicitly unsupported until its affected original-runtime fixture resolves it. These dependencies block only the affected feature/proof; usable standalone foundations may proceed. Every declared gap remains part of a yielding clause and is carried into its actual owner MT, never hidden by a disposition-only task.\n Verification: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
+        "text": "The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds. Current v02.209 amendment (prior wording retained as history): **[STU-PRO-147] Open items and blocked dependencies.** The four existing parameter contracts ([STU-PRO-107], [STU-PRO-108], [STU-PRO-114], [STU-PRO-121]) retain their resolved Studio-declared millisecond units because their original capture declares none. The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds. The folded presentation contracts record two feature-specific evidence gaps: the interactive-role discriminator supplies no complete working payload contract, and named source easing presets supply no numerical curve parameters or original-produced appearance oracle. The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity. Typed preservation with an explicit unavailable/loss outcome is permitted during development but MUST NOT be accepted as working feature parity. Source clone behavior that conflicts with required hierarchy remains explicitly unsupported until its affected original-runtime fixture resolves it. These dependencies block only the affected feature/proof; usable standalone foundations may proceed. Every declared gap remains part of a yielding clause and is carried into its actual owner MT, never hidden by a disposition-only task.\n Verification: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
         "fulfillment_ref": "MT-35336#/fulfillment/legacy_acceptance_map/0"
       },
       {
         "id": "AC-002",
-        "text": "A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently. Current v02.209 amendment (prior wording retained as history): **[STU-PRO-147] Open items and blocked dependencies.** The four existing parameter contracts ([STU-PRO-107], [STU-PRO-108], [STU-PRO-114], [STU-PRO-121]) retain their resolved Studio-declared millisecond units because their original capture declares none. The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds. The folded presentation contracts record two feature-specific evidence gaps: the interactive-role discriminator supplies no complete working payload contract, and named source easing presets supply no numerical curve parameters or original-produced appearance oracle. The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity. Typed preservation with an explicit unavailable/loss outcome is permitted during development but MUST NOT be accepted as working feature parity. Source clone behavior that conflicts with required hierarchy remains explicitly unsupported until its affected original-runtime fixture resolves it. These dependencies block only the affected feature/proof; usable standalone foundations may proceed. Every declared gap remains part of a yielding clause and is carried into its actual owner MT, never hidden by a disposition-only task.\n Verification: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
+        "text": "The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity. Current v02.209 amendment (prior wording retained as history): **[STU-PRO-147] Open items and blocked dependencies.** The four existing parameter contracts ([STU-PRO-107], [STU-PRO-108], [STU-PRO-114], [STU-PRO-121]) retain their resolved Studio-declared millisecond units because their original capture declares none. The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds. The folded presentation contracts record two feature-specific evidence gaps: the interactive-role discriminator supplies no complete working payload contract, and named source easing presets supply no numerical curve parameters or original-produced appearance oracle. The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity. Typed preservation with an explicit unavailable/loss outcome is permitted during development but MUST NOT be accepted as working feature parity. Source clone behavior that conflicts with required hierarchy remains explicitly unsupported until its affected original-runtime fixture resolves it. These dependencies block only the affected feature/proof; usable standalone foundations may proceed. Every declared gap remains part of a yielding clause and is carried into its actual owner MT, never hidden by a disposition-only task.\n Verification: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
         "fulfillment_ref": "MT-35336#/fulfillment/legacy_acceptance_map/1"
+      },
+      {
+        "id": "AC-003",
+        "text": "Typed preservation with an explicit unavailable/loss outcome is permitted during development but MUST NOT be accepted as working feature parity."
       }
     ],
     "spec_basis_refs": [
@@ -1720,7 +1732,7 @@
             "body_sha256": "ef03854398618b633f585f710a7ef9c1962ca550e3e71d1b5e06c1cf9918997d",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
             "range_kind": "normative_clause",
-            "body": "**[STU-PRO-147] Open items and blocked dependencies.** This module declares no open item and no BLOCKED dependency. Four parameter contracts ([STU-PRO-107], [STU-PRO-108], [STU-PRO-114], [STU-PRO-121]) rest on a Studio-declared millisecond unit because the source capture declares none; that is a RESOLVED decision recorded in the clause, not an open item, and it yields an ordinary microtask. Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency. A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently.\n"
+            "body": "**[STU-PRO-147] Open items and blocked dependencies.** This module declares no open item and no BLOCKED dependency. Four parameter contracts ([STU-PRO-107], [STU-PRO-108], [STU-PRO-114], [STU-PRO-121]) rest on a Studio-declared millisecond unit because the source capture declares none; that is a RESOLVED decision recorded in the clause, not an open item, and it yields an ordinary microtask. The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds. The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity.\n"
           }
         ],
         "supplementary_current_spec_requirements": [
@@ -1839,7 +1851,7 @@
             "start_line": 20547,
             "end_line": 20548,
             "body_sha256": "ef03854398618b633f585f710a7ef9c1962ca550e3e71d1b5e06c1cf9918997d",
-            "body": "**[STU-PRO-147] Open items and blocked dependencies.** This module declares no open item and no BLOCKED dependency. Four parameter contracts ([STU-PRO-107], [STU-PRO-108], [STU-PRO-114], [STU-PRO-121]) rest on a Studio-declared millisecond unit because the source capture declares none; that is a RESOLVED decision recorded in the clause, not an open item, and it yields an ordinary microtask. Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency. A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently.\n"
+            "body": "**[STU-PRO-147] Open items and blocked dependencies.** This module declares no open item and no BLOCKED dependency. Four parameter contracts ([STU-PRO-107], [STU-PRO-108], [STU-PRO-114], [STU-PRO-121]) rest on a Studio-declared millisecond unit because the source capture declares none; that is a RESOLVED decision recorded in the clause, not an open item, and it yields an ordinary microtask. The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds. The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity.\n"
           },
           {
             "anchor": "STU-PRO-148",
@@ -1983,8 +1995,8 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-components --no-default-features --test components_mt_35336 components_mt_35336 -- --exact --nocapture. Verify resolved Studio-declared unit remains label; genuine missing dependency yields exact BLOCKED before dispatch. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Failure: For Open items and blocked dependencies (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes. Oracle: Independent public consumer of StudioPrototypeFlow compares Resolved unit declaration or named first blocker against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity. Original claim: Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency.; no target/run claimed.",
-        "expected": "Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency. Current v02.209: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
+        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-components --no-default-features --test components_mt_35336 components_mt_35336 -- --exact --nocapture. Verify resolved Studio-declared unit remains label; genuine missing dependency yields exact BLOCKED before dispatch. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Failure: For Open items and blocked dependencies (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes. Oracle: Independent public consumer of StudioPrototypeFlow compares Resolved unit declaration or named first blocker against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity. Original claim: The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds.; no target/run claimed.",
+        "expected": "The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds. Current v02.209: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
         "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2024,7 +2036,7 @@
             "Canonical immutable Nuntissura/assets source proof precedes separately qualified host adoption"
           ],
           "execution_status": "PENDING_NOT_RUN",
-          "acceptance_assertion": "Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency."
+          "acceptance_assertion": "The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2039,8 +2051,8 @@
         "claim_refs": [
           "AC-002"
         ],
-        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-components --no-default-features --test components_mt_35336 components_mt_35336 -- --exact --nocapture. Verify resolved Studio-declared unit remains label; genuine missing dependency yields exact BLOCKED before dispatch. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Failure: For Open items and blocked dependencies (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes. Oracle: Independent public consumer of StudioPrototypeFlow compares Resolved unit declaration or named first blocker against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity. Original claim: A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently.; no target/run claimed.",
-        "expected": "A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently. Current v02.209: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
+        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-components --no-default-features --test components_mt_35336 components_mt_35336 -- --exact --nocapture. Verify resolved Studio-declared unit remains label; genuine missing dependency yields exact BLOCKED before dispatch. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Failure: For Open items and blocked dependencies (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes. Oracle: Independent public consumer of StudioPrototypeFlow compares Resolved unit declaration or named first blocker against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity. Original claim: The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity.; no target/run claimed.",
+        "expected": "The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity. Current v02.209: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
         "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2080,7 +2092,7 @@
             "Canonical immutable Nuntissura/assets source proof precedes separately qualified host adoption"
           ],
           "execution_status": "PENDING_NOT_RUN",
-          "acceptance_assertion": "A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently."
+          "acceptance_assertion": "The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity."
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2088,6 +2100,22 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-35336-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-PRO-147"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Typed preservation with an explicit unavailable/loss outcome is permitted during development but MUST NOT be accepted as working feature parity.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2344,7 +2372,7 @@
             "line": 20547,
             "section": "14.11",
             "heading": "### 11. Microtask Derivation",
-            "verbatim": "**[STU-PRO-147] Open items and blocked dependencies.** This module declares no open item and no BLOCKED dependency. Four parameter contracts ([STU-PRO-107], [STU-PRO-108], [STU-PRO-114], [STU-PRO-121]) rest on a Studio-declared millisecond unit because the source capture declares none; that is a RESOLVED decision recorded in the clause, not an open item, and it yields an ordinary microtask. Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency. A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently.",
+            "verbatim": "**[STU-PRO-147] Open items and blocked dependencies.** This module declares no open item and no BLOCKED dependency. Four parameter contracts ([STU-PRO-107], [STU-PRO-108], [STU-PRO-114], [STU-PRO-121]) rest on a Studio-declared millisecond unit because the source capture declares none; that is a RESOLVED decision recorded in the clause, not an open item, and it yields an ordinary microtask. The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds. The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity.",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2418,7 +2446,7 @@
         "original_text": "Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency.",
         "original_row_sha256": "0834d2cc1bdae5c51fab0d98205a4ed865f6dd4b4f6810e3cbbe1ec6210eda89",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency. Current v02.209 amendment: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
+        "semantic_fulfillment": "The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds. Current v02.209 amendment: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-35336-ASSET-COMPONENTS"
@@ -2428,7 +2456,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-COMPONENTS",
             "scope": "Components, variables, responsive constraints, prototype actions within same document; no separate Figma-like app.",
-            "required_behavior": "Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency.",
+            "required_behavior": "The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2465,11 +2493,11 @@
           "execution_status": "PENDING_NOT_RUN",
           "terminal_proof_ref": "MT-35336#/proof/checks",
           "status": "PENDING_NOT_RUN",
-          "acceptance_assertion": "Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency."
+          "acceptance_assertion": "The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds."
         },
         "later_embedding_ref": "./MT-36199.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "later_embedding_refs": [
           "./MT-36199.json"
@@ -2481,7 +2509,7 @@
         "original_text": "A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently.",
         "original_row_sha256": "c596e108c4307ae56bfea4024e953aad42a2525842d25a2cbb87d51a6c8d1c1f",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently. Current v02.209 amendment: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
+        "semantic_fulfillment": "The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity. Current v02.209 amendment: Keep native PRO107/108/114/121 milliseconds separate from pinned SlideTransition seconds without default/bound inheritance. Require affected role/curve MT first acceptance to recover and pin working payload or numerical/visual oracle before full fidelity; explicit unavailable/loss preserves data but proves no parity. Conflicting source clone hierarchy requires its affected original-runtime fixture. These gaps block only affected feature/proof, never usable standalone foundations; every gap stays yielding with its actual owner.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-35336-ASSET-COMPONENTS"
@@ -2491,7 +2519,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-COMPONENTS",
             "scope": "Components, variables, responsive constraints, prototype actions within same document; no separate Figma-like app.",
-            "required_behavior": "A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently.",
+            "required_behavior": "The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2528,11 +2556,11 @@
           "execution_status": "PENDING_NOT_RUN",
           "terminal_proof_ref": "MT-35336#/proof/checks",
           "status": "PENDING_NOT_RUN",
-          "acceptance_assertion": "A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently."
+          "acceptance_assertion": "The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity."
         },
         "later_embedding_ref": "./MT-36199.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "later_embedding_refs": [
           "./MT-36199.json"
@@ -2575,7 +2603,7 @@
           "original_text": "Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency.",
           "original_row_sha256": "0834d2cc1bdae5c51fab0d98205a4ed865f6dd4b4f6810e3cbbe1ec6210eda89",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency.",
+          "semantic_fulfillment": "The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-35336-ASSET-COMPONENTS"
@@ -2585,7 +2613,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-COMPONENTS",
               "scope": "Components, variables, responsive constraints, prototype actions within same document; no separate Figma-like app.",
-              "required_behavior": "Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency.",
+              "required_behavior": "The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2622,11 +2650,11 @@
             "execution_status": "PENDING_NOT_RUN",
             "terminal_proof_ref": "MT-35336#/proof/checks",
             "status": "PENDING_NOT_RUN",
-            "acceptance_assertion": "Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency."
+            "acceptance_assertion": "The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds."
           },
           "later_embedding_ref": "./MT-36199.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "later_embedding_refs": [
             "./MT-36199.json"
@@ -2638,7 +2666,7 @@
           "original_text": "A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently.",
           "original_row_sha256": "c596e108c4307ae56bfea4024e953aad42a2525842d25a2cbb87d51a6c8d1c1f",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently.",
+          "semantic_fulfillment": "The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-35336-ASSET-COMPONENTS"
@@ -2648,7 +2676,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-COMPONENTS",
               "scope": "Components, variables, responsive constraints, prototype actions within same document; no separate Figma-like app.",
-              "required_behavior": "A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently.",
+              "required_behavior": "The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2685,11 +2713,11 @@
             "execution_status": "PENDING_NOT_RUN",
             "terminal_proof_ref": "MT-35336#/proof/checks",
             "status": "PENDING_NOT_RUN",
-            "acceptance_assertion": "A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently."
+            "acceptance_assertion": "The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity."
           },
           "later_embedding_ref": "./MT-36199.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "later_embedding_refs": [
             "./MT-36199.json"
@@ -2720,11 +2748,11 @@
       "original_payload_and_qualified_host_mapping_preserved": true
     }
   },
-  "updated_at_utc": "2026-10-10T05:34:14.564Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2768,5 +2796,69 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "Should a later amendment introduce a genuine open item or a BLOCKED dependency, that clause STILL yields a microtask, and that microtask's FIRST acceptance criterion MUST be resolving the named dependency.",
+          "new": "The separately pinned SlideTransition capture declares seconds and MUST NOT inherit those millisecond defaults or bounds."
+        },
+        {
+          "id": "AC-002",
+          "old": "A declared gap MUST NOT be dropped from the yields index, because a gap that yields nothing disappears silently.",
+          "new": "The affected role/curve MT's FIRST acceptance criterion MUST recover and pin the required payload or numerical/visual evidence before claiming that capability's full fidelity."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "Typed preservation with an explicit unavailable/loss outcome is permitted during development but MUST NOT be accepted as working feature parity."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-003"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Open items and blocked dependencies (2)",
+      "propagated_paths": [
+        "/context_capsule/specification_anchor_refs[0]/verbatim",
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/closure_unit/materialized_acceptance[1]/text",
+        "/execution/inputs[1]/source_requirements[0]/body",
+        "/execution/inputs[1]/supplementary_current_spec_requirements[12]/body",
+        "/proof/checks[0]/command_or_method",
+        "/proof/checks[0]/expected",
+        "/proof/checks[0]/method_recipe/acceptance_assertion",
+        "/proof/checks[1]/command_or_method",
+        "/proof/checks[1]/expected",
+        "/proof/checks[1]/method_recipe/acceptance_assertion",
+        "/fulfillment/asset_slices[0]/scope_basis[0]/verbatim",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/acceptance_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/legacy_acceptance_map[1]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[1]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[1]/asset_proof_recipe/acceptance_assertion",
+        "/fulfillment/legacy_acceptance_map[1]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/acceptance_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/asset_proof_recipe/acceptance_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

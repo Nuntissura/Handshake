@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.25.1 The Sequence and its settings",
-    "spec_line": 22454,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 22991,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -36,8 +37,111 @@
     "summary": "The normative sequence settings record.** Every field below is required. Values marked \"Studio default\" are Studio's own choice from the evidence; values marked \"declared\" are read from shipped configurations. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Field | Type | Contract | |---|---|---| | `frame_size` | `{width: u32, height: u32}` | Composition raster size in pixels. 37 distinct sizes appear across the shipped configurations, from 512x256 to 8192x8192. Studio default 1920x1080 (the most common, 89 of 392). | | `pixel_aspect_ratio` | `{numerator: u32, denominator: u32}` | A RATIONAL, never a float. Eight distinct ratios are declared: 1:1 (332 configurations), 1920:1440, 1920:1920, 10:11, 40:33, 768:702, 1024:702, 3:2. Studio default 1:1. Storing a float loses exactness and breaks round-trip. | | `frame_rate` | `{ticks_per_frame: u64}` | See [STU-VID-012]. Stored as ticks, never as a float. | | `field_order` | enum | `progressive`, `upper_field_first`, `lower_field_first`. Declared distribution: 346 progressive, 34 upper-first, 12 lower-first. Studio default `progressive`. | | `video_time_display` | enum | See [STU-VID-012]. | | `audio_time_display` | enum | `audio_samples` or `milliseconds`; independent of the video display. All 392 shipped configurations declare `audio_samples`. | | `audio [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [],
-  "acceptance_criteria_count": 0,
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "The contract table holds the row `frame_size` with the exact meaning the spec states: `{width: u32, height: u32}` | Composition raster size in pixels. 37 distinct sizes appear across the shipped configurations, from 512x256 to 8192x8192. Studio default 1920x1080 (the most common, 89 of 392).. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-011 carried contract table row 1"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The contract table holds the row `pixel_aspect_ratio` with the exact meaning the spec states: `{numerator: u32, denominator: u32}` | A RATIONAL, never a float. Eight distinct ratios are declared: 1:1 (332 configurations), 1920:1440, 1920:1920, 10:11, 40:33, 768:702, 1024:702, 3:2. Studio default 1:1. Storing a float loses exactness and breaks round-trip.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-011 carried contract table row 2"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `frame_rate` with the exact meaning the spec states: `{ticks_per_frame: u64}` | See [STU-VID-012]. Stored as ticks, never as a float.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-011 carried contract table row 3"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `field_order` with the exact meaning the spec states: enum | `progressive`, `upper_field_first`, `lower_field_first`. Declared distribution: 346 progressive, 34 upper-first, 12 lower-first. Studio default `progressive`.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-011 carried contract table row 4"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `video_time_display` with the exact meaning the spec states: enum | See [STU-VID-012].. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-011 carried contract table row 5"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `audio_time_display` with the exact meaning the spec states: enum | `audio_samples` or `milliseconds`; independent of the video display. All 392 shipped configurations declare `audio_samples`.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-011 carried contract table row 6"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `audio_sample_rate_hz` with the exact meaning the spec states: u32 | 386 of 392 declare 48000; 6 declare 32000. Studio default 48000.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-011 carried contract table row 7"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `audio_master_channel_type` with the exact meaning the spec states: enum | See [STU-FX-137].. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-011 carried contract table row 8"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The contract table holds the row `working_color_space` with the exact meaning the spec states: `StudioColorProfile` ref | Declared values in the shipped set: `BT.709 RGB Full` (22 configurations) and `BT.2100 HLG RGB Full` (5). Studio default `BT.709 RGB Full`. Carries a `is_linearized` boolean, declared 0 in every shipped configuration read.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-011 carried contract table row 9"
+    },
+    {
+      "id": "AC-010",
+      "criterion": "The contract table holds the row `auto_tone_map` with the exact meaning the spec states: bool | Declared true in the shipped HDR-capable configurations. Governs automatic tone-mapping of out-of-gamut source media into the working space.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-011 carried contract table row 10"
+    },
+    {
+      "id": "AC-011",
+      "criterion": "The contract table holds the row `use_maximum_bit_depth` with the exact meaning the spec states: bool | Studio default false. When true the render pipeline runs at the document's maximum channel depth rather than the preview depth.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-011 carried contract table row 11"
+    },
+    {
+      "id": "AC-012",
+      "criterion": "The contract table holds the row `use_maximum_render_quality` with the exact meaning the spec states: bool | Studio default false. Selects the higher-cost scaling and resampling path.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-011 carried contract table row 12"
+    },
+    {
+      "id": "AC-013",
+      "criterion": "The contract table holds the row `allow_linear_compositing` with the exact meaning the spec states: bool | Studio default true in the shipped configurations read. Selects linear-light blending for the sequence's composite ([STU-CMP-020]).. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-011 carried contract table row 13"
+    },
+    {
+      "id": "AC-014",
+      "criterion": "The contract table holds the row `initial_video_track_count` with the exact meaning the spec states: u8 | Studio default 3.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-011 carried contract table row 14"
+    },
+    {
+      "id": "AC-015",
+      "criterion": "The contract table holds the row `initial_audio_track_count` with the exact meaning the spec states: u8 | Studio default 4, matching the shipped stereo configurations.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-011 carried contract table row 15"
+    },
+    {
+      "id": "AC-016",
+      "criterion": "The contract table holds the row `preview_render_format` with the exact meaning the spec states: record | See [STU-VID-019].. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-011 carried contract table row 16"
+    },
+    {
+      "id": "AC-017",
+      "criterion": "The contract table holds the row `immersive` with the exact meaning the spec states: record | See [STU-VID-018].. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-011 carried contract table row 17"
+    }
+  ],
+  "acceptance_criteria_count": 17,
   "implementation_notes": {
     "source_repository": "https://github.com/Nuntissura/assets",
     "source_subdirectory": "handshake-studio-assets/crates/hsk-studio-pulse",
@@ -1519,13 +1623,98 @@
       "STU-VID-011"
     ],
     "acceptance_refs": [
-      "ASSET-AC-001"
+      "ASSET-AC-001",
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009",
+      "AC-010",
+      "AC-011",
+      "AC-012",
+      "AC-013",
+      "AC-014",
+      "AC-015",
+      "AC-016",
+      "AC-017"
     ],
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
         "text": "The normative sequence settings record.** Every field below is required. Values marked \"Studio default\" are Studio's own choice from the evidence; values marked \"declared\" are read from shipped configurations. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Field | Type | Contract | |---|---|---| | `frame_size` | `{width: u32, height: u32}` | Composition raster size in pixels. 37 distinct sizes appear across the shipped configurations, from 512x256 to 8192x8192. Studio default 1920x1080 (the most common, 89 of 392). | | `pixel_aspect_ratio` | `{numerator: u32, denominator: u32}` | A RATIONAL, never a float. Eight distinct ratios are declared: 1:1 (332 configurations), 1920:1440, 1920:1920, 10:11, 40:33, 768:702, 1024:702, 3:2. Studio default 1:1. Storing a float loses exactness and breaks round-trip. | | `frame_rate` | `{ticks_per_frame: u64}` | See [STU-VID-012]. Stored as ticks, never as a float. | | `field_order` | enum | `progressive`, `upper_field_first`, `lower_field_first`. Declared distribution: 346 progressive, 34 upper-first, 12 lower-first. Studio default `progressive`. | | `video_time_display` | enum | See [STU-VID-012]. | | `audio_time_display` | enum | `audio_samples` or `milliseconds`; independent of the video display. All 392 shipped configurations declare `audio_samples`. | | `audio [...]",
         "fulfillment_ref": "MT-33686#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-001",
+        "text": "The contract table holds the row `frame_size` with the exact meaning the spec states: `{width: u32, height: u32}` | Composition raster size in pixels. 37 distinct sizes appear across the shipped configurations, from 512x256 to 8192x8192. Studio default 1920x1080 (the most common, 89 of 392).. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-002",
+        "text": "The contract table holds the row `pixel_aspect_ratio` with the exact meaning the spec states: `{numerator: u32, denominator: u32}` | A RATIONAL, never a float. Eight distinct ratios are declared: 1:1 (332 configurations), 1920:1440, 1920:1920, 10:11, 40:33, 768:702, 1024:702, 3:2. Studio default 1:1. Storing a float loses exactness and breaks round-trip.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `frame_rate` with the exact meaning the spec states: `{ticks_per_frame: u64}` | See [STU-VID-012]. Stored as ticks, never as a float.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `field_order` with the exact meaning the spec states: enum | `progressive`, `upper_field_first`, `lower_field_first`. Declared distribution: 346 progressive, 34 upper-first, 12 lower-first. Studio default `progressive`.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `video_time_display` with the exact meaning the spec states: enum | See [STU-VID-012].. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `audio_time_display` with the exact meaning the spec states: enum | `audio_samples` or `milliseconds`; independent of the video display. All 392 shipped configurations declare `audio_samples`.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `audio_sample_rate_hz` with the exact meaning the spec states: u32 | 386 of 392 declare 48000; 6 declare 32000. Studio default 48000.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `audio_master_channel_type` with the exact meaning the spec states: enum | See [STU-FX-137].. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-009",
+        "text": "The contract table holds the row `working_color_space` with the exact meaning the spec states: `StudioColorProfile` ref | Declared values in the shipped set: `BT.709 RGB Full` (22 configurations) and `BT.2100 HLG RGB Full` (5). Studio default `BT.709 RGB Full`. Carries a `is_linearized` boolean, declared 0 in every shipped configuration read.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-010",
+        "text": "The contract table holds the row `auto_tone_map` with the exact meaning the spec states: bool | Declared true in the shipped HDR-capable configurations. Governs automatic tone-mapping of out-of-gamut source media into the working space.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-011",
+        "text": "The contract table holds the row `use_maximum_bit_depth` with the exact meaning the spec states: bool | Studio default false. When true the render pipeline runs at the document's maximum channel depth rather than the preview depth.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-012",
+        "text": "The contract table holds the row `use_maximum_render_quality` with the exact meaning the spec states: bool | Studio default false. Selects the higher-cost scaling and resampling path.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-013",
+        "text": "The contract table holds the row `allow_linear_compositing` with the exact meaning the spec states: bool | Studio default true in the shipped configurations read. Selects linear-light blending for the sequence's composite ([STU-CMP-020]).. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-014",
+        "text": "The contract table holds the row `initial_video_track_count` with the exact meaning the spec states: u8 | Studio default 3.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-015",
+        "text": "The contract table holds the row `initial_audio_track_count` with the exact meaning the spec states: u8 | Studio default 4, matching the shipped stereo configurations.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-016",
+        "text": "The contract table holds the row `preview_render_format` with the exact meaning the spec states: record | See [STU-VID-019].. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-017",
+        "text": "The contract table holds the row `immersive` with the exact meaning the spec states: record | See [STU-VID-018].. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -2065,6 +2254,278 @@
           "before_handoff": "Actual target must exist and match nonzero tests; independent actual-output/device/native/original oracle proof per claim.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-33686-SPEC-AC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-001",
+          "STU-VID-011"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `frame_size` with the exact meaning the spec states: `{width: u32, height: u32}` | Composition raster size in pixels. 37 distinct sizes appear across the shipped configurations, from 512x256 to 8192x8192. Studio default 1920x1080 (the most common, 89 of 392).. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33686-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-VID-011"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `pixel_aspect_ratio` with the exact meaning the spec states: `{numerator: u32, denominator: u32}` | A RATIONAL, never a float. Eight distinct ratios are declared: 1:1 (332 configurations), 1920:1440, 1920:1920, 10:11, 40:33, 768:702, 1024:702, 3:2. Studio default 1:1. Storing a float loses exactness and breaks round-trip.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33686-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-VID-011"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `frame_rate` with the exact meaning the spec states: `{ticks_per_frame: u64}` | See [STU-VID-012]. Stored as ticks, never as a float.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33686-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-VID-011"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `field_order` with the exact meaning the spec states: enum | `progressive`, `upper_field_first`, `lower_field_first`. Declared distribution: 346 progressive, 34 upper-first, 12 lower-first. Studio default `progressive`.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33686-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-VID-011"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `video_time_display` with the exact meaning the spec states: enum | See [STU-VID-012].. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33686-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-VID-011"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `audio_time_display` with the exact meaning the spec states: enum | `audio_samples` or `milliseconds`; independent of the video display. All 392 shipped configurations declare `audio_samples`.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33686-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-VID-011"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `audio_sample_rate_hz` with the exact meaning the spec states: u32 | 386 of 392 declare 48000; 6 declare 32000. Studio default 48000.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33686-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-VID-011"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `audio_master_channel_type` with the exact meaning the spec states: enum | See [STU-FX-137].. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33686-SPEC-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-VID-011"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `working_color_space` with the exact meaning the spec states: `StudioColorProfile` ref | Declared values in the shipped set: `BT.709 RGB Full` (22 configurations) and `BT.2100 HLG RGB Full` (5). Studio default `BT.709 RGB Full`. Carries a `is_linearized` boolean, declared 0 in every shipped configuration read.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33686-SPEC-AC-010",
+        "kind": "test",
+        "claim_refs": [
+          "AC-010",
+          "STU-VID-011"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `auto_tone_map` with the exact meaning the spec states: bool | Declared true in the shipped HDR-capable configurations. Governs automatic tone-mapping of out-of-gamut source media into the working space.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33686-SPEC-AC-011",
+        "kind": "test",
+        "claim_refs": [
+          "AC-011",
+          "STU-VID-011"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `use_maximum_bit_depth` with the exact meaning the spec states: bool | Studio default false. When true the render pipeline runs at the document's maximum channel depth rather than the preview depth.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33686-SPEC-AC-012",
+        "kind": "test",
+        "claim_refs": [
+          "AC-012",
+          "STU-VID-011"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `use_maximum_render_quality` with the exact meaning the spec states: bool | Studio default false. Selects the higher-cost scaling and resampling path.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33686-SPEC-AC-013",
+        "kind": "test",
+        "claim_refs": [
+          "AC-013",
+          "STU-VID-011"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `allow_linear_compositing` with the exact meaning the spec states: bool | Studio default true in the shipped configurations read. Selects linear-light blending for the sequence's composite ([STU-CMP-020]).. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33686-SPEC-AC-014",
+        "kind": "test",
+        "claim_refs": [
+          "AC-014",
+          "STU-VID-011"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `initial_video_track_count` with the exact meaning the spec states: u8 | Studio default 3.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33686-SPEC-AC-015",
+        "kind": "test",
+        "claim_refs": [
+          "AC-015",
+          "STU-VID-011"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `initial_audio_track_count` with the exact meaning the spec states: u8 | Studio default 4, matching the shipped stereo configurations.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33686-SPEC-AC-016",
+        "kind": "test",
+        "claim_refs": [
+          "AC-016",
+          "STU-VID-011"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `preview_render_format` with the exact meaning the spec states: record | See [STU-VID-019].. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33686-SPEC-AC-017",
+        "kind": "test",
+        "claim_refs": [
+          "AC-017",
+          "STU-VID-011"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `immersive` with the exact meaning the spec states: record | See [STU-VID-018].. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2517,7 +2978,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T22:58:42.672Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
@@ -2535,7 +2996,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2578,5 +3039,126 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": null,
+          "new": "The contract table holds the row `frame_size` with the exact meaning the spec states: `{width: u32, height: u32}` | Composition raster size in pixels. 37 distinct sizes appear across the shipped configurations, from 512x256 to 8192x8192. Studio default 1920x1080 (the most common, 89 of 392).. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The contract table holds the row `pixel_aspect_ratio` with the exact meaning the spec states: `{numerator: u32, denominator: u32}` | A RATIONAL, never a float. Eight distinct ratios are declared: 1:1 (332 configurations), 1920:1440, 1920:1920, 10:11, 40:33, 768:702, 1024:702, 3:2. Studio default 1:1. Storing a float loses exactness and breaks round-trip.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `frame_rate` with the exact meaning the spec states: `{ticks_per_frame: u64}` | See [STU-VID-012]. Stored as ticks, never as a float.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `field_order` with the exact meaning the spec states: enum | `progressive`, `upper_field_first`, `lower_field_first`. Declared distribution: 346 progressive, 34 upper-first, 12 lower-first. Studio default `progressive`.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `video_time_display` with the exact meaning the spec states: enum | See [STU-VID-012].. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `audio_time_display` with the exact meaning the spec states: enum | `audio_samples` or `milliseconds`; independent of the video display. All 392 shipped configurations declare `audio_samples`.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `audio_sample_rate_hz` with the exact meaning the spec states: u32 | 386 of 392 declare 48000; 6 declare 32000. Studio default 48000.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `audio_master_channel_type` with the exact meaning the spec states: enum | See [STU-FX-137].. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-009",
+          "old": null,
+          "new": "The contract table holds the row `working_color_space` with the exact meaning the spec states: `StudioColorProfile` ref | Declared values in the shipped set: `BT.709 RGB Full` (22 configurations) and `BT.2100 HLG RGB Full` (5). Studio default `BT.709 RGB Full`. Carries a `is_linearized` boolean, declared 0 in every shipped configuration read.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-010",
+          "old": null,
+          "new": "The contract table holds the row `auto_tone_map` with the exact meaning the spec states: bool | Declared true in the shipped HDR-capable configurations. Governs automatic tone-mapping of out-of-gamut source media into the working space.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-011",
+          "old": null,
+          "new": "The contract table holds the row `use_maximum_bit_depth` with the exact meaning the spec states: bool | Studio default false. When true the render pipeline runs at the document's maximum channel depth rather than the preview depth.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-012",
+          "old": null,
+          "new": "The contract table holds the row `use_maximum_render_quality` with the exact meaning the spec states: bool | Studio default false. Selects the higher-cost scaling and resampling path.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-013",
+          "old": null,
+          "new": "The contract table holds the row `allow_linear_compositing` with the exact meaning the spec states: bool | Studio default true in the shipped configurations read. Selects linear-light blending for the sequence's composite ([STU-CMP-020]).. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-014",
+          "old": null,
+          "new": "The contract table holds the row `initial_video_track_count` with the exact meaning the spec states: u8 | Studio default 3.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-015",
+          "old": null,
+          "new": "The contract table holds the row `initial_audio_track_count` with the exact meaning the spec states: u8 | Studio default 4, matching the shipped stereo configurations.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-016",
+          "old": null,
+          "new": "The contract table holds the row `preview_render_format` with the exact meaning the spec states: record | See [STU-VID-019].. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-017",
+          "old": null,
+          "new": "The contract table holds the row `immersive` with the exact meaning the spec states: record | See [STU-VID-018].. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012",
+        "AC-013",
+        "AC-014",
+        "AC-015",
+        "AC-016",
+        "AC-017"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "The normative sequence settings record",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

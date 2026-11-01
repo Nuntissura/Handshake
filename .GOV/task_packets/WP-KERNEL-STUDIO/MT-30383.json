@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.5.1 Vector Geometry Model: Paths and Vector Networks",
-    "spec_line": 3009,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 3093,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -54,9 +55,27 @@
       "criterion": "Studio MUST expose set-network as an ATOMIC replace of all three arrays so a model can author topology in one command rather than by incremental mutation, and MUST expose the derived read-only `fill_geometry` and `stroke_geometry` path sets so a model can inspect the rendered outline without re-deriving it.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-VEC-108"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `vertices[]` with the exact meaning the spec states: `x`, `y`, `stroke_cap?`, `stroke_join?`, `corner_radius?`, `handle_mirroring?` | Per-vertex cap/join/radius/mirroring override the object-level value when present. All four are optional; absent means \"inherit from the object\".. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VEC-108 carried contract table row 1"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `segments[]` with the exact meaning the spec states: `start` (vertex index), `end` (vertex index), `tangent_start?` (vector), `tangent_end?` (vector) | A segment with both tangents absent or zero-length is a straight line. Each tangent is relative to its own endpoint.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VEC-108 carried contract table row 2"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `regions[]` with the exact meaning the spec states: `winding_rule`, `loops[][]` (arrays of segment indices), `fills?`, `fill_style_id?` | A region is one or more closed loops of segment indices. Per-region fill state is REQUIRED, not optional, so one layer holds filled and unfilled regions simultaneously.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VEC-108 carried contract table row 3"
     }
   ],
-  "acceptance_criteria_count": 3,
+  "acceptance_criteria_count": 6,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1561,7 +1580,10 @@
     "acceptance_refs": [
       "AC-001",
       "AC-002",
-      "AC-003"
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006"
     ],
     "materialized_acceptance": [
       {
@@ -1578,6 +1600,18 @@
         "id": "AC-003",
         "text": "Studio MUST expose set-network as an ATOMIC replace of all three arrays so a model can author topology in one command rather than by incremental mutation, and MUST expose the derived read-only `fill_geometry` and `stroke_geometry` path sets so a model can inspect the rendered outline without re-deriving it.",
         "fulfillment_ref": "MT-30383#/fulfillment/legacy_acceptance_map/2"
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `vertices[]` with the exact meaning the spec states: `x`, `y`, `stroke_cap?`, `stroke_join?`, `corner_radius?`, `handle_mirroring?` | Per-vertex cap/join/radius/mirroring override the object-level value when present. All four are optional; absent means \"inherit from the object\".. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `segments[]` with the exact meaning the spec states: `start` (vertex index), `end` (vertex index), `tangent_start?` (vector), `tangent_end?` (vector) | A segment with both tangents absent or zero-length is a straight line. Each tangent is relative to its own endpoint.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `regions[]` with the exact meaning the spec states: `winding_rule`, `loops[][]` (arrays of segment indices), `fills?`, `fill_style_id?` | A region is one or more closed loops of segment indices. Per-region fill state is REQUIRED, not optional, so one layer holds filled and unfilled regions simultaneously.. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1922,6 +1956,54 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-30383-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-VEC-108"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `vertices[]` with the exact meaning the spec states: `x`, `y`, `stroke_cap?`, `stroke_join?`, `corner_radius?`, `handle_mirroring?` | Per-vertex cap/join/radius/mirroring override the object-level value when present. All four are optional; absent means \"inherit from the object\".. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30383-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-VEC-108"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `segments[]` with the exact meaning the spec states: `start` (vertex index), `end` (vertex index), `tangent_start?` (vector), `tangent_end?` (vector) | A segment with both tangents absent or zero-length is a straight line. Each tangent is relative to its own endpoint.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30383-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-VEC-108"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `regions[]` with the exact meaning the spec states: `winding_rule`, `loops[][]` (arrays of segment indices), `fills?`, `fill_style_id?` | A region is one or more closed loops of segment indices. Per-region fill state is REQUIRED, not optional, so one layer holds filled and unfilled regions simultaneously.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2536,7 +2618,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T23:48:37.780Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "rule_refs": [
     "CX-SPEC-TRUTH-001",
     "CX-TPL-001",
@@ -2579,7 +2661,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2609,5 +2691,42 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `vertices[]` with the exact meaning the spec states: `x`, `y`, `stroke_cap?`, `stroke_join?`, `corner_radius?`, `handle_mirroring?` | Per-vertex cap/join/radius/mirroring override the object-level value when present. All four are optional; absent means \"inherit from the object\".. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `segments[]` with the exact meaning the spec states: `start` (vertex index), `end` (vertex index), `tangent_start?` (vector), `tangent_end?` (vector) | A segment with both tangents absent or zero-length is a straight line. Each tangent is relative to its own endpoint.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `regions[]` with the exact meaning the spec states: `winding_rule`, `loops[][]` (arrays of segment indices), `fills?`, `fill_style_id?` | A region is one or more closed loops of segment indices. Per-region fill state is REQUIRED, not optional, so one layer holds filled and unfilled regions simultaneously.. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-004",
+        "AC-005",
+        "AC-006"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "`StudioVectorNetwork` element contract",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

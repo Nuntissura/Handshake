@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "5. ScrubValue — the scrubbable numeric control",
-    "spec_line": 32547,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 33242,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,30 +34,18 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "operator_shell",
   "scope": {
-    "summary": "Modifiers.** A ScrubValue MUST apply exactly this magnitude map to both the drag gesture and the wheel step, and MUST NOT extend it: `Shift` is COARSE and multiplies the step by 10; `Ctrl` is FINE and divides the step by 10; `Shift+Ctrl` multiplies by 100; `Alt` is excluded and MUST NOT acquire a magnitude meaning, because it is already the duplicate, subtract-from-selection and sample-alternate modifier in every captured application and is load-bearing in the timeline surface where scrubbing matters most. Modifiers MUST be sampled CONTINUOUSLY during the gesture rather than latched at press, and accumulation MUST happen in VALUE space so the value does not jump when the operator changes magnitude mid-drag. No modifier may change which parameter is written, only by how much. The full reasoning, including why the objection to `Ctrl` is defeated by claim-at-press, is in [STU-SHL-106].",
+    "summary": "Modifiers.** Continuous numeric drag/wheel gestures MUST use the fixed semantic map: normal x1, coarse x10, fine /10, combined coarse+fine x100. Defaults are Shift coarse and Ctrl fine on Windows/Linux, Command fine on macOS through the shared modifier adapter. Alt remains excluded. Typed physical rebinding follows [STU-FX-149]; integer/enumeration discrete actions follow [STU-FX-110]. Sample roles continuously, accumulate in value space without jumps, and freeze binding/descriptor versions for the gesture. No modifier changes the target. Contextual claim-at-press preserves other pen/selection/menu/accelerator meanings.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Modifiers.** A ScrubValue MUST apply exactly this magnitude map to both the drag gesture and the wheel step, and MUST NOT extend it: `Shift` is COARSE and multiplies the step by 10;",
-      "evidence_kind": "runtime_assertion",
-      "source": "14-studio-creative-suite.md STU-SHL-190"
-    },
-    {
-      "id": "AC-002",
-      "criterion": "`Alt` is excluded and MUST NOT acquire a magnitude meaning, because it is already the duplicate, subtract-from-selection and sample-alternate modifier in every captured application and is load-bearing in the timeline surface where scrubbing matters most.",
-      "evidence_kind": "runtime_assertion",
-      "source": "14-studio-creative-suite.md STU-SHL-190"
-    },
-    {
-      "id": "AC-003",
-      "criterion": "Modifiers MUST be sampled CONTINUOUSLY during the gesture rather than latched at press, and accumulation MUST happen in VALUE space so the value does not jump when the operator changes magnitude mid-drag.",
+      "criterion": "Modifiers.** Continuous numeric drag/wheel gestures MUST use the fixed semantic map: normal x1, coarse x10, fine /10, combined coarse+fine x100.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-SHL-190"
     }
   ],
-  "acceptance_criteria_count": 3,
+  "acceptance_criteria_count": 1,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1742,25 +1731,13 @@
       "STU-FX-149"
     ],
     "acceptance_refs": [
-      "AC-001",
-      "AC-002",
-      "AC-003"
+      "AC-001"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Modifiers.** A ScrubValue MUST apply exactly this magnitude map to both the drag gesture and the wheel step, and MUST NOT extend it: `Shift` is COARSE and multiplies the step by 10;",
+        "text": "Modifiers.** Continuous numeric drag/wheel gestures MUST use the fixed semantic map: normal x1, coarse x10, fine /10, combined coarse+fine x100.",
         "fulfillment_ref": "MT-35068#/fulfillment/legacy_acceptance_map/0"
-      },
-      {
-        "id": "AC-002",
-        "text": "`Alt` is excluded and MUST NOT acquire a magnitude meaning, because it is already the duplicate, subtract-from-selection and sample-alternate modifier in every captured application and is load-bearing in the timeline surface where scrubbing matters most.",
-        "fulfillment_ref": "MT-35068#/fulfillment/legacy_acceptance_map/1"
-      },
-      {
-        "id": "AC-003",
-        "text": "Modifiers MUST be sampled CONTINUOUSLY during the gesture rather than latched at press, and accumulation MUST happen in VALUE space so the value does not jump when the operator changes magnitude mid-drag.",
-        "fulfillment_ref": "MT-35068#/fulfillment/legacy_acceptance_map/2"
       }
     ],
     "spec_basis_refs": [
@@ -1768,6 +1745,22 @@
     ],
     "operator_decision_refs": [
       "ilja091020261912"
+    ],
+    "superseded_materialized_acceptance": [
+      {
+        "id": "AC-002",
+        "text": "`Alt` is excluded and MUST NOT acquire a magnitude meaning, because it is already the duplicate, subtract-from-selection and sample-alternate modifier in every captured application and is load-bearing in the timeline surface where scrubbing matters most.",
+        "fulfillment_ref": "MT-35068#/fulfillment/legacy_acceptance_map/1",
+        "superseded_at_spec_version": "v02.229",
+        "reason": "the sentence is absent from the spec text; the deriver no longer yields this row"
+      },
+      {
+        "id": "AC-003",
+        "text": "Modifiers MUST be sampled CONTINUOUSLY during the gesture rather than latched at press, and accumulation MUST happen in VALUE space so the value does not jump when the operator changes magnitude mid-drag.",
+        "fulfillment_ref": "MT-35068#/fulfillment/legacy_acceptance_map/2",
+        "superseded_at_spec_version": "v02.229",
+        "reason": "the sentence is absent from the spec text; the deriver no longer yields this row"
+      }
     ]
   },
   "execution": {
@@ -2002,7 +1995,7 @@
           "AC-001"
         ],
         "command_or_method": "Planned target: cargo test --locked -p hsk-studio-controls --no-default-features --test mt_35068 source_contract_consumer -- --exact. Independent validator drives source-specific cases in steps for STU-SHL-190,STU-FX-110,STU-FX-149/AC-001 against actual reducer/projection/record output, including declared negative/recovery cases. Implementer separately cargo check --locked -p hsk-studio-controls --no-default-features --tests. Actual candidate/lock/actor/artifact roots activation-bound; no execution claimed. Exact source-specific refinement: Change roles during gesture with value-space accumulation/no jump; distinguish discrete integer/enum step1 from floating sensitivity. No target switch, double multiplication, enum skipping or invented accelerator chord.",
-        "expected": "Actual Modifiers output obeys Modifiers.** A ScrubValue MUST apply exactly this magnitude map to both the drag gesture and the wheel step, and MUST NOT extend it: `Shift` is COARSE and multiplies the step by 10;; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
+        "expected": "Actual Modifiers output obeys Modifiers.** Continuous numeric drag/wheel gestures MUST use the fixed semantic map: normal x1, coarse x10, fine /10, combined coarse+fine x100.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2015,7 +2008,7 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Modifiers.** A ScrubValue MUST apply exactly this magnitude map to both the drag gesture and the wheel step, and MUST NOT extend it: `Shift` is COARSE and multiplies the step by 10; Change roles during gesture with value-space accumulation/no jump; distinguish discrete integer/enum step1 from floating sensitivity.",
+          "consumer_assertion": "Modifiers.** Continuous numeric drag/wheel gestures MUST use the fixed semantic map: normal x1, coarse x10, fine /10, combined coarse+fine x100. Change roles during gesture with value-space accumulation/no jump; distinguish discrete integer/enum step1 from floating sensitivity.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. No target switch, double multiplication, enum skipping or invented accelerator chord.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
@@ -2065,7 +2058,10 @@
           "prior_method_retained": true,
           "consumer": "Change roles during gesture with value-space accumulation/no jump; distinguish discrete integer/enum step1 from floating sensitivity.",
           "negative_path": "No target switch, double multiplication, enum skipping or invented accelerator chord."
-        }
+        },
+        "superseded_claim_refs": [
+          "AC-002"
+        ]
       },
       {
         "check_id": "MT-35068-ASSET-AC-003",
@@ -2101,7 +2097,10 @@
           "prior_method_retained": true,
           "consumer": "Change roles during gesture with value-space accumulation/no jump; distinguish discrete integer/enum step1 from floating sensitivity.",
           "negative_path": "No target switch, double multiplication, enum skipping or invented accelerator chord."
-        }
+        },
+        "superseded_claim_refs": [
+          "AC-003"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2445,7 +2444,7 @@
         "original_text": "Modifiers.** A ScrubValue MUST apply exactly this magnitude map to both the drag gesture and the wheel step, and MUST NOT extend it: `Shift` is COARSE and multiplies the step by 10;",
         "original_row_sha256": "ca2c37cc00dd9f759fdbb63e87ede47cb14f6e7da3c4817965015f5ae69b6615",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Modifiers.** A ScrubValue MUST apply exactly this magnitude map to both the drag gesture and the wheel step, and MUST NOT extend it: `Shift` is COARSE and multiplies the step by 10;",
+        "semantic_fulfillment": "Modifiers.** Continuous numeric drag/wheel gestures MUST use the fixed semantic map: normal x1, coarse x10, fine /10, combined coarse+fine x100.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-35068-ASSET-CONTROLS"
@@ -2455,7 +2454,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "Modifiers.** A ScrubValue MUST apply exactly this magnitude map to both the drag gesture and the wheel step, and MUST NOT extend it: `Shift` is COARSE and multiplies the step by 10;",
+            "required_behavior": "Modifiers.** Continuous numeric drag/wheel gestures MUST use the fixed semantic map: normal x1, coarse x10, fine /10, combined coarse+fine x100.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2464,13 +2463,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Modifiers.** A ScrubValue MUST apply exactly this magnitude map to both the drag gesture and the wheel step, and MUST NOT extend it: `Shift` is COARSE and multiplies the step by 10; Change roles during gesture with value-space accumulation/no jump; distinguish discrete integer/enum step1 from floating sensitivity.",
+          "consumer_assertion": "Modifiers.** Continuous numeric drag/wheel gestures MUST use the fixed semantic map: normal x1, coarse x10, fine /10, combined coarse+fine x100. Change roles during gesture with value-space accumulation/no jump; distinguish discrete integer/enum step1 from floating sensitivity.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. No target switch, double multiplication, enum skipping or invented accelerator chord.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-35068-KERNEL-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Modifiers.** A ScrubValue MUST apply exactly this magnitude map to both the drag gesture and the wheel step, and MUST NOT extend it: `Shift` is COARSE and multiplies the step by 10; Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Modifiers.** Continuous numeric drag/wheel gestures MUST use the fixed semantic map: normal x1, coarse x10, fine /10, combined coarse+fine x100. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36213"
@@ -2595,7 +2594,7 @@
           "original_text": "Modifiers.** A ScrubValue MUST apply exactly this magnitude map to both the drag gesture and the wheel step, and MUST NOT extend it: `Shift` is COARSE and multiplies the step by 10;",
           "original_row_sha256": "ca2c37cc00dd9f759fdbb63e87ede47cb14f6e7da3c4817965015f5ae69b6615",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Modifiers.** A ScrubValue MUST apply exactly this magnitude map to both the drag gesture and the wheel step, and MUST NOT extend it: `Shift` is COARSE and multiplies the step by 10;",
+          "semantic_fulfillment": "Modifiers.** Continuous numeric drag/wheel gestures MUST use the fixed semantic map: normal x1, coarse x10, fine /10, combined coarse+fine x100.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-35068-ASSET-CONTROLS"
@@ -2605,7 +2604,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "Modifiers.** A ScrubValue MUST apply exactly this magnitude map to both the drag gesture and the wheel step, and MUST NOT extend it: `Shift` is COARSE and multiplies the step by 10;",
+              "required_behavior": "Modifiers.** Continuous numeric drag/wheel gestures MUST use the fixed semantic map: normal x1, coarse x10, fine /10, combined coarse+fine x100.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2614,13 +2613,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Modifiers.** A ScrubValue MUST apply exactly this magnitude map to both the drag gesture and the wheel step, and MUST NOT extend it: `Shift` is COARSE and multiplies the step by 10;",
+            "consumer_assertion": "Modifiers.** Continuous numeric drag/wheel gestures MUST use the fixed semantic map: normal x1, coarse x10, fine /10, combined coarse+fine x100.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-35068-KERNEL-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Modifiers.** A ScrubValue MUST apply exactly this magnitude map to both the drag gesture and the wheel step, and MUST NOT extend it: `Shift` is COARSE and multiplies the step by 10; Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Modifiers.** Continuous numeric drag/wheel gestures MUST use the fixed semantic map: normal x1, coarse x10, fine /10, combined coarse+fine x100. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "MT-36213"
@@ -2743,11 +2742,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2789,5 +2788,56 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "Modifiers.** A ScrubValue MUST apply exactly this magnitude map to both the drag gesture and the wheel step, and MUST NOT extend it: `Shift` is COARSE and multiplies the step by 10;",
+          "new": "Modifiers.** Continuous numeric drag/wheel gestures MUST use the fixed semantic map: normal x1, coarse x10, fine /10, combined coarse+fine x100."
+        },
+        {
+          "id": "AC-002",
+          "old": "`Alt` is excluded and MUST NOT acquire a magnitude meaning, because it is already the duplicate, subtract-from-selection and sample-alternate modifier in every captured application and is load-bearing in the timeline surface where scrubbing matters most.",
+          "new": null
+        },
+        {
+          "id": "AC-003",
+          "old": "Modifiers MUST be sampled CONTINUOUSLY during the gesture rather than latched at press, and accumulation MUST happen in VALUE space so the value does not jump when the operator changes magnitude mid-drag.",
+          "new": null
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [
+        "AC-002",
+        "AC-003"
+      ],
+      "superseded_materialized_rows": [
+        "AC-002",
+        "AC-003"
+      ],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Modifiers",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/expected",
+        "/proof/checks[0]/method_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

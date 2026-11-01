@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.16 Model Visibility and Steerability (Backend and Frontend)",
-    "spec_line": 22225,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 22527,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,20 +27,20 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "FRONTEND VISIBILITY. Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit/egui accessibility tree so Arg [...]",
+  "clause": "FRONTEND VISIBILITY. Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit accessibility tree so Argus ca [...]",
   "spec_anchor": [
     "STU-MDL-002"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "model_facing_surface",
   "scope": {
-    "summary": "FRONTEND VISIBILITY. Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit/egui accessibility tree so Argus can identify, inspect, and steer it. The frontend MUST expose machine-readable UI-state snapshots (which tool is active, current selection, panel/layout state, document/artboard focus) queryable without pixel screen-reading.",
+    "summary": "FRONTEND VISIBILITY. Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit accessibility tree so Argus can identify, inspect, and steer it. The frontend MUST expose machine-readable UI-state snapshots (which tool is active, current selection, panel/layout state, document/artboard focus) queryable without pixel screen-reading.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit/egui accessibility tree so Argus can identify, inspect, and steer it.",
+      "criterion": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit accessibility tree so Argus can identify, inspect, and steer it.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-MDL-002"
     },
@@ -147,7 +148,7 @@
   "identity": {
     "mt_id": "MT-33635",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "FRONTEND VISIBILITY. Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit/egui accessibility tree so Arg [...]",
+    "title": "FRONTEND VISIBILITY. Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit accessibility tree so Argus ca [...]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 3
@@ -163,7 +164,7 @@
       {
         "id": "STU-MDL-002",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:22273",
-        "verbatim": "[STU-MDL-002] FRONTEND VISIBILITY. Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit/egui accessibility tree so Argus can identify, inspect, and steer it. The frontend MUST expose machine-readable UI-state snapshots (which tool is active, current selection, panel/layout state, document/artboard focus) queryable without pixel screen-reading.",
+        "verbatim": "[STU-MDL-002] FRONTEND VISIBILITY. Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit accessibility tree so Argus can identify, inspect, and steer it. The frontend MUST expose machine-readable UI-state snapshots (which tool is active, current selection, panel/layout state, document/artboard focus) queryable without pixel screen-reading.",
         "heading": "## 14.16 Model Visibility and Steerability (Backend and Frontend)",
         "section": "14.16",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -1590,7 +1591,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit/egui accessibility tree so Argus can identify, inspect, and steer it.",
+        "text": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit accessibility tree so Argus can identify, inspect, and steer it.",
         "fulfillment_ref": "MT-33635#/fulfillment/legacy_acceptance_map/0"
       },
       {
@@ -1796,7 +1797,7 @@
           "AC-001"
         ],
         "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-harness --no-default-features --test mt_33635 -- --nocapture",
-        "expected": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit/egui accessibility tree so Argus can identify, inspect, and steer it. Source consumer proves: Read Controls accessibility descriptors and machine UI snapshots through injected inspection ports with stable author_id for panes,panels,tabs,tools,controls and canvas. Query active tool,selection,panel layout and document/artboard focus using a real selected Controls consumer, independent of pixels. Remove one author_id and provide a stale snapshot; return explicit visibility debt rather than a passing coverage label. Native Argus observation remains separate host proof.",
+        "expected": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit accessibility tree so Argus can identify, inspect, and steer it. Source consumer proves: Read Controls accessibility descriptors and machine UI snapshots through injected inspection ports with stable author_id for panes,panels,tabs,tools,controls and canvas. Query active tool,selection,panel layout and document/artboard focus using a real selected Controls consumer, independent of pixels. Remove one author_id and provide a stale snapshot; return explicit visibility debt rather than a passing coverage label. Native Argus observation remains separate host proof.",
         "timeout_seconds": 120,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2108,7 +2109,7 @@
             "line": 22273,
             "section": "14.16",
             "heading": "## 14.16 Model Visibility and Steerability (Backend and Frontend)",
-            "verbatim": "[STU-MDL-002] FRONTEND VISIBILITY. Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit/egui accessibility tree so Argus can identify, inspect, and steer it. The frontend MUST expose machine-readable UI-state snapshots (which tool is active, current selection, panel/layout state, document/artboard focus) queryable without pixel screen-reading.",
+            "verbatim": "[STU-MDL-002] FRONTEND VISIBILITY. Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit accessibility tree so Argus can identify, inspect, and steer it. The frontend MUST expose machine-readable UI-state snapshots (which tool is active, current selection, panel/layout state, document/artboard focus) queryable without pixel screen-reading.",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2179,7 +2180,7 @@
         "original_text": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit/egui accessibility tree so Argus can identify, inspect, and steer it.",
         "original_row_sha256": "e333c72a97a8333cce3f3a44a1f17626ce7d2f07008c27858022a88f3f14d9e8",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit/egui accessibility tree so Argus can identify, inspect, and steer it.",
+        "semantic_fulfillment": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit accessibility tree so Argus can identify, inspect, and steer it.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33635-ASSET-HARNESS"
@@ -2189,7 +2190,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-HARNESS",
             "scope": "Standalone asset desktop/headless development consumers with explicit selected providers; no unconditional all-domain facade, no separately shipped suite app.",
-            "required_behavior": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit/egui accessibility tree so Argus can identify, inspect, and steer it.",
+            "required_behavior": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit accessibility tree so Argus can identify, inspect, and steer it.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2198,13 +2199,13 @@
             "hsk-studio-harness"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit/egui accessibility tree so Argus can identify, inspect, and steer it.",
+          "consumer_assertion": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit accessibility tree so Argus can identify, inspect, and steer it.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-33635-KERNEL-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit/egui accessibility tree so Argus can identify, inspect, and steer it. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit accessibility tree so Argus can identify, inspect, and steer it. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36215"
@@ -2285,7 +2286,7 @@
           "original_text": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit/egui accessibility tree so Argus can identify, inspect, and steer it.",
           "original_row_sha256": "e333c72a97a8333cce3f3a44a1f17626ce7d2f07008c27858022a88f3f14d9e8",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit/egui accessibility tree so Argus can identify, inspect, and steer it.",
+          "semantic_fulfillment": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit accessibility tree so Argus can identify, inspect, and steer it.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33635-ASSET-HARNESS"
@@ -2295,7 +2296,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-HARNESS",
               "scope": "Standalone asset desktop/headless development consumers with explicit selected providers; no unconditional all-domain facade, no separately shipped suite app.",
-              "required_behavior": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit/egui accessibility tree so Argus can identify, inspect, and steer it.",
+              "required_behavior": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit accessibility tree so Argus can identify, inspect, and steer it.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2304,13 +2305,13 @@
               "hsk-studio-harness"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit/egui accessibility tree so Argus can identify, inspect, and steer it.",
+            "consumer_assertion": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit accessibility tree so Argus can identify, inspect, and steer it.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-33635-KERNEL-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit/egui accessibility tree so Argus can identify, inspect, and steer it. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit accessibility tree so Argus can identify, inspect, and steer it. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         },
         {
@@ -2369,11 +2370,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "asset_local_test_host_only",
     "gpu": "none",
     "diagnostics": {
@@ -2415,5 +2416,42 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit/egui accessibility tree so Argus can identify, inspect, and steer it.",
+          "new": "Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit accessibility tree so Argus can identify, inspect, and steer it."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "FRONTEND VISIBILITY. Every operator-visible Studio surface (pane, panel, tab, tool, control, canvas) MUST expose a stable `author_id` target through the native AccessKit/egui accessibility tree so Arg [...]",
+      "propagated_paths": [
+        "/identity/title",
+        "/context_capsule/specification_anchor_refs[0]/verbatim",
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/expected",
+        "/fulfillment/asset_slices[0]/scope_basis[0]/verbatim",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

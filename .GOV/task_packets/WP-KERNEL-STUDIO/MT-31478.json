@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "8. The scrubbable numeric control",
-    "spec_line": 12618,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 12881,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,31 +27,18 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass",
+  "clause": "Shared bound legality is owned once. Pointer scrubbing clamps only declared hard bounds and permits every legal value beyond soft bounds; reversible pointer-only resistance follows [STU-SHL-192]. Exac [...]",
   "spec_anchor": [
     "STU-FX-110a"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "effects",
   "scope": {
-    "summary": "Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass freely through `soft_min`/`soft_max`, extending the control. Typed entry follows [STU-FX-104]: inside hard bounds it succeeds regardless of soft bounds; outside hard bounds it is rejected, not clamped. The scrub gesture, the typed entry, the arrow-key path and the AccessKit-exposed increment/decrement actions MUST all route through one clamp implementation so an assistive- technology adjustment cannot reach a value the pointer path forbids, and vice versa. The exact coarse and fine modifier keys are an open operator decision recorded in [STU-FX-149]. ### 9. Parameter kinds",
+    "summary": "Shared bound legality is owned once. Pointer scrubbing clamps only declared hard bounds and permits every legal value beyond soft bounds; reversible pointer-only resistance follows [STU-SHL-192]. Exact typing bypasses resistance: in-hard-range values succeed and out-of-hard-range values reject rather than clamp. Pointer, typed, arrow, accessibility and model routes use one descriptor/validation owner with explicit action semantics. [STU-FX-149] closes modifier defaults; no domain creates a copied clamp, step or gesture implementation. ### 9. Parameter kinds",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [
-    {
-      "id": "AC-001",
-      "criterion": "Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass freely through `soft_min`/`soft_max`, extending the control.",
-      "evidence_kind": "runtime_assertion",
-      "source": "14-studio-creative-suite.md STU-FX-110a"
-    },
-    {
-      "id": "AC-002",
-      "criterion": "The scrub gesture, the typed entry, the arrow-key path and the AccessKit-exposed increment/decrement actions MUST all route through one clamp implementation so an assistive- technology adjustment cannot reach a value the pointer path forbids, and vice versa.",
-      "evidence_kind": "runtime_assertion",
-      "source": "14-studio-creative-suite.md STU-FX-110a"
-    }
-  ],
-  "acceptance_criteria_count": 2,
+  "acceptance_criteria": [],
+  "acceptance_criteria_count": 0,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -147,7 +135,7 @@
   "identity": {
     "mt_id": "MT-31478",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass",
+    "title": "Shared bound legality is owned once. Pointer scrubbing clamps only declared hard bounds and permits every legal value beyond soft bounds; reversible pointer-only resistance follows [STU-SHL-192]. Exac [...]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 2
@@ -1367,7 +1355,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "module_or_asset_is_created_or_materially_modified",
         "assessment": "APPLIES",
-        "reason": "Controls descriptor/reducer mechanic is an independently selected source contribution; bounded real consumer, public operator/model/manual/inspection and recovery routes required. Task MT-31478 exact basis: Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass",
+        "reason": "Controls descriptor/reducer mechanic is an independently selected source contribution; bounded real consumer, public operator/model/manual/inspection and recovery routes required. Task MT-31478 exact basis: Shared bound legality is owned once. Pointer scrubbing clamps only declared hard bounds and permits every legal value beyond soft bounds; reversible pointer-only resistance follows [STU-SHL-192]. Exac [...]",
         "scope_evidence_refs": [
           "MT-31478#/execution/implementation_steps",
           "MT-31478#/context_capsule/specification_anchor_refs",
@@ -1385,7 +1373,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "module_or_asset_is_public_contract_or_resource_behavior_changes",
         "assessment": "APPLIES",
-        "reason": "This Controls public UI contract changes exact command inputs, events, egui styling/accessibility/headless behavior; invalid/stale/revoke/cancel/shutdown paths preserve accepted state. Task MT-31478 exact basis: Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass",
+        "reason": "This Controls public UI contract changes exact command inputs, events, egui styling/accessibility/headless behavior; invalid/stale/revoke/cancel/shutdown paths preserve accepted state. Task MT-31478 exact basis: Shared bound legality is owned once. Pointer scrubbing clamps only declared hard bounds and permits every legal value beyond soft bounds; reversible pointer-only resistance follows [STU-SHL-192]. Exac [...]",
         "scope_evidence_refs": [
           "MT-31478#/execution/implementation_steps",
           "MT-31478#/context_capsule/specification_anchor_refs",
@@ -1403,7 +1391,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "module_or_asset_is_released_or_consumed",
         "assessment": "APPLIES",
-        "reason": "Standalone Controls source release and provider consumption require immutable source/tree/lock/toolchain/artifact digests and API compatibility, never an unpinned local checkout. Task MT-31478 exact basis: Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass",
+        "reason": "Standalone Controls source release and provider consumption require immutable source/tree/lock/toolchain/artifact digests and API compatibility, never an unpinned local checkout. Task MT-31478 exact basis: Shared bound legality is owned once. Pointer scrubbing clamps only declared hard bounds and permits every legal value beyond soft bounds; reversible pointer-only resistance follows [STU-SHL-192]. Exac [...]",
         "scope_evidence_refs": [
           "MT-31478#/execution/implementation_steps",
           "MT-31478#/context_capsule/specification_anchor_refs",
@@ -1421,7 +1409,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "module_or_asset_is_embedded_in_a_host",
         "assessment": "DEFERRED_TO_DISTINCT_HOST_ADOPTION",
-        "reason": "Actual AppState/native/auth/data/lifecycle services are consumed only by separate pinned Controls host adoption MT-36213; source-only preparation never supplies these services. Task MT-31478 exact basis: Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass",
+        "reason": "Actual AppState/native/auth/data/lifecycle services are consumed only by separate pinned Controls host adoption MT-36213; source-only preparation never supplies these services. Task MT-31478 exact basis: Shared bound legality is owned once. Pointer scrubbing clamps only declared hard bounds and permits every legal value beyond soft bounds; reversible pointer-only resistance follows [STU-SHL-192]. Exac [...]",
         "scope_evidence_refs": [
           "MT-31478#/execution/implementation_steps",
           "MT-31478#/context_capsule/specification_anchor_refs",
@@ -1439,7 +1427,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "module_or_asset_is_published_upgraded_or_moved",
         "assessment": "APPLIES",
-        "reason": "Publishing or upgrading Controls must exclude private credentials/config; portable resource roots, state owners, migration/rollback and affected standalone/host recovery proofs remain mandatory. Task MT-31478 exact basis: Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass",
+        "reason": "Publishing or upgrading Controls must exclude private credentials/config; portable resource roots, state owners, migration/rollback and affected standalone/host recovery proofs remain mandatory. Task MT-31478 exact basis: Shared bound legality is owned once. Pointer scrubbing clamps only declared hard bounds and permits every legal value beyond soft bounds; reversible pointer-only resistance follows [STU-SHL-192]. Exac [...]",
         "scope_evidence_refs": [
           "MT-31478#/execution/implementation_steps",
           "MT-31478#/context_capsule/specification_anchor_refs",
@@ -1457,7 +1445,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "module_or_asset_is_published_or_mirrored",
         "assessment": "APPLIES",
-        "reason": "Canonical assets publication and later mirror retain source/base/target digests, explicit allowlist/patch provenance and destination customizations; drift rejects refresh. Task MT-31478 exact basis: Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass",
+        "reason": "Canonical assets publication and later mirror retain source/base/target digests, explicit allowlist/patch provenance and destination customizations; drift rejects refresh. Task MT-31478 exact basis: Shared bound legality is owned once. Pointer scrubbing clamps only declared hard bounds and permits every legal value beyond soft bounds; reversible pointer-only resistance follows [STU-SHL-192]. Exac [...]",
         "scope_evidence_refs": [
           "MT-31478#/execution/implementation_steps",
           "MT-31478#/context_capsule/specification_anchor_refs",
@@ -1475,7 +1463,7 @@
         "registry_sha256": "34e16e48c1f2e9492d9ed27d266f94a6d90e56faadebba924a15f93153436a43",
         "trigger": "module_or_asset_changes_or_host_adopts_a_revision",
         "assessment": "APPLIES",
-        "reason": "Canonical https://github.com/Nuntissura/assets source publication and independent remote reread/source proof precede distinct host immutable pin/adapter compatibility; local receipts/copies do not establish adoption. Task MT-31478 exact basis: Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass",
+        "reason": "Canonical https://github.com/Nuntissura/assets source publication and independent remote reread/source proof precede distinct host immutable pin/adapter compatibility; local receipts/copies do not establish adoption. Task MT-31478 exact basis: Shared bound legality is owned once. Pointer scrubbing clamps only declared hard bounds and permits every legal value beyond soft bounds; reversible pointer-only resistance follows [STU-SHL-192]. Exac [...]",
         "scope_evidence_refs": [
           "MT-31478#/execution/implementation_steps",
           "MT-31478#/context_capsule/specification_anchor_refs",
@@ -1519,19 +1507,13 @@
       "STU-FX-110a"
     ],
     "acceptance_refs": [
-      "AC-001",
-      "AC-002"
+      "AC-001"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass freely through `soft_min`/`soft_max`, extending the control.",
+        "text": "Shared bound legality is owned once. Pointer scrubbing clamps only declared hard bounds and permits every legal value beyond soft bounds; reversible pointer-only resistance follows [STU-SHL-192]. Exac [...] freely through `soft_min`/`soft_max`, extending the control.",
         "fulfillment_ref": "MT-31478#/fulfillment/legacy_acceptance_map/0"
-      },
-      {
-        "id": "AC-002",
-        "text": "The scrub gesture, the typed entry, the arrow-key path and the AccessKit-exposed increment/decrement actions MUST all route through one clamp implementation so an assistive- technology adjustment cannot reach a value the pointer path forbids, and vice versa.",
-        "fulfillment_ref": "MT-31478#/fulfillment/legacy_acceptance_map/1"
       }
     ],
     "spec_basis_refs": [
@@ -1539,6 +1521,15 @@
     ],
     "operator_decision_refs": [
       "ilja091020261912"
+    ],
+    "superseded_materialized_acceptance": [
+      {
+        "id": "AC-002",
+        "text": "The scrub gesture, the typed entry, the arrow-key path and the AccessKit-exposed increment/decrement actions MUST all route through one clamp implementation so an assistive- technology adjustment cannot reach a value the pointer path forbids, and vice versa.",
+        "fulfillment_ref": "MT-31478#/fulfillment/legacy_acceptance_map/1",
+        "superseded_at_spec_version": "v02.229",
+        "reason": "the sentence is absent from the spec text; the deriver no longer yields this row"
+      }
     ]
   },
   "execution": {
@@ -1741,7 +1732,7 @@
           "AC-001"
         ],
         "command_or_method": "Planned target: cargo test --locked -p hsk-studio-controls --no-default-features --test mt_31478 contract_consumer -- --exact. Independent validator drives real headless egui0.33/public consumer scenarios and state invariants in implementation_steps. Implementer separately compiles with cargo check --locked -p hsk-studio-controls --no-default-features --tests. Activation binds source/lock/actor/absolute artifact roots; no execution/target existence claimed.",
-        "expected": "Actual consumer satisfies Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass freely through `soft_min`/`soft_max`, extending the control. with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
+        "expected": "Actual consumer satisfies Shared bound legality is owned once. Pointer scrubbing clamps only declared hard bounds and permits every legal value beyond soft bounds; reversible pointer-only resistance follows [STU-SHL-192]. Exac [...] freely through `soft_min`/`soft_max`, extending the control. with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1754,7 +1745,7 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-          "consumer_assertion": "Actual consumer satisfies Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass freely through `soft_min`/`soft_max`, extending the control. with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
+          "consumer_assertion": "Actual consumer satisfies Shared bound legality is owned once. Pointer scrubbing clamps only declared hard bounds and permits every legal value beyond soft bounds; reversible pointer-only resistance follows [STU-SHL-192]. Exac [...] freely through `soft_min`/`soft_max`, extending the control. with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
           "negative_path": "Exact cases in MT-31478#/execution/implementation_steps",
           "oracle": "Independent actual outputs specified by MT-31478-ASSET-AC-001; unavailable provider means NOT_PROVEN."
         },
@@ -1794,7 +1785,10 @@
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
-        }
+        },
+        "superseded_claim_refs": [
+          "AC-002"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2194,7 +2188,7 @@
         "original_text": "Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass freely through `soft_min`/`soft_max`, extending the control.",
         "original_row_sha256": "5278552a09d8ce5fa7d3cddb5794e3571023db6ed8056971b9532f02ba153308",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass freely through `soft_min`/`soft_max`, extending the control.",
+        "semantic_fulfillment": "Shared bound legality is owned once. Pointer scrubbing clamps only declared hard bounds and permits every legal value beyond soft bounds; reversible pointer-only resistance follows [STU-SHL-192]. Exac [...] freely through `soft_min`/`soft_max`, extending the control.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-31478-ASSET-CONTROLS"
@@ -2204,7 +2198,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass freely through `soft_min`/`soft_max`, extending the control.",
+            "required_behavior": "Shared bound legality is owned once. Pointer scrubbing clamps only declared hard bounds and permits every legal value beyond soft bounds; reversible pointer-only resistance follows [STU-SHL-192]. Exac [...] freely through `soft_min`/`soft_max`, extending the control.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2213,13 +2207,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-          "consumer_assertion": "Actual consumer satisfies Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass freely through `soft_min`/`soft_max`, extending the control. with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
+          "consumer_assertion": "Actual consumer satisfies Shared bound legality is owned once. Pointer scrubbing clamps only declared hard bounds and permits every legal value beyond soft bounds; reversible pointer-only resistance follows [STU-SHL-192]. Exac [...] freely through `soft_min`/`soft_max`, extending the control. with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
           "negative_path": "Exact cases in MT-31478#/execution/implementation_steps",
           "oracle": "Independent actual outputs specified by MT-31478-ASSET-AC-001; unavailable provider means NOT_PROVEN."
         },
         "later_embedding_ref": "MT-36213",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Qualified source MT-31478/AC-001; actual host adoption MT-36213 independently proves: Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass freely through `soft_min`/`soft_max`, extending the control.",
+        "later_embedding_assertion": "Qualified source MT-31478/AC-001; actual host adoption MT-36213 independently proves: Shared bound legality is owned once. Pointer scrubbing clamps only declared hard bounds and permits every legal value beyond soft bounds; reversible pointer-only resistance follows [STU-SHL-192]. Exac [...] freely through `soft_min`/`soft_max`, extending the control.",
         "status": "PENDING"
       },
       {
@@ -2294,7 +2288,7 @@
           "original_text": "Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass freely through `soft_min`/`soft_max`, extending the control.",
           "original_row_sha256": "5278552a09d8ce5fa7d3cddb5794e3571023db6ed8056971b9532f02ba153308",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass freely through `soft_min`/`soft_max`, extending the control.",
+          "semantic_fulfillment": "Shared bound legality is owned once. Pointer scrubbing clamps only declared hard bounds and permits every legal value beyond soft bounds; reversible pointer-only resistance follows [STU-SHL-192]. Exac [...] freely through `soft_min`/`soft_max`, extending the control.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-31478-ASSET-CONTROLS"
@@ -2304,7 +2298,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass freely through `soft_min`/`soft_max`, extending the control.",
+              "required_behavior": "Shared bound legality is owned once. Pointer scrubbing clamps only declared hard bounds and permits every legal value beyond soft bounds; reversible pointer-only resistance follows [STU-SHL-192]. Exac [...] freely through `soft_min`/`soft_max`, extending the control.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2313,13 +2307,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Controls+Accord+Observe+inspected egui0.33, no-default-features; exact published features/lock bound before coding.",
-            "consumer_assertion": "Actual consumer satisfies Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass freely through `soft_min`/`soft_max`, extending the control. with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
+            "consumer_assertion": "Actual consumer satisfies Shared bound legality is owned once. Pointer scrubbing clamps only declared hard bounds and permits every legal value beyond soft bounds; reversible pointer-only resistance follows [STU-SHL-192]. Exac [...] freely through `soft_min`/`soft_max`, extending the control. with success/rejection/cancellation invariants stated in steps; descriptor existence alone does not prove semantic behavior or retained host parity.",
             "negative_path": "Exact cases in MT-31478#/execution/implementation_steps",
             "oracle": "Independent actual outputs specified by MT-31478-ASSET-AC-001; unavailable provider means NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36213",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Qualified source MT-31478/AC-001; actual host adoption MT-36213 independently proves: Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass freely through `soft_min`/`soft_max`, extending the control.",
+          "later_embedding_assertion": "Qualified source MT-31478/AC-001; actual host adoption MT-36213 independently proves: Shared bound legality is owned once. Pointer scrubbing clamps only declared hard bounds and permits every legal value beyond soft bounds; reversible pointer-only resistance follows [STU-SHL-192]. Exac [...] freely through `soft_min`/`soft_max`, extending the control.",
           "status": "PENDING"
         },
         {
@@ -2367,11 +2361,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2413,5 +2407,58 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass freely through `soft_min`/`soft_max`, extending the control.",
+          "new": null
+        },
+        {
+          "id": "AC-002",
+          "old": "The scrub gesture, the typed entry, the arrow-key path and the AccessKit-exposed increment/decrement actions MUST all route through one clamp implementation so an assistive- technology adjustment cannot reach a value the pointer path forbids, and vice versa.",
+          "new": null
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [
+        "AC-001",
+        "AC-002"
+      ],
+      "superseded_materialized_rows": [
+        "AC-002"
+      ],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "Scrubbing MUST clamp at `hard_min`/`hard_max` where they are declared, and MUST pass",
+      "propagated_paths": [
+        "/identity/title",
+        "/context_capsule/pillar_refs[45]/reason",
+        "/context_capsule/pillar_refs[46]/reason",
+        "/context_capsule/pillar_refs[47]/reason",
+        "/context_capsule/pillar_refs[48]/reason",
+        "/context_capsule/pillar_refs[49]/reason",
+        "/context_capsule/pillar_refs[50]/reason",
+        "/context_capsule/pillar_refs[51]/reason",
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/expected",
+        "/proof/checks[0]/method_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

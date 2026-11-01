@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14. Provider, Cloud, and Generative Posture",
-    "spec_line": 1745,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 1829,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -42,9 +43,51 @@
       "criterion": "They are recorded here as normative rows and MUST be either an optional `StudioModelAdapter` lane (14.14) or intentionally omitted; none may become a runtime dependency of any core raster primitive. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Source-suite feature (provenance) | Studio posture | |---|---| | Text-prompted generative fill / generative expand | Optional adapter lane over a pluggable local or remote generative backend; the native content-aware fill/inpaint primitive ([STU-RAS-143]) is the non-option [...]",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-RAS-045"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The contract table holds the row `Text-prompted generative fill / generative expand` with the exact meaning the spec states: Optional adapter lane over a pluggable local or remote generative backend; the native content-aware fill/inpaint primitive ([STU-RAS-143]) is the non-optional baseline.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAS-045 carried contract table row 1"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `Cloud \"neural\"/generative filter items requiring a vendor cloud` with the exact meaning the spec states: Adapter lane per filter where a local model exists; otherwise intentionally omitted. On-device filters branded \"neural\" upstream ship as native `StudioLiveFilter`/adjustments.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAS-045 carried contract table row 2"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `Vendor generative image service` with the exact meaning the spec states: Adapter lane only; never a dependency; never a Studio brand or panel name.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAS-045 carried contract table row 3"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `Cloud-backed distraction/object removal` with the exact meaning the spec states: Adapter acceleration only; the on-device inpaint/remove primitive is the baseline.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAS-045 carried contract table row 4"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `Vendor cloud asset libraries` with the exact meaning the spec states: Replaced by native local `placed_asset` links and the Handshake asset library; vendor-cloud sync is an optional adapter.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAS-045 carried contract table row 5"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `Vendor cloud documents and cloud version history` with the exact meaning the spec states: Replaced by native local `StudioDocument` history/undo (14.19); vendor cloud storage is omitted. Collaboration is native CRDT (14.16/14.17).. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAS-045 carried contract table row 6"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `Vendor share-for-review / cloud project spaces` with the exact meaning the spec states: Replaced by native Studio collaboration/review surfaces; vendor cloud is omitted.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAS-045 carried contract table row 7"
     }
   ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria_count": 8,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1559,13 +1602,48 @@
       "STU-RAS-045"
     ],
     "acceptance_refs": [
-      "AC-001"
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
         "text": "They are recorded here as normative rows and MUST be either an optional `StudioModelAdapter` lane (14.14) or intentionally omitted; none may become a runtime dependency of any core raster primitive. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Source-suite feature (provenance) | Studio posture | |---|---| | Text-prompted generative fill / generative expand | Optional adapter lane over a pluggable local or remote generative backend; the native content-aware fill/inpaint primitive ([STU-RAS-143]) is the non-option [...]",
         "fulfillment_ref": "MT-30295#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-002",
+        "text": "The contract table holds the row `Text-prompted generative fill / generative expand` with the exact meaning the spec states: Optional adapter lane over a pluggable local or remote generative backend; the native content-aware fill/inpaint primitive ([STU-RAS-143]) is the non-optional baseline.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `Cloud \"neural\"/generative filter items requiring a vendor cloud` with the exact meaning the spec states: Adapter lane per filter where a local model exists; otherwise intentionally omitted. On-device filters branded \"neural\" upstream ship as native `StudioLiveFilter`/adjustments.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `Vendor generative image service` with the exact meaning the spec states: Adapter lane only; never a dependency; never a Studio brand or panel name.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `Cloud-backed distraction/object removal` with the exact meaning the spec states: Adapter acceleration only; the on-device inpaint/remove primitive is the baseline.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `Vendor cloud asset libraries` with the exact meaning the spec states: Replaced by native local `placed_asset` links and the Handshake asset library; vendor-cloud sync is an optional adapter.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `Vendor cloud documents and cloud version history` with the exact meaning the spec states: Replaced by native local `StudioDocument` history/undo (14.19); vendor cloud storage is omitted. Collaboration is native CRDT (14.16/14.17).. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `Vendor share-for-review / cloud project spaces` with the exact meaning the spec states: Replaced by native Studio collaboration/review surfaces; vendor cloud is omitted.. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1849,6 +1927,118 @@
           "Exact owned source/config/lock closure"
         ],
         "materialization_status": "PLANNED_NOT_RUN"
+      },
+      {
+        "check_id": "MT-30295-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-RAS-045"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Text-prompted generative fill / generative expand` with the exact meaning the spec states: Optional adapter lane over a pluggable local or remote generative backend; the native content-aware fill/inpaint primitive ([STU-RAS-143]) is the non-optional baseline.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30295-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-RAS-045"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Cloud \"neural\"/generative filter items requiring a vendor cloud` with the exact meaning the spec states: Adapter lane per filter where a local model exists; otherwise intentionally omitted. On-device filters branded \"neural\" upstream ship as native `StudioLiveFilter`/adjustments.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30295-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-RAS-045"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Vendor generative image service` with the exact meaning the spec states: Adapter lane only; never a dependency; never a Studio brand or panel name.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30295-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-RAS-045"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Cloud-backed distraction/object removal` with the exact meaning the spec states: Adapter acceleration only; the on-device inpaint/remove primitive is the baseline.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30295-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-RAS-045"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Vendor cloud asset libraries` with the exact meaning the spec states: Replaced by native local `placed_asset` links and the Handshake asset library; vendor-cloud sync is an optional adapter.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30295-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-RAS-045"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Vendor cloud documents and cloud version history` with the exact meaning the spec states: Replaced by native local `StudioDocument` history/undo (14.19); vendor cloud storage is omitted. Collaboration is native CRDT (14.16/14.17).. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30295-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-RAS-045"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Vendor share-for-review / cloud project spaces` with the exact meaning the spec states: Replaced by native Studio collaboration/review surfaces; vendor cloud is omitted.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2294,11 +2484,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2346,5 +2536,66 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The contract table holds the row `Text-prompted generative fill / generative expand` with the exact meaning the spec states: Optional adapter lane over a pluggable local or remote generative backend; the native content-aware fill/inpaint primitive ([STU-RAS-143]) is the non-optional baseline.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `Cloud \"neural\"/generative filter items requiring a vendor cloud` with the exact meaning the spec states: Adapter lane per filter where a local model exists; otherwise intentionally omitted. On-device filters branded \"neural\" upstream ship as native `StudioLiveFilter`/adjustments.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `Vendor generative image service` with the exact meaning the spec states: Adapter lane only; never a dependency; never a Studio brand or panel name.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `Cloud-backed distraction/object removal` with the exact meaning the spec states: Adapter acceleration only; the on-device inpaint/remove primitive is the baseline.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `Vendor cloud asset libraries` with the exact meaning the spec states: Replaced by native local `placed_asset` links and the Handshake asset library; vendor-cloud sync is an optional adapter.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `Vendor cloud documents and cloud version history` with the exact meaning the spec states: Replaced by native local `StudioDocument` history/undo (14.19); vendor cloud storage is omitted. Collaboration is native CRDT (14.16/14.17).. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `Vendor share-for-review / cloud project spaces` with the exact meaning the spec states: Replaced by native Studio collaboration/review surfaces; vendor cloud is omitted.. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "Cloud-, account-, or vendor-generative features are NOT core Studio features. They are",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

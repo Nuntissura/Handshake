@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.19 Per-File History, Undo, and Revert-of-Undo",
-    "spec_line": 22281,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 22583,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,25 +27,18 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "REVERT-OF-UNDO (redo). After an undo, Studio MUST support reverting the undo (redo) at least one level deep per file — Reading B, the minimum floor. Reading A (recommended, normative default): Studio [...]",
+  "clause": "REVERT-OF-UNDO (redo). The earlier one-level minimum is superseded by retained-history deep Undo/Redo under [STU-CON-009]. Revert-of-Undo remains a ledger-recorded receipted `STUDIO_HISTORY_REDONE` op [...]",
   "spec_anchor": [
     "STU-HIS-003"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "his",
   "scope": {
-    "summary": "REVERT-OF-UNDO (redo). After an undo, Studio MUST support reverting the undo (redo) at least one level deep per file — Reading B, the minimum floor. Reading A (recommended, normative default): Studio maintains a per-file undo stack with at least one-level redo, and SHOULD support deep undo with a redo depth of >= 1; redo is a ledger-recorded, receipted operation (`STUDIO_HISTORY_REDONE`). The exact redo depth (>1) is an open contract point (14.24 open questions); the floor is: undo is deep per file, and at least one level of revert-of-undo is available per file.",
+    "summary": "REVERT-OF-UNDO (redo). The earlier one-level minimum is superseded by retained-history deep Undo/Redo under [STU-CON-009]. Revert-of-Undo remains a ledger-recorded receipted `STUDIO_HISTORY_REDONE` operation. Resident cache eviction cannot reduce durable redo depth; explicit branch/cursor and current inverse preconditions apply.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [
-    {
-      "id": "AC-001",
-      "criterion": "After an undo, Studio MUST support reverting the undo (redo) at least one level deep per file — Reading B, the minimum floor.",
-      "evidence_kind": "runtime_assertion",
-      "source": "14-studio-creative-suite.md STU-HIS-003"
-    }
-  ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria": [],
+  "acceptance_criteria_count": 0,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -141,7 +135,7 @@
   "identity": {
     "mt_id": "MT-33651",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "REVERT-OF-UNDO (redo). After an undo, Studio MUST support reverting the undo (redo) at least one level deep per file — Reading B, the minimum floor. Reading A (recommended, normative default): Studio [...]",
+    "title": "REVERT-OF-UNDO (redo). The earlier one-level minimum is superseded by retained-history deep Undo/Redo under [STU-CON-009]. Revert-of-Undo remains a ledger-recorded receipted `STUDIO_HISTORY_REDONE` op [...]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 3
@@ -1602,21 +1596,22 @@
       "STU-HIS-003",
       "STU-CON-009"
     ],
-    "acceptance_refs": [
-      "AC-001"
-    ],
-    "materialized_acceptance": [
-      {
-        "id": "AC-001",
-        "text": "After an undo, Studio MUST support reverting the undo (redo) at least one level deep per file — Reading B, the minimum floor.",
-        "fulfillment_ref": "MT-33651#/fulfillment/legacy_acceptance_map/0"
-      }
-    ],
+    "acceptance_refs": [],
+    "materialized_acceptance": [],
     "spec_basis_refs": [
       ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md"
     ],
     "operator_decision_refs": [
       "ilja091020261912"
+    ],
+    "superseded_materialized_acceptance": [
+      {
+        "id": "AC-001",
+        "text": "After an undo, Studio MUST support reverting the undo (redo) at least one level deep per file — Reading B, the minimum floor.",
+        "fulfillment_ref": "MT-33651#/fulfillment/legacy_acceptance_map/0",
+        "superseded_at_spec_version": "v02.229",
+        "reason": "the sentence is absent from the spec text; the deriver no longer yields this row"
+      }
     ]
   },
   "execution": {
@@ -1832,7 +1827,10 @@
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
-        }
+        },
+        "superseded_claim_refs": [
+          "AC-001"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2263,11 +2261,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2306,5 +2304,34 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "After an undo, Studio MUST support reverting the undo (redo) at least one level deep per file — Reading B, the minimum floor.",
+          "new": null
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [
+        "AC-001"
+      ],
+      "superseded_materialized_rows": [
+        "AC-001"
+      ],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "REVERT-OF-UNDO (redo). After an undo, Studio MUST support reverting the undo (redo) at least one level deep per file — Reading B, the minimum floor. Reading A (recommended, normative default): Studio [...]",
+      "propagated_paths": [
+        "/identity/title"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "11. Microtask Derivation",
-    "spec_line": 20507,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 20782,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,18 +34,24 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "prototyping",
   "scope": {
-    "summary": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running prototype. A microtask that says \"implement triggers\" without the seventeen tokens does not satisfy this clause.",
+    "summary": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running prototype. A microtask that says \"implement triggers\" without the seventeen tokens does not satisfy this clause. For [STU-PRO-167] through [STU-PRO-174], source duration/delay instead carry their separately declared seconds, unknown source bounds and optional presence; they do not inherit the native millisecond table. The MT MUST additionally carry all four node-kind tokens, all five interactive-role tokens, all twenty-three transition-style tokens, all eight curve tokens and both timing-type tokens where touched; its exact direct and applicable inherited field/method set with readonly, nullable and optional distinctions; source seconds with absent-versus-zero delay preserved; the applicable inheritance closure from the combined thirty-one-declaration capture with existi [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...]",
+      "criterion": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it t [...]",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-PRO-148"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The MT MUST additionally carry all four node-kind tokens, all five interactive-role tokens, all twenty-three transition-style tokens, all eight curve tokens and both timing-type tokens where touched; its exact direct and applicable inherited field/method set with readonly, nullable and optional distinctions; source seconds with absent-versus-zero delay preserved; the applicable inheritance closure from the combined thirty-one-declaration capture with existing owner routing; source/native restriction and evidence-version boundaries; checked Pulse conversion; and the specific unresolved payload [...]",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-PRO-148"
     }
   ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria_count": 2,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -150,7 +157,7 @@
       {
         "id": "STU-PRO-148",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:20549",
-        "verbatim": "**[STU-PRO-148] Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running prototype. A microtask that says \"implement triggers\" without the seventeen tokens does not satisfy this clause.",
+        "verbatim": "**[STU-PRO-148] Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running prototype. A microtask that says \"implement triggers\" without the seventeen tokens does not satisfy this clause. For [STU-PRO-167] through [STU-PRO-174], source duration/delay instead carry their separately declared seconds, unknown source bounds and optional presence; they do not inherit the native millisecond table. The MT MUST additionally carry all four node-kind tokens, all five interactive-role tokens, all twenty-three transition-style tokens, all eight curve tokens and both timing-type tokens where touched; its exact direct and applicable inherited field/method set with readonly, nullable and optional distinctions; source seconds with absent-versus-zero delay preserved; the applicable inheritance closure from the combined thirty-one-declaration capture with existi [...]",
         "heading": "### 11. Microtask Derivation",
         "section": "14.11",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -1565,13 +1572,18 @@
       "STU-PRO-148"
     ],
     "acceptance_refs": [
-      "AC-001"
+      "AC-001",
+      "AC-002"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...] Current v02.209 amendment (prior wording retained as history): **[STU-PRO-148] Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running prototype. A microtask that says \"implement triggers\" without the seventeen tokens does not satisfy this clause. For [STU-PRO-167] through [STU-PRO-174], source duration/delay instead carry their separately declared seconds, unknown source bounds and optional presence; they do not inherit the native millisecond table. The MT MUST additionally carry all four node-kind tokens, all five interactive-role tokens, all twenty-three transition-style tokens, all eight curve tokens and both timing-type tokens where touched; its exact direct and applicable inherited field/method set with readonly, nullable and optional distinctions; source seconds with absent-versus-zero delay preserved; the applicable inheritance closure from the combined thirty-one-declaration capture with existing owner routing; source/native restriction and evidence-version boundaries; checked Pulse conversion; and the specific unresolved payload or visual-oracle dependency before claiming fidelity. A source mapping never silently changes a vendor token into a Studio preset.\n Verification: Preserve native17 triggers/17 actions/5 navigation/9 overlay and seven-field numeric table with milliseconds and UNKNOWN/source_declared labels. Folded source167..174 keeps separate seconds, unknown bounds and optional presence: absent versus zero delay, readonly/nullable/optional and direct/inherited fields/methods, four node kinds/five roles/23 styles/eight curves/two timings where touched,31 declaration inheritance closure and actual owner routing. Pin source/native restriction evidence version and checked Pulse conversion; unresolved payload/visual oracle prevents fidelity and vendor styles cannot silently become Studio presets.",
+        "text": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it t [...] Current v02.209 amendment (prior wording retained as history): **[STU-PRO-148] Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running prototype. A microtask that says \"implement triggers\" without the seventeen tokens does not satisfy this clause. For [STU-PRO-167] through [STU-PRO-174], source duration/delay instead carry their separately declared seconds, unknown source bounds and optional presence; they do not inherit the native millisecond table. The MT MUST additionally carry all four node-kind tokens, all five interactive-role tokens, all twenty-three transition-style tokens, all eight curve tokens and both timing-type tokens where touched; its exact direct and applicable inherited field/method set with readonly, nullable and optional distinctions; source seconds with absent-versus-zero delay preserved; the applicable inheritance closure from the combined thirty-one-declaration capture with existing owner routing; source/native restriction and evidence-version boundaries; checked Pulse conversion; and the specific unresolved payload or visual-oracle dependency before claiming fidelity. A source mapping never silently changes a vendor token into a Studio preset.\n Verification: Preserve native17 triggers/17 actions/5 navigation/9 overlay and seven-field numeric table with milliseconds and UNKNOWN/source_declared labels. Folded source167..174 keeps separate seconds, unknown bounds and optional presence: absent versus zero delay, readonly/nullable/optional and direct/inherited fields/methods, four node kinds/five roles/23 styles/eight curves/two timings where touched,31 declaration inheritance closure and actual owner routing. Pin source/native restriction evidence version and checked Pulse conversion; unresolved payload/visual oracle prevents fidelity and vendor styles cannot silently become Studio presets.",
         "fulfillment_ref": "MT-35337#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-002",
+        "text": "The MT MUST additionally carry all four node-kind tokens, all five interactive-role tokens, all twenty-three transition-style tokens, all eight curve tokens and both timing-type tokens where touched; its exact direct and applicable inherited field/method set with readonly, nullable and optional distinctions; source seconds with absent-versus-zero delay preserved; the applicable inheritance closure from the combined thirty-one-declaration capture with existing owner routing; source/native restriction and evidence-version boundaries; checked Pulse conversion; and the specific unresolved payload [...]"
       }
     ],
     "spec_basis_refs": [
@@ -1708,7 +1720,7 @@
             "body_sha256": "ab1fad17dd19f37301d62b547fedf0b882cd9e717b01e00c046abce589191e90",
             "hash_encoding": "UTF8 line text joined LF, no final LF",
             "range_kind": "normative_clause",
-            "body": "**[STU-PRO-148] Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running prototype. A microtask that says \"implement triggers\" without the seventeen tokens does not satisfy this clause.\n"
+            "body": "**[STU-PRO-148] Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running prototype. A microtask that says \"implement triggers\" without the seventeen tokens does not satisfy this clause. For [STU-PRO-167] through [STU-PRO-174], source duration/delay instead carry their separately declared seconds, unknown source bounds and optional presence; they do not inherit the native millisecond table. The MT MUST additionally carry all four node-kind tokens, all five interactive-role tokens, all twenty-three transition-style tokens, all eight curve tokens and both timing-type tokens where touched; its exact direct and applicable inherited field/method set with readonly, nullable and optional distinctions; source seconds with absent-versus-zero delay preserved; the applicable inheritance closure from the combined thirty-one-declaration capture with existi [...]\n"
           }
         ],
         "supplementary_current_spec_requirements": [
@@ -1836,7 +1848,7 @@
             "start_line": 20549,
             "end_line": 20550,
             "body_sha256": "ab1fad17dd19f37301d62b547fedf0b882cd9e717b01e00c046abce589191e90",
-            "body": "**[STU-PRO-148] Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running prototype. A microtask that says \"implement triggers\" without the seventeen tokens does not satisfy this clause.\n"
+            "body": "**[STU-PRO-148] Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running prototype. A microtask that says \"implement triggers\" without the seventeen tokens does not satisfy this clause. For [STU-PRO-167] through [STU-PRO-174], source duration/delay instead carry their separately declared seconds, unknown source bounds and optional presence; they do not inherit the native millisecond table. The MT MUST additionally carry all four node-kind tokens, all five interactive-role tokens, all twenty-three transition-style tokens, all eight curve tokens and both timing-type tokens where touched; its exact direct and applicable inherited field/method set with readonly, nullable and optional distinctions; source seconds with absent-versus-zero delay preserved; the applicable inheritance closure from the combined thirty-one-declaration capture with existi [...]\n"
           },
           {
             "anchor": "STU-PRO-149",
@@ -1971,8 +1983,8 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-components --no-default-features --test components_mt_35337 components_mt_35337 -- --exact --nocapture. Compare all literal token lists, seven bound fields/unknown labels and PRO140 determinism. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Failure: For Microtask content obligation (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes. Oracle: Independent public consumer of StudioPrototypeFlow compares Full no-context prototype task descriptor against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity. Original claim: Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...]; no target/run claimed.",
-        "expected": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...] Current v02.209: Preserve native17 triggers/17 actions/5 navigation/9 overlay and seven-field numeric table with milliseconds and UNKNOWN/source_declared labels. Folded source167..174 keeps separate seconds, unknown bounds and optional presence: absent versus zero delay, readonly/nullable/optional and direct/inherited fields/methods, four node kinds/five roles/23 styles/eight curves/two timings where touched,31 declaration inheritance closure and actual owner routing. Pin source/native restriction evidence version and checked Pulse conversion; unresolved payload/visual oracle prevents fidelity and vendor styles cannot silently become Studio presets.",
+        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-components --no-default-features --test components_mt_35337 components_mt_35337 -- --exact --nocapture. Compare all literal token lists, seven bound fields/unknown labels and PRO140 determinism. Required complete behavior is bound by the verbatim scope records in execution.inputs; every original AC retains its exact assertion. Failure: For Microtask content obligation (2): reject ill-typed/dangling/out-of-range values with named field/target; absent exact provider or oracle is BLOCKED/NOT_PROVEN. Use actor/session-attributed bounded admission and backpressure; retain ordered per-session work, optimistic document/provider revisions and typed conflict receipts. Cancel/drain rejects late results; restart recovers accepted revision and exact source closure. No wall-clock nondeterminism or cross-session writes. Oracle: Independent public consumer of StudioPrototypeFlow compares Full no-context prototype task descriptor against immutable input, cited complete source records and task-specific reference fixture; reread canonical output bytes and unchanged input authority. Actual visual/format/provider output is inspected when required; seeded schemas or generated expectations alone never prove runtime/native parity. Original claim: Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it t [...]; no target/run claimed.",
+        "expected": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it t [...] Current v02.209: Preserve native17 triggers/17 actions/5 navigation/9 overlay and seven-field numeric table with milliseconds and UNKNOWN/source_declared labels. Folded source167..174 keeps separate seconds, unknown bounds and optional presence: absent versus zero delay, readonly/nullable/optional and direct/inherited fields/methods, four node kinds/five roles/23 styles/eight curves/two timings where touched,31 declaration inheritance closure and actual owner routing. Pin source/native restriction evidence version and checked Pulse conversion; unresolved payload/visual oracle prevents fidelity and vendor styles cannot silently become Studio presets.",
         "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2012,7 +2024,7 @@
             "Canonical immutable Nuntissura/assets source proof precedes separately qualified host adoption"
           ],
           "execution_status": "PENDING_NOT_RUN",
-          "acceptance_assertion": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...]"
+          "acceptance_assertion": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it t [...]"
         },
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
         "materialization_timing": {
@@ -2020,6 +2032,22 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-35337-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-PRO-148"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The MT MUST additionally carry all four node-kind tokens, all five interactive-role tokens, all twenty-three transition-style tokens, all eight curve tokens and both timing-type tokens where touched; its exact direct and applicable inherited field/method set with readonly, nullable and optional distinctions; source seconds with absent-versus-zero delay preserved; the applicable inheritance closure from the combined thirty-one-declaration capture with existing owner routing; source/native restriction and evidence-version boundaries; checked Pulse conversion; and the specific unresolved payload [...]",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2270,7 +2298,7 @@
             "line": 20549,
             "section": "14.11",
             "heading": "### 11. Microtask Derivation",
-            "verbatim": "**[STU-PRO-148] Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running prototype. A microtask that says \"implement triggers\" without the seventeen tokens does not satisfy this clause.",
+            "verbatim": "**[STU-PRO-148] Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running prototype. A microtask that says \"implement triggers\" without the seventeen tokens does not satisfy this clause. For [STU-PRO-167] through [STU-PRO-174], source duration/delay instead carry their separately declared seconds, unknown source bounds and optional presence; they do not inherit the native millisecond table. The MT MUST additionally carry all four node-kind tokens, all five interactive-role tokens, all twenty-three transition-style tokens, all eight curve tokens and both timing-type tokens where touched; its exact direct and applicable inherited field/method set with readonly, nullable and optional distinctions; source seconds with absent-versus-zero delay preserved; the applicable inheritance closure from the combined thirty-one-declaration capture with existi [...]",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2343,7 +2371,7 @@
         "original_text": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...]",
         "original_row_sha256": "09df4370941c463c7c9aee20348ece722c99e0ea9375313232d1a90ec8405f2b",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...] Current v02.209 amendment: Preserve native17 triggers/17 actions/5 navigation/9 overlay and seven-field numeric table with milliseconds and UNKNOWN/source_declared labels. Folded source167..174 keeps separate seconds, unknown bounds and optional presence: absent versus zero delay, readonly/nullable/optional and direct/inherited fields/methods, four node kinds/five roles/23 styles/eight curves/two timings where touched,31 declaration inheritance closure and actual owner routing. Pin source/native restriction evidence version and checked Pulse conversion; unresolved payload/visual oracle prevents fidelity and vendor styles cannot silently become Studio presets.",
+        "semantic_fulfillment": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it t [...] Current v02.209 amendment: Preserve native17 triggers/17 actions/5 navigation/9 overlay and seven-field numeric table with milliseconds and UNKNOWN/source_declared labels. Folded source167..174 keeps separate seconds, unknown bounds and optional presence: absent versus zero delay, readonly/nullable/optional and direct/inherited fields/methods, four node kinds/five roles/23 styles/eight curves/two timings where touched,31 declaration inheritance closure and actual owner routing. Pin source/native restriction evidence version and checked Pulse conversion; unresolved payload/visual oracle prevents fidelity and vendor styles cannot silently become Studio presets.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-35337-ASSET-COMPONENTS"
@@ -2353,7 +2381,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-COMPONENTS",
             "scope": "Components, variables, responsive constraints, prototype actions within same document; no separate Figma-like app.",
-            "required_behavior": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...]",
+            "required_behavior": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it t [...]",
             "only_owner_root_may_change": true
           }
         ],
@@ -2390,11 +2418,11 @@
           "execution_status": "PENDING_NOT_RUN",
           "terminal_proof_ref": "MT-35337#/proof/checks",
           "status": "PENDING_NOT_RUN",
-          "acceptance_assertion": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...]"
+          "acceptance_assertion": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it t [...]"
         },
         "later_embedding_ref": "./MT-36199.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it t [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "later_embedding_refs": [
           "./MT-36199.json"
@@ -2431,7 +2459,7 @@
           "original_text": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...]",
           "original_row_sha256": "09df4370941c463c7c9aee20348ece722c99e0ea9375313232d1a90ec8405f2b",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...]",
+          "semantic_fulfillment": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it t [...]",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-35337-ASSET-COMPONENTS"
@@ -2441,7 +2469,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-COMPONENTS",
               "scope": "Components, variables, responsive constraints, prototype actions within same document; no separate Figma-like app.",
-              "required_behavior": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...]",
+              "required_behavior": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it t [...]",
               "only_owner_root_may_change": true
             }
           ],
@@ -2478,11 +2506,11 @@
             "execution_status": "PENDING_NOT_RUN",
             "terminal_proof_ref": "MT-35337#/proof/checks",
             "status": "PENDING_NOT_RUN",
-            "acceptance_assertion": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...]"
+            "acceptance_assertion": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it t [...]"
           },
           "later_embedding_ref": "./MT-36199.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it t [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "later_embedding_refs": [
             "./MT-36199.json"
@@ -2513,11 +2541,11 @@
       "original_payload_and_qualified_host_mapping_preserved": true
     }
   },
-  "updated_at_utc": "2026-10-10T05:34:14.573Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2561,5 +2589,52 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every numeric parameter it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it touches the running protot [...]",
+          "new": "Microtask content obligation.** A microtask derived under [STU-PRO-146] MUST carry into its own body: the clause anchor; the COMPLETE member list of every closed enumeration it touches, as literal tokens — all seventeen triggers, all seventeen actions, all five navigation sub-kinds, all nine overlay positions; the full seven-field parameter record of every existing native numeric parameter contract it touches, with every `NOT DECLARED IN SOURCE` and `studio_declared` label preserved verbatim, including the millisecond-unit declaration; and the determinism obligation of [STU-PRO-140] where it t [...]"
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The MT MUST additionally carry all four node-kind tokens, all five interactive-role tokens, all twenty-three transition-style tokens, all eight curve tokens and both timing-type tokens where touched; its exact direct and applicable inherited field/method set with readonly, nullable and optional distinctions; source seconds with absent-versus-zero delay preserved; the applicable inheritance closure from the combined thirty-one-declaration capture with existing owner routing; source/native restriction and evidence-version boundaries; checked Pulse conversion; and the specific unresolved payload [...]"
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-002"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Microtask content obligation (2)",
+      "propagated_paths": [
+        "/context_capsule/specification_anchor_refs[0]/verbatim",
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/execution/inputs[1]/source_requirements[0]/body",
+        "/execution/inputs[1]/supplementary_current_spec_requirements[13]/body",
+        "/proof/checks[0]/command_or_method",
+        "/proof/checks[0]/expected",
+        "/proof/checks[0]/method_recipe/acceptance_assertion",
+        "/fulfillment/asset_slices[0]/scope_basis[0]/verbatim",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/acceptance_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/acceptance_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.8.25 Transform Materialisation and Application",
-    "spec_line": 12151,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 12424,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -36,8 +37,21 @@
     "summary": "Materialisation and application are two paths with two different determinism obligations (CLOSING A DEFECT IN [STU-COL-143]).** [STU-COL-143] as originally written required \"the materialised transform\" to be bit-identical on every host, and a reader could take that to govern the whole engine including per-pixel evaluation. Under that reading the clause is unsatisfiable: every colour-evaluation implementation in the field dispatches at runtime on the vector instruction sets it finds - the several x86 generations, and the equivalents on other architectures - and none of them states a bit-exactness guarantee across those paths. A requirement no implementation can meet is not a strict requirement, it is a dead one, because it gets quietly waived the first time it fails. Studio therefore splits the engine on the line [STU-COL-142] already draws, and each half carries the obligation it can actually satisfy. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Path | What it does | Its determinism obligation | Who owns it | |---|---|---|---| | Materialisation | Turns profile bytes plus the key of [STU-COL-142] into the matrix-and-curve chain or the baked LUT, once per cache key | BIT-IDENTICAL across hosts, architectures and instruction-set availability ([STU-COL-351]). This is the artefact that gets cached, co [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [],
-  "acceptance_criteria_count": 0,
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "The contract table holds the row `Materialisation` with the exact meaning the spec states: Turns profile bytes plus the key of [STU-COL-142] into the matrix-and-curve chain or the baked LUT, once per cache key | BIT-IDENTICAL across hosts, architectures and instruction-set availability ([STU-COL-351]). This is the artefact that gets cached, compared, promoted and shipped, so it is the thi [...]. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-350 carried contract table row 1"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The contract table holds the row `Application` with the exact meaning the spec states: Pushes pixels through an already-materialised artefact | CPU-and-GPU EQUIVALENCE within the declared tolerance of [STU-COL-352]. Weaker than bit-identity, and deliberately so, because it is what a vector or GPU path can meet. | `RenderEngine`, per [STU-COL-163]. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-350 carried contract table row 2"
+    }
+  ],
+  "acceptance_criteria_count": 2,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1568,13 +1582,23 @@
       "STU-COL-350"
     ],
     "acceptance_refs": [
-      "ASSET-AC-001"
+      "ASSET-AC-001",
+      "AC-001",
+      "AC-002"
     ],
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
         "text": "Materialisation and application are two paths with two different determinism obligations (CLOSING A DEFECT IN [STU-COL-143]).** [STU-COL-143] as originally written required \"the materialised transform\" to be bit-identical on every host, and a reader could take that to govern the whole engine including per-pixel evaluation. Under that reading the clause is unsatisfiable: every colour-evaluation implementation in the field dispatches at runtime on the vector instruction sets it finds - the several x86 generations, and the equivalents on other architectures - and none of them states a bit-exactness guarantee across those paths. A requirement no implementation can meet is not a strict requirement, it is a dead one, because it gets quietly waived the first time it fails. Studio therefore splits the engine on the line [STU-COL-142] already draws, and each half carries the obligation it can actually satisfy. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Path | What it does | Its determinism obligation | Who owns it | |---|---|---|---| | Materialisation | Turns profile bytes plus the key of [STU-COL-142] into the matrix-and-curve chain or the baked LUT, once per cache key | BIT-IDENTICAL across hosts, architectures and instruction-set availability ([STU-COL-351]). This is the artefact that gets cached, co [...]",
         "fulfillment_ref": "MT-35515#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-001",
+        "text": "The contract table holds the row `Materialisation` with the exact meaning the spec states: Turns profile bytes plus the key of [STU-COL-142] into the matrix-and-curve chain or the baked LUT, once per cache key | BIT-IDENTICAL across hosts, architectures and instruction-set availability ([STU-COL-351]). This is the artefact that gets cached, compared, promoted and shipped, so it is the thi [...]. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-002",
+        "text": "The contract table holds the row `Application` with the exact meaning the spec states: Pushes pixels through an already-materialised artefact | CPU-and-GPU EQUIVALENCE within the declared tolerance of [STU-COL-352]. Weaker than bit-identity, and deliberately so, because it is what a vector or GPU path can meet. | `RenderEngine`, per [STU-COL-163]. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1808,6 +1832,38 @@
           "selected_features": []
         },
         "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
+      },
+      {
+        "check_id": "MT-35515-SPEC-AC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-001",
+          "STU-COL-350"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Materialisation` with the exact meaning the spec states: Turns profile bytes plus the key of [STU-COL-142] into the matrix-and-curve chain or the baked LUT, once per cache key | BIT-IDENTICAL across hosts, architectures and instruction-set availability ([STU-COL-351]). This is the artefact that gets cached, compared, promoted and shipped, so it is the thi [...]. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35515-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-COL-350"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Application` with the exact meaning the spec states: Pushes pixels through an already-materialised artefact | CPU-and-GPU EQUIVALENCE within the declared tolerance of [STU-COL-352]. Weaker than bit-identity, and deliberately so, because it is what a vector or GPU path can meet. | `RenderEngine`, per [STU-COL-163]. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2267,7 +2323,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
@@ -2278,7 +2334,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2314,5 +2370,36 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": null,
+          "new": "The contract table holds the row `Materialisation` with the exact meaning the spec states: Turns profile bytes plus the key of [STU-COL-142] into the matrix-and-curve chain or the baked LUT, once per cache key | BIT-IDENTICAL across hosts, architectures and instruction-set availability ([STU-COL-351]). This is the artefact that gets cached, compared, promoted and shipped, so it is the thi [...]. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The contract table holds the row `Application` with the exact meaning the spec states: Pushes pixels through an already-materialised artefact | CPU-and-GPU EQUIVALENCE within the declared tolerance of [STU-COL-352]. Weaker than bit-identity, and deliberately so, because it is what a vector or GPU path can meet. | `RenderEngine`, per [STU-COL-163]. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-001",
+        "AC-002"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "Materialisation and application are two paths with two different determinism",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

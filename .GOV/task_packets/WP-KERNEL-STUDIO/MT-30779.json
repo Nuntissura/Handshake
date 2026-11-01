@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.6.7 Long-Document System",
-    "spec_line": 6591,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 6675,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -60,9 +61,105 @@
       "criterion": "Studio MUST carry a pluggable header-set model of at least that generality; hard-coding a Latin alphabet is non-conformant.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-LAY-149"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `title`, `title_style` with the exact meaning the spec states: string, paragraph style. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-149 carried contract table row 1"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `replace_existing_index` with the exact meaning the spec states: boolean | Replaces CONTENT only; does not move the index or change its other properties.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-149 carried contract table row 2"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `include_book_documents` with the exact meaning the spec states: boolean. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-149 carried contract table row 3"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `include_hidden_entries` with the exact meaning the spec states: boolean. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-149 carried contract table row 4"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The contract table holds the row `index_format` with the exact meaning the spec states: enumeration | `{index_format.run_in, index_format.nested}` -- governs level 2 and lower.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-149 carried contract table row 5"
+    },
+    {
+      "id": "AC-010",
+      "criterion": "The contract table holds the row `include_section_headings` with the exact meaning the spec states: boolean | Alphabet letters as section headings.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-149 carried contract table row 6"
+    },
+    {
+      "id": "AC-011",
+      "criterion": "The contract table holds the row `include_empty_index_sections` with the exact meaning the spec states: boolean | Valid only when section headings are on.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-149 carried contract table row 7"
+    },
+    {
+      "id": "AC-012",
+      "criterion": "The contract table holds the row `level_1_style` .. `level_4_style` with the exact meaning the spec states: paragraph styles. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-149 carried contract table row 8"
+    },
+    {
+      "id": "AC-013",
+      "criterion": "The contract table holds the row `section_heading_style` with the exact meaning the spec states: paragraph style. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-149 carried contract table row 9"
+    },
+    {
+      "id": "AC-014",
+      "criterion": "The contract table holds the row `page_number_style`, `cross_reference_style`, `cross_reference_topic_style` with the exact meaning the spec states: character styles. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-149 carried contract table row 10"
+    },
+    {
+      "id": "AC-015",
+      "criterion": "The contract table holds the row `following_topic_separator` with the exact meaning the spec states: string | After each topic.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-149 carried contract table row 11"
+    },
+    {
+      "id": "AC-016",
+      "criterion": "The contract table holds the row `between_entries_separator` with the exact meaning the spec states: string | Between entries in run-in format.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-149 carried contract table row 12"
+    },
+    {
+      "id": "AC-017",
+      "criterion": "The contract table holds the row `page_range_separator` with the exact meaning the spec states: string | Between the two numbers of a range.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-149 carried contract table row 13"
+    },
+    {
+      "id": "AC-018",
+      "criterion": "The contract table holds the row `between_page_numbers_separator` with the exact meaning the spec states: string | Between separate numbers and ranges.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-149 carried contract table row 14"
+    },
+    {
+      "id": "AC-019",
+      "criterion": "The contract table holds the row `before_cross_reference_separator` with the exact meaning the spec states: string | Before a cross reference.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-149 carried contract table row 15"
+    },
+    {
+      "id": "AC-020",
+      "criterion": "The contract table holds the row `entry_end_separator` with the exact meaning the spec states: string | At the end of each entry.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-LAY-149 carried contract table row 16"
     }
   ],
-  "acceptance_criteria_count": 4,
+  "acceptance_criteria_count": 20,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1568,7 +1665,23 @@
       "AC-001",
       "AC-002",
       "AC-003",
-      "AC-004"
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009",
+      "AC-010",
+      "AC-011",
+      "AC-012",
+      "AC-013",
+      "AC-014",
+      "AC-015",
+      "AC-016",
+      "AC-017",
+      "AC-018",
+      "AC-019",
+      "AC-020"
     ],
     "materialized_acceptance": [
       {
@@ -1590,6 +1703,70 @@
         "id": "AC-004",
         "text": "Studio MUST carry a pluggable header-set model of at least that generality; hard-coding a Latin alphabet is non-conformant.",
         "fulfillment_ref": "MT-30779#/fulfillment/legacy_acceptance_map/3"
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `title`, `title_style` with the exact meaning the spec states: string, paragraph style. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `replace_existing_index` with the exact meaning the spec states: boolean | Replaces CONTENT only; does not move the index or change its other properties.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `include_book_documents` with the exact meaning the spec states: boolean. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `include_hidden_entries` with the exact meaning the spec states: boolean. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-009",
+        "text": "The contract table holds the row `index_format` with the exact meaning the spec states: enumeration | `{index_format.run_in, index_format.nested}` -- governs level 2 and lower.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-010",
+        "text": "The contract table holds the row `include_section_headings` with the exact meaning the spec states: boolean | Alphabet letters as section headings.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-011",
+        "text": "The contract table holds the row `include_empty_index_sections` with the exact meaning the spec states: boolean | Valid only when section headings are on.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-012",
+        "text": "The contract table holds the row `level_1_style` .. `level_4_style` with the exact meaning the spec states: paragraph styles. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-013",
+        "text": "The contract table holds the row `section_heading_style` with the exact meaning the spec states: paragraph style. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-014",
+        "text": "The contract table holds the row `page_number_style`, `cross_reference_style`, `cross_reference_topic_style` with the exact meaning the spec states: character styles. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-015",
+        "text": "The contract table holds the row `following_topic_separator` with the exact meaning the spec states: string | After each topic.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-016",
+        "text": "The contract table holds the row `between_entries_separator` with the exact meaning the spec states: string | Between entries in run-in format.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-017",
+        "text": "The contract table holds the row `page_range_separator` with the exact meaning the spec states: string | Between the two numbers of a range.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-018",
+        "text": "The contract table holds the row `between_page_numbers_separator` with the exact meaning the spec states: string | Between separate numbers and ranges.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-019",
+        "text": "The contract table holds the row `before_cross_reference_separator` with the exact meaning the spec states: string | Before a cross reference.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-020",
+        "text": "The contract table holds the row `entry_end_separator` with the exact meaning the spec states: string | At the end of each entry.. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1946,6 +2123,262 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-30779-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-LAY-149"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `title`, `title_style` with the exact meaning the spec states: string, paragraph style. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30779-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-LAY-149"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `replace_existing_index` with the exact meaning the spec states: boolean | Replaces CONTENT only; does not move the index or change its other properties.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30779-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-LAY-149"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `include_book_documents` with the exact meaning the spec states: boolean. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30779-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-LAY-149"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `include_hidden_entries` with the exact meaning the spec states: boolean. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30779-SPEC-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-LAY-149"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `index_format` with the exact meaning the spec states: enumeration | `{index_format.run_in, index_format.nested}` -- governs level 2 and lower.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30779-SPEC-AC-010",
+        "kind": "test",
+        "claim_refs": [
+          "AC-010",
+          "STU-LAY-149"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `include_section_headings` with the exact meaning the spec states: boolean | Alphabet letters as section headings.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30779-SPEC-AC-011",
+        "kind": "test",
+        "claim_refs": [
+          "AC-011",
+          "STU-LAY-149"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `include_empty_index_sections` with the exact meaning the spec states: boolean | Valid only when section headings are on.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30779-SPEC-AC-012",
+        "kind": "test",
+        "claim_refs": [
+          "AC-012",
+          "STU-LAY-149"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `level_1_style` .. `level_4_style` with the exact meaning the spec states: paragraph styles. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30779-SPEC-AC-013",
+        "kind": "test",
+        "claim_refs": [
+          "AC-013",
+          "STU-LAY-149"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `section_heading_style` with the exact meaning the spec states: paragraph style. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30779-SPEC-AC-014",
+        "kind": "test",
+        "claim_refs": [
+          "AC-014",
+          "STU-LAY-149"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `page_number_style`, `cross_reference_style`, `cross_reference_topic_style` with the exact meaning the spec states: character styles. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30779-SPEC-AC-015",
+        "kind": "test",
+        "claim_refs": [
+          "AC-015",
+          "STU-LAY-149"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `following_topic_separator` with the exact meaning the spec states: string | After each topic.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30779-SPEC-AC-016",
+        "kind": "test",
+        "claim_refs": [
+          "AC-016",
+          "STU-LAY-149"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `between_entries_separator` with the exact meaning the spec states: string | Between entries in run-in format.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30779-SPEC-AC-017",
+        "kind": "test",
+        "claim_refs": [
+          "AC-017",
+          "STU-LAY-149"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `page_range_separator` with the exact meaning the spec states: string | Between the two numbers of a range.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30779-SPEC-AC-018",
+        "kind": "test",
+        "claim_refs": [
+          "AC-018",
+          "STU-LAY-149"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `between_page_numbers_separator` with the exact meaning the spec states: string | Between separate numbers and ranges.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30779-SPEC-AC-019",
+        "kind": "test",
+        "claim_refs": [
+          "AC-019",
+          "STU-LAY-149"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `before_cross_reference_separator` with the exact meaning the spec states: string | Before a cross reference.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30779-SPEC-AC-020",
+        "kind": "test",
+        "claim_refs": [
+          "AC-020",
+          "STU-LAY-149"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `entry_end_separator` with the exact meaning the spec states: string | At the end of each entry.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2682,11 +3115,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T00:00:00Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2716,5 +3149,120 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `title`, `title_style` with the exact meaning the spec states: string, paragraph style. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `replace_existing_index` with the exact meaning the spec states: boolean | Replaces CONTENT only; does not move the index or change its other properties.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `include_book_documents` with the exact meaning the spec states: boolean. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `include_hidden_entries` with the exact meaning the spec states: boolean. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-009",
+          "old": null,
+          "new": "The contract table holds the row `index_format` with the exact meaning the spec states: enumeration | `{index_format.run_in, index_format.nested}` -- governs level 2 and lower.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-010",
+          "old": null,
+          "new": "The contract table holds the row `include_section_headings` with the exact meaning the spec states: boolean | Alphabet letters as section headings.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-011",
+          "old": null,
+          "new": "The contract table holds the row `include_empty_index_sections` with the exact meaning the spec states: boolean | Valid only when section headings are on.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-012",
+          "old": null,
+          "new": "The contract table holds the row `level_1_style` .. `level_4_style` with the exact meaning the spec states: paragraph styles. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-013",
+          "old": null,
+          "new": "The contract table holds the row `section_heading_style` with the exact meaning the spec states: paragraph style. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-014",
+          "old": null,
+          "new": "The contract table holds the row `page_number_style`, `cross_reference_style`, `cross_reference_topic_style` with the exact meaning the spec states: character styles. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-015",
+          "old": null,
+          "new": "The contract table holds the row `following_topic_separator` with the exact meaning the spec states: string | After each topic.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-016",
+          "old": null,
+          "new": "The contract table holds the row `between_entries_separator` with the exact meaning the spec states: string | Between entries in run-in format.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-017",
+          "old": null,
+          "new": "The contract table holds the row `page_range_separator` with the exact meaning the spec states: string | Between the two numbers of a range.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-018",
+          "old": null,
+          "new": "The contract table holds the row `between_page_numbers_separator` with the exact meaning the spec states: string | Between separate numbers and ranges.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-019",
+          "old": null,
+          "new": "The contract table holds the row `before_cross_reference_separator` with the exact meaning the spec states: string | Before a cross reference.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-020",
+          "old": null,
+          "new": "The contract table holds the row `entry_end_separator` with the exact meaning the spec states: string | At the end of each entry.. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012",
+        "AC-013",
+        "AC-014",
+        "AC-015",
+        "AC-016",
+        "AC-017",
+        "AC-018",
+        "AC-019",
+        "AC-020"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "Index contract",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

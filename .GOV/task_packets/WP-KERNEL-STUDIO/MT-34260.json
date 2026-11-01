@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.28.2 Contextual property-panel binding (Studio-wide contract)",
-    "spec_line": 30075,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 30686,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,13 +34,13 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "web_authoring",
   "scope": {
-    "summary": "Registry static analysis.** Because [STU-WEB-034] admits no script predicates, the whole registry is statically analysable. Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a discriminated panel that does not outrank its generic sibling ([STU-WEB-037]); a panel whose `binds_to` names a tag or node kind that exists in no registered library or primitive set; and a panel whose `author_id_prefix` collides with another's. These are registry defects reported at load, never at selection.",
+    "summary": "Registry static analysis.** Because [STU-WEB-034] admits no script predicates, the whole registry is statically analysable. Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a band-6 refinement with a missing or non-band-5 registered generic target, a null discriminator, or a mismatch in `binds_to`, `selection_scope`, `document_types` set (or the same `*`) or `context_requirement` key/value mapping; an invalid same-node refinement pair ([STU-WEB-033], [STU-WEB-037]); a non-band-6 panel claiming refinement suppression privilege; a panel whose `binds_to` names a tag or node kind that exists in no registered library or primitive set; and a panel whose `author_id_prefix` collides with another's. These are registry defects reported at load, never at selection.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a discriminated panel that does not outrank its generic sibling ([STU-WEB-037]); a panel whose `binds_to` names a tag or node kind that exists in no registered library or primitive set; and a panel whose `author_id_prefix` collides with another's.",
+      "criterion": "Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a band-6 refinement with a missing or non-band-5 registered generic target, a null discriminator, or a mismatch in `binds_to`, `selection_scope`, `document_types` set (or the same `*`) or `context_requirement` key/value mapping; an invalid same-node refinement pair ([STU-WEB-033], [STU-WEB-037]); a non-band-6 panel claiming refinement suppr [...]",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-WEB-042"
     }
@@ -1924,7 +1925,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a discriminated panel that does not outrank its generic sibling ([STU-WEB-037]); a panel whose `binds_to` names a tag or node kind that exists in no registered library or primitive set; and a panel whose `author_id_prefix` collides with another's. Current v02.208 enrichment: Validate original registry defects plus missing/non-band5 refinement target, null/invalid discriminator, unequal binds_to/scope/type-set/context mapping, invalid same-node pair and non-band6 suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34260.json#/execution/inputs/1/complete_clause_body",
+        "text": "Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a band-6 refinement with a missing or non-band-5 registered generic target, a null discriminator, or a mismatch in `binds_to`, `selection_scope`, `document_types` set (or the same `*`) or `context_requirement` key/value mapping; an invalid same-node refinement pair ([STU-WEB-033], [STU-WEB-037]); a non-band-6 panel claiming refinement suppr [...] Current v02.208 enrichment: Validate original registry defects plus missing/non-band5 refinement target, null/invalid discriminator, unequal binds_to/scope/type-set/context mapping, invalid same-node pair and non-band6 suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34260.json#/execution/inputs/1/complete_clause_body",
         "fulfillment_ref": "MT-34260#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -2177,7 +2178,7 @@
           "AC-001"
         ],
         "command_or_method": "PLANNED NATURAL METHOD; NOT EXECUTED; no existing target claimed. Load identical ranking ties, unknown selector, author-prefix collision and each invalid refinement relation; inspect registration errors naming exact definitions; valid unmatched discriminator produces no registry/document error. Check current qualified acceptance: MT-34260/AC-001",
-        "expected": "Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a discriminated panel that does not outrank its generic sibling ([STU-WEB-037]); a panel whose `binds_to` names a tag or node kind that exists in no registered library or primitive set; and a panel whose `author_id_prefix` collides with another's. Current v02.208 enrichment: Validate original registry defects plus missing/non-band5 refinement target, null/invalid discriminator, unequal binds_to/scope/type-set/context mapping, invalid same-node pair and non-band6 suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34260.json#/execution/inputs/1/complete_clause_body",
+        "expected": "Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a band-6 refinement with a missing or non-band-5 registered generic target, a null discriminator, or a mismatch in `binds_to`, `selection_scope`, `document_types` set (or the same `*`) or `context_requirement` key/value mapping; an invalid same-node refinement pair ([STU-WEB-033], [STU-WEB-037]); a non-band-6 panel claiming refinement suppr [...] Current v02.208 enrichment: Validate original registry defects plus missing/non-band5 refinement target, null/invalid discriminator, unequal binds_to/scope/type-set/context mapping, invalid same-node pair and non-band6 suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34260.json#/execution/inputs/1/complete_clause_body",
         "timeout_seconds": null,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2503,7 +2504,7 @@
             "line": 30113,
             "section": "14.28",
             "heading": "### 14.28.2 Contextual property-panel binding (Studio-wide contract)",
-            "verbatim": "**[STU-WEB-042] Registry static analysis.** Because [STU-WEB-034] admits no script predicates, the whole registry is statically analysable. Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a discriminated panel that does not outrank its generic sibling ([STU-WEB-037]); a panel whose `binds_to` names a tag or node kind that exists in no registered library or primitive set; and a panel whose `author_id_prefix` collides with another's. These are registry defects reported at load, never at selection.",
+            "verbatim": "**[STU-WEB-042] Registry static analysis.** Because [STU-WEB-034] admits no script predicates, the whole registry is statically analysable. Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a band-6 refinement with a missing or non-band-5 registered generic target, a null discriminator, or a mismatch in `binds_to`, `selection_scope`, `document_types` set (or the same `*`) or `context_requirement` key/value mapping; an invalid same-node refinement pair ([STU-WEB-033], [STU-WEB-037]); a non-band-6 panel claiming refinement suppr [...] These are registry defects reported at load, never at selection.",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2573,7 +2574,7 @@
         "original_text": "Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a discriminated panel that does not outrank its generic sibling ([STU-WEB-037]); a panel whose `binds_to` names a tag or node kind that exists in no registered library or primitive set; and a panel whose `author_id_prefix` collides with another's.",
         "original_row_sha256": "5d87a8f539d40988a5c0fe248b041174d2a42c028de0156949c0a69adbefd769",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a discriminated panel that does not outrank its generic sibling ([STU-WEB-037]); a panel whose `binds_to` names a tag or node kind that exists in no registered library or primitive set; and a panel whose `author_id_prefix` collides with another's. Current v02.208 enrichment: Validate original registry defects plus missing/non-band5 refinement target, null/invalid discriminator, unequal binds_to/scope/type-set/context mapping, invalid same-node pair and non-band6 suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34260.json#/execution/inputs/1/complete_clause_body",
+        "semantic_fulfillment": "Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a band-6 refinement with a missing or non-band-5 registered generic target, a null discriminator, or a mismatch in `binds_to`, `selection_scope`, `document_types` set (or the same `*`) or `context_requirement` key/value mapping; an invalid same-node refinement pair ([STU-WEB-033], [STU-WEB-037]); a non-band-6 panel claiming refinement suppr [...] Current v02.208 enrichment: Validate original registry defects plus missing/non-band5 refinement target, null/invalid discriminator, unequal binds_to/scope/type-set/context mapping, invalid same-node pair and non-band6 suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34260.json#/execution/inputs/1/complete_clause_body",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34260-ASSET-WEB"
@@ -2583,7 +2584,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-WEB",
             "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-            "required_behavior": "Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a discriminated panel that does not outrank its generic sibling ([STU-WEB-037]); a panel whose `binds_to` names a tag or node kind that exists in no registered library or primitive set; and a panel whose `author_id_prefix` collides with another's. Current v02.208 enrichment: Validate original registry defects plus missing/non-band5 refinement target, null/invalid discriminator, unequal binds_to/scope/type-set/context mapping, invalid same-node pair and non-band6 suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34260.json#/execution/inputs/1/complete_clause_body",
+            "required_behavior": "Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a band-6 refinement with a missing or non-band-5 registered generic target, a null discriminator, or a mismatch in `binds_to`, `selection_scope`, `document_types` set (or the same `*`) or `context_requirement` key/value mapping; an invalid same-node refinement pair ([STU-WEB-033], [STU-WEB-037]); a non-band-6 panel claiming refinement suppr [...] Current v02.208 enrichment: Validate original registry defects plus missing/non-band5 refinement target, null/invalid discriminator, unequal binds_to/scope/type-set/context mapping, invalid same-node pair and non-band6 suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34260.json#/execution/inputs/1/complete_clause_body",
             "only_owner_root_may_change": true
           }
         ],
@@ -2598,7 +2599,7 @@
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a discriminated panel that does not outrank its generic sibling ([STU-WEB-037]); a panel whose `binds_to` names a tag or node kind that exists in no registered library or primitive set; and a panel whose `author_id_prefix` collides with another's. Current v02.208 enrichment: Validate original registry defects plus missing/non-band5 refinement target, null/invalid discriminator, unequal binds_to/scope/type-set/context mapping, invalid same-node pair and non-band6 suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34260.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a band-6 refinement with a missing or non-band-5 registered generic target, a null discriminator, or a mismatch in `binds_to`, `selection_scope`, `document_types` set (or the same `*`) or `context_requirement` key/value mapping; an invalid same-node refinement pair ([STU-WEB-033], [STU-WEB-037]); a non-band-6 panel claiming refinement suppr [...] Current v02.208 enrichment: Validate original registry defects plus missing/non-band5 refinement target, null/invalid discriminator, unequal binds_to/scope/type-set/context mapping, invalid same-node pair and non-band6 suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34260.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2637,7 +2638,7 @@
           "original_text": "Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a discriminated panel that does not outrank its generic sibling ([STU-WEB-037]); a panel whose `binds_to` names a tag or node kind that exists in no registered library or primitive set; and a panel whose `author_id_prefix` collides with another's.",
           "original_row_sha256": "5d87a8f539d40988a5c0fe248b041174d2a42c028de0156949c0a69adbefd769",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a discriminated panel that does not outrank its generic sibling ([STU-WEB-037]); a panel whose `binds_to` names a tag or node kind that exists in no registered library or primitive set; and a panel whose `author_id_prefix` collides with another's. Current v02.208 enrichment: Validate original registry defects plus missing/non-band5 refinement target, null/invalid discriminator, unequal binds_to/scope/type-set/context mapping, invalid same-node pair and non-band6 suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34260.json#/execution/inputs/1/complete_clause_body",
+          "semantic_fulfillment": "Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a band-6 refinement with a missing or non-band-5 registered generic target, a null discriminator, or a mismatch in `binds_to`, `selection_scope`, `document_types` set (or the same `*`) or `context_requirement` key/value mapping; an invalid same-node refinement pair ([STU-WEB-033], [STU-WEB-037]); a non-band-6 panel claiming refinement suppr [...] Current v02.208 enrichment: Validate original registry defects plus missing/non-band5 refinement target, null/invalid discriminator, unequal binds_to/scope/type-set/context mapping, invalid same-node pair and non-band6 suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34260.json#/execution/inputs/1/complete_clause_body",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34260-ASSET-WEB"
@@ -2647,7 +2648,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-WEB",
               "scope": "Visual/code/DOM/template/responsive workflow over one source revision and shared editor/preview mechanics. No separate app/server/job or persistence authority.",
-              "required_behavior": "Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a discriminated panel that does not outrank its generic sibling ([STU-WEB-037]); a panel whose `binds_to` names a tag or node kind that exists in no registered library or primitive set; and a panel whose `author_id_prefix` collides with another's. Current v02.208 enrichment: Validate original registry defects plus missing/non-band5 refinement target, null/invalid discriminator, unequal binds_to/scope/type-set/context mapping, invalid same-node pair and non-band6 suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34260.json#/execution/inputs/1/complete_clause_body",
+              "required_behavior": "Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a band-6 refinement with a missing or non-band-5 registered generic target, a null discriminator, or a mismatch in `binds_to`, `selection_scope`, `document_types` set (or the same `*`) or `context_requirement` key/value mapping; an invalid same-node refinement pair ([STU-WEB-033], [STU-WEB-037]); a non-band-6 panel claiming refinement suppr [...] Current v02.208 enrichment: Validate original registry defects plus missing/non-band5 refinement target, null/invalid discriminator, unequal binds_to/scope/type-set/context mapping, invalid same-node pair and non-band6 suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34260.json#/execution/inputs/1/complete_clause_body",
               "only_owner_root_may_change": true
             }
           ],
@@ -2662,7 +2663,7 @@
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a discriminated panel that does not outrank its generic sibling ([STU-WEB-037]); a panel whose `binds_to` names a tag or node kind that exists in no registered library or primitive set; and a panel whose `author_id_prefix` collides with another's. Current v02.208 enrichment: Validate original registry defects plus missing/non-band5 refinement target, null/invalid discriminator, unequal binds_to/scope/type-set/context mapping, invalid same-node pair and non-band6 suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34260.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a band-6 refinement with a missing or non-band-5 registered generic target, a null discriminator, or a mismatch in `binds_to`, `selection_scope`, `document_types` set (or the same `*`) or `context_requirement` key/value mapping; an invalid same-node refinement pair ([STU-WEB-033], [STU-WEB-037]); a non-band-6 panel claiming refinement suppr [...] Current v02.208 enrichment: Validate original registry defects plus missing/non-band5 refinement target, null/invalid discriminator, unequal binds_to/scope/type-set/context mapping, invalid same-node pair and non-band6 suppression privilege. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34260.json#/execution/inputs/1/complete_clause_body Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36218.json"
@@ -2681,11 +2682,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T02:58:55.671201+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2727,5 +2728,38 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a discriminated panel that does not outrank its generic sibling ([STU-WEB-037]); a panel whose `binds_to` names a tag or node kind that exists in no registered library or primitive set; and a panel whose `author_id_prefix` collides with another's.",
+          "new": "Studio MUST run a registration-time check that reports: two panels with identical `(binds_to, selection_scope, priority, discriminator, document_types)` (an unresolvable-by-design tie, resolved only by the `panel_id` tiebreak and therefore a design defect); a band-6 refinement with a missing or non-band-5 registered generic target, a null discriminator, or a mismatch in `binds_to`, `selection_scope`, `document_types` set (or the same `*`) or `context_requirement` key/value mapping; an invalid same-node refinement pair ([STU-WEB-033], [STU-WEB-037]); a non-band-6 panel claiming refinement suppr [...]"
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Registry static analysis",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/expected",
+        "/fulfillment/asset_slices[0]/scope_basis[0]/verbatim",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

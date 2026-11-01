@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.27.8 The architecture fork: layer-based versus node-based compositing",
-    "spec_line": 29558,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 30170,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,31 +27,25 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "What MUST NOT be assumed while the decision is open",
+  "clause": "Explicit evaluation",
   "spec_anchor": [
     "STU-CMP-093"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "compositing",
   "scope": {
-    "summary": "What MUST NOT be assumed while the decision is open.** Three forward-compatibility constraints bind any implementation built from this sub-section, and they cost little now and save a rewrite later: 1. **The render graph MUST be an explicit data structure, not the call stack.** [STU-CMP-010]'s order is a specification of semantics, not a mandate to implement it as nested function calls. An implementation that materialises the per-frame render as an explicit dependency graph can later grow a node surface over the same evaluator; one that hard-codes the order into control flow cannot. 2. **Every intermediate result MUST be addressable.** A layer's post-mask, post-effect, post- transform and post-matte results are the points a node graph would expose as edges. Naming them internally is what [STU-FX-012b]'s region-of-interest re-render and the Argus diagnostics need anyway. 3. **No clause in this sub-section may be written in a way that requires a layer's inputs to be exactly one.** `layer_reference` parameters ([STU-FX-120]) and track mattes already make a layer multi-input in practice; the type system must not pretend otherwise.",
+    "summary": "Explicit evaluation.** Composite lowers revision-bound immutable disposable render plans; Motion owns keyframe/expression/time policy. Materialize post-mask/effect/transform/matte and per-effect output addresses, fanout and typed backdrop/parent/matte/effect/precomposition dependencies. Plans are not saved authoring authority. Static image rendering MUST NOT unconditionally pull NLE/audio/native providers. Time-labelled state/sampling providers declare bounded horizon/state/recursion, but cannot permit an expression cycle: Motion validates the complete prospective property-expression graph against current Folio before commit and refuses cycles under [STU-MOT-077], including temporal/delay routes.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "What MUST NOT be assumed while the decision is open.** Three forward-compatibility constraints bind any implementation built from this sub-section, and they cost little now and save a rewrite later: 1. **The render graph MUST be an explicit data structure, not the call stack.** [STU-CMP-010]'s order is a specification of semantics, not a mandate to implement it as nested function calls.",
-      "evidence_kind": "runtime_assertion",
-      "source": "14-studio-creative-suite.md STU-CMP-093"
-    },
-    {
-      "id": "AC-002",
-      "criterion": "An implementation that materialises the per-frame render as an explicit dependency graph can later grow a node surface over the same evaluator; one that hard-codes the order into control flow cannot. 2. **Every intermediate result MUST be addressable.** A layer's post-mask, post-effect, post- transform and post-matte results are the points a node graph would expose as edges.",
+      "criterion": "Static image rendering MUST NOT unconditionally pull NLE/audio/native providers.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-CMP-093"
     }
   ],
-  "acceptance_criteria_count": 2,
+  "acceptance_criteria_count": 1,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -140,7 +135,7 @@
   "identity": {
     "mt_id": "MT-34211",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "What MUST NOT be assumed while the decision is open",
+    "title": "Explicit evaluation",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 3
@@ -1631,19 +1626,13 @@
       "STU-CMP-101"
     ],
     "acceptance_refs": [
-      "AC-001",
-      "AC-002"
+      "AC-001"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "What MUST NOT be assumed while the decision is open.** Three forward-compatibility constraints bind any implementation built from this sub-section, and they cost little now and save a rewrite later: 1. **The render graph MUST be an explicit data structure, not the call stack.** [STU-CMP-010]'s order is a specification of semantics, not a mandate to implement it as nested function calls.",
+        "text": "Static image rendering MUST NOT unconditionally pull NLE/audio/native providers.",
         "fulfillment_ref": "MT-34211#/fulfillment/legacy_acceptance_map/0"
-      },
-      {
-        "id": "AC-002",
-        "text": "An implementation that materialises the per-frame render as an explicit dependency graph can later grow a node surface over the same evaluator; one that hard-codes the order into control flow cannot. 2. **Every intermediate result MUST be addressable.** A layer's post-mask, post-effect, post- transform and post-matte results are the points a node graph would expose as edges.",
-        "fulfillment_ref": "MT-34211#/fulfillment/legacy_acceptance_map/1"
       }
     ],
     "spec_basis_refs": [
@@ -1651,6 +1640,15 @@
     ],
     "operator_decision_refs": [
       "ilja091020261912"
+    ],
+    "superseded_materialized_acceptance": [
+      {
+        "id": "AC-002",
+        "text": "An implementation that materialises the per-frame render as an explicit dependency graph can later grow a node surface over the same evaluator; one that hard-codes the order into control flow cannot. 2. **Every intermediate result MUST be addressable.** A layer's post-mask, post-effect, post- transform and post-matte results are the points a node graph would expose as edges.",
+        "fulfillment_ref": "MT-34211#/fulfillment/legacy_acceptance_map/1",
+        "superseded_at_spec_version": "v02.229",
+        "reason": "the sentence is absent from the spec text; the deriver no longer yields this row"
+      }
     ]
   },
   "execution": {
@@ -1908,7 +1906,7 @@
             "hsk-studio-folio"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "What MUST NOT be assumed while the decision is open.** Three forward-compatibility constraints bind any implementation built from this sub-section, and they cost little now and save a rewrite later: 1. **The render graph MUST be an explicit data structure, not the call stack.** [STU-CMP-010]'s order is a specification of semantics, not a mandate to implement it as nested function calls.",
+          "consumer_assertion": "Static image rendering MUST NOT unconditionally pull NLE/audio/native providers.",
           "negative_path": "Deleted matte/input address, complete prospective cycle (including delay), canceled stage, stale document revision and lost temporal port yield explicit stage/cycle/provider reasons, discard incomplete render proposal, retain last published frame and authored bytes; corrected current snapshot/port retries without stale cache reuse.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN.",
           "selected_package": "hsk-studio-composite",
@@ -1964,7 +1962,10 @@
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
-        }
+        },
+        "superseded_claim_refs": [
+          "AC-002"
+        ]
       },
       {
         "check_id": "MT-34211-SOURCE-COMPILE",
@@ -1980,7 +1981,10 @@
         "evidence_required": [
           "Exact owned source/config/lock closure"
         ],
-        "materialization_status": "PLANNED_NOT_RUN"
+        "materialization_status": "PLANNED_NOT_RUN",
+        "superseded_claim_refs": [
+          "AC-002"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2577,7 +2581,7 @@
         "original_text": "What MUST NOT be assumed while the decision is open.** Three forward-compatibility constraints bind any implementation built from this sub-section, and they cost little now and save a rewrite later: 1. **The render graph MUST be an explicit data structure, not the call stack.** [STU-CMP-010]'s order is a specification of semantics, not a mandate to implement it as nested function calls.",
         "original_row_sha256": "3b1341efed0140491342a2686b46e5e472e5ad031c4f6bab03e30f7fd9c6a670",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "What MUST NOT be assumed while the decision is open.** Three forward-compatibility constraints bind any implementation built from this sub-section, and they cost little now and save a rewrite later: 1. **The render graph MUST be an explicit data structure, not the call stack.** [STU-CMP-010]'s order is a specification of semantics, not a mandate to implement it as nested function calls.",
+        "semantic_fulfillment": "Static image rendering MUST NOT unconditionally pull NLE/audio/native providers.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34211",
@@ -2588,13 +2592,13 @@
           {
             "owning_module_ref": "STUDIO-MODULE-COMPOSITE",
             "scope": "Static render-plan evaluator consumes immutable snapshot; same semantics for previews/export. Temporal/effect providers attach through typed ports; no unconditional motion/pulse engine dependency in the static render closure.",
-            "required_behavior": "What MUST NOT be assumed while the decision is open.** Three forward-compatibility constraints bind any implementation built from this sub-section, and they cost little now and save a rewrite later: 1. **The render graph MUST be an explicit data structure, not the call stack.** [STU-CMP-010]'s order is a specification of semantics, not a mandate to implement it as nested function calls.",
+            "required_behavior": "Static image rendering MUST NOT unconditionally pull NLE/audio/native providers.",
             "only_owner_root_may_change": true
           },
           {
             "owning_module_ref": "STUDIO-MODULE-FOLIO",
             "scope": "One StudioDocument graph/schema and immutable snapshots shared by all domains, not per-vendor models. Photo virtual-copy/develop recipe links reference CKC asset identities; catalog keywords/collections/relink authority is CKC, never a Folio-private catalog.",
-            "required_behavior": "What MUST NOT be assumed while the decision is open.** Three forward-compatibility constraints bind any implementation built from this sub-section, and they cost little now and save a rewrite later: 1. **The render graph MUST be an explicit data structure, not the call stack.** [STU-CMP-010]'s order is a specification of semantics, not a mandate to implement it as nested function calls.",
+            "required_behavior": "Static image rendering MUST NOT unconditionally pull NLE/audio/native providers.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2613,7 +2617,7 @@
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36204.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "What MUST NOT be assumed while the decision is open.** Three forward-compatibility constraints bind any implementation built from this sub-section, and they cost little now and save a rewrite later: 1. **The render graph MUST be an explicit data structure, not the call stack.** [STU-CMP-010]'s order is a specification of semantics, not a mandate to implement it as nested function calls. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Static image rendering MUST NOT unconditionally pull NLE/audio/native providers. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36204.json",
@@ -2718,7 +2722,7 @@
           "original_text": "What MUST NOT be assumed while the decision is open.** Three forward-compatibility constraints bind any implementation built from this sub-section, and they cost little now and save a rewrite later: 1. **The render graph MUST be an explicit data structure, not the call stack.** [STU-CMP-010]'s order is a specification of semantics, not a mandate to implement it as nested function calls.",
           "original_row_sha256": "3b1341efed0140491342a2686b46e5e472e5ad031c4f6bab03e30f7fd9c6a670",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "What MUST NOT be assumed while the decision is open.** Three forward-compatibility constraints bind any implementation built from this sub-section, and they cost little now and save a rewrite later: 1. **The render graph MUST be an explicit data structure, not the call stack.** [STU-CMP-010]'s order is a specification of semantics, not a mandate to implement it as nested function calls.",
+          "semantic_fulfillment": "Static image rendering MUST NOT unconditionally pull NLE/audio/native providers.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34211",
@@ -2729,13 +2733,13 @@
             {
               "owning_module_ref": "STUDIO-MODULE-COMPOSITE",
               "scope": "Static render-plan evaluator consumes immutable snapshot; same semantics for previews/export. Temporal/effect providers attach through typed ports; no unconditional motion/pulse engine dependency in the static render closure.",
-              "required_behavior": "What MUST NOT be assumed while the decision is open.** Three forward-compatibility constraints bind any implementation built from this sub-section, and they cost little now and save a rewrite later: 1. **The render graph MUST be an explicit data structure, not the call stack.** [STU-CMP-010]'s order is a specification of semantics, not a mandate to implement it as nested function calls.",
+              "required_behavior": "Static image rendering MUST NOT unconditionally pull NLE/audio/native providers.",
               "only_owner_root_may_change": true
             },
             {
               "owning_module_ref": "STUDIO-MODULE-FOLIO",
               "scope": "One StudioDocument graph/schema and immutable snapshots shared by all domains, not per-vendor models. Photo virtual-copy/develop recipe links reference CKC asset identities; catalog keywords/collections/relink authority is CKC, never a Folio-private catalog.",
-              "required_behavior": "What MUST NOT be assumed while the decision is open.** Three forward-compatibility constraints bind any implementation built from this sub-section, and they cost little now and save a rewrite later: 1. **The render graph MUST be an explicit data structure, not the call stack.** [STU-CMP-010]'s order is a specification of semantics, not a mandate to implement it as nested function calls.",
+              "required_behavior": "Static image rendering MUST NOT unconditionally pull NLE/audio/native providers.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2754,7 +2758,7 @@
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36204.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "What MUST NOT be assumed while the decision is open.** Three forward-compatibility constraints bind any implementation built from this sub-section, and they cost little now and save a rewrite later: 1. **The render graph MUST be an explicit data structure, not the call stack.** [STU-CMP-010]'s order is a specification of semantics, not a mandate to implement it as nested function calls. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Static image rendering MUST NOT unconditionally pull NLE/audio/native providers. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36204.json",
@@ -2831,11 +2835,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2871,5 +2875,49 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "What MUST NOT be assumed while the decision is open.** Three forward-compatibility constraints bind any implementation built from this sub-section, and they cost little now and save a rewrite later: 1. **The render graph MUST be an explicit data structure, not the call stack.** [STU-CMP-010]'s order is a specification of semantics, not a mandate to implement it as nested function calls.",
+          "new": "Static image rendering MUST NOT unconditionally pull NLE/audio/native providers."
+        },
+        {
+          "id": "AC-002",
+          "old": "An implementation that materialises the per-frame render as an explicit dependency graph can later grow a node surface over the same evaluator; one that hard-codes the order into control flow cannot. 2. **Every intermediate result MUST be addressable.** A layer's post-mask, post-effect, post- transform and post-matte results are the points a node graph would expose as edges.",
+          "new": null
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [
+        "AC-002"
+      ],
+      "superseded_materialized_rows": [
+        "AC-002"
+      ],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "What MUST NOT be assumed while the decision is open",
+      "propagated_paths": [
+        "/identity/title",
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/method_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[1]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[1]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

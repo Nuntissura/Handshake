@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "9. Adjustments",
-    "spec_line": 1280,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 1364,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -54,9 +55,15 @@
       "criterion": "`preserve_luminosity` (bool) | hard `unknown`, soft -100..100 `derived` from a 6-digit control | the nine-field shape is confirmed by both source families independently | | `photo_filter` | `filter_colour` (colour), `density` (percent, 0), `preserve_luminosity` (bool) | `density` hard `unknown`, soft 1..100 `derived` from a 3-digit percent control | one source stores the colour as L/a/b plus a preset selector; both forms MUST decode | | `black_and_white` | six weights `red`, `yellow`, `green`, `cyan`, `blue`, `magenta` (percent, 0);",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-RAS-151"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "At an exact tie on the cut every GPU backend MUST decide as the CPU reference does (no boundary-band parity exemption); whether the cut compares the exact rational luminance or round(255 lum) is a DECLARED GAP (v02.226, SD-12) | | `shadows_highlights` | `shadow_amount`, `shadow_tone_width` (percent, 0), `shadow_radius` (pixels, 0), `highlight_amount`, `highlight_tone_width` (percent, 0), `highlight_radius` (pixels, 0), `colour_correction` (count, 0), `midtone_contrast` (count, 0), `black_clip`, `white_clip` (percent, 3) | amounts hard 0..100 `derived`; radii hard `unknown`; clips precision 3 ` [...]",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAS-151"
     }
   ],
-  "acceptance_criteria_count": 3,
+  "acceptance_criteria_count": 4,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1573,7 +1580,8 @@
     "acceptance_refs": [
       "AC-001",
       "AC-002",
-      "AC-003"
+      "AC-003",
+      "AC-004"
     ],
     "materialized_acceptance": [
       {
@@ -1590,6 +1598,10 @@
         "id": "AC-003",
         "text": "`preserve_luminosity` (bool) | hard `unknown`, soft -100..100 `derived` from a 6-digit control | the nine-field shape is confirmed by both source families independently | | `photo_filter` | `filter_colour` (colour), `density` (percent, 0), `preserve_luminosity` (bool) | `density` hard `unknown`, soft 1..100 `derived` from a 3-digit percent control | one source stores the colour as L/a/b plus a preset selector; both forms MUST decode | | `black_and_white` | six weights `red`, `yellow`, `green`, `cyan`, `blue`, `magenta` (percent, 0);",
         "fulfillment_ref": "MT-30171#/fulfillment/legacy_acceptance_map/2"
+      },
+      {
+        "id": "AC-004",
+        "text": "At an exact tie on the cut every GPU backend MUST decide as the CPU reference does (no boundary-band parity exemption); whether the cut compares the exact rational luminance or round(255 lum) is a DECLARED GAP (v02.226, SD-12) | | `shadows_highlights` | `shadow_amount`, `shadow_tone_width` (percent, 0), `shadow_radius` (pixels, 0), `highlight_amount`, `highlight_tone_width` (percent, 0), `highlight_radius` (pixels, 0), `colour_correction` (count, 0), `midtone_contrast` (count, 0), `black_clip`, `white_clip` (percent, 3) | amounts hard 0..100 `derived`; radii hard `unknown`; clips precision 3 ` [...]"
       }
     ],
     "spec_basis_refs": [
@@ -1961,6 +1973,22 @@
           "Exact owned source/config/lock closure"
         ],
         "materialization_status": "PLANNED_NOT_RUN"
+      },
+      {
+        "check_id": "MT-30171-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-RAS-151"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "At an exact tie on the cut every GPU backend MUST decide as the CPU reference does (no boundary-band parity exemption); whether the cut compares the exact rational luminance or round(255 lum) is a DECLARED GAP (v02.226, SD-12) | | `shadows_highlights` | `shadow_amount`, `shadow_tone_width` (percent, 0), `shadow_radius` (pixels, 0), `highlight_amount`, `highlight_tone_width` (percent, 0), `highlight_radius` (pixels, 0), `colour_correction` (count, 0), `midtone_contrast` (count, 0), `black_clip`, `white_clip` (percent, 3) | amounts hard 0..100 `derived`; radii hard `unknown`; clips precision 3 ` [...]",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2593,11 +2621,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2633,5 +2661,30 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "At an exact tie on the cut every GPU backend MUST decide as the CPU reference does (no boundary-band parity exemption); whether the cut compares the exact rational luminance or round(255 lum) is a DECLARED GAP (v02.226, SD-12) | | `shadows_highlights` | `shadow_amount`, `shadow_tone_width` (percent, 0), `shadow_radius` (pixels, 0), `highlight_amount`, `highlight_tone_width` (percent, 0), `highlight_radius` (pixels, 0), `colour_correction` (count, 0), `midtone_contrast` (count, 0), `black_clip`, `white_clip` (percent, 3) | amounts hard 0..100 `derived`; radii hard `unknown`; clips precision 3 ` [...]"
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-004"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "THE `StudioAdjustment` KIND ENUMERATION",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

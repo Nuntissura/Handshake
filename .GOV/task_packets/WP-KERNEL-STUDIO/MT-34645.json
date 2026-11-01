@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "7. Accessibility, addressing, and observability",
-    "spec_line": 31654,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 32349,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,13 +34,13 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "model_facing_surface",
   "scope": {
-    "summary": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the egui id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band. Studio MUST NOT consume fixed node ids, because its panel and tool counts are dynamic. Where the Studio module menus need title node ids, they are derived from `author_id` strings in the hashed space exactly as the shell already does for its dynamic leaf nodes, so the fixed band stays reserved for the shell's eight menus and module menus are additive without renumbering.",
+    "summary": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the native UI node id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band. Studio MUST NOT consume fixed node ids, because its panel and tool counts are dynamic. Where the Studio module menus need title node ids, they are derived from `author_id` strings in the hashed space exactly as the shell already does for its dynamic leaf nodes, so the fixed band stays reserved for the shell's eight menus and module menus are additive without renumbering.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the egui id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band.",
+      "criterion": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the native UI node id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-MDL-104"
     },
@@ -166,7 +167,7 @@
       {
         "id": "STU-MDL-104",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:31696",
-        "verbatim": "**[STU-MDL-104] Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the egui id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band. Studio MUST NOT consume fixed node ids, because its panel and tool counts are dynamic. Where the Studio module menus need title node ids, they are derived from `author_id` strings in the hashed space exactly as the shell already does for its dynamic leaf nodes, so the fixed band stays reserved for the shell's eight menus and module menus are additive without renumbering.",
+        "verbatim": "**[STU-MDL-104] Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the native UI node id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band. Studio MUST NOT consume fixed node ids, because its panel and tool counts are dynamic. Where the Studio module menus need title node ids, they are derived from `author_id` strings in the hashed space exactly as the shell already does for its dynamic leaf nodes, so the fixed band stays reserved for the shell's eight menus and module menus are additive without renumbering.",
         "heading": "### 7. Accessibility, addressing, and observability",
         "section": "14.30",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -1700,7 +1701,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the egui id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band.",
+        "text": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the native UI node id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band.",
         "fulfillment_ref": "MT-34645#/fulfillment/legacy_acceptance_map/0"
       },
       {
@@ -1835,7 +1836,7 @@
         "requirement_refs": [
           "STU-MDL-104"
         ],
-        "current_normative_instructions": "**[STU-MDL-104] Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the egui id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band. Studio MUST NOT consume fixed node ids, because its panel and tool counts are dynamic. Where the Studio module menus need title node ids, they are derived from `author_id` strings in the hashed space exactly as the shell already does for its dynamic leaf nodes, so the fixed band stays reserved for the shell's eight menus and module menus are additive without renumbering.",
+        "current_normative_instructions": "**[STU-MDL-104] Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the native UI node id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band. Studio MUST NOT consume fixed node ids, because its panel and tool counts are dynamic. Where the Studio module menus need title node ids, they are derived from `author_id` strings in the hashed space exactly as the shell already does for its dynamic leaf nodes, so the fixed band stays reserved for the shell's eight menus and module menus are additive without renumbering.",
         "declared_table_keys": [],
         "source_fields": [
           "studio.",
@@ -1944,7 +1945,7 @@
           "AC-001"
         ],
         "command_or_method": "Planned target: cargo test --locked -p hsk-studio-controls --no-default-features --test mt_34645 source_contract_consumer -- --exact. Independent validator drives source-specific cases in steps for STU-MDL-104/AC-001 against actual reducer/projection/record output, including declared negative/recovery cases. Implementer separately cargo check --locked -p hsk-studio-controls --no-default-features --tests. Actual candidate/lock/actor/artifact roots activation-bound; no execution claimed. Exact source-specific refinement: Inspect registry collision checks and additive dynamic/title bindings. No fixed-menu renumbering or unrelated shell ID churn.",
-        "expected": "Actual Node id space output obeys Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the egui id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
+        "expected": "Actual Node id space output obeys Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the native UI node id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band.; concrete field/row/state semantics are those in execution.inputs and implementation_steps. Invalid/stale/denied/cancel/missing-consumer outcomes retain accepted state and expose exact typed recovery. No declaration, optional skip or inherited host acceptance becomes source/native parity proof.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1957,7 +1958,7 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the egui id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band. Inspect registry collision checks and additive dynamic/title bindings.",
+          "consumer_assertion": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the native UI node id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band. Inspect registry collision checks and additive dynamic/title bindings.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. No fixed-menu renumbering or unrelated shell ID churn.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
@@ -2271,7 +2272,7 @@
             "line": 31696,
             "section": "14.30",
             "heading": "### 7. Accessibility, addressing, and observability",
-            "verbatim": "**[STU-MDL-104] Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the egui id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band. Studio MUST NOT consume fixed node ids, because its panel and tool counts are dynamic. Where the Studio module menus need title node ids, they are derived from `author_id` strings in the hashed space exactly as the shell already does for its dynamic leaf nodes, so the fixed band stays reserved for the shell's eight menus and module menus are additive without renumbering.",
+            "verbatim": "**[STU-MDL-104] Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the native UI node id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band. Studio MUST NOT consume fixed node ids, because its panel and tool counts are dynamic. Where the Studio module menus need title node ids, they are derived from `author_id` strings in the hashed space exactly as the shell already does for its dynamic leaf nodes, so the fixed band stays reserved for the shell's eight menus and module menus are additive without renumbering.",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2342,7 +2343,7 @@
         "original_text": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the egui id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band.",
         "original_row_sha256": "6848dbf83dc000d18d4baaa6a6025cacd6ca241578653688920ae909bcd5ef4f",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the egui id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band.",
+        "semantic_fulfillment": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the native UI node id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34645-ASSET-CONTROLS"
@@ -2352,7 +2353,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-CONTROLS",
             "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-            "required_behavior": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the egui id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band.",
+            "required_behavior": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the native UI node id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2361,13 +2362,13 @@
             "hsk-studio-controls"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the egui id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band. Inspect registry collision checks and additive dynamic/title bindings.",
+          "consumer_assertion": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the native UI node id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band. Inspect registry collision checks and additive dynamic/title bindings.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation. No fixed-menu renumbering or unrelated shell ID churn.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-34645-KERNEL-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the egui id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the native UI node id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36213"
@@ -2448,7 +2449,7 @@
           "original_text": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the egui id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band.",
           "original_row_sha256": "6848dbf83dc000d18d4baaa6a6025cacd6ca241578653688920ae909bcd5ef4f",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the egui id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band.",
+          "semantic_fulfillment": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the native UI node id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34645-ASSET-CONTROLS"
@@ -2458,7 +2459,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-CONTROLS",
               "scope": "One shared egui control/panel mechanic configured by capability registry; agent projections/manual use same semantics; never imports full native app.",
-              "required_behavior": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the egui id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band.",
+              "required_behavior": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the native UI node id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2467,13 +2468,13 @@
               "hsk-studio-controls"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the egui id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band.",
+            "consumer_assertion": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the native UI node id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-34645-KERNEL-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the egui id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the native UI node id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "MT-36213"
@@ -2550,11 +2551,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2596,5 +2597,43 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the egui id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band.",
+          "new": "Node id space.** The `studio.` prefix MUST be registered in the shell's declared hashed-`author_id` prefix list, and the native UI node id MUST be derived from the `author_id` string so Studio lands in the hashed id space, disjoint by construction from the shell's small fixed node-id band."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Node id space",
+      "propagated_paths": [
+        "/context_capsule/specification_anchor_refs[0]/verbatim",
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/execution/inputs[0]/current_normative_instructions",
+        "/proof/checks[0]/expected",
+        "/proof/checks[0]/method_recipe/consumer_assertion",
+        "/fulfillment/asset_slices[0]/scope_basis[0]/verbatim",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

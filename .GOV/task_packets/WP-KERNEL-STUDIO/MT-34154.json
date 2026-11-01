@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "6. Renderers",
-    "spec_line": 29350,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 29977,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "compositing",
   "scope": {
-    "summary": "**A composition declares a RENDERER, and the renderer determines which 3D features its layers may use.** This is a document-level choice with real consequences, not a preference: the same layer stack renders differently and exposes different properties under different renderers. The normative contract: 1. A composition's renderer is part of its settings ([STU-MOT-004]) and is recorded in every render receipt. 2. A renderer declares a CAPABILITY SET: whether it supports extruded geometry, bevels, environment lighting, reflections, refraction, ray-traced shadows, and which material properties it honours. 3. A property that the active renderer does not honour is displayed INACTIVE with a stated reason, never hidden, so an operator can see that the value exists and why it is doing nothing ([STU-MOT-014]). 4. Switching renderer is a document mutation, is one history step, and MUST report which properties became inactive before it is applied. 5. Every renderer runs behind the `RenderEngine` trait in `studio-engine`; no renderer implementation may put a GPU dependency into `handshake_core` ([STU-ARC-002]). 6. The recovered surface ships a classic planar renderer (\"layers can be positioned as planes in 3D space\") plus an advanced renderer with its own options including a quality-sample count bounded `hard_min` 1, `hard_max` 300. Which renderers Studio ships, and their exact capability [...]",
+    "summary": "**A composition declares a RENDERER, and the renderer determines which 3D features its layers may use.** This is a document-level choice with real consequences, not a preference: the same layer stack renders differently and exposes different properties under different renderers. The normative contract: 1. A composition's renderer is part of its settings ([STU-MOT-004]) and is recorded in every render receipt. 2. A renderer declares a CAPABILITY SET: whether it supports extruded geometry, bevels, environment lighting, reflections, refraction, ray-traced shadows, and which material properties it honours. 3. A property that the active renderer does not honour is displayed INACTIVE with a stated reason, never hidden, so an operator can see that the value exists and why it is doing nothing ([STU-MOT-014]). 4. Switching renderer is a document mutation, is one history step, and MUST report which properties became inactive before it is applied. 5. Every renderer runs behind the `RenderEngine` trait in the owning modular Studio asset crate; no renderer implementation may put a GPU dependency into `handshake_core` ([STU-ARC-002]). 6. The recovered surface ships a classic planar renderer (\"layers can be positioned as planes in 3D space\") plus an advanced renderer with its own options including a quality-sample count bounded `hard_min` 1, `hard_max` 300. Which renderers Studio ships, and t [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -2284,11 +2285,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2324,5 +2325,22 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "A composition declares a RENDERER, and the renderer determines which 3D features",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

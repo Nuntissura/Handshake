@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "1. The core idea",
-    "spec_line": 25520,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 26057,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -42,9 +43,81 @@
       "criterion": "Separating and rejoining are lossy in opposite directions and MUST be explicit typed commands with a stated conversion, never automatic. | | `min_value`, `max_value` | The stream's declared bounds, when it has them.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-MOT-010a"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The contract table holds the row `property_key` with the exact meaning the spec states: Stable identity within its group. Never the display name.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-010a carried contract table row 1"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `display_name` with the exact meaning the spec states: Localized label.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-010a carried contract table row 2"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `value_kind` with the exact meaning the spec states: The `StudioParameterKind` of [STU-FX-112]. A property and an effect parameter are the SAME record type; an effect's parameters are a subtree of the layer's property tree ([STU-MOT-017]).. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-010a carried contract table row 3"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `state` with the exact meaning the spec states: `static` \\ | `keyframed` \\ | `expression_driven` \\ | `expression_over_keyframes`. See [STU-MOT-071], which carries this four-member enumeration and its state machine.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-010a carried contract table row 4"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `static_value` with the exact meaning the spec states: The value when `state = static`, and the pre-expression base when an expression is present.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-010a carried contract table row 5"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `keyframes` with the exact meaning the spec states: Ordered `StudioKeyframe` list when keyframed ([STU-MOT-030]).. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-010a carried contract table row 6"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `expression` with the exact meaning the spec states: UTF-8 source when expression-driven ([STU-MOT-070]).. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-010a carried contract table row 7"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The contract table holds the row `expression_enabled` with the exact meaning the spec states: Bool, independent of whether an expression exists. Disabling keeps the source.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-010a carried contract table row 8"
+    },
+    {
+      "id": "AC-010",
+      "criterion": "The contract table holds the row `dimension_count` with the exact meaning the spec states: Number of scalar components. Position is 2 or 3; opacity is 1; colour is 4.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-010a carried contract table row 9"
+    },
+    {
+      "id": "AC-011",
+      "criterion": "The contract table holds the row `dimensions_separated` with the exact meaning the spec states: Bool. When true each component becomes its own keyframable sub-property with its own interpolation. Separating and rejoining are lossy in opposite directions and MUST be explicit typed commands with a stated conversion, never automatic.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-010a carried contract table row 10"
+    },
+    {
+      "id": "AC-012",
+      "criterion": "The contract table holds the row `min_value`, `max_value` with the exact meaning the spec states: The stream's declared bounds, when it has them. These are `hard_min`/`hard_max` under [STU-FX-104] and follow the same `bound_state` discipline.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-010a carried contract table row 11"
+    },
+    {
+      "id": "AC-013",
+      "criterion": "The contract table holds the row `is_spatial` with the exact meaning the spec states: Bool. A spatial property additionally carries spatial tangents and renders a motion path ([STU-MOT-036]).. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-MOT-010a carried contract table row 12"
     }
   ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria_count": 13,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1535,13 +1608,73 @@
       "STU-MOT-010a"
     ],
     "acceptance_refs": [
-      "AC-001"
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009",
+      "AC-010",
+      "AC-011",
+      "AC-012",
+      "AC-013"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
         "text": "Separating and rejoining are lossy in opposite directions and MUST be explicit typed commands with a stated conversion, never automatic. | | `min_value`, `max_value` | The stream's declared bounds, when it has them.",
         "fulfillment_ref": "MT-33860#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-002",
+        "text": "The contract table holds the row `property_key` with the exact meaning the spec states: Stable identity within its group. Never the display name.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `display_name` with the exact meaning the spec states: Localized label.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `value_kind` with the exact meaning the spec states: The `StudioParameterKind` of [STU-FX-112]. A property and an effect parameter are the SAME record type; an effect's parameters are a subtree of the layer's property tree ([STU-MOT-017]).. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `state` with the exact meaning the spec states: `static` \\ | `keyframed` \\ | `expression_driven` \\ | `expression_over_keyframes`. See [STU-MOT-071], which carries this four-member enumeration and its state machine.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `static_value` with the exact meaning the spec states: The value when `state = static`, and the pre-expression base when an expression is present.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `keyframes` with the exact meaning the spec states: Ordered `StudioKeyframe` list when keyframed ([STU-MOT-030]).. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `expression` with the exact meaning the spec states: UTF-8 source when expression-driven ([STU-MOT-070]).. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-009",
+        "text": "The contract table holds the row `expression_enabled` with the exact meaning the spec states: Bool, independent of whether an expression exists. Disabling keeps the source.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-010",
+        "text": "The contract table holds the row `dimension_count` with the exact meaning the spec states: Number of scalar components. Position is 2 or 3; opacity is 1; colour is 4.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-011",
+        "text": "The contract table holds the row `dimensions_separated` with the exact meaning the spec states: Bool. When true each component becomes its own keyframable sub-property with its own interpolation. Separating and rejoining are lossy in opposite directions and MUST be explicit typed commands with a stated conversion, never automatic.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-012",
+        "text": "The contract table holds the row `min_value`, `max_value` with the exact meaning the spec states: The stream's declared bounds, when it has them. These are `hard_min`/`hard_max` under [STU-FX-104] and follow the same `bound_state` discipline.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-013",
+        "text": "The contract table holds the row `is_spatial` with the exact meaning the spec states: Bool. A spatial property additionally carries spatial tangents and renders a motion path ([STU-MOT-036]).. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1788,6 +1921,198 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-33860-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-MOT-010a"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `property_key` with the exact meaning the spec states: Stable identity within its group. Never the display name.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33860-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-MOT-010a"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `display_name` with the exact meaning the spec states: Localized label.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33860-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-MOT-010a"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `value_kind` with the exact meaning the spec states: The `StudioParameterKind` of [STU-FX-112]. A property and an effect parameter are the SAME record type; an effect's parameters are a subtree of the layer's property tree ([STU-MOT-017]).. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33860-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-MOT-010a"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `state` with the exact meaning the spec states: `static` \\ | `keyframed` \\ | `expression_driven` \\ | `expression_over_keyframes`. See [STU-MOT-071], which carries this four-member enumeration and its state machine.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33860-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-MOT-010a"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `static_value` with the exact meaning the spec states: The value when `state = static`, and the pre-expression base when an expression is present.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33860-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-MOT-010a"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `keyframes` with the exact meaning the spec states: Ordered `StudioKeyframe` list when keyframed ([STU-MOT-030]).. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33860-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-MOT-010a"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `expression` with the exact meaning the spec states: UTF-8 source when expression-driven ([STU-MOT-070]).. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33860-SPEC-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-MOT-010a"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `expression_enabled` with the exact meaning the spec states: Bool, independent of whether an expression exists. Disabling keeps the source.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33860-SPEC-AC-010",
+        "kind": "test",
+        "claim_refs": [
+          "AC-010",
+          "STU-MOT-010a"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `dimension_count` with the exact meaning the spec states: Number of scalar components. Position is 2 or 3; opacity is 1; colour is 4.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33860-SPEC-AC-011",
+        "kind": "test",
+        "claim_refs": [
+          "AC-011",
+          "STU-MOT-010a"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `dimensions_separated` with the exact meaning the spec states: Bool. When true each component becomes its own keyframable sub-property with its own interpolation. Separating and rejoining are lossy in opposite directions and MUST be explicit typed commands with a stated conversion, never automatic.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33860-SPEC-AC-012",
+        "kind": "test",
+        "claim_refs": [
+          "AC-012",
+          "STU-MOT-010a"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `min_value`, `max_value` with the exact meaning the spec states: The stream's declared bounds, when it has them. These are `hard_min`/`hard_max` under [STU-FX-104] and follow the same `bound_state` discipline.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33860-SPEC-AC-013",
+        "kind": "test",
+        "claim_refs": [
+          "AC-013",
+          "STU-MOT-010a"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `is_spatial` with the exact meaning the spec states: Bool. A spatial property additionally carries spatial tangents and renders a motion path ([STU-MOT-036]).. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2220,11 +2545,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2260,5 +2585,96 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The contract table holds the row `property_key` with the exact meaning the spec states: Stable identity within its group. Never the display name.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `display_name` with the exact meaning the spec states: Localized label.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `value_kind` with the exact meaning the spec states: The `StudioParameterKind` of [STU-FX-112]. A property and an effect parameter are the SAME record type; an effect's parameters are a subtree of the layer's property tree ([STU-MOT-017]).. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `state` with the exact meaning the spec states: `static` \\ | `keyframed` \\ | `expression_driven` \\ | `expression_over_keyframes`. See [STU-MOT-071], which carries this four-member enumeration and its state machine.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `static_value` with the exact meaning the spec states: The value when `state = static`, and the pre-expression base when an expression is present.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `keyframes` with the exact meaning the spec states: Ordered `StudioKeyframe` list when keyframed ([STU-MOT-030]).. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `expression` with the exact meaning the spec states: UTF-8 source when expression-driven ([STU-MOT-070]).. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-009",
+          "old": null,
+          "new": "The contract table holds the row `expression_enabled` with the exact meaning the spec states: Bool, independent of whether an expression exists. Disabling keeps the source.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-010",
+          "old": null,
+          "new": "The contract table holds the row `dimension_count` with the exact meaning the spec states: Number of scalar components. Position is 2 or 3; opacity is 1; colour is 4.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-011",
+          "old": null,
+          "new": "The contract table holds the row `dimensions_separated` with the exact meaning the spec states: Bool. When true each component becomes its own keyframable sub-property with its own interpolation. Separating and rejoining are lossy in opposite directions and MUST be explicit typed commands with a stated conversion, never automatic.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-012",
+          "old": null,
+          "new": "The contract table holds the row `min_value`, `max_value` with the exact meaning the spec states: The stream's declared bounds, when it has them. These are `hard_min`/`hard_max` under [STU-FX-104] and follow the same `bound_state` discipline.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-013",
+          "old": null,
+          "new": "The contract table holds the row `is_spatial` with the exact meaning the spec states: Bool. A spatial property additionally carries spatial tangents and renders a motion path ([STU-MOT-036]).. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012",
+        "AC-013"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "A `StudioProperty` carries:",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

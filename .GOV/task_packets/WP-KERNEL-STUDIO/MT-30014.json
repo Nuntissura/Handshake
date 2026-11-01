@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.2 Architecture: Kernel Binding and Engine Crates",
-    "spec_line": 179,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 185,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,25 +27,49 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "`handshake_core::studio` MUST follow the atelier/Tailor module pattern: a `src/studio/` directory with `mod.rs` defining `StudioEngineError` and `event_family` constants; per-domain subdirectories (`r [...]",
+  "clause": "`handshake_core::studio` is the integrated authority binding, not the owner of compute/domain implementations. It MUST receive the existing `AppState` shared SurrealDB client, model, sandbox, Promotio [...]",
   "spec_anchor": [
     "STU-ARC-001"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "architecture",
   "scope": {
-    "summary": "`handshake_core::studio` MUST follow the atelier/Tailor module pattern: a `src/studio/` directory with `mod.rs` defining `StudioEngineError` and `event_family` constants; per-domain subdirectories (`raster/`, `vector/`, `layout/`, `typography/`, `color/`, `effects/`, `design_system/`, `prototype/`, `raw/`, `interop/`, `automation/`, `whiteboard/`); storage glue in `src/studio/storage_glue.rs`; and Axum routes in `src/api/studio.rs` registered in `api/mod.rs`. All module files receive `AppState` (and thus the shared SurrealDB authority client, `LlmClient`, `SandboxRunner`, `PromotionGate`, and CRDT infrastructure) by reference; no separate initialization is permitted.",
+    "summary": "`handshake_core::studio` is the integrated authority binding, not the owner of compute/domain implementations. It MUST receive the existing `AppState` shared SurrealDB client, model, sandbox, PromotionGate and CRDT infrastructure by reference and register typed Studio API routes in the existing API owner; it MUST NOT initialize duplicate infrastructure. Independently selectable asset leaf crates own domain algorithms, shared document/contracts, reusable controls and provider adapters through typed ports. Their immutable inputs and proposed outputs carry canonical schemas, IDs, units and resource context; only the kernel binding may persist accepted integrated authority through the existing governed lifecycle. Concrete source paths and crate owners MUST be declared in the activated contracts rather than inferred from legacy `src/studio/<domain>/` examples. The existing `StudioEngineError` identifier and typed error semantics, `event_family` constants and canonical event-family values MUST be preserved at the named kernel-binding contract owner. Moving files or splitting providers MUST NOT silently remove or rename these contracts. The activated module/MT map MUST explicitly locate their definitions and API registration consumer, while retaining `storage_glue` responsibility at the binding without forcing legacy directory topology.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "`handshake_core::studio` MUST follow the atelier/Tailor module pattern: a `src/studio/` directory with `mod.rs` defining `StudioEngineError` and `event_family` constants; per-domain subdirectories (`raster/`, `vector/`, `layout/`, `typography/`, `color/`, `effects/`, `design_system/`, `prototype/`, `raw/`, `interop/`, `automation/`, `whiteboard/`); storage glue in `src/studio/storage_glue.rs`; and Axum routes in `src/api/studio.rs` registered in `api/mod.rs`.",
+      "criterion": "It MUST receive the existing `AppState` shared SurrealDB client, model, sandbox, PromotionGate and CRDT infrastructure by reference and register typed Studio API routes in the existing API owner; it MUST NOT initialize duplicate infrastructure.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-ARC-001"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "Concrete source paths and crate owners MUST be declared in the activated contracts rather than inferred from legacy `src/studio/<domain>/` examples.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-ARC-001"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The existing `StudioEngineError` identifier and typed error semantics, `event_family` constants and canonical event-family values MUST be preserved at the named kernel-binding contract owner.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-ARC-001"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "Moving files or splitting providers MUST NOT silently remove or rename these contracts.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-ARC-001"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The activated module/MT map MUST explicitly locate their definitions and API registration consumer, while retaining `storage_glue` responsibility at the binding without forcing legacy directory topology.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-ARC-001"
     }
   ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria_count": 5,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -141,7 +166,7 @@
   "identity": {
     "mt_id": "MT-30014",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "`handshake_core::studio` MUST follow the atelier/Tailor module pattern: a `src/studio/` directory with `mod.rs` defining `StudioEngineError` and `event_family` constants; per-domain subdirectories (`r [...]",
+    "title": "`handshake_core::studio` is the integrated authority binding, not the owner of compute/domain implementations. It MUST receive the existing `AppState` shared SurrealDB client, model, sandbox, Promotio [...]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 3
@@ -1583,13 +1608,33 @@
       "STU-ARC-001"
     ],
     "acceptance_refs": [
-      "AC-001"
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "`handshake_core::studio` MUST follow the atelier/Tailor module pattern: a `src/studio/` directory with `mod.rs` defining `StudioEngineError` and `event_family` constants; per-domain subdirectories (`raster/`, `vector/`, `layout/`, `typography/`, `color/`, `effects/`, `design_system/`, `prototype/`, `raw/`, `interop/`, `automation/`, `whiteboard/`); storage glue in `src/studio/storage_glue.rs`; and Axum routes in `src/api/studio.rs` registered in `api/mod.rs`.",
+        "text": "It MUST receive the existing `AppState` shared SurrealDB client, model, sandbox, PromotionGate and CRDT infrastructure by reference and register typed Studio API routes in the existing API owner; it MUST NOT initialize duplicate infrastructure.",
         "fulfillment_ref": "MT-30014#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-002",
+        "text": "Concrete source paths and crate owners MUST be declared in the activated contracts rather than inferred from legacy `src/studio/<domain>/` examples."
+      },
+      {
+        "id": "AC-003",
+        "text": "The existing `StudioEngineError` identifier and typed error semantics, `event_family` constants and canonical event-family values MUST be preserved at the named kernel-binding contract owner."
+      },
+      {
+        "id": "AC-004",
+        "text": "Moving files or splitting providers MUST NOT silently remove or rename these contracts."
+      },
+      {
+        "id": "AC-005",
+        "text": "The activated module/MT map MUST explicitly locate their definitions and API registration consumer, while retaining `storage_glue` responsibility at the binding without forcing legacy directory topology."
       }
     ],
     "spec_basis_refs": [
@@ -1789,7 +1834,7 @@
           "AC-001"
         ],
         "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-kernel-bindings --no-default-features --test mt_30014 -- --nocapture",
-        "expected": "`handshake_core::studio` MUST follow the atelier/Tailor module pattern: a `src/studio/` directory with `mod.rs` defining `StudioEngineError` and `event_family` constants; per-domain subdirectories (`raster/`, `vector/`, `layout/`, `typography/`, `color/`, `effects/`, `design_system/`, `prototype/`, `raw/`, `interop/`, `automation/`, `whiteboard/`); storage glue in `src/studio/storage_glue.rs`; and Axum routes in `src/api/studio.rs` registered in `api/mod.rs`. Portable authority/platform consumer additionally proves: Preserve StudioEngineError,event_family and storage_glue responsibility in portablekernel binding contract while domainalgorithms remain leaves. Reject duplicateinfrastructure initialization and missinghostservice; actual sharedAppState/API route registration/authority wiring stays separatehost.",
+        "expected": "It MUST receive the existing `AppState` shared SurrealDB client, model, sandbox, PromotionGate and CRDT infrastructure by reference and register typed Studio API routes in the existing API owner; it MUST NOT initialize duplicate infrastructure. Portable authority/platform consumer additionally proves: Preserve StudioEngineError,event_family and storage_glue responsibility in portablekernel binding contract while domainalgorithms remain leaves. Reject duplicateinfrastructure initialization and missinghostservice; actual sharedAppState/API route registration/authority wiring stays separatehost.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1813,6 +1858,70 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-30014-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-ARC-001"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Concrete source paths and crate owners MUST be declared in the activated contracts rather than inferred from legacy `src/studio/<domain>/` examples.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30014-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-ARC-001"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The existing `StudioEngineError` identifier and typed error semantics, `event_family` constants and canonical event-family values MUST be preserved at the named kernel-binding contract owner.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30014-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-ARC-001"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Moving files or splitting providers MUST NOT silently remove or rename these contracts.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30014-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-ARC-001"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The activated module/MT map MUST explicitly locate their definitions and API registration consumer, while retaining `storage_glue` responsibility at the binding without forcing legacy directory topology.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2133,7 +2242,7 @@
         "original_text": "`handshake_core::studio` MUST follow the atelier/Tailor module pattern: a `src/studio/` directory with `mod.rs` defining `StudioEngineError` and `event_family` constants; per-domain subdirectories (`raster/`, `vector/`, `layout/`, `typography/`, `color/`, `effects/`, `design_system/`, `prototype/`, `raw/`, `interop/`, `automation/`, `whiteboard/`); storage glue in `src/studio/storage_glue.rs`; and Axum routes in `src/api/studio.rs` registered in `api/mod.rs`.",
         "original_row_sha256": "8024c62efae1048d559dd43f8d28cf120427824f13b23a2bb268f02c1f3f7771",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "`handshake_core::studio` MUST follow the atelier/Tailor module pattern: a `src/studio/` directory with `mod.rs` defining `StudioEngineError` and `event_family` constants; per-domain subdirectories (`raster/`, `vector/`, `layout/`, `typography/`, `color/`, `effects/`, `design_system/`, `prototype/`, `raw/`, `interop/`, `automation/`, `whiteboard/`); storage glue in `src/studio/storage_glue.rs`; and Axum routes in `src/api/studio.rs` registered in `api/mod.rs`.",
+        "semantic_fulfillment": "It MUST receive the existing `AppState` shared SurrealDB client, model, sandbox, PromotionGate and CRDT infrastructure by reference and register typed Studio API routes in the existing API owner; it MUST NOT initialize duplicate infrastructure.",
         "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
         "asset_contribution_refs": [
           "MT-30014-ASSET-KERNEL_BINDINGS"
@@ -2143,7 +2252,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
             "scope": "Host-neutral integration bridge port schemas and executable in-memory adapter consumer. Concrete AppState/SurrealDB/Argus/native adapters live later in Handshake product integration target and are excluded from this assets workspace.",
-            "required_behavior": "`handshake_core::studio` MUST follow the atelier/Tailor module pattern: a `src/studio/` directory with `mod.rs` defining `StudioEngineError` and `event_family` constants; per-domain subdirectories (`raster/`, `vector/`, `layout/`, `typography/`, `color/`, `effects/`, `design_system/`, `prototype/`, `raw/`, `interop/`, `automation/`, `whiteboard/`); storage glue in `src/studio/storage_glue.rs`; and Axum routes in `src/api/studio.rs` registered in `api/mod.rs`.",
+            "required_behavior": "It MUST receive the existing `AppState` shared SurrealDB client, model, sandbox, PromotionGate and CRDT infrastructure by reference and register typed Studio API routes in the existing API owner; it MUST NOT initialize duplicate infrastructure.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2152,13 +2261,13 @@
             "hsk-studio-kernel-bindings"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`handshake_core::studio` MUST follow the atelier/Tailor module pattern: a `src/studio/` directory with `mod.rs` defining `StudioEngineError` and `event_family` constants; per-domain subdirectories (`raster/`, `vector/`, `layout/`, `typography/`, `color/`, `effects/`, `design_system/`, `prototype/`, `raw/`, `interop/`, `automation/`, `whiteboard/`); storage glue in `src/studio/storage_glue.rs`; and Axum routes in `src/api/studio.rs` registered in `api/mod.rs`.",
+          "consumer_assertion": "It MUST receive the existing `AppState` shared SurrealDB client, model, sandbox, PromotionGate and CRDT infrastructure by reference and register typed Studio API routes in the existing API owner; it MUST NOT initialize duplicate infrastructure.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-30014-KERNEL-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "`handshake_core::studio` MUST follow the atelier/Tailor module pattern: a `src/studio/` directory with `mod.rs` defining `StudioEngineError` and `event_family` constants; per-domain subdirectories (`raster/`, `vector/`, `layout/`, `typography/`, `color/`, `effects/`, `design_system/`, `prototype/`, `raw/`, `interop/`, `automation/`, `whiteboard/`); storage glue in `src/studio/storage_glue.rs`; and Axum routes in `src/api/studio.rs` registered in `api/mod.rs`. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "It MUST receive the existing `AppState` shared SurrealDB client, model, sandbox, PromotionGate and CRDT infrastructure by reference and register typed Studio API routes in the existing API owner; it MUST NOT initialize duplicate infrastructure. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36216"
@@ -2195,7 +2304,7 @@
           "original_text": "`handshake_core::studio` MUST follow the atelier/Tailor module pattern: a `src/studio/` directory with `mod.rs` defining `StudioEngineError` and `event_family` constants; per-domain subdirectories (`raster/`, `vector/`, `layout/`, `typography/`, `color/`, `effects/`, `design_system/`, `prototype/`, `raw/`, `interop/`, `automation/`, `whiteboard/`); storage glue in `src/studio/storage_glue.rs`; and Axum routes in `src/api/studio.rs` registered in `api/mod.rs`.",
           "original_row_sha256": "8024c62efae1048d559dd43f8d28cf120427824f13b23a2bb268f02c1f3f7771",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "`handshake_core::studio` MUST follow the atelier/Tailor module pattern: a `src/studio/` directory with `mod.rs` defining `StudioEngineError` and `event_family` constants; per-domain subdirectories (`raster/`, `vector/`, `layout/`, `typography/`, `color/`, `effects/`, `design_system/`, `prototype/`, `raw/`, `interop/`, `automation/`, `whiteboard/`); storage glue in `src/studio/storage_glue.rs`; and Axum routes in `src/api/studio.rs` registered in `api/mod.rs`.",
+          "semantic_fulfillment": "It MUST receive the existing `AppState` shared SurrealDB client, model, sandbox, PromotionGate and CRDT infrastructure by reference and register typed Studio API routes in the existing API owner; it MUST NOT initialize duplicate infrastructure.",
           "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
           "asset_contribution_refs": [
             "MT-30014-ASSET-KERNEL_BINDINGS"
@@ -2205,7 +2314,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
               "scope": "Host-neutral integration bridge port schemas and executable in-memory adapter consumer. Concrete AppState/SurrealDB/Argus/native adapters live later in Handshake product integration target and are excluded from this assets workspace.",
-              "required_behavior": "`handshake_core::studio` MUST follow the atelier/Tailor module pattern: a `src/studio/` directory with `mod.rs` defining `StudioEngineError` and `event_family` constants; per-domain subdirectories (`raster/`, `vector/`, `layout/`, `typography/`, `color/`, `effects/`, `design_system/`, `prototype/`, `raw/`, `interop/`, `automation/`, `whiteboard/`); storage glue in `src/studio/storage_glue.rs`; and Axum routes in `src/api/studio.rs` registered in `api/mod.rs`.",
+              "required_behavior": "It MUST receive the existing `AppState` shared SurrealDB client, model, sandbox, PromotionGate and CRDT infrastructure by reference and register typed Studio API routes in the existing API owner; it MUST NOT initialize duplicate infrastructure.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2214,13 +2323,13 @@
               "hsk-studio-kernel-bindings"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "`handshake_core::studio` MUST follow the atelier/Tailor module pattern: a `src/studio/` directory with `mod.rs` defining `StudioEngineError` and `event_family` constants; per-domain subdirectories (`raster/`, `vector/`, `layout/`, `typography/`, `color/`, `effects/`, `design_system/`, `prototype/`, `raw/`, `interop/`, `automation/`, `whiteboard/`); storage glue in `src/studio/storage_glue.rs`; and Axum routes in `src/api/studio.rs` registered in `api/mod.rs`.",
+            "consumer_assertion": "It MUST receive the existing `AppState` shared SurrealDB client, model, sandbox, PromotionGate and CRDT infrastructure by reference and register typed Studio API routes in the existing API owner; it MUST NOT initialize duplicate infrastructure.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-30014-KERNEL-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "`handshake_core::studio` MUST follow the atelier/Tailor module pattern: a `src/studio/` directory with `mod.rs` defining `StudioEngineError` and `event_family` constants; per-domain subdirectories (`raster/`, `vector/`, `layout/`, `typography/`, `color/`, `effects/`, `design_system/`, `prototype/`, `raw/`, `interop/`, `automation/`, `whiteboard/`); storage glue in `src/studio/storage_glue.rs`; and Axum routes in `src/api/studio.rs` registered in `api/mod.rs`. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "It MUST receive the existing `AppState` shared SurrealDB client, model, sandbox, PromotionGate and CRDT infrastructure by reference and register typed Studio API routes in the existing API owner; it MUST NOT initialize duplicate infrastructure. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ],
@@ -2242,11 +2351,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2278,5 +2387,65 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "`handshake_core::studio` MUST follow the atelier/Tailor module pattern: a `src/studio/` directory with `mod.rs` defining `StudioEngineError` and `event_family` constants; per-domain subdirectories (`raster/`, `vector/`, `layout/`, `typography/`, `color/`, `effects/`, `design_system/`, `prototype/`, `raw/`, `interop/`, `automation/`, `whiteboard/`); storage glue in `src/studio/storage_glue.rs`; and Axum routes in `src/api/studio.rs` registered in `api/mod.rs`.",
+          "new": "It MUST receive the existing `AppState` shared SurrealDB client, model, sandbox, PromotionGate and CRDT infrastructure by reference and register typed Studio API routes in the existing API owner; it MUST NOT initialize duplicate infrastructure."
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "Concrete source paths and crate owners MUST be declared in the activated contracts rather than inferred from legacy `src/studio/<domain>/` examples."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The existing `StudioEngineError` identifier and typed error semantics, `event_family` constants and canonical event-family values MUST be preserved at the named kernel-binding contract owner."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "Moving files or splitting providers MUST NOT silently remove or rename these contracts."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The activated module/MT map MUST explicitly locate their definitions and API registration consumer, while retaining `storage_glue` responsibility at the binding without forcing legacy directory topology."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "`handshake_core::studio` MUST follow the atelier/Tailor module pattern: a `src/studio/` directory with `mod.rs` defining `StudioEngineError` and `event_family` constants; per-domain subdirectories (`r [...]",
+      "propagated_paths": [
+        "/identity/title",
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/expected",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

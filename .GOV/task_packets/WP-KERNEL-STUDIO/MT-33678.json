@@ -12,8 +12,9 @@
     "unit_kind": "validator",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.24 Validation, Promotion Equivalence, and HBR",
-    "spec_line": 22384,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 22919,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "val",
   "scope": {
-    "summary": "NATIVE-RUNTIME + SURREALDB/CRDT DUTY. Studio durable authority is Handshake-managed SurrealDB/EventLedger; live collaborative state is CRDT with persistence/reconnect/replay/conflict-visibility and promotion into authority. No PostgreSQL fallback or dual authority, no SQLite, no SQL-portability shim, no mock-only resource as default proof, and no Docker/third-party-daemon/outside-app as a core-operation dependency or acceptance shortcut. Test-only/fixture-only proof cannot satisfy a runtime/storage/EventLedger/UI/replay MUST; storage and privacy proof MUST meet [STU-SDB-008].",
+    "summary": "NATIVE-RUNTIME + SURREALDB/CRDT DUTY. Studio durable authority is Handshake-managed SurrealDB/EventLedger; live collaborative state is CRDT with persistence/reconnect/replay/conflict-visibility and promotion into authority. No PostgreSQL fallback or dual authority, no SQLite database/SQL engine (bounded external file-byte decoder exception below), no SQL-portability shim, no mock-only resource as default proof, and no Docker/third-party-daemon/outside-app as a core-operation dependency or acceptance shortcut. Test-only/fixture-only proof cannot satisfy a runtime/storage/EventLedger/UI/replay MUST; storage and privacy proof MUST meet [STU-SDB-008]. The sole exception is bounded read-only decoding of an Operator-selected external Lightroom `.lrcat` file as untrusted file bytes. The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority. It emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger. Every other SQLite/PostgreSQL path remains prohibited. Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -42,9 +43,21 @@
       "criterion": "Test-only/fixture-only proof cannot satisfy a runtime/storage/EventLedger/UI/replay MUST; storage and privacy proof MUST meet [STU-SDB-008].",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-VAL-005"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VAL-005"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VAL-005"
     }
   ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria_count": 3,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1584,13 +1597,23 @@
       "STU-VAL-005"
     ],
     "acceptance_refs": [
-      "AC-001"
+      "AC-001",
+      "AC-002",
+      "AC-003"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
         "text": "Test-only/fixture-only proof cannot satisfy a runtime/storage/EventLedger/UI/replay MUST; storage and privacy proof MUST meet [STU-SDB-008].",
         "fulfillment_ref": "MT-33678#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-002",
+        "text": "The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority."
+      },
+      {
+        "id": "AC-003",
+        "text": "Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof."
       }
     ],
     "spec_basis_refs": [
@@ -1814,6 +1837,38 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-33678-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-VAL-005"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33678-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-VAL-005"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2243,11 +2298,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "asset_local_test_host_only",
     "gpu": "none",
     "diagnostics": {
@@ -2291,5 +2346,36 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The decoder MUST NOT link or invoke a SQL/database engine, expose SQL queries or connectivity, write or repair the catalog, establish a private database/cache/catalog, or treat decoded rows as authority."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "Parser fixtures prove byte decoding only and MUST NOT substitute for production-storage proof."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-002",
+        "AC-003"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "NATIVE-RUNTIME + SURREALDB/CRDT DUTY. Studio durable authority is Handshake-managed SurrealDB/EventLedger; live collaborative state is CRDT with persistence/reconnect/replay/conflict-visibility and pr [...]",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

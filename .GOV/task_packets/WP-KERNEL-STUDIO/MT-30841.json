@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.6.9.3 PDF and Ink/Separation Output",
-    "spec_line": 7077,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 7164,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -57,7 +58,7 @@
     },
     {
       "id": "AC-004",
-      "criterion": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\", which Studio MUST carry as a nullable end rather than storing -1).",
+      "criterion": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\"). v02.226 (SD-15) supersedes \"MUST carry as a nullable end rather than storing -1\": the -1 sentinel stays inside the stored setting ([STU-IO-129] `end_page`) and the preset API returns the end page as a nullable value (`Option<u32>`).",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-LAY-159"
     }
@@ -1588,7 +1589,7 @@
       },
       {
         "id": "AC-004",
-        "text": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\", which Studio MUST carry as a nullable end rather than storing -1).",
+        "text": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\"). v02.226 (SD-15) supersedes \"MUST carry as a nullable end rather than storing -1\": the -1 sentinel stays inside the stored setting ([STU-IO-129] `end_page`) and the preset API returns the end page as a nullable value (`Option<u32>`).",
         "fulfillment_ref": "MT-30841#/fulfillment/legacy_acceptance_map/3"
       }
     ],
@@ -1911,8 +1912,8 @@
         "claim_refs": [
           "AC-004"
         ],
-        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-layout --no-default-features --test pdf_stock_six_preset_defaults pdf_stock_six_preset_defaults -- --exact --nocapture. Public consumer: Actual first-run consumer enumerates six logical presets despite locale variants, exports each and independently checks all19 settings, especially smallest-file sampling/font behavior, PDFX-only flags and sole live-transparency preset. Rename PDFX4 display name and verify compliance remains2007; nullable end includes actual final canonical page. Shared typed surface presents all presets. Failure/cancel/stale/loss: Missing stock schema/provider/locale metadata, unknown preset/version or conflicting edited-stock reseed policy blocks rather than fabricates files/defaults. Cancel/stale catalogue/document revisions preserve presets; provider loss cannot silently downgrade compliance/transparency. Table values and commondefaults not approximated. Independent oracle: Independent whole nineteen-by-six source matrix plus common default record compare actual catalogue and PDF headers/images/fonts/compliance/transparency; native page inventory verifies nullable last-page behavior. Original claim: Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\", which Studio MUST carry as a nullable end rather than storing -1).; no target/run claimed.",
-        "expected": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\", which Studio MUST carry as a nullable end rather than storing -1).",
+        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-layout --no-default-features --test pdf_stock_six_preset_defaults pdf_stock_six_preset_defaults -- --exact --nocapture. Public consumer: Actual first-run consumer enumerates six logical presets despite locale variants, exports each and independently checks all19 settings, especially smallest-file sampling/font behavior, PDFX-only flags and sole live-transparency preset. Rename PDFX4 display name and verify compliance remains2007; nullable end includes actual final canonical page. Shared typed surface presents all presets. Failure/cancel/stale/loss: Missing stock schema/provider/locale metadata, unknown preset/version or conflicting edited-stock reseed policy blocks rather than fabricates files/defaults. Cancel/stale catalogue/document revisions preserve presets; provider loss cannot silently downgrade compliance/transparency. Table values and commondefaults not approximated. Independent oracle: Independent whole nineteen-by-six source matrix plus common default record compare actual catalogue and PDF headers/images/fonts/compliance/transparency; native page inventory verifies nullable last-page behavior. Original claim: Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\"). v02.226 (SD-15) supersedes \"MUST carry as a nullable end rather than storing -1\": the -1 sentinel stays inside the stored setting ([STU-IO-129] `end_page`) and the preset API returns the end page as a nullable value (`Option<u32>`).; no target/run claimed.",
+        "expected": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\"). v02.226 (SD-15) supersedes \"MUST carry as a nullable end rather than storing -1\": the -1 sentinel stays inside the stored setting ([STU-IO-129] `end_page`) and the preset API returns the end page as a nullable value (`Option<u32>`).",
         "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2423,7 +2424,7 @@
         "original_text": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\", which Studio MUST carry as a nullable end rather than storing -1).",
         "original_row_sha256": "8c94712308de7da60a968c07c6df1df439171dd537a9c7a89405de3694d9c1a2",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\", which Studio MUST carry as a nullable end rather than storing -1).",
+        "semantic_fulfillment": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\"). v02.226 (SD-15) supersedes \"MUST carry as a nullable end rather than storing -1\": the -1 sentinel stays inside the stored setting ([STU-IO-129] `end_page`) and the preset API returns the end page as a nullable value (`Option<u32>`).",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-30841-ASSET-LAYOUT"
@@ -2433,7 +2434,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-LAYOUT",
             "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
-            "required_behavior": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\", which Studio MUST carry as a nullable end rather than storing -1).",
+            "required_behavior": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\"). v02.226 (SD-15) supersedes \"MUST carry as a nullable end rather than storing -1\": the -1 sentinel stays inside the stored setting ([STU-IO-129] `end_page`) and the preset API returns the end page as a nullable value (`Option<u32>`).",
             "only_owner_root_may_change": true
           }
         ],
@@ -2452,7 +2453,7 @@
         },
         "later_embedding_ref": "MT-30841-KERNEL-AC-004",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\", which Studio MUST carry as a nullable end rather than storing -1). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\"). v02.226 (SD-15) supersedes \"MUST carry as a nullable end rather than storing -1\": the -1 sentinel stays inside the stored setting ([STU-IO-129] `end_page`) and the preset API returns the end page as a nullable value (`Option<u32>`). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "later_embedding_refs": [
           "./MT-36197.json"
@@ -2633,7 +2634,7 @@
           "original_text": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\", which Studio MUST carry as a nullable end rather than storing -1).",
           "original_row_sha256": "8c94712308de7da60a968c07c6df1df439171dd537a9c7a89405de3694d9c1a2",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\", which Studio MUST carry as a nullable end rather than storing -1).",
+          "semantic_fulfillment": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\"). v02.226 (SD-15) supersedes \"MUST carry as a nullable end rather than storing -1\": the -1 sentinel stays inside the stored setting ([STU-IO-129] `end_page`) and the preset API returns the end page as a nullable value (`Option<u32>`).",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-30841-ASSET-LAYOUT"
@@ -2643,7 +2644,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-LAYOUT",
               "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
-              "required_behavior": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\", which Studio MUST carry as a nullable end rather than storing -1).",
+              "required_behavior": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\"). v02.226 (SD-15) supersedes \"MUST carry as a nullable end rather than storing -1\": the -1 sentinel stays inside the stored setting ([STU-IO-129] `end_page`) and the preset API returns the end page as a nullable value (`Option<u32>`).",
               "only_owner_root_may_change": true
             }
           ],
@@ -2662,7 +2663,7 @@
           },
           "later_embedding_ref": "MT-30841-KERNEL-AC-004",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\", which Studio MUST carry as a nullable end rather than storing -1). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\"). v02.226 (SD-15) supersedes \"MUST carry as a nullable end rather than storing -1\": the -1 sentinel stays inside the stored setting ([STU-IO-129] `end_page`) and the preset API returns the end page as a nullable value (`Option<u32>`). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "later_embedding_refs": [
             "./MT-36197.json"
@@ -2682,11 +2683,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T00:00:00Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2716,5 +2717,38 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-004",
+          "old": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\", which Studio MUST carry as a nullable end rather than storing -1).",
+          "new": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\"). v02.226 (SD-15) supersedes \"MUST carry as a nullable end rather than storing -1\": the -1 sentinel stays inside the stored setting ([STU-IO-129] `end_page`) and the preset API returns the end page as a nullable value (`Option<u32>`)."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "Stock PDF export presets",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[3]/text",
+        "/proof/checks[3]/command_or_method",
+        "/proof/checks[3]/expected",
+        "/fulfillment/legacy_acceptance_map[3]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[3]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[3]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[3]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[3]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[3]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

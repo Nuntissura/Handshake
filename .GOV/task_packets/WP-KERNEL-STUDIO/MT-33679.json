@@ -12,8 +12,9 @@
     "unit_kind": "validator",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.24 Validation, Promotion Equivalence, and HBR",
-    "spec_line": 22386,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 22923,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,20 +27,20 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "HBR MATRIX. Every Studio WP/MT MUST carry the applicable HBR rows (INT/SWARM/VIS/QUIET/MAN/STOP) in its acceptance matrix, resolved to PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause; PASS cl [...]",
+  "clause": "HBR MATRIX. Every Studio WP/MT MUST evaluate every active rule in the pinned HANDSHAKE_BUILD_RULES registry, currently PRIV, INT, SWARM, VIS, QUIET, MAN, STOP, COMPART and COMPONENT, with exact per-MT [...]",
   "spec_anchor": [
     "STU-VAL-006"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "val",
   "scope": {
-    "summary": "HBR MATRIX. Every Studio WP/MT MUST carry the applicable HBR rows (INT/SWARM/VIS/QUIET/MAN/STOP) in its acceptance matrix, resolved to PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause; PASS closure is illegal while any required HBR row is PENDING/STEER/BLOCKED. --- ## 14.25 # 14.25 Video Editing, Sequences & the Clip Timeline ## 14.25.0 Supersession, scope and authority ### 1. [STU-OVR-015] is superseded",
+    "summary": "HBR MATRIX. Every Studio WP/MT MUST evaluate every active rule in the pinned HANDSHAKE_BUILD_RULES registry, currently PRIV, INT, SWARM, VIS, QUIET, MAN, STOP, COMPART and COMPONENT, with exact per-MT applicability and scoped proof targets. Shared unchanged proof may be referenced with input identity; per-MT exclusions require reasons. Required rows resolve only to PROVED / justified NOT_APPLICABLE / BLOCKED; PENDING, STEER, deferred, or BLOCKED rows never count as PASS. No hardcoded subset of pillars or blanket metadata field satisfies the registry. --- ## 14.25 # 14.25 Video Editing, Sequences & the Clip Timeline ## 14.25.0 Supersession, scope and authority ### 1. [STU-OVR-015] is superseded",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Every Studio WP/MT MUST carry the applicable HBR rows (INT/SWARM/VIS/QUIET/MAN/STOP) in its acceptance matrix, resolved to PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause;",
+      "criterion": "Every Studio WP/MT MUST evaluate every active rule in the pinned HANDSHAKE_BUILD_RULES registry, currently PRIV, INT, SWARM, VIS, QUIET, MAN, STOP, COMPART and COMPONENT, with exact per-MT applicability and scoped proof targets.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-VAL-006"
     }
@@ -141,7 +142,7 @@
   "identity": {
     "mt_id": "MT-33679",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "HBR MATRIX. Every Studio WP/MT MUST carry the applicable HBR rows (INT/SWARM/VIS/QUIET/MAN/STOP) in its acceptance matrix, resolved to PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause; PASS cl [...]",
+    "title": "HBR MATRIX. Every Studio WP/MT MUST evaluate every active rule in the pinned HANDSHAKE_BUILD_RULES registry, currently PRIV, INT, SWARM, VIS, QUIET, MAN, STOP, COMPART and COMPONENT, with exact per-MT [...]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 3
@@ -1589,7 +1590,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Every Studio WP/MT MUST carry the applicable HBR rows (INT/SWARM/VIS/QUIET/MAN/STOP) in its acceptance matrix, resolved to PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause;",
+        "text": "Every Studio WP/MT MUST evaluate every active rule in the pinned HANDSHAKE_BUILD_RULES registry, currently PRIV, INT, SWARM, VIS, QUIET, MAN, STOP, COMPART and COMPONENT, with exact per-MT applicability and scoped proof targets.",
         "fulfillment_ref": "MT-33679#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -1790,7 +1791,7 @@
           "AC-001"
         ],
         "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-harness --no-default-features --test mt_33679 -- --nocapture",
-        "expected": "Every Studio WP/MT MUST carry the applicable HBR rows (INT/SWARM/VIS/QUIET/MAN/STOP) in its acceptance matrix, resolved to PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause; Source consumer proves: Evaluate all active rules from the exact pinned HBR registry with per-MT trigger/reason,proof target and input-bound shared evidence refs. Resolve closure only from independently proved applicable rows or justified nonapplicability; retain pending/steer/blocked state explicitly. Remove a registry rule or feed deferred/PENDING/BLOCKED evidence; closure rejects with the exact missing/unresolved rule IDs rather than a hardcoded pillar subset.",
+        "expected": "Every Studio WP/MT MUST evaluate every active rule in the pinned HANDSHAKE_BUILD_RULES registry, currently PRIV, INT, SWARM, VIS, QUIET, MAN, STOP, COMPART and COMPONENT, with exact per-MT applicability and scoped proof targets. Source consumer proves: Evaluate all active rules from the exact pinned HBR registry with per-MT trigger/reason,proof target and input-bound shared evidence refs. Resolve closure only from independently proved applicable rows or justified nonapplicability; retain pending/steer/blocked state explicitly. Remove a registry rule or feed deferred/PENDING/BLOCKED evidence; closure rejects with the exact missing/unresolved rule IDs rather than a hardcoded pillar subset.",
         "timeout_seconds": 120,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2134,7 +2135,7 @@
         "original_text": "Every Studio WP/MT MUST carry the applicable HBR rows (INT/SWARM/VIS/QUIET/MAN/STOP) in its acceptance matrix, resolved to PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause;",
         "original_row_sha256": "5f91fd115d3d7ccd3671385ff6489b7ecfaededdfb78d33a46d5d2311f0c2f78",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Every Studio WP/MT MUST carry the applicable HBR rows (INT/SWARM/VIS/QUIET/MAN/STOP) in its acceptance matrix, resolved to PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause;",
+        "semantic_fulfillment": "Every Studio WP/MT MUST evaluate every active rule in the pinned HANDSHAKE_BUILD_RULES registry, currently PRIV, INT, SWARM, VIS, QUIET, MAN, STOP, COMPART and COMPONENT, with exact per-MT applicability and scoped proof targets.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33679-ASSET-HARNESS"
@@ -2144,7 +2145,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-HARNESS",
             "scope": "Standalone asset desktop/headless development consumers with explicit selected providers; no unconditional all-domain facade, no separately shipped suite app.",
-            "required_behavior": "Every Studio WP/MT MUST carry the applicable HBR rows (INT/SWARM/VIS/QUIET/MAN/STOP) in its acceptance matrix, resolved to PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause;",
+            "required_behavior": "Every Studio WP/MT MUST evaluate every active rule in the pinned HANDSHAKE_BUILD_RULES registry, currently PRIV, INT, SWARM, VIS, QUIET, MAN, STOP, COMPART and COMPONENT, with exact per-MT applicability and scoped proof targets.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2153,13 +2154,13 @@
             "hsk-studio-harness"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Every Studio WP/MT MUST carry the applicable HBR rows (INT/SWARM/VIS/QUIET/MAN/STOP) in its acceptance matrix, resolved to PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause;",
+          "consumer_assertion": "Every Studio WP/MT MUST evaluate every active rule in the pinned HANDSHAKE_BUILD_RULES registry, currently PRIV, INT, SWARM, VIS, QUIET, MAN, STOP, COMPART and COMPONENT, with exact per-MT applicability and scoped proof targets.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-33679-KERNEL-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Every Studio WP/MT MUST carry the applicable HBR rows (INT/SWARM/VIS/QUIET/MAN/STOP) in its acceptance matrix, resolved to PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause; Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Every Studio WP/MT MUST evaluate every active rule in the pinned HANDSHAKE_BUILD_RULES registry, currently PRIV, INT, SWARM, VIS, QUIET, MAN, STOP, COMPART and COMPONENT, with exact per-MT applicability and scoped proof targets. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36215"
@@ -2196,7 +2197,7 @@
           "original_text": "Every Studio WP/MT MUST carry the applicable HBR rows (INT/SWARM/VIS/QUIET/MAN/STOP) in its acceptance matrix, resolved to PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause;",
           "original_row_sha256": "5f91fd115d3d7ccd3671385ff6489b7ecfaededdfb78d33a46d5d2311f0c2f78",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Every Studio WP/MT MUST carry the applicable HBR rows (INT/SWARM/VIS/QUIET/MAN/STOP) in its acceptance matrix, resolved to PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause;",
+          "semantic_fulfillment": "Every Studio WP/MT MUST evaluate every active rule in the pinned HANDSHAKE_BUILD_RULES registry, currently PRIV, INT, SWARM, VIS, QUIET, MAN, STOP, COMPART and COMPONENT, with exact per-MT applicability and scoped proof targets.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33679-ASSET-HARNESS"
@@ -2206,7 +2207,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-HARNESS",
               "scope": "Standalone asset desktop/headless development consumers with explicit selected providers; no unconditional all-domain facade, no separately shipped suite app.",
-              "required_behavior": "Every Studio WP/MT MUST carry the applicable HBR rows (INT/SWARM/VIS/QUIET/MAN/STOP) in its acceptance matrix, resolved to PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause;",
+              "required_behavior": "Every Studio WP/MT MUST evaluate every active rule in the pinned HANDSHAKE_BUILD_RULES registry, currently PRIV, INT, SWARM, VIS, QUIET, MAN, STOP, COMPART and COMPONENT, with exact per-MT applicability and scoped proof targets.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2215,13 +2216,13 @@
               "hsk-studio-harness"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Every Studio WP/MT MUST carry the applicable HBR rows (INT/SWARM/VIS/QUIET/MAN/STOP) in its acceptance matrix, resolved to PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause;",
+            "consumer_assertion": "Every Studio WP/MT MUST evaluate every active rule in the pinned HANDSHAKE_BUILD_RULES registry, currently PRIV, INT, SWARM, VIS, QUIET, MAN, STOP, COMPART and COMPONENT, with exact per-MT applicability and scoped proof targets.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-33679-KERNEL-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Every Studio WP/MT MUST carry the applicable HBR rows (INT/SWARM/VIS/QUIET/MAN/STOP) in its acceptance matrix, resolved to PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause; Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Every Studio WP/MT MUST evaluate every active rule in the pinned HANDSHAKE_BUILD_RULES registry, currently PRIV, INT, SWARM, VIS, QUIET, MAN, STOP, COMPART and COMPONENT, with exact per-MT applicability and scoped proof targets. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ],
@@ -2243,11 +2244,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "asset_local_test_host_only",
     "gpu": "none",
     "diagnostics": {
@@ -2287,5 +2288,40 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "Every Studio WP/MT MUST carry the applicable HBR rows (INT/SWARM/VIS/QUIET/MAN/STOP) in its acceptance matrix, resolved to PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause;",
+          "new": "Every Studio WP/MT MUST evaluate every active rule in the pinned HANDSHAKE_BUILD_RULES registry, currently PRIV, INT, SWARM, VIS, QUIET, MAN, STOP, COMPART and COMPONENT, with exact per-MT applicability and scoped proof targets."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "HBR MATRIX. Every Studio WP/MT MUST carry the applicable HBR rows (INT/SWARM/VIS/QUIET/MAN/STOP) in its acceptance matrix, resolved to PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause; PASS cl [...]",
+      "propagated_paths": [
+        "/identity/title",
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/expected",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

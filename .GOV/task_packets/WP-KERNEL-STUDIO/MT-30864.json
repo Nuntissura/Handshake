@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.6.11 Constraint Vocabulary and Cross-Cutting Obligations",
-    "spec_line": 7511,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 7599,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,13 +34,13 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "layout",
   "scope": {
-    "summary": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the `studio-engine` crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier. `handshake_core` MUST NOT gain `wgpu`, WGSL or any GPU dependency for this domain ([STU-ARC-002]). Composition MUST be deterministic: identical inputs (story content, styles, frame geometry, grid state, conditional-text visibility, `real_precision` per [STU-LAY-116]) MUST produce byte-identical line breaks, page breaks and geometry on every host. Determinism here is a promotion-equivalence requirement: a model-authored reflow and an operator-authored reflow must agree exactly, or the `PromotionGate` cannot compare them.",
+    "summary": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the the owning modular Studio asset crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier. `handshake_core` MUST NOT gain `wgpu`, WGSL or any GPU dependency for this domain ([STU-ARC-002]). Composition MUST be deterministic: identical inputs (story content, styles, frame geometry, grid state, conditional-text visibility, `real_precision` per [STU-LAY-116]) MUST produce byte-identical line breaks, page breaks and geometry on every host. Determinism here is a promotion-equivalence requirement: a model-authored reflow and an operator-authored reflow must agree exactly, or the `PromotionGate` cannot compare them.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the `studio-engine` crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier.",
+      "criterion": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the the owning modular Studio asset crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-LAY-167"
     },
@@ -1626,7 +1627,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the `studio-engine` crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier.",
+        "text": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the the owning modular Studio asset crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier.",
         "fulfillment_ref": "MT-30864#/fulfillment/legacy_acceptance_map/0"
       },
       {
@@ -1833,8 +1834,8 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-layout --no-default-features --test layout_engine_host_equivalence layout_engine_host_equivalence -- --exact --nocapture. Public consumer: Actual public consumer runs each six operation classes with identical stories/styles/frames/grids/visibility/precision on independently supported host environments and model/operator command paths; compare byte-identical breaks and geometry. Vary one declared input to prove dependency reaches output. Selected locked dependency closure confirms contract crates/kernel contain no GPU/platform shaping/provider runtime dependency. Failure/cancel/stale/loss: Unsupported provider/platform shaping, invalid precision, unbound serialization/rounding/host fixture law rejects or blocks exact proof before result publication. Cancel/stale canonical input/provider revision discards output; provider loss cannot silently switch to platform engine or approximate deterministic equality. Independent oracle: Independent cross-host artifact byte compare and canonical normalized input reconciliation verify promotion equivalence. Locked dependency graph/source import readback verifies native TextEngine/independent ports and absence of kernel GPU coupling; no source-run proof replaces separate host adoption. Original claim: Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the `studio-engine` crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier.; no target/run claimed.",
-        "expected": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the `studio-engine` crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier.",
+        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-layout --no-default-features --test layout_engine_host_equivalence layout_engine_host_equivalence -- --exact --nocapture. Public consumer: Actual public consumer runs each six operation classes with identical stories/styles/frames/grids/visibility/precision on independently supported host environments and model/operator command paths; compare byte-identical breaks and geometry. Vary one declared input to prove dependency reaches output. Selected locked dependency closure confirms contract crates/kernel contain no GPU/platform shaping/provider runtime dependency. Failure/cancel/stale/loss: Unsupported provider/platform shaping, invalid precision, unbound serialization/rounding/host fixture law rejects or blocks exact proof before result publication. Cancel/stale canonical input/provider revision discards output; provider loss cannot silently switch to platform engine or approximate deterministic equality. Independent oracle: Independent cross-host artifact byte compare and canonical normalized input reconciliation verify promotion equivalence. Locked dependency graph/source import readback verifies native TextEngine/independent ports and absence of kernel GPU coupling; no source-run proof replaces separate host adoption. Original claim: Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the the owning modular Studio asset crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier.; no target/run claimed.",
+        "expected": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the the owning modular Studio asset crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier.",
         "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2299,7 +2300,7 @@
         "original_text": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the `studio-engine` crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier.",
         "original_row_sha256": "d330d91b24bdf83c7ffd8ce008860397317064cbda103273c8777630fa7d9f14",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the `studio-engine` crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier.",
+        "semantic_fulfillment": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the the owning modular Studio asset crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier.",
         "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
         "asset_contribution_refs": [
           "MT-30864-ASSET-LAYOUT"
@@ -2309,7 +2310,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-LAYOUT",
             "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
-            "required_behavior": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the `studio-engine` crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier.",
+            "required_behavior": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the the owning modular Studio asset crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2328,7 +2329,7 @@
         },
         "later_embedding_ref": "MT-30864-KERNEL-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the `studio-engine` crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the the owning modular Studio asset crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "later_embedding_refs": [
           "./MT-36197.json"
@@ -2461,7 +2462,7 @@
           "original_text": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the `studio-engine` crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier.",
           "original_row_sha256": "d330d91b24bdf83c7ffd8ce008860397317064cbda103273c8777630fa7d9f14",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the `studio-engine` crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier.",
+          "semantic_fulfillment": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the the owning modular Studio asset crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier.",
           "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
           "asset_contribution_refs": [
             "MT-30864-ASSET-LAYOUT"
@@ -2471,7 +2472,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-LAYOUT",
               "scope": "Publication/page/threaded-frame composition, overset/preflight, tables and multilingual paragraph algorithms.",
-              "required_behavior": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the `studio-engine` crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier.",
+              "required_behavior": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the the owning modular Studio asset crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2490,7 +2491,7 @@
           },
           "later_embedding_ref": "MT-30864-KERNEL-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the `studio-engine` crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the the owning modular Studio asset crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "later_embedding_refs": [
             "./MT-36197.json"
@@ -2592,11 +2593,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T00:00:00Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2626,5 +2627,38 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the `studio-engine` crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier.",
+          "new": "Engine boundary and determinism.** Layout composition, reflow, threading, table composition, imposition and flattening MUST live behind the `LayoutEngine` trait in the the owning modular Studio asset crate, and text shaping behind `TextEngine` per [STU-TYP-008], which requires a native Rust shaping stack of the cosmic-text / rustybuzz / swash class and FORBIDS a platform text engine even where one would be easier."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Engine boundary and determinism (2)",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/command_or_method",
+        "/proof/checks[0]/expected",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

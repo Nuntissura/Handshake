@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "3. Document PDF export",
-    "spec_line": 20980,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 21276,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,13 +34,13 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "interop",
   "scope": {
-    "summary": "Standards-compliance settings.** A PDF preset declares `standard_check_1a` (boolean), `standard_check_3` (boolean), `standard_compliant_only` (boolean) and `output_intent_profile` (string, may be empty). In the shipped spread, 2 of 13 presets set the 1a check, 3 set the 3 check, and 7 set compliant-only; four distinct output-intent profiles appear plus the empty value. A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error.",
+    "summary": "Standards-compliance settings.** A PDF preset declares `standard_check_1a` (boolean), `standard_check_3` (boolean), `standard_compliant_only` (boolean) and `output_intent_profile` (string, may be empty). In the shipped spread, 2 of 13 presets set the 1a check, 3 set the 3 check, and 7 set compliant-only; four distinct output-intent profiles appear plus the empty value. A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error. v02.226 (SD-20): asserting a standard means `standard_check_1a` or `standard_check_3`; `standard_compliant_only` alone with an empty `output_intent_profile` validates. v02.226 (SD-19, SD-23): a preset combining `standard_compliant_only` with `standard_check_1a`, `standard_check_3` or the `compliance_check` setting is refused with typed `standard_compliance_not_provable` until a compliance checker exists. DECLARED GAP (v02.226, SD-18): no output-intent profile was captured for the stock PDF/X-1a, PDF/X-3 and PDF/X-4 presets of [STU-LAY-159]; until captured those presets refuse export with typed `stock_output_intent_not_captured`.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error.",
+      "criterion": "A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error. v02.226 (SD-20): asserting a standard means `standard_check_1a` or `standard_check_3`;",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-IO-130"
     }
@@ -150,7 +151,7 @@
       {
         "id": "STU-IO-130",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:21022",
-        "verbatim": "**[STU-IO-130] Standards-compliance settings.** A PDF preset declares `standard_check_1a` (boolean), `standard_check_3` (boolean), `standard_compliant_only` (boolean) and `output_intent_profile` (string, may be empty). In the shipped spread, 2 of 13 presets set the 1a check, 3 set the 3 check, and 7 set compliant-only; four distinct output-intent profiles appear plus the empty value. A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error.",
+        "verbatim": "**[STU-IO-130] Standards-compliance settings.** A PDF preset declares `standard_check_1a` (boolean), `standard_check_3` (boolean), `standard_compliant_only` (boolean) and `output_intent_profile` (string, may be empty). In the shipped spread, 2 of 13 presets set the 1a check, 3 set the 3 check, and 7 set compliant-only; four distinct output-intent profiles appear plus the empty value. A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error. v02.226 (SD-20): asserting a standard means `standard_check_1a` or `standard_check_3`; `standard_compliant_only` alone with an empty `output_intent_profile` validates. v02.226 (SD-19, SD-23): a preset combining `standard_compliant_only` with `standard_check_1a`, `standard_check_3` or the `compliance_check` setting is refused with typed `standard_compliance_not_provable` until a compliance checker exists. DECLARED GAP (v02.226, SD-18): no output-intent profile was captured for the stock PDF/X-1a, PDF/X-3 and PDF/X-4 presets of [STU-LAY-159]; until captured those presets refuse export with typed `stock_output_intent_not_captured`. v02.226 (SD-20): asserting a standard means `standard_check_1a` or `standard_check_3`;",
         "heading": "### 3. Document PDF export",
         "section": "14.13",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -1574,7 +1575,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error.",
+        "text": "A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error. v02.226 (SD-20): asserting a standard means `standard_check_1a` or `standard_check_3`;",
         "fulfillment_ref": "MT-33392#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -2075,7 +2076,7 @@
             "line": 21022,
             "section": "14.13",
             "heading": "### 3. Document PDF export",
-            "verbatim": "**[STU-IO-130] Standards-compliance settings.** A PDF preset declares `standard_check_1a` (boolean), `standard_check_3` (boolean), `standard_compliant_only` (boolean) and `output_intent_profile` (string, may be empty). In the shipped spread, 2 of 13 presets set the 1a check, 3 set the 3 check, and 7 set compliant-only; four distinct output-intent profiles appear plus the empty value. A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error.",
+            "verbatim": "**[STU-IO-130] Standards-compliance settings.** A PDF preset declares `standard_check_1a` (boolean), `standard_check_3` (boolean), `standard_compliant_only` (boolean) and `output_intent_profile` (string, may be empty). In the shipped spread, 2 of 13 presets set the 1a check, 3 set the 3 check, and 7 set compliant-only; four distinct output-intent profiles appear plus the empty value. A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error. v02.226 (SD-20): asserting a standard means `standard_check_1a` or `standard_check_3`; `standard_compliant_only` alone with an empty `output_intent_profile` validates. v02.226 (SD-19, SD-23): a preset combining `standard_compliant_only` with `standard_check_1a`, `standard_check_3` or the `compliance_check` setting is refused with typed `standard_compliance_not_provable` until a compliance checker exists. DECLARED GAP (v02.226, SD-18): no output-intent profile was captured for the stock PDF/X-1a, PDF/X-3 and PDF/X-4 presets of [STU-LAY-159]; until captured those presets refuse export with typed `stock_output_intent_not_captured`. v02.226 (SD-20): asserting a standard means `standard_check_1a` or `standard_check_3`;",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2145,7 +2146,7 @@
         "original_text": "A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error.",
         "original_row_sha256": "e1c01f52ca5f2eaf2184acef94a2a836ce62a1b8106ade4266519e47d37ff64b",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error.",
+        "semantic_fulfillment": "A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error. v02.226 (SD-20): asserting a standard means `standard_check_1a` or `standard_check_3`;",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33392"
@@ -2155,7 +2156,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-PRESS",
             "scope": "Bounded PDF object editing, projection proposals, forms/annotations/signature states, prepress/accessibility/redaction/full-save. PDF bytes are provider transport, never separate live document authority.",
-            "required_behavior": "A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error.",
+            "required_behavior": "A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error. v02.226 (SD-20): asserting a standard means `standard_check_1a` or `standard_check_3`;",
             "only_owner_root_may_change": true
           }
         ],
@@ -2170,7 +2171,7 @@
         },
         "later_embedding_ref": "MT-36217#/source_acceptance_coverage",
         "later_embedding_required": true,
-        "later_embedding_assertion": "A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error. v02.226 (SD-20): asserting a standard means `standard_check_1a` or `standard_check_3`; Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "later_embedding_refs": [
           "MT-36217#/source_acceptance_coverage"
@@ -2207,7 +2208,7 @@
           "original_text": "A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error.",
           "original_row_sha256": "e1c01f52ca5f2eaf2184acef94a2a836ce62a1b8106ade4266519e47d37ff64b",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error.",
+          "semantic_fulfillment": "A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error. v02.226 (SD-20): asserting a standard means `standard_check_1a` or `standard_check_3`;",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33392"
@@ -2217,7 +2218,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-PRESS",
               "scope": "Bounded PDF object editing, projection proposals, forms/annotations/signature states, prepress/accessibility/redaction/full-save. PDF bytes are provider transport, never separate live document authority.",
-              "required_behavior": "A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error.",
+              "required_behavior": "A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error. v02.226 (SD-20): asserting a standard means `standard_check_1a` or `standard_check_3`;",
               "only_owner_root_may_change": true
             }
           ],
@@ -2232,7 +2233,7 @@
           },
           "later_embedding_ref": "MT-36217#/source_acceptance_coverage",
           "later_embedding_required": true,
-          "later_embedding_assertion": "A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error. v02.226 (SD-20): asserting a standard means `standard_check_1a` or `standard_check_3`; Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "later_embedding_refs": [
             "MT-36217#/source_acceptance_coverage"
@@ -2249,7 +2250,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T23:50:54.152Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "rule_refs": [
     "CX-SPEC-TRUTH-001",
     "CX-TPL-001",
@@ -2292,7 +2293,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2322,5 +2323,38 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error.",
+          "new": "A preset asserting a standard MUST declare its output-intent profile; asserting compliance with no intent profile is a validation error. v02.226 (SD-20): asserting a standard means `standard_check_1a` or `standard_check_3`;"
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Standards-compliance settings",
+      "propagated_paths": [
+        "/context_capsule/specification_anchor_refs[0]/verbatim",
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/fulfillment/asset_slices[0]/scope_basis[0]/verbatim",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

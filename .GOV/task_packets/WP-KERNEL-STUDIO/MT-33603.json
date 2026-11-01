@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "4. Declared gaps and obligations",
-    "spec_line": 22063,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 22365,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,18 +27,25 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "DECLARED GAP — shape-type vocabulary is Studio-declared",
+  "clause": "Resolved shape-vocabulary dependency with preserved native scope",
   "spec_anchor": [
     "STU-WB-129"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "whiteboard",
   "scope": {
-    "summary": "DECLARED GAP — shape-type vocabulary is Studio-declared.** [STU-WB-105]'s diagram shape set was not recovered as an explicit enumeration from any capture. Studio declares its own set and labels it `studio_declared`. An implementer must not treat it as source-derived, and a later capture may extend it.",
+    "summary": "Resolved shape-vocabulary dependency with preserved native scope.** The original capture's explicit union was unavailable. The inspected official Plugin API 1.141.0 declaration at commit `07157d96c58add71d234b13bfd55b53abdce76b8` supplies the thirty-token `shapeType` union recorded in [STU-WB-105]; this is later pinned evidence, not a reconstruction of the original capture bytes. All twelve previously required native shapes remain a separate `studio_declared` vocabulary. The gap MT remains in the yields index and MUST bind both complete vocabularies, their provenance and the no-alias/no-loss rule before shape-authoring activation. Native authoring and imported source compatibility have separate affected proof; neither the declaration nor this resolution proves runtime fidelity.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [],
-  "acceptance_criteria_count": 0,
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "The gap MT remains in the yields index and MUST bind both complete vocabularies, their provenance and the no-alias/no-loss rule before shape-authoring activation.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-WB-129"
+    }
+  ],
+  "acceptance_criteria_count": 1,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -127,7 +135,7 @@
   "identity": {
     "mt_id": "MT-33603",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "DECLARED GAP — shape-type vocabulary is Studio-declared",
+    "title": "Resolved shape-vocabulary dependency with preserved native scope",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 4
@@ -1576,13 +1584,18 @@
       "STU-WB-129"
     ],
     "acceptance_refs": [
-      "ASSET-AC-001"
+      "ASSET-AC-001",
+      "AC-001"
     ],
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
         "text": "First acceptance binds the inspected later Plugin API 1.141.0 thirty-token union at07157d96c58add71d234b13bfd55b53abdce76b8 AND all twelve studio_declared native shapes, their distinct provenance and no-alias/no-loss rules before dependent shape authoring. This is not original capture recovery or runtime fidelity proof. **[STU-WB-129] Resolved shape-vocabulary dependency with preserved native scope.** The original capture's explicit union was unavailable. The inspected official Plugin API 1.141.0 declaration at commit `07157d96c58add71d234b13bfd55b53abdce76b8` supplies the thirty-token `shapeType` union recorded in [STU-WB-105]; this is later pinned evidence, not a reconstruction of the original capture bytes. All twelve previously required native shapes remain a separate `studio_declared` vocabulary. The gap MT remains in the yields index and MUST bind both complete vocabularies, their provenance and the no-alias/no-loss rule before shape-authoring activation. Native authoring and imported source compatibility have separate affected proof; neither the declaration nor this resolution proves runtime fidelity.",
         "fulfillment_ref": "MT-33603#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-001",
+        "text": "The gap MT remains in the yields index and MUST bind both complete vocabularies, their provenance and the no-alias/no-loss rule before shape-authoring activation."
       }
     ],
     "spec_basis_refs": [
@@ -1825,6 +1838,22 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-33603-SPEC-AC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-001",
+          "STU-WB-129"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The gap MT remains in the yields index and MUST bind both complete vocabularies, their provenance and the no-alias/no-loss rule before shape-authoring activation.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2140,7 +2169,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "DECLARED GAP — shape-type vocabulary is Studio-declared.** [STU-WB-105]'s diagram shape set was not recovered as an explicit enumeration from any capture. Studio declares its own set and labels it `studio_declared`. An implementer must not treat it as source-derived, and a later capture may extend it.",
+        "semantic_fulfillment": "Resolved shape-vocabulary dependency with preserved native scope.** The original capture's explicit union was unavailable. The inspected official Plugin API 1.141.0 declaration at commit `07157d96c58add71d234b13bfd55b53abdce76b8` supplies the thirty-token `shapeType` union recorded in [STU-WB-105]; this is later pinned evidence, not a reconstruction of the original capture bytes. All twelve previously required native shapes remain a separate `studio_declared` vocabulary. The gap MT remains in the yields index and MUST bind both complete vocabularies, their provenance and the no-alias/no-loss rule before shape-authoring activation. Native authoring and imported source compatibility have separate affected proof; neither the declaration nor this resolution proves runtime fidelity.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33603-ASSET-NIB"
@@ -2150,7 +2179,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-NIB",
             "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
-            "required_behavior": "DECLARED GAP — shape-type vocabulary is Studio-declared.** [STU-WB-105]'s diagram shape set was not recovered as an explicit enumeration from any capture. Studio declares its own set and labels it `studio_declared`. An implementer must not treat it as source-derived, and a later capture may extend it.",
+            "required_behavior": "Resolved shape-vocabulary dependency with preserved native scope.** The original capture's explicit union was unavailable. The inspected official Plugin API 1.141.0 declaration at commit `07157d96c58add71d234b13bfd55b53abdce76b8` supplies the thirty-token `shapeType` union recorded in [STU-WB-105]; this is later pinned evidence, not a reconstruction of the original capture bytes. All twelve previously required native shapes remain a separate `studio_declared` vocabulary. The gap MT remains in the yields index and MUST bind both complete vocabularies, their provenance and the no-alias/no-loss rule before shape-authoring activation. Native authoring and imported source compatibility have separate affected proof; neither the declaration nor this resolution proves runtime fidelity.",
             "only_owner_root_may_change": true,
             "spec209_requirement": "First acceptance binds the inspected later Plugin API 1.141.0 thirty-token union at07157d96c58add71d234b13bfd55b53abdce76b8 AND all twelve studio_declared native shapes, their distinct provenance and no-alias/no-loss rules before dependent shape authoring. This is not original capture recovery or runtime fidelity proof."
           }
@@ -2166,7 +2195,7 @@
         },
         "later_embedding_ref": "MT-36195#/scope",
         "later_embedding_required": true,
-        "later_embedding_assertion": "DECLARED GAP — shape-type vocabulary is Studio-declared.** [STU-WB-105]'s diagram shape set was not recovered as an explicit enumeration from any capture. Studio declares its own set and labels it `studio_declared`. An implementer must not treat it as source-derived, and a later capture may extend it. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Resolved shape-vocabulary dependency with preserved native scope.** The original capture's explicit union was unavailable. The inspected official Plugin API 1.141.0 declaration at commit `07157d96c58add71d234b13bfd55b53abdce76b8` supplies the thirty-token `shapeType` union recorded in [STU-WB-105]; this is later pinned evidence, not a reconstruction of the original capture bytes. All twelve previously required native shapes remain a separate `studio_declared` vocabulary. The gap MT remains in the yields index and MUST bind both complete vocabularies, their provenance and the no-alias/no-loss rule before shape-authoring activation. Native authoring and imported source compatibility have separate affected proof; neither the declaration nor this resolution proves runtime fidelity. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36195"
@@ -2195,7 +2224,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "DECLARED GAP — shape-type vocabulary is Studio-declared.** [STU-WB-105]'s diagram shape set was not recovered as an explicit enumeration from any capture. Studio declares its own set and labels it `studio_declared`. An implementer must not treat it as source-derived, and a later capture may extend it.",
+          "semantic_fulfillment": "Resolved shape-vocabulary dependency with preserved native scope.** The original capture's explicit union was unavailable. The inspected official Plugin API 1.141.0 declaration at commit `07157d96c58add71d234b13bfd55b53abdce76b8` supplies the thirty-token `shapeType` union recorded in [STU-WB-105]; this is later pinned evidence, not a reconstruction of the original capture bytes. All twelve previously required native shapes remain a separate `studio_declared` vocabulary. The gap MT remains in the yields index and MUST bind both complete vocabularies, their provenance and the no-alias/no-loss rule before shape-authoring activation. Native authoring and imported source compatibility have separate affected proof; neither the declaration nor this resolution proves runtime fidelity.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33603-ASSET-NIB"
@@ -2205,7 +2234,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-NIB",
               "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
-              "required_behavior": "DECLARED GAP — shape-type vocabulary is Studio-declared.** [STU-WB-105]'s diagram shape set was not recovered as an explicit enumeration from any capture. Studio declares its own set and labels it `studio_declared`. An implementer must not treat it as source-derived, and a later capture may extend it.",
+              "required_behavior": "Resolved shape-vocabulary dependency with preserved native scope.** The original capture's explicit union was unavailable. The inspected official Plugin API 1.141.0 declaration at commit `07157d96c58add71d234b13bfd55b53abdce76b8` supplies the thirty-token `shapeType` union recorded in [STU-WB-105]; this is later pinned evidence, not a reconstruction of the original capture bytes. All twelve previously required native shapes remain a separate `studio_declared` vocabulary. The gap MT remains in the yields index and MUST bind both complete vocabularies, their provenance and the no-alias/no-loss rule before shape-authoring activation. Native authoring and imported source compatibility have separate affected proof; neither the declaration nor this resolution proves runtime fidelity.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2214,13 +2243,13 @@
               "hsk-studio-nib"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "DECLARED GAP — shape-type vocabulary is Studio-declared.** [STU-WB-105]'s diagram shape set was not recovered as an explicit enumeration from any capture. Studio declares its own set and labels it `studio_declared`. An implementer must not treat it as source-derived, and a later capture may extend it.",
+            "consumer_assertion": "Resolved shape-vocabulary dependency with preserved native scope.** The original capture's explicit union was unavailable. The inspected official Plugin API 1.141.0 declaration at commit `07157d96c58add71d234b13bfd55b53abdce76b8` supplies the thirty-token `shapeType` union recorded in [STU-WB-105]; this is later pinned evidence, not a reconstruction of the original capture bytes. All twelve previously required native shapes remain a separate `studio_declared` vocabulary. The gap MT remains in the yields index and MUST bind both complete vocabularies, their provenance and the no-alias/no-loss rule before shape-authoring activation. Native authoring and imported source compatibility have separate affected proof; neither the declaration nor this resolution proves runtime fidelity.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
           "later_embedding_required": true,
-          "later_embedding_assertion": "DECLARED GAP — shape-type vocabulary is Studio-declared.** [STU-WB-105]'s diagram shape set was not recovered as an explicit enumeration from any capture. Studio declares its own set and labels it `studio_declared`. An implementer must not treat it as source-derived, and a later capture may extend it. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Resolved shape-vocabulary dependency with preserved native scope.** The original capture's explicit union was unavailable. The inspected official Plugin API 1.141.0 declaration at commit `07157d96c58add71d234b13bfd55b53abdce76b8` supplies the thirty-token `shapeType` union recorded in [STU-WB-105]; this is later pinned evidence, not a reconstruction of the original capture bytes. All twelve previously required native shapes remain a separate `studio_declared` vocabulary. The gap MT remains in the yields index and MUST bind both complete vocabularies, their provenance and the no-alias/no-loss rule before shape-authoring activation. Native authoring and imported source compatibility have separate affected proof; neither the declaration nor this resolution proves runtime fidelity. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "MT-36195"
@@ -2355,7 +2384,7 @@
       }
     }
   },
-  "updated_at_utc": "2026-10-10T05:47:17+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
@@ -2405,7 +2434,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2435,5 +2464,39 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": null,
+          "new": "The gap MT remains in the yields index and MUST bind both complete vocabularies, their provenance and the no-alias/no-loss rule before shape-authoring activation."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-001"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "DECLARED GAP — shape-type vocabulary is Studio-declared",
+      "propagated_paths": [
+        "/identity/title",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

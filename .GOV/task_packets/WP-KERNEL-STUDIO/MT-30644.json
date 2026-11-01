@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.5.14 Cross-Cutting Obligations",
-    "spec_line": 5030,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 5114,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,13 +34,13 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "vector",
   "scope": {
-    "summary": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the `studio-engine` crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host. `handshake_core` MUST NOT gain `wgpu`, WGSL or any GPU dependency for this domain ([STU-ARC-002]); GPU acceleration of these operations is permitted only inside `studio-engine` and only where it preserves byte-identical results, otherwise the CPU path is authoritative. Determinism is a promotion-equivalence requirement, not a performance preference: a model-authored edit and an operator-authored edit must agree exactly for the `PromotionGate` to be meaningful.",
+    "summary": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the the owning modular Studio asset crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host. `handshake_core` MUST NOT gain `wgpu`, WGSL or any GPU dependency for this domain ([STU-ARC-002]); GPU acceleration of these operations is permitted only inside the owning modular Studio asset crate and only where it preserves byte-identical results, otherwise the CPU path is authoritative. Determinism is a promotion-equivalence requirement, not a performance preference: a model-authored edit and an operator-authored edit must agree exactly for the `PromotionGate` to be meaningful.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the `studio-engine` crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host.",
+      "criterion": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the the owning modular Studio asset crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-VEC-179"
     },
@@ -1565,7 +1566,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the `studio-engine` crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host.",
+        "text": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the the owning modular Studio asset crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host.",
         "fulfillment_ref": "MT-30644#/fulfillment/legacy_acceptance_map/0"
       },
       {
@@ -1772,7 +1773,7 @@
           "AC-001"
         ],
         "command_or_method": "PLANNED only: cargo test --locked -p hsk-studio-nib --no-default-features --test vector_engine_determinism vector_engine_determinism -- --exact --nocapture; select the bound AC observation in this consumer target. Independentfamilyfixtures exerciseallninefamilieswithsameboundprecision/resolution; repeatonactualtwohosts givesexactbytehashandsemanticgeometryoracle. CPUvsGPUactualoutputcomparison selectsGPUonlyifidentical; operator/modelcommands sameinputs samebytes. Dependencyclosureinspection excludescoreGPU, inverse/sourceexact. Missingnumericlaw/precision/resolution,backendbyte mismatch,unsupportedprovider orstalesource rejectsGPUcandidate/operationwithoutauthoritychange; canceldropspartialoutput. Typedinteroploss beforeconversion; noepsiloncomparison orsinglehosthash asallhostproof. Independent oracle: Independentanalytic/literalgeometryfamilyfixtures plusactualsecond-host/CPU-GPU canonicalbyte reread required; dependencyclosure/toolchain/inputmanifest boundtoexactresult, source/inverse independentlyinspected. Host-only retained acceptance remains MT-36195 proof.",
-        "expected": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the `studio-engine` crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host.",
+        "expected": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the the owning modular Studio asset crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2191,7 +2192,7 @@
         "original_text": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the `studio-engine` crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host.",
         "original_row_sha256": "bc34b9b6dc74172a1b6da78d53483366b6d0ba1ea6a003294eab890e0e769ee1",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the `studio-engine` crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host.",
+        "semantic_fulfillment": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the the owning modular Studio asset crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host.",
         "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
         "asset_contribution_refs": [
           "MT-30644-ASSET-NIB"
@@ -2201,7 +2202,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-NIB",
             "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
-            "required_behavior": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the `studio-engine` crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host.",
+            "required_behavior": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the the owning modular Studio asset crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2210,13 +2211,13 @@
             "hsk-studio-nib"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the `studio-engine` crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host.",
+          "consumer_assertion": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the the owning modular Studio asset crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-36195#/scope",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the `studio-engine` crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the the owning modular Studio asset crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36195"
@@ -2297,7 +2298,7 @@
           "original_text": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the `studio-engine` crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host.",
           "original_row_sha256": "bc34b9b6dc74172a1b6da78d53483366b6d0ba1ea6a003294eab890e0e769ee1",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the `studio-engine` crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host.",
+          "semantic_fulfillment": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the the owning modular Studio asset crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host.",
           "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
           "asset_contribution_refs": [
             "MT-30644-ASSET-NIB"
@@ -2307,7 +2308,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-NIB",
               "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
-              "required_behavior": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the `studio-engine` crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host.",
+              "required_behavior": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the the owning modular Studio asset crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2316,13 +2317,13 @@
               "hsk-studio-nib"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the `studio-engine` crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host.",
+            "consumer_assertion": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the the owning modular Studio asset crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the `studio-engine` crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the the owning modular Studio asset crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "MT-36195"
@@ -2387,7 +2388,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T02:23:04.244Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "rule_refs": [
     "CX-SPEC-TRUTH-001",
     "CX-TPL-001",
@@ -2430,7 +2431,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2460,5 +2461,39 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the `studio-engine` crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host.",
+          "new": "Engine boundary and determinism.** All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting, brush instancing, envelope and warp evaluation, trace, mesh interpolation -- MUST live behind the `VectorEngine` trait in the the owning modular Studio asset crate and MUST be deterministic: identical inputs (geometry, z-order, parameter values, `precision` per [STU-VEC-131], and `raster_effect_resolution` per [STU-VEC-160]) MUST produce byte-identical outputs on every host."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Engine boundary and determinism",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/expected",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

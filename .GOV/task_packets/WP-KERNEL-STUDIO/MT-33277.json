@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "13. Interactive-Document Object Class",
-    "spec_line": 20572,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 20848,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -36,8 +37,63 @@
     "summary": "Interactive-document object class enumerated.** [STU-PRO-033], as redefined in this module, obliges Studio to support the interactive-document object class that a professional page-layout and publishing tool exposes, and names that class by capability rather than after the application that inspired it, per [STU-SECTION-003]. This clause enumerates that class so no implementer has to infer its membership. It is exactly the eight object kinds below; each is already obliged in detail by the sibling clause its row names, so this enumeration adds no object kind that [STU-PRO-033] did not already require and removes none that it did. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own, because every row's object kind is already obliged by the sibling clause named in that row and splitting the table would count each of them twice.* | Interactive object kind | Already obliged by | What the object carries | |---|---|---| | Hyperlink | [STU-PRO-041a] | URL, file, email, page-with-zoom, text-anchor and shared-destination targets, with configurable appearance and highlight, plus automatic URL detection | | Bookmark | [STU-PRO-041a] | a nested, sortable navigation entry emitted into PDF output | | Generated code graphic | [STU-PRO-041a] | a QR code over web, text, SMS, email or business-card payloads, editable after gen [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [],
-  "acceptance_criteria_count": 0,
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "Their applicability to the pinned version remains UNVERIFIED until the affected source/runtime fixture resolves it; consuming MTs MUST retain that provenance distinction before a version-specific fidelity claim.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-PRO-166"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The contract table holds the row `Hyperlink` with the exact meaning the spec states: [STU-PRO-041a] | URL, file, email, page-with-zoom, text-anchor and shared-destination targets, with configurable appearance and highlight, plus automatic URL detection. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-PRO-166 carried contract table row 1"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `Bookmark` with the exact meaning the spec states: [STU-PRO-041a] | a nested, sortable navigation entry emitted into PDF output. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-PRO-166 carried contract table row 2"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `Generated code graphic` with the exact meaning the spec states: [STU-PRO-041a] | a QR code over web, text, SMS, email or business-card payloads, editable after generation. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-PRO-166 carried contract table row 3"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `Button` with the exact meaning the spec states: [STU-PRO-034], [STU-PRO-034d] | Normal, Rollover and Click appearance states, hidden-until-triggered behaviour, the event set of [STU-PRO-034a] through [STU-PRO-034c], and the action groups of [STU-PRO-035] through [STU-PRO-037]. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-PRO-166 carried contract table row 4"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `Form field` with the exact meaning the spec states: [STU-PRO-038], [STU-PRO-038a] | check box, combo box, list box, radio button, signature field and text field, each with the option set of [STU-PRO-038a] applied as its type allows. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-PRO-166 carried contract table row 5"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `Multi-state object` with the exact meaning the spec states: [STU-PRO-039] | ordered states that add, reorder and delete, paste-into-state, reset-all, and hidden-until-triggered, driven by the button state actions. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-PRO-166 carried contract table row 6"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `Object animation` with the exact meaning the spec states: [STU-PRO-040] through [STU-PRO-040c] | motion presets bound to event triggers, per-animation duration, play count, speed easing and animate-from/to properties, editable motion paths, and a timing surface. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-PRO-166 carried contract table row 7"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The contract table holds the row `Embedded media` with the exact meaning the spec states: [STU-PRO-041] | video with poster frame, controller skin, play-on-load, loop and navigation points; and audio; both targetable by the media actions and media triggers. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-PRO-166 carried contract table row 8"
+    }
+  ],
+  "acceptance_criteria_count": 9,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1546,13 +1602,58 @@
       "STU-PRO-166"
     ],
     "acceptance_refs": [
-      "ASSET-AC-001"
+      "ASSET-AC-001",
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009"
     ],
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
         "text": "Interactive-document object class enumerated.** [STU-PRO-033], as redefined in this module, obliges Studio to support the interactive-document object class that a professional page-layout and publishing tool exposes, and names that class by capability rather than after the application that inspired it, per [STU-SECTION-003]. This clause enumerates that class so no implementer has to infer its membership. It is exactly the eight object kinds below; each is already obliged in detail by the sibling clause its row names, so this enumeration adds no object kind that [STU-PRO-033] did not already require and removes none that it did. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own, because every row's object kind is already obliged by the sibling clause named in that row and splitting the table would count each of them twice.* | Interactive object kind | Already obliged by | What the object carries | |---|---|---| | Hyperlink | [STU-PRO-041a] | URL, file, email, page-with-zoom, text-anchor and shared-destination targets, with configurable appearance and highlight, plus automatic URL detection | | Bookmark | [STU-PRO-041a] | a nested, sortable navigation entry emitted into PDF output | | Generated code graphic | [STU-PRO-041a] | a QR code over web, text, SMS, email or business-card payloads, editable after gen [...] Current complete task scope: **[STU-PRO-166] Interactive-document object class enumerated.** [STU-PRO-033], as redefined in this module, obliges Studio to support the interactive-document object class that a professional page-layout and publishing tool exposes, and names that class by capability rather than after the application that inspired it, per [STU-SECTION-003]. This clause enumerates that class so no implementer has to infer its membership. It is exactly the eight object kinds below; each is already obliged in detail by the sibling clause its row names, so this enumeration adds no object kind that [STU-PRO-033] did not already require and removes none that it did.\n\n*Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own, because every row's object kind is already obliged by the sibling clause named in that row and splitting the table would count each of them twice.*\n\n| Interactive object kind | Already obliged by | What the object carries |\n|---|---|---|\n| Hyperlink | [STU-PRO-041a] | URL, file, email, page-with-zoom, text-anchor and shared-destination targets, with configurable appearance and highlight, plus automatic URL detection |\n| Bookmark | [STU-PRO-041a] | a nested, sortable navigation entry emitted into PDF output |\n| Generated code graphic | [STU-PRO-041a] | a QR code over web, text, SMS, email or business-card payloads, editable after generation |\n| Button | [STU-PRO-034], [STU-PRO-034d] | Normal, Rollover and Click appearance states, hidden-until-triggered behaviour, the event set of [STU-PRO-034a] through [STU-PRO-034c], and the action groups of [STU-PRO-035] through [STU-PRO-037] |\n| Form field | [STU-PRO-038], [STU-PRO-038a] | check box, combo box, list box, radio button, signature field and text field, each with the option set of [STU-PRO-038a] applied as its type allows |\n| Multi-state object | [STU-PRO-039] | ordered states that add, reorder and delete, paste-into-state, reset-all, and hidden-until-triggered, driven by the button state actions |\n| Object animation | [STU-PRO-040] through [STU-PRO-040c] | motion presets bound to event triggers, per-animation duration, play count, speed easing and animate-from/to properties, editable motion paths, and a timing surface |\n| Embedded media | [STU-PRO-041] | video with poster frame, controller skin, play-on-load, loop and navigation points; and audio; both targetable by the media actions and media triggers |\n\nTwo surfaces in this group are NOT members of the class and are not object kinds: the per-page tab order of [STU-PRO-034e], which sequences keyboard focus ACROSS these objects, and the interactivity preview of [STU-PRO-042a], which exercises them. Page transitions ([STU-PRO-042]) are a property of a spread rather than an object on a layer, and are obliged there. Cross-references, index topics, book files and generated tables of contents are long-document constructs owned by the page-layout domain (14.6); they are NOT obliged by [STU-PRO-033] and this clause does not add them.\n\nEvery object kind above is authored through the same selection, override and history surfaces as every other Studio primitive: an interactive object is a ROLE carried on a `StudioLayer`, never a separate document silo and never a parallel document model. No Studio object kind, panel, command, event, action or manual entry derived from this clause carries a source product's name; the product whose interactive-document surface is the provenance for this class is recorded in this module's provenance sidecar under this anchor.",
         "fulfillment_ref": "MT-33277#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-001",
+        "text": "Their applicability to the pinned version remains UNVERIFIED until the affected source/runtime fixture resolves it; consuming MTs MUST retain that provenance distinction before a version-specific fidelity claim."
+      },
+      {
+        "id": "AC-002",
+        "text": "The contract table holds the row `Hyperlink` with the exact meaning the spec states: [STU-PRO-041a] | URL, file, email, page-with-zoom, text-anchor and shared-destination targets, with configurable appearance and highlight, plus automatic URL detection. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `Bookmark` with the exact meaning the spec states: [STU-PRO-041a] | a nested, sortable navigation entry emitted into PDF output. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `Generated code graphic` with the exact meaning the spec states: [STU-PRO-041a] | a QR code over web, text, SMS, email or business-card payloads, editable after generation. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `Button` with the exact meaning the spec states: [STU-PRO-034], [STU-PRO-034d] | Normal, Rollover and Click appearance states, hidden-until-triggered behaviour, the event set of [STU-PRO-034a] through [STU-PRO-034c], and the action groups of [STU-PRO-035] through [STU-PRO-037]. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `Form field` with the exact meaning the spec states: [STU-PRO-038], [STU-PRO-038a] | check box, combo box, list box, radio button, signature field and text field, each with the option set of [STU-PRO-038a] applied as its type allows. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `Multi-state object` with the exact meaning the spec states: [STU-PRO-039] | ordered states that add, reorder and delete, paste-into-state, reset-all, and hidden-until-triggered, driven by the button state actions. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `Object animation` with the exact meaning the spec states: [STU-PRO-040] through [STU-PRO-040c] | motion presets bound to event triggers, per-animation duration, play count, speed easing and animate-from/to properties, editable motion paths, and a timing surface. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-009",
+        "text": "The contract table holds the row `Embedded media` with the exact meaning the spec states: [STU-PRO-041] | video with poster frame, controller skin, play-on-load, loop and navigation points; and audio; both targetable by the media actions and media triggers. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1963,6 +2064,150 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-33277-SPEC-AC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-001",
+          "STU-PRO-166"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Their applicability to the pinned version remains UNVERIFIED until the affected source/runtime fixture resolves it; consuming MTs MUST retain that provenance distinction before a version-specific fidelity claim.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33277-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-PRO-166"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Hyperlink` with the exact meaning the spec states: [STU-PRO-041a] | URL, file, email, page-with-zoom, text-anchor and shared-destination targets, with configurable appearance and highlight, plus automatic URL detection. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33277-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-PRO-166"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Bookmark` with the exact meaning the spec states: [STU-PRO-041a] | a nested, sortable navigation entry emitted into PDF output. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33277-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-PRO-166"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Generated code graphic` with the exact meaning the spec states: [STU-PRO-041a] | a QR code over web, text, SMS, email or business-card payloads, editable after generation. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33277-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-PRO-166"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Button` with the exact meaning the spec states: [STU-PRO-034], [STU-PRO-034d] | Normal, Rollover and Click appearance states, hidden-until-triggered behaviour, the event set of [STU-PRO-034a] through [STU-PRO-034c], and the action groups of [STU-PRO-035] through [STU-PRO-037]. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33277-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-PRO-166"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Form field` with the exact meaning the spec states: [STU-PRO-038], [STU-PRO-038a] | check box, combo box, list box, radio button, signature field and text field, each with the option set of [STU-PRO-038a] applied as its type allows. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33277-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-PRO-166"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Multi-state object` with the exact meaning the spec states: [STU-PRO-039] | ordered states that add, reorder and delete, paste-into-state, reset-all, and hidden-until-triggered, driven by the button state actions. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33277-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-PRO-166"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Object animation` with the exact meaning the spec states: [STU-PRO-040] through [STU-PRO-040c] | motion presets bound to event triggers, per-animation duration, play count, speed easing and animate-from/to properties, editable motion paths, and a timing surface. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33277-SPEC-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-PRO-166"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Embedded media` with the exact meaning the spec states: [STU-PRO-041] | video with poster frame, controller skin, play-on-load, loop and navigation points; and audio; both targetable by the media actions and media triggers. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2437,7 +2682,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T03:20:44.074Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
@@ -2448,7 +2693,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2492,5 +2737,78 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": null,
+          "new": "Their applicability to the pinned version remains UNVERIFIED until the affected source/runtime fixture resolves it; consuming MTs MUST retain that provenance distinction before a version-specific fidelity claim."
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The contract table holds the row `Hyperlink` with the exact meaning the spec states: [STU-PRO-041a] | URL, file, email, page-with-zoom, text-anchor and shared-destination targets, with configurable appearance and highlight, plus automatic URL detection. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `Bookmark` with the exact meaning the spec states: [STU-PRO-041a] | a nested, sortable navigation entry emitted into PDF output. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `Generated code graphic` with the exact meaning the spec states: [STU-PRO-041a] | a QR code over web, text, SMS, email or business-card payloads, editable after generation. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `Button` with the exact meaning the spec states: [STU-PRO-034], [STU-PRO-034d] | Normal, Rollover and Click appearance states, hidden-until-triggered behaviour, the event set of [STU-PRO-034a] through [STU-PRO-034c], and the action groups of [STU-PRO-035] through [STU-PRO-037]. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `Form field` with the exact meaning the spec states: [STU-PRO-038], [STU-PRO-038a] | check box, combo box, list box, radio button, signature field and text field, each with the option set of [STU-PRO-038a] applied as its type allows. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `Multi-state object` with the exact meaning the spec states: [STU-PRO-039] | ordered states that add, reorder and delete, paste-into-state, reset-all, and hidden-until-triggered, driven by the button state actions. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `Object animation` with the exact meaning the spec states: [STU-PRO-040] through [STU-PRO-040c] | motion presets bound to event triggers, per-animation duration, play count, speed easing and animate-from/to properties, editable motion paths, and a timing surface. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-009",
+          "old": null,
+          "new": "The contract table holds the row `Embedded media` with the exact meaning the spec states: [STU-PRO-041] | video with poster frame, controller skin, play-on-load, loop and navigation points; and audio; both targetable by the media actions and media triggers. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "Interactive-document object class enumerated",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

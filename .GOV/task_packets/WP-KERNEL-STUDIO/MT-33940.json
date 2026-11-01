@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "6. The authoring surface",
-    "spec_line": 27477,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 28009,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,14 +27,14 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "DECLARED DECISION -- the expression language itself",
+  "clause": "Expression language selected",
   "spec_anchor": [
     "STU-MOT-083"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "motion",
   "scope": {
-    "summary": "DECLARED DECISION -- the expression language itself.** This sub-section specifies the identifier surface, the argument signatures, the evaluation semantics, the sandbox, the error model and the property-state machine. It does NOT specify which language syntax Studio implements. The recovered surface is JavaScript-shaped (it includes `Date`, `Math`-family members, and String methods such as `substring`, `toUpperCase`, `replace`, `split` and `localeCompare`), which sets the compatibility target for IMPORT. Whether Studio's native expression language is a JavaScript subset, a Rust-embedded scripting language, or a purpose-built deterministic expression language is an architecture decision with real consequences for [STU-MOT-076] determinism and [STU-MOT-079] sandboxing, and it is recorded as open decision [STU-MOT-142] rather than assumed. --- ## 14.26.7 Text animators",
+    "summary": "Expression language selected.** Studio uses the versioned synchronous deterministic JavaScript compatibility profile in [STU-MOT-255] through [STU-MOT-259], retaining all 333 identifier capabilities and 37 recovered argument/default signatures as the target. This does not assert that every imported expression is executable today. Preserve unsupported source with precise diagnostics and disabled-by-error underlying-value fallback; activation requires semantic and budget proof. No second general scripting language or ambient app API is introduced. --- ## 14.26.7 Text animators",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [],
@@ -195,7 +196,7 @@
   "identity": {
     "mt_id": "MT-33940",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "DECLARED DECISION -- the expression language itself",
+    "title": "Expression language selected",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 3
@@ -1553,7 +1554,7 @@
         "trigger": "module_or_asset_is_created_or_materially_modified",
         "proof_status": "PENDING_NOT_RUN",
         "assessment": "APPLIES",
-        "reason": "DECLARED DECISION -- the expression language itself changes a standalone Motion capability; As a mandatory baseline for future Handshake-governed modules and reusable assets, give every module and reusable asset an accountable owner and independently selectable source, dependency, build, test and artifact closure in its existing manifest. Provide a standalone library, executable or asset harness with public contract proof, manual, model tools, inspection, diagnostics and recovery routes; no full host build is required for a module-only patch unless its declared dependency closure requires it.",
+        "reason": "Expression language selected changes a standalone Motion capability; As a mandatory baseline for future Handshake-governed modules and reusable assets, give every module and reusable asset an accountable owner and independently selectable source, dependency, build, test and artifact closure in its existing manifest. Provide a standalone library, executable or asset harness with public contract proof, manual, model tools, inspection, diagnostics and recovery routes; no full host build is required for a module-only patch unless its declared dependency closure requires it.",
         "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33940/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-001",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-001 | WP-KERNEL-STUDIO/MT-36223/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-001"
@@ -1565,7 +1566,7 @@
         "trigger": "module_or_asset_is_public_contract_or_resource_behavior_changes",
         "proof_status": "PENDING_NOT_RUN",
         "assessment": "APPLIES",
-        "reason": "DECLARED DECISION -- the expression language itself changes a standalone Motion capability; Declare errors, concurrency and queue bounds, admission, backpressure, overflow, cancellation, drain, shutdown and recovery through public contracts. Reusable GUI/control assets declare inputs, events, styling, accessibility and headless inspection contracts; compose them without copying private implementation.",
+        "reason": "Expression language selected changes a standalone Motion capability; Declare errors, concurrency and queue bounds, admission, backpressure, overflow, cancellation, drain, shutdown and recovery through public contracts. Reusable GUI/control assets declare inputs, events, styling, accessibility and headless inspection contracts; compose them without copying private implementation.",
         "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33940/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-002",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-002 | WP-KERNEL-STUDIO/MT-36223/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-002"
@@ -1577,7 +1578,7 @@
         "trigger": "module_or_asset_is_released_or_consumed",
         "proof_status": "PENDING_NOT_RUN",
         "assessment": "APPLIES",
-        "reason": "DECLARED DECISION -- the expression language itself changes a standalone Motion capability; Publish immutable versioned artifacts with canonical source revision, build inputs, toolchain and artifact digests, dependency closure, public API versioning, compatibility and deprecation policy. Consume exact pinned releases through existing bindings and lock; a version label alone never proves compatibility.",
+        "reason": "Expression language selected changes a standalone Motion capability; Publish immutable versioned artifacts with canonical source revision, build inputs, toolchain and artifact digests, dependency closure, public API versioning, compatibility and deprecation policy. Consume exact pinned releases through existing bindings and lock; a version label alone never proves compatibility.",
         "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33940/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-003",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-003 | WP-KERNEL-STUDIO/MT-36223/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-003"
@@ -1589,7 +1590,7 @@
         "trigger": "module_or_asset_is_embedded_in_a_host",
         "proof_status": "PENDING_NOT_RUN",
         "assessment": "APPLIES",
-        "reason": "DECLARED DECISION -- the expression language itself changes a standalone Motion capability; Use an exact versioned embedding adapter declaring host and module responsibilities, required/provided services, capability and authorization mapping, data ownership, lifecycle, scheduling and conformance proof. Keep host-specific storage, telemetry and UI policies in the host adaptation; infer no network service, deployment or available runtime from a template declaration.",
+        "reason": "Expression language selected changes a standalone Motion capability; Use an exact versioned embedding adapter declaring host and module responsibilities, required/provided services, capability and authorization mapping, data ownership, lifecycle, scheduling and conformance proof. Keep host-specific storage, telemetry and UI policies in the host adaptation; infer no network service, deployment or available runtime from a template declaration.",
         "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33940/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-004",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-004 | WP-KERNEL-STUDIO/MT-36223/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-004"
@@ -1601,7 +1602,7 @@
         "trigger": "module_or_asset_is_published_upgraded_or_moved",
         "proof_status": "PENDING_NOT_RUN",
         "assessment": "APPLIES",
-        "reason": "DECLARED DECISION -- the expression language itself changes a standalone Motion capability; Separate private state, credentials and machine-local configuration from publishable source/assets with an explicit publication allowlist and exclusion contract. Declare portable roots and state owners, upgrade prerequisites, migration versions and rollback reversibility, in-flight settlement and recovery boundary; prove standalone and affected host compatibility before integration.",
+        "reason": "Expression language selected changes a standalone Motion capability; Separate private state, credentials and machine-local configuration from publishable source/assets with an explicit publication allowlist and exclusion contract. Declare portable roots and state owners, upgrade prerequisites, migration versions and rollback reversibility, in-flight settlement and recovery boundary; prove standalone and affected host compatibility before integration.",
         "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33940/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-005",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-005 | WP-KERNEL-STUDIO/MT-36223/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-005"
@@ -1613,7 +1614,7 @@
         "trigger": "module_or_asset_is_published_or_mirrored",
         "proof_status": "PENDING_NOT_RUN",
         "assessment": "APPLIES",
-        "reason": "DECLARED DECISION -- the expression language itself changes a standalone Motion capability; Publish and mirror from one canonical source with provenance and base/source/target digests checked at planning and commit. Reject concurrent drift, preserve customized destinations and provide recoverable publication; do not silently overwrite edits or substitute an installed copy for its source owner.",
+        "reason": "Expression language selected changes a standalone Motion capability; Publish and mirror from one canonical source with provenance and base/source/target digests checked at planning and commit. Reject concurrent drift, preserve customized destinations and provide recoverable publication; do not silently overwrite edits or substitute an installed copy for its source owner.",
         "evidence_kind": "standalone_closure_and_affected_release_host_boundary_proof",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33940/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-006",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-006 | WP-KERNEL-STUDIO/MT-36223/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-006"
@@ -1625,7 +1626,7 @@
         "trigger": "module_or_asset_changes_or_host_adopts_a_revision",
         "proof_status": "PENDING_NOT_RUN",
         "assessment": "APPLIES",
-        "reason": "DECLARED DECISION -- the expression language itself changes a standalone Motion capability; Land every module or reusable asset change first in its declared canonical module GitHub repository through a standalone_source MT. Independently re-read the canonical remote revision and verify the source contract proof before a distinct host_adoption MT changes a host. The adoption MT consumes an explicit immutable source revision and artifact/dependency pins through existing bindings, declares the exact embedding adapter, and proves compatibility and integration. A local commit, copied source, test fixture or self-authored receipt never substitutes for canonical GitHub landing. Preserve host-specific law in the host adaptation; do not implement standalone module changes inside the host first.",
+        "reason": "Expression language selected changes a standalone Motion capability; Land every module or reusable asset change first in its declared canonical module GitHub repository through a standalone_source MT. Independently re-read the canonical remote revision and verify the source contract proof before a distinct host_adoption MT changes a host. The adoption MT consumes an explicit immutable source revision and artifact/dependency pins through existing bindings, declares the exact embedding adapter, and proves compatibility and integration. A local commit, copied source, test fixture or self-authored receipt never substitutes for canonical GitHub landing. Preserve host-specific law in the host adaptation; do not implement standalone module changes inside the host first.",
         "evidence_kind": "canonical_remote_revision_and_standalone_proof_then_pinned_host_compatibility_and_integration_proof",
         "asset_proof_destination": "WP-KERNEL-STUDIO/MT-33940/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-007",
         "embedding_proof_destination": "WP-KERNEL-STUDIO/MT-36203/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-007 | WP-KERNEL-STUDIO/MT-36223/{VERIFIED_OWNER_SLUG}/hbr/HBR-MODULE-LIFECYCLE-007"
@@ -1686,7 +1687,7 @@
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
-        "text": "DECLARED DECISION -- the expression language itself.** This sub-section specifies the identifier surface, the argument signatures, the evaluation semantics, the sandbox, the error model and the property-state machine. It does NOT specify which language syntax Studio implements. The recovered surface is JavaScript-shaped (it includes `Date`, `Math`-family members, and String methods such as `substring`, `toUpperCase`, `replace`, `split` and `localeCompare`), which sets the compatibility target for IMPORT. Whether Studio's native expression language is a JavaScript subset, a Rust-embedded scripting language, or a purpose-built deterministic expression language is an architecture decision with real consequences for [STU-MOT-076] determinism and [STU-MOT-079] sandboxing, and it is recorded as open decision [STU-MOT-142] rather than assumed. --- ## 14.26.7 Text animators",
+        "text": "Expression language selected.** Studio uses the versioned synchronous deterministic JavaScript compatibility profile in [STU-MOT-255] through [STU-MOT-259], retaining all 333 identifier capabilities and 37 recovered argument/default signatures as the target. This does not assert that every imported expression is executable today. Preserve unsupported source with precise diagnostics and disabled-by-error underlying-value fallback; activation requires semantic and budget proof. No second general scripting language or ambient app API is introduced. --- ## 14.26.7 Text animators",
         "fulfillment_ref": "MT-33940#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -1808,7 +1809,7 @@
     "shared_resource_locks": [],
     "inputs": [
       {
-        "task": "DECLARED DECISION -- the expression language itself",
+        "task": "Expression language selected",
         "source_ranges": [
           {
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
@@ -1979,10 +1980,10 @@
           "Independent actual output"
         ],
         "materialization_status": "PLANNED_TASK_METHOD_NOT_RUN",
-        "expected": "DECLARED DECISION -- the expression language itself.** This sub-section specifies the identifier surface, the argument signatures, the evaluation semantics, the sandbox, the error model and the property-state machine. It does NOT specify which language syntax Studio implements. The recovered surface is JavaScript-shaped (it includes `Date`, `Math`-family members, and String methods such as `substring`, `toUpperCase`, `replace`, `split` and `localeCompare`), which sets the compatibility target for IMPORT. Whether Studio's native expression language is a JavaScript subset, a Rust-embedded scripting language, or a purpose-built deterministic expression language is an architecture decision with real consequences for [STU-MOT-076] determinism and [STU-MOT-079] sandboxing, and it is recorded as open decision [STU-MOT-142] rather than assumed. --- ## 14.26.7 Text animators",
+        "expected": "Expression language selected.** Studio uses the versioned synchronous deterministic JavaScript compatibility profile in [STU-MOT-255] through [STU-MOT-259], retaining all 333 identifier capabilities and 37 recovered argument/default signatures as the target. This does not assert that every imported expression is executable today. Preserve unsupported source with precise diagnostics and disabled-by-error underlying-value fallback; activation requires semantic and budget proof. No second general scripting language or ambient app API is introduced. --- ## 14.26.7 Text animators",
         "method_recipe": {
           "planned_method_ref": "./MT-33940.json#/execution/implementation_steps",
-          "consumer_assertion": "DECLARED DECISION -- the expression language itself.** This sub-section specifies the identifier surface, the argument signatures, the evaluation semantics, the sandbox, the error model and the property-state machine. It does NOT specify which language syntax Studio implements. The recovered surface is JavaScript-shaped (it includes `Date`, `Math`-family members, and String methods such as `substring`, `toUpperCase`, `replace`, `split` and `localeCompare`), which sets the compatibility target for IMPORT. Whether Studio's native expression language is a JavaScript subset, a Rust-embedded scripting language, or a purpose-built deterministic expression language is an architecture decision with real consequences for [STU-MOT-076] determinism and [STU-MOT-079] sandboxing, and it is recorded as open decision [STU-MOT-142] rather than assumed. --- ## 14.26.7 Text animators",
+          "consumer_assertion": "Expression language selected.** Studio uses the versioned synchronous deterministic JavaScript compatibility profile in [STU-MOT-255] through [STU-MOT-259], retaining all 333 identifier capabilities and 37 recovered argument/default signatures as the target. This does not assert that every imported expression is executable today. Preserve unsupported source with precise diagnostics and disabled-by-error underlying-value fallback; activation requires semantic and budget proof. No second general scripting language or ambient app API is introduced. --- ## 14.26.7 Text animators",
           "selected_packages": [
             "hsk-studio-motion"
           ],
@@ -2559,7 +2560,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "DECLARED DECISION -- the expression language itself.** This sub-section specifies the identifier surface, the argument signatures, the evaluation semantics, the sandbox, the error model and the property-state machine. It does NOT specify which language syntax Studio implements. The recovered surface is JavaScript-shaped (it includes `Date`, `Math`-family members, and String methods such as `substring`, `toUpperCase`, `replace`, `split` and `localeCompare`), which sets the compatibility target for IMPORT. Whether Studio's native expression language is a JavaScript subset, a Rust-embedded scripting language, or a purpose-built deterministic expression language is an architecture decision with real consequences for [STU-MOT-076] determinism and [STU-MOT-079] sandboxing, and it is recorded as open decision [STU-MOT-142] rather than assumed. --- ## 14.26.7 Text animators",
+        "semantic_fulfillment": "Expression language selected.** Studio uses the versioned synchronous deterministic JavaScript compatibility profile in [STU-MOT-255] through [STU-MOT-259], retaining all 333 identifier capabilities and 37 recovered argument/default signatures as the target. This does not assert that every imported expression is executable today. Preserve unsupported source with precise diagnostics and disabled-by-error underlying-value fallback; activation requires semantic and budget proof. No second general scripting language or ambient app API is introduced. --- ## 14.26.7 Text animators",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33940-ASSET-MOTION",
@@ -2570,13 +2571,13 @@
           {
             "owning_module_ref": "STUDIO-MODULE-MOTION",
             "scope": "Keyframes/easing and temporal/property-expression/time/seed/dependency policy; typed provider ports preserve pure Rust domain closure. Static composition plan belongs to Composite; optional JS engine belongs to MotionJS. No vendor runtime or unconditional NLE/audio/native provider dependency.",
-            "required_behavior": "DECLARED DECISION -- the expression language itself.** This sub-section specifies the identifier surface, the argument signatures, the evaluation semantics, the sandbox, the error model and the property-state machine. It does NOT specify which language syntax Studio implements. The recovered surface is JavaScript-shaped (it includes `Date`, `Math`-family members, and String methods such as `substring`, `toUpperCase`, `replace`, `split` and `localeCompare`), which sets the compatibility target for IMPORT. Whether Studio's native expression language is a JavaScript subset, a Rust-embedded scripting language, or a purpose-built deterministic expression language is an architecture decision with real consequences for [STU-MOT-076] determinism and [STU-MOT-079] sandboxing, and it is recorded as open decision [STU-MOT-142] rather than assumed. --- ## 14.26.7 Text animators",
+            "required_behavior": "Expression language selected.** Studio uses the versioned synchronous deterministic JavaScript compatibility profile in [STU-MOT-255] through [STU-MOT-259], retaining all 333 identifier capabilities and 37 recovered argument/default signatures as the target. This does not assert that every imported expression is executable today. Preserve unsupported source with precise diagnostics and disabled-by-error underlying-value fallback; activation requires semantic and budget proof. No second general scripting language or ambient app API is introduced. --- ## 14.26.7 Text animators",
             "only_owner_root_may_change": true
           },
           {
             "owning_module_ref": "STUDIO-MODULE-MOTION_JS",
             "scope": "Optional JavaScript expression provider; isolate C/FFI/toolchain/runtime quotas from pure Motion semantics. Shared host sandbox lifecycle; no private script/plugin authority.",
-            "required_behavior": "DECLARED DECISION -- the expression language itself.** This sub-section specifies the identifier surface, the argument signatures, the evaluation semantics, the sandbox, the error model and the property-state machine. It does NOT specify which language syntax Studio implements. The recovered surface is JavaScript-shaped (it includes `Date`, `Math`-family members, and String methods such as `substring`, `toUpperCase`, `replace`, `split` and `localeCompare`), which sets the compatibility target for IMPORT. Whether Studio's native expression language is a JavaScript subset, a Rust-embedded scripting language, or a purpose-built deterministic expression language is an architecture decision with real consequences for [STU-MOT-076] determinism and [STU-MOT-079] sandboxing, and it is recorded as open decision [STU-MOT-142] rather than assumed. --- ## 14.26.7 Text animators",
+            "required_behavior": "Expression language selected.** Studio uses the versioned synchronous deterministic JavaScript compatibility profile in [STU-MOT-255] through [STU-MOT-259], retaining all 333 identifier capabilities and 37 recovered argument/default signatures as the target. This does not assert that every imported expression is executable today. Preserve unsupported source with precise diagnostics and disabled-by-error underlying-value fallback; activation requires semantic and budget proof. No second general scripting language or ambient app API is introduced. --- ## 14.26.7 Text animators",
             "only_owner_root_may_change": true
           }
         ],
@@ -2586,7 +2587,7 @@
           "selected_packages": [
             "hsk-studio-motion"
           ],
-          "consumer_assertion": "DECLARED DECISION -- the expression language itself.** This sub-section specifies the identifier surface, the argument signatures, the evaluation semantics, the sandbox, the error model and the property-state machine. It does NOT specify which language syntax Studio implements. The recovered surface is JavaScript-shaped (it includes `Date`, `Math`-family members, and String methods such as `substring`, `toUpperCase`, `replace`, `split` and `localeCompare`), which sets the compatibility target for IMPORT. Whether Studio's native expression language is a JavaScript subset, a Rust-embedded scripting language, or a purpose-built deterministic expression language is an architecture decision with real consequences for [STU-MOT-076] determinism and [STU-MOT-079] sandboxing, and it is recorded as open decision [STU-MOT-142] rather than assumed. --- ## 14.26.7 Text animators",
+          "consumer_assertion": "Expression language selected.** Studio uses the versioned synchronous deterministic JavaScript compatibility profile in [STU-MOT-255] through [STU-MOT-259], retaining all 333 identifier capabilities and 37 recovered argument/default signatures as the target. This does not assert that every imported expression is executable today. Preserve unsupported source with precise diagnostics and disabled-by-error underlying-value fallback; activation requires semantic and budget proof. No second general scripting language or ambient app API is introduced. --- ## 14.26.7 Text animators",
           "negative_path": "Unspecified mapping/parameter/signature must fail explicitly without silently substituting a heuristic or changing stored source state.",
           "oracle": "Independent exact source reconciliation of the declared gap and real unsupported-response consumer; later authoritative resolution is required before behavioral acceptance.",
           "task_specific_method": "Retain the exact declared gap/decision and recovered identifiers without guessing byte mappings, member semantics or numeric bounds. Expose a typed unsupported/gap result and requirement for the missing canonical definition; no implementation or parity verdict may close that gap.",
@@ -2594,7 +2595,7 @@
         },
         "later_embedding_ref": "MT-33940-KERNEL-ASSET-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "DECLARED DECISION -- the expression language itself.** This sub-section specifies the identifier surface, the argument signatures, the evaluation semantics, the sandbox, the error model and the property-state machine. It does NOT specify which language syntax Studio implements. The recovered surface is JavaScript-shaped (it includes `Date`, `Math`-family members, and String methods such as `substring`, `toUpperCase`, `replace`, `split` and `localeCompare`), which sets the compatibility target for IMPORT. Whether Studio's native expression language is a JavaScript subset, a Rust-embedded scripting language, or a purpose-built deterministic expression language is an architecture decision with real consequences for [STU-MOT-076] determinism and [STU-MOT-079] sandboxing, and it is recorded as open decision [STU-MOT-142] rather than assumed. --- ## 14.26.7 Text animators Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Expression language selected.** Studio uses the versioned synchronous deterministic JavaScript compatibility profile in [STU-MOT-255] through [STU-MOT-259], retaining all 333 identifier capabilities and 37 recovered argument/default signatures as the target. This does not assert that every imported expression is executable today. Preserve unsupported source with precise diagnostics and disabled-by-error underlying-value fallback; activation requires semantic and budget proof. No second general scripting language or ambient app API is introduced. --- ## 14.26.7 Text animators Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "./MT-36203.json",
@@ -2623,7 +2624,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "DECLARED DECISION -- the expression language itself.** This sub-section specifies the identifier surface, the argument signatures, the evaluation semantics, the sandbox, the error model and the property-state machine. It does NOT specify which language syntax Studio implements. The recovered surface is JavaScript-shaped (it includes `Date`, `Math`-family members, and String methods such as `substring`, `toUpperCase`, `replace`, `split` and `localeCompare`), which sets the compatibility target for IMPORT. Whether Studio's native expression language is a JavaScript subset, a Rust-embedded scripting language, or a purpose-built deterministic expression language is an architecture decision with real consequences for [STU-MOT-076] determinism and [STU-MOT-079] sandboxing, and it is recorded as open decision [STU-MOT-142] rather than assumed. --- ## 14.26.7 Text animators",
+          "semantic_fulfillment": "Expression language selected.** Studio uses the versioned synchronous deterministic JavaScript compatibility profile in [STU-MOT-255] through [STU-MOT-259], retaining all 333 identifier capabilities and 37 recovered argument/default signatures as the target. This does not assert that every imported expression is executable today. Preserve unsupported source with precise diagnostics and disabled-by-error underlying-value fallback; activation requires semantic and budget proof. No second general scripting language or ambient app API is introduced. --- ## 14.26.7 Text animators",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33940-ASSET-MOTION",
@@ -2634,13 +2635,13 @@
             {
               "owning_module_ref": "STUDIO-MODULE-MOTION",
               "scope": "Keyframes/easing and temporal/property-expression/time/seed/dependency policy; typed provider ports preserve pure Rust domain closure. Static composition plan belongs to Composite; optional JS engine belongs to MotionJS. No vendor runtime or unconditional NLE/audio/native provider dependency.",
-              "required_behavior": "DECLARED DECISION -- the expression language itself.** This sub-section specifies the identifier surface, the argument signatures, the evaluation semantics, the sandbox, the error model and the property-state machine. It does NOT specify which language syntax Studio implements. The recovered surface is JavaScript-shaped (it includes `Date`, `Math`-family members, and String methods such as `substring`, `toUpperCase`, `replace`, `split` and `localeCompare`), which sets the compatibility target for IMPORT. Whether Studio's native expression language is a JavaScript subset, a Rust-embedded scripting language, or a purpose-built deterministic expression language is an architecture decision with real consequences for [STU-MOT-076] determinism and [STU-MOT-079] sandboxing, and it is recorded as open decision [STU-MOT-142] rather than assumed. --- ## 14.26.7 Text animators",
+              "required_behavior": "Expression language selected.** Studio uses the versioned synchronous deterministic JavaScript compatibility profile in [STU-MOT-255] through [STU-MOT-259], retaining all 333 identifier capabilities and 37 recovered argument/default signatures as the target. This does not assert that every imported expression is executable today. Preserve unsupported source with precise diagnostics and disabled-by-error underlying-value fallback; activation requires semantic and budget proof. No second general scripting language or ambient app API is introduced. --- ## 14.26.7 Text animators",
               "only_owner_root_may_change": true
             },
             {
               "owning_module_ref": "STUDIO-MODULE-MOTION_JS",
               "scope": "Optional JavaScript expression provider; isolate C/FFI/toolchain/runtime quotas from pure Motion semantics. Shared host sandbox lifecycle; no private script/plugin authority.",
-              "required_behavior": "DECLARED DECISION -- the expression language itself.** This sub-section specifies the identifier surface, the argument signatures, the evaluation semantics, the sandbox, the error model and the property-state machine. It does NOT specify which language syntax Studio implements. The recovered surface is JavaScript-shaped (it includes `Date`, `Math`-family members, and String methods such as `substring`, `toUpperCase`, `replace`, `split` and `localeCompare`), which sets the compatibility target for IMPORT. Whether Studio's native expression language is a JavaScript subset, a Rust-embedded scripting language, or a purpose-built deterministic expression language is an architecture decision with real consequences for [STU-MOT-076] determinism and [STU-MOT-079] sandboxing, and it is recorded as open decision [STU-MOT-142] rather than assumed. --- ## 14.26.7 Text animators",
+              "required_behavior": "Expression language selected.** Studio uses the versioned synchronous deterministic JavaScript compatibility profile in [STU-MOT-255] through [STU-MOT-259], retaining all 333 identifier capabilities and 37 recovered argument/default signatures as the target. This does not assert that every imported expression is executable today. Preserve unsupported source with precise diagnostics and disabled-by-error underlying-value fallback; activation requires semantic and budget proof. No second general scripting language or ambient app API is introduced. --- ## 14.26.7 Text animators",
               "only_owner_root_may_change": true
             }
           ],
@@ -2650,13 +2651,13 @@
             "selected_packages": [
               "hsk-studio-motion"
             ],
-            "consumer_assertion": "DECLARED DECISION -- the expression language itself.** This sub-section specifies the identifier surface, the argument signatures, the evaluation semantics, the sandbox, the error model and the property-state machine. It does NOT specify which language syntax Studio implements. The recovered surface is JavaScript-shaped (it includes `Date`, `Math`-family members, and String methods such as `substring`, `toUpperCase`, `replace`, `split` and `localeCompare`), which sets the compatibility target for IMPORT. Whether Studio's native expression language is a JavaScript subset, a Rust-embedded scripting language, or a purpose-built deterministic expression language is an architecture decision with real consequences for [STU-MOT-076] determinism and [STU-MOT-079] sandboxing, and it is recorded as open decision [STU-MOT-142] rather than assumed. --- ## 14.26.7 Text animators",
+            "consumer_assertion": "Expression language selected.** Studio uses the versioned synchronous deterministic JavaScript compatibility profile in [STU-MOT-255] through [STU-MOT-259], retaining all 333 identifier capabilities and 37 recovered argument/default signatures as the target. This does not assert that every imported expression is executable today. Preserve unsupported source with precise diagnostics and disabled-by-error underlying-value fallback; activation requires semantic and budget proof. No second general scripting language or ambient app API is introduced. --- ## 14.26.7 Text animators",
             "negative_path": "Unspecified mapping/parameter/signature must fail explicitly without silently substituting a heuristic or changing stored source state.",
             "oracle": "Independent exact source reconciliation of the declared gap and real unsupported-response consumer; later authoritative resolution is required before behavioral acceptance."
           },
           "later_embedding_ref": "MT-33940-KERNEL-ASSET-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "DECLARED DECISION -- the expression language itself.** This sub-section specifies the identifier surface, the argument signatures, the evaluation semantics, the sandbox, the error model and the property-state machine. It does NOT specify which language syntax Studio implements. The recovered surface is JavaScript-shaped (it includes `Date`, `Math`-family members, and String methods such as `substring`, `toUpperCase`, `replace`, `split` and `localeCompare`), which sets the compatibility target for IMPORT. Whether Studio's native expression language is a JavaScript subset, a Rust-embedded scripting language, or a purpose-built deterministic expression language is an architecture decision with real consequences for [STU-MOT-076] determinism and [STU-MOT-079] sandboxing, and it is recorded as open decision [STU-MOT-142] rather than assumed. --- ## 14.26.7 Text animators Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Expression language selected.** Studio uses the versioned synchronous deterministic JavaScript compatibility profile in [STU-MOT-255] through [STU-MOT-259], retaining all 333 identifier capabilities and 37 recovered argument/default signatures as the target. This does not assert that every imported expression is executable today. Preserve unsupported source with precise diagnostics and disabled-by-error underlying-value fallback; activation requires semantic and budget proof. No second general scripting language or ambient app API is introduced. --- ## 14.26.7 Text animators Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "./MT-36203.json",
@@ -2726,18 +2727,18 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
-      "criterion": "DECLARED DECISION -- the expression language itself.** This sub-section specifies the identifier surface, the argument signatures, the evaluation semantics, the sandbox, the error model and the property-state machine. It does NOT specify which language syntax Studio implements. The recovered surface is JavaScript-shaped (it includes `Date`, `Math`-family members, and String methods such as `substring`, `toUpperCase`, `replace`, `split` and `localeCompare`), which sets the compatibility target for IMPORT. Whether Studio's native expression language is a JavaScript subset, a Rust-embedded scripting language, or a purpose-built deterministic expression language is an architecture decision with real consequences for [STU-MOT-076] determinism and [STU-MOT-079] sandboxing, and it is recorded as open decision [STU-MOT-142] rather than assumed. --- ## 14.26.7 Text animators",
+      "criterion": "Expression language selected.** Studio uses the versioned synchronous deterministic JavaScript compatibility profile in [STU-MOT-255] through [STU-MOT-259], retaining all 333 identifier capabilities and 37 recovered argument/default signatures as the target. This does not assert that every imported expression is executable today. Preserve unsupported source with precise diagnostics and disabled-by-error underlying-value fallback; activation requires semantic and budget proof. No second general scripting language or ambient app API is introduced. --- ## 14.26.7 Text animators",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
   ],
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2780,5 +2781,46 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "DECLARED DECISION -- the expression language itself",
+      "propagated_paths": [
+        "/identity/title",
+        "/context_capsule/pillar_refs[45]/reason",
+        "/context_capsule/pillar_refs[46]/reason",
+        "/context_capsule/pillar_refs[47]/reason",
+        "/context_capsule/pillar_refs[48]/reason",
+        "/context_capsule/pillar_refs[49]/reason",
+        "/context_capsule/pillar_refs[50]/reason",
+        "/context_capsule/pillar_refs[51]/reason",
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/execution/inputs[0]/task",
+        "/proof/checks[0]/expected",
+        "/proof/checks[0]/method_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[1]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[1]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion",
+        "/active_acceptance_criteria[0]/criterion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

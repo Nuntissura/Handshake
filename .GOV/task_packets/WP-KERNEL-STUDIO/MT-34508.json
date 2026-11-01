@@ -12,8 +12,9 @@
     "unit_kind": "enumeration",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "4.2 Density",
-    "spec_line": 31340,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 32031,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "operator_shell",
   "scope": {
-    "summary": "Panel density model (normative).** Derived from measured vendor declarations, not estimated. | Quantity | Value | Basis | |---|---|---| | dense parameter panel floor | 240px wide | the field-tested floor: 49 captured surfaces declare a preferred docked size with median and mode both 240 | | ScrubValue field body minimum | 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably | | scrub allowance | +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field | | Inspect Dock default | 300px | 240 floor + 32 scrub allowance = 272, rounded for a scrollbar gutter and the 10px scroll lane | | Inspect Dock hard minimum | 260px | below this the panel switches to the compact form | | row pitch | 24 + 4 = 28px | — | | row budget at 300px | 266px usable: one labelled scalar (label 96 + gap 8 + field 72) or one label plus two linked scalars (24 + 72 + 8 + 72) | THREE fields on one row does not fit at 300px and MUST NOT be attempted |",
+    "summary": "Panel density model (normative).** Derived from measured vendor declarations, not estimated. | Quantity | Value | Basis | |---|---|---| | dense parameter panel floor | 240px wide | the field-tested floor: 49 captured surfaces declare a preferred docked size with median and mode both 240 | | ScrubValue field body minimum | 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably | | scrub allowance | +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field | | Inspect Dock default | 300px | 240 floor + 32 scrub allowance = 272, rounded for a scrollbar gutter and the 10px scroll lane | | Inspect Dock hard minimum | 260px | below this the panel switches to the compact form | | row pitch | 24 + 4 = 28px | — | | row budget at 300px | 266px usable: one labelled scalar (label 96 + gap 8 + field 72) or one label plus two linked scalars (24 + 72 + 8 + 72) | THREE fields on one row does not fit at 300px and MUST NOT be attempted | Studio MUST provide the polished look and feel of professional Adobe desktop workflows without Adobe branding: coherent typography, neutral workspace chrome, icon treatment, spacing, visual hierarchy, selection/focus/error/disabled states and readable dense inspectors. Keep the measured geometry above and existing accessibility obligati [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -3450,11 +3451,11 @@
       }
     ]
   },
-  "updated_at_utc": "2026-10-10T05:44:05.513657Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -3496,5 +3497,22 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Panel density model (normative) - enumeration",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

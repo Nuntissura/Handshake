@@ -11,9 +11,10 @@
     "derivation_key": "STU-CON-002#clause#0",
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
-    "spec_heading": "14.23 Canonical Studio Authority Contracts",
-    "spec_line": 22351,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_heading": "14.23.6 Develop decoded-CFA foundation transport",
+    "spec_line": 22849,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,14 +27,14 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hs [...]",
+  "clause": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.layer_graph@1`, `hsk.studio.raster_tile@1` [...]",
   "spec_anchor": [
     "STU-CON-002"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "cross_cutting",
   "scope": {
-    "summary": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`.",
+    "summary": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.layer_graph@1`, `hsk.studio.raster_tile@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`, `hsk.studio.business_event@1`, `hsk.studio.expression_profile@1`.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [],
@@ -134,7 +135,7 @@
   "identity": {
     "mt_id": "MT-33668",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hs [...]",
+    "title": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.layer_graph@1`, `hsk.studio.raster_tile@1` [...]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 3
@@ -1577,7 +1578,7 @@
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
-        "text": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`.",
+        "text": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.layer_graph@1`, `hsk.studio.raster_tile@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`, `hsk.studio.business_event@1`, `hsk.studio.expression_profile@1`.",
         "fulfillment_ref": "MT-33668#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -1786,7 +1787,7 @@
           "Independent actual output"
         ],
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
-        "expected": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`. Source consumer/manifest inspection additionally proves: Define pub const SCHEMA_STUDIO_* values for the exact canonical hsk.studio.*@N IDs in CON002,consumed by typed serializers. Compare generated schemas from a real selected type consumer to these IDs and revision meanings. Reject changed ID/version meaning or duplicate constants; domain packages import canonical IDs instead of reminting strings.",
+        "expected": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.layer_graph@1`, `hsk.studio.raster_tile@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`, `hsk.studio.business_event@1`, `hsk.studio.expression_profile@1`. Source consumer/manifest inspection additionally proves: Define pub const SCHEMA_STUDIO_* values for the exact canonical hsk.studio.*@N IDs in CON002,consumed by typed serializers. Compare generated schemas from a real selected type consumer to these IDs and revision meanings. Reject changed ID/version meaning or duplicate constants; domain packages import canonical IDs instead of reminting strings.",
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-accord"
@@ -2115,7 +2116,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`.",
+        "semantic_fulfillment": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.layer_graph@1`, `hsk.studio.raster_tile@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`, `hsk.studio.business_event@1`, `hsk.studio.expression_profile@1`.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33668-ASSET-ACCORD"
@@ -2125,7 +2126,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-ACCORD",
             "scope": "Stable IDs, units, revision and capability schemas, cancellation/result/loss contracts; no GUI/GPU/database/media dependencies.",
-            "required_behavior": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`.",
+            "required_behavior": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.layer_graph@1`, `hsk.studio.raster_tile@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`, `hsk.studio.business_event@1`, `hsk.studio.expression_profile@1`.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2134,13 +2135,13 @@
             "hsk-studio-accord"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`.",
+          "consumer_assertion": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.layer_graph@1`, `hsk.studio.raster_tile@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`, `hsk.studio.business_event@1`, `hsk.studio.expression_profile@1`.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-33668-KERNEL-ASSET-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.layer_graph@1`, `hsk.studio.raster_tile@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`, `hsk.studio.business_event@1`, `hsk.studio.expression_profile@1`. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36189"
@@ -2168,7 +2169,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`.",
+          "semantic_fulfillment": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.layer_graph@1`, `hsk.studio.raster_tile@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`, `hsk.studio.business_event@1`, `hsk.studio.expression_profile@1`.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33668-ASSET-ACCORD"
@@ -2178,7 +2179,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-ACCORD",
               "scope": "Stable IDs, units, revision and capability schemas, cancellation/result/loss contracts; no GUI/GPU/database/media dependencies.",
-              "required_behavior": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`.",
+              "required_behavior": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.layer_graph@1`, `hsk.studio.raster_tile@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`, `hsk.studio.business_event@1`, `hsk.studio.expression_profile@1`.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2187,13 +2188,13 @@
               "hsk-studio-accord"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`.",
+            "consumer_assertion": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.layer_graph@1`, `hsk.studio.raster_tile@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`, `hsk.studio.business_event@1`, `hsk.studio.expression_profile@1`.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-33668-KERNEL-ASSET-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.layer_graph@1`, `hsk.studio.raster_tile@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`, `hsk.studio.business_event@1`, `hsk.studio.expression_profile@1`. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ],
@@ -2251,18 +2252,18 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
-      "criterion": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`.",
+      "criterion": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.layer_graph@1`, `hsk.studio.raster_tile@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`, `hsk.studio.business_event@1`, `hsk.studio.expression_profile@1`.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
   ],
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2292,5 +2293,35 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hs [...]",
+      "propagated_paths": [
+        "/identity/title",
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/expected",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion",
+        "/active_acceptance_criteria[0]/criterion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

@@ -12,8 +12,9 @@
     "unit_kind": "catalogue_row",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "9. Adjustments",
-    "spec_line": 1280,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 1364,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -57,7 +58,7 @@
     },
     {
       "id": "AC-004",
-      "criterion": "`threshold` satisfies the spec's stated notes: one source carries the two output colours explicitly; they are normative and default to black and white",
+      "criterion": "`threshold` satisfies the spec's stated notes: one source carries the two output colours explicitly; they are normative and default to black and white. At an exact tie on the cut every GPU backend MUST decide as the CPU reference does (no boundary-band parity exemption); whether the cut compares the exact rational luminance or round(255 lum) is a DECLARED GAP (v02.226, SD-12)",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-RAS-151 catalogue row `threshold`"
     },
@@ -1607,7 +1608,7 @@
       },
       {
         "id": "AC-004",
-        "text": "`threshold` satisfies the spec's stated notes: one source carries the two output colours explicitly; they are normative and default to black and white",
+        "text": "`threshold` satisfies the spec's stated notes: one source carries the two output colours explicitly; they are normative and default to black and white. At an exact tie on the cut every GPU backend MUST decide as the CPU reference does (no boundary-band parity exemption); whether the cut compares the exact rational luminance or round(255 lum) is a DECLARED GAP (v02.226, SD-12)",
         "fulfillment_ref": "MT-30191#/fulfillment/legacy_acceptance_map/3"
       },
       {
@@ -1982,7 +1983,7 @@
             "hsk-studio-pigment"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "`threshold` satisfies the spec's stated notes: one source carries the two output colours explicitly; they are normative and default to black and white",
+          "consumer_assertion": "`threshold` satisfies the spec's stated notes: one source carries the two output colours explicitly; they are normative and default to black and white. At an exact tie on the cut every GPU backend MUST decide as the CPU reference does (no boundary-band parity exemption); whether the cut compares the exact rational luminance or round(255 lum) is a DECLARED GAP (v02.226, SD-12)",
           "negative_path": "Missing/denied/lost provider/artifact/config, unsupported schema/profile/units/enum or nonfinite input, cancel/budget or stale source/target/mask/options yields typed no-result with no pixel/graph/history publication. Last-good artifacts/original bytes preserved; corrected admitted grant/current revision retries bounded.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN.",
           "selected_package": "hsk-studio-pigment",
@@ -2534,7 +2535,7 @@
         "original_text": "`threshold` satisfies the spec's stated notes: one source carries the two output colours explicitly; they are normative and default to black and white",
         "original_row_sha256": "d35b7c6b42902423e07fe0cdcc4f59a2aa5f1ae0e47ccafac8b3afb5165e812c",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "`threshold` satisfies the spec's stated notes: one source carries the two output colours explicitly; they are normative and default to black and white",
+        "semantic_fulfillment": "`threshold` satisfies the spec's stated notes: one source carries the two output colours explicitly; they are normative and default to black and white. At an exact tie on the cut every GPU backend MUST decide as the CPU reference does (no boundary-band parity exemption); whether the cut compares the exact rational luminance or round(255 lum) is a DECLARED GAP (v02.226, SD-12)",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-30191"
@@ -2544,7 +2545,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-PIGMENT",
             "scope": "CPU tiles, sample formats, masks, brush/raster operations; no GPU/device dependency.",
-            "required_behavior": "`threshold` satisfies the spec's stated notes: one source carries the two output colours explicitly; they are normative and default to black and white",
+            "required_behavior": "`threshold` satisfies the spec's stated notes: one source carries the two output colours explicitly; they are normative and default to black and white. At an exact tie on the cut every GPU backend MUST decide as the CPU reference does (no boundary-band parity exemption); whether the cut compares the exact rational luminance or round(255 lum) is a DECLARED GAP (v02.226, SD-12)",
             "only_owner_root_may_change": true
           }
         ],
@@ -2563,7 +2564,7 @@
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "`threshold` satisfies the spec's stated notes: one source carries the two output colours explicitly; they are normative and default to black and white Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "`threshold` satisfies the spec's stated notes: one source carries the two output colours explicitly; they are normative and default to black and white. At an exact tie on the cut every GPU backend MUST decide as the CPU reference does (no boundary-band parity exemption); whether the cut compares the exact rational luminance or round(255 lum) is a DECLARED GAP (v02.226, SD-12) Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json"
@@ -2793,7 +2794,7 @@
           "original_text": "`threshold` satisfies the spec's stated notes: one source carries the two output colours explicitly; they are normative and default to black and white",
           "original_row_sha256": "d35b7c6b42902423e07fe0cdcc4f59a2aa5f1ae0e47ccafac8b3afb5165e812c",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "`threshold` satisfies the spec's stated notes: one source carries the two output colours explicitly; they are normative and default to black and white",
+          "semantic_fulfillment": "`threshold` satisfies the spec's stated notes: one source carries the two output colours explicitly; they are normative and default to black and white. At an exact tie on the cut every GPU backend MUST decide as the CPU reference does (no boundary-band parity exemption); whether the cut compares the exact rational luminance or round(255 lum) is a DECLARED GAP (v02.226, SD-12)",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-30191"
@@ -2803,7 +2804,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-PIGMENT",
               "scope": "CPU tiles, sample formats, masks, brush/raster operations; no GPU/device dependency.",
-              "required_behavior": "`threshold` satisfies the spec's stated notes: one source carries the two output colours explicitly; they are normative and default to black and white",
+              "required_behavior": "`threshold` satisfies the spec's stated notes: one source carries the two output colours explicitly; they are normative and default to black and white. At an exact tie on the cut every GPU backend MUST decide as the CPU reference does (no boundary-band parity exemption); whether the cut compares the exact rational luminance or round(255 lum) is a DECLARED GAP (v02.226, SD-12)",
               "only_owner_root_may_change": true
             }
           ],
@@ -2822,7 +2823,7 @@
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "`threshold` satisfies the spec's stated notes: one source carries the two output colours explicitly; they are normative and default to black and white Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "`threshold` satisfies the spec's stated notes: one source carries the two output colours explicitly; they are normative and default to black and white. At an exact tie on the cut every GPU backend MUST decide as the CPU reference does (no boundary-band parity exemption); whether the cut compares the exact rational luminance or round(255 lum) is a DECLARED GAP (v02.226, SD-12) Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json"
@@ -2882,11 +2883,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2922,5 +2923,37 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-004",
+          "old": "`threshold` satisfies the spec's stated notes: one source carries the two output colours explicitly; they are normative and default to black and white",
+          "new": "`threshold` satisfies the spec's stated notes: one source carries the two output colours explicitly; they are normative and default to black and white. At an exact tie on the cut every GPU backend MUST decide as the CPU reference does (no boundary-band parity exemption); whether the cut compares the exact rational luminance or round(255 lum) is a DECLARED GAP (v02.226, SD-12)"
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "threshold",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[3]/text",
+        "/proof/checks[3]/method_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[3]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[3]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[3]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[3]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[3]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[3]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

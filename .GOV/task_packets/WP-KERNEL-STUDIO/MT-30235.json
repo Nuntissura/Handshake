@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "11. Transforms and Content-Aware Operations",
-    "spec_line": 1530,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 1614,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,13 +34,13 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "raster",
   "scope": {
-    "summary": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in `studio-engine`. Any generative/provider-model variant is an optional adapter lane (§14) and MUST NOT be the only implementation. The content-aware fill surface's control set is: *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | classification | |---|---|---|---|---|---|---|---|---| | `sampling_area_overlay` | — | — | — | — | unknown | none | — | boolean plus an overlay colour and an `indicates` enum selecting whether the overlay marks the sampled or the excluded region; the overlay is inspectable state, required by [STU-RAS-001] obligation (c) | | `sampling_overlay_opacity` | unknown | unknown | unknown | unknown | unknown | percent | unknown | unit `declared`; no bound, precision or default declared | | `sampling_area_mode` | enum | enum | — | — | unknown | none | — | closed set: `auto` \\| `rectangular` \\| `custom`; plus a `sample_all_layers` boolean | | `colour_adaptation` | enum | enum | — | — | unknown | none | — | closed set: `none` \\| `default` \\| `high` \\| `very_high` | | `rotation_adaptation` | enum | enum | — | — | [...]",
+    "summary": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in the owning modular Studio asset crate. Any generative/provider-model variant is an optional adapter lane (§14) and MUST NOT be the only implementation. The content-aware fill surface's control set is: *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | classification | |---|---|---|---|---|---|---|---|---| | `sampling_area_overlay` | — | — | — | — | unknown | none | — | boolean plus an overlay colour and an `indicates` enum selecting whether the overlay marks the sampled or the excluded region; the overlay is inspectable state, required by [STU-RAS-001] obligation (c) | | `sampling_overlay_opacity` | unknown | unknown | unknown | unknown | unknown | percent | unknown | unit `declared`; no bound, precision or default declared | | `sampling_area_mode` | enum | enum | — | — | unknown | none | — | closed set: `auto` \\| `rectangular` \\| `custom`; plus a `sample_all_layers` boolean | | `colour_adaptation` | enum | enum | — | — | unknown | none | — | closed set: `none` \\| `default` \\| `high` \\| `very_high` | | `rotation_adaptation` | [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in `studio-engine`.",
+      "criterion": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in the owning modular Studio asset crate.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-RAS-143"
     },
@@ -1578,7 +1579,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in `studio-engine`.",
+        "text": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in the owning modular Studio asset crate.",
         "fulfillment_ref": "MT-30235#/fulfillment/legacy_acceptance_map/0"
       },
       {
@@ -1838,7 +1839,7 @@
             "hsk-studio-pigment"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in `studio-engine`.",
+          "consumer_assertion": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in the owning modular Studio asset crate.",
           "negative_path": "Malformed tag/enum/unit/nonfinite input or stale schema/source revision rejects before update; Unknown is not zero or opposite bound. Cancel leaves descriptor/consumer state exact; descriptor/provider loss emits typed unavailable and retains last-good snapshot; reacquire exact revision and explicit corrected values recovers. Missing native engine or source loss blocks complete proposal; optional adapter cancellation/failure cannot masquerade as native success.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN.",
           "selected_package": "hsk-studio-pigment",
@@ -2287,7 +2288,7 @@
         "original_text": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in `studio-engine`.",
         "original_row_sha256": "ce06d5bd48aa5bc4816de48c9df281d030fa760d1393444f1eb8f94d023f94b7",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in `studio-engine`.",
+        "semantic_fulfillment": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in the owning modular Studio asset crate.",
         "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
         "asset_contribution_refs": [
           "MT-30235"
@@ -2297,7 +2298,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-PIGMENT",
             "scope": "CPU tiles, sample formats, masks, brush/raster operations; no GPU/device dependency.",
-            "required_behavior": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in `studio-engine`.",
+            "required_behavior": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in the owning modular Studio asset crate.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2316,7 +2317,7 @@
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in `studio-engine`. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in the owning modular Studio asset crate. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json"
@@ -2450,7 +2451,7 @@
           "original_text": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in `studio-engine`.",
           "original_row_sha256": "ce06d5bd48aa5bc4816de48c9df281d030fa760d1393444f1eb8f94d023f94b7",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in `studio-engine`.",
+          "semantic_fulfillment": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in the owning modular Studio asset crate.",
           "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
           "asset_contribution_refs": [
             "MT-30235"
@@ -2460,7 +2461,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-PIGMENT",
               "scope": "CPU tiles, sample formats, masks, brush/raster operations; no GPU/device dependency.",
-              "required_behavior": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in `studio-engine`.",
+              "required_behavior": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in the owning modular Studio asset crate.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2479,7 +2480,7 @@
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in `studio-engine`. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in the owning modular Studio asset crate. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36194.json"
@@ -2581,11 +2582,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2621,5 +2622,37 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in `studio-engine`.",
+          "new": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030]).** Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in the owning modular Studio asset crate."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "CONTENT-AWARE FILL CONTROL CONTRACT (extends [STU-RAS-030])",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/method_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

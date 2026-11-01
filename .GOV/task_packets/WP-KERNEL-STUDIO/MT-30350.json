@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "13. Camera Profiles, Creative Profiles, and Presets",
-    "spec_line": 2370,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 2454,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -48,9 +49,87 @@
       "criterion": "Studio MUST read the dimensions from the profile and MUST NOT assume a fixed lattice | | `profile_look_table` | 99.89 % | a second lattice of the same shape applied **after** the hue/sat map.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-RAW-125"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `unique_camera_model` with the exact meaning the spec states: 100 % of 4,373 profiles | the key the profile is matched on; 1,429 distinct camera models are covered. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAW-125 carried contract table row 1"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `colour_matrix_1`, `colour_matrix_2` with the exact meaning the spec states: 100 % | two illuminant-referenced 3×3 matrices, XYZ → camera. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAW-125 carried contract table row 2"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `calibration_illuminant_1`, `_2` with the exact meaning the spec states: 100 % | the illuminants those two matrices are referenced to; the dominant shipped pair is standard-illuminant-A with D65 (4,365 of 4,373), with a handful of A+flash, D65+A, D55+D75 and flash+tungsten pairs, so the pair MUST be data, not a constant. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAW-125 carried contract table row 3"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `forward_matrix_1`, `_2` with the exact meaning the spec states: 99.68 % | camera → XYZ at D50; optional. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAW-125 carried contract table row 4"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `camera_calibration_1`, `_2` with the exact meaning the spec states: optional | per-unit calibration matrices applied before the colour matrix. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAW-125 carried contract table row 5"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `hue_sat_map` with the exact meaning the spec states: optional | a 3-D deformation lattice over (hue, saturation, value). Shipped lattice dimensions are **not** uniform: [90, 30, 1] on 1,116 profiles, [8, 2, 1] on 22, [90, 25, 1] on 7, [36, 10, 1] on 7, [180, 8, 1] on 3, [18, 6, 1] on 2, and [36, 20, 20] on 1. Studio MUST read the dimensions from the p [...]. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAW-125 carried contract table row 6"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The contract table holds the row `profile_look_table` with the exact meaning the spec states: 99.89 % | a second lattice of the same shape applied **after** the hue/sat map. Shipped dimensions: [90, 16, 16] on 2,514, [36, 8, 16] on 1,490, [36, 16, 16] on 354, [45, 8, 8] on 10. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAW-125 carried contract table row 7"
+    },
+    {
+      "id": "AC-010",
+      "criterion": "The contract table holds the row `profile_look_table_encoding` with the exact meaning the spec states: 57.19 % | declares the encoding the look table operates in; absent means the default encoding. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAW-125 carried contract table row 8"
+    },
+    {
+      "id": "AC-011",
+      "criterion": "The contract table holds the row `profile_tone_curve` with the exact meaning the spec states: 67.62 % | a 1-D tone curve baked into the profile. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAW-125 carried contract table row 9"
+    },
+    {
+      "id": "AC-012",
+      "criterion": "The contract table holds the row `baseline_exposure_offset` with the exact meaning the spec states: 51.70 % | an exposure shift the profile applies. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAW-125 carried contract table row 10"
+    },
+    {
+      "id": "AC-013",
+      "criterion": "The contract table holds the row `default_black_render` with the exact meaning the spec states: 57.19 % | whether the profile applies its own black rendering. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAW-125 carried contract table row 11"
+    },
+    {
+      "id": "AC-014",
+      "criterion": "The contract table holds the row `profile_embed_policy` with the exact meaning the spec states: 100 % | governs whether the profile may travel with an exported file. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAW-125 carried contract table row 12"
+    },
+    {
+      "id": "AC-015",
+      "criterion": "The contract table holds the row `profile_calibration_signature`, `profile_copyright`, `profile_name` with the exact meaning the spec states: 99.5 % / 96.5 % / 100 % | identity and provenance; 129 distinct profile names across the corpus. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-RAW-125 carried contract table row 13"
     }
   ],
-  "acceptance_criteria_count": 2,
+  "acceptance_criteria_count": 15,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1587,7 +1666,20 @@
     ],
     "acceptance_refs": [
       "AC-001",
-      "AC-002"
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009",
+      "AC-010",
+      "AC-011",
+      "AC-012",
+      "AC-013",
+      "AC-014",
+      "AC-015"
     ],
     "materialized_acceptance": [
       {
@@ -1599,6 +1691,58 @@
         "id": "AC-002",
         "text": "Studio MUST read the dimensions from the profile and MUST NOT assume a fixed lattice | | `profile_look_table` | 99.89 % | a second lattice of the same shape applied **after** the hue/sat map.",
         "fulfillment_ref": "MT-30350#/fulfillment/legacy_acceptance_map/1"
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `unique_camera_model` with the exact meaning the spec states: 100 % of 4,373 profiles | the key the profile is matched on; 1,429 distinct camera models are covered. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `colour_matrix_1`, `colour_matrix_2` with the exact meaning the spec states: 100 % | two illuminant-referenced 3×3 matrices, XYZ → camera. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `calibration_illuminant_1`, `_2` with the exact meaning the spec states: 100 % | the illuminants those two matrices are referenced to; the dominant shipped pair is standard-illuminant-A with D65 (4,365 of 4,373), with a handful of A+flash, D65+A, D55+D75 and flash+tungsten pairs, so the pair MUST be data, not a constant. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `forward_matrix_1`, `_2` with the exact meaning the spec states: 99.68 % | camera → XYZ at D50; optional. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `camera_calibration_1`, `_2` with the exact meaning the spec states: optional | per-unit calibration matrices applied before the colour matrix. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `hue_sat_map` with the exact meaning the spec states: optional | a 3-D deformation lattice over (hue, saturation, value). Shipped lattice dimensions are **not** uniform: [90, 30, 1] on 1,116 profiles, [8, 2, 1] on 22, [90, 25, 1] on 7, [36, 10, 1] on 7, [180, 8, 1] on 3, [18, 6, 1] on 2, and [36, 20, 20] on 1. Studio MUST read the dimensions from the p [...]. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-009",
+        "text": "The contract table holds the row `profile_look_table` with the exact meaning the spec states: 99.89 % | a second lattice of the same shape applied **after** the hue/sat map. Shipped dimensions: [90, 16, 16] on 2,514, [36, 8, 16] on 1,490, [36, 16, 16] on 354, [45, 8, 8] on 10. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-010",
+        "text": "The contract table holds the row `profile_look_table_encoding` with the exact meaning the spec states: 57.19 % | declares the encoding the look table operates in; absent means the default encoding. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-011",
+        "text": "The contract table holds the row `profile_tone_curve` with the exact meaning the spec states: 67.62 % | a 1-D tone curve baked into the profile. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-012",
+        "text": "The contract table holds the row `baseline_exposure_offset` with the exact meaning the spec states: 51.70 % | an exposure shift the profile applies. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-013",
+        "text": "The contract table holds the row `default_black_render` with the exact meaning the spec states: 57.19 % | whether the profile applies its own black rendering. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-014",
+        "text": "The contract table holds the row `profile_embed_policy` with the exact meaning the spec states: 100 % | governs whether the profile may travel with an exported file. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-015",
+        "text": "The contract table holds the row `profile_calibration_signature`, `profile_copyright`, `profile_name` with the exact meaning the spec states: 99.5 % / 96.5 % / 100 % | identity and provenance; 129 distinct profile names across the corpus. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1882,6 +2026,214 @@
           "Unchanged input digest across implementer check"
         ],
         "materialization_status": "PLANNED_NOT_EXECUTED"
+      },
+      {
+        "check_id": "MT-30350-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-RAW-125"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `unique_camera_model` with the exact meaning the spec states: 100 % of 4,373 profiles | the key the profile is matched on; 1,429 distinct camera models are covered. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30350-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-RAW-125"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `colour_matrix_1`, `colour_matrix_2` with the exact meaning the spec states: 100 % | two illuminant-referenced 3×3 matrices, XYZ → camera. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30350-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-RAW-125"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `calibration_illuminant_1`, `_2` with the exact meaning the spec states: 100 % | the illuminants those two matrices are referenced to; the dominant shipped pair is standard-illuminant-A with D65 (4,365 of 4,373), with a handful of A+flash, D65+A, D55+D75 and flash+tungsten pairs, so the pair MUST be data, not a constant. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30350-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-RAW-125"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `forward_matrix_1`, `_2` with the exact meaning the spec states: 99.68 % | camera → XYZ at D50; optional. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30350-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-RAW-125"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `camera_calibration_1`, `_2` with the exact meaning the spec states: optional | per-unit calibration matrices applied before the colour matrix. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30350-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-RAW-125"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `hue_sat_map` with the exact meaning the spec states: optional | a 3-D deformation lattice over (hue, saturation, value). Shipped lattice dimensions are **not** uniform: [90, 30, 1] on 1,116 profiles, [8, 2, 1] on 22, [90, 25, 1] on 7, [36, 10, 1] on 7, [180, 8, 1] on 3, [18, 6, 1] on 2, and [36, 20, 20] on 1. Studio MUST read the dimensions from the p [...]. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30350-SPEC-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-RAW-125"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `profile_look_table` with the exact meaning the spec states: 99.89 % | a second lattice of the same shape applied **after** the hue/sat map. Shipped dimensions: [90, 16, 16] on 2,514, [36, 8, 16] on 1,490, [36, 16, 16] on 354, [45, 8, 8] on 10. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30350-SPEC-AC-010",
+        "kind": "test",
+        "claim_refs": [
+          "AC-010",
+          "STU-RAW-125"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `profile_look_table_encoding` with the exact meaning the spec states: 57.19 % | declares the encoding the look table operates in; absent means the default encoding. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30350-SPEC-AC-011",
+        "kind": "test",
+        "claim_refs": [
+          "AC-011",
+          "STU-RAW-125"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `profile_tone_curve` with the exact meaning the spec states: 67.62 % | a 1-D tone curve baked into the profile. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30350-SPEC-AC-012",
+        "kind": "test",
+        "claim_refs": [
+          "AC-012",
+          "STU-RAW-125"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `baseline_exposure_offset` with the exact meaning the spec states: 51.70 % | an exposure shift the profile applies. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30350-SPEC-AC-013",
+        "kind": "test",
+        "claim_refs": [
+          "AC-013",
+          "STU-RAW-125"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `default_black_render` with the exact meaning the spec states: 57.19 % | whether the profile applies its own black rendering. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30350-SPEC-AC-014",
+        "kind": "test",
+        "claim_refs": [
+          "AC-014",
+          "STU-RAW-125"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `profile_embed_policy` with the exact meaning the spec states: 100 % | governs whether the profile may travel with an exported file. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30350-SPEC-AC-015",
+        "kind": "test",
+        "claim_refs": [
+          "AC-015",
+          "STU-RAW-125"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `profile_calibration_signature`, `profile_copyright`, `profile_name` with the exact meaning the spec states: 99.5 % / 96.5 % / 100 % | identity and provenance; 129 distinct profile names across the corpus. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2397,7 +2749,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T01:55:03.512Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "rule_refs": [
     "CX-SPEC-TRUTH-001",
     "CX-TPL-001",
@@ -2440,7 +2792,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2483,5 +2835,102 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `unique_camera_model` with the exact meaning the spec states: 100 % of 4,373 profiles | the key the profile is matched on; 1,429 distinct camera models are covered. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `colour_matrix_1`, `colour_matrix_2` with the exact meaning the spec states: 100 % | two illuminant-referenced 3×3 matrices, XYZ → camera. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `calibration_illuminant_1`, `_2` with the exact meaning the spec states: 100 % | the illuminants those two matrices are referenced to; the dominant shipped pair is standard-illuminant-A with D65 (4,365 of 4,373), with a handful of A+flash, D65+A, D55+D75 and flash+tungsten pairs, so the pair MUST be data, not a constant. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `forward_matrix_1`, `_2` with the exact meaning the spec states: 99.68 % | camera → XYZ at D50; optional. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `camera_calibration_1`, `_2` with the exact meaning the spec states: optional | per-unit calibration matrices applied before the colour matrix. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `hue_sat_map` with the exact meaning the spec states: optional | a 3-D deformation lattice over (hue, saturation, value). Shipped lattice dimensions are **not** uniform: [90, 30, 1] on 1,116 profiles, [8, 2, 1] on 22, [90, 25, 1] on 7, [36, 10, 1] on 7, [180, 8, 1] on 3, [18, 6, 1] on 2, and [36, 20, 20] on 1. Studio MUST read the dimensions from the p [...]. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-009",
+          "old": null,
+          "new": "The contract table holds the row `profile_look_table` with the exact meaning the spec states: 99.89 % | a second lattice of the same shape applied **after** the hue/sat map. Shipped dimensions: [90, 16, 16] on 2,514, [36, 8, 16] on 1,490, [36, 16, 16] on 354, [45, 8, 8] on 10. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-010",
+          "old": null,
+          "new": "The contract table holds the row `profile_look_table_encoding` with the exact meaning the spec states: 57.19 % | declares the encoding the look table operates in; absent means the default encoding. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-011",
+          "old": null,
+          "new": "The contract table holds the row `profile_tone_curve` with the exact meaning the spec states: 67.62 % | a 1-D tone curve baked into the profile. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-012",
+          "old": null,
+          "new": "The contract table holds the row `baseline_exposure_offset` with the exact meaning the spec states: 51.70 % | an exposure shift the profile applies. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-013",
+          "old": null,
+          "new": "The contract table holds the row `default_black_render` with the exact meaning the spec states: 57.19 % | whether the profile applies its own black rendering. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-014",
+          "old": null,
+          "new": "The contract table holds the row `profile_embed_policy` with the exact meaning the spec states: 100 % | governs whether the profile may travel with an exported file. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-015",
+          "old": null,
+          "new": "The contract table holds the row `profile_calibration_signature`, `profile_copyright`, `profile_name` with the exact meaning the spec states: 99.5 % / 96.5 % / 100 % | identity and provenance; 129 distinct profile names across the corpus. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012",
+        "AC-013",
+        "AC-014",
+        "AC-015"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "CAMERA PROFILE MODEL",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.23 Canonical Studio Authority Contracts",
-    "spec_line": 22349,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 22651,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "cross_cutting",
   "scope": {
-    "summary": "CANONICAL PRIMITIVES. The canonical Studio primitive set is defined in 14.3 [STU-DOC-002]. Each primitive's field-level struct is authored here as implementation lands; the per-domain catalogs (14.4-14.15) reference these primitives and MUST NOT fork them. Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment.",
+    "summary": "CANONICAL PRIMITIVES. The canonical Studio primitive set is defined in 14.3 [STU-DOC-002]. Each primitive's field-level struct is authored here as implementation lands; the per-domain catalogs (14.4-14.15) reference these primitives and MUST NOT fork them. Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment. ### 14.23.1 Folio canonical document foundation",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -45,7 +46,7 @@
     },
     {
       "id": "AC-002",
-      "criterion": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment.",
+      "criterion": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment. ### 14.23.1 Folio canonical document foundation",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-CON-001"
     }
@@ -163,7 +164,7 @@
       {
         "id": "STU-CON-001",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:22397",
-        "verbatim": "[STU-CON-001] CANONICAL PRIMITIVES. The canonical Studio primitive set is defined in 14.3 [STU-DOC-002]. Each primitive's field-level struct is authored here as implementation lands; the per-domain catalogs (14.4-14.15) reference these primitives and MUST NOT fork them. Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment.",
+        "verbatim": "[STU-CON-001] CANONICAL PRIMITIVES. The canonical Studio primitive set is defined in 14.3 [STU-DOC-002]. Each primitive's field-level struct is authored here as implementation lands; the per-domain catalogs (14.4-14.15) reference these primitives and MUST NOT fork them. Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment. ### 14.23.1 Folio canonical document foundation ### 14.23.1 Folio canonical document foundation",
         "heading": "## 14.23 Canonical Studio Authority Contracts",
         "section": "14.23",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -1596,7 +1597,7 @@
       },
       {
         "id": "AC-002",
-        "text": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment.",
+        "text": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment. ### 14.23.1 Folio canonical document foundation",
         "fulfillment_ref": "MT-33667#/fulfillment/legacy_acceptance_map/1"
       }
     ],
@@ -1829,7 +1830,7 @@
           "AC-002"
         ],
         "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-accord --no-default-features --test mt_33667 -- --nocapture",
-        "expected": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment. Source consumer/manifest inspection additionally proves: Publish canonical primitive/schema references matching current14.3/14.23 rather than per-domain copies. Construct a pure Accord consumer that resolves Folio primitive identities through generated typed contracts without provider/kernel/native/database dependencies. Reject duplicate/forked primitive identities and unknown versions; newly discovered types require spec enrichment before public admission.",
+        "expected": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment. ### 14.23.1 Folio canonical document foundation Source consumer/manifest inspection additionally proves: Publish canonical primitive/schema references matching current14.3/14.23 rather than per-domain copies. Construct a pure Accord consumer that resolves Folio primitive identities through generated typed contracts without provider/kernel/native/database dependencies. Reject duplicate/forked primitive identities and unknown versions; newly discovered types require spec enrichment before public admission.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2109,7 +2110,7 @@
             "line": 22397,
             "section": "14.23",
             "heading": "## 14.23 Canonical Studio Authority Contracts",
-            "verbatim": "[STU-CON-001] CANONICAL PRIMITIVES. The canonical Studio primitive set is defined in 14.3 [STU-DOC-002]. Each primitive's field-level struct is authored here as implementation lands; the per-domain catalogs (14.4-14.15) reference these primitives and MUST NOT fork them. Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment.",
+            "verbatim": "[STU-CON-001] CANONICAL PRIMITIVES. The canonical Studio primitive set is defined in 14.3 [STU-DOC-002]. Each primitive's field-level struct is authored here as implementation lands; the per-domain catalogs (14.4-14.15) reference these primitives and MUST NOT fork them. Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment. ### 14.23.1 Folio canonical document foundation ### 14.23.1 Folio canonical document foundation",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2217,7 +2218,7 @@
         "original_text": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment.",
         "original_row_sha256": "7a89b0f1c7a77949e9780a7bb239f823f72d29df2cff9647d9beb521fecd699d",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment.",
+        "semantic_fulfillment": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment. ### 14.23.1 Folio canonical document foundation",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33667-ASSET-ACCORD"
@@ -2227,7 +2228,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-ACCORD",
             "scope": "Stable IDs, units, revision and capability schemas, cancellation/result/loss contracts; no GUI/GPU/database/media dependencies.",
-            "required_behavior": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment.",
+            "required_behavior": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment. ### 14.23.1 Folio canonical document foundation",
             "only_owner_root_may_change": true
           }
         ],
@@ -2236,13 +2237,13 @@
             "hsk-studio-accord"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment.",
+          "consumer_assertion": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment. ### 14.23.1 Folio canonical document foundation",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-33667-KERNEL-AC-002",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment. ### 14.23.1 Folio canonical document foundation Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36189"
@@ -2320,7 +2321,7 @@
           "original_text": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment.",
           "original_row_sha256": "7a89b0f1c7a77949e9780a7bb239f823f72d29df2cff9647d9beb521fecd699d",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment.",
+          "semantic_fulfillment": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment. ### 14.23.1 Folio canonical document foundation",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33667-ASSET-ACCORD"
@@ -2330,7 +2331,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-ACCORD",
               "scope": "Stable IDs, units, revision and capability schemas, cancellation/result/loss contracts; no GUI/GPU/database/media dependencies.",
-              "required_behavior": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment.",
+              "required_behavior": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment. ### 14.23.1 Folio canonical document foundation",
               "only_owner_root_may_change": true
             }
           ],
@@ -2339,13 +2340,13 @@
               "hsk-studio-accord"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment.",
+            "consumer_assertion": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment. ### 14.23.1 Folio canonical document foundation",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-33667-KERNEL-AC-002",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment. ### 14.23.1 Folio canonical document foundation Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ],
@@ -2370,11 +2371,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2404,5 +2405,41 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-002",
+          "old": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment.",
+          "new": "Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment. ### 14.23.1 Folio canonical document foundation"
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "CANONICAL PRIMITIVES. The canonical Studio primitive set is defined in 14.3 [STU-DOC-002]. Each primitive's field-level struct is authored here as implementation lands; the per-domain catalogs (14.4-1 [...]",
+      "propagated_paths": [
+        "/context_capsule/specification_anchor_refs[0]/verbatim",
+        "/closure_unit/materialized_acceptance[1]/text",
+        "/proof/checks[1]/expected",
+        "/fulfillment/asset_slices[0]/scope_basis[0]/verbatim",
+        "/fulfillment/legacy_acceptance_map[1]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[1]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[1]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[1]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[1]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

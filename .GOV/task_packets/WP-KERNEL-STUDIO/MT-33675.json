@@ -12,8 +12,9 @@
     "unit_kind": "validator",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.24 Validation, Promotion Equivalence, and HBR",
-    "spec_line": 22378,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 22913,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,25 +27,37 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "THREE-TIER DIAGNOSTICS (HBR-INT-009). Every observable Studio runtime behavior MUST be mapped across the three diagnostic tiers with a recorded per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | D [...]",
+  "clause": "THREE-TIER DIAGNOSTICS (HBR-INT-009). Every Studio module and observable behavior MUST declare and implement its applicable production Flight Recorder, internal_diagnostics and Palmistry posture throu [...]",
   "spec_anchor": [
     "STU-VAL-002"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "val",
   "scope": {
-    "summary": "THREE-TIER DIAGNOSTICS (HBR-INT-009). Every observable Studio runtime behavior MUST be mapped across the three diagnostic tiers with a recorded per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): Tier 1 Flight Recorder (`FR-EVT-STUDIO-*` business events — WIRED at build); Tier 2 internal_diagnostics (frame-time on canvas/viewport renders, panic hooks in `studio-engine`, UI-thread heartbeat for Studio panes, GPU/CPU/RSS counters during render/filter jobs, diagnostic-event API for render-cache/GPU-device-lost/readback failures — DEFERRED-until-shipped per WP-KERNEL-012/016); Tier 3 Palmistry (external watcher over freeze/crash during heavy render — DEFERRED-until-shipped). Deferral is typed, never silent.",
+    "summary": "THREE-TIER DIAGNOSTICS (HBR-INT-009). Every Studio module and observable behavior MUST declare and implement its applicable production Flight Recorder, internal_diagnostics and Palmistry posture through shared typed diagnostic ports and existing host owners. Asset-only proof exercises the port and bounded telemetry/error/cancellation behavior; separately scheduled native embedding proof exercises real host diagnostics and the watcher. No global DEFERRED-until-shipped status may substitute for required production integration. Legitimate non-applicability and unresolved host dependencies MUST have typed per-behavior reasons and block corresponding required acceptance. Telemetry MUST preserve privacy, bounded buffers/drop counters and realtime safety; no engine may create a separate recorder/database/watcher authority.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Every observable Studio runtime behavior MUST be mapped across the three diagnostic tiers with a recorded per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): Tier 1 Flight Recorder (`FR-EVT-STUDIO-*` business events — WIRED at build);",
+      "criterion": "Every Studio module and observable behavior MUST declare and implement its applicable production Flight Recorder, internal_diagnostics and Palmistry posture through shared typed diagnostic ports and existing host owners.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VAL-002"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "Legitimate non-applicability and unresolved host dependencies MUST have typed per-behavior reasons and block corresponding required acceptance.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VAL-002"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "Telemetry MUST preserve privacy, bounded buffers/drop counters and realtime safety; no engine may create a separate recorder/database/watcher authority.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-VAL-002"
     }
   ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria_count": 3,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -141,7 +154,7 @@
   "identity": {
     "mt_id": "MT-33675",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "THREE-TIER DIAGNOSTICS (HBR-INT-009). Every observable Studio runtime behavior MUST be mapped across the three diagnostic tiers with a recorded per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | D [...]",
+    "title": "THREE-TIER DIAGNOSTICS (HBR-INT-009). Every Studio module and observable behavior MUST declare and implement its applicable production Flight Recorder, internal_diagnostics and Palmistry posture throu [...]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 3
@@ -1584,13 +1597,23 @@
       "STU-VAL-002"
     ],
     "acceptance_refs": [
-      "AC-001"
+      "AC-001",
+      "AC-002",
+      "AC-003"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Every observable Studio runtime behavior MUST be mapped across the three diagnostic tiers with a recorded per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): Tier 1 Flight Recorder (`FR-EVT-STUDIO-*` business events — WIRED at build);",
+        "text": "Every Studio module and observable behavior MUST declare and implement its applicable production Flight Recorder, internal_diagnostics and Palmistry posture through shared typed diagnostic ports and existing host owners.",
         "fulfillment_ref": "MT-33675#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-002",
+        "text": "Legitimate non-applicability and unresolved host dependencies MUST have typed per-behavior reasons and block corresponding required acceptance."
+      },
+      {
+        "id": "AC-003",
+        "text": "Telemetry MUST preserve privacy, bounded buffers/drop counters and realtime safety; no engine may create a separate recorder/database/watcher authority."
       }
     ],
     "spec_basis_refs": [
@@ -1790,7 +1813,7 @@
           "AC-001"
         ],
         "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-harness --no-default-features --test mt_33675 -- --nocapture",
-        "expected": "Every observable Studio runtime behavior MUST be mapped across the three diagnostic tiers with a recorded per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): Tier 1 Flight Recorder (`FR-EVT-STUDIO-*` business events — WIRED at build); Source consumer proves: Consume Observe's shared typed telemetry port with per-behavior Flight Recorder/internal_diagnostics/Palmistry posture and exact command/revision/actor attribution. Emit bounded allowed payloads and inspect delivered bytes/drop counters through a real source sink; preserve explicit required-host dependencies rather than global deferred status. Saturate delivery and inject protected text, canceled work and unavailable watcher; no leak or success-for-lost-required-delivery. Actual production registry/ingestion/watcher remains host adoption.",
+        "expected": "Every Studio module and observable behavior MUST declare and implement its applicable production Flight Recorder, internal_diagnostics and Palmistry posture through shared typed diagnostic ports and existing host owners. Source consumer proves: Consume Observe's shared typed telemetry port with per-behavior Flight Recorder/internal_diagnostics/Palmistry posture and exact command/revision/actor attribution. Emit bounded allowed payloads and inspect delivered bytes/drop counters through a real source sink; preserve explicit required-host dependencies rather than global deferred status. Saturate delivery and inject protected text, canceled work and unavailable watcher; no leak or success-for-lost-required-delivery. Actual production registry/ingestion/watcher remains host adoption.",
         "timeout_seconds": 120,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1814,6 +1837,38 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-33675-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-VAL-002"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Legitimate non-applicability and unresolved host dependencies MUST have typed per-behavior reasons and block corresponding required acceptance.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33675-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-VAL-002"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Telemetry MUST preserve privacy, bounded buffers/drop counters and realtime safety; no engine may create a separate recorder/database/watcher authority.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2134,7 +2189,7 @@
         "original_text": "Every observable Studio runtime behavior MUST be mapped across the three diagnostic tiers with a recorded per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): Tier 1 Flight Recorder (`FR-EVT-STUDIO-*` business events — WIRED at build);",
         "original_row_sha256": "58017957b32f82f5191bb5f528d8a1e54a97a53ef5257b53549cb3d6a7976a11",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Every observable Studio runtime behavior MUST be mapped across the three diagnostic tiers with a recorded per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): Tier 1 Flight Recorder (`FR-EVT-STUDIO-*` business events — WIRED at build);",
+        "semantic_fulfillment": "Every Studio module and observable behavior MUST declare and implement its applicable production Flight Recorder, internal_diagnostics and Palmistry posture through shared typed diagnostic ports and existing host owners.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33675-ASSET-HARNESS"
@@ -2144,7 +2199,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-HARNESS",
             "scope": "Standalone asset desktop/headless development consumers with explicit selected providers; no unconditional all-domain facade, no separately shipped suite app.",
-            "required_behavior": "Every observable Studio runtime behavior MUST be mapped across the three diagnostic tiers with a recorded per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): Tier 1 Flight Recorder (`FR-EVT-STUDIO-*` business events — WIRED at build);",
+            "required_behavior": "Every Studio module and observable behavior MUST declare and implement its applicable production Flight Recorder, internal_diagnostics and Palmistry posture through shared typed diagnostic ports and existing host owners.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2153,13 +2208,13 @@
             "hsk-studio-harness"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Every observable Studio runtime behavior MUST be mapped across the three diagnostic tiers with a recorded per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): Tier 1 Flight Recorder (`FR-EVT-STUDIO-*` business events — WIRED at build);",
+          "consumer_assertion": "Every Studio module and observable behavior MUST declare and implement its applicable production Flight Recorder, internal_diagnostics and Palmistry posture through shared typed diagnostic ports and existing host owners.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-33675-KERNEL-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Every observable Studio runtime behavior MUST be mapped across the three diagnostic tiers with a recorded per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): Tier 1 Flight Recorder (`FR-EVT-STUDIO-*` business events — WIRED at build); Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Every Studio module and observable behavior MUST declare and implement its applicable production Flight Recorder, internal_diagnostics and Palmistry posture through shared typed diagnostic ports and existing host owners. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36215"
@@ -2196,7 +2251,7 @@
           "original_text": "Every observable Studio runtime behavior MUST be mapped across the three diagnostic tiers with a recorded per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): Tier 1 Flight Recorder (`FR-EVT-STUDIO-*` business events — WIRED at build);",
           "original_row_sha256": "58017957b32f82f5191bb5f528d8a1e54a97a53ef5257b53549cb3d6a7976a11",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Every observable Studio runtime behavior MUST be mapped across the three diagnostic tiers with a recorded per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): Tier 1 Flight Recorder (`FR-EVT-STUDIO-*` business events — WIRED at build);",
+          "semantic_fulfillment": "Every Studio module and observable behavior MUST declare and implement its applicable production Flight Recorder, internal_diagnostics and Palmistry posture through shared typed diagnostic ports and existing host owners.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33675-ASSET-HARNESS"
@@ -2206,7 +2261,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-HARNESS",
               "scope": "Standalone asset desktop/headless development consumers with explicit selected providers; no unconditional all-domain facade, no separately shipped suite app.",
-              "required_behavior": "Every observable Studio runtime behavior MUST be mapped across the three diagnostic tiers with a recorded per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): Tier 1 Flight Recorder (`FR-EVT-STUDIO-*` business events — WIRED at build);",
+              "required_behavior": "Every Studio module and observable behavior MUST declare and implement its applicable production Flight Recorder, internal_diagnostics and Palmistry posture through shared typed diagnostic ports and existing host owners.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2215,13 +2270,13 @@
               "hsk-studio-harness"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Every observable Studio runtime behavior MUST be mapped across the three diagnostic tiers with a recorded per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): Tier 1 Flight Recorder (`FR-EVT-STUDIO-*` business events — WIRED at build);",
+            "consumer_assertion": "Every Studio module and observable behavior MUST declare and implement its applicable production Flight Recorder, internal_diagnostics and Palmistry posture through shared typed diagnostic ports and existing host owners.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-33675-KERNEL-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Every observable Studio runtime behavior MUST be mapped across the three diagnostic tiers with a recorded per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): Tier 1 Flight Recorder (`FR-EVT-STUDIO-*` business events — WIRED at build); Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Every Studio module and observable behavior MUST declare and implement its applicable production Flight Recorder, internal_diagnostics and Palmistry posture through shared typed diagnostic ports and existing host owners. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ],
@@ -2243,11 +2298,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "asset_local_test_host_only",
     "gpu": "none",
     "diagnostics": {
@@ -2289,5 +2344,53 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "Every observable Studio runtime behavior MUST be mapped across the three diagnostic tiers with a recorded per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): Tier 1 Flight Recorder (`FR-EVT-STUDIO-*` business events — WIRED at build);",
+          "new": "Every Studio module and observable behavior MUST declare and implement its applicable production Flight Recorder, internal_diagnostics and Palmistry posture through shared typed diagnostic ports and existing host owners."
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "Legitimate non-applicability and unresolved host dependencies MUST have typed per-behavior reasons and block corresponding required acceptance."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "Telemetry MUST preserve privacy, bounded buffers/drop counters and realtime safety; no engine may create a separate recorder/database/watcher authority."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-002",
+        "AC-003"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "THREE-TIER DIAGNOSTICS (HBR-INT-009). Every observable Studio runtime behavior MUST be mapped across the three diagnostic tiers with a recorded per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | D [...]",
+      "propagated_paths": [
+        "/identity/title",
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/expected",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

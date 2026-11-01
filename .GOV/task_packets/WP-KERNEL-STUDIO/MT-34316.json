@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.28.5 Responsive authoring: media queries and breakpoints",
-    "spec_line": 30346,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 31033,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,13 +34,13 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "web_authoring",
   "scope": {
-    "summary": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{name: viewport}`, priority band 6). A responsive document with no viewport declaration is a lint warning, not an error. --- ### 14.28.6 Templates, library items and snippets",
+    "summary": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{field: \"name\", value: \"viewport\"}`, priority band 6, and `refines_panel_id` naming the registered band-5 generic meta panel under [STU-WEB-033]). A responsive document with no viewport declaration is a lint warning, not an error. --- ### 14.28.6 Templates, library items and snippets",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{name: viewport}`, priority band 6).",
+      "criterion": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{field: \"name\", value: \"viewport\"}`, priority band 6, and `refines_panel_id` naming the registered band-5 generic meta panel under [STU-WEB-033]).",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-WEB-089"
     }
@@ -2526,7 +2527,7 @@
             "line": 30384,
             "section": "14.28",
             "heading": "### 14.28.5 Responsive authoring: media queries and breakpoints",
-            "verbatim": "**[STU-WEB-089] Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{name: viewport}`, priority band 6). A responsive document with no viewport declaration is a lint warning, not an error.",
+            "verbatim": "**[STU-WEB-089] Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{field: \"name\", value: \"viewport\"}`, priority band 6, and `refines_panel_id` naming the registered band-5 generic meta panel under [STU-WEB-033]). A responsive document with no viewport declaration is a lint warning, not an error.",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2704,11 +2705,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T02:58:55.671201+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2750,5 +2751,30 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{name: viewport}`, priority band 6).",
+          "new": "Viewport meta contract.** An HTML document MUST be able to declare a viewport meta element through a dedicated inspector bound per [STU-WEB-037] (`binds_to: meta`, discriminator `{field: \"name\", value: \"viewport\"}`, priority band 6, and `refines_panel_id` naming the registered band-5 generic meta panel under [STU-WEB-033])."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Viewport meta contract",
+      "propagated_paths": [
+        "/fulfillment/asset_slices[0]/scope_basis[0]/verbatim"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

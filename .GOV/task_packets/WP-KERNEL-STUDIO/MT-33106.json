@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "8. Auto layout — full parameter contract",
-    "spec_line": 19899,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 20172,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "design_systems",
   "scope": {
-    "summary": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. --- ### 9. Constraints",
+    "summary": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound. --- ### 9. Constraints",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [],
@@ -1553,7 +1554,7 @@
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
-        "text": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. --- ### 9. Constraints",
+        "text": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound. --- ### 9. Constraints",
         "fulfillment_ref": "MT-33106#/fulfillment/legacy_acceptance_map/0",
         "proof_ref": "MT-33106#/proof/checks/0",
         "source_scope_ref": "MT-33106#/context_capsule/specification_anchor_refs/0"
@@ -1784,7 +1785,7 @@
         "claim_refs": [
           "ASSET-AC-001"
         ],
-        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-components --no-default-features --test components_mt_33106 mt_33106_asset_ac_001 -- --exact --nocapture. Consumer: Validate row/column anchor and span against grid track counts; assert this exact acceptance: Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. --- ### 9. Constraints. Oracle: Bounded placement matches track coverage; write to child index rejected; use independent expected values/graph or rendered-output inspection, never a producer-authored PASS.; no target or execution claimed.",
+        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-components --no-default-features --test components_mt_33106 mt_33106_asset_ac_001 -- --exact --nocapture. Consumer: Validate row/column anchor and span against grid track counts; assert this exact acceptance: Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound. --- ### 9. Constraints. Oracle: Bounded placement matches track coverage; write to child index rejected; use independent expected values/graph or rendered-output inspection, never a producer-authored PASS.; no target or execution claimed.",
         "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1793,13 +1794,13 @@
           "Independent actual output"
         ],
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
-        "expected": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. --- ### 9. Constraints",
+        "expected": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound. --- ### 9. Constraints",
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-components"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Validate row/column anchor and span against grid track counts; assert this exact acceptance: Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. --- ### 9. Constraints",
+          "consumer_assertion": "Validate row/column anchor and span against grid track counts; assert this exact acceptance: Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound. --- ### 9. Constraints",
           "negative_path": "Exercise the invalid/forbidden or failure case named in Anchor0,span1,last legal cell and out-of-track span; readonly child index. Compare rejected graph with immutable preimage; invalid type/closed token/field/reference and stale expected entity revision must not mutate. Cancellation/provider loss/admission overload return typed bounded outcomes where this consumer uses those paths.",
           "oracle": "Bounded placement matches track coverage; write to child index rejected; use independent expected values/graph or rendered-output inspection, never a producer-authored PASS.",
           "features": [
@@ -1815,7 +1816,7 @@
             "status": "PLANNED_NOT_CREATED",
             "construction": "Anchor0,span1,last legal cell and out-of-track span; readonly child index",
             "full_source_contract_ref": "MT-33106#/context_capsule/specification_anchor_refs/0",
-            "claim_under_test": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. --- ### 9. Constraints"
+            "claim_under_test": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound. --- ### 9. Constraints"
           },
           "prerequisites": [
             "All36 foundations independently passed; current published dependency/API/schema/provider pins resolved",
@@ -2167,7 +2168,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. --- ### 9. Constraints",
+        "semantic_fulfillment": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound. --- ### 9. Constraints",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33106-ASSET-COMPONENTS"
@@ -2177,7 +2178,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-COMPONENTS",
             "scope": "Components, variables, responsive constraints, prototype actions within same document; no separate Figma-like app.",
-            "required_behavior": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. --- ### 9. Constraints",
+            "required_behavior": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound. --- ### 9. Constraints",
             "only_owner_root_may_change": true
           }
         ],
@@ -2186,7 +2187,7 @@
             "hsk-studio-components"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Validate row/column anchor and span against grid track counts; assert this exact acceptance: Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. --- ### 9. Constraints",
+          "consumer_assertion": "Validate row/column anchor and span against grid track counts; assert this exact acceptance: Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound. --- ### 9. Constraints",
           "negative_path": "Exercise the invalid/forbidden or failure case named in Anchor0,span1,last legal cell and out-of-track span; readonly child index. Compare rejected graph with immutable preimage; invalid type/closed token/field/reference and stale expected entity revision must not mutate. Cancellation/provider loss/admission overload return typed bounded outcomes where this consumer uses those paths.",
           "oracle": "Bounded placement matches track coverage; write to child index rejected; use independent expected values/graph or rendered-output inspection, never a producer-authored PASS.",
           "features": [
@@ -2202,7 +2203,7 @@
             "status": "PLANNED_NOT_CREATED",
             "construction": "Anchor0,span1,last legal cell and out-of-track span; readonly child index",
             "full_source_contract_ref": "MT-33106#/context_capsule/specification_anchor_refs/0",
-            "claim_under_test": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. --- ### 9. Constraints"
+            "claim_under_test": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound. --- ### 9. Constraints"
           },
           "prerequisites": [
             "All36 foundations independently passed; current published dependency/API/schema/provider pins resolved",
@@ -2236,7 +2237,7 @@
         },
         "later_embedding_ref": "./MT-36199.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. --- ### 9. Constraints Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound. --- ### 9. Constraints Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "later_embedding_refs": [
           "./MT-36199.json"
@@ -2266,7 +2267,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. --- ### 9. Constraints",
+          "semantic_fulfillment": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound. --- ### 9. Constraints",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33106-ASSET-COMPONENTS"
@@ -2276,7 +2277,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-COMPONENTS",
               "scope": "Components, variables, responsive constraints, prototype actions within same document; no separate Figma-like app.",
-              "required_behavior": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. --- ### 9. Constraints",
+              "required_behavior": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound. --- ### 9. Constraints",
               "only_owner_root_may_change": true
             }
           ],
@@ -2285,7 +2286,7 @@
               "hsk-studio-components"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Validate row/column anchor and span against grid track counts; assert this exact acceptance: Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. --- ### 9. Constraints",
+            "consumer_assertion": "Validate row/column anchor and span against grid track counts; assert this exact acceptance: Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound. --- ### 9. Constraints",
             "negative_path": "Exercise the invalid/forbidden or failure case named in Anchor0,span1,last legal cell and out-of-track span; readonly child index. Compare rejected graph with immutable preimage; invalid type/closed token/field/reference and stale expected entity revision must not mutate. Cancellation/provider loss/admission overload return typed bounded outcomes where this consumer uses those paths.",
             "oracle": "Bounded placement matches track coverage; write to child index rejected; use independent expected values/graph or rendered-output inspection, never a producer-authored PASS.",
             "features": [
@@ -2301,7 +2302,7 @@
               "status": "PLANNED_NOT_CREATED",
               "construction": "Anchor0,span1,last legal cell and out-of-track span; readonly child index",
               "full_source_contract_ref": "MT-33106#/context_capsule/specification_anchor_refs/0",
-              "claim_under_test": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. --- ### 9. Constraints"
+              "claim_under_test": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound. --- ### 9. Constraints"
             },
             "prerequisites": [
               "All36 foundations independently passed; current published dependency/API/schema/provider pins resolved",
@@ -2335,7 +2336,7 @@
           },
           "later_embedding_ref": "./MT-36199.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. --- ### 9. Constraints Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound. --- ### 9. Constraints Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "later_embedding_refs": [
             "./MT-36199.json"
@@ -2391,18 +2392,18 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T03:19:45.770Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
-      "criterion": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. --- ### 9. Constraints",
+      "criterion": "Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound. --- ### 9. Constraints",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
   ],
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2446,5 +2447,39 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Grid-child placement fields",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/command_or_method",
+        "/proof/checks[0]/expected",
+        "/proof/checks[0]/method_recipe/consumer_assertion",
+        "/proof/checks[0]/method_recipe/fixture/claim_under_test",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/fixture/claim_under_test",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/fixture/claim_under_test",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion",
+        "/active_acceptance_criteria[0]/criterion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

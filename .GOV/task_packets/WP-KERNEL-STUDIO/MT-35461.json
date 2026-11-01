@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.8.20 Display Device Characterisation",
-    "spec_line": 11636,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 11909,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "colour",
   "scope": {
-    "summary": "Hardware calibration is an optional out-of-process adapter lane.** Driving a colorimeter or spectrophotometer to MEASURE a display and generate a profile is OUT of the Studio process and is an optional `StudioDeviceAdapter` lane, on the same posture as the colour-book data adapter of [STU-COL-185] and the generative adapter of [STU-COL-237]. It MUST NOT be a hard dependency, MUST NOT be required for any capability in this sub-section, and MUST NOT be the only path to a display profile - an operator who supplies a profile under [STU-COL-304] never touches the lane. Studio links no instrument library into `studio-engine` or `handshake_core`; the no-platform-CMM tripwire of [STU-COL-261] applies unchanged, and an instrument SDK linked into either crate is the same defect. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Adapter boundary field | Contract | |---|---| | `invocation` | A separate process invoked with arguments and observed through its exit status and its files. Never an in-process library call, and never a dynamically loaded instrument driver. | | `capability_probe` | The lane reports whether an instrument is present, and its identity, WITHOUT taking a measurement. Absence is an ordinary answer, not an error. | | `inputs` | A test-patch set to display and a measurement configuration, writte [...]",
+    "summary": "Hardware calibration is an optional out-of-process adapter lane.** Driving a colorimeter or spectrophotometer to MEASURE a display and generate a profile is OUT of the Studio process and is an optional `StudioDeviceAdapter` lane, on the same posture as the colour-book data adapter of [STU-COL-185] and the generative adapter of [STU-COL-237]. It MUST NOT be a hard dependency, MUST NOT be required for any capability in this sub-section, and MUST NOT be the only path to a display profile - an operator who supplies a profile under [STU-COL-304] never touches the lane. Studio links no instrument library into the owning modular Studio asset crate or `handshake_core`; the no-platform-CMM tripwire of [STU-COL-261] applies unchanged, and an instrument SDK linked into either crate is the same defect. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Adapter boundary field | Contract | |---|---| | `invocation` | A separate process invoked with arguments and observed through its exit status and its files. Never an in-process library call, and never a dynamically loaded instrument driver. | | `capability_probe` | The lane reports whether an instrument is present, and its identity, WITHOUT taking a measurement. Absence is an ordinary answer, not an error. | | `inputs` | A test-patch set to display and a measurement [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -54,9 +55,45 @@
       "criterion": "Studio names no adapter product in this module, and an implementer MUST NOT harden the lane around one adapter's spelling of its options or its file extensions. --- ### 14.8.21 ACES Scene-Linear Default",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-COL-308"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `invocation` with the exact meaning the spec states: A separate process invoked with arguments and observed through its exit status and its files. Never an in-process library call, and never a dynamically loaded instrument driver.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-308 carried contract table row 1"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `capability_probe` with the exact meaning the spec states: The lane reports whether an instrument is present, and its identity, WITHOUT taking a measurement. Absence is an ordinary answer, not an error.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-308 carried contract table row 2"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `inputs` with the exact meaning the spec states: A test-patch set to display and a measurement configuration, written to a working directory Studio owns.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-308 carried contract table row 3"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `outputs` with the exact meaning the spec states: A measurement data file and an ICC display profile written to that working directory. The profile is then ingested through [STU-COL-304] exactly as an operator-supplied profile would be; the lane has no privileged path into the engine.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-308 carried contract table row 4"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `licence_isolation` with the exact meaning the spec states: The adapter's licence terms attach to the adapter, never to Studio. The lane MUST run correctly against a replacement adapter, so no adapter's file naming, option spelling or version is a Studio contract.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-308 carried contract table row 5"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The contract table holds the row `absence_behaviour` with the exact meaning the spec states: With no adapter installed, every clause of this sub-section still holds and the operator uses host or supplied profiles. Nothing degrades and nothing is disabled.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-308 carried contract table row 6"
     }
   ],
-  "acceptance_criteria_count": 3,
+  "acceptance_criteria_count": 9,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1589,7 +1626,13 @@
     "acceptance_refs": [
       "AC-001",
       "AC-002",
-      "AC-003"
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009"
     ],
     "materialized_acceptance": [
       {
@@ -1606,6 +1649,30 @@
         "id": "AC-003",
         "text": "Studio names no adapter product in this module, and an implementer MUST NOT harden the lane around one adapter's spelling of its options or its file extensions. --- ### 14.8.21 ACES Scene-Linear Default",
         "fulfillment_ref": "MT-35461#/fulfillment/legacy_acceptance_map/2"
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `invocation` with the exact meaning the spec states: A separate process invoked with arguments and observed through its exit status and its files. Never an in-process library call, and never a dynamically loaded instrument driver.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `capability_probe` with the exact meaning the spec states: The lane reports whether an instrument is present, and its identity, WITHOUT taking a measurement. Absence is an ordinary answer, not an error.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `inputs` with the exact meaning the spec states: A test-patch set to display and a measurement configuration, written to a working directory Studio owns.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `outputs` with the exact meaning the spec states: A measurement data file and an ICC display profile written to that working directory. The profile is then ingested through [STU-COL-304] exactly as an operator-supplied profile would be; the lane has no privileged path into the engine.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `licence_isolation` with the exact meaning the spec states: The adapter's licence terms attach to the adapter, never to Studio. The lane MUST run correctly against a replacement adapter, so no adapter's file naming, option spelling or version is a Studio contract.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-009",
+        "text": "The contract table holds the row `absence_behaviour` with the exact meaning the spec states: With no adapter installed, every clause of this sub-section still holds and the operator uses host or supplied profiles. Nothing degrades and nothing is disabled.. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1729,7 +1796,7 @@
     "inputs": [
       {
         "source_scope": {
-          "summary": "Hardware calibration is an optional out-of-process adapter lane.** Driving a colorimeter or spectrophotometer to MEASURE a display and generate a profile is OUT of the Studio process and is an optional `StudioDeviceAdapter` lane, on the same posture as the colour-book data adapter of [STU-COL-185] and the generative adapter of [STU-COL-237]. It MUST NOT be a hard dependency, MUST NOT be required for any capability in this sub-section, and MUST NOT be the only path to a display profile - an operator who supplies a profile under [STU-COL-304] never touches the lane. Studio links no instrument library into `studio-engine` or `handshake_core`; the no-platform-CMM tripwire of [STU-COL-261] applies unchanged, and an instrument SDK linked into either crate is the same defect. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Adapter boundary field | Contract | |---|---| | `invocation` | A separate process invoked with arguments and observed through its exit status and its files. Never an in-process library call, and never a dynamically loaded instrument driver. | | `capability_probe` | The lane reports whether an instrument is present, and its identity, WITHOUT taking a measurement. Absence is an ordinary answer, not an error. | | `inputs` | A test-patch set to display and a measurement configuration, writte [...]",
+          "summary": "Hardware calibration is an optional out-of-process adapter lane.** Driving a colorimeter or spectrophotometer to MEASURE a display and generate a profile is OUT of the Studio process and is an optional `StudioDeviceAdapter` lane, on the same posture as the colour-book data adapter of [STU-COL-185] and the generative adapter of [STU-COL-237]. It MUST NOT be a hard dependency, MUST NOT be required for any capability in this sub-section, and MUST NOT be the only path to a display profile - an operator who supplies a profile under [STU-COL-304] never touches the lane. Studio links no instrument library into the owning modular Studio asset crate or `handshake_core`; the no-platform-CMM tripwire of [STU-COL-261] applies unchanged, and an instrument SDK linked into either crate is the same defect. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Adapter boundary field | Contract | |---|---| | `invocation` | A separate process invoked with arguments and observed through its exit status and its files. Never an in-process library call, and never a dynamically loaded instrument driver. | | `capability_probe` | The lane reports whether an instrument is present, and its identity, WITHOUT taking a measurement. Absence is an ordinary answer, not an error. | | `inputs` | A test-patch set to display and a measurement [...]",
           "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
         },
         "canonical_consumer": "Independent replacement-adapter consumer reads capability and actual validated output files; absent adapter still permits every host/supplied-profile workflow.",
@@ -1841,6 +1908,102 @@
           "selected_features": []
         },
         "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
+      },
+      {
+        "check_id": "MT-35461-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-COL-308"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `invocation` with the exact meaning the spec states: A separate process invoked with arguments and observed through its exit status and its files. Never an in-process library call, and never a dynamically loaded instrument driver.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35461-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-COL-308"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `capability_probe` with the exact meaning the spec states: The lane reports whether an instrument is present, and its identity, WITHOUT taking a measurement. Absence is an ordinary answer, not an error.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35461-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-COL-308"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `inputs` with the exact meaning the spec states: A test-patch set to display and a measurement configuration, written to a working directory Studio owns.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35461-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-COL-308"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `outputs` with the exact meaning the spec states: A measurement data file and an ICC display profile written to that working directory. The profile is then ingested through [STU-COL-304] exactly as an operator-supplied profile would be; the lane has no privileged path into the engine.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35461-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-COL-308"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `licence_isolation` with the exact meaning the spec states: The adapter's licence terms attach to the adapter, never to Studio. The lane MUST run correctly against a replacement adapter, so no adapter's file naming, option spelling or version is a Studio contract.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35461-SPEC-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-COL-308"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `absence_behaviour` with the exact meaning the spec states: With no adapter installed, every clause of this sub-section still holds and the operator uses host or supplied profiles. Nothing degrades and nothing is disabled.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2465,11 +2628,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2505,5 +2668,62 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `invocation` with the exact meaning the spec states: A separate process invoked with arguments and observed through its exit status and its files. Never an in-process library call, and never a dynamically loaded instrument driver.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `capability_probe` with the exact meaning the spec states: The lane reports whether an instrument is present, and its identity, WITHOUT taking a measurement. Absence is an ordinary answer, not an error.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `inputs` with the exact meaning the spec states: A test-patch set to display and a measurement configuration, written to a working directory Studio owns.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `outputs` with the exact meaning the spec states: A measurement data file and an ICC display profile written to that working directory. The profile is then ingested through [STU-COL-304] exactly as an operator-supplied profile would be; the lane has no privileged path into the engine.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `licence_isolation` with the exact meaning the spec states: The adapter's licence terms attach to the adapter, never to Studio. The lane MUST run correctly against a replacement adapter, so no adapter's file naming, option spelling or version is a Studio contract.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-009",
+          "old": null,
+          "new": "The contract table holds the row `absence_behaviour` with the exact meaning the spec states: With no adapter installed, every clause of this sub-section still holds and the operator uses host or supplied profiles. Nothing degrades and nothing is disabled.. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Hardware calibration is an optional out-of-process adapter lane",
+      "propagated_paths": [
+        "/execution/inputs[0]/source_scope/summary"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

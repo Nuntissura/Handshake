@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "The time model",
-    "spec_line": 22509,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 23046,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "video_timeline",
   "scope": {
-    "summary": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than as the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator values as canonical and the exact-decimal values as a legacy import shape that is normalised on import, because only the ratio form keeps timecode drift correct. The composition-settings surface additionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999.",
+    "summary": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than as the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator values as canonical and the exact-decimal values as a legacy import shape that is normalised on import, because only the ratio form keeps timecode drift correct. The composition-settings surface additionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [],
@@ -1524,7 +1525,7 @@
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
-        "text": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than as the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator values as canonical and the exact-decimal values as a legacy import shape that is normalised on import, because only the ratio form keeps timecode drift correct. The composition-settings surface additionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999.",
+        "text": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than as the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator values as canonical and the exact-decimal values as a legacy import shape that is normalised on import, because only the ratio form keeps timecode drift correct. The composition-settings surface additionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
         "fulfillment_ref": "MT-33690#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -2132,7 +2133,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than as the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator values as canonical and the exact-decimal values as a legacy import shape that is normalised on import, because only the ratio form keeps timecode drift correct. The composition-settings surface additionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999.",
+        "semantic_fulfillment": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than as the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator values as canonical and the exact-decimal values as a legacy import shape that is normalised on import, because only the ratio form keeps timecode drift correct. The composition-settings surface additionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33690-ASSET-PULSE"
@@ -2142,7 +2143,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-PULSE",
             "scope": "Canonical integer-tick sequence time at 254016000000 ticks/second per STU-VID-012 and normalized broadcast ticks/frame per STU-VID-013. Preserve declared field types with checked arithmetic/range; rational time is for interchange adapters, never a competing stored authority. Own edit/trim/ripple/multicam references and scheduling; media decoder behind typed port.",
-            "required_behavior": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than as the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator values as canonical and the exact-decimal values as a legacy import shape that is normalised on import, because only the ratio form keeps timecode drift correct. The composition-settings surface additionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999.",
+            "required_behavior": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than as the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator values as canonical and the exact-decimal values as a legacy import shape that is normalised on import, because only the ratio form keeps timecode drift correct. The composition-settings surface additionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2151,7 +2152,7 @@
             "hsk-studio-pulse"
           ],
           "feature_policy": "--no-default-features; declared dependency closure only",
-          "consumer_assertion": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than as the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator values as canonical and the exact-decimal values as a legacy import shape that is normalised on import, because only the ratio form keeps timecode drift correct. The composition-settings surface additionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999.",
+          "consumer_assertion": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than as the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator values as canonical and the exact-decimal values as a legacy import shape that is normalised on import, because only the ratio form keeps timecode drift correct. The composition-settings surface additionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
           "negative_path": "Invalid object/path/unit or checked range overflow refuses atomically; stale read/write footprint conflicts; cancel retains prior graph.",
           "oracle": "Independent exact Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than resulting graph/field/tick comparison; actual saved-byte/native/GUI boundaries remain separately required.",
           "proof_check_refs": [
@@ -2160,7 +2161,7 @@
         },
         "later_embedding_ref": "MT-33690-KERNEL-ASSET-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than as the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator values as canonical and the exact-decimal values as a legacy import shape that is normalised on import, because only the ratio form keeps timecode drift correct. The composition-settings surface additionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than as the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator values as canonical and the exact-decimal values as a legacy import shape that is normalised on import, because only the ratio form keeps timecode drift correct. The composition-settings surface additionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36200"
@@ -2188,7 +2189,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than as the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator values as canonical and the exact-decimal values as a legacy import shape that is normalised on import, because only the ratio form keeps timecode drift correct. The composition-settings surface additionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999.",
+          "semantic_fulfillment": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than as the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator values as canonical and the exact-decimal values as a legacy import shape that is normalised on import, because only the ratio form keeps timecode drift correct. The composition-settings surface additionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33690-ASSET-PULSE"
@@ -2198,7 +2199,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-PULSE",
               "scope": "Canonical integer-tick sequence time at 254016000000 ticks/second per STU-VID-012 and normalized broadcast ticks/frame per STU-VID-013. Preserve declared field types with checked arithmetic/range; rational time is for interchange adapters, never a competing stored authority. Own edit/trim/ripple/multicam references and scheduling; media decoder behind typed port.",
-              "required_behavior": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than as the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator values as canonical and the exact-decimal values as a legacy import shape that is normalised on import, because only the ratio form keeps timecode drift correct. The composition-settings surface additionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999.",
+              "required_behavior": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than as the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator values as canonical and the exact-decimal values as a legacy import shape that is normalised on import, because only the ratio form keeps timecode drift correct. The composition-settings surface additionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2207,13 +2208,13 @@
               "hsk-studio-pulse"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than as the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator values as canonical and the exact-decimal values as a legacy import shape that is normalised on import, because only the ratio form keeps timecode drift correct. The composition-settings surface additionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999.",
+            "consumer_assertion": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than as the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator values as canonical and the exact-decimal values as a legacy import shape that is normalised on import, because only the ratio form keeps timecode drift correct. The composition-settings surface additionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-33690-KERNEL-ASSET-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than as the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator values as canonical and the exact-decimal values as a legacy import shape that is normalised on import, because only the ratio form keeps timecode drift correct. The composition-settings surface additionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than as the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator values as canonical and the exact-decimal values as a legacy import shape that is normalised on import, because only the ratio form keeps timecode drift correct. The composition-settings surface additionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "MT-36200"
@@ -2270,11 +2271,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T23:52:25Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
-      "criterion": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than as the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator values as canonical and the exact-decimal values as a legacy import shape that is normalised on import, because only the ratio form keeps timecode drift correct. The composition-settings surface additionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999.",
+      "criterion": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than as the 1001-denominator ratios (`10594594594` and `8475675675`). Studio treats the 1001-denominator values as canonical and the exact-decimal values as a legacy import shape that is normalised on import, because only the ratio form keeps timecode drift correct. The composition-settings surface additionally offers a fixed frame-rate picker whose members are 8, 12, 15, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
   ],
@@ -2288,7 +2289,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2331,5 +2332,33 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Two additional tick values decode to 23.976 and 29.97 as exact decimals rather than",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion",
+        "/active_acceptance_criteria[0]/criterion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

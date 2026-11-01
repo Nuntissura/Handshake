@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.28.1 Document types, tag libraries and the attribute vocabulary",
-    "spec_line": 29912,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 30501,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "web_authoring",
   "scope": {
-    "summary": "Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`. Each carries its literal declaration string, which MUST be emitted verbatim. `html_5` is the default for a new HTML document.",
+    "summary": "Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`. Each carries its literal declaration string, which MUST be emitted verbatim. `html_5` is the default for a new HTML document. The following JSON string literals decode to the normative UTF8 declaration bytes; escape decoding is required and no further whitespace or case normalization is allowed. XSLT trailing newline/tab bytes are significant. The portable payload MUST NOT require a vendor installation path. | Declaration ID | JSON-encoded literal | UTF8 SHA256 | |---|---|---| | `html_401_transitional` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01 Transitional//EN\\\" \\\"http://www.w3.org/TR/html4/loose.dtd\\\">\"` | `038bc3463fde72fe84400b49b5d260eb78faece26ad85d7ec9fa7133b3b72669` | | `html_401_strict` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01//EN\\\" \\\"http://www.w3.org/TR/html4/strict.dtd\\\">\"` | `f746845be5f58de20e676b7bb4aae3438ed8055f48daca7eadf986206da75c8d` | | `html_401_frameset` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01 Frameset//EN\\\" \\\"http://www.w3.org/TR/html4/frameset.dtd\\\">\"` | `5c7f995549049033718141e3658f635f3b4bd7ba15f [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -48,9 +49,15 @@
       "criterion": "Each carries its literal declaration string, which MUST be emitted verbatim.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-WEB-015"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The portable payload MUST NOT require a vendor installation path. | Declaration ID | JSON-encoded literal | UTF8 SHA256 | |---|---|---| | `html_401_transitional` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01 Transitional//EN\\\" \\\"http://www.w3.org/TR/html4/loose.dtd\\\">\"` | `038bc3463fde72fe84400b49b5d260eb78faece26ad85d7ec9fa7133b3b72669` | | `html_401_strict` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01//EN\\\" \\\"http://www.w3.org/TR/html4/strict.dtd\\\">\"` | `f746845be5f58de20e676b7bb4aae3438ed8055f48daca7eadf986206da75c8d` | | `html_401_frameset` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD [...]",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-WEB-015"
     }
   ],
-  "acceptance_criteria_count": 2,
+  "acceptance_criteria_count": 3,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -163,7 +170,7 @@
       {
         "id": "STU-WEB-015",
         "anchor": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md:29950",
-        "verbatim": "**[STU-WEB-015] Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`. Each carries its literal declaration string, which MUST be emitted verbatim. `html_5` is the default for a new HTML document.",
+        "verbatim": "**[STU-WEB-015] Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`. Each carries its literal declaration string, which MUST be emitted verbatim. `html_5` is the default for a new HTML document. The following JSON string literals decode to the normative UTF8 declaration bytes; escape decoding is required and no further whitespace or case normalization is allowed. XSLT trailing newline/tab bytes are significant. The portable payload MUST NOT require a vendor installation path. | Declaration ID | JSON-encoded literal | UTF8 SHA256 | |---|---|---| | `html_401_transitional` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01 Transitional//EN\\\" \\\"http://www.w3.org/TR/html4/loose.dtd\\\">\"` | `038bc3463fde72fe84400b49b5d260eb78faece26ad85d7ec9fa7133b3b72669` | | `html_401_strict` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01//EN\\\" \\\"http://www.w3.org/TR/html4/strict.dtd\\\">\"` | `f746845be5f58de20e676b7bb4aae3438ed8055f48daca7eadf986206da75c8d` | | `html_401_frameset` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01 Frameset//EN\\\" \\\"http://www.w3.org/TR/html4/frameset.dtd\\\">\"` | `5c7f995549049033718141e3658f635f3b4bd7ba15f [...]",
         "heading": "### 14.28.1 Document types, tag libraries and the attribute vocabulary",
         "section": "14.28",
         "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
@@ -1926,7 +1933,8 @@
     ],
     "acceptance_refs": [
       "AC-001",
-      "AC-002"
+      "AC-002",
+      "AC-003"
     ],
     "materialized_acceptance": [
       {
@@ -1938,6 +1946,10 @@
         "id": "AC-002",
         "text": "Each carries its literal declaration string, which MUST be emitted verbatim. Current v02.208 enrichment: Use exactly ten canonical doctype IDs and pinned literal UTF8 bytes, default html_5; no whitespace/case normalization or vendor installation dependency. Complete current normative fields/table/body: .GOV/task_packets/WP-KERNEL-STUDIO/MT-34232.json#/execution/inputs/1/complete_clause_body",
         "fulfillment_ref": "MT-34232#/fulfillment/legacy_acceptance_map/1"
+      },
+      {
+        "id": "AC-003",
+        "text": "The portable payload MUST NOT require a vendor installation path. | Declaration ID | JSON-encoded literal | UTF8 SHA256 | |---|---|---| | `html_401_transitional` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01 Transitional//EN\\\" \\\"http://www.w3.org/TR/html4/loose.dtd\\\">\"` | `038bc3463fde72fe84400b49b5d260eb78faece26ad85d7ec9fa7133b3b72669` | | `html_401_strict` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01//EN\\\" \\\"http://www.w3.org/TR/html4/strict.dtd\\\">\"` | `f746845be5f58de20e676b7bb4aae3438ed8055f48daca7eadf986206da75c8d` | | `html_401_frameset` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD [...]"
       }
     ],
     "spec_basis_refs": [
@@ -2075,7 +2087,7 @@
             "range_kind": "normative_clause"
           }
         ],
-        "complete_clause_body": "**[STU-WEB-015] Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`. Each carries its literal declaration string, which MUST be emitted verbatim. `html_5` is the default for a new HTML document.\n\nThe following JSON string literals decode to the normative UTF8 declaration bytes; escape decoding is required and no further whitespace or case normalization is allowed. XSLT trailing newline/tab bytes are significant. The portable payload MUST NOT require a vendor installation path.\n\n| Declaration ID | JSON-encoded literal | UTF8 SHA256 |\n|---|---|---|\n| `html_401_transitional` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01 Transitional//EN\\\" \\\"http://www.w3.org/TR/html4/loose.dtd\\\">\"` | `038bc3463fde72fe84400b49b5d260eb78faece26ad85d7ec9fa7133b3b72669` |\n| `html_401_strict` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01//EN\\\" \\\"http://www.w3.org/TR/html4/strict.dtd\\\">\"` | `f746845be5f58de20e676b7bb4aae3438ed8055f48daca7eadf986206da75c8d` |\n| `html_401_frameset` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01 Frameset//EN\\\" \\\"http://www.w3.org/TR/html4/frameset.dtd\\\">\"` | `5c7f995549049033718141e3658f635f3b4bd7ba15fa3b89c90f6eeb10544ae9` |\n| `html_5` | `\"<!doctype html>\"` | `fe26c59e91ac8de694b2531dc3bdc1b7faf471d3d7e4e00870af60f5f22897cb` |\n| `xhtml_1_transitional` | `\"<!DOCTYPE html PUBLIC \\\"-//W3C//DTD XHTML 1.0 Transitional//EN\\\" \\\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\\\">\"` | `7f3c0066fcfae37e040afe3c1f769d0100cff916b62ceaa0f4030d455807ac12` |\n| `xhtml_1_strict` | `\"<!DOCTYPE html PUBLIC \\\"-//W3C//DTD XHTML 1.0 Strict//EN\\\" \\\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\\\">\"` | `cf72f33d973cce2de3d1dfd34fc95951a4bb4a866785f18a56e25a56fd484eed` |\n| `xhtml_11` | `\"<!DOCTYPE html PUBLIC \\\"-//W3C//DTD XHTML 1.1//EN\\\" \\\"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\\\">\"` | `eda292944b8af7ac65569a2a06741a646b72e62cc68ae15621d536b98f173025` |\n| `xhtml_1_frameset` | `\"<!DOCTYPE html PUBLIC \\\"-//W3C//DTD XHTML 1.0 Frameset//EN\\\" \\\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd\\\">\"` | `9b62ccbf25cd4870301dad586c7df6276e14de0ad872758e48aed0053664c404` |\n| `xhtml_mobile_1` | `\"<!DOCTYPE html PUBLIC \\\"-//WAPFORUM//DTD XHTML Mobile 1.0//EN\\\" \\\"http://www.wapforum.org/DTD/xhtml-mobile10.dtd\\\">\"` | `3a10e18d5f391ce8ad702429dd6c751e9454de0b63127f200d3242feafa5f29c` |\n| `xslt_1` | `\"<!DOCTYPE xsl:stylesheet  [\\n\\t<!ENTITY nbsp   \\\"&#160;\\\">\\n\\t<!ENTITY copy   \\\"&#169;\\\">\\n\\t<!ENTITY reg    \\\"&#174;\\\">\\n\\t<!ENTITY trade  \\\"&#8482;\\\">\\n\\t<!ENTITY mdash  \\\"&#8212;\\\">\\n\\t<!ENTITY ldquo  \\\"&#8220;\\\">\\n\\t<!ENTITY rdquo  \\\"&#8221;\\\"> \\n\\t<!ENTITY pound  \\\"&#163;\\\">\\n\\t<!ENTITY yen    \\\"&#165;\\\">\\n\\t<!ENTITY euro   \\\"&#8364;\\\">\\n]>\\n\\t\\t\\t\"` | `26aff3d0af763e71c714d330417de2027ec24f02e6e980b22f60fcf7f1f8bbef` |",
+        "complete_clause_body": "**[STU-WEB-015] Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`. Each carries its literal declaration string, which MUST be emitted verbatim. `html_5` is the default for a new HTML document. The following JSON string literals decode to the normative UTF8 declaration bytes; escape decoding is required and no further whitespace or case normalization is allowed. XSLT trailing newline/tab bytes are significant. The portable payload MUST NOT require a vendor installation path. | Declaration ID | JSON-encoded literal | UTF8 SHA256 | |---|---|---| | `html_401_transitional` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01 Transitional//EN\\\" \\\"http://www.w3.org/TR/html4/loose.dtd\\\">\"` | `038bc3463fde72fe84400b49b5d260eb78faece26ad85d7ec9fa7133b3b72669` | | `html_401_strict` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01//EN\\\" \\\"http://www.w3.org/TR/html4/strict.dtd\\\">\"` | `f746845be5f58de20e676b7bb4aae3438ed8055f48daca7eadf986206da75c8d` | | `html_401_frameset` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01 Frameset//EN\\\" \\\"http://www.w3.org/TR/html4/frameset.dtd\\\">\"` | `5c7f995549049033718141e3658f635f3b4bd7ba15f [...]\n\nThe following JSON string literals decode to the normative UTF8 declaration bytes; escape decoding is required and no further whitespace or case normalization is allowed. XSLT trailing newline/tab bytes are significant. The portable payload MUST NOT require a vendor installation path.\n\n| Declaration ID | JSON-encoded literal | UTF8 SHA256 |\n|---|---|---|\n| `html_401_transitional` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01 Transitional//EN\\\" \\\"http://www.w3.org/TR/html4/loose.dtd\\\">\"` | `038bc3463fde72fe84400b49b5d260eb78faece26ad85d7ec9fa7133b3b72669` |\n| `html_401_strict` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01//EN\\\" \\\"http://www.w3.org/TR/html4/strict.dtd\\\">\"` | `f746845be5f58de20e676b7bb4aae3438ed8055f48daca7eadf986206da75c8d` |\n| `html_401_frameset` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01 Frameset//EN\\\" \\\"http://www.w3.org/TR/html4/frameset.dtd\\\">\"` | `5c7f995549049033718141e3658f635f3b4bd7ba15fa3b89c90f6eeb10544ae9` |\n| `html_5` | `\"<!doctype html>\"` | `fe26c59e91ac8de694b2531dc3bdc1b7faf471d3d7e4e00870af60f5f22897cb` |\n| `xhtml_1_transitional` | `\"<!DOCTYPE html PUBLIC \\\"-//W3C//DTD XHTML 1.0 Transitional//EN\\\" \\\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\\\">\"` | `7f3c0066fcfae37e040afe3c1f769d0100cff916b62ceaa0f4030d455807ac12` |\n| `xhtml_1_strict` | `\"<!DOCTYPE html PUBLIC \\\"-//W3C//DTD XHTML 1.0 Strict//EN\\\" \\\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\\\">\"` | `cf72f33d973cce2de3d1dfd34fc95951a4bb4a866785f18a56e25a56fd484eed` |\n| `xhtml_11` | `\"<!DOCTYPE html PUBLIC \\\"-//W3C//DTD XHTML 1.1//EN\\\" \\\"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\\\">\"` | `eda292944b8af7ac65569a2a06741a646b72e62cc68ae15621d536b98f173025` |\n| `xhtml_1_frameset` | `\"<!DOCTYPE html PUBLIC \\\"-//W3C//DTD XHTML 1.0 Frameset//EN\\\" \\\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd\\\">\"` | `9b62ccbf25cd4870301dad586c7df6276e14de0ad872758e48aed0053664c404` |\n| `xhtml_mobile_1` | `\"<!DOCTYPE html PUBLIC \\\"-//WAPFORUM//DTD XHTML Mobile 1.0//EN\\\" \\\"http://www.wapforum.org/DTD/xhtml-mobile10.dtd\\\">\"` | `3a10e18d5f391ce8ad702429dd6c751e9454de0b63127f200d3242feafa5f29c` |\n| `xslt_1` | `\"<!DOCTYPE xsl:stylesheet  [\\n\\t<!ENTITY nbsp   \\\"&#160;\\\">\\n\\t<!ENTITY copy   \\\"&#169;\\\">\\n\\t<!ENTITY reg    \\\"&#174;\\\">\\n\\t<!ENTITY trade  \\\"&#8482;\\\">\\n\\t<!ENTITY mdash  \\\"&#8212;\\\">\\n\\t<!ENTITY ldquo  \\\"&#8220;\\\">\\n\\t<!ENTITY rdquo  \\\"&#8221;\\\"> \\n\\t<!ENTITY pound  \\\"&#163;\\\">\\n\\t<!ENTITY yen    \\\"&#165;\\\">\\n\\t<!ENTITY euro   \\\"&#8364;\\\">\\n]>\\n\\t\\t\\t\"` | `26aff3d0af763e71c714d330417de2027ec24f02e6e980b22f60fcf7f1f8bbef` |",
         "method_operands": "Exact fields, ordered vocabularies, tables, numeric provenance and defaults in complete_clause_body; missing upstream assets remain gaps",
         "source_revision_precondition": "One immutable source text/document revision; grants and external resources supplied by published ports",
         "unit_kind": "clause",
@@ -2343,6 +2355,22 @@
         "planned_source_requirement_ref": "STU-WEB-015",
         "timeout_resolution": "PENDING_ACTUAL_TARGET_AND_APPROVED_BOUNDED_TIMEOUT_BEFORE_DISPATCH",
         "status": "PENDING_NOT_RUN"
+      },
+      {
+        "check_id": "MT-34232-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-WEB-015"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The portable payload MUST NOT require a vendor installation path. | Declaration ID | JSON-encoded literal | UTF8 SHA256 | |---|---|---| | `html_401_transitional` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01 Transitional//EN\\\" \\\"http://www.w3.org/TR/html4/loose.dtd\\\">\"` | `038bc3463fde72fe84400b49b5d260eb78faece26ad85d7ec9fa7133b3b72669` | | `html_401_strict` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01//EN\\\" \\\"http://www.w3.org/TR/html4/strict.dtd\\\">\"` | `f746845be5f58de20e676b7bb4aae3438ed8055f48daca7eadf986206da75c8d` | | `html_401_frameset` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD [...]",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2647,7 +2675,7 @@
             "line": 29950,
             "section": "14.28",
             "heading": "### 14.28.1 Document types, tag libraries and the attribute vocabulary",
-            "verbatim": "**[STU-WEB-015] Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`. Each carries its literal declaration string, which MUST be emitted verbatim. `html_5` is the default for a new HTML document.",
+            "verbatim": "**[STU-WEB-015] Doctype declaration set (normative, ten rows).** Studio MUST offer exactly these ten doctype declarations when creating or converting an HTML-family document: `html_401_transitional`, `html_401_strict`, `html_401_frameset`, `html_5`, `xhtml_1_transitional`, `xhtml_1_strict`, `xhtml_11`, `xhtml_1_frameset`, `xhtml_mobile_1`, `xslt_1`. Each carries its literal declaration string, which MUST be emitted verbatim. `html_5` is the default for a new HTML document. The following JSON string literals decode to the normative UTF8 declaration bytes; escape decoding is required and no further whitespace or case normalization is allowed. XSLT trailing newline/tab bytes are significant. The portable payload MUST NOT require a vendor installation path. | Declaration ID | JSON-encoded literal | UTF8 SHA256 | |---|---|---| | `html_401_transitional` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01 Transitional//EN\\\" \\\"http://www.w3.org/TR/html4/loose.dtd\\\">\"` | `038bc3463fde72fe84400b49b5d260eb78faece26ad85d7ec9fa7133b3b72669` | | `html_401_strict` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01//EN\\\" \\\"http://www.w3.org/TR/html4/strict.dtd\\\">\"` | `f746845be5f58de20e676b7bb4aae3438ed8055f48daca7eadf986206da75c8d` | | `html_401_frameset` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01 Frameset//EN\\\" \\\"http://www.w3.org/TR/html4/frameset.dtd\\\">\"` | `5c7f995549049033718141e3658f635f3b4bd7ba15f [...]",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2911,11 +2939,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T02:58:55.671201+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2957,5 +2985,34 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The portable payload MUST NOT require a vendor installation path. | Declaration ID | JSON-encoded literal | UTF8 SHA256 | |---|---|---| | `html_401_transitional` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01 Transitional//EN\\\" \\\"http://www.w3.org/TR/html4/loose.dtd\\\">\"` | `038bc3463fde72fe84400b49b5d260eb78faece26ad85d7ec9fa7133b3b72669` | | `html_401_strict` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD HTML 4.01//EN\\\" \\\"http://www.w3.org/TR/html4/strict.dtd\\\">\"` | `f746845be5f58de20e676b7bb4aae3438ed8055f48daca7eadf986206da75c8d` | | `html_401_frameset` | `\"<!DOCTYPE HTML PUBLIC \\\"-//W3C//DTD [...]"
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-003"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Doctype declaration set (normative, ten rows)",
+      "propagated_paths": [
+        "/context_capsule/specification_anchor_refs[0]/verbatim",
+        "/execution/inputs[1]/complete_clause_body",
+        "/fulfillment/asset_slices[0]/scope_basis[0]/verbatim"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

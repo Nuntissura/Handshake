@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.8.5 The Colour Engine",
-    "spec_line": 10081,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 10354,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "colour",
   "scope": {
-    "summary": "Native colour engine (RESTATEMENT AND HARDENING of [STU-COL-006]).** The colour transform engine, ICC parsing and evaluation, OCIO configuration handling, gamut mapping, LUT evaluation, ink and separation mathematics, and grading mathematics are owned by the `studio-engine` crate behind the `ColorEngine: Send + Sync` trait ([STU-ARC-002]). Studio MUST NOT depend on a platform colour management module (Windows ICM/WCS, macOS ColorSync), on a system-installed LittleCMS, or on a subscription colour service, at runtime, on any platform, in any build profile, including tests.",
+    "summary": "Native colour engine (RESTATEMENT AND HARDENING of [STU-COL-006]).** The colour transform engine, ICC parsing and evaluation, OCIO configuration handling, gamut mapping, LUT evaluation, ink and separation mathematics, and grading mathematics are owned by the the owning modular Studio asset crate crate behind the `ColorEngine: Send + Sync` trait ([STU-ARC-002]). Studio MUST NOT depend on a platform colour management module (Windows ICM/WCS, macOS ColorSync), on a system-installed LittleCMS, or on a subscription colour service, at runtime, on any platform, in any build profile, including tests.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -1704,7 +1705,7 @@
     "shared_resource_locks": [],
     "inputs": [
       {
-        "source_scope": "Native colour engine (RESTATEMENT AND HARDENING of [STU-COL-006]).** The colour transform engine, ICC parsing and evaluation, OCIO configuration handling, gamut mapping, LUT evaluation, ink and separation mathematics, and grading mathematics are owned by the `studio-engine` crate behind the `ColorEngine: Send + Sync` trait ([STU-ARC-002]). Studio MUST NOT depend on a platform colour management module (Windows ICM/WCS, macOS ColorSync), on a system-installed LittleCMS, or on a subscription colour service, at runtime, on any platform, in any build profile, including tests.",
+        "source_scope": "Native colour engine (RESTATEMENT AND HARDENING of [STU-COL-006]).** The colour transform engine, ICC parsing and evaluation, OCIO configuration handling, gamut mapping, LUT evaluation, ink and separation mathematics, and grading mathematics are owned by the the owning modular Studio asset crate crate behind the `ColorEngine: Send + Sync` trait ([STU-ARC-002]). Studio MUST NOT depend on a platform colour management module (Windows ICM/WCS, macOS ColorSync), on a system-installed LittleCMS, or on a subscription colour service, at runtime, on any platform, in any build profile, including tests.",
         "canonical_consumer": "Transform actual hashed ICC and OCIO sample resources through one native engine and inspect resolved dependency/profile/config records.",
         "source_root": "handshake-studio-assets/crates/hsk-studio-prism",
         "resource_inputs": "Actual hashed ICC/OCIO/LUT/profile sample bytes and high-precision buffers; complete transform/cache/role/display/export/blending configuration; ArtifactService, Package, RenderEngine/Argus ports; two-host immutable artifact comparisons and declared application tolerances.",
@@ -2244,11 +2245,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2284,5 +2285,24 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Native colour engine (RESTATEMENT AND HARDENING of [STU-COL-006])",
+      "propagated_paths": [
+        "/execution/inputs[0]/source_scope"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

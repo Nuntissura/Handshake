@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "3. Document PDF export",
-    "spec_line": 20963,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 21259,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "interop",
   "scope": {
-    "summary": "PDF numeric setting contracts (from the shipped spread).** | Setting | Observed values | hard_min | hard_max | soft_min | soft_max | default | unit | precision | |---|---|---|---|---|---|---|---|---| | `colour_image_resolution` | 100, 300, 350 | 1 | unknown | 72 | 600 | 300 | ppi | 0 | | `greyscale_image_resolution` | 150, 300, 350 | 1 | unknown | 72 | 600 | 300 | ppi | 0 | | `monochrome_image_resolution` | 300, 1200 | 1 | unknown | 300 | 2400 | 1200 | ppi | 0 | | `downsample_threshold` | 1.50000 | 1.0 | unknown | 1.0 | 3.0 | 1.5 | ratio | 5 | | `max_subset_percent` | 100 | 0 | 100 | 0 | 100 | 100 | percent | 0 | | `image_memory` | 1048576 | unknown | unknown | absent | absent | 1048576 | bytes | 0 | | `start_page` | 1 | 1 | unknown | 1 | unknown | 1 | page number | 0 | | `end_page` | -1 | -1 | unknown | -1 | unknown | -1 | page number (-1 = last) | 0 | | `dsc_reporting_level` | 0 | 0 | unknown | 0 | 3 | 0 | level | 0 | | `bit_depth` (per image family) | -1, 1, 2 | -1 | unknown | -1 | 16 | -1 | bits (-1 = unchanged) | 0 | Every `unknown` above is honest: the source presets declare a VALUE, not a bound. Studio MUST NOT convert an observed value into a bound. Clamping to an observed set would forbid legal values.",
+    "summary": "PDF numeric setting contracts (from the shipped spread).** | Setting | Observed values | hard_min | hard_max | soft_min | soft_max | default | unit | precision | |---|---|---|---|---|---|---|---|---| | `colour_image_resolution` | 100, 300, 350 | 1 | unknown | 72 | 600 | 300 | ppi | 0 | | `greyscale_image_resolution` | 150, 300, 350 | 1 | unknown | 72 | 600 | 300 | ppi | 0 | | `monochrome_image_resolution` | 300, 1200 | 1 | unknown | 300 | 2400 | 1200 | ppi | 0 | | `downsample_threshold` | 1.50000 | 1.0 | unknown | 1.0 | 3.0 | 1.5 | ratio | 5 | | `max_subset_percent` | 100 | 0 | 100 | 0 | 100 | 100 | percent | 0 | | `image_memory` | 1048576 | unknown | unknown | absent | absent | 1048576 | bytes | 0 | | `start_page` | 1 | 1 | unknown | 1 | unknown | 1 | page number | 0 | | `end_page` | -1 | -1 | unknown | -1 | unknown | -1 | page number (-1 = last; the preset API returns it as `Option<u32>`, [STU-LAY-159], v02.226 SD-15) | 0 | | `dsc_reporting_level` | 0 | 0 | unknown | 0 | 3 | 0 | level | 0 | | `bit_depth` (per image family) | -1, 1, 2 | -1 | unknown | -1 | 16 | -1 | bits (-1 = unchanged) | 0 | Every `unknown` above is honest: the source presets declare a VALUE, not a bound. Studio MUST NOT convert an observed value into a bound. Clamping to an observed set would forbid legal values.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -2249,7 +2250,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T23:48:35.078Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "rule_refs": [
     "CX-SPEC-TRUTH-001",
     "CX-TPL-001",
@@ -2292,7 +2293,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2322,5 +2323,22 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "PDF numeric setting contracts (from the shipped spread)",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

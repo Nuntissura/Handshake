@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.7.11 OpenType Feature Exposure",
-    "spec_line": 8463,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 8693,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -36,8 +37,129 @@
     "summary": "Feature groups (operator-facing projection).** The registry is projected into named groups for the UI and the model surface. This projection is presentation; the tag map is authority. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Group | Tags | |---|---| | Ligatures | `liga`, `dlig`, `clig`, `rlig`, `hlig` | | Alternates | `salt`, `calt`, `titl`, `swsh`, `cswh`, `ornm`, `aalt` | | Stylistic sets | `ss01`-`ss20` | | Character variants | `cv01`-`cv99` | | Figure style | `lnum`, `onum` | | Figure width | `pnum`, `tnum` | | Fractions | `frac`, `afrc` | | Ordinals | `ordn` | | Vertical position | `sups`, `subs`, `numr`, `dnom` | | Zero | `zero` | | Caps forms | `smcp`, `c2sc`, `pcap`, `c2pc`, `cpsp`, `case` | | Positional forms | `init`, `medi`, `fina`, `isol`, `curs` | | Arabic justification | `jalt`, `mset`, `cfar` | | Indic | `akhn`, `blwf`, `blws`, `blwm`, `abvf`, `abvs`, `abvm`, `cjct`, `half`, `haln`, `nukt`, `pref`, `pres`, `pstf`, `psts`, `rkrf`, `rphf`, `vatu` | | CJK width and form | `halt`, `hwid`, `fwid`, `pwid`, `twid`, `qwid`, `palt`, `vhal`, `vpal` | | CJK variants | `jp78`, `jp83`, `jp90`, `jp04`, `nlck`, `trad`, `smpl`, `expt`, `hojo` | | Vertical writing | `vert`, `vrt2`, `vkna`, `vkrn`, `valt`, `vrtr` | | Kana | `hkna`, `pkna`, `ruby` | | Kerning and marks | `kern`, `mark`, `mkmk`, ` [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [],
-  "acceptance_criteria_count": 0,
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "The contract table holds the row `Ligatures` with the exact meaning the spec states: `liga`, `dlig`, `clig`, `rlig`, `hlig`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-171 carried contract table row 1"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The contract table holds the row `Alternates` with the exact meaning the spec states: `salt`, `calt`, `titl`, `swsh`, `cswh`, `ornm`, `aalt`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-171 carried contract table row 2"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The contract table holds the row `Stylistic sets` with the exact meaning the spec states: `ss01`-`ss20`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-171 carried contract table row 3"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The contract table holds the row `Character variants` with the exact meaning the spec states: `cv01`-`cv99`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-171 carried contract table row 4"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The contract table holds the row `Figure style` with the exact meaning the spec states: `lnum`, `onum`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-171 carried contract table row 5"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `Figure width` with the exact meaning the spec states: `pnum`, `tnum`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-171 carried contract table row 6"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `Fractions` with the exact meaning the spec states: `frac`, `afrc`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-171 carried contract table row 7"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `Ordinals` with the exact meaning the spec states: `ordn`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-171 carried contract table row 8"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The contract table holds the row `Vertical position` with the exact meaning the spec states: `sups`, `subs`, `numr`, `dnom`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-171 carried contract table row 9"
+    },
+    {
+      "id": "AC-010",
+      "criterion": "The contract table holds the row `Zero` with the exact meaning the spec states: `zero`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-171 carried contract table row 10"
+    },
+    {
+      "id": "AC-011",
+      "criterion": "The contract table holds the row `Caps forms` with the exact meaning the spec states: `smcp`, `c2sc`, `pcap`, `c2pc`, `cpsp`, `case`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-171 carried contract table row 11"
+    },
+    {
+      "id": "AC-012",
+      "criterion": "The contract table holds the row `Positional forms` with the exact meaning the spec states: `init`, `medi`, `fina`, `isol`, `curs`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-171 carried contract table row 12"
+    },
+    {
+      "id": "AC-013",
+      "criterion": "The contract table holds the row `Arabic justification` with the exact meaning the spec states: `jalt`, `mset`, `cfar`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-171 carried contract table row 13"
+    },
+    {
+      "id": "AC-014",
+      "criterion": "The contract table holds the row `Indic` with the exact meaning the spec states: `akhn`, `blwf`, `blws`, `blwm`, `abvf`, `abvs`, `abvm`, `cjct`, `half`, `haln`, `nukt`, `pref`, `pres`, `pstf`, `psts`, `rkrf`, `rphf`, `vatu`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-171 carried contract table row 14"
+    },
+    {
+      "id": "AC-015",
+      "criterion": "The contract table holds the row `CJK width and form` with the exact meaning the spec states: `halt`, `hwid`, `fwid`, `pwid`, `twid`, `qwid`, `palt`, `vhal`, `vpal`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-171 carried contract table row 15"
+    },
+    {
+      "id": "AC-016",
+      "criterion": "The contract table holds the row `CJK variants` with the exact meaning the spec states: `jp78`, `jp83`, `jp90`, `jp04`, `nlck`, `trad`, `smpl`, `expt`, `hojo`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-171 carried contract table row 16"
+    },
+    {
+      "id": "AC-017",
+      "criterion": "The contract table holds the row `Vertical writing` with the exact meaning the spec states: `vert`, `vrt2`, `vkna`, `vkrn`, `valt`, `vrtr`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-171 carried contract table row 17"
+    },
+    {
+      "id": "AC-018",
+      "criterion": "The contract table holds the row `Kana` with the exact meaning the spec states: `hkna`, `pkna`, `ruby`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-171 carried contract table row 18"
+    },
+    {
+      "id": "AC-019",
+      "criterion": "The contract table holds the row `Kerning and marks` with the exact meaning the spec states: `kern`, `mark`, `mkmk`, `abvm`, `blwm`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-171 carried contract table row 19"
+    },
+    {
+      "id": "AC-020",
+      "criterion": "The contract table holds the row `Normalisation` with the exact meaning the spec states: `ccmp`, `locl`, `rvrn`, `rclt`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-TYP-171 carried contract table row 20"
+    }
+  ],
+  "acceptance_criteria_count": 20,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1574,13 +1696,113 @@
       "STU-TYP-171"
     ],
     "acceptance_refs": [
-      "ASSET-AC-001"
+      "ASSET-AC-001",
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009",
+      "AC-010",
+      "AC-011",
+      "AC-012",
+      "AC-013",
+      "AC-014",
+      "AC-015",
+      "AC-016",
+      "AC-017",
+      "AC-018",
+      "AC-019",
+      "AC-020"
     ],
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
         "text": "Feature groups (operator-facing projection).** The registry is projected into named groups for the UI and the model surface. This projection is presentation; the tag map is authority. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Group | Tags | |---|---| | Ligatures | `liga`, `dlig`, `clig`, `rlig`, `hlig` | | Alternates | `salt`, `calt`, `titl`, `swsh`, `cswh`, `ornm`, `aalt` | | Stylistic sets | `ss01`-`ss20` | | Character variants | `cv01`-`cv99` | | Figure style | `lnum`, `onum` | | Figure width | `pnum`, `tnum` | | Fractions | `frac`, `afrc` | | Ordinals | `ordn` | | Vertical position | `sups`, `subs`, `numr`, `dnom` | | Zero | `zero` | | Caps forms | `smcp`, `c2sc`, `pcap`, `c2pc`, `cpsp`, `case` | | Positional forms | `init`, `medi`, `fina`, `isol`, `curs` | | Arabic justification | `jalt`, `mset`, `cfar` | | Indic | `akhn`, `blwf`, `blws`, `blwm`, `abvf`, `abvs`, `abvm`, `cjct`, `half`, `haln`, `nukt`, `pref`, `pres`, `pstf`, `psts`, `rkrf`, `rphf`, `vatu` | | CJK width and form | `halt`, `hwid`, `fwid`, `pwid`, `twid`, `qwid`, `palt`, `vhal`, `vpal` | | CJK variants | `jp78`, `jp83`, `jp90`, `jp04`, `nlck`, `trad`, `smpl`, `expt`, `hojo` | | Vertical writing | `vert`, `vrt2`, `vkna`, `vkrn`, `valt`, `vrtr` | | Kana | `hkna`, `pkna`, `ruby` | | Kerning and marks | `kern`, `mark`, `mkmk`, ` [...]",
         "fulfillment_ref": "MT-30956#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-001",
+        "text": "The contract table holds the row `Ligatures` with the exact meaning the spec states: `liga`, `dlig`, `clig`, `rlig`, `hlig`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-002",
+        "text": "The contract table holds the row `Alternates` with the exact meaning the spec states: `salt`, `calt`, `titl`, `swsh`, `cswh`, `ornm`, `aalt`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-003",
+        "text": "The contract table holds the row `Stylistic sets` with the exact meaning the spec states: `ss01`-`ss20`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-004",
+        "text": "The contract table holds the row `Character variants` with the exact meaning the spec states: `cv01`-`cv99`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-005",
+        "text": "The contract table holds the row `Figure style` with the exact meaning the spec states: `lnum`, `onum`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `Figure width` with the exact meaning the spec states: `pnum`, `tnum`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `Fractions` with the exact meaning the spec states: `frac`, `afrc`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `Ordinals` with the exact meaning the spec states: `ordn`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-009",
+        "text": "The contract table holds the row `Vertical position` with the exact meaning the spec states: `sups`, `subs`, `numr`, `dnom`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-010",
+        "text": "The contract table holds the row `Zero` with the exact meaning the spec states: `zero`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-011",
+        "text": "The contract table holds the row `Caps forms` with the exact meaning the spec states: `smcp`, `c2sc`, `pcap`, `c2pc`, `cpsp`, `case`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-012",
+        "text": "The contract table holds the row `Positional forms` with the exact meaning the spec states: `init`, `medi`, `fina`, `isol`, `curs`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-013",
+        "text": "The contract table holds the row `Arabic justification` with the exact meaning the spec states: `jalt`, `mset`, `cfar`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-014",
+        "text": "The contract table holds the row `Indic` with the exact meaning the spec states: `akhn`, `blwf`, `blws`, `blwm`, `abvf`, `abvs`, `abvm`, `cjct`, `half`, `haln`, `nukt`, `pref`, `pres`, `pstf`, `psts`, `rkrf`, `rphf`, `vatu`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-015",
+        "text": "The contract table holds the row `CJK width and form` with the exact meaning the spec states: `halt`, `hwid`, `fwid`, `pwid`, `twid`, `qwid`, `palt`, `vhal`, `vpal`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-016",
+        "text": "The contract table holds the row `CJK variants` with the exact meaning the spec states: `jp78`, `jp83`, `jp90`, `jp04`, `nlck`, `trad`, `smpl`, `expt`, `hojo`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-017",
+        "text": "The contract table holds the row `Vertical writing` with the exact meaning the spec states: `vert`, `vrt2`, `vkna`, `vkrn`, `valt`, `vrtr`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-018",
+        "text": "The contract table holds the row `Kana` with the exact meaning the spec states: `hkna`, `pkna`, `ruby`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-019",
+        "text": "The contract table holds the row `Kerning and marks` with the exact meaning the spec states: `kern`, `mark`, `mkmk`, `abvm`, `blwm`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-020",
+        "text": "The contract table holds the row `Normalisation` with the exact meaning the spec states: `ccmp`, `locl`, `rvrn`, `rclt`. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1811,6 +2033,326 @@
           "selected_features": []
         },
         "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
+      },
+      {
+        "check_id": "MT-30956-SPEC-AC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-001",
+          "STU-TYP-171"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Ligatures` with the exact meaning the spec states: `liga`, `dlig`, `clig`, `rlig`, `hlig`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30956-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-TYP-171"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Alternates` with the exact meaning the spec states: `salt`, `calt`, `titl`, `swsh`, `cswh`, `ornm`, `aalt`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30956-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-TYP-171"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Stylistic sets` with the exact meaning the spec states: `ss01`-`ss20`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30956-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-TYP-171"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Character variants` with the exact meaning the spec states: `cv01`-`cv99`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30956-SPEC-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-TYP-171"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Figure style` with the exact meaning the spec states: `lnum`, `onum`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30956-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-TYP-171"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Figure width` with the exact meaning the spec states: `pnum`, `tnum`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30956-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-TYP-171"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Fractions` with the exact meaning the spec states: `frac`, `afrc`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30956-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-TYP-171"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Ordinals` with the exact meaning the spec states: `ordn`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30956-SPEC-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-TYP-171"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Vertical position` with the exact meaning the spec states: `sups`, `subs`, `numr`, `dnom`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30956-SPEC-AC-010",
+        "kind": "test",
+        "claim_refs": [
+          "AC-010",
+          "STU-TYP-171"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Zero` with the exact meaning the spec states: `zero`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30956-SPEC-AC-011",
+        "kind": "test",
+        "claim_refs": [
+          "AC-011",
+          "STU-TYP-171"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Caps forms` with the exact meaning the spec states: `smcp`, `c2sc`, `pcap`, `c2pc`, `cpsp`, `case`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30956-SPEC-AC-012",
+        "kind": "test",
+        "claim_refs": [
+          "AC-012",
+          "STU-TYP-171"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Positional forms` with the exact meaning the spec states: `init`, `medi`, `fina`, `isol`, `curs`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30956-SPEC-AC-013",
+        "kind": "test",
+        "claim_refs": [
+          "AC-013",
+          "STU-TYP-171"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Arabic justification` with the exact meaning the spec states: `jalt`, `mset`, `cfar`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30956-SPEC-AC-014",
+        "kind": "test",
+        "claim_refs": [
+          "AC-014",
+          "STU-TYP-171"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Indic` with the exact meaning the spec states: `akhn`, `blwf`, `blws`, `blwm`, `abvf`, `abvs`, `abvm`, `cjct`, `half`, `haln`, `nukt`, `pref`, `pres`, `pstf`, `psts`, `rkrf`, `rphf`, `vatu`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30956-SPEC-AC-015",
+        "kind": "test",
+        "claim_refs": [
+          "AC-015",
+          "STU-TYP-171"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `CJK width and form` with the exact meaning the spec states: `halt`, `hwid`, `fwid`, `pwid`, `twid`, `qwid`, `palt`, `vhal`, `vpal`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30956-SPEC-AC-016",
+        "kind": "test",
+        "claim_refs": [
+          "AC-016",
+          "STU-TYP-171"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `CJK variants` with the exact meaning the spec states: `jp78`, `jp83`, `jp90`, `jp04`, `nlck`, `trad`, `smpl`, `expt`, `hojo`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30956-SPEC-AC-017",
+        "kind": "test",
+        "claim_refs": [
+          "AC-017",
+          "STU-TYP-171"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Vertical writing` with the exact meaning the spec states: `vert`, `vrt2`, `vkna`, `vkrn`, `valt`, `vrtr`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30956-SPEC-AC-018",
+        "kind": "test",
+        "claim_refs": [
+          "AC-018",
+          "STU-TYP-171"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Kana` with the exact meaning the spec states: `hkna`, `pkna`, `ruby`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30956-SPEC-AC-019",
+        "kind": "test",
+        "claim_refs": [
+          "AC-019",
+          "STU-TYP-171"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Kerning and marks` with the exact meaning the spec states: `kern`, `mark`, `mkmk`, `abvm`, `blwm`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-30956-SPEC-AC-020",
+        "kind": "test",
+        "claim_refs": [
+          "AC-020",
+          "STU-TYP-171"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Normalisation` with the exact meaning the spec states: `ccmp`, `locl`, `rvrn`, `rclt`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2270,7 +2812,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
@@ -2281,7 +2823,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2323,5 +2865,144 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": null,
+          "new": "The contract table holds the row `Ligatures` with the exact meaning the spec states: `liga`, `dlig`, `clig`, `rlig`, `hlig`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "The contract table holds the row `Alternates` with the exact meaning the spec states: `salt`, `calt`, `titl`, `swsh`, `cswh`, `ornm`, `aalt`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The contract table holds the row `Stylistic sets` with the exact meaning the spec states: `ss01`-`ss20`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "The contract table holds the row `Character variants` with the exact meaning the spec states: `cv01`-`cv99`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-005",
+          "old": null,
+          "new": "The contract table holds the row `Figure style` with the exact meaning the spec states: `lnum`, `onum`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `Figure width` with the exact meaning the spec states: `pnum`, `tnum`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `Fractions` with the exact meaning the spec states: `frac`, `afrc`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `Ordinals` with the exact meaning the spec states: `ordn`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-009",
+          "old": null,
+          "new": "The contract table holds the row `Vertical position` with the exact meaning the spec states: `sups`, `subs`, `numr`, `dnom`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-010",
+          "old": null,
+          "new": "The contract table holds the row `Zero` with the exact meaning the spec states: `zero`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-011",
+          "old": null,
+          "new": "The contract table holds the row `Caps forms` with the exact meaning the spec states: `smcp`, `c2sc`, `pcap`, `c2pc`, `cpsp`, `case`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-012",
+          "old": null,
+          "new": "The contract table holds the row `Positional forms` with the exact meaning the spec states: `init`, `medi`, `fina`, `isol`, `curs`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-013",
+          "old": null,
+          "new": "The contract table holds the row `Arabic justification` with the exact meaning the spec states: `jalt`, `mset`, `cfar`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-014",
+          "old": null,
+          "new": "The contract table holds the row `Indic` with the exact meaning the spec states: `akhn`, `blwf`, `blws`, `blwm`, `abvf`, `abvs`, `abvm`, `cjct`, `half`, `haln`, `nukt`, `pref`, `pres`, `pstf`, `psts`, `rkrf`, `rphf`, `vatu`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-015",
+          "old": null,
+          "new": "The contract table holds the row `CJK width and form` with the exact meaning the spec states: `halt`, `hwid`, `fwid`, `pwid`, `twid`, `qwid`, `palt`, `vhal`, `vpal`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-016",
+          "old": null,
+          "new": "The contract table holds the row `CJK variants` with the exact meaning the spec states: `jp78`, `jp83`, `jp90`, `jp04`, `nlck`, `trad`, `smpl`, `expt`, `hojo`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-017",
+          "old": null,
+          "new": "The contract table holds the row `Vertical writing` with the exact meaning the spec states: `vert`, `vrt2`, `vkna`, `vkrn`, `valt`, `vrtr`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-018",
+          "old": null,
+          "new": "The contract table holds the row `Kana` with the exact meaning the spec states: `hkna`, `pkna`, `ruby`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-019",
+          "old": null,
+          "new": "The contract table holds the row `Kerning and marks` with the exact meaning the spec states: `kern`, `mark`, `mkmk`, `abvm`, `blwm`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-020",
+          "old": null,
+          "new": "The contract table holds the row `Normalisation` with the exact meaning the spec states: `ccmp`, `locl`, `rvrn`, `rclt`. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012",
+        "AC-013",
+        "AC-014",
+        "AC-015",
+        "AC-016",
+        "AC-017",
+        "AC-018",
+        "AC-019",
+        "AC-020"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "Feature groups (operator-facing projection)",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

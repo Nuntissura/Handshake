@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.2 Architecture: Kernel Binding and Engine Crates",
-    "spec_line": 189,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 195,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,20 +27,20 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "Studio MUST NOT be activated as a build-target work packet until the Handshake kernel governance baseline (the sandbox, `PromotionGate`, CRDT surfaces, and the native egui/wgpu/AccessKit shell from WP [...]",
+  "clause": "Studio asset workspace and module foundations MAY be activated for production implementation before the Handshake kernel baseline stabilizes, under approved asset-local contracts and independently sco [...]",
   "spec_anchor": [
     "STU-ARC-006"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "architecture",
   "scope": {
-    "summary": "Studio MUST NOT be activated as a build-target work packet until the Handshake kernel governance baseline (the sandbox, `PromotionGate`, CRDT surfaces, and the native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) is stable enough that the surfaces Studio depends on are not simultaneously under active structural change. Individual `studio-engine` crates (raster compositor, vector geometry, text shaping, color) MAY be prototyped in isolation before the kernel binding is authored, because they have no `handshake_core` dependency. --- --- ## 14.3 Unified Document Model and Studio Primitive Set",
+    "summary": "Studio asset workspace and module foundations MAY be activated for production implementation before the Handshake kernel baseline stabilizes, under approved asset-local contracts and independently scoped proofs. Before any domain-feature implementation begins, every declared crate/module foundation MUST exist with a real owner, typed API/ports, dependency closure, capabilities, diagnostic/manual/model/control posture, budget/cancellation contract and compiling non-placeholder proof target. Empty shells, unconditional all-domain reexports and fake readiness do not satisfy this gate. Kernel embedding remains blocked until the concrete sandbox, PromotionGate, CRDT and native-shell surfaces that embedding uses are stable and independently proven; asset proof cannot replace embedding proof. --- --- ### 14.2.1 Approved modular asset and pressure contracts [ADD v02.207]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Studio MUST NOT be activated as a build-target work packet until the Handshake kernel governance baseline (the sandbox, `PromotionGate`, CRDT surfaces, and the native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) is stable enough that the surfaces Studio depends on are not simultaneously under active structural change.",
+      "criterion": "Before any domain-feature implementation begins, every declared crate/module foundation MUST exist with a real owner, typed API/ports, dependency closure, capabilities, diagnostic/manual/model/control posture, budget/cancellation contract and compiling non-placeholder proof target.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-ARC-006"
     }
@@ -141,7 +142,7 @@
   "identity": {
     "mt_id": "MT-30019",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "Studio MUST NOT be activated as a build-target work packet until the Handshake kernel governance baseline (the sandbox, `PromotionGate`, CRDT surfaces, and the native egui/wgpu/AccessKit shell from WP [...]",
+    "title": "Studio asset workspace and module foundations MAY be activated for production implementation before the Handshake kernel baseline stabilizes, under approved asset-local contracts and independently sco [...]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 3
@@ -1588,7 +1589,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Studio MUST NOT be activated as a build-target work packet until the Handshake kernel governance baseline (the sandbox, `PromotionGate`, CRDT surfaces, and the native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) is stable enough that the surfaces Studio depends on are not simultaneously under active structural change.",
+        "text": "Before any domain-feature implementation begins, every declared crate/module foundation MUST exist with a real owner, typed API/ports, dependency closure, capabilities, diagnostic/manual/model/control posture, budget/cancellation contract and compiling non-placeholder proof target.",
         "fulfillment_ref": "MT-30019#/fulfillment/legacy_acceptance_map/0"
       }
     ],
@@ -1789,7 +1790,7 @@
           "AC-001"
         ],
         "command_or_method": "cargo test --manifest-path handshake-studio-assets/Cargo.toml --locked -p hsk-studio-kernel-bindings --no-default-features --test mt_30019 -- --nocapture",
-        "expected": "Studio MUST NOT be activated as a build-target work packet until the Handshake kernel governance baseline (the sandbox, `PromotionGate`, CRDT surfaces, and the native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) is stable enough that the surfaces Studio depends on are not simultaneously under active structural change. Portable authority/platform consumer additionally proves: Check exactfoundation meaningfulcapability,negativepath,owner/ports/closure/manual/control/diagnostics/budget/cancel proof identity. Reject empty shells/all-domain reexports/fake readiness and sourceresult as nativeintegration; embedding waits for real stable sandbox/gate/CRDT/nativeproof.",
+        "expected": "Before any domain-feature implementation begins, every declared crate/module foundation MUST exist with a real owner, typed API/ports, dependency closure, capabilities, diagnostic/manual/model/control posture, budget/cancellation contract and compiling non-placeholder proof target. Portable authority/platform consumer additionally proves: Check exactfoundation meaningfulcapability,negativepath,owner/ports/closure/manual/control/diagnostics/budget/cancel proof identity. Reject empty shells/all-domain reexports/fake readiness and sourceresult as nativeintegration; embedding waits for real stable sandbox/gate/CRDT/nativeproof.",
         "timeout_seconds": 60,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -2133,7 +2134,7 @@
         "original_text": "Studio MUST NOT be activated as a build-target work packet until the Handshake kernel governance baseline (the sandbox, `PromotionGate`, CRDT surfaces, and the native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) is stable enough that the surfaces Studio depends on are not simultaneously under active structural change.",
         "original_row_sha256": "aedb19e11273c213299de8fb9d5f98c396a19d0c2a5f3368d6d0fda684cc74e6",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Studio MUST NOT be activated as a build-target work packet until the Handshake kernel governance baseline (the sandbox, `PromotionGate`, CRDT surfaces, and the native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) is stable enough that the surfaces Studio depends on are not simultaneously under active structural change.",
+        "semantic_fulfillment": "Before any domain-feature implementation begins, every declared crate/module foundation MUST exist with a real owner, typed API/ports, dependency closure, capabilities, diagnostic/manual/model/control posture, budget/cancellation contract and compiling non-placeholder proof target.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-30019-ASSET-KERNEL_BINDINGS"
@@ -2143,7 +2144,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
             "scope": "Host-neutral integration bridge port schemas and executable in-memory adapter consumer. Concrete AppState/SurrealDB/Argus/native adapters live later in Handshake product integration target and are excluded from this assets workspace.",
-            "required_behavior": "Studio MUST NOT be activated as a build-target work packet until the Handshake kernel governance baseline (the sandbox, `PromotionGate`, CRDT surfaces, and the native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) is stable enough that the surfaces Studio depends on are not simultaneously under active structural change.",
+            "required_behavior": "Before any domain-feature implementation begins, every declared crate/module foundation MUST exist with a real owner, typed API/ports, dependency closure, capabilities, diagnostic/manual/model/control posture, budget/cancellation contract and compiling non-placeholder proof target.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2152,13 +2153,13 @@
             "hsk-studio-kernel-bindings"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Studio MUST NOT be activated as a build-target work packet until the Handshake kernel governance baseline (the sandbox, `PromotionGate`, CRDT surfaces, and the native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) is stable enough that the surfaces Studio depends on are not simultaneously under active structural change.",
+          "consumer_assertion": "Before any domain-feature implementation begins, every declared crate/module foundation MUST exist with a real owner, typed API/ports, dependency closure, capabilities, diagnostic/manual/model/control posture, budget/cancellation contract and compiling non-placeholder proof target.",
           "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
         },
         "later_embedding_ref": "MT-30019-KERNEL-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Studio MUST NOT be activated as a build-target work packet until the Handshake kernel governance baseline (the sandbox, `PromotionGate`, CRDT surfaces, and the native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) is stable enough that the surfaces Studio depends on are not simultaneously under active structural change. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Before any domain-feature implementation begins, every declared crate/module foundation MUST exist with a real owner, typed API/ports, dependency closure, capabilities, diagnostic/manual/model/control posture, budget/cancellation contract and compiling non-placeholder proof target. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36216"
@@ -2195,7 +2196,7 @@
           "original_text": "Studio MUST NOT be activated as a build-target work packet until the Handshake kernel governance baseline (the sandbox, `PromotionGate`, CRDT surfaces, and the native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) is stable enough that the surfaces Studio depends on are not simultaneously under active structural change.",
           "original_row_sha256": "aedb19e11273c213299de8fb9d5f98c396a19d0c2a5f3368d6d0fda684cc74e6",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Studio MUST NOT be activated as a build-target work packet until the Handshake kernel governance baseline (the sandbox, `PromotionGate`, CRDT surfaces, and the native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) is stable enough that the surfaces Studio depends on are not simultaneously under active structural change.",
+          "semantic_fulfillment": "Before any domain-feature implementation begins, every declared crate/module foundation MUST exist with a real owner, typed API/ports, dependency closure, capabilities, diagnostic/manual/model/control posture, budget/cancellation contract and compiling non-placeholder proof target.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-30019-ASSET-KERNEL_BINDINGS"
@@ -2205,7 +2206,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
               "scope": "Host-neutral integration bridge port schemas and executable in-memory adapter consumer. Concrete AppState/SurrealDB/Argus/native adapters live later in Handshake product integration target and are excluded from this assets workspace.",
-              "required_behavior": "Studio MUST NOT be activated as a build-target work packet until the Handshake kernel governance baseline (the sandbox, `PromotionGate`, CRDT surfaces, and the native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) is stable enough that the surfaces Studio depends on are not simultaneously under active structural change.",
+              "required_behavior": "Before any domain-feature implementation begins, every declared crate/module foundation MUST exist with a real owner, typed API/ports, dependency closure, capabilities, diagnostic/manual/model/control posture, budget/cancellation contract and compiling non-placeholder proof target.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2214,13 +2215,13 @@
               "hsk-studio-kernel-bindings"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Studio MUST NOT be activated as a build-target work packet until the Handshake kernel governance baseline (the sandbox, `PromotionGate`, CRDT surfaces, and the native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) is stable enough that the surfaces Studio depends on are not simultaneously under active structural change.",
+            "consumer_assertion": "Before any domain-feature implementation begins, every declared crate/module foundation MUST exist with a real owner, typed API/ports, dependency closure, capabilities, diagnostic/manual/model/control posture, budget/cancellation contract and compiling non-placeholder proof target.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-30019-KERNEL-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Studio MUST NOT be activated as a build-target work packet until the Handshake kernel governance baseline (the sandbox, `PromotionGate`, CRDT surfaces, and the native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) is stable enough that the surfaces Studio depends on are not simultaneously under active structural change. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Before any domain-feature implementation begins, every declared crate/module foundation MUST exist with a real owner, typed API/ports, dependency closure, capabilities, diagnostic/manual/model/control posture, budget/cancellation contract and compiling non-placeholder proof target. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING"
         }
       ],
@@ -2242,11 +2243,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2278,5 +2279,40 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "Studio MUST NOT be activated as a build-target work packet until the Handshake kernel governance baseline (the sandbox, `PromotionGate`, CRDT surfaces, and the native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) is stable enough that the surfaces Studio depends on are not simultaneously under active structural change.",
+          "new": "Before any domain-feature implementation begins, every declared crate/module foundation MUST exist with a real owner, typed API/ports, dependency closure, capabilities, diagnostic/manual/model/control posture, budget/cancellation contract and compiling non-placeholder proof target."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "Studio MUST NOT be activated as a build-target work packet until the Handshake kernel governance baseline (the sandbox, `PromotionGate`, CRDT surfaces, and the native egui/wgpu/AccessKit shell from WP [...]",
+      "propagated_paths": [
+        "/identity/title",
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/expected",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

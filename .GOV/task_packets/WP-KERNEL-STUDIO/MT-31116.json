@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "2. Native Shaping & Line-Breaking Engine (`TextEngine`)",
-    "spec_line": 9357,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 9630,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,13 +34,13 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "typography",
   "scope": {
-    "summary": "Native-Rust shaping mandate. The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]). Studio MUST NOT depend on a platform text engine (DirectWrite, Core Text, Pango) or any external/subscription-gated shaping service at runtime ([STU-OVR-002]). Shaping, line-breaking, justification, and glyph selection are deterministic given identical inputs so that model-authored and operator-authored layout produce byte-identical results across hosts (a promotion-equivalence requirement of 14.24).",
+    "summary": "Native-Rust shaping mandate. The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]). Studio MUST NOT depend on a platform text engine (DirectWrite, Core Text, Pango) or any external/subscription-gated shaping service at runtime ([STU-OVR-002]). Shaping, line-breaking, justification, and glyph selection are deterministic given identical inputs so that model-authored and operator-authored layout produce byte-identical results across hosts (a promotion-equivalence requirement of 14.24).",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
+      "criterion": "The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-TYP-008"
     },
@@ -1593,7 +1594,7 @@
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
+        "text": "The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
         "fulfillment_ref": "MT-31116#/fulfillment/legacy_acceptance_map/0"
       },
       {
@@ -1722,7 +1723,7 @@
     "shared_resource_locks": [],
     "inputs": [
       {
-        "source_scope": "Native-Rust shaping mandate. The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]). Studio MUST NOT depend on a platform text engine (DirectWrite, Core Text, Pango) or any external/subscription-gated shaping service at runtime ([STU-OVR-002]). Shaping, line-breaking, justification, and glyph selection are deterministic given identical inputs so that model-authored and operator-authored layout produce byte-identical results across hosts (a promotion-equivalence requirement of 14.24).",
+        "source_scope": "Native-Rust shaping mandate. The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]). Studio MUST NOT depend on a platform text engine (DirectWrite, Core Text, Pango) or any external/subscription-gated shaping service at runtime ([STU-OVR-002]). Shaping, line-breaking, justification, and glyph selection are deterministic given identical inputs so that model-authored and operator-authored layout produce byte-identical results across hosts (a promotion-equivalence requirement of 14.24).",
         "canonical_consumer": "Compose actual complex-script font/text resources on two hosts and compare positioned glyphs and fixed-size raster bytes.",
         "source_root": "handshake-studio-assets/crates/hsk-studio-type",
         "resource_inputs": "Actual hashed script fonts/text/dictionaries and glyph outlines; current independent character/paragraph records; Prism profile/Swatch, Layout grid/container/spread/threading, style and shared history ports; explicit canonical selections and immutable revisions.",
@@ -2158,7 +2159,7 @@
         "original_text": "The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
         "original_row_sha256": "52459050714bea14f08877ca5118ecb7c4b7e991c18347472d943202e2fc501b",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
+        "semantic_fulfillment": "The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
         "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
         "asset_contribution_refs": [
           "MT-31116-ASSET-TYPE"
@@ -2168,7 +2169,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-TYPE",
             "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
-            "required_behavior": "The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
+            "required_behavior": "The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
             "only_owner_root_may_change": true
           }
         ],
@@ -2187,7 +2188,7 @@
         },
         "later_embedding_ref": "MT-31116-KERNEL-AC-001",
         "later_embedding_required": true,
-        "later_embedding_assertion": "The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36196"
@@ -2272,7 +2273,7 @@
           "original_text": "The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
           "original_row_sha256": "52459050714bea14f08877ca5118ecb7c4b7e991c18347472d943202e2fc501b",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
+          "semantic_fulfillment": "The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
           "architecture_disposition": "APPROVED_SOURCE_TOPOLOGY_SUPERSESSION_FUNCTIONAL_AND_EMBEDDING_REQUIREMENTS_RETAINED",
           "asset_contribution_refs": [
             "MT-31116-ASSET-TYPE"
@@ -2282,7 +2283,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-TYPE",
               "scope": "Shared fonts, shaping, fallback, bidi/script and glyph runs used by all visual/temporal domains.",
-              "required_behavior": "The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
+              "required_behavior": "The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
               "only_owner_root_may_change": true
             }
           ],
@@ -2301,7 +2302,7 @@
           },
           "later_embedding_ref": "MT-31116-KERNEL-AC-001",
           "later_embedding_required": true,
-          "later_embedding_assertion": "The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]). Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "MT-36196"
@@ -2359,11 +2360,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2393,5 +2394,37 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the `studio-engine` crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002]).",
+          "new": "The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping, bidi, font fallback, glyph rasterization), owned by the owning modular Studio asset crate behind the `TextEngine: Send + Sync` trait ([STU-ARC-002])."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Native-Rust shaping mandate. The Studio text-shaping engine MUST be a native Rust text-shaping/layout stack of the cosmic-text / rustybuzz / swash class (Unicode segmentation, complex-script shaping [...]",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/execution/inputs[0]/source_scope",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

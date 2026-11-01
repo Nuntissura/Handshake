@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "1. Board mode and board nodes",
-    "spec_line": 21985,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 22287,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,18 +34,24 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "whiteboard",
   "scope": {
-    "summary": "Shape-with-text contract.** Additional fields: `shape_type` (an enumerated diagram-shape token), `text` (a text sublayer), `corner_radius` (number, optional), plus the fill, stroke and blend surfaces of an ordinary layer. It resizes around its text. `shape_type` is a closed enumeration Studio declares — the source model's token list was not recovered as an explicit union, so Studio MUST declare its own set (at minimum rectangle, rounded rectangle, ellipse, diamond, triangle, parallelogram, hexagon, cylinder, cloud, document, predefined-process and terminator), MUST label it `studio_declared`, and MUST NOT present it as source-derived.",
+    "summary": "Shape-with-text contract.** Additional fields: `shape_type` (a provenance-qualified diagram-shape token), `text` (a text sublayer), `corner_radius` (number, optional), plus the fill, stroke and blend surfaces of an ordinary layer. It resizes around its text. `shape_type` MUST distinguish its vocabulary origin from its literal token. The `studio_declared` vocabulary retains all twelve native shapes: rectangle, rounded rectangle, ellipse, diamond, triangle, parallelogram, hexagon, cylinder, cloud, document, predefined-process and terminator. The pinned Figma Plugin API 1.141.0 `shapeType` vocabulary is independently closed over these thirty source tokens: `SQUARE`, `ELLIPSE`, `ROUNDED_RECTANGLE`, `DIAMOND`, `TRIANGLE_UP`, `TRIANGLE_DOWN`, `PARALLELOGRAM_RIGHT`, `PARALLELOGRAM_LEFT`, `ENG_DATABASE`, `ENG_QUEUE`, `ENG_FILE`, `ENG_FOLDER`, `TRAPEZOID`, `PREDEFINED_PROCESS`, `SHIELD`, `DOCUMENT_SINGLE`, `DOCUMENT_MULTIPLE`, `MANUAL_INPUT`, `HEXAGON`, `CHEVRON`, `PENTAGON`, `OCTAGON`, `STAR`, `PLUS`, `ARROW_LEFT`, `ARROW_RIGHT`, `SUMMING_JUNCTION`, `OR`, `SPEECH_BUBBLE`, `INTERNAL_STORAGE`. Interop-Fig MUST preserve the exact source token and version separately from any native rendering mapping; it MUST NOT relabel native shapes as source-derived, collapse distinct source tokens into an alias, or remove cloud or terminator because the source union lacks them. Nib owns native geometry [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "`shape_type` is a closed enumeration Studio declares — the source model's token list was not recovered as an explicit union, so Studio MUST declare its own set (at minimum rectangle, rounded rectangle, ellipse, diamond, triangle, parallelogram, hexagon, cylinder, cloud, document, predefined-process and terminator), MUST label it `studio_declared`, and MUST NOT present it as source-derived.",
+      "criterion": "`shape_type` MUST distinguish its vocabulary origin from its literal token.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-WB-105"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "Interop-Fig MUST preserve the exact source token and version separately from any native rendering mapping; it MUST NOT relabel native shapes as source-derived, collapse distinct source tokens into an alias, or remove cloud or terminator because the source union lacks them.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-WB-105"
     }
   ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria_count": 2,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1547,13 +1554,18 @@
       "STU-WB-105"
     ],
     "acceptance_refs": [
-      "AC-001"
+      "AC-001",
+      "AC-002"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
         "text": "Bind both complete provenance-qualified shape vocabularies while retaining all twelve native geometries, ordinary text resizing, radius and appearance. Interop-Fig preserves all thirty exact source tokens/version independently; selected shared enum controls expose vocabulary and token; affected geometry/resize/source compatibility proof remains pending. **[STU-WB-105] Shape-with-text contract.** Additional fields: `shape_type` (a provenance-qualified diagram-shape token), `text` (a text sublayer), `corner_radius` (number, optional), plus the fill, stroke and blend surfaces of an ordinary layer. It resizes around its text. `shape_type` MUST distinguish its vocabulary origin from its literal token. The `studio_declared` vocabulary retains all twelve native shapes: rectangle, rounded rectangle, ellipse, diamond, triangle, parallelogram, hexagon, cylinder, cloud, document, predefined-process and terminator. The pinned Figma Plugin API 1.141.0 `shapeType` vocabulary is independently closed over these thirty source tokens: `SQUARE`, `ELLIPSE`, `ROUNDED_RECTANGLE`, `DIAMOND`, `TRIANGLE_UP`, `TRIANGLE_DOWN`, `PARALLELOGRAM_RIGHT`, `PARALLELOGRAM_LEFT`, `ENG_DATABASE`, `ENG_QUEUE`, `ENG_FILE`, `ENG_FOLDER`, `TRAPEZOID`, `PREDEFINED_PROCESS`, `SHIELD`, `DOCUMENT_SINGLE`, `DOCUMENT_MULTIPLE`, `MANUAL_INPUT`, `HEXAGON`, `CHEVRON`, `PENTAGON`, `OCTAGON`, `STAR`, `PLUS`, `ARROW_LEFT`, `ARROW_RIGHT`, `SUMMING_JUNCTION`, `OR`, `SPEECH_BUBBLE`, `INTERNAL_STORAGE`. Interop-Fig MUST preserve the exact source token and version separately from any native rendering mapping; it MUST NOT relabel native shapes as source-derived, collapse distinct source tokens into an alias, or remove cloud or terminator because the source union lacks them. Nib owns native geometry; the existing shared enum control exposes the selected vocabulary and token. Source-compatible geometry and text resizing require their affected fixture proof; preserving a token alone proves no visual parity.",
         "fulfillment_ref": "MT-33580#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-002",
+        "text": "Interop-Fig MUST preserve the exact source token and version separately from any native rendering mapping; it MUST NOT relabel native shapes as source-derived, collapse distinct source tokens into an alias, or remove cloud or terminator because the source union lacks them."
       }
     ],
     "spec_basis_refs": [
@@ -1797,6 +1809,22 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-33580-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-WB-105"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Interop-Fig MUST preserve the exact source token and version separately from any native rendering mapping; it MUST NOT relabel native shapes as source-derived, collapse distinct source tokens into an alias, or remove cloud or terminator because the source union lacks them.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2119,7 +2147,7 @@
         "original_text": "`shape_type` is a closed enumeration Studio declares — the source model's token list was not recovered as an explicit union, so Studio MUST declare its own set (at minimum rectangle, rounded rectangle, ellipse, diamond, triangle, parallelogram, hexagon, cylinder, cloud, document, predefined-process and terminator), MUST label it `studio_declared`, and MUST NOT present it as source-derived.",
         "original_row_sha256": "31b67680050f52ffc87fcdb148570c4fdeae5f7eb691f7001107817cf965027d",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "`shape_type` is a closed enumeration Studio declares — the source model's token list was not recovered as an explicit union, so Studio MUST declare its own set (at minimum rectangle, rounded rectangle, ellipse, diamond, triangle, parallelogram, hexagon, cylinder, cloud, document, predefined-process and terminator), MUST label it `studio_declared`, and MUST NOT present it as source-derived.",
+        "semantic_fulfillment": "`shape_type` MUST distinguish its vocabulary origin from its literal token.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33580-ASSET-NIB"
@@ -2129,7 +2157,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-NIB",
             "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
-            "required_behavior": "`shape_type` is a closed enumeration Studio declares — the source model's token list was not recovered as an explicit union, so Studio MUST declare its own set (at minimum rectangle, rounded rectangle, ellipse, diamond, triangle, parallelogram, hexagon, cylinder, cloud, document, predefined-process and terminator), MUST label it `studio_declared`, and MUST NOT present it as source-derived.",
+            "required_behavior": "`shape_type` MUST distinguish its vocabulary origin from its literal token.",
             "only_owner_root_may_change": true,
             "spec209_requirement": "Bind both complete provenance-qualified shape vocabularies while retaining all twelve native geometries, ordinary text resizing, radius and appearance. Interop-Fig preserves all thirty exact source tokens/version independently; selected shared enum controls expose vocabulary and token; affected geometry/resize/source compatibility proof remains pending."
           }
@@ -2145,7 +2173,7 @@
         },
         "later_embedding_ref": "MT-36195#/scope",
         "later_embedding_required": true,
-        "later_embedding_assertion": "`shape_type` is a closed enumeration Studio declares — the source model's token list was not recovered as an explicit union, so Studio MUST declare its own set (at minimum rectangle, rounded rectangle, ellipse, diamond, triangle, parallelogram, hexagon, cylinder, cloud, document, predefined-process and terminator), MUST label it `studio_declared`, and MUST NOT present it as source-derived. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "`shape_type` MUST distinguish its vocabulary origin from its literal token. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "MT-36195"
@@ -2183,7 +2211,7 @@
           "original_text": "`shape_type` is a closed enumeration Studio declares — the source model's token list was not recovered as an explicit union, so Studio MUST declare its own set (at minimum rectangle, rounded rectangle, ellipse, diamond, triangle, parallelogram, hexagon, cylinder, cloud, document, predefined-process and terminator), MUST label it `studio_declared`, and MUST NOT present it as source-derived.",
           "original_row_sha256": "31b67680050f52ffc87fcdb148570c4fdeae5f7eb691f7001107817cf965027d",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "`shape_type` is a closed enumeration Studio declares — the source model's token list was not recovered as an explicit union, so Studio MUST declare its own set (at minimum rectangle, rounded rectangle, ellipse, diamond, triangle, parallelogram, hexagon, cylinder, cloud, document, predefined-process and terminator), MUST label it `studio_declared`, and MUST NOT present it as source-derived.",
+          "semantic_fulfillment": "`shape_type` MUST distinguish its vocabulary origin from its literal token.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33580-ASSET-NIB"
@@ -2193,7 +2221,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-NIB",
               "scope": "Vector geometry/path operations, live geometry validation; no raster editor dependency.",
-              "required_behavior": "`shape_type` is a closed enumeration Studio declares — the source model's token list was not recovered as an explicit union, so Studio MUST declare its own set (at minimum rectangle, rounded rectangle, ellipse, diamond, triangle, parallelogram, hexagon, cylinder, cloud, document, predefined-process and terminator), MUST label it `studio_declared`, and MUST NOT present it as source-derived.",
+              "required_behavior": "`shape_type` MUST distinguish its vocabulary origin from its literal token.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2202,13 +2230,13 @@
               "hsk-studio-nib"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "`shape_type` is a closed enumeration Studio declares — the source model's token list was not recovered as an explicit union, so Studio MUST declare its own set (at minimum rectangle, rounded rectangle, ellipse, diamond, triangle, parallelogram, hexagon, cylinder, cloud, document, predefined-process and terminator), MUST label it `studio_declared`, and MUST NOT present it as source-derived.",
+            "consumer_assertion": "`shape_type` MUST distinguish its vocabulary origin from its literal token.",
             "negative_path": "Drive exact invalid/unsupported/stale/cancel/loss or boundary condition from cited source without original-state mutation.",
             "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN."
           },
           "later_embedding_ref": "MT-36195#/scope",
           "later_embedding_required": true,
-          "later_embedding_assertion": "`shape_type` is a closed enumeration Studio declares — the source model's token list was not recovered as an explicit union, so Studio MUST declare its own set (at minimum rectangle, rounded rectangle, ellipse, diamond, triangle, parallelogram, hexagon, cylinder, cloud, document, predefined-process and terminator), MUST label it `studio_declared`, and MUST NOT present it as source-derived. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "`shape_type` MUST distinguish its vocabulary origin from its literal token. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "MT-36195"
@@ -2304,7 +2332,7 @@
       }
     }
   },
-  "updated_at_utc": "2026-10-10T05:47:17+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "rule_refs": [
     "CX-SPEC-TRUTH-001",
     "CX-TPL-001",
@@ -2347,7 +2375,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2377,5 +2405,43 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "`shape_type` is a closed enumeration Studio declares — the source model's token list was not recovered as an explicit union, so Studio MUST declare its own set (at minimum rectangle, rounded rectangle, ellipse, diamond, triangle, parallelogram, hexagon, cylinder, cloud, document, predefined-process and terminator), MUST label it `studio_declared`, and MUST NOT present it as source-derived.",
+          "new": "`shape_type` MUST distinguish its vocabulary origin from its literal token."
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "Interop-Fig MUST preserve the exact source token and version separately from any native rendering mapping; it MUST NOT relabel native shapes as source-derived, collapse distinct source tokens into an alias, or remove cloud or terminator because the source union lacks them."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-002"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Shape-with-text contract",
+      "propagated_paths": [
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

@@ -12,8 +12,9 @@
     "unit_kind": "catalogue_row",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "3. Blur Family",
-    "spec_line": 19168,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 19439,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "effects",
   "scope": {
-    "summary": "The blur family is a set of `StudioLiveFilter` kinds sharing a common blur-core in `studio-engine`. Field/iris/tilt-shift/path/spin blurs expose on-canvas pin/handle controls and are GPU-accelerated; all blur kinds are re-editable stack entries. Bokeh/motion/noise styling controls (light bokeh, bokeh color, light range, strobe, restored grain) are shared parameters on the pin-based blurs, recorded as one styling row. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Average (fill-with-mean) | R,G | No | Replaces the selection with its single average color; used as a color-sampling and flat-fill primitive. | | Basic Blur / Blur More | R | No | Fixed-strength smoothing of color transitions; the \"more\" step is ~3-4x stronger. Parameterless quick softening. | | Box Blur | R | Opt | Neighborhood-average blur with adjustable radius. | | Gaussian Blur | R,V,T,G | Opt | Weighted bell-curve blur by adjustable radius; the canonical uniform layer blur. Dedup of the uniform layer-blur effect and the standalone gaussian filter. | | Median Blur | R | Opt | Replaces each pixel with the median of its radius neighborhood; edge-preserving speckle removal. | | Bilateral Blur | R | Opt | Edge-aware blur that smooths within a range threshold while preserving edges. | | Lens Blur | R | Req | Depth-of-field simulation using an optional depth map, iris shape (blades/rotation [...]",
+    "summary": "The blur family is a set of `StudioLiveFilter` kinds sharing a common blur-core in the owning modular Studio asset crate. Field/iris/tilt-shift/path/spin blurs expose on-canvas pin/handle controls and are GPU-accelerated; all blur kinds are re-editable stack entries. Bokeh/motion/noise styling controls (light bokeh, bokeh color, light range, strobe, restored grain) are shared parameters on the pin-based blurs, recorded as one styling row. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Average (fill-with-mean) | R,G | No | Replaces the selection with its single average color; used as a color-sampling and flat-fill primitive. | | Basic Blur / Blur More | R | No | Fixed-strength smoothing of color transitions; the \"more\" step is ~3-4x stronger. Parameterless quick softening. | | Box Blur | R | Opt | Neighborhood-average blur with adjustable radius. | | Gaussian Blur | R,V,T,G | Opt | Weighted bell-curve blur by adjustable radius; the canonical uniform layer blur. Dedup of the uniform layer-blur effect and the standalone gaussian filter. | | Median Blur | R | Opt | Replaces each pixel with the median of its radius neighborhood; edge-preserving speckle removal. | | Bilateral Blur | R | Opt | Edge-aware blur that smooths within a range threshold while preserving edges. | | Lens Blur | R | Req | Depth-of-field simulation using an optional depth map, iris [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -2813,7 +2814,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T03:19:00.866Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "rule_refs": [
     "CX-SPEC-TRUTH-001",
     "CX-TPL-001",
@@ -2856,7 +2857,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2904,5 +2905,22 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Surface Blur",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

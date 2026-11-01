@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "1. The binding",
-    "spec_line": 30625,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 31312,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "asset_library",
   "scope": {
-    "summary": "Prohibition — no parallel library.** Studio MUST NOT implement, and MUST NOT ship, any of the following: a second asset catalog; a second media or file browser rooted outside CKC; a second thumbnail or preview cache keyed independently of CKC's; a second metadata, keyword, rating, label or flag store; a second collection or smart-collection mechanism over assets; a second duplicate-detection index; a second folder-synchronisation watcher; or a second content-addressed blob tier. Each of these already exists in CKC, and duplicating one is a `[STU-SECTION-003]` violation, not an optimisation. --- ### 2. Consumption: how Studio reads assets",
+    "summary": "Prohibition — no parallel library.** Studio MUST NOT implement, and MUST NOT ship, any of the following: a second asset catalog; a second media or file browser rooted outside CKC; a second thumbnail or preview cache keyed independently of CKC's; a second metadata, keyword, rating, label or flag store; a second collection or smart-collection mechanism over assets; a second duplicate-detection index; a second folder-synchronisation watcher; or a second content-addressed blob tier. Each of these already exists in CKC, and duplicating one is a `[STU-SECTION-003]` violation, not an optimisation. Standalone reusable assets MUST consume artifact/catalog bytes through injected typed provider ports. They MUST NOT adopt upstream private catalog/CAS/cache authorities. A portable document container MAY carry immutable transport payloads; in integrated operation its bytes, previews and imported metadata MUST resolve/materialize through the existing CKC and ArtifactService owners, with no independently keyed duplicate tier. Asset-repository build source ownership is distinct from CKC runtime asset authority. --- ### 2. Consumption: how Studio reads assets",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -42,9 +43,27 @@
       "criterion": "Prohibition — no parallel library.** Studio MUST NOT implement, and MUST NOT ship, any of the following: a second asset catalog; a second media or file browser rooted outside CKC; a second thumbnail or preview cache keyed independently of CKC's; a second metadata, keyword, rating, label or flag store; a second collection or smart-collection mechanism over assets; a second duplicate-detection index; a second folder-synchronisation watcher; or a second content-addressed blob tier.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-ASSET-004"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "Standalone reusable assets MUST consume artifact/catalog bytes through injected typed provider ports.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-ASSET-004"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "They MUST NOT adopt upstream private catalog/CAS/cache authorities.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-ASSET-004"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "A portable document container MAY carry immutable transport payloads; in integrated operation its bytes, previews and imported metadata MUST resolve/materialize through the existing CKC and ArtifactService owners, with no independently keyed duplicate tier.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-ASSET-004"
     }
   ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria_count": 4,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1577,13 +1596,28 @@
       "STU-ASSET-004"
     ],
     "acceptance_refs": [
-      "AC-001"
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
         "text": "Prohibition — no parallel library.** Studio MUST NOT implement, and MUST NOT ship, any of the following: a second asset catalog; a second media or file browser rooted outside CKC; a second thumbnail or preview cache keyed independently of CKC's; a second metadata, keyword, rating, label or flag store; a second collection or smart-collection mechanism over assets; a second duplicate-detection index; a second folder-synchronisation watcher; or a second content-addressed blob tier.",
         "fulfillment_ref": "MT-34395#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-002",
+        "text": "Standalone reusable assets MUST consume artifact/catalog bytes through injected typed provider ports."
+      },
+      {
+        "id": "AC-003",
+        "text": "They MUST NOT adopt upstream private catalog/CAS/cache authorities."
+      },
+      {
+        "id": "AC-004",
+        "text": "A portable document container MAY carry immutable transport payloads; in integrated operation its bytes, previews and imported metadata MUST resolve/materialize through the existing CKC and ArtifactService owners, with no independently keyed duplicate tier."
       }
     ],
     "spec_basis_refs": [
@@ -1817,6 +1851,54 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-34395-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-ASSET-004"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Standalone reusable assets MUST consume artifact/catalog bytes through injected typed provider ports.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-34395-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-ASSET-004"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "They MUST NOT adopt upstream private catalog/CAS/cache authorities.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-34395-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-ASSET-004"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "A portable document container MAY carry immutable transport payloads; in integrated operation its bytes, previews and imported metadata MUST resolve/materialize through the existing CKC and ArtifactService owners, with no independently keyed duplicate tier.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2246,11 +2328,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2282,5 +2364,42 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "Standalone reusable assets MUST consume artifact/catalog bytes through injected typed provider ports."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "They MUST NOT adopt upstream private catalog/CAS/cache authorities."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "A portable document container MAY carry immutable transport payloads; in integrated operation its bytes, previews and imported metadata MUST resolve/materialize through the existing CKC and ArtifactService owners, with no independently keyed duplicate tier."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-002",
+        "AC-003",
+        "AC-004"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Prohibition — no parallel library",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.8.25 Transform Materialisation and Application",
-    "spec_line": 12211,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 12484,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -66,9 +67,39 @@
       "criterion": "Hiding the substitution is the defect; substituting and declaring it is a stated, bounded condition. | | Proof and viewport | A proof render under [STU-COL-240] and the viewport MUST resolve to the same declared rule, or the proof MUST report that it did not.",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-COL-353"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The contract table holds the row `Declared field` with the exact meaning the spec states: `interpolation` is a REQUIRED field of every materialised transform carrying a lookup table, taking its values from the enumeration of [STU-COL-158]. It has no default and MUST NOT be inferred from the sampler.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-353 carried contract table row 1"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The contract table holds the row `Cache key` with the exact meaning the spec states: `interpolation` is part of the cache key of [STU-COL-142]. Two artefacts differing only in it are different artefacts.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-353 carried contract table row 2"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The contract table holds the row `Path binding` with the exact meaning the spec states: Every application path of [STU-COL-352] MUST apply the rule the artefact declares. A path that cannot MUST NOT silently apply a different one.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-353 carried contract table row 3"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The contract table holds the row `Declared discrepancy` with the exact meaning the spec states: Where a path genuinely cannot apply the declared rule, the artefact is marked with the rule that path actually applied, that fact is reported as inspection state under [STU-COL-250], and the resulting difference is measured against [STU-COL-352] rather than assumed small. Hiding the substitution is [...]. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-353 carried contract table row 4"
+    },
+    {
+      "id": "AC-010",
+      "criterion": "The contract table holds the row `Proof and viewport` with the exact meaning the spec states: A proof render under [STU-COL-240] and the viewport MUST resolve to the same declared rule, or the proof MUST report that it did not. A soft proof that silently differs from the viewport is worse than no soft proof, because it is trusted.. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-COL-353 carried contract table row 5"
     }
   ],
-  "acceptance_criteria_count": 5,
+  "acceptance_criteria_count": 10,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1603,7 +1634,12 @@
       "AC-002",
       "AC-003",
       "AC-004",
-      "AC-005"
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009",
+      "AC-010"
     ],
     "materialized_acceptance": [
       {
@@ -1630,6 +1666,26 @@
         "id": "AC-005",
         "text": "Hiding the substitution is the defect; substituting and declaring it is a stated, bounded condition. | | Proof and viewport | A proof render under [STU-COL-240] and the viewport MUST resolve to the same declared rule, or the proof MUST report that it did not.",
         "fulfillment_ref": "MT-35519#/fulfillment/legacy_acceptance_map/4"
+      },
+      {
+        "id": "AC-006",
+        "text": "The contract table holds the row `Declared field` with the exact meaning the spec states: `interpolation` is a REQUIRED field of every materialised transform carrying a lookup table, taking its values from the enumeration of [STU-COL-158]. It has no default and MUST NOT be inferred from the sampler.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-007",
+        "text": "The contract table holds the row `Cache key` with the exact meaning the spec states: `interpolation` is part of the cache key of [STU-COL-142]. Two artefacts differing only in it are different artefacts.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-008",
+        "text": "The contract table holds the row `Path binding` with the exact meaning the spec states: Every application path of [STU-COL-352] MUST apply the rule the artefact declares. A path that cannot MUST NOT silently apply a different one.. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-009",
+        "text": "The contract table holds the row `Declared discrepancy` with the exact meaning the spec states: Where a path genuinely cannot apply the declared rule, the artefact is marked with the rule that path actually applied, that fact is reported as inspection state under [STU-COL-250], and the resulting difference is measured against [STU-COL-352] rather than assumed small. Hiding the substitution is [...]. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-010",
+        "text": "The contract table holds the row `Proof and viewport` with the exact meaning the spec states: A proof render under [STU-COL-240] and the viewport MUST resolve to the same declared rule, or the proof MUST report that it did not. A soft proof that silently differs from the viewport is worse than no soft proof, because it is trusted.. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -1867,6 +1923,86 @@
           "selected_features": []
         },
         "materialization_status": "PLANNED_TARGET_TO_AUTHOR_NOT_EXECUTED"
+      },
+      {
+        "check_id": "MT-35519-SPEC-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-COL-353"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Declared field` with the exact meaning the spec states: `interpolation` is a REQUIRED field of every materialised transform carrying a lookup table, taking its values from the enumeration of [STU-COL-158]. It has no default and MUST NOT be inferred from the sampler.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35519-SPEC-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-COL-353"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Cache key` with the exact meaning the spec states: `interpolation` is part of the cache key of [STU-COL-142]. Two artefacts differing only in it are different artefacts.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35519-SPEC-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-COL-353"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Path binding` with the exact meaning the spec states: Every application path of [STU-COL-352] MUST apply the rule the artefact declares. A path that cannot MUST NOT silently apply a different one.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35519-SPEC-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-COL-353"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Declared discrepancy` with the exact meaning the spec states: Where a path genuinely cannot apply the declared rule, the artefact is marked with the rule that path actually applied, that fact is reported as inspection state under [STU-COL-250], and the resulting difference is measured against [STU-COL-352] rather than assumed small. Hiding the substitution is [...]. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-35519-SPEC-AC-010",
+        "kind": "test",
+        "claim_refs": [
+          "AC-010",
+          "STU-COL-353"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `Proof and viewport` with the exact meaning the spec states: A proof render under [STU-COL-240] and the viewport MUST resolve to the same declared rule, or the proof MUST report that it did not. A soft proof that silently differs from the viewport is worse than no soft proof, because it is trusted.. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2683,11 +2819,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2735,5 +2871,54 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-006",
+          "old": null,
+          "new": "The contract table holds the row `Declared field` with the exact meaning the spec states: `interpolation` is a REQUIRED field of every materialised transform carrying a lookup table, taking its values from the enumeration of [STU-COL-158]. It has no default and MUST NOT be inferred from the sampler.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-007",
+          "old": null,
+          "new": "The contract table holds the row `Cache key` with the exact meaning the spec states: `interpolation` is part of the cache key of [STU-COL-142]. Two artefacts differing only in it are different artefacts.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-008",
+          "old": null,
+          "new": "The contract table holds the row `Path binding` with the exact meaning the spec states: Every application path of [STU-COL-352] MUST apply the rule the artefact declares. A path that cannot MUST NOT silently apply a different one.. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-009",
+          "old": null,
+          "new": "The contract table holds the row `Declared discrepancy` with the exact meaning the spec states: Where a path genuinely cannot apply the declared rule, the artefact is marked with the rule that path actually applied, that fact is reported as inspection state under [STU-COL-250], and the resulting difference is measured against [STU-COL-352] rather than assumed small. Hiding the substitution is [...]. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-010",
+          "old": null,
+          "new": "The contract table holds the row `Proof and viewport` with the exact meaning the spec states: A proof render under [STU-COL-240] and the viewport MUST resolve to the same declared rule, or the proof MUST report that it did not. A soft proof that silently differs from the viewport is worse than no soft proof, because it is trusted.. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "The interpolation rule is part of the transform's identity",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

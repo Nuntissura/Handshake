@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.0 SurrealDB Authority Override (v02.204) [STU-SDB-001]",
-    "spec_line": 116,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 118,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,18 +34,11 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "cross_cutting",
   "scope": {
-    "summary": "DEDUP / NO-DOUBLE-FEATURES. Shared capability across the source suites maps to exactly ONE Studio primitive and ONE Studio command family. The per-suite variants recorded in the research provenance collapse into a single normative Studio feature; a source suite's product name (Photoshop, Illustrator, InDesign, Affinity, Photo, Designer, Publisher, Figma, FigJam, and so on) is never a Studio tool, command, panel, or manual name. Studio ships Handshake-native names. This section's per-domain feature catalogs (14.4-14.15) are the deduped normative Studio feature set; the interaction/force-multiplier edges live in Appendix 12.6 (`IMX-STUDIO-*`). --- --- ## 14.1 Overview, Scope, and the Unified-Suite Differentiator --- ### 1. What Studio Is Studio is the Handshake-native unified creative suite. It is a kernel-attached creative module in the same architectural position as the atelier module and the Tailor module: a domain subdirectory under `handshake_core` that receives `AppState` by reference, emits `KernelEventType` variants to the EventLedger, operates through the kernel sandbox and `PromotionGate`, persists authority records to Handshake-managed SurrealDB through the official SurrealDB Rust SDK and the kernel's typed authority-store abstraction, and exposes both a native operator UI (egui/wgpu/AccessKit per the canonical native-Rust shell) and a typed model-steerable command/MCP [...]",
+    "summary": "DEDUP / NO-DOUBLE-FEATURES. Shared capability across the source suites maps to exactly ONE Studio primitive and ONE Studio command family. The per-suite variants recorded in the research provenance collapse into a single normative Studio feature; a source suite's product name (Photoshop, Illustrator, InDesign, Affinity, Photo, Designer, Publisher, Figma, FigJam, and so on) is never a Studio tool, command, panel, or manual name. Studio ships Handshake-native names. This section's per-domain feature catalogs (14.4-14.15) are the deduped normative Studio feature set; the interaction/force-multiplier edges live in Appendix 12.6 (`IMX-STUDIO-*`). --- --- ## 14.1 Overview, Scope, and the Unified-Suite Differentiator --- ### 1. What Studio Is Studio is the Handshake-native unified creative suite. It is a kernel-attached creative module in the same architectural position as the atelier module and the Tailor module: a domain subdirectory under `handshake_core` that receives `AppState` by reference, emits `KernelEventType` variants to the EventLedger, operates through the kernel sandbox and `PromotionGate`, persists authority records to Handshake-managed SurrealDB through the official SurrealDB Rust SDK and the kernel's typed authority-store abstraction, and exposes both a native operator UI (AccessKit per the canonical native-Rust shell) and a typed model-steerable command/MCP surface. [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [
-    {
-      "id": "AC-001",
-      "criterion": "Studio MUST NOT put `wgpu`/WGSL/GPU dependencies into `handshake_core`'s `Cargo.toml`; all GPU code is isolated in `studio-engine`, exactly as Tailor isolates GPU code in `tailor-solver` ([TAI-OVR-009]).",
-      "evidence_kind": "runtime_assertion",
-      "source": "14-studio-creative-suite.md STU-SECTION-003"
-    }
-  ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria": [],
+  "acceptance_criteria_count": 0,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1582,21 +1576,22 @@
     "requirement_refs": [
       "STU-SECTION-003"
     ],
-    "acceptance_refs": [
-      "AC-001"
-    ],
-    "materialized_acceptance": [
-      {
-        "id": "AC-001",
-        "text": "Studio MUST NOT put `wgpu`/WGSL/GPU dependencies into `handshake_core`'s `Cargo.toml`; all GPU code is isolated in `studio-engine`, exactly as Tailor isolates GPU code in `tailor-solver` ([TAI-OVR-009]).",
-        "fulfillment_ref": "MT-30009#/fulfillment/legacy_acceptance_map/0"
-      }
-    ],
+    "acceptance_refs": [],
+    "materialized_acceptance": [],
     "spec_basis_refs": [
       ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md"
     ],
     "operator_decision_refs": [
       "ilja091020261912"
+    ],
+    "superseded_materialized_acceptance": [
+      {
+        "id": "AC-001",
+        "text": "Studio MUST NOT put `wgpu`/WGSL/GPU dependencies into `handshake_core`'s `Cargo.toml`; all GPU code is isolated in `studio-engine`, exactly as Tailor isolates GPU code in `tailor-solver` ([TAI-OVR-009]).",
+        "fulfillment_ref": "MT-30009#/fulfillment/legacy_acceptance_map/0",
+        "superseded_at_spec_version": "v02.229",
+        "reason": "the sentence is absent from the spec text; the deriver no longer yields this row"
+      }
     ]
   },
   "execution": {
@@ -1812,7 +1807,10 @@
           "before_coding": "Approve focused natural method, selected owning package/provider features and bounded timeout.",
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
-        }
+        },
+        "superseded_claim_refs": [
+          "AC-001"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2242,11 +2240,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2290,5 +2288,32 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "Studio MUST NOT put `wgpu`/WGSL/GPU dependencies into `handshake_core`'s `Cargo.toml`; all GPU code is isolated in `studio-engine`, exactly as Tailor isolates GPU code in `tailor-solver` ([TAI-OVR-009]).",
+          "new": null
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [
+        "AC-001"
+      ],
+      "superseded_materialized_rows": [
+        "AC-001"
+      ],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "DEDUP / NO-DOUBLE-FEATURES. Shared capability across the source suites maps to exactly ONE Studio primitive and ONE Studio command family. The per-suite variants recorded in the research provenance co [...]",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "18. GPU Render Requirement & Cross-Backend Equivalence",
-    "spec_line": 19594,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 19865,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,14 +27,14 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "Every filter/effect evaluates through the `studio-engine` `RenderEngine` (wgpu/WGSL), driven by the `StudioRenderHarness` primitive. Rows marked GPU `Req` MUST run on a supported GPU backend; when non [...]",
+  "clause": "Every filter/effect evaluates through the the owning modular Studio asset crate `RenderEngine`, driven by the `StudioRenderHarness` primitive. Rows marked GPU `Req` MUST run on a supported GPU backend [...]",
   "spec_anchor": [
     "STU-FX-036"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "effects",
   "scope": {
-    "summary": "Every filter/effect evaluates through the `studio-engine` `RenderEngine` (wgpu/WGSL), driven by the `StudioRenderHarness` primitive. Rows marked GPU `Req` MUST run on a supported GPU backend; when none is available the effect returns a determinate `EFFECT_GPU_UNAVAILABLE` state ([STU-FX-018]) rather than a silent empty result, and the harness records the shortfall. Rows marked `Opt` have a CPU fallback path in `studio-engine` that produces promotion-equivalent output. GPU dependencies stay isolated in `studio-engine` and never enter `handshake_core`'s `Cargo.toml` ([STU-ARC-002]).",
+    "summary": "Every filter/effect evaluates through the the owning modular Studio asset crate `RenderEngine`, driven by the `StudioRenderHarness` primitive. Rows marked GPU `Req` MUST run on a supported GPU backend; when none is available the effect returns a determinate `EFFECT_GPU_UNAVAILABLE` state ([STU-FX-018]) rather than a silent empty result, and the harness records the shortfall. Rows marked `Opt` have a CPU fallback path in the owning modular Studio asset crate that produces promotion-equivalent output. GPU dependencies stay isolated in the owning modular Studio asset crate and never enter `handshake_core`'s `Cargo.toml` ([STU-ARC-002]). GPU work reaches a device only as a typed client of the central GPU owner under [GUI-DESKTOP-028], through the GPU client port of [STU-ARC-024]; the owning crate holds no device ownership.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -134,7 +135,7 @@
   "identity": {
     "mt_id": "MT-33050",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "Every filter/effect evaluates through the `studio-engine` `RenderEngine` (wgpu/WGSL), driven by the `StudioRenderHarness` primitive. Rows marked GPU `Req` MUST run on a supported GPU backend; when non [...]",
+    "title": "Every filter/effect evaluates through the the owning modular Studio asset crate `RenderEngine`, driven by the `StudioRenderHarness` primitive. Rows marked GPU `Req` MUST run on a supported GPU backend [...]",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 3
@@ -2271,7 +2272,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T03:48:18.427Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "rule_refs": [
     "CX-SPEC-TRUTH-001",
     "CX-TPL-001",
@@ -2314,7 +2315,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2350,5 +2351,24 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "Every filter/effect evaluates through the `studio-engine` `RenderEngine` (wgpu/WGSL), driven by the `StudioRenderHarness` primitive. Rows marked GPU `Req` MUST run on a supported GPU backend; when non [...]",
+      "propagated_paths": [
+        "/identity/title"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

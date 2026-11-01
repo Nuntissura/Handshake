@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "8. Auto layout — full parameter contract",
-    "spec_line": 19831,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 20102,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,18 +34,24 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "design_systems",
   "scope": {
-    "summary": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the cross axis | | `primary_axis_align_items` | `MIN` \\| `CENTER` \\| `MAX` \\| `SPACE_BETWEEN` | `MIN` | packing/distribution on the flow axis | | `counter_axis_align_items` | `MIN` \\| `CENTER` \\| `MAX` \\| `BASELINE` | `MIN` | `BASELINE` is the text-baseline alignment of [STU-DS-041] | | `counter_axis_align_content` | `AUTO` \\| `SPACE_BETWEEN` | `AUTO` | applies only when `layout_wrap = WRAP` | | `item_spacing` | number, see [STU-DS-145] | 0 | gap along the flow axis | | `counter_axis_spacing` | number or null, see [STU-DS-145] | null | gap between wrapped lines; null = use `item_spacing` | | `padding_top` | number, see [STU-DS-145] | 0 | | | `padding_right` | number, see [STU-DS-145] | 0 | | | `padding_bottom` | number, see [STU-DS-145] | 0 | | | `padding_left` | number, se [...]",
+    "summary": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` or `VERTICAL`; Figma UI supports both flows, while the inspected plugin property page still documents horizontal-only, so importer API-version capabilities MUST be explicit | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the cross axis | | `primary_axis_align_items` | `MIN` \\| `CENTER` \\| `MAX` \\| `SPACE_BETWEEN` | `MIN` | packing/distribution on the flow axis | | `counter_axis_align_items` | `MIN` \\| `CENTER` \\| `MAX` \\| `BASELINE` | `MIN` | `BASELINE` is the text-baseline alignment of [STU-DS-041] | | `counter_axis_align_content` | `AUTO` \\| `SPACE_BETWEEN` | `AUTO` | applies only when `layout_wrap = WRAP` | | `item_spacing` | number, see [STU-DS-145] | 0 | gap along the flow axis | | `counter_axis_spacing` | number or null, see [STU-DS-145] | null | gap between wrapped lines; null = use `item_spacing` | | `padding_top [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
     {
       "id": "AC-001",
-      "criterion": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = [...]",
+      "criterion": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` or `VERTICAL`;",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-DS-144"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "Figma UI supports both flows, while the inspected plugin property page still documents horizontal-only, so importer API-version capabilities MUST be explicit | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the cross axis | | `primary_axis_align_items` | `MIN` \\| `CENTER` \\| `MAX` \\| `SPACE_BETWEEN` | `MIN` | packing/distribution on the flow axis | | `counter_axis_align_items` | `MIN` \\| `CENTER` \\| `MAX` \\| `BASELINE` | `MIN` | `BASELINE` is the text-basel [...]",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-DS-144"
     }
   ],
-  "acceptance_criteria_count": 1,
+  "acceptance_criteria_count": 2,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1555,15 +1562,20 @@
       "STU-DS-144"
     ],
     "acceptance_refs": [
-      "AC-001"
+      "AC-001",
+      "AC-002"
     ],
     "materialized_acceptance": [
       {
         "id": "AC-001",
-        "text": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = [...]",
+        "text": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` or `VERTICAL`;",
         "fulfillment_ref": "MT-33100#/fulfillment/legacy_acceptance_map/0",
         "proof_ref": "MT-33100#/proof/checks/0",
         "source_scope_ref": "MT-33100#/context_capsule/specification_anchor_refs/0"
+      },
+      {
+        "id": "AC-002",
+        "text": "Figma UI supports both flows, while the inspected plugin property page still documents horizontal-only, so importer API-version capabilities MUST be explicit | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the cross axis | | `primary_axis_align_items` | `MIN` \\| `CENTER` \\| `MAX` \\| `SPACE_BETWEEN` | `MIN` | packing/distribution on the flow axis | | `counter_axis_align_items` | `MIN` \\| `CENTER` \\| `MAX` \\| `BASELINE` | `MIN` | `BASELINE` is the text-basel [...]"
       }
     ],
     "spec_basis_refs": [
@@ -1819,8 +1831,8 @@
         "claim_refs": [
           "AC-001"
         ],
-        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-components --no-default-features --test components_mt_33100 mt_33100_ac_001 -- --exact --nocapture. Consumer: Expose all seventeen auto-layout container fields and delegate layout through LayoutEngine; assert this exact acceptance: Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = [...]. Oracle: Full source field/default table; mixed receipt and UI/API importer-version wrap capability are explicit; use independent expected values/graph or rendered-output inspection, never a producer-authored PASS.; no target or execution claimed.",
-        "expected": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = [...]",
+        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-components --no-default-features --test components_mt_33100 mt_33100_ac_001 -- --exact --nocapture. Consumer: Expose all seventeen auto-layout container fields and delegate layout through LayoutEngine; assert this exact acceptance: Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` or `VERTICAL`;. Oracle: Full source field/default table; mixed receipt and UI/API importer-version wrap capability are explicit; use independent expected values/graph or rendered-output inspection, never a producer-authored PASS.; no target or execution claimed.",
+        "expected": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` or `VERTICAL`;",
         "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1833,7 +1845,7 @@
             "hsk-studio-components"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Expose all seventeen auto-layout container fields and delegate layout through LayoutEngine; assert this exact acceptance: Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = [...]",
+          "consumer_assertion": "Expose all seventeen auto-layout container fields and delegate layout through LayoutEngine; assert this exact acceptance: Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` or `VERTICAL`;",
           "negative_path": "Exercise the invalid/forbidden or failure case named in NONE/HORIZONTAL/VERTICAL/GRID, wrap both flows, padding mixed reads, stroke inclusion and reverse z order. Compare rejected graph with immutable preimage; invalid type/closed token/field/reference and stale expected entity revision must not mutate. Cancellation/provider loss/admission overload return typed bounded outcomes where this consumer uses those paths.",
           "oracle": "Full source field/default table; mixed receipt and UI/API importer-version wrap capability are explicit; use independent expected values/graph or rendered-output inspection, never a producer-authored PASS.",
           "features": [
@@ -1849,7 +1861,7 @@
             "status": "PLANNED_NOT_CREATED",
             "construction": "NONE/HORIZONTAL/VERTICAL/GRID, wrap both flows, padding mixed reads, stroke inclusion and reverse z order",
             "full_source_contract_ref": "MT-33100#/context_capsule/specification_anchor_refs/0",
-            "claim_under_test": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = [...]"
+            "claim_under_test": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` or `VERTICAL`;"
           },
           "prerequisites": [
             "All36 foundations independently passed; current published dependency/API/schema/provider pins resolved",
@@ -1887,6 +1899,22 @@
           "before_handoff": "Real target must exist, execute on exact candidate and produce independent actual output.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-33100-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-DS-144"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Figma UI supports both flows, while the inspected plugin property page still documents horizontal-only, so importer API-version capabilities MUST be explicit | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the cross axis | | `primary_axis_align_items` | `MIN` \\| `CENTER` \\| `MAX` \\| `SPACE_BETWEEN` | `MIN` | packing/distribution on the flow axis | | `counter_axis_align_items` | `MIN` \\| `CENTER` \\| `MAX` \\| `BASELINE` | `MIN` | `BASELINE` is the text-basel [...]",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2209,7 +2237,7 @@
         "original_text": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = [...]",
         "original_row_sha256": "3bd0cf310769371080b5d15a641fa72a0d28c9c94adef2f4d970fd05618530ff",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = [...]",
+        "semantic_fulfillment": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` or `VERTICAL`;",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33100-ASSET-COMPONENTS"
@@ -2219,7 +2247,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-COMPONENTS",
             "scope": "Components, variables, responsive constraints, prototype actions within same document; no separate Figma-like app.",
-            "required_behavior": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = [...]",
+            "required_behavior": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` or `VERTICAL`;",
             "only_owner_root_may_change": true
           }
         ],
@@ -2228,7 +2256,7 @@
             "hsk-studio-components"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Expose all seventeen auto-layout container fields and delegate layout through LayoutEngine; assert this exact acceptance: Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = [...]",
+          "consumer_assertion": "Expose all seventeen auto-layout container fields and delegate layout through LayoutEngine; assert this exact acceptance: Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` or `VERTICAL`;",
           "negative_path": "Exercise the invalid/forbidden or failure case named in NONE/HORIZONTAL/VERTICAL/GRID, wrap both flows, padding mixed reads, stroke inclusion and reverse z order. Compare rejected graph with immutable preimage; invalid type/closed token/field/reference and stale expected entity revision must not mutate. Cancellation/provider loss/admission overload return typed bounded outcomes where this consumer uses those paths.",
           "oracle": "Full source field/default table; mixed receipt and UI/API importer-version wrap capability are explicit; use independent expected values/graph or rendered-output inspection, never a producer-authored PASS.",
           "features": [
@@ -2244,7 +2272,7 @@
             "status": "PLANNED_NOT_CREATED",
             "construction": "NONE/HORIZONTAL/VERTICAL/GRID, wrap both flows, padding mixed reads, stroke inclusion and reverse z order",
             "full_source_contract_ref": "MT-33100#/context_capsule/specification_anchor_refs/0",
-            "claim_under_test": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = [...]"
+            "claim_under_test": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` or `VERTICAL`;"
           },
           "prerequisites": [
             "All36 foundations independently passed; current published dependency/API/schema/provider pins resolved",
@@ -2278,7 +2306,7 @@
         },
         "later_embedding_ref": "./MT-36199.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` or `VERTICAL`; Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "later_embedding_refs": [
           "./MT-36199.json"
@@ -2315,7 +2343,7 @@
           "original_text": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = [...]",
           "original_row_sha256": "3bd0cf310769371080b5d15a641fa72a0d28c9c94adef2f4d970fd05618530ff",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = [...]",
+          "semantic_fulfillment": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` or `VERTICAL`;",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33100-ASSET-COMPONENTS"
@@ -2325,7 +2353,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-COMPONENTS",
               "scope": "Components, variables, responsive constraints, prototype actions within same document; no separate Figma-like app.",
-              "required_behavior": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = [...]",
+              "required_behavior": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` or `VERTICAL`;",
               "only_owner_root_may_change": true
             }
           ],
@@ -2334,7 +2362,7 @@
               "hsk-studio-components"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Expose all seventeen auto-layout container fields and delegate layout through LayoutEngine; assert this exact acceptance: Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = [...]",
+            "consumer_assertion": "Expose all seventeen auto-layout container fields and delegate layout through LayoutEngine; assert this exact acceptance: Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` or `VERTICAL`;",
             "negative_path": "Exercise the invalid/forbidden or failure case named in NONE/HORIZONTAL/VERTICAL/GRID, wrap both flows, padding mixed reads, stroke inclusion and reverse z order. Compare rejected graph with immutable preimage; invalid type/closed token/field/reference and stale expected entity revision must not mutate. Cancellation/provider loss/admission overload return typed bounded outcomes where this consumer uses those paths.",
             "oracle": "Full source field/default table; mixed receipt and UI/API importer-version wrap capability are explicit; use independent expected values/graph or rendered-output inspection, never a producer-authored PASS.",
             "features": [
@@ -2350,7 +2378,7 @@
               "status": "PLANNED_NOT_CREATED",
               "construction": "NONE/HORIZONTAL/VERTICAL/GRID, wrap both flows, padding mixed reads, stroke inclusion and reverse z order",
               "full_source_contract_ref": "MT-33100#/context_capsule/specification_anchor_refs/0",
-              "claim_under_test": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = [...]"
+              "claim_under_test": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` or `VERTICAL`;"
             },
             "prerequisites": [
               "All36 foundations independently passed; current published dependency/API/schema/provider pins resolved",
@@ -2384,7 +2412,7 @@
           },
           "later_embedding_ref": "./MT-36199.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` or `VERTICAL`; Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "later_embedding_refs": [
             "./MT-36199.json"
@@ -2404,11 +2432,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T03:19:45.770Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2452,5 +2480,51 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = [...]",
+          "new": "Auto-layout container fields (normative, closed set of seventeen).** A frame with auto layout MUST expose exactly these container fields: | Field | Type / domain | Default | Notes | |---|---|---|---| | `layout_mode` | `NONE` \\| `HORIZONTAL` \\| `VERTICAL` \\| `GRID` | `NONE` | `NONE` means the frame is not an auto-layout container | | `layout_wrap` | `NO_WRAP` \\| `WRAP` | `NO_WRAP` | legal only when `layout_mode = HORIZONTAL` or `VERTICAL`;"
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "Figma UI supports both flows, while the inspected plugin property page still documents horizontal-only, so importer API-version capabilities MUST be explicit | | `primary_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the flow axis | | `counter_axis_sizing_mode` | `FIXED` \\| `AUTO` | `AUTO` | `AUTO` = hug contents on the cross axis | | `primary_axis_align_items` | `MIN` \\| `CENTER` \\| `MAX` \\| `SPACE_BETWEEN` | `MIN` | packing/distribution on the flow axis | | `counter_axis_align_items` | `MIN` \\| `CENTER` \\| `MAX` \\| `BASELINE` | `MIN` | `BASELINE` is the text-basel [...]"
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-002"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Auto-layout container fields (normative, closed set of seventeen)",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/command_or_method",
+        "/proof/checks[0]/expected",
+        "/proof/checks[0]/method_recipe/consumer_assertion",
+        "/proof/checks[0]/method_recipe/fixture/claim_under_test",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/fixture/claim_under_test",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/fixture/claim_under_test",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

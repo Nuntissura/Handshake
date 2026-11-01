@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14. The command surface",
-    "spec_line": 23384,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 23921,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -132,9 +133,21 @@
       "criterion": "Its rows are acceptance criteria and MUST NOT become one microtask each.* | Command id | Label | Default binding (en) | |---|---|---| | `cmd.clipgrid.pastegradetoclip.andappend` | Paste and Append | -- | | `cmd.clipgrid.pastegradetoclip.andreplace` | Paste and Replace | -- | | `cmd.clipgrid.pastegradetoclip.asclipadjustments` | Paste as Clip Adjustments | -- | | `cmd.clipgrid.pastegradetoclip.asclipoperations` | _(no menu label; executable-only)_ | -- | | `cmd.clipgrid.pastegradetoclip.preservegrouprelationships` | Paste to Preserve Group Relationships | -- | | `cmd.clipgrid.pastegradetoselect [...]",
       "evidence_kind": "runtime_assertion",
       "source": "14-studio-creative-suite.md STU-VID-041a"
+    },
+    {
+      "id": "AC-017",
+      "criterion": "The contract table holds the row `cmd.clip.aeify` with the exact meaning the spec states: Replace With Composition | `Replace With After Effects Composition`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-041a carried contract table row 1"
+    },
+    {
+      "id": "AC-018",
+      "criterion": "The contract table holds the row `cmd.clip.openstockaudiosearch` with the exact meaning the spec states: Search Stock Audio Library | `Find Adobe Stock Audio`. No row is added, renamed, or silently mapped onto another.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-VID-041a carried contract table row 2"
     }
   ],
-  "acceptance_criteria_count": 16,
+  "acceptance_criteria_count": 18,
   "implementation_notes": {
     "source_repository": "https://github.com/Nuntissura/assets",
     "source_subdirectory": "handshake-studio-assets/crates/hsk-studio-pulse",
@@ -1631,7 +1644,9 @@
       "AC-013",
       "AC-014",
       "AC-015",
-      "AC-016"
+      "AC-016",
+      "AC-017",
+      "AC-018"
     ],
     "materialized_acceptance": [
       {
@@ -1713,6 +1728,14 @@
         "id": "AC-016",
         "text": "Its rows are acceptance criteria and MUST NOT become one microtask each.* | Command id | Label | Default binding (en) | |---|---|---| | `cmd.clipgrid.pastegradetoclip.andappend` | Paste and Append | -- | | `cmd.clipgrid.pastegradetoclip.andreplace` | Paste and Replace | -- | | `cmd.clipgrid.pastegradetoclip.asclipadjustments` | Paste as Clip Adjustments | -- | | `cmd.clipgrid.pastegradetoclip.asclipoperations` | _(no menu label; executable-only)_ | -- | | `cmd.clipgrid.pastegradetoclip.preservegrouprelationships` | Paste to Preserve Group Relationships | -- | | `cmd.clipgrid.pastegradetoselect [...]",
         "fulfillment_ref": "MT-33745#/fulfillment/legacy_acceptance_map/15"
+      },
+      {
+        "id": "AC-017",
+        "text": "The contract table holds the row `cmd.clip.aeify` with the exact meaning the spec states: Replace With Composition | `Replace With After Effects Composition`. No row is added, renamed, or silently mapped onto another."
+      },
+      {
+        "id": "AC-018",
+        "text": "The contract table holds the row `cmd.clip.openstockaudiosearch` with the exact meaning the spec states: Search Stock Audio Library | `Find Adobe Stock Audio`. No row is added, renamed, or silently mapped onto another."
       }
     ],
     "spec_basis_refs": [
@@ -3108,6 +3131,38 @@
           "before_handoff": "Actual target must exist and match nonzero tests; independent actual-output/device/native/original oracle proof per claim.",
           "existing_target_claimed": false
         }
+      },
+      {
+        "check_id": "MT-33745-SPEC-AC-017",
+        "kind": "test",
+        "claim_refs": [
+          "AC-017",
+          "STU-VID-041a"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `cmd.clip.aeify` with the exact meaning the spec states: Replace With Composition | `Replace With After Effects Composition`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-33745-SPEC-AC-018",
+        "kind": "test",
+        "claim_refs": [
+          "AC-018",
+          "STU-VID-041a"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The contract table holds the row `cmd.clip.openstockaudiosearch` with the exact meaning the spec states: Search Stock Audio Library | `Find Adobe Stock Audio`. No row is added, renamed, or silently mapped onto another.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -5001,7 +5056,7 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T22:40:00.999475+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "rule_refs": [
     "CX-MODULE-LIFECYCLE-001",
     "CX-MODULE-LIFECYCLE-002",
@@ -5012,7 +5067,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -5067,5 +5122,36 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-017",
+          "old": null,
+          "new": "The contract table holds the row `cmd.clip.aeify` with the exact meaning the spec states: Replace With Composition | `Replace With After Effects Composition`. No row is added, renamed, or silently mapped onto another."
+        },
+        {
+          "id": "AC-018",
+          "old": null,
+          "new": "The contract table holds the row `cmd.clip.openstockaudiosearch` with the exact meaning the spec states: Search Stock Audio Library | `Find Adobe Stock Audio`. No row is added, renamed, or silently mapped onto another."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-017",
+        "AC-018"
+      ],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": false,
+      "clause_changed": false,
+      "old_clause": "Two command labels named a vendor product and have been renamed to name the",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

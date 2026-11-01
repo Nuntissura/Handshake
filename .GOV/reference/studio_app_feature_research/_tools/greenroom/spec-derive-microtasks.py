@@ -337,6 +337,11 @@ def derive(clauses: list[dict], no_yield: set[str] | None = None,
             head = mk.split("anchors appearing")[0].strip()
             if "splits per row" in head or "split per row" in head:
                 return "catalogue"
+            # "contract table carried into this clause's own microtask as acceptance criteria;
+            # yields no microtask of its own": the rows ARE acceptance criteria of the clause's MT.
+            # Reading only "no microtask" voided all 53 such tables (round trip v02.229).
+            if "carried into this clause" in head:
+                return "carried"
             if "no microtask" in head:
                 return "none"
             if "parameter table" in head:
@@ -368,6 +373,12 @@ def derive(clauses: list[dict], no_yield: set[str] | None = None,
         enums = [t for t in tables if t not in params and t not in cats and t not in cmds
                  and (marks[id(t)] == "enumeration"
                       or (not marks[id(t)] and is_enumeration_table(t)))]
+        if not yields and any(marks[id(t)] == "carried" for t in tables):
+            unrecognised.append({
+                "anchor": c["anchor"], "module": c["module"], "heading": c["heading"],
+                "marker": "contract table carried into this clause's own microtask",
+                "reading": "The clause yields no microtask, so its carried contract table has no "
+                           "microtask to carry its rows; the rows are dropped. Proofread the clause."})
         if not yields:
             if not params and not enums and not cats and not cmds:
                 units.append({"kind": "none", "anchor": c["anchor"], "module": c["module"],
@@ -385,7 +396,8 @@ def derive(clauses: list[dict], no_yield: set[str] | None = None,
                 kind = "golden_case"
             units.append({"kind": kind, "anchor": c["anchor"], "module": c["module"],
                           "title": c["title"], "heading": c["heading"], "line": c["line"],
-                          "body": c["body"], "index": 0})
+                          "body": c["body"], "index": 0,
+                          "carried_tables": [t for t in tables if marks[id(t)] == "carried"]})
         for n, t in enumerate(params):
             lbl = (t.get("label") or "").strip()
             units.append({"kind": "parameter_table", "anchor": c["anchor"], "module": c["module"],
@@ -411,7 +423,7 @@ def derive(clauses: list[dict], no_yield: set[str] | None = None,
             # yielding nothing, must not be split into one microtask per anchor-bearing row just
             # because its cells happen to define anchors. Ignoring the marker here was inflating
             # vector by 30 and layout by 17 against ledgers their authors had already reconciled.
-            if t in params or marks[id(t)] in ("none", "parameter", "enumeration", "command"):
+            if t in params or marks[id(t)] in ("none", "parameter", "enumeration", "command", "carried"):
                 continue
             # A module may state that anchors in its cells are cross-references rather than
             # definitions. Vector and layout do: all 61 of their in-cell anchors are defined as
@@ -475,28 +487,8 @@ def acceptance_rows(u: dict) -> list[dict]:
     rows, n = [], 0
     t = u.get("table")
     if t and u["kind"] == "parameter_table":
-        head = [h.lower().replace(" ", "_") for h in t["header"]]
-        for r in t["rows"]:
-            cells = dict(zip(head, r))
-            name = r[0].strip("` ") if r else ""
-            if not name or name.lower() in ("parameter", "field", "name"):
-                continue
-            n += 1
-            stated = {f: cells.get(f, "").strip() for f in BOUND_FIELDS if f in cells}
-            unknown = [f for f, v in stated.items() if not v or v.lower() in ("unknown", "-", "n/a", "--")]
-            rows.append({
-                "id": f"AC-{n:03d}",
-                "criterion": (
-                    f"The parameter `{name}` accepts and stores every one of its seven declared "
-                    f"fields as SEPARATE values, exactly as the spec table states them: "
-                    + ", ".join(f"{f}={v or 'UNKNOWN'}" for f, v in stated.items())
-                    + ". A field the spec marks unknown is stored as unknown and is NOT set equal "
-                      "to its opposite bound, because collapsing hard and soft bounds destroys "
-                      "information that cannot be recovered without re-deriving it from the captures."),
-                "evidence_kind": "runtime_assertion",
-                "unknown_fields": unknown,
-                "source": f"{u['module']} {u['anchor']} parameter table row {n}",
-            })
+        rows.extend(parameter_rows(t, u, 0, "parameter table row"))
+        n = len(rows)
     elif t and u["kind"] in ("catalogue_row", "anchor_row"):
         head = t["header"]
         row = t["rows"][0]
@@ -522,19 +514,8 @@ def acceptance_rows(u: dict) -> list[dict]:
             "source": f"{u['module']} {u['anchor']}",
         })
     elif t and u["kind"] == "enumeration":
-        for r in t["rows"]:
-            member = r[0].strip("` ") if r else ""
-            if not member or member.lower() in ("member", "value", "name", "option"):
-                continue
-            n += 1
-            rows.append({
-                "id": f"AC-{n:03d}",
-                "criterion": (f"The enumeration accepts the member `{member}` with the exact meaning "
-                              f"the spec states: {clip(' | '.join(x for x in r[1:] if x), 300)}. No member is "
-                              f"added, renamed, or silently mapped onto another."),
-                "evidence_kind": "runtime_assertion",
-                "source": f"{u['module']} {u['anchor']} enumeration row {n}",
-            })
+        rows.extend(enumeration_rows(t, u, 0, "enumeration row"))
+        n = len(rows)
     if not rows:
         for s in split_sentences(u.get("body", "")):
             if not NORMATIVE.search(s) or s.startswith("|"):
@@ -548,6 +529,62 @@ def acceptance_rows(u: dict) -> list[dict]:
             })
             if n >= 24:
                 break
+    # Rows of a contract table the spec carries into this clause's own microtask, in the row
+    # style of a parameter table (seven-field header) or of an enumeration (any other header).
+    # Appended after the sentence rows, so existing acceptance ids never shift.
+    for ct in u.get("carried_tables") or []:
+        more = (parameter_rows(ct, u, n, "carried parameter table row") if is_parameter_table(ct)
+                else enumeration_rows(ct, u, n, "carried contract table row", member_word="row"))
+        rows.extend(more)
+        n += len(more)
+    return rows
+
+
+def parameter_rows(t: dict, u: dict, start: int, label: str) -> list[dict]:
+    """One seven-field bound-set acceptance row per parameter-table row."""
+    rows, n = [], start
+    head = [h.lower().replace(" ", "_") for h in t["header"]]
+    for r in t["rows"]:
+        cells = dict(zip(head, r))
+        name = r[0].strip("` ") if r else ""
+        if not name or name.lower() in ("parameter", "field", "name"):
+            continue
+        n += 1
+        stated = {f: cells.get(f, "").strip() for f in BOUND_FIELDS if f in cells}
+        unknown = [f for f, v in stated.items() if not v or v.lower() in ("unknown", "-", "n/a", "--")]
+        rows.append({
+            "id": f"AC-{n:03d}",
+            "criterion": (
+                f"The parameter `{name}` accepts and stores every one of its seven declared "
+                f"fields as SEPARATE values, exactly as the spec table states them: "
+                + ", ".join(f"{f}={v or 'UNKNOWN'}" for f, v in stated.items())
+                + ". A field the spec marks unknown is stored as unknown and is NOT set equal "
+                  "to its opposite bound, because collapsing hard and soft bounds destroys "
+                  "information that cannot be recovered without re-deriving it from the captures."),
+            "evidence_kind": "runtime_assertion",
+            "unknown_fields": unknown,
+            "source": f"{u['module']} {u['anchor']} {label} {n - start}",
+        })
+    return rows
+
+
+def enumeration_rows(t: dict, u: dict, start: int, label: str, member_word: str = "member") -> list[dict]:
+    """One exact-meaning acceptance row per enumeration (or carried contract table) row."""
+    rows, n = [], start
+    what = "The enumeration accepts the member" if member_word == "member" else "The contract table holds the row"
+    for r in t["rows"]:
+        member = r[0].strip("` ") if r else ""
+        if not member or member.lower() in ("member", "value", "name", "option"):
+            continue
+        n += 1
+        rows.append({
+            "id": f"AC-{n:03d}",
+            "criterion": (f"{what} `{member}` with the exact meaning "
+                          f"the spec states: {clip(' | '.join(x for x in r[1:] if x), 300)}. No {member_word} is "
+                          f"added, renamed, or silently mapped onto another."),
+            "evidence_kind": "runtime_assertion",
+            "source": f"{u['module']} {u['anchor']} {label} {n - start}",
+        })
     return rows
 
 

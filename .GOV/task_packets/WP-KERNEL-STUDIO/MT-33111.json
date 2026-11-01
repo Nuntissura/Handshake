@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "10. Layout grids",
-    "spec_line": 19927,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 20200,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "design_systems",
   "scope": {
-    "summary": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0.",
+    "summary": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [],
@@ -143,7 +144,7 @@
       {
         "id": "STU-DS-155",
         "anchor": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md:19969",
-        "verbatim": "**[STU-DS-155] Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0.",
+        "verbatim": "**[STU-DS-155] Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
         "heading": "### 10. Layout grids",
         "section": "14.10",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
@@ -159,7 +160,7 @@
           }
         ],
         "verbatim_scope": "EXACT_FIRST_LINE_EXCERPT; complete canonical clause including parameter tables bound by verified_source_ranges",
-        "complete_normative_body": "**[STU-DS-155] Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0.",
+        "complete_normative_body": "**[STU-DS-155] Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
         "current_spec_comparison": {
           "source_ref": ".GOV/spec/master-spec-v02.208/spec-modules/14-studio-creative-suite.md",
           "source_sha256": "9f801496ef9bbdc7f371ded88eb7fc54e5f60736465dfbc9a4a85030bdc7fbbb",
@@ -1553,7 +1554,7 @@
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
-        "text": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0.",
+        "text": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
         "fulfillment_ref": "MT-33111#/fulfillment/legacy_acceptance_map/0",
         "proof_ref": "MT-33111#/proof/checks/0",
         "source_scope_ref": "MT-33111#/context_capsule/specification_anchor_refs/0"
@@ -1695,7 +1696,7 @@
           "count",
           "gutter_size"
         ],
-        "parameter_and_constraint_contract": "**[STU-DS-155] Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0.",
+        "parameter_and_constraint_contract": "**[STU-DS-155] Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
         "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
         "source_sha256": "307548a78ed4597dd1e59a9e9020625b59f63246dd0d1d1baae1984c0ce412e3",
         "source_range": {
@@ -1788,7 +1789,7 @@
         "claim_refs": [
           "ASSET-AC-001"
         ],
-        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-components --no-default-features --test components_mt_33111 mt_33111_asset_ac_001 -- --exact --nocapture. Consumer: Build rows/columns records with conditional section-size and offset rules; assert this exact acceptance: Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0.. Oracle: Independent position calculation; STRETCH ignores section_size,all fixed modes require it; use independent expected values/graph or rendered-output inspection, never a producer-authored PASS.; no target or execution claimed.",
+        "command_or_method": "PLANNED independent validator: cargo test --locked -p hsk-studio-components --no-default-features --test components_mt_33111 mt_33111_asset_ac_001 -- --exact --nocapture. Consumer: Build rows/columns records with conditional section-size and offset rules; assert this exact acceptance: Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.. Oracle: Independent position calculation; STRETCH ignores section_size,all fixed modes require it; use independent expected values/graph or rendered-output inspection, never a producer-authored PASS.; no target or execution claimed.",
         "timeout_seconds": 30,
         "on_timeout": "record_timeout",
         "evidence_required": [
@@ -1797,13 +1798,13 @@
           "Independent actual output"
         ],
         "materialization_status": "REQUIRED_BEFORE_DISPATCH_NO_EXECUTABLE_TARGET_YET",
-        "expected": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0.",
+        "expected": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
         "method_recipe": {
           "selected_packages": [
             "hsk-studio-components"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Build rows/columns records with conditional section-size and offset rules; assert this exact acceptance: Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0.",
+          "consumer_assertion": "Build rows/columns records with conditional section-size and offset rules; assert this exact acceptance: Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
           "negative_path": "Exercise the invalid/forbidden or failure case named in MIN/CENTER/MAX fixed widths,STRETCH margin/gutter,count12 default,1..1000. Compare rejected graph with immutable preimage; invalid type/closed token/field/reference and stale expected entity revision must not mutate. Cancellation/provider loss/admission overload return typed bounded outcomes where this consumer uses those paths.",
           "oracle": "Independent position calculation; STRETCH ignores section_size,all fixed modes require it; use independent expected values/graph or rendered-output inspection, never a producer-authored PASS.",
           "features": [
@@ -1819,7 +1820,7 @@
             "status": "PLANNED_NOT_CREATED",
             "construction": "MIN/CENTER/MAX fixed widths,STRETCH margin/gutter,count12 default,1..1000",
             "full_source_contract_ref": "MT-33111#/context_capsule/specification_anchor_refs/0",
-            "claim_under_test": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0."
+            "claim_under_test": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound."
           },
           "prerequisites": [
             "All36 foundations independently passed; current published dependency/API/schema/provider pins resolved",
@@ -2099,7 +2100,7 @@
             "line": 19969,
             "section": "14.10",
             "heading": "### 10. Layout grids",
-            "verbatim": "**[STU-DS-155] Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0.",
+            "verbatim": "**[STU-DS-155] Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
             "source_ref": ".GOV/spec/master-spec-v02.207/spec-modules/14-studio-creative-suite.md",
             "definition_kind": "normative_clause"
           }
@@ -2171,7 +2172,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0.",
+        "semantic_fulfillment": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-33111-ASSET-COMPONENTS"
@@ -2181,7 +2182,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-COMPONENTS",
             "scope": "Components, variables, responsive constraints, prototype actions within same document; no separate Figma-like app.",
-            "required_behavior": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0.",
+            "required_behavior": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
             "only_owner_root_may_change": true
           }
         ],
@@ -2190,7 +2191,7 @@
             "hsk-studio-components"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Build rows/columns records with conditional section-size and offset rules; assert this exact acceptance: Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0.",
+          "consumer_assertion": "Build rows/columns records with conditional section-size and offset rules; assert this exact acceptance: Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
           "negative_path": "Exercise the invalid/forbidden or failure case named in MIN/CENTER/MAX fixed widths,STRETCH margin/gutter,count12 default,1..1000. Compare rejected graph with immutable preimage; invalid type/closed token/field/reference and stale expected entity revision must not mutate. Cancellation/provider loss/admission overload return typed bounded outcomes where this consumer uses those paths.",
           "oracle": "Independent position calculation; STRETCH ignores section_size,all fixed modes require it; use independent expected values/graph or rendered-output inspection, never a producer-authored PASS.",
           "features": [
@@ -2206,7 +2207,7 @@
             "status": "PLANNED_NOT_CREATED",
             "construction": "MIN/CENTER/MAX fixed widths,STRETCH margin/gutter,count12 default,1..1000",
             "full_source_contract_ref": "MT-33111#/context_capsule/specification_anchor_refs/0",
-            "claim_under_test": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0."
+            "claim_under_test": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound."
           },
           "prerequisites": [
             "All36 foundations independently passed; current published dependency/API/schema/provider pins resolved",
@@ -2240,7 +2241,7 @@
         },
         "later_embedding_ref": "./MT-36199.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "later_embedding_refs": [
           "./MT-36199.json"
@@ -2270,7 +2271,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0.",
+          "semantic_fulfillment": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-33111-ASSET-COMPONENTS"
@@ -2280,7 +2281,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-COMPONENTS",
               "scope": "Components, variables, responsive constraints, prototype actions within same document; no separate Figma-like app.",
-              "required_behavior": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0.",
+              "required_behavior": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
               "only_owner_root_may_change": true
             }
           ],
@@ -2289,7 +2290,7 @@
               "hsk-studio-components"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "Build rows/columns records with conditional section-size and offset rules; assert this exact acceptance: Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0.",
+            "consumer_assertion": "Build rows/columns records with conditional section-size and offset rules; assert this exact acceptance: Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
             "negative_path": "Exercise the invalid/forbidden or failure case named in MIN/CENTER/MAX fixed widths,STRETCH margin/gutter,count12 default,1..1000. Compare rejected graph with immutable preimage; invalid type/closed token/field/reference and stale expected entity revision must not mutate. Cancellation/provider loss/admission overload return typed bounded outcomes where this consumer uses those paths.",
             "oracle": "Independent position calculation; STRETCH ignores section_size,all fixed modes require it; use independent expected values/graph or rendered-output inspection, never a producer-authored PASS.",
             "features": [
@@ -2305,7 +2306,7 @@
               "status": "PLANNED_NOT_CREATED",
               "construction": "MIN/CENTER/MAX fixed widths,STRETCH margin/gutter,count12 default,1..1000",
               "full_source_contract_ref": "MT-33111#/context_capsule/specification_anchor_refs/0",
-              "claim_under_test": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0."
+              "claim_under_test": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound."
             },
             "prerequisites": [
               "All36 foundations independently passed; current published dependency/API/schema/provider pins resolved",
@@ -2339,7 +2340,7 @@
           },
           "later_embedding_ref": "./MT-36199.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "later_embedding_refs": [
             "./MT-36199.json"
@@ -2395,18 +2396,18 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T03:19:45.770Z",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
-      "criterion": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0.",
+      "criterion": "Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
   ],
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2450,5 +2451,43 @@
       "collaborative_state": true
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Rows/columns grid record",
+      "propagated_paths": [
+        "/context_capsule/specification_anchor_refs[0]/verbatim",
+        "/context_capsule/specification_anchor_refs[0]/complete_normative_body",
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/execution/inputs[1]/parameter_and_constraint_contract",
+        "/proof/checks[0]/command_or_method",
+        "/proof/checks[0]/expected",
+        "/proof/checks[0]/method_recipe/consumer_assertion",
+        "/proof/checks[0]/method_recipe/fixture/claim_under_test",
+        "/fulfillment/asset_slices[0]/scope_basis[0]/verbatim",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/asset_proof_recipe/fixture/claim_under_test",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/asset_proof_recipe/fixture/claim_under_test",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion",
+        "/active_acceptance_criteria[0]/criterion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

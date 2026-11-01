@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.28.2 Contextual property-panel binding (Studio-wide contract)",
-    "spec_line": 30064,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 30673,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.229"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "web_authoring",
   "scope": {
-    "summary": "Resolution algorithm (normative, deterministic).** Given a selection, the shell MUST: 1. Build the candidate set: every registered panel whose `document_types` admits the current document type, whose `context_requirement` is satisfied, and whose `binds_to` matches under its `selection_scope`. 2. Sort candidates by `priority` ascending; break ties by `selection_scope` in the order `inside_locked` < `exact` < `within`; break remaining ties by presence of a `discriminator` (discriminated first); break remaining ties by `panel_id` lexicographic ascending. 3. The first candidate is the PRIMARY panel. Remaining candidates whose priority band differs from the primary's are SECONDARY panels and are rendered, in sorted order, below the primary. 4. Candidates in the SAME band as the primary that are not the primary are SUPPRESSED and MUST be listed in the resolution receipt ([STU-WEB-041]). Step 2's final tiebreak on `panel_id` exists so resolution is total and deterministic: two panels can never be equally ranked, and the outcome can never depend on registration order, map iteration order or timing.",
+    "summary": "Resolution algorithm (normative, deterministic).** Given a selection, the shell MUST: 1. Build the candidate set: every registered panel whose `document_types` admits the current document type, whose `context_requirement` is satisfied, whose `binds_to` matches under its `selection_scope`, whose discriminator is satisfied when present, and whose optional `can_claim` returns true when implemented. For a panel with multiple eligible ancestor matches, choose the nearest matching ancestor, then the stable node ID as a tie-break; each panel contributes once. Retain each original candidate and its selected matched-node identity. For each eligible band-6 panel with a valid `refines_panel_id`, suppress only the named eligible band-5 generic sibling on the same selected matched node with reason `refinement_superseded`. Retain the suppressed pair in the receipt; no other candidate is removed by this rule. Band-1 candidates remain eligible, and band-50 candidates receive no refinement privilege. Sort the remaining eligible candidates. 2. Sort candidates by `priority` ascending; break ties by `selection_scope` in the order `inside_locked` < `exact` < `within`; break remaining ties by presence of a `discriminator` (discriminated first); break remaining ties by `panel_id` lexicographic ascending. 3. The first candidate is the PRIMARY panel. Remaining candidates whose priority band differs fro [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -2823,11 +2824,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T02:58:55.671201+00:00",
+  "updated_at_utc": "2026-11-01T03:39:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.229",
     "gui_host": "vulkan_shell_client",
     "gpu": "none",
     "diagnostics": {
@@ -2869,5 +2870,22 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.229",
+      "spec_commit": "a00965d97a01f1a2a23cc4e17b0e257d80c429d6",
+      "at": "2026-11-01T03:39:53Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "superseded_materialized_rows": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Resolution algorithm (normative, deterministic)",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }
