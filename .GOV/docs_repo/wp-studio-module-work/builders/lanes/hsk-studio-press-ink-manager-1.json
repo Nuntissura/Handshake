@@ -1,0 +1,46 @@
+{
+  "crate": "hsk-studio-press-write (ink manager STU-LAY-160, PDF/X enumeration), hsk-studio-layout (flattener preset STU-LAY-161)",
+  "lane": "SMB-PRESS-INK-MANAGER-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-press-ink-manager-1",
+  "base": "99836457",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: read the brief, red-first per item, one bundled run on D:, push only after STUDIO-R52 is recorded and the lead releases",
+  "updated_at": "2026-11-01T10:46:05Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "none: press-write has no observe edge (steward item, F-R51-7); layout producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: editing inks, aliases and stored flattener presets are mutating document edits and take an ActorContext from the caller; never default_actor()",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-01T10:46:05Z",
+    "disk": "D",
+    "closes_candidates": [
+      "MT-30844",
+      "MT-30845",
+      "MT-30848",
+      "MT-30849",
+      "MT-35695 (ink/separations/flattener-preset rows only)"
+    ],
+    "dispatch_reason": "engine lane (D6), gap verified by git grep at base 99836457; builds on D: while STUDIO-R52 holds C:"
+  }
+}
