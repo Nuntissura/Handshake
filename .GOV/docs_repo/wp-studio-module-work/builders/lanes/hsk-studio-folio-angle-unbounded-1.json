@@ -2,18 +2,69 @@
   "crate": "hsk-studio-folio (recovered ANGLE parameters unbounded, SD-26), hsk-studio-composite (pinned bounds only)",
   "lane": "SMB-FOLIO-ANGLE-UNBOUNDED-1",
   "status": null,
-  "phase": "build",
+  "phase": "build_done_waiting_release",
   "worktree": "wt-studio-lanes/smb-folio-angle-unbounded-1",
   "base": "a7be22a1",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "a9302d55",
+      "slice": "red tests: folio catalogue sweep, Glow/Directional Blur old->new rows, multi-turn round trip, ceiling; composite Glow phase, Directional Blur evaluation, ANGLE table cells, Foam/Wave world angle store (compiles; 4 folio tests fail at this commit)",
+      "pushed": false
+    },
+    {
+      "sha": "86a8d61e",
+      "slice": "folio: Glow Color Phase and Directional Blur Direction unbounded_in_source (single angle row constructor); composite comments follow",
+      "pushed": false
+    }
+  ],
+  "capabilities_done": [
+    "SD-26 / STU-FX-131a: every recovered ANGLE row of the folio catalogue (Twirl Angle, Directional Blur Direction, Glow Color Phase, Hue/Saturation Master Hue and Colorize Hue) has all four bounds None and bound_state unbounded_in_source; 2 rows changed (Glow Color Phase, Directional Blur Direction), 3 were already unbounded",
+    "full signed degrees stored as given (725, -725, 1440.5, keyframed too), byte-identical record round trip; only the Folio ceiling and non-finite values are refused",
+    "composite: Directional Blur direction reduced modulo 360 only at evaluation (already so; now pinned), Glow Color Phase past the old pair reaches the engine typed option refusal instead of effect_param_out_of_range"
+  ],
+  "tests": {
+    "red_proof": {
+      "argv": "cargo nextest run -p hsk-studio-folio --test composition_effect_records --no-fail-fast (D:, owner smb-folio-angle-unbounded-1, green edits stashed)",
+      "exit": 100,
+      "sha": "89f7ca2e (same tests as a9302d55 except the ceiling test refusal-target expectation, corrected after bundled run 1)",
+      "passed": 4,
+      "failed": 4,
+      "failed_tests": [
+        "only_the_folio_ceiling_refuses_an_angle",
+        "no_angle_row_of_the_catalogue_carries_numeric_bounds",
+        "glow_color_phase_and_directional_blur_direction_rows_change_from_numeric_pairs_to_unbounded",
+        "multi_turn_and_negative_angles_are_stored_and_round_trip_unchanged"
+      ],
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-folio-angle-unbounded-1/redproof-89f7ca2e.log",
+      "note": "the composite Glow case was not run red (needs a motion build of composite at the red tree); by reading validate_effects, base refuses a phase of 0.5 or more as effect_param_out_of_range, which the test does not expect"
+    },
+    "bundled_run_1": {
+      "argv": "bash S/tools/lane-check.sh --owner smb-folio-angle-unbounded-1 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-package -p hsk-studio-composite --features hsk-studio-composite/motion --no-fail-fast",
+      "exit": 100,
+      "sha": "376a57606e4b9ad56e8c684ca8858401523955db",
+      "passed": 401,
+      "failed": 1,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-folio-angle-unbounded-1/bundle-376a5760-run1.log",
+      "failure": "only_the_folio_ceiling_refuses_an_angle: my expectation named effect_param_out_of_range; a value over MAX_STREAM_ABS_VALUE is refused earlier by validate_keyed at <key>/static_value and <key>/keyframes/value. Test expectation fixed; no source change."
+    },
+    "bundled_run_2": {
+      "argv": "bash S/tools/lane-check.sh --owner smb-folio-angle-unbounded-1 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-package -p hsk-studio-composite --features hsk-studio-composite/motion --no-fail-fast",
+      "exit": 0,
+      "sha": "86a8d61ec4284d7193cba4e12bb8be54b3e8dbdc",
+      "passed": 402,
+      "failed": 0,
+      "skipped": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-folio-angle-unbounded-1/bundle-86a8d61e-run2.log",
+      "scope": "clippy --tests over folio, package, composite (motion) and 22 direct dependents with no warning in lane files, then whole nextest suites: folio 153, package 37, composite (motion superset of default) 212",
+      "doctests": "none added or changed (comment-only docs, no example blocks): not run"
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: read the brief, red-first per item, one bundled run on D:, push only after STUDIO-R51 is recorded and the lead releases",
-  "updated_at": "2026-11-01T05:38:43Z",
+  "next": "waiting for lead release after R51; then fetch, rebase onto origin/codex/handshake-studio-assets, lane-check --per-sha, diff-stat, guarded push, set READY_FOR_VALIDATION",
+  "updated_at": "2026-11-01T05:57:25Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -37,6 +88,111 @@
     "closes_candidates": [
       "SD-26 angle rows of the STU-FX-131a angle-table MTs (MT-31934..MT-32022 range), partial claims expected"
     ],
-    "dispatch_reason": "follow-up wave from the v02.228 SD research and SMB-ID-TOC-INDEX-1 notes; engine lane (D6); builds on D: while STUDIO-R51 holds C:"
+    "dispatch_reason": "follow-up wave from the v02.228 SD research and SMB-ID-TOC-INDEX-1 notes; engine lane (D6); builds on D: while STUDIO-R51 holds C:",
+    "spec_basis": "Master Spec v02.229 14-studio-creative-suite.md STU-FX-131a (:13825) and its v02.228 SD-26 note (:13833-13843); research/sd26-30-research-20261101.json SD-26",
+    "provisional_defaults": "Defaults and precision of every recovered ANGLE row stay as recorded and are provisional/UNVERIFIED until the capture is re-decoded at the angle offsets (documented in the folio module docs and the angle constructor docs); StudioEffectParamSpec has no provenance field and adding one is a public-API change, proposed not done. Vendor parity UNVERIFIED (D5).",
+    "package_roundtrip": "Round trip is proven on the Folio composition-records wire form (byte-identical serialize, deserialize, validate) in folio tests; no package-crate file touched. The hsk-studio-package suite (4b) ran green (37). Records in the package are opaque import entries, so a package-level test would only prove bytes.",
+    "callers": "No composite behaviour change: Directional Blur already reduced modulo 360 at evaluation (effect_stack.rs, pigment cos_sin_deg); Twirl uses the angle as a continuous amount; Glow still refuses a non-default Color Phase typed (the engine maps no phase; periodicity of Color Phase UNVERIFIED, D5).",
+    "shared_files_other_lane": "none touched (longdoc.rs and layout.rs untouched); diff-stat a7be22a1..HEAD lists 7 files, all lane paths",
+    "rule_4e": "effect_families_2.rs is cfg(feature motion); round-features.toml has hsk-studio-composite [[motion]]; the run used --features hsk-studio-composite/motion",
+    "proposals": "No Master Spec or MT edit needed. For a later lane: a StudioEffectParamSpec provenance flag for provisional angle defaults.",
+    "host_integration_check": "gui_host none, gpu none, no mutating command, no new job; no egui/eframe/winit/wgpu line, no Cargo.toml change"
+  },
+  "changed_assertions": [
+    {
+      "where": "folio src composition/effects.rs GLOW row 10 Color Phase",
+      "old": "hard 0.003906..0.496094, soft 0.003906..0.039062, declared_both",
+      "new": "hard and soft all None, unbounded_in_source; default 0.003906, unit degrees, precision None kept",
+      "test": "glow_color_phase_and_directional_blur_direction_rows_change_from_numeric_pairs_to_unbounded"
+    },
+    {
+      "where": "folio src DIRECTIONAL_BLUR row 1 Direction",
+      "old": "hard None, soft 0..7936, declared_soft_only",
+      "new": "all four None, unbounded_in_source; default 0, degrees, precision None kept",
+      "test": "same"
+    },
+    {
+      "where": "composite tests/simulations_records.rs FOAM_TABLE rows 10, 28, 32 and WAVE_WORLD_TABLE rows 4, 6, 50, 56, 66, 72 (9 ANGLE rows)",
+      "old": "bound cells 0,0,0,0 asserted as the no-range encoding",
+      "new": "bound cells -- x4 asserted, stored [None;4] unbounded_in_source (matches the v02.229 tables)",
+      "test": "foam_recovered_record_is_stored_row_for_row, wave_world_recovered_record_is_stored_row_for_row"
+    },
+    {
+      "where": "folio tests",
+      "old": "none: no existing folio assertion pinned the old Glow or Directional Blur pairs (grep of 0.496094, 7936, 0.039062 over the workspace hits only effects.rs)",
+      "new": "-",
+      "test": "-"
+    }
+  ],
+  "mt_claims": {
+    "basis": "MT JSONs STU-FX-131a#parameter_table#N, MT-31934..MT-32022: 33 carry an ANGLE row (unit degrees); only the ANGLE-row acceptance criteria below are claimed, whole-effect criteria are not",
+    "claims": [
+      {
+        "mt": "MT-31934",
+        "ac": "AC-002",
+        "row": "Directional Blur 1 Direction",
+        "status": "partly met (AC-001 LAYER row and AC-003 Blur Length not claimed)",
+        "tests": [
+          "no_angle_row_of_the_catalogue_carries_numeric_bounds",
+          "glow_color_phase_and_directional_blur_direction_rows_change_from_numeric_pairs_to_unbounded",
+          "directional_blur_direction_is_a_full_signed_angle_reduced_only_when_evaluated"
+        ]
+      },
+      {
+        "mt": "MT-31949",
+        "ac": "AC-002",
+        "row": "Twirl 1 Angle (default 0, degrees, precision 0)",
+        "status": "partly met (other rows not claimed)",
+        "tests": [
+          "no_angle_row_of_the_catalogue_carries_numeric_bounds",
+          "glow_color_phase_and_directional_blur_direction_rows_change_from_numeric_pairs_to_unbounded"
+        ]
+      },
+      {
+        "mt": "MT-31962",
+        "ac": "AC-004, AC-008",
+        "row": "Hue/Saturation 4 Master Hue, 8 Colorize Hue",
+        "status": "partly met",
+        "tests": [
+          "no_angle_row_of_the_catalogue_carries_numeric_bounds",
+          "glow_color_phase_and_directional_blur_direction_rows_change_from_numeric_pairs_to_unbounded",
+          "multi_turn_and_negative_angles_are_stored_and_round_trip_unchanged"
+        ]
+      },
+      {
+        "mt": "MT-32005",
+        "ac": "AC-011",
+        "row": "Glow 10 Color Phase (default 0.003906, degrees, precision --)",
+        "status": "partly met",
+        "tests": [
+          "no_angle_row_of_the_catalogue_carries_numeric_bounds",
+          "glow_color_phase_and_directional_blur_direction_rows_change_from_numeric_pairs_to_unbounded",
+          "multi_turn_and_negative_angles_are_stored_and_round_trip_unchanged",
+          "glow_color_phase_past_the_old_junk_pair_reaches_the_engine_option_refusal"
+        ]
+      },
+      {
+        "mt": "MT-32012",
+        "ac": "AC-007, AC-018, AC-020",
+        "row": "Foam 10 Producer Orientation, 28 Initial Direction, 32 Wind Direction",
+        "status": "partly met",
+        "tests": [
+          "foam_recovered_record_is_stored_row_for_row",
+          "recovered_angle_rows_store_multi_turn_and_negative_degrees_unchanged"
+        ]
+      },
+      {
+        "mt": "MT-32013",
+        "ac": "AC-003, AC-005, AC-030, AC-034, AC-040, AC-043",
+        "row": "Wave World 4, 6, 50, 56, 66, 72",
+        "status": "partly met",
+        "tests": [
+          "wave_world_recovered_record_is_stored_row_for_row",
+          "recovered_angle_rows_store_multi_turn_and_negative_degrees_unchanged"
+        ]
+      }
+    ],
+    "not_met": "the other 27 ANGLE-table MTs of the range (MT-31939, 31945, 31947, 31948, 31950, 31951, 31952, 31953, 31958, 31959, 31984, 31985, 31990, 31991, 31993, 31995, 31999, 32000, 32003, 32007, 32009, 32011, 32018, 32019, 32020, 32021, 32022): their effects have no Folio kind or recovered record in this product",
+    "rule": "claims only; no MT file edited, no PASS claimed"
   }
 }
