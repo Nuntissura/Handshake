@@ -1,0 +1,47 @@
+{
+  "crate": "hsk-studio-interop-psd (typed-loss tests, channel_opacity_rounded), hsk-studio-interop-tiff (Folio channel records as extra samples)",
+  "lane": "SMB-R52-FOLLOWUPS-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-r52-followups-1",
+  "base": "99836457",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: read the brief, red-first per item, one bundled run on D:, push when green (rebase, per-sha)",
+  "updated_at": "2026-11-01T12:58:23Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "unchanged: import and export keep their existing context",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-01T12:58:23Z",
+    "disk": "D",
+    "closes": [
+      "F-R52-3 (LOW)",
+      "F-R52-2 (LOW, TIFF part)"
+    ],
+    "closes_candidates": [
+      "MT-30095 (TIFF rows)",
+      "MT-038 rows touched"
+    ],
+    "dispatch_reason": "STUDIO-R52 follow-up (findings_not_failures)"
+  }
+}

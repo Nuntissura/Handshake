@@ -1,0 +1,48 @@
+{
+  "crate": "hsk-studio-layout (resolve marker, break and flush-space sentinels at composition)",
+  "lane": "SMB-LAYOUT-SENTINELS-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-layout-sentinels-1",
+  "base": "99836457",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: read the brief, red-first per item, one bundled run on C:, push when green (rebase, per-sha)",
+  "updated_at": "2026-11-01T12:58:23Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "unchanged: composition is not a mutating command",
+    "jobs": "none: composition stays a bounded call",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-01T12:58:23Z",
+    "disk": "C",
+    "closes": [
+      "F-R52-1 (LOW)"
+    ],
+    "closes_candidates": [
+      "MT-31005",
+      "MT-31007",
+      "MT-31008",
+      "MT-31009"
+    ],
+    "dispatch_reason": "STUDIO-R52 follow-up (findings_not_failures)"
+  }
+}
