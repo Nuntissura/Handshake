@@ -1,0 +1,1416 @@
+{
+ "round": 53,
+ "round_id": "STUDIO-R53",
+ "round_opened": false,
+ "status": "NOT_OPENED (canary infrastructure failure: C: cap guard stop above 355 GiB)",
+ "decision_basis": "CX-VAL-005 + CX-VAL-010: the canary runs first and a canary failure is infrastructure: no round opens, no union build or test run, no lane or MT verdict; CX-VAL-006: an infrastructure failure changes no status (R23 precedent: statuses unchanged, re-open list recorded); lead dispatch R53: stop cleanly above 355 GiB and record INFRASTRUCTURE",
+ "rule_refs": [
+  "CX-VAL-001",
+  "CX-VAL-004",
+  "CX-VAL-005",
+  "CX-VAL-006",
+  "CX-VAL-007",
+  "CX-VAL-009",
+  "CX-VAL-010",
+  "CX-VAL-011",
+  "CX-STATUS-001",
+  "CX-STATUS-003",
+  "CX-EXEC-015",
+  "CX-VERIFY-002",
+  "CX-SAFE-001",
+  "CX-984-014",
+  "V4-14"
+ ],
+ "candidate": "92ae22329f986a90408cb01e09297e1b83d97378",
+ "tree": "fb7e868288d7ee04f4d8e939c3a75d7db63f8b2e",
+ "candidate_note": "lead dispatch: freeze exactly 92ae2232; fetch 2026-11-01T14:47:05Z: origin ref, FETCH_HEAD and ls-remote agree on 92ae22329f986a90 (the origin tip at freeze); 99836457 (R52) ancestor; 18 commits, 44 paths 99836457..92ae2232 (7148+/132-), no merges: INK 2, OBSERVE 2, SWATCH 2, R52-FOLLOWUPS 2, STEWARD 1, TIFF 3, LAYOUT-SENTINELS 6; root inputs: Cargo.toml (press-write allowed + hsk-studio-observe, inside [workspace.metadata]), Cargo.lock (+1), crates/hsk-studio-press-write/Cargo.toml (observe path dependency); tools/, .config/, .cargo/, rust-toolchain.toml: 0 paths; the lead found 0 added lines naming egui, eframe, winit or wgpu (validator re-checked: 0, case-insensitive substring); no builder ran during the attempt (process checks at freeze and during the canary)",
+ "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+ "export": {
+  "file_count": 2461,
+  "manifest_sha256": "39f222d122a3a58b9cb3d82dd55b35116b1358c78a61bb265520320ac5d65524",
+  "git_blob_equal": true,
+  "refresh": "kernel tools/export-refresh.sh in place 99836457 -> 92ae2232 14:47:50Z..14:48:03Z; verbatim: rc=0 2026-11-01T14:47:50Z..2026-11-01T14:48:03Z"
+ },
+ "oracle_corpus": {
+  "rule": "lead 2026-10-15: corpus renames only between rounds",
+  "at_freeze": {
+   "at": "2026-11-01T14:48:07Z",
+   "file_count": 1503,
+   "manifest_sha256": "0646370efee7882b1ef7cf7d35b43b99a339eb69bcde7653e17c183765810e77"
+  },
+  "after_canary_stop": {
+   "at": "2026-11-01T16:14:14Z",
+   "file_count": 1503,
+   "manifest_sha256": "0646370efee7882b1ef7cf7d35b43b99a339eb69bcde7653e17c183765810e77"
+  },
+  "changed": false
+ },
+ "started_at": "2026-11-01T14:47:05Z",
+ "completed_at": "2026-11-01T16:18:01Z",
+ "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R53-canary",
+ "running_record": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/RUNNING-R53.jsonl (freeze, canary_decision (run), canary running, canary launched, canary completed (stopped, exit 130), not_opened; records by 'wp_validator STUDIO-R53')",
+ "gameplan": "none (retired 2026-10-20)",
+ "selection": {
+  "tool": "gov tools/round-select.py",
+  "command": "python -X utf8 tools/round-select.py --repo <wt-studio-assets> --base 99836457 --candidate 92ae2232 --metadata-dir <studio-round>/src/handshake-studio-assets --round R53 --base-round R52 --rounds-since-full 2 --out <studio-round>/validator-R53/round-select.json",
+  "exit": 0,
+  "stdout": "SELECTION: --all",
+  "full": true,
+  "full_reasons": [
+   "every third round: 2 rounds since the last full union"
+  ],
+  "policy_overlays_changed": [],
+  "non_entry_tools_changed": [],
+  "changed_crates": [
+   "folio",
+   "harness",
+   "harness-core",
+   "interop-psd",
+   "interop-tiff",
+   "layout",
+   "package",
+   "press",
+   "press-write",
+   "prism"
+  ],
+  "selected": 56,
+  "base_note": "base R52 99836457 (scoped; R50 63ecf5a6 the last full union); rounds since the last full union 2, so R53 is FULL (CX-VAL-011); the external Cargo.lock dependency set is unchanged (the +1 line is a workspace member edge) and root Cargo.toml changed inside [workspace.metadata] only"
+ },
+ "build_target": {
+  "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target",
+  "grant": "Operator 400 GB SSD grant, cap 360 GiB for C:/HandshakeBuild/WP-KERNEL-STUDIO (CX-984-014)",
+  "class": "ssd",
+  "lock": "C:/HandshakeBuild/.disk-build-lock (class round, released by the stopped run's TERM trap); GPU lock <A>/.gpu-test-lock (never taken: no render-gpu unit reached)",
+  "size": "studio-round 221.3 GiB at freeze, 336.7 GiB after the stop; studio-team-dev 22.0 GiB (lane targets, untouched)"
+ },
+ "canary": {
+  "reused": false,
+  "union_only": false,
+  "basis": "CX-VAL-010 step 3: root inputs changed in steward sync 3c0d8ec9 and press-write's Cargo.toml gained the observe edge, so no earlier canary proves this candidate (lead dispatch: the canary MUST run)",
+  "argv": "bash tools/run-round.sh --canary --all --results <studio-round>/results/R53-canary --target-dir C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target (cwd export; no caller env; console studio-round/R53-canary.console.txt; launcher validator-R53/r53_launch.sh)",
+  "candidate": "92ae22329f986a90408cb01e09297e1b83d97378",
+  "complete": false,
+  "exit": 130,
+  "started_at": "2026-11-01T14:49:07Z",
+  "ended_at": "2026-11-01T16:13:47Z",
+  "pid": "msys 250341 / win 93196, start 2026-11-01T14:49:05.245Z",
+  "units_done": 21,
+  "units_planned": 156,
+  "units_nonzero": [],
+  "units_done_list": [
+   "default",
+   "fixture:score-plugin/clap-gain",
+   "features:hsk-studio-composite+motion",
+   "features:hsk-studio-harness+import-psd",
+   "features:hsk-studio-harness+import-psd+import-raw",
+   "features:hsk-studio-harness+import-tiff",
+   "features:hsk-studio-harness+import-raw+import-tiff",
+   "features:hsk-studio-harness+import-pdf",
+   "features:hsk-studio-harness+import-raster",
+   "features:hsk-studio-harness+viewer",
+   "features:hsk-studio-harness+desktop+viewer",
+   "features:hsk-studio-harness+media",
+   "prebuild:hsk-studio-harness+media-native:reel-native-mf-worker",
+   "features:hsk-studio-harness+media-native",
+   "features:hsk-studio-harness+audio-device",
+   "features:hsk-studio-harness+audio-batch",
+   "features:hsk-studio-harness+layout-ui",
+   "features:hsk-studio-harness+studio-aac",
+   "prebuild:hsk-studio-harness+os-encode:reel-native-mf-worker",
+   "features:hsk-studio-harness+os-encode",
+   "prebuild:hsk-studio-harness+audio-plugin:score-plugin-worker"
+  ],
+  "default_unit": "build 11m 18s (56 workspace crates compiled), run 54 passed / 1087 skipped (canary profile), build 0 / run 0",
+  "step0": "lock/registry in sync on the synced lock (step0.lock.txt empty; step0.registry.txt manifest_changed false, probe_changed false; approved_added / removed / unrequested / spec_defects empty); step0.policy clean",
+  "stopped": "2026-11-01T15:59:31Z ALERT_330 tree=333.891 GiB (message the lead); 2026-11-01T16:13:47Z STOP_SENT SIGTERM msys 250341 win 93196; running unit tree win 65072 ended (taskkill /T /F) at tree=355.295 GiB (> 355); run-round's TERM trap wrote round.json complete=false exit 130 and released the C: lock",
+  "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R53-canary",
+  "record": "RUNNING-R53.jsonl kinds canary_decision, running, launched, completed, not_opened (validator-R53/rec-02..rec-06)",
+  "rustc_wrapper": null
+ },
+ "union": null,
+ "infrastructure_failure": {
+  "canary": "C: cap guard stop at 355.295 GiB > 355 (lead rule), exit 130, complete false, failure_class c-cap-stop-new-artifact-identities-after-manifest-edge",
+  "union": "not run (no round)"
+ },
+ "gpu": {
+  "before_canary": "36 %, 510 MHz, P5, 2714 MiB at 2026-11-01T14:49:01Z (validator-R53/gpu-before-canary.txt)",
+  "during_canary": "validator-R53/gpu-poll.log: 43 samples every 120 s: mean 11.0 %, max 45 %, SM clock max 675 MHz; P8 27, P5 16",
+  "backend_by_unit": {},
+  "note": "no render-gpu unit was reached before the stop; the default unit's render-gpu canary test (client::transient::tests::candidate_order_is_vulkan_first_on_windows) prints no device text; no GPU backend is recorded for R53"
+ },
+ "cx_val_009": {
+  "rule": "CX-VAL-010 step 2: PASS lanes whose relevant inputs intersect 99836457..92ae2232 return to READY_FOR_VALIDATION before the canary; root inputs changed and the round is full, so all 383 PASS lanes are in the re-open list; the canary failed, so (R23 precedent, CX-VAL-006) no status is written: the list is recorded for the next attempt",
+  "root_inputs_changed": [
+   "Cargo.toml ([workspace.metadata.studio.dependencies.hsk-studio-press-write] allowed)",
+   "Cargo.lock (+1 line)",
+   "crates/hsk-studio-press-write/Cargo.toml (observe path dependency)"
+  ],
+  "changed_crates": [
+   "folio",
+   "harness",
+   "harness-core",
+   "interop-psd",
+   "interop-tiff",
+   "layout",
+   "package",
+   "press",
+   "press-write",
+   "prism"
+  ],
+  "counts": {
+   "ready": 6,
+   "reopened": 383,
+   "reused": 0,
+   "other": 45,
+   "closure": 56,
+   "reopened_by_changed_crate": 212,
+   "reopened_by_root_input": 171
+  },
+  "reopened": [
+   "SMB-TYPE",
+   "SMB-LAYOUT",
+   "SMB-DEVELOP",
+   "SMB-COMPONENTS",
+   "SMB-PULSE",
+   "SMB-SCORE",
+   "SMB-REEL",
+   "SMB-MOTION",
+   "SMB-COMPOSITE",
+   "SMB-RENDER-CPU",
+   "SMB-RENDER-GPU",
+   "SMB-PACKAGE",
+   "SMB-INTEROP-PSD",
+   "SMB-INTEROP-VECTOR",
+   "SMB-INTEROP-FIG",
+   "SMB-INTEROP-LAYOUT",
+   "SMB-INTEROP-MEDIA",
+   "SMB-CONTROLS",
+   "SMB-SESSION",
+   "SMB-HARNESS",
+   "SMB-KERNEL-BINDINGS",
+   "SMB-PRESS",
+   "SMB-WEB",
+   "SMB-SCORE-DEVICE",
+   "SMB-SCORE-PLUGIN",
+   "SMB-INTEROP-LRCAT",
+   "SMB-MOTION-JS",
+   "SMB-PRISM-ENG-1",
+   "SMB-TYPE-ENG-1",
+   "SMB-REEL-ENG-1",
+   "SMB-REEL-ENG-2",
+   "SMB-REEL-ENG-3",
+   "SMB-PULSE-ENG-1",
+   "SMB-REEL-NATIVE-ENG-1",
+   "SMB-PRISM-ENG-2",
+   "SMB-PRISM-ENG-3",
+   "SMB-PRISM-ENG-4",
+   "SMB-PRISM-ENG-5",
+   "SMB-TYPE-DOCTEST",
+   "SMB-FOLIO-ENG-1",
+   "SMB-PIGMENT-ENG-1",
+   "SMB-ROUND-ENTRYPOINT",
+   "SMB-TYPE-ENV",
+   "SMB-ACCORD-ENG-1",
+   "SMB-TYPE-FONTS",
+   "SMB-TYPE-FIXTURES",
+   "SMB-FOLIO-ENG-2",
+   "SMB-NIB-ENG-1",
+   "SMB-FOLIO-ENG-3",
+   "SMB-ACCORD-ENG-2",
+   "SMB-INTEROP-MEDIA-PULSE",
+   "SMB-RENDER-CPU-CLIP",
+   "SMB-MOTION-JS-WORKER",
+   "SMB-COMPOSITE-CLIP-ALIGN",
+   "SMB-LAYOUT-FOLIO-MIGRATE",
+   "SMB-FOLIO-ENG-4",
+   "SMB-INTEROP-PSD-WIDE",
+   "SMB-DEVELOP-WIDE",
+   "SMB-PACKAGE-STREAM-SAVE",
+   "SMB-PRISM-ENG-6",
+   "SMB-COMPONENTS-FOLIO-MIGRATE",
+   "SMB-INTEROP-VECTOR-FOLIO-MIGRATE",
+   "SMB-REEL-NATIVE-AV1-WORKER",
+   "SMB-REEL-AV1-ROUTE",
+   "SMB-PIGMENT-ENG-2",
+   "SMB-MOTION-JS-SANDBOX-2",
+   "SMB-PRISM-ENG-7",
+   "SMB-COMPOSITE-ADJ",
+   "SMB-RENDER-CPU-ADJ",
+   "SMB-RENDER-GPU-ADJ",
+   "SMB-INTEROP-PSD-ADJ",
+   "SMB-EFFECTS-WAVE-1",
+   "SMB-EFFECTS-WAVE-2",
+   "SMB-FOLIO-ENG-6",
+   "SMB-FOLIO-ENG-7",
+   "SMB-CHRONICLE-TABLE",
+   "SMB-PIGMENT-WINDOW",
+   "SMB-RENDER-CPU-WINDOW",
+   "SMB-INTEROP-VECTOR-RECORDS",
+   "SMB-WEB-DIFFTEST",
+   "SMB-RENDER-CPU-FX2",
+   "SMB-PRISM-ENG-8",
+   "SMB-INTEROP-PSD-RECEIPT",
+   "SMB-DEVELOP-JOBS",
+   "SMB-PIGMENT-BLENDIF-CLIP",
+   "SMB-BLENDIF-CLIP-ADOPT",
+   "SMB-INTEROP-PSD-CLIP-ROLES",
+   "SMB-PIGMENT-PLANLIMITS",
+   "SMB-REFUSAL-KEYS",
+   "SMB-SCORE-GUARDS",
+   "SMB-COMPONENTS-FOOTPRINT",
+   "SMB-FOLIO-UNIQUENESS",
+   "SMB-PIGMENT-FX-OPS",
+   "SMB-PRESS-DIFFERENCES",
+   "SMB-RENDER-GPU-PROBE",
+   "SMB-PIGMENT-ADMIT-PARITY",
+   "SMB-FX-OPS-ADOPT",
+   "SMB-SCORE-PLUGIN-RATE",
+   "SMB-PARITY-FOLLOWUP",
+   "SMB-INTEROP-PSD-BUDGET",
+   "SMB-REEL-NATIVE-FAULTS",
+   "SMB-WEB-PARITY",
+   "SMB-REEL-RECEIPTS",
+   "SMB-REEL-NATIVE-FAULTS-2",
+   "SMB-PIGMENT-FOLLOWUPS",
+   "SMB-PIGMENT-NOTES",
+   "SMB-NOTES-BATCH-1",
+   "SMB-PRESS-DOCS",
+   "SMB-REEL-PARTIAL-PTS",
+   "SMB-INTEROP-PSD-FOLIO-CEILING",
+   "SMB-REEL-PARTIAL-PTS-2",
+   "SMB-INTEROP-PSD-LOSS-DETAIL",
+   "SMB-PRESS-DOCS-2",
+   "SMB-PRESS-STRUCT-FAILCLOSED",
+   "SMB-INTEROP-PSD-DESC-CAP",
+   "SMB-REEL-PTS-TESTS",
+   "SMB-PRESS-STRUCT-ORPHANS",
+   "SMB-INTEROP-PSD-DOCS",
+   "SMB-PRESS-PROPERTIES",
+   "SMB-PRESS-STRUCT-STRIP",
+   "SMB-ZIP-CONSOLIDATE",
+   "SMB-WORKER-CRATE",
+   "SMB-INTEROP-FIG-FORMAT",
+   "SMB-DEVELOP-RAW-VENDOR",
+   "SMB-DEVELOP-DNG-MLV",
+   "SMB-INTEROP-TIFF",
+   "SMB-CONVERT-NATIVE",
+   "SMB-DEVELOP-RAW-ARW",
+   "SMB-SESSION-IMPORT-ENTRIES",
+   "SMB-CONVERT-COLOUR",
+   "SMB-CONVERT-TIFF",
+   "SMB-DNG-CORPUS-REPLACE",
+   "SMB-DEVELOP-TIFF-CONSOLIDATE",
+   "SMB-INTEROP-TIFF-CONTAINER-API",
+   "SMB-INTEROP-FIG-NODES",
+   "SMB-CONVERT-FOLLOWUPS",
+   "SMB-INTEROP-FIG-NATIVE",
+   "SMB-HARNESS-UI",
+   "SMB-IO-RASTER-COMMON",
+   "SMB-TYPE-GLYPH-RENDER",
+   "SMB-PIGMENT-SELECTION",
+   "SMB-PIGMENT-BRUSH",
+   "SMB-LAYOUT-PDF-EXPORT",
+   "SMB-COMPOSITE-TEMPORAL",
+   "SMB-INTEROP-FIG-GEOMETRY",
+   "SMB-REEL-BFRAME-ORDER",
+   "SMB-INTEROP-PSD-LE-LAYERS",
+   "SMB-DEVELOP-CORPUS-PATH",
+   "SMB-PIGMENT-TRANSFORM",
+   "SMB-FOLIO-COMPOSITION",
+   "SMB-COMPOSITE-TEXT",
+   "SMB-FOLIO-PAINT-BLUR-STYLE",
+   "SMB-RENDER-GPU-SHARED-DEVICE",
+   "SMB-UI-SUPPORT-APIS",
+   "SMB-HARNESS-UI-2",
+   "SMB-CONVERT-RASTER",
+   "SMB-INTEROP-FIG-FOLIO-KINDS",
+   "SMB-COMPOSITE-NEW-KINDS",
+   "SMB-HARNESS-SWEEP-PERF",
+   "SMB-PRESS-PG-HARDEN",
+   "SMB-PIGMENT-RETOUCH",
+   "SMB-DEVELOP-CONTROLS",
+   "SMB-NIB-VECTOR-RENDER",
+   "SMB-LAYOUT-TYPESET",
+   "SMB-SCORE-DSP",
+   "SMB-HARNESS-UI-3",
+   "SMB-ACCORD-COMPOSITION-PREFIX",
+   "SMB-COMPOSITE-COMPOSITION-ADAPTER",
+   "SMB-INTEROP-FIG-LAYER-GRAPH",
+   "SMB-FOLIO-VECTOR-IMAGE-PORT",
+   "SMB-FOLIO-PARENT-PAGES",
+   "SMB-SCORE-TRUEPEAK",
+   "SMB-RENDER-FILTERS",
+   "SMB-PIGMENT-CONTENT-AWARE",
+   "SMB-DEVELOP-CONTROLS-2",
+   "SMB-HARNESS-DEVELOP-EXPORT",
+   "SMB-COMPOSITE-VECTOR-IN-GROUP",
+   "SMB-LAYOUT-PARENT-ADAPTER",
+   "SMB-INTEROP-FIG-INSTANCES-FRAMES",
+   "SMB-PIGMENT-CONTENT-AWARE-2",
+   "SMB-LAYOUT-TYPESET-HARDEN",
+   "SMB-RENDER-GPU-PIPELINE-FAULT",
+   "SMB-PIGMENT-FILTER-DESCRIPTOR",
+   "SMB-RENDER-GPU-SUBMIT-FAULT",
+   "SMB-COMPOSITE-COMPOSITION-2",
+   "SMB-FOLIO-CHANNEL-RECORD",
+   "SMB-RENDER-CONTENT-AWARE",
+   "SMB-LAYOUT-PDF-EXPORT-2",
+   "SMB-HARNESS-DEVELOP-2",
+   "SMB-RENDER-SCENE-DISPLAY",
+   "SMB-V4-01-DENY-SWEEP",
+   "SMB-INTEROP-FIG-PAINTS",
+   "SMB-COMPOSITE-CLIP-RECORDS",
+   "SMB-HARNESS-DEVELOP-3",
+   "SMB-PIGMENT-EXTENDED-RANGE",
+   "SMB-PRISM-VIEW-TRANSFORM",
+   "SMB-PRESS-PAINT-TRANSPARENCY",
+   "SMB-LAYOUT-PDF-EXPORT-3",
+   "SMB-PULSE-EDITING",
+   "SMB-DEVELOP-RAW-COMPRESSED",
+   "SMB-SCORE-EFFECTS-2",
+   "SMB-COMPOSITE-VECTOR-MASK",
+   "SMB-INTEROP-FIG-PAINTS-2",
+   "SMB-PIGMENT-EXTENDED-RANGE-2",
+   "SMB-LAYOUT-PDFX-VERAPDF",
+   "SMB-SCORE-EFFECTS-3",
+   "SMB-FOLIO-TIMELINE-RECORDS",
+   "SMB-PRISM-VIEW-TRANSFORM-2",
+   "SMB-RENDER-GPU-EXTENDED-ENVELOPE",
+   "SMB-INTEROP-FIG-EXPORT",
+   "SMB-COMPOSITE-VECTOR-MASK-2",
+   "SMB-SCORE-EFFECTS-4",
+   "SMB-DEVELOP-RAW-COMPRESSED-2",
+   "SMB-LAYOUT-LONGDOC",
+   "SMB-ILLUSTRATOR-PEN",
+   "SMB-LIGHTROOM-CATALOG",
+   "SMB-PULSE-PLAYBACK",
+   "SMB-SCORE-EFFECTS-5",
+   "SMB-SCORE-SPECTRAL",
+   "SMB-AUDIO-CODECS",
+   "SMB-INTEROP-FIG-PROTOTYPE",
+   "SMB-CKC-PORTS",
+   "SMB-COMPOSITE-DOCGRAPH-MASKS",
+   "SMB-PULSE-PLAYBACK-2",
+   "SMB-R31-FINDINGS",
+   "SMB-HARNESS-PROTOTYPE-PLAY",
+   "SMB-ILLUSTRATOR-PEN-2",
+   "SMB-FIG-SMART-ANIMATE",
+   "SMB-AE-KEY-TRACK",
+   "SMB-LAYOUT-LONGDOC-2",
+   "SMB-CKC-PORTS-ALIGN",
+   "SMB-PS-SELECT-LIQUIFY",
+   "SMB-DEVELOP-CAMERA-COLOUR",
+   "SMB-ILLUSTRATOR-PEN-3",
+   "SMB-COMPOSITE-DOCGRAPH-2",
+   "SMB-REEL-ENCODE",
+   "SMB-AE-KEY-TRACK-2",
+   "SMB-INTEROP-IDML",
+   "SMB-DEVELOP-CAMERA-COLOUR-2",
+   "SMB-COMPOSITE-STROKE-GEOMETRY",
+   "SMB-PS-SELECT-LIQUIFY-2",
+   "SMB-R32-REMEDIATION",
+   "SMB-COMPOSITE-NETWORK-ADAPTER",
+   "SMB-AE-KEY-TRACK-3",
+   "SMB-AUDIO-IMPORT-WIRING",
+   "SMB-VECTOR-STYLES",
+   "SMB-AE-MOTION-TOOLS",
+   "SMB-PS-SMART-FILTER-WIRING",
+   "SMB-FIG-SMART-ANIMATE-2",
+   "SMB-AUDIO-IMPORT-2",
+   "SMB-PS-ADJUST-STYLES",
+   "SMB-AE-3D",
+   "SMB-ILLUSTRATOR-TOOLS-2",
+   "SMB-HARNESS-RENDER-RECORDS",
+   "SMB-LAYOUT-UI",
+   "SMB-AE-MOTION-RECORDS",
+   "SMB-PACKAGE-MASK-TILES",
+   "SMB-AE-MOTION-RECORDS-2",
+   "SMB-AUDITION-SESSION",
+   "SMB-AUDITION-SESSION-2",
+   "SMB-ILLUSTRATOR-INTEROP",
+   "SMB-PACKAGE-COMPLETENESS",
+   "SMB-AE-3D-2",
+   "SMB-DEVELOP-LENS-PRESETS",
+   "SMB-R33-FINDINGS",
+   "SMB-PS-ADJUST-STYLES-2",
+   "SMB-AUDITION-UI",
+   "SMB-LAYOUT-UI-2",
+   "SMB-ILLUSTRATOR-INTEROP-2",
+   "SMB-PACKAGE-COMPLETENESS-2",
+   "SMB-AUDITION-UI-2",
+   "SMB-CRATE-SEAM-SPLITS",
+   "SMB-RAW-CLEANROOM",
+   "SMB-D24A-CODEC-DEFAULTS",
+   "SMB-PREMIERE-COLOR-TITLES",
+   "SMB-PS-ADJUST-STYLES-3",
+   "SMB-AE-3D-3",
+   "SMB-AE-PARTICLES-AUDIO-PRESETS",
+   "SMB-AE-ROTO-TIMEREMAP",
+   "SMB-ID-PREPRESS",
+   "SMB-AI-TYPE-PATH-RECOLOR",
+   "SMB-LR-LIBRARY-WRITE",
+   "SMB-AU-WAVEFORM-EDITOR",
+   "SMB-PR-SOURCE-MONITOR",
+   "SMB-AFFINITY-INTEROP-1",
+   "SMB-DXF-EPS-IMPORT",
+   "SMB-D5-PS-COMPARE",
+   "SMB-D5-AI-ID-AE-COMPARE",
+   "SMB-RAW-CLEANROOM-2",
+   "SMB-PS-ORACLE-PARITY-1",
+   "SMB-AE-PARTICLES-2",
+   "SMB-ID-COMPOSER-PARITY",
+   "SMB-AI-AE-ORACLE-FOLLOWUPS",
+   "SMB-TYPE-FF-LIGATURE",
+   "SMB-PS-ORACLE-PARITY-2",
+   "SMB-CRATE-SEAM-SPLITS-2",
+   "SMB-DEVELOP-EXPORT-TIFF",
+   "SMB-HARNESS-SHELL-1",
+   "SMB-LAYOUT-COMPOSER-WIRING",
+   "SMB-AE-ROTO-WIRING",
+   "SMB-PS-FILL-LAYERS",
+   "SMB-DEVELOP-DNG-WRITER",
+   "SMB-AE-RENDER-QUEUE-2",
+   "SMB-TIMELINE-UI-1",
+   "SMB-EPS-FREE-FONTS",
+   "SMB-HARNESS-SHELL-2",
+   "SMB-HARNESS-PANELS-1",
+   "SMB-AE-EFFECT-STACK-1",
+   "SMB-TIMELINE-TRIM-1",
+   "SMB-PS-SOFT-PROOF-1",
+   "SMB-PR-MULTICAM-1",
+   "SMB-PS-SOFT-PROOF-2",
+   "SMB-PR-MULTICAM-2",
+   "SMB-LR-HEALING-1",
+   "SMB-FIG-EDIT-1",
+   "SMB-PR-RATE-STRETCH-1",
+   "SMB-MOTION-JS-CPU-CAP-TEST",
+   "SMB-FIG-EDIT-2",
+   "SMB-LR-HEALING-2",
+   "SMB-ID-LIQUID-LAYOUT-1",
+   "SMB-DNG-READBACK-VALUES",
+   "SMB-SHELL-ROW-WRAP-1",
+   "SMB-ID-CJK-KINSOKU-1",
+   "SMB-AI-AREA-TYPE-1",
+   "SMB-PS-INFO-HISTOGRAM-1",
+   "SMB-R40-FOLLOWUPS-1",
+   "SMB-AU-MULTITRACK-1",
+   "SMB-AI-AREA-TYPE-2",
+   "SMB-AI-AREA-TYPE-3",
+   "SMB-R41-FOLLOWUPS-1",
+   "SMB-PS-ACTIONS-1",
+   "SMB-AI-SIMPLIFY-1",
+   "SMB-AE-MASK-FEATHER-1",
+   "SMB-AU-MULTITRACK-2",
+   "SMB-HDR-MERGE-1",
+   "SMB-HDR-MERGE-2",
+   "SMB-AE-MASK-FEATHER-2",
+   "SMB-RUN-UI-MERGE-1",
+   "SMB-AE-EFFECT-FAMILIES-2",
+   "SMB-VIEW-POLISH-1",
+   "SMB-PIGMENT-AE-KERNELS-1",
+   "SMB-R42-FOLLOWUPS-1",
+   "SMB-AU-MULTITRACK-3",
+   "SMB-AI-AREA-TYPE-4",
+   "SMB-PS-GRADIENT-BUCKET-1",
+   "SMB-LR-EXPORT-SIZING-1",
+   "SMB-PR-NEST-1",
+   "SMB-AI-ARROWHEADS-1",
+   "SMB-LR-EXPORT-GUI-1",
+   "SMB-PR-NEST-2",
+   "SMB-AI-ARROWHEADS-2",
+   "SMB-FIG-GRID-1",
+   "SMB-PR-SEQ-EXPORT-UI-1",
+   "SMB-FIG-GRID-2",
+   "SMB-ID-FRAME-AUTOSIZE-1",
+   "SMB-ID-FRAME-AUTOSIZE-2",
+   "SMB-R43-FOLLOWUPS-1",
+   "SMB-R44-FOLLOWUPS-1",
+   "SMB-OBSERVE-RING-PORT-1",
+   "SMB-GPU-CLIENT-PORT-1",
+   "SMB-R46-FOLLOWUPS-1",
+   "SMB-ATTRIBUTION-1",
+   "SMB-BUSINESS-EVENTS-1",
+   "SMB-JOB-ADMISSION-1",
+   "SMB-R47-FOLLOWUPS-1",
+   "SMB-SETTINGS-SCHEMA-1",
+   "SMB-PDF-PRESETS-1",
+   "SMB-ID-BOOKLET-1",
+   "SMB-PDF-STOCK-PRESETS-1",
+   "SMB-AE-WATER-SIMS-1",
+   "SMB-ID-PDF-EXPORT-PREFS-1",
+   "SMB-R49-FOLLOWUPS-1",
+   "SMB-AI-DISTORT-EFFECTS-1",
+   "SMB-AE-EXPR-LIBRARY-1",
+   "SMB-TYPE-OT-FEATURES-1",
+   "SMB-PS-MODE-CONVERT-1",
+   "SMB-R50-FOLLOWUPS-1",
+   "SMB-ID-TOC-INDEX-1",
+   "SMB-PRESS-INK-COVERAGE-1",
+   "SMB-TYPE-SENTINELS-REGISTRY-1",
+   "SMB-FOLIO-ANGLE-UNBOUNDED-1",
+   "SMB-ID-TOC-PERSIST-1",
+   "SMB-R51-FOLLOWUPS-1"
+  ]
+ },
+ "not_judged": [
+  {
+   "lane": "SMB-PRESS-INK-MANAGER-1",
+   "reason": "canary infrastructure failure: no round; status READY_FOR_VALIDATION unchanged"
+  },
+  {
+   "lane": "SMB-PRESS-OBSERVE-1",
+   "reason": "canary infrastructure failure: no round; status READY_FOR_VALIDATION unchanged"
+  },
+  {
+   "lane": "SMB-COL-SWATCH-GROUPS-1",
+   "reason": "canary infrastructure failure: no round; status READY_FOR_VALIDATION unchanged"
+  },
+  {
+   "lane": "SMB-R52-FOLLOWUPS-1",
+   "reason": "canary infrastructure failure: no round; status READY_FOR_VALIDATION unchanged"
+  },
+  {
+   "lane": "SMB-TIFF-CHANNELS-1",
+   "reason": "canary infrastructure failure: no round; status READY_FOR_VALIDATION unchanged"
+  },
+  {
+   "lane": "SMB-LAYOUT-SENTINELS-1",
+   "reason": "canary infrastructure failure: no round; status READY_FOR_VALIDATION unchanged"
+  },
+  {
+   "lane": "SMB-ROUND-ENTRYPOINT",
+   "reason": "steward sync 3c0d8ec9 claim: static review PASS-ready (steward_sync_review), but its proof is the canary and the union, which did not complete; status PASS_V11 unchanged"
+  },
+  {
+   "lane": "383 PASS lanes (cx_val_009.reopened)",
+   "reason": "not re-judged; statuses unchanged"
+  }
+ ],
+ "claim_scope_notes": {
+  "SMB-PRESS-INK-MANAGER-1": "STU-LAY-160 / STU-LAY-161 engine half. press-write inks.rs: InkParameter seven-field rows (ink_angle 0..360 deg, ink_frequency 1..500 count, neutral_density 0.001..10 ratio precision 3, solidity 0..1 ratio; soft bounds, defaults and the three undeclared precisions stay ParamValue::Unknown), InkType::from_code (the one four-member enumeration the plates read), InkManager::apply_edit(ActorContext, InkEdit) for add spot / parameter / ink type / alias / per-ink spot-to-process / all-spots-to-process / standard Lab, whole-manager validation, attributed receipt, input unchanged on refusal; typed process_ink_cannot_be_aliased, mixed ink <= 27 spot and <= 31 total, group <= 1000 swatches (checked arithmetic before generation), Studio rules process_ink_not_convertible and mixed_ink_duplicate_part; strictness added: neutral_density with more than 3 decimals refused (ink_parameter_precision), a mixed ink listing one part twice refused. export.rs / pdfx.rs: PdfXStandard six members in spec order and tokens; carried by ExportOptions::pdfx4 through pdfx_standard() / with_pdfx_standard() (no settings field, press src/preset.rs builds ExportOptions with a full struct literal; lead accepted); the four non-X-4 members are refused pdfx_standard_not_implemented, X-4 writes the existing identification read back as pdfx.x4_2010 (edition mapping UNVERIFIED), conformance stays not_proven. separations.rs: SeparationsViewState (plate switches, ink-limit threshold 0..=100 x plates), SeparationsReadout / PlateReadout / InkLimitViewReadout counting exactly what PlateView::InkLimit marks, view_for. layout print.rs: FlattenerParameter rows (line_art_and_text_resolution 1..9600 dpi, gradient_and_mesh_resolution 0..1200 dpi, raster_vector_balance all seven fields unknown, finite only), three switches (spec names three; brief said four, lead error), FlattenerLevel five STU-LAY-135 members (new), FlattenerPresets under CommandContext (command id, stale revision, cancel), flattener_preset_name / applied_flattener_preset resolve by exact name or flattener_preset_missing; lib.rs +4 re-export lines (lead accepted). Flattener preview and flattening not built (MT-30848). Vendor parity UNVERIFIED (D5)",
+  "SMB-PRESS-OBSERVE-1": "F-R51-7 closure: press-write gains the allowed hsk-studio-observe path dependency (one Cargo.toml line, the WORKSPACE_RULES path-deps form; root Cargo.toml / Cargo.lock left to steward sync 3c0d8ec9). evaluate_ink_coverage_observed and InkManager::apply_edit_observed return the plain result unchanged plus one Emission (typed code + observe receipt or observe refusal) per call through Observe::emit_detail (wire version 2): closed Outcome / FailureCode / Disposition / DiagnosticCode and five capped counters, no address, private_project_text None. Coverage terminal = worst check state of the three limits (over_limit > indeterminate > within_warning_margin > within_limit > not_checked); within_limit and within_warning_margin share one wire value (success, no_change) and differ only in the typed Emission::code (observe's closed vocabulary has no warning state and the detail counter rules leave no free slot); refusals map to validation / unsupported with InvalidInput / ValidationRejected / BudgetExceeded. Ink edits: applied (changed [0,1,0,1,1]), no_change, refusals (InkError::diagnostic_code). Red commit f78169bb compiles with stubs and was run red (8 of 8 failed). The plain entry points are unchanged; the press face does not re-export the observed entry points (follow-up)",
+  "SMB-COL-SWATCH-GROUPS-1": "STU-COL-177..179 / 185..188 engine half. folio swatch_library.rs (via #[path] in vector.rs): StudioSwatchGroup records (one root, listed first; flat, no nesting; group_ref names a named group, absent = root member; naming the root refused), StudioPaletteScope document / application / system, StudioSwatchPalette (hsk.studio.swatch_palette@1), StudioHostPalettes resolution document -> application -> system with unresolvable = validation error (DanglingReference / swatch_unresolvable), system palette read-only; group commands create_root / create / rename / delete with replace-on-delete / reorder / move_swatch / undo under the caller's CommandContext (command id must equal the swatch.group.* id, base revision), atomic, memento undo; reports carry codes, counters and the opaque correlation for the host (folio may depend only on accord). colour_book.rs: StudioColourBook resource with every STU-COL-185 field, bounded parse, fan-deck pages and selector offset, display name prefix + name + postfix, per-book license_state bundled / operator_supplied / absent matched to origin, StudioColourBookLibrary load / mark_absent / lookup, add_colour_book_swatches populating spot or process swatches with document references only (colour_book_refs, swatch_book_links), CAPTURED_BOOK_COVERAGE (12 books + PANTONE absent, names, counts and spaces from spec STU-COL-103 :9924-9927) as planning data nothing reads to enable a book; from_named_colours binds a prism NamedColourTable shape. Behaviour change: StudioSwatch.group_ref must now name a named group (was any key), disclosed; no producer sets it. prism named_colour.rs: parse_named_colour_profile (nmcl class, Lab PCS, ncl2 tag) over wide::verify + wide::frame, legacy 16-bit Lab per LittleCMS 2 reading (ICC text UNVERIFIED), counts and table size checked before storing; wide.rs Tag fields pub(crate), lib.rs mod line (lead accepted). Synthetic test books only. The prism-to-folio join, OS system palette, remaining STU-COL-179 panel commands and painting are follow-ups. Red commits never compiled and were squashed before push",
+  "SMB-R52-FOLLOWUPS-1": "F-R52-3 closure: three negative fixtures for the untested added_channel_fits branches (multichannel or 1-bit, no merged image data, extra plane 0 of a merged-transparency file), each asserting channel_added_in_edit_not_exported (Unsupported), no applied entry and byte-identical output; display_opacity at both 1077 write sites records channel_opacity_rounded (Transformed) for a fractional opacity and channel_opacity_clamped (Transformed, beyond the brief, lead accepted) outside 0..=100 or non-finite, value written unchanged (round, clamp). The three fixtures pass at base by design (the branches were correct); their bite was shown by an uncommitted counterfactual (conditions stripped: 0 of 3 passed, log counterfactual-smb-r52-followups-1-6e01b4fa.log), the opacity test failed at base. EXR (item 3) researched only: no product EXR reader; composite's writer; mapping needs are lead / spec-owner decisions (SD-41). Item 2 (TIFF) moved to SMB-TIFF-CHANNELS-1 by lead decision T1",
+  "SMB-TIFF-CHANNELS-1": "F-R52-2 TIFF part under lead decision T1 (no interop-tiff -> folio edge). interop-tiff (Folio-free): ExtraPlane {extra_sample, samples}, PageInfo::colour_samples_per_pixel, TiffPage::extra_planes, decode of several extra samples on colour pages (presented to the codec as BlackIsZero multiband; JPEG / YCbCr pages still refused extra_samples_unsupported), encode_with_planes (ExtraSamples alpha kind first then the planes' values, every compression, predictor, both byte orders, BigTIFF, u8 / u16 / u32 / f32, at most 64 samples per pixel, budget before interleave). TIGHTENING: an ExtraSamples tag whose count differs from the extra samples is refused extra_samples_count_mismatch (was accepted). harness-core src/import/tiff.rs: each extra sample beyond the image alpha becomes a StudioChannelRecord tiff-channel-<sample> at 8 / 16 / 32f with exact tone tiles stored as package assets (package_proposal_with), import defaults with typed loss tiff_channel_display_defaulted, channel cells budgeted before allocation; export_tiff_with_channels (host-callable only: no document export command calls it) writes records as unspecified extra planes with typed losses for name, kind, colour, opacity / solidity, visibility, extent, depth, count and typed errors for tile missing / size / digest / format / edge / grid and the encode budget. Exists only with harness-core feature import-tiff; round unit features:hsk-studio-harness+import-tiff runs the tests. Vendor parity UNVERIFIED (D5)",
+  "SMB-LAYOUT-SENTINELS-1": "F-R52-1 closure in layout. sentinels.rs: compose_with_sentinels replaces each marker sentinel U+FDD0..U+FDD7 for shaping only by its resolved text where its line lands (page labels from number_pages, section marker, Generated record text for footnote / endnote / cross-reference; index marker typed marker_rule_unstated), glyphs keep the sentinel's 3-byte cluster, story bytes unchanged, explicit UnresolvedMarker states, fixed-point iteration with markers_unstable after max_passes; MarkerRecord keyed by story byte, checked; paragraph_partition / ends_paragraph = Type's rule (UAX #9 class B + break sentinels, a duplicate of Type's private rule); report_sentinels one Observe terminal, codes only. threaded_reflow.rs: a paragraph ended by a break sentinel continues at its target (next column, next frame, later page, later page of the wanted number parity), no target oversets from the break byte, a column break disables band balancing of its frame; the plain entry points have no page numbers and overset odd / even-page breaks as parity_unknown. Flush space U+FDDD: one zero-advance glyph, absorbs the slack of the last line of a JustifiedAll paragraph shared equally, no width elsewhere. textflow.rs replace_story_text re-splits after every Type terminator (was newline only). Shaping is a caller-supplied SentinelShaper (tests use a closure shaper; no native Type shaping proof). Spec gaps SENT-SD-1..9 (SD-42)",
+  "SMB-ROUND-ENTRYPOINT": "steward sync (lane file workspace-steward.json notes.sync_20261101_observe): run 1 refused correctly (exit 7: press-write's dependency list gained observe, root allowed list lacked it; probe 84/102, 18 dependency_outside_declared_dag rejects; nothing committed); approved run 2 with --add-edge hsk-studio-press-write=hsk-studio-observe: edges.py acyclic, LOCK_DIFF none added / none removed / dependency list changed for press-write, REGISTRY clean, LICENSE_GATE OK, probe 102/102; commit = root Cargo.toml allowed list + 1 Cargo.lock line, parent e3afbb62 (no re-parent), pushed e3afbb62..3c0d8ec9"
+ },
+ "claim_commits": {
+  "SMB-PRESS-INK-MANAGER-1": [
+   "838036f2 press-write, press (items 1-3): ink manager contract, PDF/X standards, separations readouts (STU-LAY-160)",
+   "c420f273 layout (item 4): transparency flattener preset record (STU-LAY-161)"
+  ],
+  "SMB-PRESS-OBSERVE-1": [
+   "f78169bb press-write (red): observe edge, emission API stubs, 8 failing terminal-outcome tests",
+   "295c6029 press-write: terminal outcomes of ink coverage and ink edits through observe (F-R51-7)"
+  ],
+  "SMB-COL-SWATCH-GROUPS-1": [
+   "a888bf3e folio: swatch groups, palette scope, colour-book resource",
+   "174ebc56 prism: ICC named-colour (ncl2) profile parsing"
+  ],
+  "SMB-R52-FOLLOWUPS-1": [
+   "e65e182c interop-psd (red): F-R52-3 negative fixtures and channel_opacity_rounded",
+   "e3afbb62 interop-psd: channel_opacity_rounded and channel_opacity_clamped on export"
+  ],
+  "SMB-TIFF-CHANNELS-1": [
+   "1eed1b6f interop-tiff, harness-core (red): TIFF extra planes and channel records",
+   "a3a29095 interop-tiff, harness-core: TIFF extra samples <-> Folio channel records",
+   "d7127bf1 interop-tiff, harness tests: clippy identity_op and type_complexity in new tests"
+  ],
+  "SMB-LAYOUT-SENTINELS-1": [
+   "7483a2fd layout (item 1, red): marker sentinel API and tests",
+   "aebce456 layout (item 1): markers resolve at composition",
+   "d4569bc1 layout (item 2, red): break sentinel flow tests",
+   "9e5dacd6 layout (item 2): break sentinels direct the flow",
+   "890b373c layout (item 3, red): flush-space tests",
+   "92ae2232 layout (item 3): flush space absorbs fully justified slack"
+  ],
+  "SMB-ROUND-ENTRYPOINT": [
+   "3c0d8ec9 Steward sync: lock, registry pins and probe approvals for e3afbb6"
+  ]
+ },
+ "steward_sync_review": {
+  "claim": "STEWARD sync 3c0d8ec9 (lane file builders/lanes/workspace-steward.json notes.sync_20261101_observe; ledger lane SMB-ROUND-ENTRYPOINT), judged as a claim as R50 judged the F-R47-8 steward commit",
+  "asked": "declare the press-write -> observe edge SMB-PRESS-OBSERVE-1 pushed at 295c6029 without Cargo.lock, derive Cargo.lock, keep pins and licences, leave a candidate that opens a round (canary)",
+  "first_run_refused_correctly": "YES (lane notes, run 1 13:47:26Z..13:48:41Z exit 7): LOCK_DIFF dependency_lists_changed [hsk-studio-press-write@0.1.0], REGISTRY clean, LICENSE_GATE OK, PROBE 84/102 with 18 dependency_outside_declared_dag rejects (press-write, press, interop-fig, interop-fig-native, interop-layout and 13 harness / harness-view feature sets): the root allowed list lacked hsk-studio-observe; nothing was committed",
+  "approved_rerun": "YES (run 2 13:49:13Z..13:49:43Z exit 0, --add-edge hsk-studio-press-write=hsk-studio-observe, lead approval under WORKSPACE_RULES path-deps 'every crate may use accord + observe'): edges.py acyclic, LOCK_DIFF none added / none removed, REGISTRY approved_added [] removed [] unrequested [] spec_defects [], LICENSE_GATE OK, probe 102/102 rejects []",
+  "commit": "3c0d8ec90b7c7effe893762c8109f2523a82d845, parent e3afbb6227845f5a2f36953cef3b38796be15ed7 (the origin tip, no re-parent): Cargo.toml one line ([workspace.metadata.studio.dependencies.hsk-studio-press-write] allowed + hsk-studio-observe), Cargo.lock +1 line (hsk-studio-observe in hsk-studio-press-write's dependencies); 2 files, 2+/1- (git show --stat, validator)",
+  "validator_checks": "read-only DAG check of the export's root Cargo.toml metadata at 92ae2232 (tomllib, no write): allowed graph acyclic over 56 crates; press-write allowed [accord, press-read, observe], observe allowed [accord]; every member's hsk-studio-* dependency, build- and dev-dependency inside its allowed list (none outside). The steward's tools/edges.py rewrites Cargo.toml when run, so the validator did not run it on the export. Canary step 0 on the synced lock: step0.lock.txt empty (cargo metadata --locked --offline in sync), step0.registry.txt manifest_changed false, probe_changed false, approved_added / removed / unrequested / spec_defects empty; round-select: the Cargo.lock external dependency set is unchanged (the new line is a workspace member edge), root Cargo.toml changed inside [workspace.metadata] only",
+  "candidate_effect": "the commits between 295c6029 and e3afbb62 build only without --locked (their committed lock lacks the edge); 3c0d8ec9 and every later commit build --locked (canary and union at 92ae2232)",
+  "residuals": "none blocking",
+  "result": "PASS (verdict subject to the canary and union gates in the lane entry)"
+ },
+ "proof_reuse": "none applied (no round opened); every PASS lane keeps its recorded verdict and proof commit; the static review below may be reused by the next attempt at the same candidate (CX-VERIFY-002) but is not a verdict input on its own",
+ "host_integration": {
+  "rule": "common brief wave-parity-2-common.md HOST INTEGRATION (1)-(7); Operator D1 (no new egui code), D6 (engine lanes) and D7 (2026-10-31: pure Vulkan, no new wgpu code anywhere); every claim was dispatched after 2026-10-30T21:50:32Z (INK and SWATCH 10:46:05Z, R52-FOLLOWUPS and LAYOUT-SENTINELS 12:58:23Z, OBSERVE 13:05:59Z, TIFF 13:46:33Z on 2026-11-01), so the rules BIND; HBR-HOST-001..008 (.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json) at the asset level; spec-owner items SD-26..SD-42 (STUDIO-ENRICHMENT-20261030-HOST-INTEGRATION.json) read as open gaps, never as authority",
+  "fail_criteria": "a claim that adds new egui or wgpu code, a new GPU device/instance/budget owner, a hard-coded actor in a product path, a new recorder, text through a diagnostic port, or a job without typed overload/cancel/deadline/stale/release behaviour fails its HOST INTEGRATION row (lead dispatch R49-R53); a missing observe emission with a recorded edge or host-adapter item is a recorded GAP, not a FAIL (lead decision 2026-11-01T04:33:15Z); an engine entry taking the caller's context with no controls Registry row is not a registered command until a host exposes it (R52 assign_trap_preset precedent, D7)",
+  "wave_scan": "99836457..92ae2232 (18 commits, 44 paths, 7148+/132-): 0 added lines name egui, eframe, winit or wgpu (case-insensitive substring; the lead's finding holds); 0 added lines with request_device, Instance::new, request_adapter, GpuBackend::new, TransientAdapter, default_actor, std::thread, spawn(, rayon, Instant::, SystemTime or unsafe; no file of controls, render-gpu, render-cpu, harness-view or pigment changed; the only crate Cargo.toml change is press-write's observe path dependency (an allowed edge, WORKSPACE_RULES path-deps), declared by steward sync 3c0d8ec9",
+  "SMB-PRESS-INK-MANAGER-1": {
+   "block": "lane file host_integration (gui_host none, gpu none, internal_diagnostics: press-write none (no observe edge at dispatch, F-R51-7) / layout producer_through_observe, flight_recorder none, palmistry none, control_descriptors none, attribution: InkManager::apply_edit(ActorContext) and FlattenerPresets::apply(CommandContext), jobs none, settings none, refactor_exposure low, spec v02.229); recorded before READY (13:04:51Z)",
+   "rows": {
+    "1 no egui / wgpu / toolkit type": "PASS: press-write src/inks.rs, export.rs, export/pdfx.rs, separations.rs, lib.rs; press src/lib.rs (re-exports, DESCRIPTOR); layout src/print.rs, pdf_export_prefs.rs, lib.rs and two test files",
+    "2 no new GPU device/instance/queue/pool/budget owner": "PASS: no GPU code; separations readouts are CPU over the existing preview planes",
+    "3 controls registry": "PASS: no command or control registered; ink-manager and flattener-preset edits are engine entries for later host commands (D7, R52 precedent)",
+    "4 actor": "PASS: apply_edit takes &ActorContext and its receipt carries it (ink_edits_are_attributed_to_the_caller_and_never_partial); FlattenerPresets::apply refuses a context without command id and a stale revision; literal ActorContext::new only in tests",
+    "5 observe, no text": "PASS: FlattenerPresetError::failure_code feeds layout report_command (flattener_preset_edits_report_through_observe_codes_only checks no preset name reaches the sink); press-write ink edits had no observe edge at this claim and now emit through SMB-PRESS-OBSERVE-1 (apply_edit_observed); InkError / ExportError / SepViewError Display or code are codes only",
+    "6 jobs": "PASS: bounded synchronous calls, no queue or worker",
+    "7 host_integration block before READY": "PASS"
+   },
+   "hbr": "HBR-HOST-004: MAX_INKS 1024 and names <= 256 bytes checked before the push; mixed-ink group size by checked arithmetic before generation (hostile u32 repeats refused); separation toggles <= MAX_SEP_PLATES (64), threshold finite in 0..=100 x plates; FlattenerPresets <= 1024 and names <= MAX_PDF_NAME_BYTES checked before copying. HBR-HOST-007: both edit paths attributed (ActorContext receipt; CommandContext command id and base revision). HBR-HOST-001/002/003/005/006/008 not triggered at the asset level",
+   "result": "PASS"
+  },
+  "SMB-PRESS-OBSERVE-1": {
+   "block": "lane file host_integration (gui_host none, gpu none, internal_diagnostics producer_through_observe, flight_recorder none, palmistry none, control_descriptors none, attribution unchanged, jobs none, settings none, refactor_exposure low); recorded before READY",
+   "rows": {
+    "1 no egui / wgpu / toolkit type": "PASS: press-write Cargo.toml (one observe line), src/coverage.rs, inks.rs, lib.rs and tests/observe_terminal.rs only",
+    "2 no new GPU device/instance/queue/pool/budget owner": "PASS: no GPU code",
+    "3 controls registry": "PASS: no command or control added",
+    "4 actor": "PASS: apply_edit_observed passes the caller's ActorContext to apply_edit unchanged (ink_edit_results_are_unchanged_by_the_sink checks the receipt actor); the ObserveRoute (observe, sink, correlation, revision, cancel) is caller-owned",
+    "5 observe, no text": "PASS: exactly one terminal per evaluation and per ink edit through Observe::emit_detail with closed codes and capped counters, address None, private_project_text None; no rule id, page id, link, ink name or value reaches the port (no_rule_page_ink_or_link_text_reaches_the_diagnostic_port); the result is the plain one under every delivery failure, a stale revision, a closed emitter and cancellation (results_are_unchanged_with_and_without_a_sink_and_under_every_delivery_failure). Closes the rule-5 gap F-R51-7. Mapping onto observe's closed vocabulary is a Studio reading: within_limit and within_warning_margin share one wire value (F-R53-4)",
+    "6 jobs": "PASS: no queue or worker",
+    "7 host_integration block before READY": "PASS"
+   },
+   "hbr": "HBR-HOST-005 (extends HBR-INT-009): content-free terminal producer with correlation from the caller's route; counts capped at MAX_DETAIL_COUNT. HBR-HOST-001/002/003/004/006/007/008 not triggered beyond the existing coverage bounds",
+   "result": "PASS"
+  },
+  "SMB-COL-SWATCH-GROUPS-1": {
+   "block": "lane file host_integration (gui_host none, gpu none, internal_diagnostics producer_through_observe, flight_recorder none, palmistry none, control_descriptors none, attribution required: group commands and book loading take the caller's context, jobs none, settings none, refactor_exposure low); recorded before READY. The internal_diagnostics value copies the brief but is not what the code does: folio cannot depend on observe (WORKSPACE_RULES path-deps: folio -> accord only), so the commands return StudioSwatchEditReport / StudioBookReport for a host to emit and nothing emits them yet (lane notes host_integration_check say so; F-R53-1)",
+   "rows": {
+    "1 no egui / wgpu / toolkit type": "PASS: folio src/swatch_library.rs, colour_book.rs, vector.rs, vector_tools.rs, lib.rs (DESCRIPTOR); prism src/named_colour.rs, lib.rs (mod line), wide.rs (Tag fields pub(crate)); package tests/externals.rs; four test files",
+    "2 no new GPU device/instance/queue/pool/budget owner": "PASS: no GPU code",
+    "3 controls registry": "PASS (deferred to the host, R52 precedent): the swatch.group.* and swatch.book.add ids are pinned in folio (SWATCH_GROUP_COMMAND_IDS, BOOK_ADD_SWATCHES_COMMAND_ID) and checked against the caller's CommandContext, but no controls Registry row or RUN_COMMANDS row exists; the lane proposes them (INFO in F-R53-6)",
+    "4 actor": "PASS: apply_swatch_group_command, undo_swatch_group_command, add_colour_book_swatches and StudioColourBookLibrary::load / mark_absent take &CommandContext (command id must match, base revision must equal the caller's revision); no default_actor; literal ActorContext only in tests",
+    "5 observe, no text": "GAP (recorded, not a FAIL; F-R51-7 class): the new commands' terminal outcomes are returned as code-and-counter reports with the opaque correlation (no names, ids or colours) but no crate emits them; folio has no observe edge by rule and no host adapter exists; prism's ncl2 parse is a pure bounded parse returning typed codes (parse_cube precedent). No text reaches any diagnostic port. Host adapter item required (F-R53-1)",
+    "6 jobs": "PASS: book parse and group commands are bounded synchronous calls with cancellation checks",
+    "7 host_integration block before READY": "PASS (present; its internal_diagnostics value is inaccurate, F-R53-1)"
+   },
+   "hbr": "HBR-HOST-004: SWATCH_GROUPS_MAX 1024 and groups charged to Budget::nodes; host palettes <= TOOLS_MAX_ENTRIES; book bytes <= 4 MiB, entries <= 16384, books <= 256, texts <= 256 / 4096 bytes, picks <= TOOLS_MAX_ENTRIES; ncl2 colours <= 16384 and device coordinates <= 15 with the table length checked against the tag before any colour is stored (named_colour_dims_u32_max_and_aggregate_over_budget_are_refused_before_storing, book_dims_u32_max_and_aggregate_over_budget_are_refused). HBR-HOST-007: commands attributed through CommandContext. HBR-HOST-005: GAP as row 5. HBR-HOST-001/002/003/006/008 not triggered at the asset level",
+   "result": "PASS (row 5 GAP recorded)"
+  },
+  "SMB-R52-FOLLOWUPS-1": {
+   "block": "lane file host_integration (gui_host none, gpu none, internal_diagnostics producer_through_observe, flight_recorder none, palmistry none, control_descriptors none, attribution unchanged, jobs none, settings none, refactor_exposure low); recorded before READY",
+   "rows": {
+    "1 no egui / wgpu / toolkit type": "PASS: interop-psd src/export.rs, proposal.rs (comment) and tests/psd_alpha_channels.rs",
+    "2 no new GPU device/instance/queue/pool/budget owner": "PASS: no GPU code",
+    "3 controls registry": "PASS: no command or control added",
+    "4 actor": "PASS: export keeps its existing context",
+    "5 observe, no text": "PASS: the new outcomes are typed ExportReport loss entries (channel_opacity_rounded / channel_opacity_clamped, path channel[i]/opacity) returned to the caller; nothing new reaches observe",
+    "6 jobs": "PASS: no queue or worker",
+    "7 host_integration block before READY": "PASS"
+   },
+   "hbr": "HBR-HOST-004: no new allocation path (display_opacity is arithmetic on one value). HBR-HOST-001/002/003/005/006/007/008 not triggered at the asset level",
+   "result": "PASS"
+  },
+  "SMB-TIFF-CHANNELS-1": {
+   "block": "lane file host_integration (gui_host none, gpu none, internal_diagnostics producer_through_observe, flight_recorder none, palmistry none, control_descriptors none, attribution unchanged: import and export keep their existing context, jobs none: bounded calls, settings none, refactor_exposure low); recorded before READY",
+   "rows": {
+    "1 no egui / wgpu / toolkit type": "PASS: interop-tiff src/encode.rs, scan.rs, model.rs, lib.rs, tests/extra_samples.rs; harness-core src/import.rs (package_proposal_with hook, pub use), src/import/tiff.rs; harness tests/import_tiff.rs",
+    "2 no new GPU device/instance/queue/pool/budget owner": "PASS: no GPU code",
+    "3 controls registry": "PASS: no command or control registered; export_tiff_with_channels is a host-callable function, no document export command uses it (lane notes export_host_path; a command would need a Registry id and RUN_COMMANDS row)",
+    "4 actor": "PASS: the TIFF import keeps its existing ActorContext path; the export takes no document mutation",
+    "5 observe, no text": "PASS: import losses and channel facts are typed receipt entries (codes, sample indexes, ExtraSamples values); export_tiff_with_channels returns tiff::Result whose terminal maps through the existing hsk_studio_interop_tiff::report (codes only) at a host call site; nothing new reaches observe in this claim (R52 SMB-R51-FOLLOWUPS-1 precedent)",
+    "6 jobs": "PASS: no queue or worker; import and export stay bounded calls",
+    "7 host_integration block before READY": "PASS"
+   },
+   "hbr": "HBR-HOST-004: decode keeps max_samples_per_pixel 64 and the page budget; channel cells counted against max_decoded_bytes minus the layer tiles before any cell is allocated (tiff_channel_tiles_over_budget); encode checks samples per pixel and MAX_ENCODE_BYTES before interleave and the export checks the budget before each plane (limit_encode_bytes). HBR-HOST-001/002/003/005/006/007/008 not triggered at the asset level",
+   "result": "PASS"
+  },
+  "SMB-LAYOUT-SENTINELS-1": {
+   "block": "lane file host_integration (gui_host none, gpu none, internal_diagnostics producer_through_observe, flight_recorder none, palmistry none, control_descriptors none, attribution unchanged: composition is not a mutating command, jobs none: bounded call, settings none, refactor_exposure low); recorded before READY",
+   "rows": {
+    "1 no egui / wgpu / toolkit type": "PASS: layout src/sentinels.rs (new), threaded_reflow.rs, textflow.rs, lib.rs (exports, DESCRIPTOR) and tests/stream_sentinels.rs only",
+    "2 no new GPU device/instance/queue/pool/budget owner": "PASS: no GPU code",
+    "3 controls registry": "PASS: no command or control added (composition is a call)",
+    "4 actor": "PASS: no mutating op; replace_story_text keeps its existing signature",
+    "5 observe, no text": "PASS: report_sentinels emits one terminal Observe outcome per compose_with_sentinels result, codes only (mt_31005_terminal_outcomes_are_reported_through_observe); marker texts and story bytes never reach the port",
+    "6 jobs": "PASS: no queue or worker; composition bounded by max_passes, max_markers and the reflow limits",
+    "7 host_integration block before READY": "PASS"
+   },
+   "hbr": "HBR-HOST-004: marker plus flush sentinels counted while scanning before per-marker allocation (MAX_STORY_MARKERS 65536 -> budget_exceeded), story text <= MAX_STORY_BYTES, resolved text per marker <= MAX_RESOLVED_MARKER_BYTES 256, paragraph count vs Limits.max_paragraphs, passes <= max_passes (markers_unstable) (mt_31005_marker_counts_texts_and_passes_are_budgeted). HBR-HOST-001/002/003/005/006/007/008 not triggered at the asset level",
+   "result": "PASS"
+  },
+  "SMB-ROUND-ENTRYPOINT": {
+   "block": "steward lane (workspace-steward.json); no host_integration block applies to a lock/manifest sync (no product code)",
+   "rows": {
+    "1 no egui / wgpu / toolkit type": "PASS: Cargo.toml metadata line and one Cargo.lock line only",
+    "2 no new GPU device/instance/queue/pool/budget owner": "n/a",
+    "3 controls registry": "n/a",
+    "4 actor": "n/a",
+    "5 observe, no text": "n/a (the edge it declares enables SMB-PRESS-OBSERVE-1's emission)",
+    "6 jobs": "n/a",
+    "7 host_integration block before READY": "n/a (steward sync)"
+   },
+   "hbr": "not triggered",
+   "result": "PASS"
+  },
+  "status": "static review complete for every claim; results are provisional and bind only with a green canary and union at 92ae2232"
+ },
+ "adversarial_review": "Diffs read by the validator itself through git objects (git show / git diff in wt-studio-assets, read only) and the refreshed export at 92ae2232: 99836457..c420f273 (INK: press-write inks.rs / export.rs / export/pdfx.rs / separations.rs / lib.rs, press lib.rs, layout print.rs / pdf_export_prefs.rs / lib.rs, two test files; 1432+/33-), c420f273..295c6029 (OBSERVE: press-write Cargo.toml +1, coverage.rs, inks.rs, lib.rs, tests/observe_terminal.rs; 620+/9-), 295c6029..174ebc56 (SWATCH: folio swatch_library.rs / colour_book.rs new, vector.rs, vector_tools.rs, lib.rs, three tests; prism named_colour.rs new, lib.rs, wide.rs, one test; package externals.rs; 2188+/10-), 174ebc56..e3afbb62 (R52-FOLLOWUPS: interop-psd export.rs, proposal.rs, tests; 153+/7-), e3afbb62..3c0d8ec9 (STEWARD: Cargo.toml 1 line, Cargo.lock +1), 3c0d8ec9..d7127bf1 (TIFF: interop-tiff encode.rs / scan.rs / model.rs / lib.rs, test; harness-core import.rs, import/tiff.rs; harness test; 1216+/72-), d7127bf1..92ae2232 (LAYOUT-SENTINELS: layout sentinels.rs new, threaded_reflow.rs, textflow.rs, lib.rs, tests/stream_sentinels.rs; 1565+/28-). Spec v02.229 read for STU-LAY-160 (:7206), STU-LAY-161 (:7417), STU-LAY-135 (:6306), STU-COL-103 (:9918), STU-COL-126, STU-COL-177..179 (:10605), STU-COL-185..188 (:10668), STU-TYP-207 (:9106-9160); MT JSON (acceptance rows and proof.checks) of every claimed and re-judged MT.\nStubs / fake behaviour: none found. INK: InkParameter::spec returns the table row with Unknown fields (never mirrored); check() refuses non-finite, out-of-hard-bounds and, for neutral_density, a fourth decimal (tolerance 1e-9 x scale for the binary form) with no clamp or rounding; apply_edit clones, edits, validates the whole manager, returns the copy with a receipt carrying the caller's actor; with_pdfx_standard writes only the X-4 identification and refuses the four others typed; readouts count pixels with the same total_at and +1e-4 comparison render(PlateView::InkLimit) uses (the test compares the red pixel count of the render with the readout); flattener bounds None where the spec says unknown; FlattenerLevel is new (git grep at base: no flattener.* tokens). OBSERVE: evaluate_ink_coverage_observed evaluates first and emits from a borrowed result; DiagnosticDetail::new enforces observe's counter rules, and the chosen counters satisfy them; worst-state selection over the three limits. SWATCH: group commands copy, apply, re-check the group rules (finish), return the undo memento; check_groups enforces one root first, unique ids, labels, group_ref resolvable and never the root; StudioHostPalettes refuses a palette of the wrong scope in a slot; add_colour_book_swatches validates each produced swatch with the shared validate_swatch before pushing; ncl2 parse checks count, device coordinates and the whole table length against the tag before storing, names 7-bit printable. R52-FOLLOWUPS: display_opacity records rounded / clamped losses and writes the same value as before. TIFF: extra_sample_patch presents several extra samples to the codec as BlackIsZero multiband (JPEG / YCbCr still refused), refuses a count-mismatched ExtraSamples tag; channel_records copies tone samples exactly into 256-pixel cells with content digests; export checks extent, depth, count, tile size / digest / format / edge / grid and the encode budget before each plane. LAYOUT: compose_with_sentinels iterates placement and resolution to a fixed point (markers_unstable after max_passes), shapes markers as their resolved text with the sentinel's cluster, keeps story bytes; break_target walks the thread for the next column / frame / later page / parity page; flush spaces get one zero-advance glyph and the JustifiedAll last-line slack shared equally.\nLead notes, validator answers. a: per-sha spot-checked in all six lanes (F-R53-8). b: PDF/X not a settings field, accepted (F-R53-5); three switches correct per spec; layout lib.rs re-exports accepted; no red proof (squashed) but every new test names an API absent at base; the strictness changes reach no producer outside press-write (grep). c: Studio reading of the closed vocabulary confirmed and recorded (F-R53-4); emission never changes a result and carries no text; F-R51-7 closed. d: out-of-path edits as accepted; rule 5 is a GAP for folio's new commands (F-R53-1); no branded data (F-R53-6); ncl2 parser in prism, join a follow-up. e: counterfactual red proof adequate (F-R53-7); channel_opacity_clamped accepted. f: steward first run refused correctly, approved re-run verified by the validator's own read-only DAG check and by canary step 0 (lock and registry in sync). g: T1 respected (no interop-tiff -> folio edge; harness-core maps); the TIGHTENING refuses no previously accepted real file (746 TIFF-structured files scanned, 0 mismatches); export host-callable only; untested typed losses listed (F-R53-2). h: compose_with_sentinels is the only entry with page numbers; plain reflow oversets parity breaks; existing callers change only for inputs Type refused before; terminator rule duplicated; SD-42 SENT-SD-1..9 open (F-R53-3). i: vendor parity UNVERIFIED (D5) for every claim; no vendor claim is made.",
+ "findings_not_failures": [
+  {
+   "id": "F-R53-1",
+   "lane": "SMB-COL-SWATCH-GROUPS-1 (lead note d: rule 5 with folio -> accord only)",
+   "severity": "LOW",
+   "finding": "HOST rule 5 GAP: the new mutating folio entries (apply_swatch_group_command, undo_swatch_group_command, add_colour_book_swatches, StudioColourBookLibrary::load / mark_absent) return code-and-counter reports with the opaque correlation (StudioSwatchEditReport, StudioBookReport; no names, ids or colours), but no crate emits them through observe: folio may depend only on accord (WORKSPACE_RULES path-deps), no host adapter exists, and prism's ncl2 parse is a pure parse. The lane file's host_integration block nevertheless says internal_diagnostics producer_through_observe (copied from the brief); its notes state the truth. Recorded as a GAP (F-R51-7 class), not a FAIL: no text reaches a diagnostic port.",
+   "repair_direction": "lead: host adapter (harness-core or kernel-bindings) emitting the folio reports through Observe; correct the block to report_for_host",
+   "file_line": "folio src/swatch_library.rs StudioSwatchEditReport / finish(); src/colour_book.rs StudioBookReport; builders/lanes/hsk-studio-col-swatch-groups-1.json host_integration.diagnostics",
+   "evidence": "static reading at 92ae2232; git grep for StudioSwatchEditReport / StudioBookReport consumers outside folio: none"
+  },
+  {
+   "id": "F-R53-2",
+   "lane": "SMB-TIFF-CHANNELS-1 (lead note g)",
+   "severity": "LOW",
+   "finding": "Typed outcomes without a test: export losses tiff_channel_solidity_not_exported and tiff_channel_visibility_not_exported, and the tile errors channel_tile_size, channel_tile_format and channel_tile_grid (channel_tile_missing, _digest and _edge and limit_encode_bytes are tested). The export is a host-callable function only (no document export command uses export_tiff_with_channels). The TIGHTENING (an ExtraSamples tag whose count differs from the extra samples is now refused extra_samples_count_mismatch) was checked by the validator over every TIFF-structured file of the oracle corpus and the export's crates tree: 746 files, 741 with IFDs, 0 mismatches (372 with one extra sample, count 1), so no previously accepted real file is refused by it. One corpus file (tiff/extra_bits_rgb_8b.tiff, RGB + one unspecified extra sample) now imports a channel record where it used to record tiff_extra_samples_not_imported; the union's corpus test is the check.",
+   "repair_direction": "five negative tests (solidity, visibility, tile size / format / grid); wire a document TIFF export command later (Registry id, RUN_COMMANDS row)",
+   "file_line": "harness-core src/import/tiff.rs export_tiff_with_channels, channel_samples; interop-tiff src/scan.rs extra_sample_patch; harness tests/import_tiff.rs",
+   "evidence": "grep of the test files for each code; validator-R53/r53_tiff_extra_scan.py -> tiff-extra-scan.jsonl"
+  },
+  {
+   "id": "F-R53-3",
+   "lane": "SMB-LAYOUT-SENTINELS-1 (lead note h)",
+   "severity": "LOW",
+   "finding": "compose_with_sentinels has no product caller and is proven only with a closure SentinelShaper in layout's tests: no test composes through native Type, so Type's acceptance of layout's paragraph partition (the R52 InvalidBidi refusal) is unproven at a host level (the lane reports it). The plain reflow entry points (reflow, reflow_flow, tables, notes) now honour column / frame / page breaks and overset at odd / even-page breaks (parity_unknown, no page numbers); existing callers change behaviour only for stories holding break sentinels or other UAX #9 class-B terminators, which Type refused (InvalidBidi) before this claim, so no previously composing input changes; sentinel-free text takes the old path (paragraph_break returns None, no flush glyph, no no_balance flag). replace_story_text now splits after every class-B terminator (CR, U+0085, U+2029, U+001C..1E), not only LF, so CRLF text gains an empty paragraph between CR and LF. Layout duplicates Type's private terminator rule (a public type helper is proposed). The STU-TYP-207 rules for fixed and flexible non-breaking spaces are outside this claim, so MT-31005 stays partly met.",
+   "repair_direction": "host test composing through hsk-studio-type (interop-layout or harness); public hsk_studio_type::ends_paragraph; spec SENT-SD-1..9 (SD-42)",
+   "file_line": "layout src/sentinels.rs compose_with_sentinels, ends_paragraph; src/threaded_reflow.rs reflow_sized (page_number None), break_target; src/textflow.rs replace_story_text; type src/validate.rs ends_paragraph",
+   "evidence": "git grep for SentinelShaper / compose_with_sentinels outside layout: none; static reading at 92ae2232; tests/stream_sentinels.rs"
+  },
+  {
+   "id": "F-R53-4",
+   "lane": "SMB-PRESS-OBSERVE-1 (lead note c)",
+   "severity": "INFO",
+   "finding": "Emission never changes a result (evaluate first, emit from a borrowed result; tested under every delivery error, a revision mismatch, a closed emitter and cancellation) and carries no text (address None, private_project_text None; needle test over rule, page, link and ink strings). F-R51-7 is closed. Wire fidelity is a Studio reading of observe's closed vocabulary: within_limit and within_warning_margin are one wire value (success, no_change, same counters) and differ only in the typed Emission::code; over_limit and ink_limit_out_of_hard_bounds share ValidationRejected and differ only by counters. Observe's DiagnosticDetail rules (no_change forbids counter 4, counter 3 <= counter 1) leave no free slot, so a warning state needs an observe-owner vocabulary decision. The press face does not re-export the *_observed entry points.",
+   "repair_direction": "observe owner: a check-state (warning) code or detail field; press face re-export when the host calls through it",
+   "file_line": "press-write src/coverage.rs coverage_emission; observe src/lib.rs DiagnosticDetail::new",
+   "evidence": "static reading; tests/observe_terminal.rs"
+  },
+  {
+   "id": "F-R53-5",
+   "lane": "SMB-PRESS-INK-MANAGER-1 (lead note b)",
+   "severity": "INFO",
+   "finding": "PDF/X: the standard is a typed getter / setter over ExportOptions::pdfx4, not a settings field, so the four non-X-4 members are refused when the settings are built (pdfx_standard_not_implemented), not at export; the read-back maps the written PDF/X-4 identification to pdfx.x4_2010 while STU-LAY-159 tokens say PDF/X-4:2007 (spec-owner). Three flattener switches match the spec (the brief's four was the lead's error). No red evidence exists (red commits did not compile and were squashed), but every new test names an API absent at base, so none could pass there. The two strictness changes reach no other producer: no crate outside press-write sets neutral_density or builds a MixedInk outside tests (grep). view_for with a threshold returns the InkLimit overlay over all plates (switches do not apply to it).",
+   "repair_direction": "spec owner: name the PDF/X-4 edition consistently in STU-LAY-159/160",
+   "file_line": "press-write src/export.rs ExportOptions::pdfx_standard / with_pdfx_standard; src/export/pdfx.rs PdfXStandard::from_written_version; layout src/print.rs FlattenerPresetValues",
+   "evidence": "static reading; git grep neutral_density / MixedInk at 92ae2232"
+  },
+  {
+   "id": "F-R53-6",
+   "lane": "SMB-COL-SWATCH-GROUPS-1 (lead note d)",
+   "severity": "INFO",
+   "finding": "No branded book data is committed: only .rs files changed; test books and profiles are synthetic (Glimmerbrook Test Inks, Quuxberry, Wobblefern, Zorblue, FAKE / fake markers); CAPTURED_BOOK_COVERAGE holds only the family / book names, counts and colour spaces the spec states (STU-COL-103 :9924-9927), checked by the validator. The ICC named-colour parser is in prism (the STU-COL-126 owner) over the shared wide-path admission; the prism-to-folio join is a follow-up. Out-of-path edits are as accepted (folio vector.rs records and #[path] modules, prism lib.rs mod line, wide.rs Tag fields pub(crate)). Behaviour change disclosed by the lane: StudioSwatch.group_ref must now name a named group (was any key); no producer sets it. undo_swatch_group_command admits a caller-supplied state after checking only the group rules and duplicate ids, not validate_swatch, so a forged undo state with an invalid swatch is caught only by the next validate_vector_records. The command ids are pinned in folio but not in the controls Registry. No red evidence (red commits did not compile, squashed). MT-31248 stays partly met: its proof asks the adapter consumer to paint the populated swatches, which no test does.",
+   "repair_direction": "validate restored swatches in undo; Registry ids and RUN_COMMANDS rows when a host exposes the commands",
+   "file_line": "folio src/swatch_library.rs undo_swatch_group_command / finish; src/colour_book.rs CAPTURED_BOOK_COVERAGE; prism src/named_colour.rs",
+   "evidence": "git diff --stat 295c6029..174ebc56; grep of test strings; spec :9924-9927; MT-31248 proof.checks"
+  },
+  {
+   "id": "F-R53-7",
+   "lane": "SMB-R52-FOLLOWUPS-1 (lead note e)",
+   "severity": "INFO",
+   "finding": "The red proof for the three fixtures is adequate as a counterfactual: they pass at base because the branches were already correct, and the uncommitted mutation that strips the conditions makes all three fail (counterfactual log: 0 of 3 passed, exit 100); the 1-bit half of the first fixture was not mutated separately. The opacity test failed at base (red log). channel_opacity_clamped (beyond the brief, accepted) is also recorded for 100 < x < 100.5 and -0.5 < x < 0, where rounding alone already yields the written value. F-R52-3 is closed. The lane file still lists F-R52-2 (TIFF part) under closes; that part was moved to SMB-TIFF-CHANNELS-1 (lead decision T1).",
+   "repair_direction": "none required; optionally record clamped only when the rounded value lies outside 0..=100",
+   "file_line": "interop-psd src/export.rs display_opacity; Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r52-followups-1/counterfactual-smb-r52-followups-1-6e01b4fa.log",
+   "evidence": "logs read by the validator; static reading"
+  },
+  {
+   "id": "F-R53-8",
+   "lane": "all READY claims (lead note a; steward note f)",
+   "severity": "INFO",
+   "finding": "Per-sha buildability: all six lanes report PER_SHA_RESULT OK after their final rebase (ink 99836457..c420f273 shas=2; observe c420f273..295c6029 shas=2; swatch 295c6029..174ebc56 shas=2; r52-followups 174ebc56..e3afbb62 shas=2; tiff 3c0d8ec9..d7127bf1 shas=3; layout-sentinels d7127bf1..92ae2232 shas=6), read by the validator. The per-sha runs before 3c0d8ec9 resolved Cargo.lock without --locked against a locally regenerated lock (the committed lock lacked the press-write -> observe line until the steward sync), so commits 295c6029..e3afbb62 build only unlocked; the round builds --locked at 92ae2232. The steward's first run refused correctly (probe 84/102), the approved re-run declared the edge (validator re-check: allowed graph acyclic over 56 crates, every crate's hsk-studio path dependency inside its allowed list), and the canary step 0 found lock and registry in sync.",
+   "repair_direction": "none required",
+   "file_line": "Handshake_Artifacts/WP-KERNEL-STUDIO/<lane>/per-sha-*.log; workspace-steward.json notes.sync_20261101_observe; results/R53-canary/step0.*",
+   "evidence": "logs and step-0 files read by the validator"
+  },
+  {
+   "id": "F-R53-9",
+   "lane": "round (lead dispatch R53 cap rule; CX-VAL-005 / CX-VAL-010)",
+   "severity": "HIGH",
+   "kind": "infrastructure",
+   "finding": "The canary was stopped by the validator's C: cap guard at 355.295 GiB (> 355) after 21 of 156 units, every finished unit build 0 / run 0; the guard alerted at 330 GiB first (2026-11-01T15:59:31Z ALERT_330 tree=333.891 GiB (message the lead)). After the stop the C: Studio tree measured 358.672 GiB (studio-round 336.7, studio-team-dev 22.0), 1.3 GiB under the 360 GiB grant. Cause (measured, r53_unit_growth.ps1): steward sync 3c0d8ec9 gave press-write a new dependency (observe), which (by cargo's unit-metadata hashing, UNVERIFIED in this round) changes the artifact names of press-write and the crates above it; eight of the 21 finished units (harness viewer, desktop+viewer, media, media-native, audio-device, audio-batch, studio-aac, os-encode) each created 12.1-15.2 GiB of new files (about 530-590 each; the other harness units 0.001-0.6 GiB), while the R52 artifacts of the same feature sets stayed on disk. It is the only dependency-graph change since R52 (no feature set or toolchain changed); which dependency path makes those eight units relink is UNVERIFIED. The canary created 5708 files / 116.28 GiB in all (default unit 2.305 GiB); source-only changes overwrite artifacts in place (R50 canary 2.279 GiB, R50 union 2.513, R52 union 1.835 GiB created in all units). Not a product failure: no test failed and no claim is judged.",
+   "repair_direction": "lead / Operator: approved retirement of the pre-3c0d8ec9 identities in studio-round/target (or a fresh round target), then re-run R53 at 92ae2232 with the canary",
+   "file_line": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target; results/R53-canary/units.tsv; validator-R53/capstop.log, csize.jsonl, unit-growth-canary.json",
+   "evidence": "cap guard log, csize samples, per-unit creation-window growth"
+  }
+ ],
+ "mt_judgments": {
+  "rule": "Step 6 (builders/DISPATCH_TEMPLATES.md topic validator) with the MT-STATUS-SYNC evidence rule, as R51 / R52: an MT is written only when this round judges every acceptance row met (rows AC-nnn; a clause MT without rows: the clause text, closure_unit ASSET-AC-001) against the MT JSON as it is now (spec v02.229), read together with its proof check's expected consumer behaviour where that names more than the row (R53: MT-31248 painting, MT-31005 native Type composition and the non-breaking-space rules), on a lane whose R53 verdict is PASS_Vn; scope asset_local_engine_half. A catalogue row whose tooltip half is open is partly met and is not written (lead F-R51-11, R49 F-R49-9 rule). Partly met, not met and builder-claimed-only MTs are not written; acceptance text is never changed. An MT already PASS_Vn that this round re-judges met on a claiming lane gets one more verdicts[] entry (status label the lane's PASS_Vn). PASS MTs of CX-VAL-009 re-opened lanes that no READY claim names are carried (their lane re-judged on this round's rows), not re-written.",
+  "preferred_lane": {
+   "MT-038": "SMB-TIFF-CHANNELS-1",
+   "MT-30095": "SMB-TIFF-CHANNELS-1"
+  },
+  "claims": {
+   "SMB-PRESS-INK-MANAGER-1": {
+    "MT-30844": [
+     "met",
+     "AC-001 mixed-ink limits as typed errors: 27 spots ok / 28 mixed_ink_too_many_spot_inks, 31 inks ok / 32 mixed_ink_too_many_inks, group 1000 ok / 1001 mixed_ink_group_too_large before any swatch, hostile u32 repeats refused (mixed_ink_limits_27_spots_31_inks_1000_swatches_are_typed); AC-002 the separations preview readable as typed values: per-plate switches, ink-limit threshold, per-ink coverage, pixels over the threshold equal to what the view marks (separations_readouts_plate_switches_threshold_and_coverage_are_typed)"
+    ],
+    "MT-30845": [
+     "met",
+     "AC-001..AC-004: ink_angle 0..360 deg, ink_frequency 1..500 count, neutral_density 0.001..10.0 ratio precision 3, solidity 0.0..1.0 ratio; soft_min, soft_max, default and the undeclared precisions stay ParamValue::Unknown / ParamPrecision::Unknown, never mirrored; endpoints admitted, past them and non-finite refused with the row code, stored and cleared through attributed edits (ink_row_ink_angle, ink_row_ink_frequency, ink_row_neutral_density incl. 1.2345 refused ink_parameter_precision, ink_row_solidity)"
+    ],
+    "MT-30849": [
+     "met",
+     "AC-001 line_art_and_text_resolution 1..9600 dpi, AC-002 gradient_and_mesh_resolution 0..1200 dpi: hard bounds stored, soft bounds / default / precision None (unknown), unit dpi (flattener_row_line_art_and_text_resolution, flattener_row_gradient_and_mesh_resolution); the raster-vector balance stays all-unknown as the clause's SPEC GAP"
+    ],
+    "MT-30848": [
+     "not met",
+     "AC-001 the flattener PREVIEW highlighting rasterised and outlined regions with typed findings is not built (out of the brief); only the preset record it would read exists"
+    ],
+    "MT-35695": [
+     "partly met",
+     "AC-001 PDF/X intents: six-member enumeration, X-4 identification only, others refused typed; AC-002 ink manager engine rows (types, conversion, alias, Lab, numeric bounds, mixed-ink budgets, process alias error) met; AC-003 overprint and AC-004 trap presets not claimed here; AC-005 separations preview typed readouts met, panel is host; AC-006 flattener surfaces: preset and resolution only, no preview or ColorEngine-driven flattening"
+    ]
+   },
+   "SMB-PRESS-OBSERVE-1": {},
+   "SMB-COL-SWATCH-GROUPS-1": {
+    "MT-31239": [
+     "met",
+     "ASSET-AC-001 (STU-COL-177): named groups, exactly one root per palette listed first and not deletable (root_not_deletable), a swatch in at most one group (single group_ref naming a named group; dangling refused, root named refused), create / rename / delete with a replace-on-delete target / reorder / move-between-groups as attributed atomic commands with undo restoring membership and order (group_records_round_trip_and_enforce_one_root_and_resolvable_membership, group_operations_mutate_membership_and_order_and_undo_restores_them, group_commands_refuse_without_mutation); the proof's negative paths (root deletion, duplicate root, invalid replacement, multi-group membership, no orphaned swatches after undo) are covered"
+    ],
+    "MT-31240": [
+     "partly met",
+     "document -> application -> system resolution and unresolvable = validation error met (references_resolve_document_then_application_then_system, unresolvable_references_are_validation_errors_never_a_fallback_colour); system palette read-only for group commands only; no OS palette adapter (the system palette is caller-supplied), so 'reflects the OS palette' is host"
+    ],
+    "MT-31241": [
+     "partly met",
+     "group operations only (typed, attributed, undoable); duplicate, edit, swatch delete-with-replace, merge, add unnamed / used colours, select / delete unused, sort and colorize are not built"
+    ],
+    "MT-31248": [
+     "partly met",
+     "every STU-COL-185 resource field, fan-deck pages and selector offset, display name prefix + name + postfix with empty prefix / postfix legal, hostile shapes refused atomically, last-good resource kept (book_resource_carries_every_field_and_pages_like_a_fan_deck, book_resource_refuses_hostile_shapes_atomically); the MT's proof asks the consumer to paint the populated spot / process swatches, which no test does (the lane says the same)"
+    ],
+    "MT-31249": [
+     "partly met",
+     "AC-001 met: per-book license_state matched to origin, operator book from the same format, absent book keeps stored swatches and loses only lookup (licensing_is_per_book_and_an_operator_book_loads_from_the_same_format, an_absent_book_loses_only_lookup_and_never_changes_stored_colours); AC-002 'MUST NOT change any rendered colour' is proven on stored definitions only, not on rendered bytes"
+    ],
+    "MT-31250": [
+     "met",
+     "ASSET-AC-001 (STU-COL-187): coverage recorded as planning data (12 captured books with counts and spaces, PANTONE absent, from spec :9924-9927), never read to enable, bundle or look up a book; the bundling decision stays the per-book license_state; a later supplied book activates lookup through the same resource format (captured_coverage_is_planning_data_and_never_enables_a_book, an_absent_book_loses_only_lookup_and_never_changes_stored_colours)"
+    ],
+    "MT-31251": [
+     "partly met",
+     "ncl2 parsed by the STU-COL-126 owner (prism) over the shared admission, malformed / unsupported refused typed, book bound to a profile reference with measured Lab (named_colour_profile_decodes_names_measured_lab_and_device_values, named_colour_profile_entries_build_a_bound_book); the prism-to-folio join and 'measured values drive proofing directly' are not built"
+    ]
+   },
+   "SMB-R52-FOLLOWUPS-1": {
+    "MT-038": [
+     "met",
+     "re-judged (R52 PASS_V1): AC-001..AC-003 unchanged and still met; the new opacity losses make PSD interchange report a fractional or out-of-range channel opacity instead of rounding it silently; written under SMB-TIFF-CHANNELS-1 (preferred lane)"
+    ],
+    "MT-30095": [
+     "partly met",
+     "see SMB-TIFF-CHANNELS-1"
+    ]
+   },
+   "SMB-TIFF-CHANNELS-1": {
+    "MT-30095": [
+     "partly met",
+     "re-judged (R52 partly met). Saving a selection to a channel and reloading it met (pigment, R52); 'preserved in round-trippable interchange formats (14.13)': PSD (R52) and now TIFF (row 3: an alpha channel and a channel saved from a selection export as extra samples and re-import as channel records with identical tiles at 8, 16 and 32f, tiff_alpha_channel_and_saved_selection_round_trip_as_channel_records); OpenEXR (row 9, multi-channel preserved) still has no channel-record mapping (spec-owner item SD-41), so the plural is not met"
+    ],
+    "MT-038": [
+     "met",
+     "re-judged (R52 PASS_V1). AC-001 selection persists to a channel and reloads identically (pigment save_then_load_is_identical_at_16_and_32_bits_and_quantised_at_8); AC-002 one Folio channel record shared with Channels; AC-003 'Round-trips through interchange': PSD (R52) and now TIFF, the channel record re-imports with identical tiles (tiff_alpha_channel_and_saved_selection_round_trip_as_channel_records)"
+    ]
+   },
+   "SMB-LAYOUT-SENTINELS-1": {
+    "MT-31005": [
+     "partly met",
+     "re-judged (R52 partly met). AC-001..AC-016 met (R52, unchanged; mt_31005_marker_kinds_follow_the_spec_assignment re-checks the marker code points). ASSET-AC-001 'markers ... resolved at composition' now met at layout's shaping port: typed marker records by story byte, resolution where the line lands, explicit unresolved states, story bytes unchanged, breaks with flow targets, flush space absorbing JustifiedAll last-line slack (stream_sentinels tests). Not met: the MT's proof composes through native Type (layout's tests use a closure shaper; no host test, F-R53-3), and the clause's fixed / flexible non-breaking-space rules are outside this claim"
+    ],
+    "MT-31007": [
+     "partly met",
+     "AC-001 / AC-002 met for composition (current / next / previous page number, section marker, footnote / endnote / cross-reference by record, index marker typed unresolved; anchored-object marker U+FFFC placement out of scope); AC-003 headless met (compose_with_sentinels), operator surface with tooltip open (F-R51-11 reading)"
+    ],
+    "MT-31008": [
+     "partly met",
+     "AC-001 / AC-002: column, frame, page, odd-page and even-page breaks direct the flow, overset without a target, partition after every terminator (mt_31008_* tests); forced line break and paragraph return unchanged; AC-003 tooltip half open"
+    ],
+    "MT-31009": [
+     "partly met",
+     "flush space only: absorbs the slack of a fully justified last line, no width elsewhere, never shaped (mt_31009_* tests); the other members are type's real characters; AC-003 tooltip half open"
+    ]
+   },
+   "SMB-ROUND-ENTRYPOINT": {}
+  },
+  "extra": {
+   "basis": "the lead's re-judging list (MT-31005, MT-31007, MT-31008, MT-31009, MT-30095, MT-038) is inside 'claims' above",
+   "carried": "PASS MTs of the 383 CX-VAL-009 re-opened lanes keep their status: their lanes are re-judged on this round's rows (full union); no verdicts[] entry is added for them",
+   "unchanged_open": "MT-30847 AC-004 (SD-31) and MT-34183 tooltip half (F-R51-11) unclaimed and unchanged"
+  },
+  "status": "PROVISIONAL static judgments: no lane holds an R53 verdict, so nothing was written (step 6 needs a PASS_Vn lane); MTs met if the next attempt passes the claiming lane: MT-30844, MT-30845, MT-30849 (INK), MT-31239, MT-31250 (SWATCH), MT-038 re-judged (TIFF)"
+ },
+ "mts_passed": [],
+ "verdict_counts": {},
+ "counters": [
+  {
+   "lane": "round",
+   "counter": "CX-EXEC-015(4) same infrastructure failure_class in two rounds",
+   "outcome": "first occurrence of c-cap-stop-new-artifact-identities-after-manifest-edge; a second canary on the unchanged target would hit the same cap: the fix is an approved retirement of the stale identities (or a fresh target), not another run"
+  },
+  {
+   "lane": "all claims",
+   "counter": "fix budget / failed verdicts",
+   "outcome": "unchanged (no verdict)"
+  }
+ ],
+ "unit_growth": {
+  "method": "validator-R53/r53_unit_growth.ps1 (R46/R49/R50/R52 method): bytes of studio-round target files CREATED inside each unit's result-file window, read-only; measured after the stop",
+  "canary": {
+   "created_since_launch_files": 5708,
+   "created_since_launch_gib": 116.28,
+   "units": [
+    {
+     "unit": "default",
+     "new_files": 456,
+     "new_gib": 2.305,
+     "start": "2026-11-01T14:49:22Z",
+     "end": "2026-11-01T15:03:58Z"
+    },
+    {
+     "unit": "features:hsk-studio-composite+motion",
+     "new_files": 10,
+     "new_gib": 0.183,
+     "start": "2026-11-01T15:03:59Z",
+     "end": "2026-11-01T15:06:22Z"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-psd",
+     "new_files": 18,
+     "new_gib": 0.244,
+     "start": "2026-11-01T15:06:22Z",
+     "end": "2026-11-01T15:08:51Z"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-psd+import-raw",
+     "new_files": 9,
+     "new_gib": 0.008,
+     "start": "2026-11-01T15:08:51Z",
+     "end": "2026-11-01T15:09:52Z"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-tiff",
+     "new_files": 3,
+     "new_gib": 0.001,
+     "start": "2026-11-01T15:09:52Z",
+     "end": "2026-11-01T15:10:42Z"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-raw+import-tiff",
+     "new_files": 3,
+     "new_gib": 0.001,
+     "start": "2026-11-01T15:10:42Z",
+     "end": "2026-11-01T15:11:44Z"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-pdf",
+     "new_files": 562,
+     "new_gib": 0.597,
+     "start": "2026-11-01T15:11:44Z",
+     "end": "2026-11-01T15:12:55Z"
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-raster",
+     "new_files": 7,
+     "new_gib": 0.004,
+     "start": "2026-11-01T15:12:55Z",
+     "end": "2026-11-01T15:13:42Z"
+    },
+    {
+     "unit": "features:hsk-studio-harness+viewer",
+     "new_files": 590,
+     "new_gib": 12.221,
+     "start": "2026-11-01T15:13:42Z",
+     "end": "2026-11-01T15:20:24Z"
+    },
+    {
+     "unit": "features:hsk-studio-harness+desktop+viewer",
+     "new_files": 548,
+     "new_gib": 12.452,
+     "start": "2026-11-01T15:20:24Z",
+     "end": "2026-11-01T15:26:38Z"
+    },
+    {
+     "unit": "features:hsk-studio-harness+media",
+     "new_files": 535,
+     "new_gib": 13.654,
+     "start": "2026-11-01T15:26:39Z",
+     "end": "2026-11-01T15:32:38Z"
+    },
+    {
+     "unit": "features:hsk-studio-harness+media-native",
+     "new_files": 533,
+     "new_gib": 13.899,
+     "start": "2026-11-01T15:32:44Z",
+     "end": "2026-11-01T15:39:10Z"
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-device",
+     "new_files": 533,
+     "new_gib": 12.133,
+     "start": "2026-11-01T15:39:10Z",
+     "end": "2026-11-01T15:46:28Z"
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-batch",
+     "new_files": 535,
+     "new_gib": 15.186,
+     "start": "2026-11-01T15:46:28Z",
+     "end": "2026-11-01T15:54:27Z"
+    },
+    {
+     "unit": "features:hsk-studio-harness+layout-ui",
+     "new_files": 5,
+     "new_gib": 0.011,
+     "start": "2026-11-01T15:54:27Z",
+     "end": "2026-11-01T15:55:31Z"
+    },
+    {
+     "unit": "features:hsk-studio-harness+studio-aac",
+     "new_files": 534,
+     "new_gib": 13.68,
+     "start": "2026-11-01T15:55:31Z",
+     "end": "2026-11-01T16:02:48Z"
+    },
+    {
+     "unit": "features:hsk-studio-harness+os-encode",
+     "new_files": 533,
+     "new_gib": 13.902,
+     "start": "2026-11-01T16:02:51Z",
+     "end": "2026-11-01T16:10:44Z"
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-plugin",
+     "new_files": 4,
+     "new_gib": 0.006,
+     "start": "2026-11-01T16:10:54Z",
+     "end": "2026-11-01T16:11:04Z"
+    }
+   ]
+  },
+  "default_unit": "456 files / 2.305 GiB (R50 canary default 131 / 0.394; R52 scoped union default 97 / 0.360)",
+  "baseline": "R50 canary 500 files / 2.279 GiB, R50 union 470 / 2.513, R52 union 463 / 1.835 (source-only changes)",
+  "not_done": "135 units not run, among them harness audio-plugin, audio-batch+audio-device, import-affinity and both harness-view units (the remaining harness-view closures, about 12-15 GiB each by the measured pattern), render-gpu, reel, reel-native, kernel-bindings, motion-js, the ignored units and every doctest"
+ },
+ "infrastructure": [
+  "No process stopped or touched by this validator except its own: the canary run-round (msys 250341 / win 93196, started by this validator) and its running unit tree were ended by the validator's cap guard per the lead's rule (SIGTERM after re-checking the winpid, then taskkill /T /F of the running cargo tree win 65072); the pollers r53_gpu_poll.sh, r53_csize_poll.sh, r53_capguard.sh end on R53C_EXIT; no outer timeout wrapper; no caller env (caller-env-names.txt: no CARGO_*, RUST*, HSK_* or STUDIO_* variable; names only, no environment dump)",
+  "Canary 2026-11-01T14:49:07Z..2026-11-01T16:13:47Z, exit 130 (interrupted), complete false; identity msys 250341 / win 93196, start 2026-11-01T14:49:05.245Z; C: lock free and no other cargo / rustc / nextest process at launch; the lock's held dir is gone after the stop",
+  "The cap guard's stop path took about 2 min (Win32_Process query before taskkill), so the tree reached 358.672 GiB, 1.3 GiB under the 360 GiB grant; the guard's 30 s sampling from 345 GiB and the stop threshold 355 left too little margin for a 12-15 GiB unit: a lower stop threshold or a faster child lookup is a validator-tool lesson",
+  "Read-only extras: per-sha lane logs, red-proof and counterfactual logs and git objects (lead notes a, e); TIFF ExtraSamples scan of the oracle corpus and the export's crates tree (r53_tiff_extra_scan.py, lead note g); read-only DAG check of the export's Cargo.toml metadata (steward note f)",
+  "Review by the validator alone (no sub-agents): static reading of the seven claim diffs through git objects (wt-studio-assets, read only) and the export, spec v02.229 and the MT JSON of every claimed and re-judged MT; no builds besides the canary, no edits to product code, no git state change in the product repository (fetch only); nothing deleted"
+ ],
+ "c_tree": {
+  "rule": "lead: record the C: tree size at start, during and at the end; cap 360 GiB (CX-984-014); alert at 330, stop cleanly above 355",
+  "start": {
+   "at": "2026-11-01T14:47:45Z",
+   "gib": 243.251,
+   "studio_round_gib": 221.3,
+   "studio_team_dev_gib": 22.0
+  },
+  "during": [
+   {
+    "at": "2026-11-01T14:51:23Z",
+    "gib": 243.98,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T14:53:39Z",
+    "gib": 244.327,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T14:55:48Z",
+    "gib": 244.796,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T14:57:59Z",
+    "gib": 245.013,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:00:08Z",
+    "gib": 245.326,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:02:16Z",
+    "gib": 245.319,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:04:25Z",
+    "gib": 245.191,
+    "label": "during_r53c"
+   },
+   {
+    "at": "2026-11-01T15:04:25Z",
+    "gib": 245.191,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:06:32Z",
+    "gib": 245.329,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:08:41Z",
+    "gib": 245.332,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:10:48Z",
+    "gib": 245.369,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:12:56Z",
+    "gib": 245.807,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:15:04Z",
+    "gib": 247.84,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:17:27Z",
+    "gib": 252.722,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:19:39Z",
+    "gib": 257.855,
+    "label": "during_r53c"
+   },
+   {
+    "at": "2026-11-01T15:19:39Z",
+    "gib": 257.855,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:22:00Z",
+    "gib": 262.068,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:24:08Z",
+    "gib": 266.596,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:26:18Z",
+    "gib": 270.522,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:28:30Z",
+    "gib": 275.09,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:30:58Z",
+    "gib": 280.951,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:33:17Z",
+    "gib": 284.348,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:34:54Z",
+    "gib": 289.941,
+    "label": "during_r53c"
+   },
+   {
+    "at": "2026-11-01T15:35:27Z",
+    "gib": 290.978,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:37:38Z",
+    "gib": 294.923,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:39:49Z",
+    "gib": 298.202,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:42:03Z",
+    "gib": 302.957,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:43:10Z",
+    "gib": 305.151,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:44:21Z",
+    "gib": 307.596,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:45:34Z",
+    "gib": 309.629,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:46:39Z",
+    "gib": 310.201,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:47:47Z",
+    "gib": 315.075,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:49:02Z",
+    "gib": 316.386,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:50:03Z",
+    "gib": 318.22,
+    "label": "during_r53c"
+   },
+   {
+    "at": "2026-11-01T15:50:08Z",
+    "gib": 318.22,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:51:17Z",
+    "gib": 319.876,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:52:29Z",
+    "gib": 322.143,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:53:36Z",
+    "gib": 324.608,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:54:45Z",
+    "gib": 325.299,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:55:54Z",
+    "gib": 325.289,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:57:02Z",
+    "gib": 327.656,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:58:21Z",
+    "gib": 329.498,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T15:59:31Z",
+    "gib": 333.891,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T16:00:41Z",
+    "gib": 336.706,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T16:01:50Z",
+    "gib": 338.415,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T16:02:56Z",
+    "gib": 338.975,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T16:04:03Z",
+    "gib": 341.756,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T16:05:31Z",
+    "gib": 344.482,
+    "label": "during_r53c"
+   },
+   {
+    "at": "2026-11-01T16:05:31Z",
+    "gib": 344.482,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T16:06:50Z",
+    "gib": 347.461,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T16:08:02Z",
+    "gib": 348.9,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T16:08:46Z",
+    "gib": 351.087,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T16:09:33Z",
+    "gib": 352.187,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T16:10:11Z",
+    "gib": 352.88,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T16:10:47Z",
+    "gib": 352.88,
+    "label": "cap_guard"
+   },
+   {
+    "at": "2026-11-01T16:11:32Z",
+    "gib": 355.295,
+    "label": "cap_guard"
+   }
+  ],
+  "peak": {
+   "at": "2026-11-01T16:14:12Z",
+   "gib": 358.672
+  },
+  "end": {
+   "at": "2026-11-01T16:14:12Z",
+   "gib": 358.672,
+   "studio_round_gib": 336.7,
+   "studio_team_dev_gib": 22.0,
+   "c_free_gib": 294.0
+  },
+  "growth_gib": 115.421,
+  "guard": "2026-11-01T15:59:31Z ALERT_330 tree=333.891 GiB (message the lead); 2026-11-01T16:13:47Z STOP_SENT SIGTERM msys 250341 win 93196; running unit tree win 65072 ended (taskkill /T /F) at tree=355.295 GiB (> 355); 53 guard samples",
+  "lead_alert": "ALERT: the C: Studio tree crossed 330 GiB at 2026-11-01T15:59:31Z (333.891 GiB) during the canary; the guard stopped the canary at 355.295 GiB (16:11:32Z sample, stop sent 16:13:47Z); 358.672 GiB after the stop",
+  "measurements": "validator-R53/csize.jsonl (robocopy /L listing as studio-env.sh studio_ssd_kib)",
+  "cap_exceeded": false
+ },
+ "observations_for_next_round": [
+  "C: Studio tree 358.672 GiB after the stop (studio-round 336.7, studio-team-dev 22.0): no further C: build (round, steward or lane) fits under the 360 GiB grant until stale outputs are retired",
+  "A manifest dependency change (any crate's [dependencies] edge, as 3c0d8ec9) can give its dependents new artifact names (cargo metadata hashing, UNVERIFIED here): eight harness feature units each added 12-15 GiB of new files in this canary; plan an approved retirement of the old identities with every steward sync that changes an edge, before the canary",
+  "Re-run R53 at 92ae2232 after the retirement: the 21 finished canary units' new identities are the ones the round needs (keep them); the static claim review, host-integration rows, findings F-R53-1..8 and provisional MT judgments in this record apply unchanged at the same candidate",
+  "Validator tool lesson: r53_capguard.sh's stop path spent about 2 min in a Win32_Process query; with 12-15 GiB units the stop threshold needs margin (e.g. stop above 340) or a faster child lookup",
+  "Still open from earlier rounds: F-R52-1 (closed by SMB-LAYOUT-SENTINELS-1 if R53 passes), F-R52-2 TIFF part (SMB-TIFF-CHANNELS-1), F-R52-3 (SMB-R52-FOLLOWUPS-1), F-R51-7 (SMB-PRESS-OBSERVE-1); MEDIUM F-R46-8; spec-owner items SD-26..SD-42"
+ ],
+ "lanes": [],
+ "by": "wp_validator STUDIO-R53",
+ "recorded_at": "2026-11-01T16:18:01Z"
+}
