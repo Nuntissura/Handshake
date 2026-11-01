@@ -1,19 +1,82 @@
 {
   "crate": "hsk-studio-press-write (observe dependency and emission)",
   "lane": "SMB-PRESS-OBSERVE-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-press-observe-1",
   "base": "c420f273",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "pushed": true,
+      "sha": "f78169bb54954f35d0e79d7e9ec4f0f282ea894e",
+      "subject": "press-write (SMB-PRESS-OBSERVE-1, red): observe edge, emission API stubs, 8 failing terminal-outcome tests",
+      "paths": [
+        "crates/hsk-studio-press-write/Cargo.toml (the one observe line)",
+        "crates/hsk-studio-press-write/src/coverage.rs (ObserveRoute, Emission, evaluate_ink_coverage_observed stub)",
+        "crates/hsk-studio-press-write/src/inks.rs (apply_edit_observed stub)",
+        "crates/hsk-studio-press-write/src/lib.rs (re-exports)",
+        "crates/hsk-studio-press-write/tests/observe_terminal.rs (new, 8 tests)"
+      ],
+      "note": "red commit that compiles: the stubs emit nothing. Proof of red by running it on this tree before the green commit: 8 tests run, 0 passed, 8 failed (log red-smb-press-observe-1-c420f273-stub.log, run on the uncommitted identical tree on base c420f273). Its per-sha unit (cargo check --tests of press-write and its direct dependents) is in the per-sha range log"
+    },
+    {
+      "pushed": true,
+      "sha": "295c602912c296ea2216d7e31bf71da34cb9bf67",
+      "subject": "press-write (SMB-PRESS-OBSERVE-1): terminal outcomes of ink coverage and ink edits through observe (F-R51-7)",
+      "paths": [
+        "crates/hsk-studio-press-write/src/coverage.rs",
+        "crates/hsk-studio-press-write/src/inks.rs"
+      ],
+      "note": "green: replaces the stubs with the emission; the 8 red tests pass"
+    }
+  ],
+  "capabilities_done": [
+    "F-R51-7: press-write has the allowed observe path edge (one line in crates/hsk-studio-press-write/Cargo.toml, the form WORKSPACE_RULES path-deps gives); root Cargo.toml and Cargo.lock untouched in the commits",
+    "evaluate_ink_coverage_observed(req, ObserveRoute) -> (Result<InkCoverageReport, CoverageError>, Emission): exactly one observe terminal (emit_detail, wire version 2) per evaluation; the result is the plain evaluate_ink_coverage result whatever the delivery did",
+    "InkManager::apply_edit_observed(actor, edit, ObserveRoute) -> (Result<InkEditOutcome, InkError>, Emission): exactly one terminal per ink edit; the caller's ActorContext is still the attribution of the receipt (HOST rule 4)",
+    "Emission { code, receipt }: the typed terminal code token plus the observe receipt or the observe refusal (stale revision, closed emitter, sink saturated / rejected / unavailable / indeterminate); an emission failure never changes the operation result",
+    "codes, counters and opaque ids only: no rule id, page id, link, ink name or value reaches the sink (test no_rule_page_ink_or_link_text_reaches_the_diagnostic_port)"
+  ],
+  "tests": {
+    "red_proof": {
+      "argv": "cargo nextest run -p hsk-studio-press-write --test observe_terminal --no-fail-fast (STUDIO_OWNER=smb-press-observe-1 STUDIO_BUILD_DISK=ssd, uncommitted tree = commit f78169bb contents)",
+      "result": "8 tests run: 0 passed, 8 failed (exit 100)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-press-observe-1/red-smb-press-observe-1-c420f273-stub.log",
+      "note": "the log name carries the base sha c420f273 (HEAD when the run started; the red commit did not exist yet); the first log line states the tree"
+    },
+    "bundled_run": {
+      "argv": "bash tools/lane-check.sh --owner smb-press-observe-1 -- cargo nextest run -p hsk-studio-press-write -p hsk-studio-press --no-fail-fast",
+      "sha": "295c602912c296ea2216d7e31bf71da34cb9bf67",
+      "exit": 0,
+      "passed": 234,
+      "failed": 0,
+      "run": 1,
+      "new_tests": 8,
+      "step0": "clean (V4-03 machine paths, V4-05 frozen duplicates)",
+      "clippy": "press-write, press and dependents [harness, harness-core, harness-view, interop-fig, interop-fig-native, interop-layout] --tests: no warning in any press-write or press file (warnings only in hsk-studio-observe, hsk-studio-type, hsk-studio-render-cpu, pre-existing, not touched)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-press-observe-1/lane-check-smb-press-observe-1-295c6029-run1.log",
+      "started_at": "2026-11-01T13:15:07Z",
+      "finished_at": "2026-11-01T13:16:55Z",
+      "applies_to_pushed_sha": "yes: pushed sha 295c6029 is the tested sha (origin stayed c420f273, rebase no-op). The log header says HEAD dirty because of the local Cargo.lock modification below; no tracked source was dirty",
+      "disk": "ssd (C:, lane target under the granted target)"
+    },
+    "doctests": "none added",
+    "feature_gates": "none: the new test target is not feature-gated (4e)",
+    "per_sha": {
+      "argv": "bash tools/lane-check.sh --owner smb-press-observe-1 --per-sha origin/codex/handshake-studio-assets",
+      "range": "c420f273..295c6029",
+      "result": "PER_SHA_RESULT OK shas=2",
+      "exit": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-press-observe-1/per-sha-smb-press-observe-1-295c6029.log"
+    },
+    "diff_stat": "origin/codex/handshake-studio-assets (c420f273)..295c6029 before push: only Cargo.toml (+1), coverage.rs (+148), inks.rs (+60/-1), lib.rs (+1), tests/observe_terminal.rs (+403) of crates/hsk-studio-press-write"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on C:, push when green; steward sync follows (Cargo.lock)",
-  "updated_at": "2026-11-01T13:05:59Z",
+  "next": "STEWARD SYNC MUST FOLLOW: derive Cargo.lock for the new hsk-studio-press-write -> hsk-studio-observe edge (declare it with steward-sync.sh --add-edge hsk-studio-press-write=hsk-studio-observe if the root workspace.metadata.studio.dependencies needs the row); the next round runs the canary. Validator: judge 295c6029 (commits f78169bb, 295c6029) against F-R51-7 and the host_integration block; never claim PASS here",
+  "updated_at": "2026-11-01T13:18:23Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -37,6 +100,35 @@
     "closes": [
       "F-R51-7 (LOW)"
     ],
-    "crate_cargo_toml_change": "press-write gains the observe path dependency (allowed edge, WORKSPACE_RULES path-deps)"
-  }
+    "crate_cargo_toml_change": "press-write gains the observe path dependency (allowed edge, WORKSPACE_RULES path-deps)",
+    "cargo_lock": "cargo (no --locked) updated the lane worktree's root Cargo.lock for the new edge; that modification is NOT staged or committed and stays local. Neither lane-check step 0, the bundled run nor --per-sha refused on it. The steward sync derives the committed Cargo.lock",
+    "observe_emission": {
+      "wire": "Observe::emit_detail (HSKO version 2): closed Outcome, Disposition, DiagnosticCode and five capped u32 counters; no address; no private_project_text. One Observe per operation carries one terminal (a second use of the same emitter reports Closed on the emission, the result stays the plain one)",
+      "coverage_terminal_state": "the worst of the three limits' check states (over_limit > indeterminate > within_warning_margin > within_limit > not_checked), so a single or black limit over its limit is not hidden by a total limit within its limit; with only the total limit declared it equals InkCoverageReport::check_state",
+      "coverage_codes": {
+        "check_state.within_limit": "success, no_change, no diagnostic code, counters [limits evaluated, 0, limits checked, 0, 0]",
+        "check_state.within_warning_margin": "same wire value as within_limit; the typed Emission::code differs",
+        "check_state.over_limit": "failure validation, rejected, ValidationRejected, [limits evaluated, 0, 0, 0, 0]",
+        "check_state.not_checked": "failure unavailable, rejected, MissingRead, [limits evaluated, 0, 0, 0, 0] (undeclared or disabled is never a success)",
+        "check_state.indeterminate": "failure unsupported, rejected, MissingRead, [limits evaluated, 0, 0, 0, 0]",
+        "refusals (CoverageError::code, zero counters)": "ink_limit_undeclared_is_not_a_site / ink_limit_not_finite / ink_limit_out_of_hard_bounds: validation + ValidationRejected; invalid_rule_id / invalid_page_reference / invalid_object_reference / no_coverage_pages / ink_limit_scope_mismatch / invalid_sample_resolution / sample_resolution_mismatch: validation + InvalidInput; too_many_coverage_pages / too_many_indeterminate_causes / too_many_coverage_samples / too_many_object_references / coverage_budget_exceeded: validation + BudgetExceeded; ink_limit_scope_not_evaluated: unsupported + InvalidInput"
+      },
+      "ink_edit_codes": {
+        "ink_edit.applied": "success, changed, no diagnostic code, [0, 1, 0, 1, 1]",
+        "ink_edit.no_change": "success, no_change, [0, 1, 0, 1, 0] (the edited manager equals the input)",
+        "refusals (InkError::code, [0, 1, 0, 0, 0])": "failure validation, rejected: invalid_ink_name -> InvalidInput; unknown_ink -> InvalidTarget; duplicate_ink -> DuplicateAddress; too_many_inks / mixed_ink_too_many_spot_inks / mixed_ink_too_many_inks / mixed_ink_group_too_large -> BudgetExceeded; every other InkError code -> ValidationRejected"
+      },
+      "studio_readings_unverified": "the mapping of coverage states and ink refusals onto observe's closed Outcome / FailureCode / DiagnosticCode is a Studio reading: observe has no over_limit, not_checked or indeterminate vocabulary, and DiagnosticCode is a document-edit vocabulary. within_limit and within_warning_margin are indistinguishable on the wire (typed code only); over_limit and ink_limit_out_of_hard_bounds share ValidationRejected and differ by counters. A dedicated observe vocabulary for check states is an observe-owner decision, not made here",
+      "not_emitted": "export (ExportError, PdfX4 checks) and separations (SepError) outcomes are not part of this lane's brief and are unchanged; they keep returning typed codes for the press face or the host"
+    },
+    "api_shape": "ObserveRoute { correlation_id, revision, cancel, observe: &mut Observe, sink: &mut dyn SinkPort } is the caller-owned route (observe and sink stay the caller's; HOST rule 5); the plain evaluate_ink_coverage and apply_edit are unchanged, so existing callers and the press face are unaffected. press src/lib.rs not touched (the new items are exported from hsk-studio-press-write only)",
+    "red_first_note": "the red commit f78169bb compiles (stubs) and was proven red by running its tree (8 failed); it is pushed as its own commit with the green commit, not squashed",
+    "parity": "vendor parity UNVERIFIED (D5); no vendor claim is made by this lane",
+    "follow_ups": [
+      "steward sync: Cargo.lock for the new edge",
+      "press face (hsk-studio-press) re-export of Emission, ObserveRoute and the two *_observed entry points when the host calls them through the face",
+      "export and separations terminal outcomes through observe (not in this brief)"
+    ]
+  },
+  "claimed_mts": []
 }
