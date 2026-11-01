@@ -16,15 +16,15 @@
     "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
   },
   "lifecycle": {
-    "status": "PASS_V1",
+    "status": "PENDING",
     "depends_on": [],
     "blocks": [],
-    "active": true,
-    "validator_verdict": "PASS_V1",
-    "phase": "validation",
-    "updated_at_utc": "2026-11-01T00:07:21Z",
-    "contract_preparation_only": false,
-    "blocked_on": null
+    "active": false,
+    "validator_verdict": "PENDING",
+    "phase": "blocked",
+    "updated_at_utc": "2026-11-01T08:21:22Z",
+    "contract_preparation_only": true,
+    "blocked_on": "OPERATOR_SURFACE_TOOLTIP_HALF (D7 host GUI)"
   },
   "clause": "Foam (2)",
   "spec_anchor": [
@@ -2027,7 +2027,12 @@
       "later_lane_reaffirmation": null,
       "written_by": "MT-STATUS-SYNC",
       "written_at": "2026-11-01T00:07:21Z",
-      "note": "mechanical status sync from the validated lane verdict; engine/asset half only, later kernel/host acceptance stays PENDING"
+      "note": "mechanical status sync from the validated lane verdict; engine/asset half only, later kernel/host acceptance stays PENDING",
+      "superseded": {
+        "by": "lead decision F-R51-11",
+        "at": "2026-11-01T08:21:22Z",
+        "effect": "status reverted to PENDING; engine-half evidence retained"
+      }
     }
   ],
   "blockers": [],
@@ -2615,13 +2620,14 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     },
     "asset_validation": {
-      "status": "PASS_V1",
+      "status": "PARTLY_MET_ENGINE_HALF",
       "scope": "asset_local_engine_half",
       "verdict_ref": "MT-34183-STUDIO-R50-PASS-V1",
-      "round": "STUDIO-R50"
+      "round": "STUDIO-R50",
+      "note": "Lead decision F-R51-11 (STUDIO-R51): reverted to PENDING. The R50 MT-STATUS-SYNC write was made although AC-003's operator-surface tooltip half is unproven; R49 (F-R49-9) and R51 treat catalogue rows with an open tooltip half as partly met, not written. The engine half stays proven by the R50 verdict, kept below as history."
     }
   },
-  "updated_at_utc": "2026-11-01T00:07:21Z",
+  "updated_at_utc": "2026-11-01T08:21:22Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
