@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-01T02:52:23Z",
+ "updated_at": "2026-11-01T02:58:58Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -15574,6 +15574,53 @@
     "resumed_at": "2026-11-01T02:52:23Z",
     "resumed_by": "push agent C: (last, after the four engine lanes are on origin; bundled re-run)"
    }
+  },
+  {
+   "lane_id": "SMB-ID-TOC-INDEX-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-layout (tables of contents, index, trap presets), hsk-studio-folio (additive record fields only)",
+   "lane_file": "builders/lanes/hsk-studio-id-toc-index-1.json",
+   "brief": "builders/briefs/lane-smb-id-toc-index-1.md",
+   "worktree": "wt-studio-lanes/smb-id-toc-index-1",
+   "base": "31454a07",
+   "disk_planned": "C",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-01T02:58:58Z",
+   "closes": [
+    "MT-173",
+    "MT-174",
+    "MT-30776",
+    "MT-30777",
+    "MT-30778",
+    "MT-30779",
+    "MT-30846",
+    "MT-30847"
+   ]
+  },
+  {
+   "lane_id": "SMB-PRESS-INK-COVERAGE-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-press-write (total ink coverage contract on the separations path)",
+   "lane_file": "builders/lanes/hsk-studio-press-ink-coverage-1.json",
+   "brief": "builders/briefs/lane-smb-press-ink-coverage-1.md",
+   "worktree": "wt-studio-lanes/smb-press-ink-coverage-1",
+   "base": "31454a07",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-01T02:58:58Z",
+   "closes": [
+    "MT-35425",
+    "MT-35426",
+    "MT-35427",
+    "MT-35428",
+    "MT-35429",
+    "MT-35430",
+    "MT-35431",
+    "MT-35432",
+    "MT-35695 (ink-coverage rows only)"
+   ]
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

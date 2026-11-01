@@ -1,0 +1,50 @@
+{
+  "crate": "hsk-studio-press-write (total ink coverage contract on the separations path)",
+  "lane": "SMB-PRESS-INK-COVERAGE-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-press-ink-coverage-1",
+  "base": "31454a07",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: read the brief, red-first per item, one bundled run, push after SMB-R50-FOLLOWUPS-1 is on origin",
+  "updated_at": "2026-11-01T02:58:58Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.226",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "unchanged: the evaluation is a read-only check; no mutating command added",
+    "jobs": "none: evaluation stays a bounded call under SepLimits",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-01T02:58:58Z",
+    "disk": "D",
+    "closes_candidates": [
+      "MT-35425",
+      "MT-35426",
+      "MT-35427",
+      "MT-35428",
+      "MT-35429",
+      "MT-35430",
+      "MT-35431",
+      "MT-35432",
+      "MT-35695 (ink-coverage rows only)"
+    ],
+    "dispatch_reason": "post-R50 wave slot after the five paused lanes resumed; engine lane (D6), gap verified by git grep at base (no TOC/index model, no trap-preset record; press-write ink-limit preview predates STU-LAY-250..254)"
+  }
+}

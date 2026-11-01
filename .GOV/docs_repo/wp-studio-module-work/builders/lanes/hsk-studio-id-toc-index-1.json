@@ -1,0 +1,49 @@
+{
+  "crate": "hsk-studio-layout (tables of contents, index, trap presets), hsk-studio-folio (additive record fields only)",
+  "lane": "SMB-ID-TOC-INDEX-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-id-toc-index-1",
+  "base": "31454a07",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: read the brief, red-first per item, one bundled run, push after SMB-R50-FOLLOWUPS-1 is on origin",
+  "updated_at": "2026-11-01T02:58:58Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.226",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "attribution required: generate, update and update-all take an ActorContext from the caller (actor/session, command id, document revision, correlation); never default_actor(); correlation grants nothing",
+    "jobs": "none: generation stays a bounded call under its budgets",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-01T02:58:58Z",
+    "disk": "C",
+    "closes_candidates": [
+      "MT-173",
+      "MT-174",
+      "MT-30776",
+      "MT-30777",
+      "MT-30778",
+      "MT-30779",
+      "MT-30846",
+      "MT-30847"
+    ],
+    "dispatch_reason": "post-R50 wave slot after the five paused lanes resumed; engine lane (D6), gap verified by git grep at base (no TOC/index model, no trap-preset record; press-write ink-limit preview predates STU-LAY-250..254)"
+  }
+}
