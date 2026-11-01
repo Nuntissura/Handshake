@@ -309,6 +309,22 @@
    "lead_reading": "2026-11-01T03:59:19Z: the lane stores them as unknown or Studio-declared and invents no captured value",
    "source": "lane SMB-ID-TOC-INDEX-1 notes (builders/lanes/hsk-studio-id-toc-index-1.json), v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-37",
+   "gap": "STU-TYP-207 (v02.228 SD-29) says foreign noncharacters in the sentinel range are replaced on import but does not name the replacement code point",
+   "needs": "the replacement (e.g. U+FFFD) and whether a loss is reported",
+   "lead_reading": "2026-11-01T05:59:08Z: the lane replaces with U+FFFD and reports a typed loss",
+   "source": "lane SMB-TYPE-SENTINELS-REGISTRY-1 notes (builders/lanes/hsk-studio-type-sentinels-registry-1.json), v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-38",
+   "gap": "STU-TYP-207 (v02.228 SD-29) assigns sentinel code points but no Unicode bidi class: noncharacters default to class L, so a break sentinel would not end a bidi paragraph",
+   "needs": "the bidi class per sentinel (break sentinels as paragraph separators, markers and flush space as neutral or L)",
+   "lead_reading": "2026-11-01T05:59:08Z: breaks split paragraphs in Studio's own partition before bidi; markers and flush space keep the default class",
+   "source": "lane SMB-TYPE-SENTINELS-REGISTRY-1 notes (builders/lanes/hsk-studio-type-sentinels-registry-1.json), v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [
@@ -898,5 +914,5 @@
    "spec_version": "v02.226"
   }
  ],
- "updated_at": "2026-11-01T03:59:19Z"
+ "updated_at": "2026-11-01T05:59:08Z"
 }
