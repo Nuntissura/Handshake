@@ -333,6 +333,14 @@
    "lead_reading": "2026-11-01T06:02:30Z: no invented behaviour; the engine keeps the typed not-implemented refusal, accepting values equal to the default modulo 360 (lane SMB-FOLIO-ANGLE-UNBOUNDED-1)",
    "source": "lane SMB-FOLIO-ANGLE-UNBOUNDED-1 notes, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-40",
+   "gap": "STU-FX-131a Wave World rows whose unit cell is `--` but whose name implies a physical quantity: preroll (row 24), producer position x/y (row 44), amplitude (row 52), frequency (row 54); under v02.228 SD-27 they are unitless with an undeclared engine scale, so the engine cannot use them",
+   "needs": "the unit and engine scale of each row (e.g. seconds/frames for preroll, layer-relative pixels or percent for position, height-field scale for amplitude, Hz or cycles per frame for frequency)",
+   "lead_reading": "2026-11-01T08:51:36Z: SMB-R51-FOLLOWUPS-1 unmaps all four; the engine scalars stay authored studio_declared rows beside the stored recovered rows until the units are declared",
+   "source": "STUDIO-R51 F-R51-1 and lane SMB-R51-FOLLOWUPS-1 notes, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [
@@ -922,5 +930,5 @@
    "spec_version": "v02.226"
   }
  ],
- "updated_at": "2026-11-01T06:02:30Z"
+ "updated_at": "2026-11-01T08:51:36Z"
 }
