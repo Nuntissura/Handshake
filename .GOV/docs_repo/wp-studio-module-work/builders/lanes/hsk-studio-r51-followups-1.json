@@ -1,45 +1,52 @@
 {
   "crate": "hsk-studio-composite (unitless-row mappings per SD-27), hsk-studio-interop-psd (export a channel added in edit)",
   "lane": "SMB-R51-FOLLOWUPS-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-r51-followups-1",
   "base": "a7be22a1",
   "commits": [
     {
-      "sha": "0914d7b4788354dcc78f102f3b905add3f411d1c",
+      "sha": "163fdf30ba8db67c759058fbceff4ed1e3cc3f70",
       "item": "1 red",
-      "subject": "composite: SD-27 unitless rows stay beside studio_declared engine scalars (red)"
+      "subject": "composite: SD-27 unitless rows stay beside studio_declared engine scalars (red)",
+      "pre_rebase_sha": "0914d7b4788354dcc78f102f3b905add3f411d1c"
     },
     {
-      "sha": "e978fe822ec9ca4a258766cc19c34e603ce38435",
+      "sha": "03cedee4879a19e62c7622fd9df0f1e9ca93f2f3",
       "item": "1 green",
-      "subject": "composite: Wave world amplitude and frequency stay studio_declared beside unitless rows 52/54 (SD-27)"
+      "subject": "composite: Wave world amplitude and frequency stay studio_declared beside unitless rows 52/54 (SD-27)",
+      "pre_rebase_sha": "e978fe822ec9ca4a258766cc19c34e603ce38435"
     },
     {
-      "sha": "4588593e3881e503539488e0384efa66546688c4",
+      "sha": "4d6b35a2c24c1f42d1ada0b2653ab31a3eba1087",
       "item": "2 red",
-      "subject": "interop-psd: a channel saved from a selection exports and re-imports (red)"
+      "subject": "interop-psd: a channel saved from a selection exports and re-imports (red)",
+      "pre_rebase_sha": "4588593e3881e503539488e0384efa66546688c4"
     },
     {
-      "sha": "b29c42fb7cf8b73b10b3af4f404ef8b1ef5f77a5",
+      "sha": "e26b90396e220a74e2da324b31a79ff9b241e1d5",
       "item": "2 green",
-      "subject": "interop-psd: export writes a channel added in edit as a new extra plane"
+      "subject": "interop-psd: export writes a channel added in edit as a new extra plane",
+      "pre_rebase_sha": "b29c42fb7cf8b73b10b3af4f404ef8b1ef5f77a5"
     },
     {
-      "sha": "91b08c4e8eddd7e71d525255cf47aa515080777c",
+      "sha": "46f6e1429055cf87cd4a5dbca206ba4ad48d0502",
       "item": "2 lint",
-      "subject": "interop-psd: clear the redundant_closure lint of the added-channel order check"
+      "subject": "interop-psd: clear the redundant_closure lint of the added-channel order check",
+      "pre_rebase_sha": "91b08c4e8eddd7e71d525255cf47aa515080777c"
     },
     {
-      "sha": "0d2489ef76af486d8781f1bd78b37fea0919af40",
+      "sha": "210e2cbc9b12cb165d8ee25586fbd85e3dc87120",
       "item": "1b red (lead decision SD-40)",
-      "subject": "composite: pre-roll and position rows are in the SD-27 class too (red)"
+      "subject": "composite: pre-roll and position rows are in the SD-27 class too (red)",
+      "pre_rebase_sha": "0d2489ef76af486d8781f1bd78b37fea0919af40"
     },
     {
-      "sha": "9b9c8e58976245af7ccc95b6b6c133fa40c79e64",
+      "sha": "18bb62c0ef2539a2c6887262b067735d848fc6da",
       "item": "1b green (lead decision SD-40)",
-      "subject": "composite: Wave world pre-roll and position stay studio_declared beside unitless rows 24/44 (SD-27, SD-40)"
+      "subject": "composite: Wave world pre-roll and position stay studio_declared beside unitless rows 24/44 (SD-27, SD-40)",
+      "pre_rebase_sha": "9b9c8e58976245af7ccc95b6b6c133fa40c79e64"
     }
   ],
   "capabilities_done": [
@@ -49,15 +56,15 @@
   "tests": {
     "argv": "lane-check.sh --owner smb-r51-followups-1 --disk ssd -- cargo nextest run -p hsk-studio-composite -p hsk-studio-interop-psd -p hsk-studio-harness --features hsk-studio-harness/import-psd --no-fail-fast; then lane-check.sh --owner smb-r51-followups-1 --disk ssd -- cargo nextest run -p hsk-studio-composite --features motion --no-fail-fast",
     "exit": 0,
-    "sha": "9b9c8e58976245af7ccc95b6b6c133fa40c79e64",
-    "passed": 477,
+    "sha": "18bb62c0ef2539a2c6887262b067735d848fc6da",
+    "passed": 481,
     "failed": 0,
     "logs": [
-      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/smb-r51-followups-1-9b9c8e58-bundled.log (267 passed, 16 skipped, exit 0)",
-      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/smb-r51-followups-1-9b9c8e58-composite-motion.log (210 passed, exit 0)"
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/smb-r51-followups-1-18bb62c0-bundled.log (268 passed, 16 skipped, exit 0)",
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/smb-r51-followups-1-18bb62c0-composite-motion.log (213 passed, exit 0)"
     ],
-    "clippy": "clippy ran inside both lane-check holds on 9b9c8e58 over composite, interop-psd, harness and their dependents; no warning points into a hunk of this lane (remaining warnings pre-existing, e.g. interop-psd proposal.rs:608 too_many_arguments, hsk-studio-type)",
-    "step0": "lane-check step 0 policy clean (V4-03, V4-05) on 9b9c8e58",
+    "clippy": "clippy ran inside both lane-check holds on 18bb62c0 over composite, interop-psd, harness and dependents; no warning points into a hunk of this lane",
+    "step0": "lane-check step 0 policy clean (V4-03, V4-05) on 18bb62c0",
     "doctests": "none added or changed",
     "red_evidence": [
       {
@@ -84,9 +91,13 @@
         "note": "the red commit's y-position refusal wrote -1.0e3_f64.next_down() (unary minus after the method call, so -999.99...); fixed to (-1.0e3_f64).next_down() inside the green commit 9b9c8e58; the red commit still compiles and fails"
       }
     ],
-    "per_sha": null,
-    "pushed_sha": null,
-    "finished_at": "2026-11-01T08:57:59Z",
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-r51-followups-1 --disk ssd --per-sha origin/codex/handshake-studio-assets",
+      "result": "PER_SHA_RESULT OK shas=7 range=8c7f257a..18bb62c0",
+      "log_dir": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/per-sha-18bb62c0/"
+    },
+    "pushed_sha": "18bb62c0ef2539a2c6887262b067735d848fc6da",
+    "finished_at": "2026-11-01T10:05:58Z",
     "previous_runs": [
       {
         "sha": "b29c42fb7cf8b73b10b3af4f404ef8b1ef5f77a5",
@@ -109,15 +120,29 @@
           "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/smb-r51-followups-1-91b08c4e-bundled.log (267 passed, 16 skipped, exit 0)",
           "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/smb-r51-followups-1-91b08c4e-composite-motion.log (210 passed, exit 0)"
         ]
+      },
+      {
+        "argv": "lane-check.sh --owner smb-r51-followups-1 --disk ssd -- cargo nextest run -p hsk-studio-composite -p hsk-studio-interop-psd -p hsk-studio-harness --features hsk-studio-harness/import-psd --no-fail-fast; then lane-check.sh --owner smb-r51-followups-1 --disk ssd -- cargo nextest run -p hsk-studio-composite --features motion --no-fail-fast",
+        "exit": 0,
+        "sha": "9b9c8e58976245af7ccc95b6b6c133fa40c79e64",
+        "passed": 477,
+        "failed": 0,
+        "logs": [
+          "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/smb-r51-followups-1-9b9c8e58-bundled.log (267 passed, 16 skipped, exit 0)",
+          "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/smb-r51-followups-1-9b9c8e58-composite-motion.log (210 passed, exit 0)"
+        ]
       }
-    ]
+    ],
+    "rebase": "rebased onto origin 8c7f257a (SMB-FOLIO-ANGLE-UNBOUNDED-1 over cb887ea5 SMB-TYPE-SENTINELS-REGISTRY-1); conflicts resolved keeping both lanes: tests/simulations_records.rs module doc (their SD-26 ANGLE sentence + this lane's SD-27 sentence) and tail (their recovered_angle_rows_store_multi_turn_and_negative_degrees_unchanged + this lane's SD-27 helpers and test); wave_world.rs module doc took this lane's text with their wording 'unbounded in source' for the ANGLE phase row; bundled run re-run because composite depends on folio and type, both changed",
+    "diff_stat": "git diff --stat origin/codex/handshake-studio-assets..HEAD before push: 7 files, all owned paths (composite simulations.rs, simulations/wave_world.rs, tests/simulations_records.rs; interop-psd src/export.rs, src/proposal.rs, src/resources.rs, tests/psd_alpha_channels.rs)",
+    "push": "guarded SHA=... && [ -n \"$SHA\" ] && git push origin \"$SHA:refs/heads/codex/handshake-studio-assets\": 8c7f257a..18bb62c0, exit 0; fetched, origin == 18bb62c0"
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "waiting for folio angle push",
-  "updated_at": "2026-11-01T08:58:41Z",
+  "next": "validator: judge F-R51-1 and MT-038 / MT-30095 at 18bb62c0",
+  "updated_at": "2026-11-01T10:05:58Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -327,5 +352,27 @@
       "2026-11-01: lead reconciled 2026-11-01: 7 mapping sites, 5 fixed, 2 not applicable"
     ],
     "resource_1053": "in scope per lead decision: when the file has 1053, export normalises it to one identifier per existing extra plane and appends a fresh smallest unused non-zero identifier per added channel (0 would read as the merged transparency); absent stays absent; asserted in channel_saved_from_a_selection_exports_and_reimports_beside_the_imported_one (ids len 3, [0, 5, fresh non-zero]) and the colour-only case (stays absent)"
+  },
+  "claim": {
+    "ready_sha": "18bb62c0ef2539a2c6887262b067735d848fc6da",
+    "closes": [
+      "F-R51-1 (MEDIUM)"
+    ],
+    "mts": [
+      "MT-038 (met, AC-003 for PSD)",
+      "MT-30095 (met for the PSD gap R51 named)",
+      "MT-32013 AC-019/029/031/032 rows stay stored (met)",
+      "MT-34181 (partly met: tooltip half D7)"
+    ],
+    "commits": [
+      "163fdf30ba8db67c759058fbceff4ed1e3cc3f70",
+      "03cedee4879a19e62c7622fd9df0f1e9ca93f2f3",
+      "4d6b35a2c24c1f42d1ada0b2653ab31a3eba1087",
+      "e26b90396e220a74e2da324b31a79ff9b241e1d5",
+      "46f6e1429055cf87cd4a5dbca206ba4ad48d0502",
+      "210e2cbc9b12cb165d8ee25586fbd85e3dc87120",
+      "18bb62c0ef2539a2c6887262b067735d848fc6da"
+    ],
+    "never_claims_pass": true
   }
 }
