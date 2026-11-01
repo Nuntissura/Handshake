@@ -1,0 +1,1170 @@
+{
+ "schema_id": "hsk.studio_spec_roundtrip_resolution@1",
+ "generated_at": "2026-11-01T03:16:57Z",
+ "operator_request": "doe the spec's round trip and resolve issues with your agents. then generate the contracts",
+ "acceptance_test": "i want the master spec to be updated so we could extract the same exact microtasks from the master spec.",
+ "spec": {
+  "checked": "v02.226 (before) and v02.227 (after)",
+  "note": "Lead 2026-11-01: v02.227 changed module 14 only in its two frontmatter version lines (diff verified: lines 3-4); clause text and line numbers are identical, so v02.226 findings hold for v02.227. New MTs cite v02.227; the MT-35538 binding written before that message cites v02.226 (allowed by the lead).",
+  "module": "14-studio-creative-suite.md",
+  "v02.227_commit": "637b46a6f58633fb6246ca93aceafc6643db96c3",
+  "v02.226_commit": "a141740e01f53dca659cef790e8fc8b2d1ff945b"
+ },
+ "precedent_and_inputs": {
+  "chosen": "The last committed derivation (2ca79aba, re-touched by 5ccf0b2e): spec-derive-microtasks.py over the assembled section-14 bundle in _greenroom_20260903/spec_update/proposed-bundle/section14, output fold_back/spec_mts (both gitignored), id map fold_back/studio-mt-id-map-spec.json (base 30000, the map behind MT-30000..35527 whose derivation.spec_module is 14-studio-creative-suite.md), manifest fold_back/studio-mt-derivation-manifest.json. spec-roundtrip-check.py with --microtasks = the live MT folder, --current-spec = the previous version of module 14.",
+  "why": "studio-mt-id-map.json (base 20000) belongs to the earlier 19-module staging set; the spec map is the one whose keys reproduce the live spec-derived MTs (e.g. STU-COL-355#parameter_table#0 -> MT-35527).",
+  "host_integration_precedent": "tools/mt-host-integration.py derive() (bulk write 2026-10-30, report research/mt-host-integration-write-20261030T224037Z.json), called unchanged with spec_version v02.227.",
+  "mt_shape_precedent": "V2 instance shape of MT-36248..36251 (newest contracts) plus the spec-derived fields of MT-35527 and MT-36234..36241 (derivation, clause, spec_anchor, acceptance_criteria verbatim from the deriver)."
+ },
+ "counts": {
+  "before_v02.226": {
+   "forward_uncovered": 9,
+   "forward_declared_non_yielding": 11,
+   "backward_dangling": 0,
+   "cited_never_assigned": 4,
+   "anchor_collisions": 0,
+   "intra_file_duplicates": 0,
+   "dropped_from_previous": 4,
+   "heading_drift": false,
+   "params_incomplete": 20,
+   "params_collapsed": 18,
+   "vendor_names": 0,
+   "verdict": "FAIL",
+   "microtask_json_files_read": 6212
+  },
+  "after_v02.227": {
+   "forward_uncovered": 0,
+   "forward_declared_non_yielding": 11,
+   "backward_dangling": 0,
+   "cited_never_assigned": 4,
+   "anchor_collisions": 0,
+   "intra_file_duplicates": 0,
+   "dropped_from_previous": 4,
+   "heading_drift": false,
+   "params_incomplete": 20,
+   "params_collapsed": 18,
+   "vendor_names": 0,
+   "verdict": "PASS",
+   "microtask_json_files_read": 6224
+  },
+  "strict_binding_after": {
+   "normative_clauses": 1599,
+   "normative_without_binding_citation_excluding_declared_non_yielding": 0,
+   "binding_citations_of_undefined_anchors": 0
+  },
+  "strict_binding_before": {
+   "normative_without_binding_citation_excluding_declared_non_yielding": 9,
+   "anchors": [
+    "STU-ARC-023",
+    "STU-ARC-024",
+    "STU-ARC-026",
+    "STU-ARC-028",
+    "STU-CON-042",
+    "STU-CON-043",
+    "STU-CON-044",
+    "STU-CON-045",
+    "STU-CON-046"
+   ],
+   "basis": "scratch run of the same binding rule before the fixes; identical to the round-trip tool list"
+  },
+  "unit_level_derivation": {
+   "units_yielded_v02.227": 5062,
+   "units_already_mapped_to_existing_mts_before": 4975,
+   "note": "Of 5062 units: 4975 already mapped to existing MTs; 87 keys missing from the map: 75 already materialised by hand-authored MTs (backfilled, see id_map_backfill), 12 true forward gaps (derived and promoted). 553 legacy map keys yield no unit and have no MT file (never promoted); no existing MT lost its unit.",
+   "after": "every one of the 5062 units maps to an existing MT file"
+  }
+ },
+ "triage": [
+  {
+   "finding": "FORWARD STU-ARC-023, STU-ARC-024, STU-ARC-026, STU-ARC-028",
+   "class": "FORWARD gap",
+   "resolution": "Derived and promoted MT-36252 (ARC-023), MT-36253 (ARC-024), MT-36255 (ARC-026), MT-36257 (ARC-028)."
+  },
+  {
+   "finding": "FORWARD (unit level, not reported by the tool because the clauses carry no MUST) STU-ARC-025, 027, 029, 030, 031, 032, 033",
+   "class": "FORWARD gap (deriver unit without MT)",
+   "resolution": "Derived and promoted MT-36254, MT-36256, MT-36258, MT-36259, MT-36260, MT-36261, MT-36262. The deriver yields one unit per clause regardless of mood, so the round-trip property needs them."
+  },
+  {
+   "finding": "FORWARD (unit level) STU-CMP-034#parameter_table#0",
+   "class": "FORWARD gap (deriver unit without MT)",
+   "resolution": "STU-CMP-034 was rewritten after MT-34110 was derived (DECLARED GAP -> full assisted-rotoscoping contract with a 23-row parameter table). Derived and promoted MT-36263. Open item: MT-34110 still carries the superseded declared-gap text for the clause unit; regenerating its contract changes a PENDING contract and is left to the lead."
+  },
+  {
+   "finding": "FORWARD STU-CON-042..046",
+   "class": "MT-side citation gap (clause names its MT, MT never bound it)",
+   "resolution": "The clauses (v02.215) say MT-35538 implements them; MT-35538 had no binding. Added context_capsule.develop_current_field_binding to MT-35538 in the precedent shape of MT-35531..35535 (hash encoding reproduced on all 26 existing bindings). Status untouched."
+  },
+  {
+   "finding": "BACKWARD dangling anchors",
+   "class": "none",
+   "resolution": "0 before and after; no renamed or moved anchor in v02.226/227."
+  },
+  {
+   "finding": "dropped_from_previous: STU-CON-007c, STU-RAS-001c, STU-RAS-140, STU-RAW-014c",
+   "class": "tool false positive",
+   "resolution": "The spec records all four as never assigned (the tool itself lists them under cited_but_recorded_as_never_assigned); the dropped check does not apply that exclusion. No action."
+  },
+  {
+   "finding": "coverage counted from packet.json, refinement.json, STUDIO_MODULES.json, ACTIVATION_READINESS.json and from incidental mentions",
+   "class": "tool false negative risk",
+   "resolution": "The tool reads every non-underscore JSON in the folder as a microtask (6212/6224 files vs 6208/6220 MTs) and counts any mention. [STU-ARC-022] rejects anchor-anywhere reconciliation. Added tools/spec-anchor-binding.py (binding citations only); after the fixes it reports 0 normative clauses without a binding citation."
+  },
+  {
+   "finding": "deriver allocated MT-35528 for a new key (id already taken)",
+   "class": "tool defect",
+   "resolution": "spec-derive-microtasks.py allocated from the id-map maximum only; MT-35528..36251 were authored outside the map. Added --existing-mts (live folder ids are taken) and made --base a floor. Existing assignments unchanged."
+  },
+  {
+   "finding": "deriver drops a leading cited anchor from an acceptance sentence (MT-36257 AC-001 reads \"and [HSK-PLG-011] ...\")",
+   "class": "tool defect (not fixed: fixing it would change acceptance text of existing derived MTs)",
+   "resolution": "acceptance_criteria keep the deriver text for reproducibility; closure_unit.materialized_acceptance carries the verbatim spec sentence including [STU-ARC-013]. Proposed tool fix: strip only the unit's own anchor."
+  },
+  {
+   "finding": "parameter contract: 20 incomplete, 18 collapsed (same before and after; none in clauses v02.226 changed)",
+   "class": "mixed",
+   "false_positives": {
+    "STU-VEC-102": "states the rule that soft bounds are UI-only; names bound fields, defines no parameter",
+    "STU-TYP-107": "forbids populating hard_min/hard_max from observed ranges; names fields, defines no parameter",
+    "STU-COL-108": "same rule as STU-TYP-107 for adjustment presets; defines no parameter",
+    "STU-FX-105a": "rationale clause; the Blend values are a worked example, the parameter contract lives in the effect catalogue",
+    "STU-FX-145": "forbids back-filling hard bounds; defines no parameter",
+    "STU-MOT-010a": "table maps stream min/max to hard_min/hard_max under STU-FX-104; a field mapping, not a parameter",
+    "STU-MOT-020c": "states that property bounds follow STU-FX-104/106; defines no parameter",
+    "STU-MDL-105": "schema mapping table (numeric_min <- ParamSpec.hard_min); not a parameter contract",
+    "STU-SHL-192": "states the clamping rule for every control; defines no parameter",
+    "STU-MDL-111": "descriptor field mapping table; not a parameter contract"
+   },
+   "genuine_spec_defects": [
+    "STU-DS-146",
+    "STU-DS-147",
+    "STU-DS-148",
+    "STU-DS-150",
+    "STU-DS-155",
+    "STU-PRO-119",
+    "STU-IO-115",
+    "STU-VID-013a",
+    "STU-MOT-122",
+    "STU-CMP-060"
+   ],
+   "resolution": "False positives: clauses that state rules about bound fields or map fields, or a worked example. Genuine: inline bound statements without the seven-field set; proposed_spec_edits RT227-PE-01..10 state the rest as unknown."
+  },
+  {
+   "finding": "anchor collisions, intra-file duplicates, heading drift, vendor names in obligations",
+   "class": "none",
+   "resolution": "0 / 0 / false / 0 before and after."
+  }
+ ],
+ "mts_added": {
+  "ids": [
+   "MT-36252",
+   "MT-36253",
+   "MT-36254",
+   "MT-36255",
+   "MT-36256",
+   "MT-36257",
+   "MT-36258",
+   "MT-36259",
+   "MT-36260",
+   "MT-36261",
+   "MT-36262",
+   "MT-36263"
+  ],
+  "range": "MT-36252..MT-36263",
+  "by_anchor": {
+   "MT-36252": {
+    "anchor": "STU-ARC-023",
+    "unit_kind": "clause",
+    "module": "STUDIO-MODULE-CONTROLS",
+    "stage": "standalone_source",
+    "active_acceptance_count": 4
+   },
+   "MT-36253": {
+    "anchor": "STU-ARC-024",
+    "unit_kind": "clause",
+    "module": "STUDIO-MODULE-RENDER_GPU",
+    "stage": "standalone_source",
+    "active_acceptance_count": 4
+   },
+   "MT-36254": {
+    "anchor": "STU-ARC-025",
+    "unit_kind": "clause",
+    "module": "STUDIO-WORKSPACE",
+    "stage": "standalone_source",
+    "active_acceptance_count": 3
+   },
+   "MT-36255": {
+    "anchor": "STU-ARC-026",
+    "unit_kind": "clause",
+    "module": "STUDIO-MODULE-OBSERVE",
+    "stage": "standalone_source",
+    "active_acceptance_count": 1
+   },
+   "MT-36256": {
+    "anchor": "STU-ARC-027",
+    "unit_kind": "clause",
+    "module": "handshake_native::studio",
+    "stage": "host_adoption",
+    "active_acceptance_count": 1
+   },
+   "MT-36257": {
+    "anchor": "STU-ARC-028",
+    "unit_kind": "clause",
+    "module": "STUDIO-MODULE-RENDER_GPU",
+    "stage": "standalone_source",
+    "active_acceptance_count": 1
+   },
+   "MT-36258": {
+    "anchor": "STU-ARC-029",
+    "unit_kind": "clause",
+    "module": "handshake_native::studio",
+    "stage": "host_adoption",
+    "active_acceptance_count": 1
+   },
+   "MT-36259": {
+    "anchor": "STU-ARC-030",
+    "unit_kind": "clause",
+    "module": "STUDIO-MODULE-KERNEL_BINDINGS",
+    "stage": "standalone_source",
+    "active_acceptance_count": 2
+   },
+   "MT-36260": {
+    "anchor": "STU-ARC-031",
+    "unit_kind": "clause",
+    "module": "handshake_native::studio",
+    "stage": "host_adoption",
+    "active_acceptance_count": 1
+   },
+   "MT-36261": {
+    "anchor": "STU-ARC-032",
+    "unit_kind": "clause",
+    "module": "STUDIO-MODULE-RENDER_GPU",
+    "stage": "standalone_source",
+    "active_acceptance_count": 1
+   },
+   "MT-36262": {
+    "anchor": "STU-ARC-033",
+    "unit_kind": "clause",
+    "module": "STUDIO-MODULE-KERNEL_BINDINGS",
+    "stage": "standalone_source",
+    "active_acceptance_count": 1
+   },
+   "MT-36263": {
+    "anchor": "STU-CMP-034",
+    "unit_kind": "parameter_table",
+    "module": "STUDIO-MODULE-COMPOSITE",
+    "stage": "standalone_source",
+    "active_acceptance_count": 23
+   }
+  },
+  "status": "lifecycle.status null, validator_verdict null (validator owns status); index status null",
+  "spec_version": "v02.227 (host_integration.spec_version and derivation.spec_version)",
+  "promotion_report": "research/mt-promote-write-20261101T031339Z.json",
+  "overrides": "research/mt-promote-overrides-v02.227.json",
+  "index": "only the 12 entries appended (byte check: one inserted span, everything else identical); totals and host_integration_direction counts NOT updated per instruction, so totals.microtasks still reads 6208."
+ },
+ "citations_fixed": [
+  {
+   "mt": "MT-35538",
+   "added": "context_capsule.develop_current_field_binding",
+   "anchors": [
+    "STU-CON-042",
+    "STU-CON-043",
+    "STU-CON-044",
+    "STU-CON-045",
+    "STU-CON-046"
+   ],
+   "old_to_new": "none (anchors were never renamed; binding was missing)"
+  }
+ ],
+ "id_map_backfill": {
+  "report": "research/spec-idmap-backfill-v02.227-20261101T031009Z.json",
+  "appended": 75,
+  "shared_mt_ids": {
+   "MT-35531": [
+    "STU-CON-015#clause#0",
+    "STU-CON-016#clause#0",
+    "STU-CON-017#clause#0",
+    "STU-CON-018#clause#0",
+    "STU-CON-019#clause#0",
+    "STU-CON-020#clause#0",
+    "STU-CON-021#clause#0"
+   ],
+   "MT-35532": [
+    "STU-CON-022#clause#0",
+    "STU-CON-023#clause#0",
+    "STU-CON-024#clause#0",
+    "STU-CON-025#clause#0",
+    "STU-CON-026#clause#0"
+   ],
+   "MT-35534": [
+    "STU-CON-027#clause#0",
+    "STU-CON-028#clause#0",
+    "STU-CON-029#clause#0",
+    "STU-CON-030#clause#0",
+    "STU-CON-031#clause#0"
+   ],
+   "MT-35535": [
+    "STU-CON-032#clause#0",
+    "STU-CON-033#clause#0",
+    "STU-CON-034#clause#0",
+    "STU-CON-035#clause#0",
+    "STU-CON-036#clause#0"
+   ],
+   "MT-35536": [
+    "STU-CON-037#clause#0",
+    "STU-CON-038#clause#0",
+    "STU-CON-039#clause#0",
+    "STU-CON-040#clause#0",
+    "STU-CON-041#clause#0"
+   ],
+   "MT-35538": [
+    "STU-CON-042#clause#0",
+    "STU-CON-043#clause#0",
+    "STU-CON-044#clause#0",
+    "STU-CON-045#clause#0",
+    "STU-CON-046#clause#0"
+   ]
+  },
+  "new_allocations": {
+   "MT-36252": "STU-ARC-023",
+   "MT-36253": "STU-ARC-024",
+   "MT-36254": "STU-ARC-025",
+   "MT-36255": "STU-ARC-026",
+   "MT-36256": "STU-ARC-027",
+   "MT-36257": "STU-ARC-028",
+   "MT-36258": "STU-ARC-029",
+   "MT-36259": "STU-ARC-030",
+   "MT-36260": "STU-ARC-031",
+   "MT-36261": "STU-ARC-032",
+   "MT-36262": "STU-ARC-033",
+   "MT-36263": "STU-CMP-034"
+  },
+  "entries_after": 5615
+ },
+ "related_existing_mts": {
+  "MT-36253": [
+   "MT-36248"
+  ],
+  "MT-36261": [
+   "MT-36248"
+  ],
+  "MT-36256": [
+   "MT-36251"
+  ],
+  "MT-36258": [
+   "MT-36249"
+  ],
+  "MT-36254": [
+   "MT-36250",
+   "MT-36231"
+  ],
+  "note": "host MTs authored 2026-10-30 from the same inventory carry spec_anchor [] and do not cite the 14.2.2 clauses; linked via host_adoption refs and read_context in the new MTs."
+ },
+ "open_items_for_lead": [
+  "MT-34110 contract still quotes the superseded STU-CMP-034 declared-gap text (clause unit).",
+  "_MT_INDEX.json totals/by_unit_kind and host_integration_direction counts are stale by the 12 new MTs (left untouched per instruction).",
+  "Deriver acceptance-sentence anchor stripping (see triage).",
+  "Per-rule HBR pillar assessment of the 12 new MTs is PENDING (current_hbr_assessment.assessed_rule_count 0), not fabricated."
+ ],
+ "proposed_spec_edits": [
+  {
+   "id": "RT227-PE-01",
+   "module": "14-studio-creative-suite.md",
+   "anchor": "STU-DS-146",
+   "line": 19955,
+   "line_basis": "master-spec-v02.227 (identical line numbers in v02.226)",
+   "kind": "bound_field_completeness",
+   "missing_fields_reported": [
+    "soft_min",
+    "default",
+    "unit"
+   ],
+   "old": "Commands: `grid.append_child_at(node, row_index, column_index)`, `grid.reorder_rows(options)`, `grid.reorder_columns(options)`. Both reorder commands MUST return the resulting ordered track entries so a model can verify the move without a second read.",
+   "new": "Commands: `grid.append_child_at(node, row_index, column_index)`, `grid.reorder_rows(options)`, `grid.reorder_columns(options)`. Both reorder commands MUST return the resulting ordered track entries so a model can verify the move without a second read. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
+   "reason": "Parameter bounds stated inline without the full seven-field set and without saying the rest is unknown; the round-trip parameter check (incomplete and collapsed hard/soft) flags it. The edit states the missing fields as unknown and invents no value."
+  },
+  {
+   "id": "RT227-PE-02",
+   "module": "14-studio-creative-suite.md",
+   "anchor": "STU-DS-147",
+   "line": 19957,
+   "line_basis": "master-spec-v02.227 (identical line numbers in v02.226)",
+   "kind": "bound_field_completeness",
+   "missing_fields_reported": [
+    "hard_max",
+    "soft_min",
+    "soft_max"
+   ],
+   "old": "**[STU-DS-147] Grid track-size record.** `{type, value?}` where `type` ∈ {`FIXED`, `FLEX`, `HUG`}. `value` is required for `FIXED` (document unit, precision 2) and for `FLEX` (dimensionless flex factor, hard_min 0, default 1, precision 4); it MUST be absent for `HUG`.",
+   "new": "**[STU-DS-147] Grid track-size record.** `{type, value?}` where `type` ∈ {`FIXED`, `FLEX`, `HUG`}. `value` is required for `FIXED` (document unit, precision 2) and for `FLEX` (dimensionless flex factor, hard_min 0, default 1, precision 4); it MUST be absent for `HUG`. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
+   "reason": "Parameter bounds stated inline without the full seven-field set and without saying the rest is unknown; the round-trip parameter check (incomplete and collapsed hard/soft) flags it. The edit states the missing fields as unknown and invents no value."
+  },
+  {
+   "id": "RT227-PE-03",
+   "module": "14-studio-creative-suite.md",
+   "anchor": "STU-DS-148",
+   "line": 19967,
+   "line_basis": "master-spec-v02.227 (identical line numbers in v02.226)",
+   "kind": "bound_field_completeness",
+   "missing_fields_reported": [
+    "soft_min",
+    "soft_max"
+   ],
+   "old": "| `layout_sizing_vertical` | `FIXED` \\| `HUG` \\| `FILL` | `FIXED` | |",
+   "new": "| `layout_sizing_vertical` | `FIXED` \\| `HUG` \\| `FILL` | `FIXED` | |\n\nEvery bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
+   "reason": "Parameter bounds stated inline without the full seven-field set and without saying the rest is unknown; the round-trip parameter check (incomplete and collapsed hard/soft) flags it. The edit states the missing fields as unknown and invents no value."
+  },
+  {
+   "id": "RT227-PE-04",
+   "module": "14-studio-creative-suite.md",
+   "anchor": "STU-DS-150",
+   "line": 19971,
+   "line_basis": "master-spec-v02.227 (identical line numbers in v02.226)",
+   "kind": "bound_field_completeness",
+   "missing_fields_reported": [
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "old": "**[STU-DS-150] Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error.",
+   "new": "**[STU-DS-150] Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
+   "reason": "Parameter bounds stated inline without the full seven-field set and without saying the rest is unknown; the round-trip parameter check (incomplete and collapsed hard/soft) flags it. The edit states the missing fields as unknown and invents no value."
+  },
+  {
+   "id": "RT227-PE-05",
+   "module": "14-studio-creative-suite.md",
+   "anchor": "STU-DS-155",
+   "line": 19999,
+   "line_basis": "master-spec-v02.227 (identical line numbers in v02.226)",
+   "kind": "bound_field_completeness",
+   "missing_fields_reported": [
+    "soft_min",
+    "unit",
+    "precision"
+   ],
+   "old": "**[STU-DS-155] Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0.",
+   "new": "**[STU-DS-155] Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
+   "reason": "Parameter bounds stated inline without the full seven-field set and without saying the rest is unknown; the round-trip parameter check (incomplete and collapsed hard/soft) flags it. The edit states the missing fields as unknown and invents no value."
+  },
+  {
+   "id": "RT227-PE-06",
+   "module": "14-studio-creative-suite.md",
+   "anchor": "STU-PRO-119",
+   "line": 20459,
+   "line_basis": "master-spec-v02.227 (identical line numbers in v02.226)",
+   "kind": "bound_field_completeness",
+   "missing_fields_reported": [
+    "soft_min",
+    "soft_max"
+   ],
+   "old": "Exactly one of the two function records is present. Both absent, or both present, is a validation error.",
+   "new": "Exactly one of the two function records is present. Both absent, or both present, is a validation error. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
+   "reason": "Parameter bounds stated inline without the full seven-field set and without saying the rest is unknown; the round-trip parameter check (incomplete and collapsed hard/soft) flags it. The edit states the missing fields as unknown and invents no value."
+  },
+  {
+   "id": "RT227-PE-07",
+   "module": "14-studio-creative-suite.md",
+   "anchor": "STU-IO-115",
+   "line": 21021,
+   "line_basis": "master-spec-v02.227 (identical line numbers in v02.226)",
+   "kind": "bound_field_completeness",
+   "missing_fields_reported": [
+    "soft_min",
+    "soft_max"
+   ],
+   "old": "**[STU-IO-115] Animated raster settings.** `{format: \"GIF\", fps, loop_count, constraint}` where `fps` is drawn from the closed set {8, 12, 15, 24, 30}; `loop_count` is an integer with hard_min 0 (0 = infinite), hard_max NOT DECLARED IN SOURCE (Studio declares 65535), default 0, unit = count, precision integer; `constraint` uses [STU-IO-114] restricted to `HEIGHT`, `SCALE` or `WIDTH`.",
+   "new": "**[STU-IO-115] Animated raster settings.** `{format: \"GIF\", fps, loop_count, constraint}` where `fps` is drawn from the closed set {8, 12, 15, 24, 30}; `loop_count` is an integer with hard_min 0 (0 = infinite), hard_max NOT DECLARED IN SOURCE (Studio declares 65535), default 0, unit = count, precision integer; `constraint` uses [STU-IO-114] restricted to `HEIGHT`, `SCALE` or `WIDTH`. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
+   "reason": "Parameter bounds stated inline without the full seven-field set and without saying the rest is unknown; the round-trip parameter check (incomplete and collapsed hard/soft) flags it. The edit states the missing fields as unknown and invents no value."
+  },
+  {
+   "id": "RT227-PE-08",
+   "module": "14-studio-creative-suite.md",
+   "anchor": "STU-VID-013a",
+   "line": 22850,
+   "line_basis": "master-spec-v02.227 (identical line numbers in v02.226)",
+   "kind": "bound_field_completeness",
+   "missing_fields_reported": [
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "old": "30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999.",
+   "new": "30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
+   "reason": "Parameter bounds stated inline without the full seven-field set and without saying the rest is unknown; the round-trip parameter check (incomplete and collapsed hard/soft) flags it. The edit states the missing fields as unknown and invents no value."
+  },
+  {
+   "id": "RT227-PE-09",
+   "module": "14-studio-creative-suite.md",
+   "anchor": "STU-MOT-122",
+   "line": 28089,
+   "line_basis": "master-spec-v02.227 (identical line numbers in v02.226)",
+   "kind": "bound_field_completeness",
+   "missing_fields_reported": [
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "old": "toggle, a convert-to-linear-light selection, a Cineon settings sub-record, and `embed_color_space`).",
+   "new": "toggle, a convert-to-linear-light selection, a Cineon settings sub-record, and `embed_color_space`). Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
+   "reason": "Parameter bounds stated inline without the full seven-field set and without saying the rest is unknown; the round-trip parameter check (incomplete and collapsed hard/soft) flags it. The edit states the missing fields as unknown and invents no value."
+  },
+  {
+   "id": "RT227-PE-10",
+   "module": "14-studio-creative-suite.md",
+   "anchor": "STU-CMP-060",
+   "line": 29795,
+   "line_basis": "master-spec-v02.227 (identical line numbers in v02.226)",
+   "kind": "bound_field_completeness",
+   "missing_fields_reported": [
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "old": "   declared gap [STU-CMP-102].",
+   "new": "   declared gap [STU-CMP-102]. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
+   "reason": "Parameter bounds stated inline without the full seven-field set and without saying the rest is unknown; the round-trip parameter check (incomplete and collapsed hard/soft) flags it. The edit states the missing fields as unknown and invents no value."
+  }
+ ],
+ "proposed_spec_edits_count": 10,
+ "reusable_tools": [
+  "tools/spec-anchor-binding.py",
+  "tools/spec-idmap-backfill.py",
+  "tools/mt-bind-clauses.py",
+  "tools/mt-promote-derived.py",
+  ".GOV/reference/studio_app_feature_research/_tools/greenroom/spec-derive-microtasks.py (--existing-mts)"
+ ],
+ "rerun_recipe": [
+  "cp .GOV/spec/master-spec-<v>/spec-modules/14-studio-creative-suite.md .GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/proposed-bundle/section14/",
+  "python .GOV/reference/studio_app_feature_research/_tools/greenroom/spec-roundtrip-check.py --modules <section14> --microtasks .GOV/task_packets/WP-KERNEL-STUDIO --current-spec <previous module 14> --out <scratch>",
+  "python .GOV/docs_repo/wp-studio-module-work/tools/spec-anchor-binding.py --mt-dir .GOV/task_packets/WP-KERNEL-STUDIO --spec <module 14> --out <scratch>/strict.json --no-yield-manifest <fold_back>/studio-mt-derivation-manifest.json",
+  "dry-run derive into scratch with a copy of the id map; spec-idmap-backfill.py --write against the real map; then spec-derive-microtasks.py --modules <section14> --out <fold_back>/spec_mts --id-map <fold_back>/studio-mt-id-map-spec.json --existing-mts .GOV/task_packets/WP-KERNEL-STUDIO",
+  "author an overrides file for the new ids; mt-promote-derived.py --overrides ... --staging <fold_back>/spec_mts --spec-commit <sha> [--write]"
+ ],
+ "tool_reports": {
+  "before_v02.226": {
+   "schema_id": "handshake.reference.studio_spec_roundtrip@1",
+   "generated_at": "2026-11-01T02:57:22+00:00",
+   "purpose": "Proves the operator's acceptance test: the Master Spec must be complete enough that the same microtask set falls out of it, and no microtask may cite a clause that does not exist.",
+   "modules": {
+    "count": 1,
+    "per_module": [
+     {
+      "module": "14-studio-creative-suite.md",
+      "bytes": 3048919,
+      "lines": 33450,
+      "clauses": 2431,
+      "normative_clauses": 1599,
+      "has_frontmatter": true,
+      "heading_level": 1
+     }
+    ],
+    "missing_frontmatter": [],
+    "heading_level_histogram": {
+     "1": 1
+    },
+    "heading_drift": false,
+    "definition_rule": "An anchor at line start whose preceding line is blank. Style-independent, so a wrapped prose line beginning with an anchor reference is not a definition."
+   },
+   "anchors": {
+    "total_in_staged_spec": 2477,
+    "normative": 1599,
+    "collisions_across_modules": [],
+    "duplicate_definitions_within_a_file": [],
+    "duplicate_definitions_within_a_file_count": 0,
+    "dropped_from_v02_205_without_a_home": [
+     "STU-CON-007c",
+     "STU-RAS-001c",
+     "STU-RAS-140",
+     "STU-RAW-014c"
+    ],
+    "dropped_count": 4
+   },
+   "microtasks": {
+    "count": 6212,
+    "still_provisional_anchor_status": 0,
+    "distinct_anchors_referenced": 2437
+   },
+   "roundtrip": {
+    "forward_spec_clauses_with_no_microtask": [
+     "STU-ARC-023",
+     "STU-ARC-024",
+     "STU-ARC-026",
+     "STU-ARC-028",
+     "STU-CON-042",
+     "STU-CON-043",
+     "STU-CON-044",
+     "STU-CON-045",
+     "STU-CON-046"
+    ],
+    "forward_uncovered_count": 9,
+    "excluded_by_module_declaration": [
+     "STU-CMP-120",
+     "STU-CMP-121",
+     "STU-CMP-124",
+     "STU-MOT-250",
+     "STU-MOT-251",
+     "STU-MOT-253",
+     "STU-MOT-254",
+     "STU-VID-100",
+     "STU-VID-101",
+     "STU-VID-103",
+     "STU-VID-104"
+    ],
+    "excluded_by_module_declaration_count": 11,
+    "exclusion_note": "These clauses are declared non-yielding by the module that owns them, almost always a Microtask Derivation sub-section. A clause stating how the microtask set is derived is not itself a unit of work, so it is not a coverage gap.",
+    "backward_microtask_anchors_not_in_spec": [],
+    "backward_dangling_count": 0,
+    "cited_but_recorded_as_never_assigned": [
+     "STU-CON-007c",
+     "STU-RAS-001c",
+     "STU-RAS-140",
+     "STU-RAW-014c"
+    ],
+    "never_assigned_note": "The spec records these anchors as never assigned. A microtask quoting that register is not citing a missing clause.",
+    "verdict": "FAIL"
+   },
+   "parameter_contract": {
+    "clauses_carrying_bounds": 214,
+    "complete": 187,
+    "stated_unknown": 7,
+    "incomplete_without_stating_unknown": [
+     {
+      "anchor": "STU-VEC-102",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-TYP-107",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-COL-108",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-FX-105a",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "unit"
+      ]
+     },
+     {
+      "anchor": "STU-FX-145",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-DS-146",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "default",
+       "unit"
+      ]
+     },
+     {
+      "anchor": "STU-DS-147",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "hard_max",
+       "soft_min",
+       "soft_max"
+      ]
+     },
+     {
+      "anchor": "STU-DS-148",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max"
+      ]
+     },
+     {
+      "anchor": "STU-DS-150",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit"
+      ]
+     },
+     {
+      "anchor": "STU-DS-155",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-PRO-119",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max"
+      ]
+     },
+     {
+      "anchor": "STU-IO-115",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max"
+      ]
+     },
+     {
+      "anchor": "STU-VID-013a",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MOT-010a",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MOT-020c",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MOT-122",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-CMP-060",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MDL-105",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-SHL-192",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MDL-111",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "precision"
+      ]
+     }
+    ],
+    "collapsed_hard_and_soft": [
+     "STU-TYP-107",
+     "STU-COL-108",
+     "STU-FX-145",
+     "STU-DS-146",
+     "STU-DS-147",
+     "STU-DS-148",
+     "STU-DS-150",
+     "STU-DS-155",
+     "STU-PRO-119",
+     "STU-IO-115",
+     "STU-VID-013a",
+     "STU-MOT-010a",
+     "STU-MOT-020c",
+     "STU-MOT-122",
+     "STU-CMP-060",
+     "STU-MDL-105",
+     "STU-SHL-192",
+     "STU-MDL-111"
+    ],
+    "collapsed_count": 18
+   },
+   "naming_discipline": {
+    "vendor_names_inside_normative_sentences": [],
+    "count": 0,
+    "rule": "[STU-SECTION-003]: a source product name is never a Studio tool, command, panel or manual name. Provenance mentions are legitimate; obligations must not name a vendor product."
+   }
+  },
+  "after_v02.227": {
+   "schema_id": "handshake.reference.studio_spec_roundtrip@1",
+   "generated_at": "2026-11-01T03:14:32+00:00",
+   "purpose": "Proves the operator's acceptance test: the Master Spec must be complete enough that the same microtask set falls out of it, and no microtask may cite a clause that does not exist.",
+   "modules": {
+    "count": 1,
+    "per_module": [
+     {
+      "module": "14-studio-creative-suite.md",
+      "bytes": 3048919,
+      "lines": 33450,
+      "clauses": 2431,
+      "normative_clauses": 1599,
+      "has_frontmatter": true,
+      "heading_level": 1
+     }
+    ],
+    "missing_frontmatter": [],
+    "heading_level_histogram": {
+     "1": 1
+    },
+    "heading_drift": false,
+    "definition_rule": "An anchor at line start whose preceding line is blank. Style-independent, so a wrapped prose line beginning with an anchor reference is not a definition."
+   },
+   "anchors": {
+    "total_in_staged_spec": 2477,
+    "normative": 1599,
+    "collisions_across_modules": [],
+    "duplicate_definitions_within_a_file": [],
+    "duplicate_definitions_within_a_file_count": 0,
+    "dropped_from_v02_205_without_a_home": [
+     "STU-CON-007c",
+     "STU-RAS-001c",
+     "STU-RAS-140",
+     "STU-RAW-014c"
+    ],
+    "dropped_count": 4
+   },
+   "microtasks": {
+    "count": 6224,
+    "still_provisional_anchor_status": 0,
+    "distinct_anchors_referenced": 2455
+   },
+   "roundtrip": {
+    "forward_spec_clauses_with_no_microtask": [],
+    "forward_uncovered_count": 0,
+    "excluded_by_module_declaration": [
+     "STU-CMP-120",
+     "STU-CMP-121",
+     "STU-CMP-124",
+     "STU-MOT-250",
+     "STU-MOT-251",
+     "STU-MOT-253",
+     "STU-MOT-254",
+     "STU-VID-100",
+     "STU-VID-101",
+     "STU-VID-103",
+     "STU-VID-104"
+    ],
+    "excluded_by_module_declaration_count": 11,
+    "exclusion_note": "These clauses are declared non-yielding by the module that owns them, almost always a Microtask Derivation sub-section. A clause stating how the microtask set is derived is not itself a unit of work, so it is not a coverage gap.",
+    "backward_microtask_anchors_not_in_spec": [],
+    "backward_dangling_count": 0,
+    "cited_but_recorded_as_never_assigned": [
+     "STU-CON-007c",
+     "STU-RAS-001c",
+     "STU-RAS-140",
+     "STU-RAW-014c"
+    ],
+    "never_assigned_note": "The spec records these anchors as never assigned. A microtask quoting that register is not citing a missing clause.",
+    "verdict": "PASS"
+   },
+   "parameter_contract": {
+    "clauses_carrying_bounds": 214,
+    "complete": 187,
+    "stated_unknown": 7,
+    "incomplete_without_stating_unknown": [
+     {
+      "anchor": "STU-VEC-102",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-TYP-107",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-COL-108",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-FX-105a",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "unit"
+      ]
+     },
+     {
+      "anchor": "STU-FX-145",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-DS-146",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "default",
+       "unit"
+      ]
+     },
+     {
+      "anchor": "STU-DS-147",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "hard_max",
+       "soft_min",
+       "soft_max"
+      ]
+     },
+     {
+      "anchor": "STU-DS-148",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max"
+      ]
+     },
+     {
+      "anchor": "STU-DS-150",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit"
+      ]
+     },
+     {
+      "anchor": "STU-DS-155",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-PRO-119",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max"
+      ]
+     },
+     {
+      "anchor": "STU-IO-115",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max"
+      ]
+     },
+     {
+      "anchor": "STU-VID-013a",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MOT-010a",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MOT-020c",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MOT-122",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-CMP-060",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MDL-105",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-SHL-192",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MDL-111",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "precision"
+      ]
+     }
+    ],
+    "collapsed_hard_and_soft": [
+     "STU-TYP-107",
+     "STU-COL-108",
+     "STU-FX-145",
+     "STU-DS-146",
+     "STU-DS-147",
+     "STU-DS-148",
+     "STU-DS-150",
+     "STU-DS-155",
+     "STU-PRO-119",
+     "STU-IO-115",
+     "STU-VID-013a",
+     "STU-MOT-010a",
+     "STU-MOT-020c",
+     "STU-MOT-122",
+     "STU-CMP-060",
+     "STU-MDL-105",
+     "STU-SHL-192",
+     "STU-MDL-111"
+    ],
+    "collapsed_count": 18
+   },
+   "naming_discipline": {
+    "vendor_names_inside_normative_sentences": [],
+    "count": 0,
+    "rule": "[STU-SECTION-003]: a source product name is never a Studio tool, command, panel or manual name. Provenance mentions are legitimate; obligations must not name a vendor product."
+   }
+  },
+  "strict_after_summary": {
+   "schema_id": "hsk.studio_spec_anchor_binding_report@1",
+   "spec": ".GOV/spec/master-spec-v02.227/spec-modules/14-studio-creative-suite.md",
+   "normative_clauses": 1599,
+   "normative_without_binding": [],
+   "normative_without_binding_count": 0,
+   "masked_by_incidental_or_non_mt_mentions": [],
+   "binding_citations_of_undefined_anchors": []
+  }
+ }
+}

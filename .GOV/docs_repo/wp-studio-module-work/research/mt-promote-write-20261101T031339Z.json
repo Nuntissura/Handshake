@@ -1,0 +1,353 @@
+{
+ "mode": "write",
+ "generated_at": "2026-11-01T03:13:39Z",
+ "spec_version": "v02.227",
+ "spec_commit": "637b46a6f58633fb6246ca93aceafc6643db96c3",
+ "mts": [
+  "MT-36252",
+  "MT-36253",
+  "MT-36254",
+  "MT-36255",
+  "MT-36256",
+  "MT-36257",
+  "MT-36258",
+  "MT-36259",
+  "MT-36260",
+  "MT-36261",
+  "MT-36262",
+  "MT-36263"
+ ],
+ "index_entries_before": 6208,
+ "index_entries_after": 6220,
+ "index_bytes_before": 23440110,
+ "index_bytes_after": 23448108,
+ "index_only_new_entries_inserted": true,
+ "entries": [
+  {
+   "mt_id": "MT-36252",
+   "file": "MT-36252.json",
+   "clause": "SHARED-CONTROLS OWNER. Kumihimo is the canonical shared-controls asset and the single owner of the control mechanic required by [STU-ARC-014] (Operator decision D8, 2026-10-31). Its control-model crat [...]",
+   "spec_anchor": [
+    "STU-ARC-023"
+   ],
+   "domain": "architecture",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 1,
+   "status": null,
+   "active_module_ref": "STUDIO-MODULE-CONTROLS",
+   "activation_disposition": "NON_AI_CURRENT_SCOPE",
+   "active_acceptance_count": 4,
+   "module_change_stage": "standalone_source",
+   "authoring_contract_revision": 1,
+   "authoring_proof_status": "NOT_RUN",
+   "current_hbr_assessment_count": 0
+  },
+  {
+   "mt_id": "MT-36253",
+   "file": "MT-36253.json",
+   "clause": "GPU CLIENT PORT. Studio holds no GPU device ownership. The render-gpu asset crate MUST expose a typed GPU client port through which Studio GPU work consumes the central Handshake GPU owner under [GUI- [...]",
+   "spec_anchor": [
+    "STU-ARC-024"
+   ],
+   "domain": "architecture",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 1,
+   "status": null,
+   "active_module_ref": "STUDIO-MODULE-RENDER_GPU",
+   "activation_disposition": "NON_AI_CURRENT_SCOPE",
+   "active_acceptance_count": 4,
+   "module_change_stage": "standalone_source",
+   "authoring_contract_revision": 1,
+   "authoring_proof_status": "NOT_RUN",
+   "current_hbr_assessment_count": 0
+  },
+  {
+   "mt_id": "MT-36254",
+   "file": "MT-36254.json",
+   "clause": "NATIVE HOST UI. Studio surfaces render in the kernel-owned native Vulkan shell. The host UI and control layer render on the Vulkan API directly (Operator decisions D1, 2026-10-30, and D7, 2026-10-31) [...]",
+   "spec_anchor": [
+    "STU-ARC-025"
+   ],
+   "domain": "architecture",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 0,
+   "status": null,
+   "active_module_ref": "STUDIO-WORKSPACE",
+   "activation_disposition": "NON_AI_CURRENT_SCOPE",
+   "active_acceptance_count": 3,
+   "module_change_stage": "standalone_source",
+   "authoring_contract_revision": 1,
+   "authoring_proof_status": "NOT_RUN",
+   "current_hbr_assessment_count": 0
+  },
+  {
+   "mt_id": "MT-36255",
+   "file": "MT-36255.json",
+   "clause": "DIAGNOSTIC RING PRODUCER. The observe asset crate MUST expose a ring-shaped producer port into the `internal_diagnostics` ring (Section 5.8) that carries only an event code, counters and opaque ids, n [...]",
+   "spec_anchor": [
+    "STU-ARC-026"
+   ],
+   "domain": "architecture",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 1,
+   "status": null,
+   "active_module_ref": "STUDIO-MODULE-OBSERVE",
+   "activation_disposition": "NON_AI_CURRENT_SCOPE",
+   "active_acceptance_count": 1,
+   "module_change_stage": "standalone_source",
+   "authoring_contract_revision": 1,
+   "authoring_proof_status": "NOT_RUN",
+   "current_hbr_assessment_count": 0
+  },
+  {
+   "mt_id": "MT-36256",
+   "file": "MT-36256.json",
+   "clause": "PALMISTRY BINDING. A Studio pane freeze or crash is observed through Palmistry (Section 6.13). DECLARED GAP, not settled here: Section 6.13 carries no clause ids, states the hung-window threshold only [...]",
+   "spec_anchor": [
+    "STU-ARC-027"
+   ],
+   "domain": "architecture",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 0,
+   "status": null,
+   "active_module_ref": "handshake_native::studio",
+   "activation_disposition": "NON_AI_CURRENT_SCOPE",
+   "active_acceptance_count": 1,
+   "module_change_stage": "host_adoption",
+   "authoring_contract_revision": 1,
+   "authoring_proof_status": "NOT_RUN",
+   "current_hbr_assessment_count": 0
+  },
+  {
+   "mt_id": "MT-36257",
+   "file": "MT-36257.json",
+   "clause": "RENDER CALLBACK REALTIME. [STU-ARC-013] and [HSK-PLG-011] extend to GPU frame and render callbacks: a Studio render callback MUST NOT call the locking `internal_diagnostics` recorder, and heartbeat or [...]",
+   "spec_anchor": [
+    "STU-ARC-028"
+   ],
+   "domain": "architecture",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 1,
+   "status": null,
+   "active_module_ref": "STUDIO-MODULE-RENDER_GPU",
+   "activation_disposition": "NON_AI_CURRENT_SCOPE",
+   "active_acceptance_count": 1,
+   "module_change_stage": "standalone_source",
+   "authoring_contract_revision": 1,
+   "authoring_proof_status": "NOT_RUN",
+   "current_hbr_assessment_count": 0
+  },
+  {
+   "mt_id": "MT-36258",
+   "file": "MT-36258.json",
+   "clause": "STUDIO SETTINGS TREE. Under [GUI-DESKTOP-014] Studio contributes one Settings tab `Studio` with one subtab per Studio module that owns a user-facing setting. DECLARED GAP, not settled here: SET-SCOPE- [...]",
+   "spec_anchor": [
+    "STU-ARC-029"
+   ],
+   "domain": "architecture",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 0,
+   "status": null,
+   "active_module_ref": "handshake_native::studio",
+   "activation_disposition": "NON_AI_CURRENT_SCOPE",
+   "active_acceptance_count": 1,
+   "module_change_stage": "host_adoption",
+   "authoring_contract_revision": 1,
+   "authoring_proof_status": "NOT_RUN",
+   "current_hbr_assessment_count": 0
+  },
+  {
+   "mt_id": "MT-36259",
+   "file": "MT-36259.json",
+   "clause": "ID BRIDGE. The controls Registry ids are the `author_id` space of [STU-MDL-104], and those `author_id`s are the stable control ids [GUI-DESKTOP-050] requires of Studio diagnostic producers. The kernel [...]",
+   "spec_anchor": [
+    "STU-ARC-030"
+   ],
+   "domain": "architecture",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 0,
+   "status": null,
+   "active_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+   "activation_disposition": "NON_AI_CURRENT_SCOPE",
+   "active_acceptance_count": 2,
+   "module_change_stage": "standalone_source",
+   "authoring_contract_revision": 1,
+   "authoring_proof_status": "NOT_RUN",
+   "current_hbr_assessment_count": 0
+  },
+  {
+   "mt_id": "MT-36260",
+   "file": "MT-36260.json",
+   "clause": "PRE-ACCOUNT RENDERING. Nothing Studio renders before account activation, including previews and thumbnails; the pre-activation shell authority of [NATIVE-RENDER-BOOT-001] does not extend to any Studio [...]",
+   "spec_anchor": [
+    "STU-ARC-031"
+   ],
+   "domain": "architecture",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 0,
+   "status": null,
+   "active_module_ref": "handshake_native::studio",
+   "activation_disposition": "NON_AI_CURRENT_SCOPE",
+   "active_acceptance_count": 1,
+   "module_change_stage": "host_adoption",
+   "authoring_contract_revision": 1,
+   "authoring_proof_status": "NOT_RUN",
+   "current_hbr_assessment_count": 0
+  },
+  {
+   "mt_id": "MT-36261",
+   "file": "MT-36261.json",
+   "clause": "ASSET-LOCAL GPU PROOF. While the central GPU owner and its issuer do not exist ([GPU-QUOTA-016], [NATIVE-RENDER-BOOT-007]), Studio GPU proof obtained through the transient adapter of [STU-ARC-024] is [...]",
+   "spec_anchor": [
+    "STU-ARC-032"
+   ],
+   "domain": "architecture",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 0,
+   "status": null,
+   "active_module_ref": "STUDIO-MODULE-RENDER_GPU",
+   "activation_disposition": "NON_AI_CURRENT_SCOPE",
+   "active_acceptance_count": 1,
+   "module_change_stage": "standalone_source",
+   "authoring_contract_revision": 1,
+   "authoring_proof_status": "NOT_RUN",
+   "current_hbr_assessment_count": 0
+  },
+  {
+   "mt_id": "MT-36262",
+   "file": "MT-36262.json",
+   "clause": "DOCUMENT REVISION. A Studio document revision is a `u64`, carried through the kernel-bindings `CommitRequest` as the expected and successor revision of [STU-ARC-011]. DECLARED GAP, not settled here: H [...]",
+   "spec_anchor": [
+    "STU-ARC-033"
+   ],
+   "domain": "architecture",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 0,
+   "status": null,
+   "active_module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+   "activation_disposition": "NON_AI_CURRENT_SCOPE",
+   "active_acceptance_count": 1,
+   "module_change_stage": "standalone_source",
+   "authoring_contract_revision": 1,
+   "authoring_proof_status": "NOT_RUN",
+   "current_hbr_assessment_count": 0
+  },
+  {
+   "mt_id": "MT-36263",
+   "file": "MT-36263.json",
+   "clause": "ASSISTED ROTOSCOPING -- boundary propagation across frames - The normative contract parameter bounds",
+   "spec_anchor": [
+    "STU-CMP-034"
+   ],
+   "domain": "compositing",
+   "unit_kind": "parameter_table",
+   "acceptance_criteria_count": 23,
+   "status": null,
+   "active_module_ref": "STUDIO-MODULE-COMPOSITE",
+   "activation_disposition": "NON_AI_CURRENT_SCOPE",
+   "active_acceptance_count": 23,
+   "module_change_stage": "standalone_source",
+   "authoring_contract_revision": 1,
+   "authoring_proof_status": "NOT_RUN",
+   "current_hbr_assessment_count": 0
+  }
+ ],
+ "host_integration": {
+  "MT-36252": {
+   "gui_host": "vulkan_shell_client",
+   "gpu": "none",
+   "control_descriptors": "shared_typed_source",
+   "jobs": "none",
+   "settings": "module_tab_feature_subtab",
+   "refactor_exposure": "high"
+  },
+  "MT-36253": {
+   "gui_host": "none",
+   "gpu": "central_broker_client",
+   "control_descriptors": "none",
+   "jobs": "bounded_admission_via_job_port",
+   "settings": "none",
+   "refactor_exposure": "high"
+  },
+  "MT-36254": {
+   "gui_host": "vulkan_shell_client",
+   "gpu": "none",
+   "control_descriptors": "shared_typed_source",
+   "jobs": "none",
+   "settings": "module_tab_feature_subtab",
+   "refactor_exposure": "medium"
+  },
+  "MT-36255": {
+   "gui_host": "none",
+   "gpu": "none",
+   "control_descriptors": "none",
+   "jobs": "bounded_admission_via_job_port",
+   "settings": "none",
+   "refactor_exposure": "medium"
+  },
+  "MT-36256": {
+   "gui_host": "vulkan_shell_client",
+   "gpu": "none",
+   "control_descriptors": "shared_typed_source",
+   "jobs": "bounded_admission_via_job_port",
+   "settings": "module_tab_feature_subtab",
+   "refactor_exposure": "medium"
+  },
+  "MT-36257": {
+   "gui_host": "none",
+   "gpu": "central_broker_client",
+   "control_descriptors": "none",
+   "jobs": "bounded_admission_via_job_port",
+   "settings": "none",
+   "refactor_exposure": "high"
+  },
+  "MT-36258": {
+   "gui_host": "vulkan_shell_client",
+   "gpu": "none",
+   "control_descriptors": "shared_typed_source",
+   "jobs": "none",
+   "settings": "module_tab_feature_subtab",
+   "refactor_exposure": "medium"
+  },
+  "MT-36259": {
+   "gui_host": "none",
+   "gpu": "none",
+   "control_descriptors": "none",
+   "jobs": "none",
+   "settings": "none",
+   "refactor_exposure": "medium"
+  },
+  "MT-36260": {
+   "gui_host": "vulkan_shell_client",
+   "gpu": "none",
+   "control_descriptors": "shared_typed_source",
+   "jobs": "none",
+   "settings": "module_tab_feature_subtab",
+   "refactor_exposure": "medium"
+  },
+  "MT-36261": {
+   "gui_host": "none",
+   "gpu": "central_broker_client",
+   "control_descriptors": "none",
+   "jobs": "bounded_admission_via_job_port",
+   "settings": "none",
+   "refactor_exposure": "high"
+  },
+  "MT-36262": {
+   "gui_host": "none",
+   "gpu": "none",
+   "control_descriptors": "none",
+   "jobs": "none",
+   "settings": "none",
+   "refactor_exposure": "medium"
+  },
+  "MT-36263": {
+   "gui_host": "vulkan_shell_client",
+   "gpu": "via_render_provider_port",
+   "control_descriptors": "shared_typed_source",
+   "jobs": "bounded_admission_via_job_port",
+   "settings": "module_tab_feature_subtab",
+   "refactor_exposure": "medium"
+  }
+ }
+}

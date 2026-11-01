@@ -573,6 +573,9 @@ def main() -> int:
     ap.add_argument("--base", type=int, default=20000)
     ap.add_argument("--prior-mts", type=Path, default=None,
                     help="staged cluster-derived microtasks, mined for behavioural payload only")
+    ap.add_argument("--existing-mts", type=Path, default=None,
+                    help="the live MT folder; every MT-<n>.json in it is a taken id that a new key "
+                         "must never be allocated")
     args = ap.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
 
@@ -592,7 +595,14 @@ def main() -> int:
 
     modules = parse_modules(args.modules)
     id_map = json.loads(args.id_map.read_text(encoding="utf-8")) if args.id_map.exists() else {}
-    next_id = max([int(v.split("-")[1]) for v in id_map.values()] or [args.base - 1]) + 1
+    # The id map is not the only owner of MT ids: foundations, amendments, source companions and
+    # host-adoption MTs were authored outside it above its maximum. Allocating from the map alone
+    # handed out MT-35528, an id already taken, so the live folder and --base are floors too.
+    taken = [int(v.split("-")[1]) for v in id_map.values()]
+    if args.existing_mts and args.existing_mts.exists():
+        taken += [int(p.stem.split("-")[1]) for p in args.existing_mts.glob("MT-*.json")
+                  if p.stem.split("-")[1].isdigit()]
+    next_id = max(taken + [args.base - 1]) + 1
 
     manifest, counts, skipped, mismatches = [], collections.Counter(), [], []
     unrecognised: list[dict] = []

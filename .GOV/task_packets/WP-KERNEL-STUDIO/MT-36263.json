@@ -1,0 +1,1183 @@
+{
+  "schema_id": "hsk.microtask_contract@2",
+  "schema_version": "microtask_contract_v2_preservation_asset_first",
+  "instance_policy": {
+    "omit_empty_optional_fields": true,
+    "policy_lives_in_rule_refs_not_instance_fields": true,
+    "schema_ref": null
+  },
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-008",
+    "CX-EXEC-012",
+    "CX-503B1",
+    "CX-131",
+    "CX-UNIT-001",
+    "CX-CAP-001",
+    "CX-LANE-001",
+    "CX-GIT-001",
+    "CX-GIT-002",
+    "CX-VAL-002",
+    "CX-VAL-003",
+    "CX-VAL-004",
+    "CX-EXEC-009",
+    "CX-EXEC-013",
+    "CX-EXEC-014",
+    "CX-VAL-005",
+    "CX-VAL-006",
+    "CX-VAL-007",
+    "CX-VAL-008",
+    "CX-VAL-009",
+    "CX-GP-001",
+    "CX-GP-002",
+    "CX-EXEC-015",
+    "CX-VAL-010",
+    "CX-STATUS-002",
+    "CX-STATUS-003",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003"
+  ],
+  "identity": {
+    "mt_id": "MT-36263",
+    "wp_id": "WP-KERNEL-STUDIO",
+    "title": "Assisted rotoscoping parameter bounds (23 parameters, seven-field contract)",
+    "group": "STUDIO_ASSET_FEATURE",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "parent": {
+    "wp_contract_revision": 2,
+    "wp_contract_digest": null
+  },
+  "gameplan_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/gameplan.yaml",
+  "context_capsule": {
+    "specification_anchor_refs": [
+      {
+        "id": "STU-CMP-034",
+        "anchor": ".GOV/spec/master-spec-v02.227/spec-modules/14-studio-creative-suite.md:29512",
+        "verbatim": "**[STU-CMP-034] ASSISTED ROTOSCOPING -- boundary propagation across frames.** Mask-path animation\n([STU-CMP-025]) remains the manual rotoscoping mechanism and is unchanged. Assisted rotoscoping is the\ncapability that turns foreground and background STROKES drawn on one frame into a per-frame matte\nacross a span of frames by tracking the segmentation boundary, so that a subject is isolated from a\nmoving shot without a path being drawn on every frame. It is specified here, resolving [STU-CMP-100].\nThe reference surface it mirrors is the Roto Brush and Refine Edge tool family of the compositing\napplication it replaces; the recovered names of that surface are import keys only ([STU-SECTION-003]).\nThe normative contract:\n\n1. **Strokes, base frames and spans.** A stroke is a frame-bound record with a polarity, `foreground`\n   or `background`, a brush diameter and a path; a stroke is never replaced by a later stroke, a later\n   stroke is always added. The first stroke on a frame that lies in no span makes that frame a BASE\n   FRAME and opens a SPAN that by default covers the layer duration not already covered by another\n   span. A span carries its base frame, its in and out frames and its propagation directions; it grows\n   with each stroke unless it abuts another span, its ends are resizable, it can be removed, and\n   removing the capability from the layer removes every span. Strokes, spans, base frames, the engine\n   choice and every parameter value of the table below are DOCUMENT STATE under the ownership rules of\n   [STU-CMP-002] and [STU-CMP-003]; the propagated mattes are a cache, never authority, and a reopened\n   document MUST reproduce them from that state.\n2. **Propagation.** From the base frame the segmentation propagates forward and backward within the\n   span one frame at a time. Each frame predicts its boundary from the previous frame's matte and the\n   estimated motion, then re-segments inside a search region around the predicted boundary using the\n   foreground and background models learnt from the strokes and from the previous frame. A corrective\n   stroke on any frame influences every frame in its direction within the span regardless of the order\n   in which strokes were drawn; a correction is made on the first frame where the error appears, never\n   by undoing an earlier stroke. A stroke outside every span opens a new base frame and span.\n3. **Per-frame state.** Every frame of a span carries exactly one of `base`, `propagated` or `lost`.\n   `lost` is the state of a frame whose subject left the search region or whose propagation could not\n   continue; a `lost` frame is reported as such in the span view and in the receipt and is NEVER\n   silently filled with the previous matte or with an empty matte.\n4. **Engines.** `engine` selects `classic` or `learned`. `classic` is a deterministic tracking\n   propagation that uses no learned model and MUST always be available. `learned` is a model-backed\n   propagation; when no model is installed it is a typed refusal `model_unavailable` naming the model\n   lane, never a silent fallback to `classic`. The engine is recorded with every propagated frame, and\n   every per-frame output of the `classic` engine carries the determinism obligation of\n   [STU-CMP-075a].\n5. **Matte pipeline position.** The per-frame matte is a matte source of the pipeline of\n   [STU-CMP-033] and enters it at the REFINE stage. The refine stage of assisted rotoscoping MUST\n   consume the unified edge-refinement surface of [STU-RAS-121] -- its `smooth`, `feather`,\n   `contrast`, `shift_edge`, `decontaminate_colours` and `decontamination_amount` controls with the\n   bounds declared there -- and MUST NOT define a second edge-refinement record. This clause adds\n   only the temporal controls that a still image has no use for: `refine_reduce_chatter`,\n   `use_motion_blur`, `extend_where_smoothed` and `decontamination_increase_radius`. Refine-edge\n   strokes painted on a frame designate the band in which the refinement runs, and\n   `refine_edge_base_radius` widens that band when the strokes were too narrow.\n6. **Freeze.** Freezing caches and locks the segmentation of every span of the layer within the work\n   area; frames not yet propagated are propagated first, and stopping a freeze keeps what was cached.\n   While frozen, new strokes and changes to the propagation controls do not change the result, the\n   matte controls stay live, and unfreezing recomputes. The frozen cache persists with the document\n   but remains cache under item 1.\n7. **Views.** `view_mode` selects `alpha`, `alpha_boundary` (the source with the segmentation\n   boundary outlined), `alpha_overlay` (the source with the matte tinted) or `composite` (the result\n   in the composition). The search region and the decontamination map are separately showable\n   (`view_search_region`, `view_decontamination_map`).\n8. **Admission.** Frame count, per-frame working set, aggregate output bytes and aggregate\n   motion-estimation work are admitted against declared limits BEFORE any allocation; exceeding a\n   limit is a typed refusal naming the limit, never a partial result presented as complete.\n9. **Steerability, diagnostics and proof.** Every stroke, span edit, propagation run, freeze and\n   unfreeze is a model-steerable command and emits the diagnostics of 14.27.11. Numeric parity with\n   the reference surface is proof scope under the attended oracle session, not a promise of this\n   clause; an implementation claims it only with a passing comparison test.\n\n*Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.*\n\n| Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | classification |\n|---|---|---|---|---|---|---|---|---|\n| `engine` | enum | enum | — | — | `classic` | none | — | closed set: `classic`, `learned`; `declared`; recovered import keys: Version 1.0 (classic), 2.0 and 3.0 (learned) |\n| `quality` | enum | enum | — | — | `standard` | none | — | closed set: `standard`, `best`; `declared`; effective for engines that expose an edge-detail quality step; recovered: Quality |\n| `search_radius` | unknown | unknown | unknown | unknown | unknown | pixels | 1 | radius of the region searched for the boundary from one frame to the next; all four bounds and the default undeclared by every source; recovered: Search Radius |\n| `view_search_region` | — | — | — | — | false | none | — | boolean; preview toggle; recovered: View Search Region |\n| `motion_threshold` | unknown | unknown | unknown | unknown | unknown | unknown | unknown | motion below which the search region collapses to nothing; bounds, default, unit and precision undeclared; recovered: Motion Threshold |\n| `motion_damping` | unknown | unknown | unknown | unknown | unknown | unknown | unknown | tightens the search region in slow-moving areas more than in fast ones; bounds, default, unit and precision undeclared; recovered: Motion Damping |\n| `edge_detection` | enum | enum | — | — | `balanced` | none | — | closed set: `balanced`, `favor_predicted`, `favor_current`; `declared` (the recovered label of the third member is UNVERIFIED); recovered: Edge Detection |\n| `use_alternate_colour_estimation` | — | — | — | — | false | none | — | boolean; alternative foreground/background decision; recovered: Use Alternate Color Estimation |\n| `invert_foreground_background` | — | — | — | — | false | none | — | boolean; swaps stroke polarity in the segmentation phase |\n| `fine_tune_matte` | — | — | — | — | false | none | — | boolean; gates the four matte controls that follow |\n| `matte_feather` | unknown | unknown | unknown | unknown | unknown | pixels | 1 | softness of the segmentation boundary; unit and precision as the `feather` control of [STU-RAS-121]; all four bounds and the default undeclared |\n| `matte_contrast` | unknown | unknown | unknown | unknown | unknown | percent | 1 | unit and precision as the `contrast` control of [STU-RAS-121]; all four bounds and the default undeclared |\n| `matte_shift_edge` | unknown | unknown | unknown | unknown | unknown | percent | 1 | signed, positive expands; unit and precision as the `shift_edge` control of [STU-RAS-121]; all four bounds and the default undeclared |\n| `matte_reduce_chatter` | 0 | 100 | 0 | 100 | 0 | percent | 1 | temporal damping of the segmentation boundary; bounds, default, unit and precision `declared` by this clause (v02.218): the damping weight k = 2/3 × percent/100 is defined on 0..100 and 0 disables damping; the reference surface states none; recovered: Reduce Chatter |\n| `render_refine_edge` | — | — | — | — | false | none | — | boolean; shows the refined edge on base and propagated frames |\n| `refine_edge_base_radius` | unknown | unknown | unknown | unknown | unknown | pixels | 1 | widens the refine-edge band; unit and precision `declared`; all four bounds and the default undeclared |\n| `fine_tune_refine_edge_matte` | — | — | — | — | false | none | — | boolean; gates the refine controls consumed from [STU-RAS-121] and the temporal controls that follow |\n| `refine_reduce_chatter` | 0 | 100 | 0 | 100 | 0 | percent | 1 | weighted average of the refined matte across adjacent frames; 0 uses the current frame only; bounds, default, unit and precision `declared` by this clause (v02.218) on the same 0..100 weight rule as `matte_reduce_chatter`; the reference surface states none; recovered: Reduce Chatter |\n| `use_motion_blur` | — | — | — | — | false | none | — | boolean; renders the matte with the layer's motion-blur settings |\n| `extend_where_smoothed` | — | — | — | — | false | none | — | boolean; effective only when `refine_reduce_chatter` is above 0 and `decontaminate_colours` is set |\n| `decontamination_increase_radius` | unknown | unknown | unknown | unknown | unknown | pixels | 1 | extra radius, in pixels, for edge-colour cleaning; all four bounds and the default undeclared; recovered: Increase Radius |\n| `view_decontamination_map` | — | — | — | — | false | none | — | boolean; preview toggle; recovered: View Map |\n| `view_mode` | enum | enum | — | — | `alpha_boundary` | none | — | closed set: `alpha`, `alpha_boundary`, `alpha_overlay`, `composite`; `declared` |\n\nExcept the two chatter controls, whose 0..100 percent bounds and default this clause declares (an\nimplementation refuses values outside them with a typed error and never silently clamps), the numeric\ncontrols above carry no declared hard bound, soft bound or default: the reference surface documents each\ncontrol and its meaning but states no minimum, maximum or default, and where it states no unit the unit\nis `unknown` as well. They MUST ship as `unknown` per [STU-RAS-106], MUST NOT be clamped, and the soft\nbounds MUST NOT be back-filled from the hard bounds or from any observed spread.\n\n---",
+        "heading": "14.27.2 Keying and matte refinement",
+        "source_sha256": "5ed70d38f308174db5694838a62413611fff6166611c152dd870dfae6b9a544f",
+        "start_line": 29512,
+        "end_line": 29610,
+        "body_sha256": "2fe1c9ea97fa7ba30e182afaa4fc2bd7e159e8a32ac37a21a2aaf1d47178ceb9",
+        "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+      }
+    ],
+    "read_context": [
+      "AGENTS.md",
+      "CLAUDE.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/spec/master-spec-v02.227/spec-modules/14-studio-creative-suite.md",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+      ".GOV/docs_repo/wp-studio-module-work/spec-enrichment/STUDIO-ENRICHMENT-20261030-HOST-INTEGRATION.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36204.json"
+    ],
+    "pillar_refs": [],
+    "current_hbr_assessment": {
+      "version": "1.18.0",
+      "registry_sha256": "475dc7fc5e3ca843e1039fb161eb7d3642790b1fec92021d38a06c7b2a6bd3a8",
+      "assessed_rule_count": 0,
+      "status": "PENDING_PER_RULE_ASSESSMENT_AT_ACTIVATION",
+      "source_capability_ref": "MT-36263#/execution",
+      "host_proof_pending": true
+    },
+    "consumed_capability_refs": [
+      {
+        "mt_ref": "MT-35544"
+      },
+      {
+        "mt_ref": "MT-34110"
+      }
+    ],
+    "context_digest": null
+  },
+  "closure_unit": {
+    "outcome": "Assisted rotoscoping parameter bounds (23 parameters, seven-field contract), as [STU-CMP-034] states it (Master Spec v02.227, 14.27.2 Keying and matte refinement).",
+    "requirement_refs": [
+      "STU-CMP-034"
+    ],
+    "acceptance_refs": [
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009",
+      "AC-010",
+      "AC-011",
+      "AC-012",
+      "AC-013",
+      "AC-014",
+      "AC-015",
+      "AC-016",
+      "AC-017",
+      "AC-018",
+      "AC-019",
+      "AC-020",
+      "AC-021",
+      "AC-022",
+      "AC-023"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC-001",
+        "text": "The parameter `engine` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=enum, hard_max=enum, soft_min=—, soft_max=—, default=`classic`, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      },
+      {
+        "id": "AC-002",
+        "text": "The parameter `quality` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=enum, hard_max=enum, soft_min=—, soft_max=—, default=`standard`, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      },
+      {
+        "id": "AC-003",
+        "text": "The parameter `search_radius` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=pixels, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      },
+      {
+        "id": "AC-004",
+        "text": "The parameter `view_search_region` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      },
+      {
+        "id": "AC-005",
+        "text": "The parameter `motion_threshold` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=unknown, precision=unknown. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      },
+      {
+        "id": "AC-006",
+        "text": "The parameter `motion_damping` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=unknown, precision=unknown. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      },
+      {
+        "id": "AC-007",
+        "text": "The parameter `edge_detection` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=enum, hard_max=enum, soft_min=—, soft_max=—, default=`balanced`, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      },
+      {
+        "id": "AC-008",
+        "text": "The parameter `use_alternate_colour_estimation` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      },
+      {
+        "id": "AC-009",
+        "text": "The parameter `invert_foreground_background` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      },
+      {
+        "id": "AC-010",
+        "text": "The parameter `fine_tune_matte` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      },
+      {
+        "id": "AC-011",
+        "text": "The parameter `matte_feather` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=pixels, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      },
+      {
+        "id": "AC-012",
+        "text": "The parameter `matte_contrast` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=percent, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      },
+      {
+        "id": "AC-013",
+        "text": "The parameter `matte_shift_edge` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=percent, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      },
+      {
+        "id": "AC-014",
+        "text": "The parameter `matte_reduce_chatter` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=0, unit=percent, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      },
+      {
+        "id": "AC-015",
+        "text": "The parameter `render_refine_edge` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      },
+      {
+        "id": "AC-016",
+        "text": "The parameter `refine_edge_base_radius` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=pixels, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      },
+      {
+        "id": "AC-017",
+        "text": "The parameter `fine_tune_refine_edge_matte` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      },
+      {
+        "id": "AC-018",
+        "text": "The parameter `refine_reduce_chatter` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=0, unit=percent, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      },
+      {
+        "id": "AC-019",
+        "text": "The parameter `use_motion_blur` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      },
+      {
+        "id": "AC-020",
+        "text": "The parameter `extend_where_smoothed` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      },
+      {
+        "id": "AC-021",
+        "text": "The parameter `decontamination_increase_radius` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=pixels, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      },
+      {
+        "id": "AC-022",
+        "text": "The parameter `view_decontamination_map` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      },
+      {
+        "id": "AC-023",
+        "text": "The parameter `view_mode` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=enum, hard_max=enum, soft_min=—, soft_max=—, default=`alpha_boundary`, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+      }
+    ],
+    "declared_spec_gaps": [],
+    "spec_basis_refs": [
+      ".GOV/spec/master-spec-v02.227/spec-modules/14-studio-creative-suite.md:29512"
+    ],
+    "operator_decision_refs": []
+  },
+  "model_routing": {
+    "model_tier": "medium",
+    "tier_reason": "Single-owner contract with a bounded acceptance set",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "max_fix_rounds_per_mt": 3,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "diagnosis_location": "this MT file, blockers[].diagnosis",
+    "rule_refs": []
+  },
+  "execution": {
+    "lane": "implementation",
+    "module_ref": "STUDIO-MODULE-COMPOSITE",
+    "build_unit_ref": "STUDIO-MODULE-COMPOSITE",
+    "write_scope_source": "allowed_write_paths",
+    "depends_on": [
+      "MT-35544",
+      "MT-34110"
+    ],
+    "contract_dependency_kind": "depends_on_completion",
+    "start_precondition": "PENDING NONEXECUTION preparation: dispatch only after an authorized lane binds the worktree, the natural test target and the immutable pins.",
+    "allowed_write_paths": [
+      "handshake-studio-assets/crates/hsk-studio-composite/**"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/**",
+      "src/**",
+      "app/**",
+      "tests/**",
+      "handshake_core/**",
+      "handshake_native/**",
+      "Other Studio module roots/**"
+    ],
+    "shared_resource_locks": [],
+    "inputs": [
+      {
+        "kind": "verified_canonical_source",
+        "status": "INSPECTED_NOT_EXECUTED",
+        "source_ref": ".GOV/spec/master-spec-v02.227/spec-modules/14-studio-creative-suite.md",
+        "source_sha256": "5ed70d38f308174db5694838a62413611fff6166611c152dd870dfae6b9a544f",
+        "start_line": 29512,
+        "end_line": 29610,
+        "clause_sha256": "2fe1c9ea97fa7ba30e182afaa4fc2bd7e159e8a32ac37a21a2aaf1d47178ceb9",
+        "canonical_spec_commit": "637b46a6f58633fb6246ca93aceafc6643db96c3",
+        "clause_body_ref": "MT-36263#/context_capsule/specification_anchor_refs/0/verbatim"
+      }
+    ],
+    "implementation_steps": [
+      {
+        "n": 1,
+        "step": "Read [STU-CMP-034] and every clause it cites; read the related MTs MT-36204, MT-35544, MT-34110."
+      },
+      {
+        "n": 2,
+        "step": "Implement each materialized acceptance row in hsk-studio-composite within the allowed write paths."
+      },
+      {
+        "n": 3,
+        "step": "Leave every declared spec gap unimplemented and recorded; never choose its values."
+      },
+      {
+        "n": 4,
+        "step": "Prove each row through the natural target with an independent oracle and update the canonical UserManual entry in the same change."
+      }
+    ],
+    "expected_outputs": [
+      "hsk-studio-composite: the contract of [STU-CMP-034] with one proven case per acceptance row"
+    ],
+    "stop_conditions": [
+      "Change needs another module owner path: return to that owner"
+    ],
+    "may_create_canonical_capability": false,
+    "artifact_isolation": {
+      "artifact_root": "../Handshake_Artifacts/handshake-test",
+      "owner_dir": "WP-KERNEL-STUDIO/MT-36263",
+      "env": {},
+      "flags": null,
+      "reference_runner": null
+    },
+    "git_rules": [],
+    "module_change_stage": "standalone_source"
+  },
+  "proof": {
+    "parent_proof_refs": [],
+    "checks": [
+      {
+        "check_id": "MT-36263-AC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-001",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `engine` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=enum, hard_max=enum, soft_min=—, soft_max=—, default=`classic`, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36263-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `quality` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=enum, hard_max=enum, soft_min=—, soft_max=—, default=`standard`, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36263-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `search_radius` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=pixels, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36263-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `view_search_region` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36263-AC-005",
+        "kind": "test",
+        "claim_refs": [
+          "AC-005",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `motion_threshold` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=unknown, precision=unknown. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36263-AC-006",
+        "kind": "test",
+        "claim_refs": [
+          "AC-006",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `motion_damping` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=unknown, precision=unknown. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36263-AC-007",
+        "kind": "test",
+        "claim_refs": [
+          "AC-007",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `edge_detection` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=enum, hard_max=enum, soft_min=—, soft_max=—, default=`balanced`, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36263-AC-008",
+        "kind": "test",
+        "claim_refs": [
+          "AC-008",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `use_alternate_colour_estimation` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36263-AC-009",
+        "kind": "test",
+        "claim_refs": [
+          "AC-009",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `invert_foreground_background` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36263-AC-010",
+        "kind": "test",
+        "claim_refs": [
+          "AC-010",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `fine_tune_matte` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36263-AC-011",
+        "kind": "test",
+        "claim_refs": [
+          "AC-011",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `matte_feather` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=pixels, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36263-AC-012",
+        "kind": "test",
+        "claim_refs": [
+          "AC-012",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `matte_contrast` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=percent, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36263-AC-013",
+        "kind": "test",
+        "claim_refs": [
+          "AC-013",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `matte_shift_edge` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=percent, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36263-AC-014",
+        "kind": "test",
+        "claim_refs": [
+          "AC-014",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `matte_reduce_chatter` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=0, unit=percent, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36263-AC-015",
+        "kind": "test",
+        "claim_refs": [
+          "AC-015",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `render_refine_edge` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36263-AC-016",
+        "kind": "test",
+        "claim_refs": [
+          "AC-016",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `refine_edge_base_radius` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=pixels, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36263-AC-017",
+        "kind": "test",
+        "claim_refs": [
+          "AC-017",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `fine_tune_refine_edge_matte` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36263-AC-018",
+        "kind": "test",
+        "claim_refs": [
+          "AC-018",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `refine_reduce_chatter` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=0, unit=percent, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36263-AC-019",
+        "kind": "test",
+        "claim_refs": [
+          "AC-019",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `use_motion_blur` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36263-AC-020",
+        "kind": "test",
+        "claim_refs": [
+          "AC-020",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `extend_where_smoothed` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36263-AC-021",
+        "kind": "test",
+        "claim_refs": [
+          "AC-021",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `decontamination_increase_radius` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=pixels, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36263-AC-022",
+        "kind": "test",
+        "claim_refs": [
+          "AC-022",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `view_decontamination_map` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36263-AC-023",
+        "kind": "test",
+        "claim_refs": [
+          "AC-023",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-composite for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The parameter `view_mode` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=enum, hard_max=enum, soft_min=—, soft_max=—, default=`alpha_boundary`, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "relevant_input_paths": [
+      "handshake-studio-assets/crates/hsk-studio-composite/**",
+      ".GOV/spec/master-spec-v02.227/spec-modules/14-studio-creative-suite.md"
+    ],
+    "extra_build_proofs": []
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": "ASSESS_ACTUAL_DESCRIPTOR_CHANGE",
+    "target_entries": [
+      "STUDIO-MODULE-COMPOSITE: [STU-CMP-034] behaviour, inputs, outputs, failure and recovery"
+    ],
+    "expected_evidence": [
+      "Canonical UserManual same-change descriptor diff"
+    ],
+    "location": "Canonical Handshake UserManual",
+    "reason": null,
+    "not_applicable_reason": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "[STU-CMP-034] contract fidelity and declared-gap discipline",
+    "risks": [
+      {
+        "risk": "An unknown bound is mirrored from its opposite or filled from a guess",
+        "mitigation": "Unknown fields are stored as unknown; acceptance rows name each unknown field"
+      },
+      {
+        "risk": "Recovered vendor labels become Studio names",
+        "mitigation": "Recovered names are import keys only per [STU-SECTION-003]"
+      }
+    ],
+    "minimum_controls": [
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004",
+      "AC-005",
+      "AC-006",
+      "AC-007",
+      "AC-008",
+      "AC-009",
+      "AC-010",
+      "AC-011",
+      "AC-012",
+      "AC-013",
+      "AC-014",
+      "AC-015",
+      "AC-016",
+      "AC-017",
+      "AC-018",
+      "AC-019",
+      "AC-020",
+      "AC-021",
+      "AC-022",
+      "AC-023"
+    ]
+  },
+  "activation": {
+    "disposition": "NON_AI_CURRENT_SCOPE",
+    "implementation_state": "PLANNED_NOT_IMPLEMENTED",
+    "semantic_trigger_flags": {
+      "resource": true,
+      "owned_gui": true,
+      "shared_control_descriptor": true,
+      "collaborative_state": false,
+      "queue_or_inflight": true,
+      "interop_or_remote": false,
+      "uuid_generation": false,
+      "parked_ai": false
+    },
+    "current_dispatch_authorized": false
+  },
+  "lifecycle": {
+    "phase": "blocked",
+    "status": null,
+    "active": false,
+    "validator_verdict": null,
+    "contract_preparation_only": true,
+    "blocked_on": "AUTHORIZED_LANE_DISPATCH",
+    "updated_at_utc": "2026-11-01T03:13:39Z"
+  },
+  "submissions": [],
+  "verdicts": [],
+  "blockers": [],
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-36263",
+  "generated_by": "handshake.greenroom.spec_derive.v1",
+  "derivation": {
+    "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+    "derivation_key": "STU-CMP-034#parameter_table#0",
+    "unit_kind": "parameter_table",
+    "spec_module": "14-studio-creative-suite.md",
+    "spec_heading": "14.27.2 Keying and matte refinement",
+    "spec_line": 29512,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.227",
+    "deriver_output_ref": "fold_back/spec_mts/MT-36263.json"
+  },
+  "clause": "ASSISTED ROTOSCOPING -- boundary propagation across frames - The normative contract parameter bounds",
+  "spec_anchor": [
+    "STU-CMP-034"
+  ],
+  "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+  "domain": "compositing",
+  "scope": {
+    "summary": "ASSISTED ROTOSCOPING -- boundary propagation across frames.** Mask-path animation ([STU-CMP-025]) remains the manual rotoscoping mechanism and is unchanged. Assisted rotoscoping is the capability that turns foreground and background STROKES drawn on one frame into a per-frame matte across a span of frames by tracking the segmentation boundary, so that a subject is isolated from a moving shot without a path being drawn on every frame. It is specified here, resolving [STU-CMP-100]. The reference surface it mirrors is the Roto Brush and Refine Edge tool family of the compositing application it replaces; the recovered names of that surface are import keys only ([STU-SECTION-003]). The normative contract: 1. **Strokes, base frames and spans.** A stroke is a frame-bound record with a polarity, `foreground` or `background`, a brush diameter and a path; a stroke is never replaced by a later stroke, a later stroke is always added. The first stroke on a frame that lies in no span makes that frame a BASE FRAME and opens a SPAN that by default covers the layer duration not already covered by another span. A span carries its base frame, its in and out frames and its propagation directions; it grows with each stroke unless it abuts another span, its ends are resizable, it can be removed, and removing the capability from the layer removes every span. Strokes, spans, base frames, the engine ch [...]",
+    "allowed_paths": [
+      "handshake-studio-assets/crates/hsk-studio-composite/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "src/**",
+      "app/**",
+      "tests/**",
+      "handshake_core/**",
+      "handshake_native/**",
+      "Other Studio module roots/**"
+    ],
+    "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "The parameter `engine` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=enum, hard_max=enum, soft_min=—, soft_max=—, default=`classic`, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 1"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "The parameter `quality` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=enum, hard_max=enum, soft_min=—, soft_max=—, default=`standard`, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 2"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The parameter `search_radius` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=pixels, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [
+        "hard_min",
+        "hard_max",
+        "soft_min",
+        "soft_max",
+        "default"
+      ],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 3"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "The parameter `view_search_region` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 4"
+    },
+    {
+      "id": "AC-005",
+      "criterion": "The parameter `motion_threshold` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=unknown, precision=unknown. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [
+        "hard_min",
+        "hard_max",
+        "soft_min",
+        "soft_max",
+        "default",
+        "unit",
+        "precision"
+      ],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 5"
+    },
+    {
+      "id": "AC-006",
+      "criterion": "The parameter `motion_damping` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=unknown, precision=unknown. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [
+        "hard_min",
+        "hard_max",
+        "soft_min",
+        "soft_max",
+        "default",
+        "unit",
+        "precision"
+      ],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 6"
+    },
+    {
+      "id": "AC-007",
+      "criterion": "The parameter `edge_detection` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=enum, hard_max=enum, soft_min=—, soft_max=—, default=`balanced`, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 7"
+    },
+    {
+      "id": "AC-008",
+      "criterion": "The parameter `use_alternate_colour_estimation` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 8"
+    },
+    {
+      "id": "AC-009",
+      "criterion": "The parameter `invert_foreground_background` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 9"
+    },
+    {
+      "id": "AC-010",
+      "criterion": "The parameter `fine_tune_matte` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 10"
+    },
+    {
+      "id": "AC-011",
+      "criterion": "The parameter `matte_feather` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=pixels, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [
+        "hard_min",
+        "hard_max",
+        "soft_min",
+        "soft_max",
+        "default"
+      ],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 11"
+    },
+    {
+      "id": "AC-012",
+      "criterion": "The parameter `matte_contrast` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=percent, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [
+        "hard_min",
+        "hard_max",
+        "soft_min",
+        "soft_max",
+        "default"
+      ],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 12"
+    },
+    {
+      "id": "AC-013",
+      "criterion": "The parameter `matte_shift_edge` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=percent, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [
+        "hard_min",
+        "hard_max",
+        "soft_min",
+        "soft_max",
+        "default"
+      ],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 13"
+    },
+    {
+      "id": "AC-014",
+      "criterion": "The parameter `matte_reduce_chatter` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=0, unit=percent, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 14"
+    },
+    {
+      "id": "AC-015",
+      "criterion": "The parameter `render_refine_edge` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 15"
+    },
+    {
+      "id": "AC-016",
+      "criterion": "The parameter `refine_edge_base_radius` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=pixels, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [
+        "hard_min",
+        "hard_max",
+        "soft_min",
+        "soft_max",
+        "default"
+      ],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 16"
+    },
+    {
+      "id": "AC-017",
+      "criterion": "The parameter `fine_tune_refine_edge_matte` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 17"
+    },
+    {
+      "id": "AC-018",
+      "criterion": "The parameter `refine_reduce_chatter` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=0, unit=percent, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 18"
+    },
+    {
+      "id": "AC-019",
+      "criterion": "The parameter `use_motion_blur` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 19"
+    },
+    {
+      "id": "AC-020",
+      "criterion": "The parameter `extend_where_smoothed` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 20"
+    },
+    {
+      "id": "AC-021",
+      "criterion": "The parameter `decontamination_increase_radius` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=pixels, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [
+        "hard_min",
+        "hard_max",
+        "soft_min",
+        "soft_max",
+        "default"
+      ],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 21"
+    },
+    {
+      "id": "AC-022",
+      "criterion": "The parameter `view_decontamination_map` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 22"
+    },
+    {
+      "id": "AC-023",
+      "criterion": "The parameter `view_mode` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=enum, hard_max=enum, soft_min=—, soft_max=—, default=`alpha_boundary`, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "evidence_kind": "runtime_assertion",
+      "unknown_fields": [],
+      "source": "14-studio-creative-suite.md STU-CMP-034 parameter table row 23"
+    }
+  ],
+  "acceptance_criteria_count": 23,
+  "hbr_obligations": [
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-003",
+    "HBR-PRIV-004",
+    "HBR-PRIV-005",
+    "HBR-PRIV-006",
+    "HBR-PRIV-007",
+    "HBR-PRIV-008",
+    "HBR-INT-001",
+    "HBR-INT-002",
+    "HBR-INT-003",
+    "HBR-INT-004",
+    "HBR-INT-005",
+    "HBR-INT-006",
+    "HBR-INT-007",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-SWARM-003",
+    "HBR-SWARM-004",
+    "HBR-SWARM-005",
+    "HBR-SWARM-006",
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-004",
+    "HBR-VIS-005",
+    "HBR-QUIET-001",
+    "HBR-QUIET-002",
+    "HBR-QUIET-003",
+    "HBR-QUIET-004",
+    "HBR-MAN-001",
+    "HBR-MAN-002",
+    "HBR-MAN-003",
+    "HBR-MAN-004",
+    "HBR-STOP-001",
+    "HBR-STOP-002",
+    "HBR-STOP-003",
+    "HBR-STOP-004",
+    "HBR-STOP-005",
+    "HBR-COMPART-001",
+    "HBR-COMPART-002",
+    "HBR-COMPONENT-001",
+    "HBR-COMPONENT-002",
+    "HBR-MODULE-LIFECYCLE-001",
+    "HBR-MODULE-LIFECYCLE-002",
+    "HBR-MODULE-LIFECYCLE-003",
+    "HBR-MODULE-LIFECYCLE-004",
+    "HBR-MODULE-LIFECYCLE-005",
+    "HBR-MODULE-LIFECYCLE-006",
+    "HBR-MODULE-LIFECYCLE-007",
+    "HBR-MODULE-LIFECYCLE-008",
+    "HBR-HOST-001",
+    "HBR-HOST-002",
+    "HBR-HOST-003",
+    "HBR-HOST-004",
+    "HBR-HOST-005",
+    "HBR-HOST-006",
+    "HBR-HOST-007",
+    "HBR-HOST-008"
+  ],
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36263.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md"
+  },
+  "created_at_utc": "2026-11-01T03:13:39Z",
+  "updated_at_utc": "2026-11-01T03:13:39Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.227",
+    "gui_host": "vulkan_shell_client",
+    "gpu": "via_render_provider_port",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "shared_typed_source",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "bounded_admission_via_job_port",
+    "settings": "module_tab_feature_subtab",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-007",
+      "GUI-DESKTOP-012",
+      "GUI-DESKTOP-020",
+      "GUI-DESKTOP-022",
+      "NATIVE-RENDER-BOOT-001",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018",
+      "STU-ARC-014",
+      "STU-MDL-002",
+      "GUI-DESKTOP-018",
+      "STU-ARC-008",
+      "STU-ARC-012",
+      "STU-ARC-013",
+      "GUI-DESKTOP-033",
+      "GPU-QUOTA-015",
+      "GUI-DESKTOP-014",
+      "GUI-DESKTOP-016",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-COMPOSITE",
+      "unit_kind": "parameter_table",
+      "owned_gui": true,
+      "queue_or_inflight": true,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-11-01T03:13:39Z"
+  }
+}

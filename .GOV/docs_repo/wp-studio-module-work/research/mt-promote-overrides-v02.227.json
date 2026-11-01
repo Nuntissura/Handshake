@@ -1,0 +1,152 @@
+{
+ "schema_id": "hsk.studio_mt_promote_overrides@1",
+ "purpose": "Authored, per-MT inputs that the Master Spec text does not determine mechanically (owning module, write scope, related MTs, trigger flags, model tier, red-team risks) for the spec-derived MTs promoted from the v02.226/v02.227 round trip. Everything else in each contract comes from the deriver output and the spec clause. Each owner is the crate or host module the clause itself names.",
+ "spec_version": "v02.227",
+ "authored_by": "round-trip and MT-contract agent, 2026-11-01, on the Operator request 'doe the spec's round trip and resolve issues with your agents. then generate the contracts'",
+ "common_forbidden_asset": [".GOV/**", "src/**", "app/**", "tests/**", "handshake_core/**", "handshake_native/**", "Other Studio module roots/**"],
+ "common_forbidden_host": ["handshake-studio-assets/**", ".GOV/**", "WP-KERNEL-012/**"],
+ "mts": {
+  "MT-36252": {
+   "title": "Kumihimo as the single shared-controls owner: exact pinned revision, toolkit-free model, pure-Vulkan renderer crate",
+   "module_ref": "STUDIO-MODULE-CONTROLS", "stage": "standalone_source",
+   "allowed_write_paths": ["handshake-studio-assets/crates/hsk-studio-controls/**"],
+   "depends_on": ["MT-35553", "MT-35571"], "host_adoption_mt_refs": ["MT-36213", "MT-36231"],
+   "flags": {"resource": false, "owned_gui": true, "shared_control_descriptor": true, "collaborative_state": false, "queue_or_inflight": false, "interop_or_remote": false, "uuid_generation": false, "parked_ai": false},
+   "model_tier": "strong",
+   "risks": [
+    ["A near-duplicate control mechanic or a fork of Kumihimo grows inside hsk-studio-controls", "Dependency and source scan: hsk-studio-controls depends on the pinned Kumihimo revision and defines no parallel control model"],
+    ["The control model picks up a UI toolkit through the renderer", "kumihimo-core and kumihimo-content resolve with no toolkit crate in their dependency closure; the renderer is a separate pure-Vulkan crate"]
+   ]
+  },
+  "MT-36253": {
+   "title": "render-gpu typed GPU client port to the central Handshake GPU owner; no Studio device ownership",
+   "module_ref": "STUDIO-MODULE-RENDER_GPU", "stage": "standalone_source",
+   "allowed_write_paths": ["handshake-studio-assets/crates/hsk-studio-render-gpu/**"],
+   "depends_on": ["MT-35546"], "host_adoption_mt_refs": ["MT-36248", "MT-36206"],
+   "flags": {"resource": true, "owned_gui": false, "shared_control_descriptor": false, "collaborative_state": false, "queue_or_inflight": true, "interop_or_remote": false, "uuid_generation": false, "parked_ai": false},
+   "model_tier": "strong",
+   "risks": [
+    ["Studio code acquires or owns a GPU device beside the central owner", "No device creation outside the port; the public API exposes no device acquisition or backend choice"],
+    ["The port's handle, admission, budget and retained-memory fields are invented before the GPU owner contract settles them", "Fields stay a declared gap bound to Section 15; implementation stops at the gap rather than choosing values"]
+   ]
+  },
+  "MT-36254": {
+   "title": "Studio surfaces render in the native Vulkan shell; Studio product crates carry no UI toolkit or GPU abstraction layer",
+   "module_ref": "STUDIO-WORKSPACE", "stage": "standalone_source",
+   "allowed_write_paths": ["handshake-studio-assets/tools/workspace-probe.rs"],
+   "depends_on": ["MT-35528"], "host_adoption_mt_refs": ["MT-36231", "MT-36250"],
+   "flags": {"resource": false, "owned_gui": true, "shared_control_descriptor": true, "collaborative_state": false, "queue_or_inflight": false, "interop_or_remote": false, "uuid_generation": false, "parked_ai": false},
+   "model_tier": "medium",
+   "risks": [
+    ["A Studio product crate pulls in a UI toolkit or a separate GPU abstraction transitively", "Workspace dependency-closure probe over every product crate fails on any toolkit or GPU-abstraction crate"],
+    ["A Studio clause or manual names a UI toolkit", "Text scan of Studio-owned descriptors and manual entries for toolkit names"]
+   ]
+  },
+  "MT-36255": {
+   "title": "observe ring-shaped producer port into internal_diagnostics: codes, counters and opaque ids only, closed event-code mapping",
+   "module_ref": "STUDIO-MODULE-OBSERVE", "stage": "standalone_source",
+   "allowed_write_paths": ["handshake-studio-assets/crates/hsk-studio-observe/**"],
+   "depends_on": ["MT-35530", "MT-35572"], "host_adoption_mt_refs": ["MT-36190", "MT-36233"],
+   "flags": {"resource": false, "owned_gui": false, "shared_control_descriptor": false, "collaborative_state": false, "queue_or_inflight": true, "interop_or_remote": false, "uuid_generation": false, "parked_ai": false},
+   "model_tier": "strong",
+   "risks": [
+    ["Text (paths, prompts, document content) leaks into the diagnostic ring", "The producer type admits no string payload; a ring scan finds no text"],
+    ["An observe outcome maps to a code outside the closed set or to no code", "Exhaustive mapping test over every terminal outcome; the allowlist table itself stays a declared Section 5.8 gap"]
+   ]
+  },
+  "MT-36256": {
+   "title": "Studio pane freeze and crash observed through Palmistry; 6.13 threshold and survivor-record schema read from the implementation until stated",
+   "module_ref": "handshake_native::studio", "stage": "host_adoption",
+   "allowed_write_paths": ["src/frontend/handshake_native/src/studio/diagnostics.rs"],
+   "depends_on": ["MT-36233"], "host_adoption_mt_refs": ["MT-36251"],
+   "flags": {"resource": false, "owned_gui": true, "shared_control_descriptor": false, "collaborative_state": false, "queue_or_inflight": true, "interop_or_remote": false, "uuid_generation": false, "parked_ai": false},
+   "model_tier": "strong",
+   "risks": [
+    ["The 5 s threshold and SurvivorRecord shape are treated as spec facts", "Recorded as UNVERIFIED implementation values per the clause; acceptance re-reads Section 6.13 when it gains ids"],
+    ["Freeze/crash proof uses a test double instead of the real application", "Acceptance is the controlled owned freeze/crash of MT-36251 on the real application"]
+   ]
+  },
+  "MT-36257": {
+   "title": "Render callbacks never call the locking internal_diagnostics recorder; heartbeat and frame time only through the wait-free path",
+   "module_ref": "STUDIO-MODULE-RENDER_GPU", "stage": "standalone_source",
+   "allowed_write_paths": ["handshake-studio-assets/crates/hsk-studio-render-gpu/**"],
+   "depends_on": ["MT-35546", "MT-35570", "MT-36255"], "host_adoption_mt_refs": ["MT-36206", "MT-36233"],
+   "flags": {"resource": false, "owned_gui": false, "shared_control_descriptor": false, "collaborative_state": false, "queue_or_inflight": true, "interop_or_remote": false, "uuid_generation": false, "parked_ai": false},
+   "model_tier": "strong",
+   "risks": [
+    ["A render callback reaches the mutex-taking record() path through a helper", "Static call-graph check from every render callback plus a lock-instrumented run"],
+    ["A wait-free handoff is improvised before Section 5.8 specifies one", "Declared gap; the callback records nothing until the wait-free path exists"]
+   ]
+  },
+  "MT-36258": {
+   "title": "One Settings tab 'Studio' with one subtab per setting-owning Studio module; namespace and Engine Profile fields held as declared gaps",
+   "module_ref": "handshake_native::studio", "stage": "host_adoption",
+   "allowed_write_paths": ["src/frontend/handshake_native/src/studio/settings.rs"],
+   "depends_on": [], "host_adoption_mt_refs": ["MT-36249"],
+   "flags": {"resource": true, "owned_gui": true, "shared_control_descriptor": true, "collaborative_state": false, "queue_or_inflight": false, "interop_or_remote": false, "uuid_generation": false, "parked_ai": false},
+   "model_tier": "medium",
+   "risks": [
+    ["Studio claims a SET-SCOPE-001 namespace that does not admit tool defaults", "Asset-local schema keeps namespace 'studio' marked spec_delta_pending until the spec owner decides"],
+    ["A module with no user-facing setting gets an empty subtab", "Subtab set equals the set of modules that own a user-facing setting"]
+   ]
+  },
+  "MT-36259": {
+   "title": "ID bridge: controls Registry ids are the author_id space and the stable control ids; kernel-bindings Envelope carries client session, process birth and correlation",
+   "module_ref": "STUDIO-MODULE-KERNEL_BINDINGS", "stage": "standalone_source",
+   "allowed_write_paths": ["handshake-studio-assets/crates/hsk-studio-kernel-bindings/**"],
+   "depends_on": ["MT-35556", "MT-35553"], "host_adoption_mt_refs": ["MT-36216", "MT-36213"],
+   "flags": {"resource": true, "owned_gui": false, "shared_control_descriptor": true, "collaborative_state": true, "queue_or_inflight": false, "interop_or_remote": false, "uuid_generation": false, "parked_ai": false},
+   "model_tier": "medium",
+   "risks": [
+    ["Registry ids and author_ids drift into two id spaces", "One id type shared by the Registry and the author_id field; a round-trip test over every registered control"],
+    ["Correlation identity is treated as authorization", "Envelope fields are identity only; authorization stays with the host grant"]
+   ]
+  },
+  "MT-36260": {
+   "title": "Nothing Studio renders before account activation, previews and thumbnails included",
+   "module_ref": "handshake_native::studio", "stage": "host_adoption",
+   "allowed_write_paths": ["src/frontend/handshake_native/src/studio/mod.rs"],
+   "depends_on": [], "host_adoption_mt_refs": ["MT-36231"],
+   "flags": {"resource": true, "owned_gui": true, "shared_control_descriptor": false, "collaborative_state": false, "queue_or_inflight": false, "interop_or_remote": false, "uuid_generation": false, "parked_ai": false},
+   "model_tier": "medium",
+   "risks": [
+    ["A thumbnail or preview renders through the pre-activation shell path", "Pre-activation run asserts zero Studio render submissions, including thumbnail and preview workloads"]
+   ]
+  },
+  "MT-36261": {
+   "title": "Studio GPU proof through the transient adapter is asset-local evidence and never host acceptance",
+   "module_ref": "STUDIO-MODULE-RENDER_GPU", "stage": "standalone_source",
+   "allowed_write_paths": ["handshake-studio-assets/crates/hsk-studio-render-gpu/**"],
+   "depends_on": ["MT-36253"], "host_adoption_mt_refs": ["MT-36248"],
+   "flags": {"resource": false, "owned_gui": false, "shared_control_descriptor": false, "collaborative_state": false, "queue_or_inflight": true, "interop_or_remote": false, "uuid_generation": false, "parked_ai": false},
+   "model_tier": "medium",
+   "risks": [
+    ["An asset-local transient-adapter GPU result is recorded as host acceptance", "Every GPU proof record names its adapter; a transient-adapter record is labelled asset-local and cannot close a host acceptance row"]
+   ]
+  },
+  "MT-36262": {
+   "title": "Studio document revision is a u64 carried through kernel-bindings CommitRequest as expected and successor revision",
+   "module_ref": "STUDIO-MODULE-KERNEL_BINDINGS", "stage": "standalone_source",
+   "allowed_write_paths": ["handshake-studio-assets/crates/hsk-studio-kernel-bindings/**"],
+   "depends_on": ["MT-35556", "MT-35568"], "host_adoption_mt_refs": ["MT-36216", "MT-36214"],
+   "flags": {"resource": true, "owned_gui": false, "shared_control_descriptor": false, "collaborative_state": true, "queue_or_inflight": false, "interop_or_remote": false, "uuid_generation": false, "parked_ai": false},
+   "model_tier": "medium",
+   "risks": [
+    ["The u64 is bound to an EventLedger revision before the spec defines that binding", "Declared gap; only the CommitRequest expected/successor carriage is implemented"],
+    ["Revision overflow or a stale expected revision commits", "Checked successor arithmetic and stale-expected rejection tests"]
+   ]
+  },
+  "MT-36263": {
+   "title": "Assisted rotoscoping parameter bounds (23 parameters, seven-field contract)",
+   "module_ref": "STUDIO-MODULE-COMPOSITE", "stage": "standalone_source",
+   "allowed_write_paths": ["handshake-studio-assets/crates/hsk-studio-composite/**"],
+   "depends_on": ["MT-35544", "MT-34110"], "host_adoption_mt_refs": ["MT-36204"],
+   "flags": {"resource": true, "owned_gui": true, "shared_control_descriptor": true, "collaborative_state": false, "queue_or_inflight": true, "interop_or_remote": false, "uuid_generation": false, "parked_ai": false},
+   "model_tier": "medium",
+   "risks": [
+    ["An unknown bound is mirrored from its opposite or filled from a guess", "Unknown fields are stored as unknown; acceptance rows name each unknown field"],
+    ["Recovered vendor labels become Studio names", "Recovered names are import keys only per [STU-SECTION-003]"]
+   ]
+  }
+ }
+}

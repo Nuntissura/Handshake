@@ -1518,6 +1518,60 @@
       "prior_acceptance_wording_retained": true,
       "source_capability_ref": "MT-35538#/execution",
       "host_proof_pending": true
+    },
+    "develop_current_field_binding": {
+      "publication_commit": "a141740e01f53dca659cef790e8fc8b2d1ff945b",
+      "version": "v02.226",
+      "pointer_ref": ".GOV/spec/SPEC_CURRENT.md",
+      "pointer_sha256": "d34a6929594732d56a24d9f2b7f47c342cc149b03732d474f073a9c1d1aeb92d",
+      "preservation": "Original207 lineage/AC/HBR/catalog owner retained; binds the five 14.23.6 Develop source-only transport units (published v02.215, first bound here at v02.226); status and acceptance untouched",
+      "clauses": [
+        {
+          "id": "STU-CON-042",
+          "source_ref": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22604,
+          "end_line": 22609,
+          "source_sha256": "e54f90c3b4aaa48943e0946ac5ff4113ef80db693b8b2105e15e1809261590ae",
+          "body_sha256": "f8b2708b95644a90b9856aabe6476b2cbf1503ca565c872d08fc86cfa033f168",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-043",
+          "source_ref": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22610,
+          "end_line": 22617,
+          "source_sha256": "e54f90c3b4aaa48943e0946ac5ff4113ef80db693b8b2105e15e1809261590ae",
+          "body_sha256": "0636c59394d5fb0a431f752447230c630ebd25b356a8776cc4bfbbfc7fd02a88",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-044",
+          "source_ref": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22618,
+          "end_line": 22629,
+          "source_sha256": "e54f90c3b4aaa48943e0946ac5ff4113ef80db693b8b2105e15e1809261590ae",
+          "body_sha256": "025acadaa7773129b549a5d9b88cda19b98bbc0a869761f7b4f0bf27f2fd1683",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-045",
+          "source_ref": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22630,
+          "end_line": 22637,
+          "source_sha256": "e54f90c3b4aaa48943e0946ac5ff4113ef80db693b8b2105e15e1809261590ae",
+          "body_sha256": "127264bc980254dd654e66218f750a50cee44d7f2ce1aa354270cfd6b23dfbd6",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        },
+        {
+          "id": "STU-CON-046",
+          "source_ref": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+          "start_line": 22638,
+          "end_line": 22647,
+          "source_sha256": "e54f90c3b4aaa48943e0946ac5ff4113ef80db693b8b2105e15e1809261590ae",
+          "body_sha256": "c4d000dc8ce1b104354a530a739fc7580ff714cea9e5f195255d077fbea604e2",
+          "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+        }
+      ]
     }
   },
   "closure_unit": {

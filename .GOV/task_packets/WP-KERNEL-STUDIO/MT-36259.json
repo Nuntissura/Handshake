@@ -1,0 +1,466 @@
+{
+  "schema_id": "hsk.microtask_contract@2",
+  "schema_version": "microtask_contract_v2_preservation_asset_first",
+  "instance_policy": {
+    "omit_empty_optional_fields": true,
+    "policy_lives_in_rule_refs_not_instance_fields": true,
+    "schema_ref": null
+  },
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-008",
+    "CX-EXEC-012",
+    "CX-503B1",
+    "CX-131",
+    "CX-UNIT-001",
+    "CX-CAP-001",
+    "CX-LANE-001",
+    "CX-GIT-001",
+    "CX-GIT-002",
+    "CX-VAL-002",
+    "CX-VAL-003",
+    "CX-VAL-004",
+    "CX-EXEC-009",
+    "CX-EXEC-013",
+    "CX-EXEC-014",
+    "CX-VAL-005",
+    "CX-VAL-006",
+    "CX-VAL-007",
+    "CX-VAL-008",
+    "CX-VAL-009",
+    "CX-GP-001",
+    "CX-GP-002",
+    "CX-EXEC-015",
+    "CX-VAL-010",
+    "CX-STATUS-002",
+    "CX-STATUS-003",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003"
+  ],
+  "identity": {
+    "mt_id": "MT-36259",
+    "wp_id": "WP-KERNEL-STUDIO",
+    "title": "ID bridge: controls Registry ids are the author_id space and the stable control ids; kernel-bindings Envelope carries client session, process birth and correlation",
+    "group": "STUDIO_ASSET_FEATURE",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "parent": {
+    "wp_contract_revision": 2,
+    "wp_contract_digest": null
+  },
+  "gameplan_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/gameplan.yaml",
+  "context_capsule": {
+    "specification_anchor_refs": [
+      {
+        "id": "STU-ARC-030",
+        "anchor": ".GOV/spec/master-spec-v02.227/spec-modules/14-studio-creative-suite.md:271",
+        "verbatim": "[STU-ARC-030] ID BRIDGE. The controls Registry ids are the `author_id` space of [STU-MDL-104], and those `author_id`s are the stable control ids [GUI-DESKTOP-050] requires of Studio diagnostic producers. The kernel-bindings `Envelope` carries `client_session_id`, process birth and correlation identity.",
+        "heading": "14.2.2 Host integration contracts [ADD v02.226]",
+        "source_sha256": "5ed70d38f308174db5694838a62413611fff6166611c152dd870dfae6b9a544f",
+        "start_line": 271,
+        "end_line": 272,
+        "body_sha256": "b82a4709b2194b34668ca7b227396f4777da50461be5228a91493d123dec37d4",
+        "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+      }
+    ],
+    "read_context": [
+      "AGENTS.md",
+      "CLAUDE.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/spec/master-spec-v02.227/spec-modules/14-studio-creative-suite.md",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+      ".GOV/docs_repo/wp-studio-module-work/spec-enrichment/STUDIO-ENRICHMENT-20261030-HOST-INTEGRATION.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36216.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36213.json"
+    ],
+    "pillar_refs": [],
+    "current_hbr_assessment": {
+      "version": "1.18.0",
+      "registry_sha256": "475dc7fc5e3ca843e1039fb161eb7d3642790b1fec92021d38a06c7b2a6bd3a8",
+      "assessed_rule_count": 0,
+      "status": "PENDING_PER_RULE_ASSESSMENT_AT_ACTIVATION",
+      "source_capability_ref": "MT-36259#/execution",
+      "host_proof_pending": true
+    },
+    "consumed_capability_refs": [
+      {
+        "mt_ref": "MT-35556"
+      },
+      {
+        "mt_ref": "MT-35553"
+      }
+    ],
+    "context_digest": null
+  },
+  "closure_unit": {
+    "outcome": "ID bridge: controls Registry ids are the author_id space and the stable control ids; kernel-bindings Envelope carries client session, process birth and correlation, as [STU-ARC-030] states it (Master Spec v02.227, 14.2.2 Host integration contracts [ADD v02.226]).",
+    "requirement_refs": [
+      "STU-ARC-030"
+    ],
+    "acceptance_refs": [
+      "AC-SPEC-001",
+      "AC-SPEC-002"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC-SPEC-001",
+        "text": "The controls Registry ids are the `author_id` space of [STU-MDL-104], and those `author_id`s are the stable control ids [GUI-DESKTOP-050] requires of Studio diagnostic producers."
+      },
+      {
+        "id": "AC-SPEC-002",
+        "text": "The kernel-bindings `Envelope` carries `client_session_id`, process birth and correlation identity."
+      }
+    ],
+    "declared_spec_gaps": [],
+    "spec_basis_refs": [
+      ".GOV/spec/master-spec-v02.227/spec-modules/14-studio-creative-suite.md:271"
+    ],
+    "operator_decision_refs": []
+  },
+  "model_routing": {
+    "model_tier": "medium",
+    "tier_reason": "Single-owner contract with a bounded acceptance set",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "max_fix_rounds_per_mt": 3,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "diagnosis_location": "this MT file, blockers[].diagnosis",
+    "rule_refs": []
+  },
+  "execution": {
+    "lane": "implementation",
+    "module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+    "build_unit_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+    "write_scope_source": "allowed_write_paths",
+    "depends_on": [
+      "MT-35556",
+      "MT-35553"
+    ],
+    "contract_dependency_kind": "depends_on_completion",
+    "start_precondition": "PENDING NONEXECUTION preparation: dispatch only after an authorized lane binds the worktree, the natural test target and the immutable pins.",
+    "allowed_write_paths": [
+      "handshake-studio-assets/crates/hsk-studio-kernel-bindings/**"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/**",
+      "src/**",
+      "app/**",
+      "tests/**",
+      "handshake_core/**",
+      "handshake_native/**",
+      "Other Studio module roots/**"
+    ],
+    "shared_resource_locks": [],
+    "inputs": [
+      {
+        "kind": "verified_canonical_source",
+        "status": "INSPECTED_NOT_EXECUTED",
+        "source_ref": ".GOV/spec/master-spec-v02.227/spec-modules/14-studio-creative-suite.md",
+        "source_sha256": "5ed70d38f308174db5694838a62413611fff6166611c152dd870dfae6b9a544f",
+        "start_line": 271,
+        "end_line": 272,
+        "clause_sha256": "b82a4709b2194b34668ca7b227396f4777da50461be5228a91493d123dec37d4",
+        "canonical_spec_commit": "637b46a6f58633fb6246ca93aceafc6643db96c3",
+        "clause_body_ref": "MT-36259#/context_capsule/specification_anchor_refs/0/verbatim"
+      }
+    ],
+    "implementation_steps": [
+      {
+        "n": 1,
+        "step": "Read [STU-ARC-030] and every clause it cites; read the related MTs MT-36216, MT-36213, MT-35556, MT-35553."
+      },
+      {
+        "n": 2,
+        "step": "Implement each materialized acceptance row in hsk-studio-kernel-bindings within the allowed write paths."
+      },
+      {
+        "n": 3,
+        "step": "Leave every declared spec gap unimplemented and recorded; never choose its values."
+      },
+      {
+        "n": 4,
+        "step": "Prove each row through the natural target with an independent oracle and update the canonical UserManual entry in the same change."
+      }
+    ],
+    "expected_outputs": [
+      "hsk-studio-kernel-bindings: the contract of [STU-ARC-030] with one proven case per acceptance row"
+    ],
+    "stop_conditions": [
+      "Change needs another module owner path: return to that owner"
+    ],
+    "may_create_canonical_capability": false,
+    "artifact_isolation": {
+      "artifact_root": "../Handshake_Artifacts/handshake-test",
+      "owner_dir": "WP-KERNEL-STUDIO/MT-36259",
+      "env": {},
+      "flags": null,
+      "reference_runner": null
+    },
+    "git_rules": [],
+    "module_change_stage": "standalone_source"
+  },
+  "proof": {
+    "parent_proof_refs": [],
+    "checks": [
+      {
+        "check_id": "MT-36259-AC-SPEC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-SPEC-001",
+          "STU-ARC-030"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-kernel-bindings for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The controls Registry ids are the `author_id` space of [STU-MDL-104], and those `author_id`s are the stable control ids [GUI-DESKTOP-050] requires of Studio diagnostic producers.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36259-AC-SPEC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-SPEC-002",
+          "STU-ARC-030"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-kernel-bindings for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The kernel-bindings `Envelope` carries `client_session_id`, process birth and correlation identity.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "relevant_input_paths": [
+      "handshake-studio-assets/crates/hsk-studio-kernel-bindings/**",
+      ".GOV/spec/master-spec-v02.227/spec-modules/14-studio-creative-suite.md"
+    ],
+    "extra_build_proofs": []
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": "ASSESS_ACTUAL_DESCRIPTOR_CHANGE",
+    "target_entries": [
+      "STUDIO-MODULE-KERNEL_BINDINGS: [STU-ARC-030] behaviour, inputs, outputs, failure and recovery"
+    ],
+    "expected_evidence": [
+      "Canonical UserManual same-change descriptor diff"
+    ],
+    "location": "Canonical Handshake UserManual",
+    "reason": null,
+    "not_applicable_reason": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "[STU-ARC-030] contract fidelity and declared-gap discipline",
+    "risks": [
+      {
+        "risk": "Registry ids and author_ids drift into two id spaces",
+        "mitigation": "One id type shared by the Registry and the author_id field; a round-trip test over every registered control"
+      },
+      {
+        "risk": "Correlation identity is treated as authorization",
+        "mitigation": "Envelope fields are identity only; authorization stays with the host grant"
+      }
+    ],
+    "minimum_controls": [
+      "AC-SPEC-001",
+      "AC-SPEC-002"
+    ]
+  },
+  "activation": {
+    "disposition": "NON_AI_CURRENT_SCOPE",
+    "implementation_state": "PLANNED_NOT_IMPLEMENTED",
+    "semantic_trigger_flags": {
+      "resource": true,
+      "owned_gui": false,
+      "shared_control_descriptor": true,
+      "collaborative_state": true,
+      "queue_or_inflight": false,
+      "interop_or_remote": false,
+      "uuid_generation": false,
+      "parked_ai": false
+    },
+    "current_dispatch_authorized": false
+  },
+  "lifecycle": {
+    "phase": "blocked",
+    "status": null,
+    "active": false,
+    "validator_verdict": null,
+    "contract_preparation_only": true,
+    "blocked_on": "AUTHORIZED_LANE_DISPATCH",
+    "updated_at_utc": "2026-11-01T03:13:39Z"
+  },
+  "submissions": [],
+  "verdicts": [],
+  "blockers": [],
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-36259",
+  "generated_by": "handshake.greenroom.spec_derive.v1",
+  "derivation": {
+    "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+    "derivation_key": "STU-ARC-030#clause#0",
+    "unit_kind": "clause",
+    "spec_module": "14-studio-creative-suite.md",
+    "spec_heading": "14.2.2 Host integration contracts [ADD v02.226]",
+    "spec_line": 271,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.227",
+    "deriver_output_ref": "fold_back/spec_mts/MT-36259.json"
+  },
+  "clause": "ID BRIDGE. The controls Registry ids are the `author_id` space of [STU-MDL-104], and those `author_id`s are the stable control ids [GUI-DESKTOP-050] requires of Studio diagnostic producers. The kernel [...]",
+  "spec_anchor": [
+    "STU-ARC-030"
+  ],
+  "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+  "domain": "architecture",
+  "scope": {
+    "summary": "ID BRIDGE. The controls Registry ids are the `author_id` space of [STU-MDL-104], and those `author_id`s are the stable control ids [GUI-DESKTOP-050] requires of Studio diagnostic producers. The kernel-bindings `Envelope` carries `client_session_id`, process birth and correlation identity.",
+    "allowed_paths": [
+      "handshake-studio-assets/crates/hsk-studio-kernel-bindings/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "src/**",
+      "app/**",
+      "tests/**",
+      "handshake_core/**",
+      "handshake_native/**",
+      "Other Studio module roots/**"
+    ],
+    "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+  },
+  "acceptance_criteria": [],
+  "acceptance_criteria_count": 0,
+  "hbr_obligations": [
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-003",
+    "HBR-PRIV-004",
+    "HBR-PRIV-005",
+    "HBR-PRIV-006",
+    "HBR-PRIV-007",
+    "HBR-PRIV-008",
+    "HBR-INT-001",
+    "HBR-INT-002",
+    "HBR-INT-003",
+    "HBR-INT-004",
+    "HBR-INT-005",
+    "HBR-INT-006",
+    "HBR-INT-007",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-SWARM-003",
+    "HBR-SWARM-004",
+    "HBR-SWARM-005",
+    "HBR-SWARM-006",
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-004",
+    "HBR-VIS-005",
+    "HBR-QUIET-001",
+    "HBR-QUIET-002",
+    "HBR-QUIET-003",
+    "HBR-QUIET-004",
+    "HBR-MAN-001",
+    "HBR-MAN-002",
+    "HBR-MAN-003",
+    "HBR-MAN-004",
+    "HBR-STOP-001",
+    "HBR-STOP-002",
+    "HBR-STOP-003",
+    "HBR-STOP-004",
+    "HBR-STOP-005",
+    "HBR-COMPART-001",
+    "HBR-COMPART-002",
+    "HBR-COMPONENT-001",
+    "HBR-COMPONENT-002",
+    "HBR-MODULE-LIFECYCLE-001",
+    "HBR-MODULE-LIFECYCLE-002",
+    "HBR-MODULE-LIFECYCLE-003",
+    "HBR-MODULE-LIFECYCLE-004",
+    "HBR-MODULE-LIFECYCLE-005",
+    "HBR-MODULE-LIFECYCLE-006",
+    "HBR-MODULE-LIFECYCLE-007",
+    "HBR-MODULE-LIFECYCLE-008",
+    "HBR-HOST-001",
+    "HBR-HOST-002",
+    "HBR-HOST-003",
+    "HBR-HOST-004",
+    "HBR-HOST-005",
+    "HBR-HOST-006",
+    "HBR-HOST-007",
+    "HBR-HOST-008"
+  ],
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36259.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md"
+  },
+  "created_at_utc": "2026-11-01T03:13:39Z",
+  "updated_at_utc": "2026-11-01T03:13:39Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.227",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "business_event_ids",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "none",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "STU-CON-013",
+      "STU-CON-014"
+    ],
+    "refactor_exposure": "medium",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-KERNEL_BINDINGS",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": false,
+      "collaborative_state": true
+    },
+    "recorded_at": "2026-11-01T03:13:39Z"
+  }
+}

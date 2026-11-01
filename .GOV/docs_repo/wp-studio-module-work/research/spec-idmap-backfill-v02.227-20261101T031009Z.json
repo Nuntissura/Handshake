@@ -1,0 +1,647 @@
+{
+ "schema_id": "hsk.studio_spec_idmap_backfill@1",
+ "mode": "write",
+ "generated_at": "2026-11-01T03:10:11Z",
+ "id_map": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/studio-mt-id-map-spec.json",
+ "id_map_entries_before": 5528,
+ "keys_missing_from_map": 87,
+ "backfilled": [
+  {
+   "key": "STU-ARC-007#clause#0",
+   "mt_id": "MT-35564",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-ARC-008#clause#0",
+   "mt_id": "MT-35565",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-ARC-009#clause#0",
+   "mt_id": "MT-35566",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-IO-186#clause#0",
+   "mt_id": "MT-35587",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-CON-008#clause#0",
+   "mt_id": "MT-35580",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-ARC-010#clause#0",
+   "mt_id": "MT-35567",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-ARC-011#clause#0",
+   "mt_id": "MT-35568",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-ARC-012#clause#0",
+   "mt_id": "MT-35569",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-ARC-013#clause#0",
+   "mt_id": "MT-35570",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-ARC-014#clause#0",
+   "mt_id": "MT-35571",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-ARC-015#clause#0",
+   "mt_id": "MT-35572",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-ARC-016#clause#0",
+   "mt_id": "MT-35573",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-ARC-017#clause#0",
+   "mt_id": "MT-35574",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-IO-187#clause#0",
+   "mt_id": "MT-35588",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-IO-188#clause#0",
+   "mt_id": "MT-35589",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-IO-189#clause#0",
+   "mt_id": "MT-35590",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-IO-190#clause#0",
+   "mt_id": "MT-35591",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-PDF-001#clause#0",
+   "mt_id": "MT-35592",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-PDF-002#clause#0",
+   "mt_id": "MT-35593",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-ARC-018#clause#0",
+   "mt_id": "MT-35575",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-ARC-019#clause#0",
+   "mt_id": "MT-35576",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-ARC-020#clause#0",
+   "mt_id": "MT-35577",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-ARC-021#clause#0",
+   "mt_id": "MT-35578",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-ARC-022#clause#0",
+   "mt_id": "MT-35579",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.2.1 Approved modular asset and pressure contracts [ADD v02.207]"
+  },
+  {
+   "key": "STU-PRO-167#clause#0",
+   "mt_id": "MT-36234",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "clause",
+   "spec_heading": "Folded slide and presentation contracts"
+  },
+  {
+   "key": "STU-PRO-168#clause#0",
+   "mt_id": "MT-36235",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "clause",
+   "spec_heading": "Folded slide and presentation contracts"
+  },
+  {
+   "key": "STU-PRO-169#clause#0",
+   "mt_id": "MT-36236",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "clause",
+   "spec_heading": "Folded slide and presentation contracts"
+  },
+  {
+   "key": "STU-PRO-170#clause#0",
+   "mt_id": "MT-36237",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "clause",
+   "spec_heading": "Folded slide and presentation contracts"
+  },
+  {
+   "key": "STU-PRO-171#clause#0",
+   "mt_id": "MT-36238",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "clause",
+   "spec_heading": "Folded slide and presentation contracts"
+  },
+  {
+   "key": "STU-PRO-172#clause#0",
+   "mt_id": "MT-36239",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "clause",
+   "spec_heading": "Folded slide and presentation contracts"
+  },
+  {
+   "key": "STU-PRO-173#clause#0",
+   "mt_id": "MT-36240",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "clause",
+   "spec_heading": "Folded slide and presentation contracts"
+  },
+  {
+   "key": "STU-PRO-174#clause#0",
+   "mt_id": "MT-36241",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "clause",
+   "spec_heading": "Folded slide and presentation contracts"
+  },
+  {
+   "key": "STU-CON-015#clause#0",
+   "mt_id": "MT-35531",
+   "resolution": "foundation_transport_binding:context_capsule/folio_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.1 Folio canonical document foundation"
+  },
+  {
+   "key": "STU-CON-016#clause#0",
+   "mt_id": "MT-35531",
+   "resolution": "foundation_transport_binding:context_capsule/folio_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.1 Folio canonical document foundation"
+  },
+  {
+   "key": "STU-CON-017#clause#0",
+   "mt_id": "MT-35531",
+   "resolution": "foundation_transport_binding:context_capsule/folio_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.1 Folio canonical document foundation"
+  },
+  {
+   "key": "STU-CON-018#clause#0",
+   "mt_id": "MT-35531",
+   "resolution": "foundation_transport_binding:context_capsule/folio_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.1 Folio canonical document foundation"
+  },
+  {
+   "key": "STU-CON-019#clause#0",
+   "mt_id": "MT-35531",
+   "resolution": "foundation_transport_binding:context_capsule/folio_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.1 Folio canonical document foundation"
+  },
+  {
+   "key": "STU-CON-020#clause#0",
+   "mt_id": "MT-35531",
+   "resolution": "foundation_transport_binding:context_capsule/folio_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.1 Folio canonical document foundation"
+  },
+  {
+   "key": "STU-CON-021#clause#0",
+   "mt_id": "MT-35531",
+   "resolution": "foundation_transport_binding:context_capsule/folio_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.1 Folio canonical document foundation"
+  },
+  {
+   "key": "STU-CON-022#clause#0",
+   "mt_id": "MT-35532",
+   "resolution": "foundation_transport_binding:context_capsule/chronicle_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.2 Chronicle property-patch foundation transport"
+  },
+  {
+   "key": "STU-CON-023#clause#0",
+   "mt_id": "MT-35532",
+   "resolution": "foundation_transport_binding:context_capsule/chronicle_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.2 Chronicle property-patch foundation transport"
+  },
+  {
+   "key": "STU-CON-024#clause#0",
+   "mt_id": "MT-35532",
+   "resolution": "foundation_transport_binding:context_capsule/chronicle_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.2 Chronicle property-patch foundation transport"
+  },
+  {
+   "key": "STU-CON-025#clause#0",
+   "mt_id": "MT-35532",
+   "resolution": "foundation_transport_binding:context_capsule/chronicle_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.2 Chronicle property-patch foundation transport"
+  },
+  {
+   "key": "STU-CON-026#clause#0",
+   "mt_id": "MT-35532",
+   "resolution": "foundation_transport_binding:context_capsule/chronicle_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.2 Chronicle property-patch foundation transport"
+  },
+  {
+   "key": "STU-CON-027#clause#0",
+   "mt_id": "MT-35534",
+   "resolution": "foundation_transport_binding:context_capsule/pigment_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.3 Pigment resolved-buffer foundation transport"
+  },
+  {
+   "key": "STU-CON-028#clause#0",
+   "mt_id": "MT-35534",
+   "resolution": "foundation_transport_binding:context_capsule/pigment_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.3 Pigment resolved-buffer foundation transport"
+  },
+  {
+   "key": "STU-CON-029#clause#0",
+   "mt_id": "MT-35534",
+   "resolution": "foundation_transport_binding:context_capsule/pigment_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.3 Pigment resolved-buffer foundation transport"
+  },
+  {
+   "key": "STU-CON-030#clause#0",
+   "mt_id": "MT-35534",
+   "resolution": "foundation_transport_binding:context_capsule/pigment_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.3 Pigment resolved-buffer foundation transport"
+  },
+  {
+   "key": "STU-CON-031#clause#0",
+   "mt_id": "MT-35534",
+   "resolution": "foundation_transport_binding:context_capsule/pigment_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.3 Pigment resolved-buffer foundation transport"
+  },
+  {
+   "key": "STU-CON-032#clause#0",
+   "mt_id": "MT-35535",
+   "resolution": "foundation_transport_binding:context_capsule/nib_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.4 Nib geometry foundation proposal transport"
+  },
+  {
+   "key": "STU-CON-033#clause#0",
+   "mt_id": "MT-35535",
+   "resolution": "foundation_transport_binding:context_capsule/nib_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.4 Nib geometry foundation proposal transport"
+  },
+  {
+   "key": "STU-CON-034#clause#0",
+   "mt_id": "MT-35535",
+   "resolution": "foundation_transport_binding:context_capsule/nib_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.4 Nib geometry foundation proposal transport"
+  },
+  {
+   "key": "STU-CON-035#clause#0",
+   "mt_id": "MT-35535",
+   "resolution": "foundation_transport_binding:context_capsule/nib_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.4 Nib geometry foundation proposal transport"
+  },
+  {
+   "key": "STU-CON-036#clause#0",
+   "mt_id": "MT-35535",
+   "resolution": "foundation_transport_binding:context_capsule/nib_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.4 Nib geometry foundation proposal transport"
+  },
+  {
+   "key": "STU-CON-037#clause#0",
+   "mt_id": "MT-35536",
+   "resolution": "foundation_transport_binding:implementation_state/canonical_type_transport",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.5 Type source-only shaped-run transport"
+  },
+  {
+   "key": "STU-CON-038#clause#0",
+   "mt_id": "MT-35536",
+   "resolution": "foundation_transport_binding:implementation_state/canonical_type_transport",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.5 Type source-only shaped-run transport"
+  },
+  {
+   "key": "STU-CON-039#clause#0",
+   "mt_id": "MT-35536",
+   "resolution": "foundation_transport_binding:implementation_state/canonical_type_transport",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.5 Type source-only shaped-run transport"
+  },
+  {
+   "key": "STU-CON-040#clause#0",
+   "mt_id": "MT-35536",
+   "resolution": "foundation_transport_binding:implementation_state/canonical_type_transport",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.5 Type source-only shaped-run transport"
+  },
+  {
+   "key": "STU-CON-041#clause#0",
+   "mt_id": "MT-35536",
+   "resolution": "foundation_transport_binding:implementation_state/canonical_type_transport",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.5 Type source-only shaped-run transport"
+  },
+  {
+   "key": "STU-CON-042#clause#0",
+   "mt_id": "MT-35538",
+   "resolution": "foundation_transport_binding:context_capsule/develop_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.6 Develop decoded-CFA foundation transport"
+  },
+  {
+   "key": "STU-CON-043#clause#0",
+   "mt_id": "MT-35538",
+   "resolution": "foundation_transport_binding:context_capsule/develop_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.6 Develop decoded-CFA foundation transport"
+  },
+  {
+   "key": "STU-CON-044#clause#0",
+   "mt_id": "MT-35538",
+   "resolution": "foundation_transport_binding:context_capsule/develop_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.6 Develop decoded-CFA foundation transport"
+  },
+  {
+   "key": "STU-CON-045#clause#0",
+   "mt_id": "MT-35538",
+   "resolution": "foundation_transport_binding:context_capsule/develop_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.6 Develop decoded-CFA foundation transport"
+  },
+  {
+   "key": "STU-CON-046#clause#0",
+   "mt_id": "MT-35538",
+   "resolution": "foundation_transport_binding:context_capsule/develop_current_field_binding",
+   "mt_unit_kind": "asset_foundation",
+   "spec_heading": "14.23.6 Develop decoded-CFA foundation transport"
+  },
+  {
+   "key": "STU-CON-009#clause#0",
+   "mt_id": "MT-35581",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.23.6 Develop decoded-CFA foundation transport"
+  },
+  {
+   "key": "STU-CON-010#clause#0",
+   "mt_id": "MT-35582",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.23.6 Develop decoded-CFA foundation transport"
+  },
+  {
+   "key": "STU-CON-011#clause#0",
+   "mt_id": "MT-35583",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.23.6 Develop decoded-CFA foundation transport"
+  },
+  {
+   "key": "STU-CON-012#clause#0",
+   "mt_id": "MT-35584",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.23.6 Develop decoded-CFA foundation transport"
+  },
+  {
+   "key": "STU-CON-013#clause#0",
+   "mt_id": "MT-35585",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.23.6 Develop decoded-CFA foundation transport"
+  },
+  {
+   "key": "STU-CON-014#clause#0",
+   "mt_id": "MT-35586",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.23.6 Develop decoded-CFA foundation transport"
+  },
+  {
+   "key": "STU-MOT-255#clause#0",
+   "mt_id": "MT-35594",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.26.ADD v02.207 Deterministic expression and provider contract"
+  },
+  {
+   "key": "STU-MOT-256#clause#0",
+   "mt_id": "MT-35595",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.26.ADD v02.207 Deterministic expression and provider contract"
+  },
+  {
+   "key": "STU-MOT-257#clause#0",
+   "mt_id": "MT-35596",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.26.ADD v02.207 Deterministic expression and provider contract"
+  },
+  {
+   "key": "STU-MOT-258#clause#0",
+   "mt_id": "MT-35597",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.26.ADD v02.207 Deterministic expression and provider contract"
+  },
+  {
+   "key": "STU-MOT-259#clause#0",
+   "mt_id": "MT-35598",
+   "resolution": "exact_unit_anchor",
+   "mt_unit_kind": "spec207_amendment",
+   "spec_heading": "14.26.ADD v02.207 Deterministic expression and provider contract"
+  }
+ ],
+ "backfilled_count": 75,
+ "shared_mt_ids": {
+  "MT-35531": [
+   "STU-CON-015#clause#0",
+   "STU-CON-016#clause#0",
+   "STU-CON-017#clause#0",
+   "STU-CON-018#clause#0",
+   "STU-CON-019#clause#0",
+   "STU-CON-020#clause#0",
+   "STU-CON-021#clause#0"
+  ],
+  "MT-35532": [
+   "STU-CON-022#clause#0",
+   "STU-CON-023#clause#0",
+   "STU-CON-024#clause#0",
+   "STU-CON-025#clause#0",
+   "STU-CON-026#clause#0"
+  ],
+  "MT-35534": [
+   "STU-CON-027#clause#0",
+   "STU-CON-028#clause#0",
+   "STU-CON-029#clause#0",
+   "STU-CON-030#clause#0",
+   "STU-CON-031#clause#0"
+  ],
+  "MT-35535": [
+   "STU-CON-032#clause#0",
+   "STU-CON-033#clause#0",
+   "STU-CON-034#clause#0",
+   "STU-CON-035#clause#0",
+   "STU-CON-036#clause#0"
+  ],
+  "MT-35536": [
+   "STU-CON-037#clause#0",
+   "STU-CON-038#clause#0",
+   "STU-CON-039#clause#0",
+   "STU-CON-040#clause#0",
+   "STU-CON-041#clause#0"
+  ],
+  "MT-35538": [
+   "STU-CON-042#clause#0",
+   "STU-CON-043#clause#0",
+   "STU-CON-044#clause#0",
+   "STU-CON-045#clause#0",
+   "STU-CON-046#clause#0"
+  ]
+ },
+ "shared_note": "A 14.23 foundation transport section declares N source-only transport units that bind ONE existing foundation MT (the section derivation markers say so); those keys share that MT id by design.",
+ "ambiguous": [],
+ "unresolved_forward_gaps": [
+  {
+   "key": "STU-ARC-023#clause#0",
+   "spec_heading": "14.2.2 Host integration contracts [ADD v02.226]",
+   "spec_line": 257
+  },
+  {
+   "key": "STU-ARC-024#clause#0",
+   "spec_heading": "14.2.2 Host integration contracts [ADD v02.226]",
+   "spec_line": 259
+  },
+  {
+   "key": "STU-ARC-025#clause#0",
+   "spec_heading": "14.2.2 Host integration contracts [ADD v02.226]",
+   "spec_line": 261
+  },
+  {
+   "key": "STU-ARC-026#clause#0",
+   "spec_heading": "14.2.2 Host integration contracts [ADD v02.226]",
+   "spec_line": 263
+  },
+  {
+   "key": "STU-ARC-027#clause#0",
+   "spec_heading": "14.2.2 Host integration contracts [ADD v02.226]",
+   "spec_line": 265
+  },
+  {
+   "key": "STU-ARC-028#clause#0",
+   "spec_heading": "14.2.2 Host integration contracts [ADD v02.226]",
+   "spec_line": 267
+  },
+  {
+   "key": "STU-ARC-029#clause#0",
+   "spec_heading": "14.2.2 Host integration contracts [ADD v02.226]",
+   "spec_line": 269
+  },
+  {
+   "key": "STU-ARC-030#clause#0",
+   "spec_heading": "14.2.2 Host integration contracts [ADD v02.226]",
+   "spec_line": 271
+  },
+  {
+   "key": "STU-ARC-031#clause#0",
+   "spec_heading": "14.2.2 Host integration contracts [ADD v02.226]",
+   "spec_line": 273
+  },
+  {
+   "key": "STU-ARC-032#clause#0",
+   "spec_heading": "14.2.2 Host integration contracts [ADD v02.226]",
+   "spec_line": 275
+  },
+  {
+   "key": "STU-ARC-033#clause#0",
+   "spec_heading": "14.2.2 Host integration contracts [ADD v02.226]",
+   "spec_line": 277
+  },
+  {
+   "key": "STU-CMP-034#parameter_table#0",
+   "spec_heading": "14.27.2 Keying and matte refinement",
+   "spec_line": 29512
+  }
+ ],
+ "id_map_entries_after": 5603
+}

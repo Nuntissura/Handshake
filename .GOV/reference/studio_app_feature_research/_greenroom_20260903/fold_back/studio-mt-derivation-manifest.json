@@ -1,20 +1,20 @@
 {
  "schema_id": "handshake.reference.studio_mt_derivation@1",
- "generated_at": "2026-09-04T20:08:02+00:00",
- "input": "_greenroom_20260903\\spec_update\\proposed-bundle\\section14",
+ "generated_at": "2026-11-01T03:10:20+00:00",
+ "input": ".GOV\\reference\\studio_app_feature_research\\_greenroom_20260903\\spec_update\\proposed-bundle\\section14",
  "unit_counts": {
-  "clause": 2122,
+  "clause": 2208,
   "catalogue_row": 2109,
-  "parameter_table": 418,
+  "parameter_table": 419,
   "enumeration": 107,
   "validator": 115,
   "no_microtask": 108,
   "command_table": 59,
   "anchor_row": 45
  },
- "microtasks_written": 4975,
+ "microtasks_written": 5062,
  "per_module_yields": {
-  "14-studio-creative-suite.md": 4975
+  "14-studio-creative-suite.md": 5062
  },
  "markers_matching_no_class": [],
  "markers_matching_no_class_count": 0,
@@ -516,13 +516,13 @@
   {
    "anchor": "STU-MOT-142",
    "module": "14-studio-creative-suite.md",
-   "title": "OPEN DECISION -- the expression language implementation",
+   "title": "RESOLVED -- expression implementation boundary",
    "reason": "declared non-yielding by the module's own normative list, which overrides inference"
   },
   {
    "anchor": "STU-MOT-144",
    "module": "14-studio-creative-suite.md",
-   "title": "OPEN DECISION -- canonical identifier spelling",
+   "title": "RESOLVED -- canonical spelling",
    "reason": "declared non-yielding by the module's own normative list, which overrides inference"
   },
   {
@@ -600,19 +600,19 @@
   {
    "anchor": "STU-CMP-094",
    "module": "14-studio-creative-suite.md",
-   "title": "Decision criteria, recorded so the decision can be made rather than re-litigated",
+   "title": "Projection proof",
    "reason": "declared non-yielding by the module's own normative list, which overrides inference"
   },
   {
    "anchor": "STU-CMP-100",
    "module": "14-studio-creative-suite.md",
-   "title": "GAP -- assisted rotoscoping",
+   "title": "RESOLVED -- assisted rotoscoping",
    "reason": "declared non-yielding by the module's own normative list, which overrides inference"
   },
   {
    "anchor": "STU-CMP-101",
    "module": "14-studio-creative-suite.md",
-   "title": "OPEN DECISION -- layer versus node compositing model",
+   "title": "RESOLVED -- layer/node model",
    "reason": "declared non-yielding by the module's own normative list, which overrides inference"
   },
   {

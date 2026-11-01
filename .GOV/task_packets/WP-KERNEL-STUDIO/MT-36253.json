@@ -1,0 +1,529 @@
+{
+  "schema_id": "hsk.microtask_contract@2",
+  "schema_version": "microtask_contract_v2_preservation_asset_first",
+  "instance_policy": {
+    "omit_empty_optional_fields": true,
+    "policy_lives_in_rule_refs_not_instance_fields": true,
+    "schema_ref": null
+  },
+  "rule_refs": [
+    "CX-SPEC-TRUTH-001",
+    "CX-TPL-001",
+    "CX-PILLAR-001",
+    "CX-GOV-PIN-001",
+    "CX-EXEC-006",
+    "CX-EXEC-007",
+    "CX-EXEC-008",
+    "CX-EXEC-012",
+    "CX-503B1",
+    "CX-131",
+    "CX-UNIT-001",
+    "CX-CAP-001",
+    "CX-LANE-001",
+    "CX-GIT-001",
+    "CX-GIT-002",
+    "CX-VAL-002",
+    "CX-VAL-003",
+    "CX-VAL-004",
+    "CX-EXEC-009",
+    "CX-EXEC-013",
+    "CX-EXEC-014",
+    "CX-VAL-005",
+    "CX-VAL-006",
+    "CX-VAL-007",
+    "CX-VAL-008",
+    "CX-VAL-009",
+    "CX-GP-001",
+    "CX-GP-002",
+    "CX-EXEC-015",
+    "CX-VAL-010",
+    "CX-STATUS-002",
+    "CX-STATUS-003",
+    "CX-MODULE-LIFECYCLE-001",
+    "CX-MODULE-LIFECYCLE-002",
+    "CX-VERIFY-001",
+    "CX-VERIFY-002",
+    "CX-VERIFY-003"
+  ],
+  "identity": {
+    "mt_id": "MT-36253",
+    "wp_id": "WP-KERNEL-STUDIO",
+    "title": "render-gpu typed GPU client port to the central Handshake GPU owner; no Studio device ownership",
+    "group": "STUDIO_ASSET_FEATURE",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "parent": {
+    "wp_contract_revision": 2,
+    "wp_contract_digest": null
+  },
+  "gameplan_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/gameplan.yaml",
+  "context_capsule": {
+    "specification_anchor_refs": [
+      {
+        "id": "STU-ARC-024",
+        "anchor": ".GOV/spec/master-spec-v02.227/spec-modules/14-studio-creative-suite.md:259",
+        "verbatim": "[STU-ARC-024] GPU CLIENT PORT. Studio holds no GPU device ownership. The render-gpu asset crate MUST expose a typed GPU client port through which Studio GPU work consumes the central Handshake GPU owner under [GUI-DESKTOP-028]. The client is a pure-Vulkan client; the Vulkan binding crate is named by the GPU owner, not by Studio (Operator decision D7, 2026-10-31). A transient in-process adapter behind the same port MAY serve asset-local proof only, bounded by [STU-ARC-032]. DECLARED GAP, not settled here: the port's handle type, admission request, budget and retained-memory accounting fields and compute-only use without a surface are to be settled with the GPU owner contract (Section 15).",
+        "heading": "14.2.2 Host integration contracts [ADD v02.226]",
+        "source_sha256": "5ed70d38f308174db5694838a62413611fff6166611c152dd870dfae6b9a544f",
+        "start_line": 259,
+        "end_line": 260,
+        "body_sha256": "9c1cf188a944a6bee6c2ff071d005fd3db2853dbf49ec5b98ebb83442c65faba",
+        "hash_encoding": "UTF8 LF joined body trailing whitespace stripped"
+      }
+    ],
+    "read_context": [
+      "AGENTS.md",
+      "CLAUDE.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/spec/master-spec-v02.227/spec-modules/14-studio-creative-suite.md",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json",
+      ".GOV/docs_repo/wp-studio-module-work/spec-enrichment/STUDIO-ENRICHMENT-20261030-HOST-INTEGRATION.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36248.json",
+      ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36206.json"
+    ],
+    "pillar_refs": [],
+    "current_hbr_assessment": {
+      "version": "1.18.0",
+      "registry_sha256": "475dc7fc5e3ca843e1039fb161eb7d3642790b1fec92021d38a06c7b2a6bd3a8",
+      "assessed_rule_count": 0,
+      "status": "PENDING_PER_RULE_ASSESSMENT_AT_ACTIVATION",
+      "source_capability_ref": "MT-36253#/execution",
+      "host_proof_pending": true
+    },
+    "consumed_capability_refs": [
+      {
+        "mt_ref": "MT-35546"
+      }
+    ],
+    "context_digest": null
+  },
+  "closure_unit": {
+    "outcome": "render-gpu typed GPU client port to the central Handshake GPU owner; no Studio device ownership, as [STU-ARC-024] states it (Master Spec v02.227, 14.2.2 Host integration contracts [ADD v02.226]).",
+    "requirement_refs": [
+      "STU-ARC-024"
+    ],
+    "acceptance_refs": [
+      "AC-SPEC-001",
+      "AC-SPEC-002",
+      "AC-SPEC-003",
+      "AC-SPEC-004"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC-SPEC-001",
+        "text": "Studio holds no GPU device ownership."
+      },
+      {
+        "id": "AC-SPEC-002",
+        "text": "The render-gpu asset crate MUST expose a typed GPU client port through which Studio GPU work consumes the central Handshake GPU owner under [GUI-DESKTOP-028]."
+      },
+      {
+        "id": "AC-SPEC-003",
+        "text": "The client is a pure-Vulkan client; the Vulkan binding crate is named by the GPU owner, not by Studio (Operator decision D7, 2026-10-31)."
+      },
+      {
+        "id": "AC-SPEC-004",
+        "text": "A transient in-process adapter behind the same port MAY serve asset-local proof only, bounded by [STU-ARC-032]."
+      }
+    ],
+    "declared_spec_gaps": [
+      "DECLARED GAP, not settled here: the port's handle type, admission request, budget and retained-memory accounting fields and compute-only use without a surface are to be settled with the GPU owner contract (Section 15)."
+    ],
+    "spec_basis_refs": [
+      ".GOV/spec/master-spec-v02.227/spec-modules/14-studio-creative-suite.md:259"
+    ],
+    "operator_decision_refs": []
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Sized from the clause: cross-module ownership and declared gaps need original-case reasoning",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "max_fix_rounds_per_mt": 3,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "diagnosis_location": "this MT file, blockers[].diagnosis",
+    "rule_refs": []
+  },
+  "execution": {
+    "lane": "implementation",
+    "module_ref": "STUDIO-MODULE-RENDER_GPU",
+    "build_unit_ref": "STUDIO-MODULE-RENDER_GPU",
+    "write_scope_source": "allowed_write_paths",
+    "depends_on": [
+      "MT-35546"
+    ],
+    "contract_dependency_kind": "depends_on_completion",
+    "start_precondition": "PENDING NONEXECUTION preparation: dispatch only after an authorized lane binds the worktree, the natural test target and the immutable pins.",
+    "allowed_write_paths": [
+      "handshake-studio-assets/crates/hsk-studio-render-gpu/**"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/**",
+      "src/**",
+      "app/**",
+      "tests/**",
+      "handshake_core/**",
+      "handshake_native/**",
+      "Other Studio module roots/**"
+    ],
+    "shared_resource_locks": [],
+    "inputs": [
+      {
+        "kind": "verified_canonical_source",
+        "status": "INSPECTED_NOT_EXECUTED",
+        "source_ref": ".GOV/spec/master-spec-v02.227/spec-modules/14-studio-creative-suite.md",
+        "source_sha256": "5ed70d38f308174db5694838a62413611fff6166611c152dd870dfae6b9a544f",
+        "start_line": 259,
+        "end_line": 260,
+        "clause_sha256": "9c1cf188a944a6bee6c2ff071d005fd3db2853dbf49ec5b98ebb83442c65faba",
+        "canonical_spec_commit": "637b46a6f58633fb6246ca93aceafc6643db96c3",
+        "clause_body_ref": "MT-36253#/context_capsule/specification_anchor_refs/0/verbatim"
+      }
+    ],
+    "implementation_steps": [
+      {
+        "n": 1,
+        "step": "Read [STU-ARC-024] and every clause it cites; read the related MTs MT-36248, MT-36206, MT-35546."
+      },
+      {
+        "n": 2,
+        "step": "Implement each materialized acceptance row in hsk-studio-render-gpu within the allowed write paths."
+      },
+      {
+        "n": 3,
+        "step": "Leave every declared spec gap unimplemented and recorded; never choose its values."
+      },
+      {
+        "n": 4,
+        "step": "Prove each row through the natural target with an independent oracle and update the canonical UserManual entry in the same change."
+      }
+    ],
+    "expected_outputs": [
+      "hsk-studio-render-gpu: the contract of [STU-ARC-024] with one proven case per acceptance row"
+    ],
+    "stop_conditions": [
+      "A declared spec gap of this clause blocks a row: stop and record the gap, no invented values",
+      "Change needs another module owner path: return to that owner"
+    ],
+    "may_create_canonical_capability": false,
+    "artifact_isolation": {
+      "artifact_root": "../Handshake_Artifacts/handshake-test",
+      "owner_dir": "WP-KERNEL-STUDIO/MT-36253",
+      "env": {},
+      "flags": null,
+      "reference_runner": null
+    },
+    "git_rules": [],
+    "module_change_stage": "standalone_source"
+  },
+  "proof": {
+    "parent_proof_refs": [],
+    "checks": [
+      {
+        "check_id": "MT-36253-AC-SPEC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-SPEC-001",
+          "STU-ARC-024"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-render-gpu for this row; the target, filter and timeout are bound at activation.",
+        "expected": "Studio holds no GPU device ownership.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36253-AC-SPEC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-SPEC-002",
+          "STU-ARC-024"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-render-gpu for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The render-gpu asset crate MUST expose a typed GPU client port through which Studio GPU work consumes the central Handshake GPU owner under [GUI-DESKTOP-028].",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36253-AC-SPEC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-SPEC-003",
+          "STU-ARC-024"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-render-gpu for this row; the target, filter and timeout are bound at activation.",
+        "expected": "The client is a pure-Vulkan client; the Vulkan binding crate is named by the GPU owner, not by Studio (Operator decision D7, 2026-10-31).",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      },
+      {
+        "check_id": "MT-36253-AC-SPEC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-SPEC-004",
+          "STU-ARC-024"
+        ],
+        "command_or_method": "After the owning module materialises its natural contract target during coding, execute that target in hsk-studio-render-gpu for this row; the target, filter and timeout are bound at activation.",
+        "expected": "A transient in-process adapter behind the same port MAY serve asset-local proof only, bounded by [STU-ARC-032].",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values",
+          "Typed negative path for every refusal the row states"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "relevant_input_paths": [
+      "handshake-studio-assets/crates/hsk-studio-render-gpu/**",
+      ".GOV/spec/master-spec-v02.227/spec-modules/14-studio-creative-suite.md"
+    ],
+    "extra_build_proofs": []
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": "ASSESS_ACTUAL_DESCRIPTOR_CHANGE",
+    "target_entries": [
+      "STUDIO-MODULE-RENDER_GPU: [STU-ARC-024] behaviour, inputs, outputs, failure and recovery"
+    ],
+    "expected_evidence": [
+      "Canonical UserManual same-change descriptor diff"
+    ],
+    "location": "Canonical Handshake UserManual",
+    "reason": null,
+    "not_applicable_reason": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "[STU-ARC-024] contract fidelity and declared-gap discipline",
+    "risks": [
+      {
+        "risk": "Studio code acquires or owns a GPU device beside the central owner",
+        "mitigation": "No device creation outside the port; the public API exposes no device acquisition or backend choice"
+      },
+      {
+        "risk": "The port's handle, admission, budget and retained-memory fields are invented before the GPU owner contract settles them",
+        "mitigation": "Fields stay a declared gap bound to Section 15; implementation stops at the gap rather than choosing values"
+      }
+    ],
+    "minimum_controls": [
+      "AC-SPEC-001",
+      "AC-SPEC-002",
+      "AC-SPEC-003",
+      "AC-SPEC-004"
+    ]
+  },
+  "activation": {
+    "disposition": "NON_AI_CURRENT_SCOPE",
+    "implementation_state": "PLANNED_NOT_IMPLEMENTED",
+    "semantic_trigger_flags": {
+      "resource": true,
+      "owned_gui": false,
+      "shared_control_descriptor": false,
+      "collaborative_state": false,
+      "queue_or_inflight": true,
+      "interop_or_remote": false,
+      "uuid_generation": false,
+      "parked_ai": false
+    },
+    "current_dispatch_authorized": false
+  },
+  "lifecycle": {
+    "phase": "blocked",
+    "status": null,
+    "active": false,
+    "validator_verdict": null,
+    "contract_preparation_only": true,
+    "blocked_on": "AUTHORIZED_LANE_DISPATCH",
+    "updated_at_utc": "2026-11-01T03:13:39Z"
+  },
+  "submissions": [],
+  "verdicts": [],
+  "blockers": [],
+  "wp_id": "WP-KERNEL-STUDIO",
+  "mt_id": "MT-36253",
+  "generated_by": "handshake.greenroom.spec_derive.v1",
+  "derivation": {
+    "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+    "derivation_key": "STU-ARC-024#clause#0",
+    "unit_kind": "clause",
+    "spec_module": "14-studio-creative-suite.md",
+    "spec_heading": "14.2.2 Host integration contracts [ADD v02.226]",
+    "spec_line": 259,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.227",
+    "deriver_output_ref": "fold_back/spec_mts/MT-36253.json"
+  },
+  "clause": "GPU CLIENT PORT. Studio holds no GPU device ownership. The render-gpu asset crate MUST expose a typed GPU client port through which Studio GPU work consumes the central Handshake GPU owner under [GUI- [...]",
+  "spec_anchor": [
+    "STU-ARC-024"
+  ],
+  "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+  "domain": "architecture",
+  "scope": {
+    "summary": "GPU CLIENT PORT. Studio holds no GPU device ownership. The render-gpu asset crate MUST expose a typed GPU client port through which Studio GPU work consumes the central Handshake GPU owner under [GUI-DESKTOP-028]. The client is a pure-Vulkan client; the Vulkan binding crate is named by the GPU owner, not by Studio (Operator decision D7, 2026-10-31). A transient in-process adapter behind the same port MAY serve asset-local proof only, bounded by [STU-ARC-032]. DECLARED GAP, not settled here: the port's handle type, admission request, budget and retained-memory accounting fields and compute-only use without a surface are to be settled with the GPU owner contract (Section 15).",
+    "allowed_paths": [
+      "handshake-studio-assets/crates/hsk-studio-render-gpu/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "src/**",
+      "app/**",
+      "tests/**",
+      "handshake_core/**",
+      "handshake_native/**",
+      "Other Studio module roots/**"
+    ],
+    "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "The render-gpu asset crate MUST expose a typed GPU client port through which Studio GPU work consumes the central Handshake GPU owner under [GUI-DESKTOP-028].",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-ARC-024"
+    }
+  ],
+  "acceptance_criteria_count": 1,
+  "hbr_obligations": [
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-003",
+    "HBR-PRIV-004",
+    "HBR-PRIV-005",
+    "HBR-PRIV-006",
+    "HBR-PRIV-007",
+    "HBR-PRIV-008",
+    "HBR-INT-001",
+    "HBR-INT-002",
+    "HBR-INT-003",
+    "HBR-INT-004",
+    "HBR-INT-005",
+    "HBR-INT-006",
+    "HBR-INT-007",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-SWARM-003",
+    "HBR-SWARM-004",
+    "HBR-SWARM-005",
+    "HBR-SWARM-006",
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-004",
+    "HBR-VIS-005",
+    "HBR-QUIET-001",
+    "HBR-QUIET-002",
+    "HBR-QUIET-003",
+    "HBR-QUIET-004",
+    "HBR-MAN-001",
+    "HBR-MAN-002",
+    "HBR-MAN-003",
+    "HBR-MAN-004",
+    "HBR-STOP-001",
+    "HBR-STOP-002",
+    "HBR-STOP-003",
+    "HBR-STOP-004",
+    "HBR-STOP-005",
+    "HBR-COMPART-001",
+    "HBR-COMPART-002",
+    "HBR-COMPONENT-001",
+    "HBR-COMPONENT-002",
+    "HBR-MODULE-LIFECYCLE-001",
+    "HBR-MODULE-LIFECYCLE-002",
+    "HBR-MODULE-LIFECYCLE-003",
+    "HBR-MODULE-LIFECYCLE-004",
+    "HBR-MODULE-LIFECYCLE-005",
+    "HBR-MODULE-LIFECYCLE-006",
+    "HBR-MODULE-LIFECYCLE-007",
+    "HBR-MODULE-LIFECYCLE-008",
+    "HBR-HOST-001",
+    "HBR-HOST-002",
+    "HBR-HOST-003",
+    "HBR-HOST-004",
+    "HBR-HOST-005",
+    "HBR-HOST-006",
+    "HBR-HOST-007",
+    "HBR-HOST-008"
+  ],
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36253.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/refinement.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md"
+  },
+  "created_at_utc": "2026-11-01T03:13:39Z",
+  "updated_at_utc": "2026-11-01T03:13:39Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.227",
+    "gui_host": "none",
+    "gpu": "central_broker_client",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "ring_visible"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: actor/session, command id, document revision and correlation on every mutating command; correlation grants nothing",
+    "jobs": "bounded_admission_via_job_port",
+    "settings": "none",
+    "spec_refs": [
+      "GUI-DESKTOP-049",
+      "GUI-DESKTOP-050",
+      "STU-ARC-010",
+      "STU-VAL-002",
+      "STU-ARC-015",
+      "GUI-DESKTOP-041",
+      "GUI-DESKTOP-045",
+      "GUI-DESKTOP-025",
+      "GUI-DESKTOP-028",
+      "GUI-DESKTOP-032",
+      "GPU-QUOTA-010",
+      "STU-ARC-002",
+      "STU-ARC-018",
+      "STU-ARC-008",
+      "STU-ARC-012",
+      "STU-ARC-013",
+      "GUI-DESKTOP-033",
+      "GPU-QUOTA-015",
+      "GUI-DESKTOP-051",
+      "GUI-DESKTOP-054"
+    ],
+    "refactor_exposure": "high",
+    "derived_from": {
+      "module_ref": "STUDIO-MODULE-RENDER_GPU",
+      "unit_kind": "clause",
+      "owned_gui": false,
+      "queue_or_inflight": true,
+      "collaborative_state": false
+    },
+    "recorded_at": "2026-11-01T03:13:39Z"
+  }
+}
