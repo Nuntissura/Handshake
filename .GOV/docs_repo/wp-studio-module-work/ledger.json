@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-01T13:05:59Z",
+ "updated_at": "2026-11-01T13:46:33Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -16385,8 +16385,8 @@
   },
   {
    "lane_id": "SMB-COL-SWATCH-GROUPS-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-folio (swatch groups, palette scope, colour-book records), ICC-parsing crate (named-colour binding, if it parses ICC tags)",
    "lane_file": "builders/lanes/hsk-studio-col-swatch-groups-1.json",
    "brief": "builders/briefs/lane-smb-col-swatch-groups-1.md",
@@ -16394,7 +16394,7 @@
    "base": "99836457",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-01T10:46:05Z",
+   "updated_at": "2026-11-01T13:46:33Z",
    "closes": [
     "MT-31239",
     "MT-31240",
@@ -16403,7 +16403,8 @@
     "MT-31249",
     "MT-31250",
     "MT-31251"
-   ]
+   ],
+   "pushed": "a888bf3e..174ebc56"
   },
   {
    "lane_id": "SMB-PRESS-INK-MANAGER-1",
@@ -16448,8 +16449,8 @@
   },
   {
    "lane_id": "SMB-R52-FOLLOWUPS-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-interop-psd (typed-loss tests, channel_opacity_rounded), hsk-studio-interop-tiff (Folio channel records as extra samples)",
    "lane_file": "builders/lanes/hsk-studio-r52-followups-1.json",
    "brief": "builders/briefs/lane-smb-r52-followups-1.md",
@@ -16457,18 +16458,19 @@
    "base": "99836457",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-01T12:58:23Z",
+   "updated_at": "2026-11-01T13:46:33Z",
    "closes": [
     "F-R52-3 (LOW)",
     "F-R52-2 (LOW, TIFF part)",
     "MT-30095 (TIFF rows)",
     "MT-038 rows touched"
-   ]
+   ],
+   "pushed": "e65e182c..e3afbb62"
   },
   {
    "lane_id": "SMB-PRESS-OBSERVE-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-press-write (observe dependency and emission)",
    "lane_file": "builders/lanes/hsk-studio-press-observe-1.json",
    "brief": "builders/briefs/lane-smb-press-observe-1.md",
@@ -16476,9 +16478,27 @@
    "base": "c420f273",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-01T13:05:59Z",
+   "updated_at": "2026-11-01T13:46:33Z",
    "closes": [
     "F-R51-7"
+   ],
+   "pushed": "f78169bb..295c6029"
+  },
+  {
+   "lane_id": "SMB-TIFF-CHANNELS-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-interop-tiff (Folio-free multi extra-sample planes), hsk-studio-harness-core (TIFF extra planes <-> Folio channel records)",
+   "lane_file": "builders/lanes/hsk-studio-tiff-channels-1.json",
+   "brief": "builders/briefs/lane-smb-tiff-channels-1.md",
+   "worktree": "wt-studio-lanes/smb-tiff-channels-1",
+   "base": "e3afbb62",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-01T13:46:33Z",
+   "closes": [
+    "F-R52-2 (TIFF part)",
+    "MT-30095"
    ]
   }
  ],

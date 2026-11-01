@@ -341,6 +341,14 @@
    "lead_reading": "2026-11-01T08:51:36Z: SMB-R51-FOLLOWUPS-1 unmaps all four; the engine scalars stay authored studio_declared rows beside the stored recovered rows until the units are declared",
    "source": "STUDIO-R51 F-R51-1 and lane SMB-R51-FOLLOWUPS-1 notes, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-41",
+   "gap": "STU-RAS-022 / STU-IO-006 row 9 require channel records to survive OpenEXR round trips (multi-channel preserved), but no Studio crate reads OpenEXR and the only writer (composite three_d/exr.rs) writes uncompressed FLOAT with short names and string attributes only",
+   "needs": "an owning crate for OpenEXR read/write, or a spec statement limiting channel-record interchange to PSD/PSB and TIFF until EXR exists; plus the channel naming scheme and how 8-bit channels map (EXR has no 8-bit type)",
+   "lead_reading": "2026-11-01T13:46:33Z: EXR channel interchange not implemented; MT-30095 stays partly met on the EXR row",
+   "source": "STUDIO-R52 F-R52-2 and lane SMB-R52-FOLLOWUPS-1 item 3",
+   "status": "PROPOSED"
   }
  ],
  "edits": [
@@ -930,5 +938,5 @@
    "spec_version": "v02.226"
   }
  ],
- "updated_at": "2026-11-01T08:51:36Z"
+ "updated_at": "2026-11-01T13:46:33Z"
 }
