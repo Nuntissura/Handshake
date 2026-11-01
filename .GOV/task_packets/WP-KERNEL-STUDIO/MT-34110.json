@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.27.2 Keying and matte refinement",
-    "spec_line": 29176,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 29711,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.228"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -26,18 +27,43 @@
     "contract_preparation_only": true,
     "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
   },
-  "clause": "DECLARED GAP -- rotoscoping",
+  "clause": "ASSISTED ROTOSCOPING -- boundary propagation across frames",
   "spec_anchor": [
     "STU-CMP-034"
   ],
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "compositing",
   "scope": {
-    "summary": "DECLARED GAP -- rotoscoping.** Mask-path animation ([STU-CMP-025]) is the manual rotoscoping mechanism and it is fully specified. An ASSISTED rotoscoping capability -- propagating a hand-drawn boundary across frames by tracking edges -- is NOT specified here. No such tool's parameter surface was recovered. It is a named future capability, recorded as [STU-CMP-100], and until it is specified an implementer builds the manual path and does not improvise a propagation algorithm. --- ## 14.27.3 Three-dimensional compositing ### 1. 3D layers",
+    "summary": "ASSISTED ROTOSCOPING -- boundary propagation across frames.** Mask-path animation ([STU-CMP-025]) remains the manual rotoscoping mechanism and is unchanged. Assisted rotoscoping is the capability that turns foreground and background STROKES drawn on one frame into a per-frame matte across a span of frames by tracking the segmentation boundary, so that a subject is isolated from a moving shot without a path being drawn on every frame. It is specified here, resolving [STU-CMP-100]. The reference surface it mirrors is the Roto Brush and Refine Edge tool family of the compositing application it replaces; the recovered names of that surface are import keys only ([STU-SECTION-003]). The normative contract: 1. **Strokes, base frames and spans.** A stroke is a frame-bound record with a polarity, `foreground` or `background`, a brush diameter and a path; a stroke is never replaced by a later stroke, a later stroke is always added. The first stroke on a frame that lies in no span makes that frame a BASE FRAME and opens a SPAN that by default covers the layer duration not already covered by another span. A span carries its base frame, its in and out frames and its propagation directions; it grows with each stroke unless it abuts another span, its ends are resizable, it can be removed, and removing the capability from the layer removes every span. Strokes, spans, base frames, the engine ch [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [],
-  "acceptance_criteria_count": 0,
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "Strokes, spans, base frames, the engine choice and every parameter value of the table below are DOCUMENT STATE under the ownership rules of [STU-CMP-002] and [STU-CMP-003]; the propagated mattes are a cache, never authority, and a reopened document MUST reproduce them from that state. 2. **Propagation.** From the base frame the segmentation propagates forward and backward within the span one frame at a time.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-CMP-034"
+    },
+    {
+      "id": "AC-002",
+      "criterion": "`classic` is a deterministic tracking propagation that uses no learned model and MUST always be available.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-CMP-034"
+    },
+    {
+      "id": "AC-003",
+      "criterion": "The refine stage of assisted rotoscoping MUST consume the unified edge-refinement surface of [STU-RAS-121] -- its `smooth`, `feather`, `contrast`, `shift_edge`, `decontaminate_colours` and `decontamination_amount` controls with the bounds declared there -- and MUST NOT define a second edge-refinement record.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-CMP-034"
+    },
+    {
+      "id": "AC-004",
+      "criterion": "They MUST ship as `unknown` per [STU-RAS-106], MUST NOT be clamped, and the soft bounds MUST NOT be back-filled from the hard bounds or from any observed spread. --- ## 14.27.3 Three-dimensional compositing ### 1. 3D layers",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-CMP-034"
+    }
+  ],
+  "acceptance_criteria_count": 4,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -127,7 +153,7 @@
   "identity": {
     "mt_id": "MT-34110",
     "wp_id": "WP-KERNEL-STUDIO",
-    "title": "DECLARED GAP -- rotoscoping",
+    "title": "ASSISTED ROTOSCOPING -- boundary propagation across frames",
     "group": "STUDIO_ASSET_FEATURE",
     "version": 2,
     "contract_revision": 3
@@ -1576,13 +1602,33 @@
       "STU-CMP-034"
     ],
     "acceptance_refs": [
-      "ASSET-AC-001"
+      "ASSET-AC-001",
+      "AC-001",
+      "AC-002",
+      "AC-003",
+      "AC-004"
     ],
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
-        "text": "DECLARED GAP -- rotoscoping.** Mask-path animation ([STU-CMP-025]) is the manual rotoscoping mechanism and it is fully specified. An ASSISTED rotoscoping capability -- propagating a hand-drawn boundary across frames by tracking edges -- is NOT specified here. No such tool's parameter surface was recovered. It is a named future capability, recorded as [STU-CMP-100], and until it is specified an implementer builds the manual path and does not improvise a propagation algorithm. --- ## 14.27.3 Three-dimensional compositing ### 1. 3D layers",
+        "text": "ASSISTED ROTOSCOPING -- boundary propagation across frames.** Mask-path animation ([STU-CMP-025]) remains the manual rotoscoping mechanism and is unchanged. Assisted rotoscoping is the capability that turns foreground and background STROKES drawn on one frame into a per-frame matte across a span of frames by tracking the segmentation boundary, so that a subject is isolated from a moving shot without a path being drawn on every frame. It is specified here, resolving [STU-CMP-100]. The reference surface it mirrors is the Roto Brush and Refine Edge tool family of the compositing application it replaces; the recovered names of that surface are import keys only ([STU-SECTION-003]). The normative contract: 1. **Strokes, base frames and spans.** A stroke is a frame-bound record with a polarity, `foreground` or `background`, a brush diameter and a path; a stroke is never replaced by a later stroke, a later stroke is always added. The first stroke on a frame that lies in no span makes that frame a BASE FRAME and opens a SPAN that by default covers the layer duration not already covered by another span. A span carries its base frame, its in and out frames and its propagation directions; it grows with each stroke unless it abuts another span, its ends are resizable, it can be removed, and removing the capability from the layer removes every span. Strokes, spans, base frames, the engine ch [...]",
         "fulfillment_ref": "MT-34110#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-001",
+        "text": "Strokes, spans, base frames, the engine choice and every parameter value of the table below are DOCUMENT STATE under the ownership rules of [STU-CMP-002] and [STU-CMP-003]; the propagated mattes are a cache, never authority, and a reopened document MUST reproduce them from that state. 2. **Propagation.** From the base frame the segmentation propagates forward and backward within the span one frame at a time."
+      },
+      {
+        "id": "AC-002",
+        "text": "`classic` is a deterministic tracking propagation that uses no learned model and MUST always be available."
+      },
+      {
+        "id": "AC-003",
+        "text": "The refine stage of assisted rotoscoping MUST consume the unified edge-refinement surface of [STU-RAS-121] -- its `smooth`, `feather`, `contrast`, `shift_edge`, `decontaminate_colours` and `decontamination_amount` controls with the bounds declared there -- and MUST NOT define a second edge-refinement record."
+      },
+      {
+        "id": "AC-004",
+        "text": "They MUST ship as `unknown` per [STU-RAS-106], MUST NOT be clamped, and the soft bounds MUST NOT be back-filled from the hard bounds or from any observed spread. --- ## 14.27.3 Three-dimensional compositing ### 1. 3D layers"
       }
     ],
     "spec_basis_refs": [
@@ -1828,6 +1874,70 @@
           "Unchanged input digest across implementer check"
         ],
         "materialization_status": "PLANNED_NOT_EXECUTED"
+      },
+      {
+        "check_id": "MT-34110-SPEC-AC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-001",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "Strokes, spans, base frames, the engine choice and every parameter value of the table below are DOCUMENT STATE under the ownership rules of [STU-CMP-002] and [STU-CMP-003]; the propagated mattes are a cache, never authority, and a reopened document MUST reproduce them from that state. 2. **Propagation.** From the base frame the segmentation propagates forward and backward within the span one frame at a time.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-34110-SPEC-AC-002",
+        "kind": "test",
+        "claim_refs": [
+          "AC-002",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "`classic` is a deterministic tracking propagation that uses no learned model and MUST always be available.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-34110-SPEC-AC-003",
+        "kind": "test",
+        "claim_refs": [
+          "AC-003",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The refine stage of assisted rotoscoping MUST consume the unified edge-refinement surface of [STU-RAS-121] -- its `smooth`, `feather`, `contrast`, `shift_edge`, `decontaminate_colours` and `decontamination_amount` controls with the bounds declared there -- and MUST NOT define a second edge-refinement record.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
+      },
+      {
+        "check_id": "MT-34110-SPEC-AC-004",
+        "kind": "test",
+        "claim_refs": [
+          "AC-004",
+          "STU-CMP-034"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "They MUST ship as `unknown` per [STU-RAS-106], MUST NOT be clamped, and the soft bounds MUST NOT be back-filled from the hard bounds or from any observed spread. --- ## 14.27.3 Three-dimensional compositing ### 1. 3D layers",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2145,7 +2255,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "DECLARED GAP -- rotoscoping.** Mask-path animation ([STU-CMP-025]) is the manual rotoscoping mechanism and it is fully specified. An ASSISTED rotoscoping capability -- propagating a hand-drawn boundary across frames by tracking edges -- is NOT specified here. No such tool's parameter surface was recovered. It is a named future capability, recorded as [STU-CMP-100], and until it is specified an implementer builds the manual path and does not improvise a propagation algorithm. --- ## 14.27.3 Three-dimensional compositing ### 1. 3D layers",
+        "semantic_fulfillment": "ASSISTED ROTOSCOPING -- boundary propagation across frames.** Mask-path animation ([STU-CMP-025]) remains the manual rotoscoping mechanism and is unchanged. Assisted rotoscoping is the capability that turns foreground and background STROKES drawn on one frame into a per-frame matte across a span of frames by tracking the segmentation boundary, so that a subject is isolated from a moving shot without a path being drawn on every frame. It is specified here, resolving [STU-CMP-100]. The reference surface it mirrors is the Roto Brush and Refine Edge tool family of the compositing application it replaces; the recovered names of that surface are import keys only ([STU-SECTION-003]). The normative contract: 1. **Strokes, base frames and spans.** A stroke is a frame-bound record with a polarity, `foreground` or `background`, a brush diameter and a path; a stroke is never replaced by a later stroke, a later stroke is always added. The first stroke on a frame that lies in no span makes that frame a BASE FRAME and opens a SPAN that by default covers the layer duration not already covered by another span. A span carries its base frame, its in and out frames and its propagation directions; it grows with each stroke unless it abuts another span, its ends are resizable, it can be removed, and removing the capability from the layer removes every span. Strokes, spans, base frames, the engine ch [...]",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34110"
@@ -2155,7 +2265,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-COMPOSITE",
             "scope": "Static render-plan evaluator consumes immutable snapshot; same semantics for previews/export. Temporal/effect providers attach through typed ports; no unconditional motion/pulse engine dependency in the static render closure.",
-            "required_behavior": "DECLARED GAP -- rotoscoping.** Mask-path animation ([STU-CMP-025]) is the manual rotoscoping mechanism and it is fully specified. An ASSISTED rotoscoping capability -- propagating a hand-drawn boundary across frames by tracking edges -- is NOT specified here. No such tool's parameter surface was recovered. It is a named future capability, recorded as [STU-CMP-100], and until it is specified an implementer builds the manual path and does not improvise a propagation algorithm. --- ## 14.27.3 Three-dimensional compositing ### 1. 3D layers",
+            "required_behavior": "ASSISTED ROTOSCOPING -- boundary propagation across frames.** Mask-path animation ([STU-CMP-025]) remains the manual rotoscoping mechanism and is unchanged. Assisted rotoscoping is the capability that turns foreground and background STROKES drawn on one frame into a per-frame matte across a span of frames by tracking the segmentation boundary, so that a subject is isolated from a moving shot without a path being drawn on every frame. It is specified here, resolving [STU-CMP-100]. The reference surface it mirrors is the Roto Brush and Refine Edge tool family of the compositing application it replaces; the recovered names of that surface are import keys only ([STU-SECTION-003]). The normative contract: 1. **Strokes, base frames and spans.** A stroke is a frame-bound record with a polarity, `foreground` or `background`, a brush diameter and a path; a stroke is never replaced by a later stroke, a later stroke is always added. The first stroke on a frame that lies in no span makes that frame a BASE FRAME and opens a SPAN that by default covers the layer duration not already covered by another span. A span carries its base frame, its in and out frames and its propagation directions; it grows with each stroke unless it abuts another span, its ends are resizable, it can be removed, and removing the capability from the layer removes every span. Strokes, spans, base frames, the engine ch [...]",
             "only_owner_root_may_change": true
           }
         ],
@@ -2170,7 +2280,7 @@
         },
         "later_embedding_ref": "MT-36204#/source_acceptance_coverage",
         "later_embedding_required": true,
-        "later_embedding_assertion": "DECLARED GAP -- rotoscoping.** Mask-path animation ([STU-CMP-025]) is the manual rotoscoping mechanism and it is fully specified. An ASSISTED rotoscoping capability -- propagating a hand-drawn boundary across frames by tracking edges -- is NOT specified here. No such tool's parameter surface was recovered. It is a named future capability, recorded as [STU-CMP-100], and until it is specified an implementer builds the manual path and does not improvise a propagation algorithm. --- ## 14.27.3 Three-dimensional compositing ### 1. 3D layers Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "ASSISTED ROTOSCOPING -- boundary propagation across frames.** Mask-path animation ([STU-CMP-025]) remains the manual rotoscoping mechanism and is unchanged. Assisted rotoscoping is the capability that turns foreground and background STROKES drawn on one frame into a per-frame matte across a span of frames by tracking the segmentation boundary, so that a subject is isolated from a moving shot without a path being drawn on every frame. It is specified here, resolving [STU-CMP-100]. The reference surface it mirrors is the Roto Brush and Refine Edge tool family of the compositing application it replaces; the recovered names of that surface are import keys only ([STU-SECTION-003]). The normative contract: 1. **Strokes, base frames and spans.** A stroke is a frame-bound record with a polarity, `foreground` or `background`, a brush diameter and a path; a stroke is never replaced by a later stroke, a later stroke is always added. The first stroke on a frame that lies in no span makes that frame a BASE FRAME and opens a SPAN that by default covers the layer duration not already covered by another span. A span carries its base frame, its in and out frames and its propagation directions; it grows with each stroke unless it abuts another span, its ends are resizable, it can be removed, and removing the capability from the layer removes every span. Strokes, spans, base frames, the engine ch [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "later_embedding_refs": [
           "MT-36204#/source_acceptance_coverage"
@@ -2200,7 +2310,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "DECLARED GAP -- rotoscoping.** Mask-path animation ([STU-CMP-025]) is the manual rotoscoping mechanism and it is fully specified. An ASSISTED rotoscoping capability -- propagating a hand-drawn boundary across frames by tracking edges -- is NOT specified here. No such tool's parameter surface was recovered. It is a named future capability, recorded as [STU-CMP-100], and until it is specified an implementer builds the manual path and does not improvise a propagation algorithm. --- ## 14.27.3 Three-dimensional compositing ### 1. 3D layers",
+          "semantic_fulfillment": "ASSISTED ROTOSCOPING -- boundary propagation across frames.** Mask-path animation ([STU-CMP-025]) remains the manual rotoscoping mechanism and is unchanged. Assisted rotoscoping is the capability that turns foreground and background STROKES drawn on one frame into a per-frame matte across a span of frames by tracking the segmentation boundary, so that a subject is isolated from a moving shot without a path being drawn on every frame. It is specified here, resolving [STU-CMP-100]. The reference surface it mirrors is the Roto Brush and Refine Edge tool family of the compositing application it replaces; the recovered names of that surface are import keys only ([STU-SECTION-003]). The normative contract: 1. **Strokes, base frames and spans.** A stroke is a frame-bound record with a polarity, `foreground` or `background`, a brush diameter and a path; a stroke is never replaced by a later stroke, a later stroke is always added. The first stroke on a frame that lies in no span makes that frame a BASE FRAME and opens a SPAN that by default covers the layer duration not already covered by another span. A span carries its base frame, its in and out frames and its propagation directions; it grows with each stroke unless it abuts another span, its ends are resizable, it can be removed, and removing the capability from the layer removes every span. Strokes, spans, base frames, the engine ch [...]",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34110"
@@ -2210,7 +2320,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-COMPOSITE",
               "scope": "Static render-plan evaluator consumes immutable snapshot; same semantics for previews/export. Temporal/effect providers attach through typed ports; no unconditional motion/pulse engine dependency in the static render closure.",
-              "required_behavior": "DECLARED GAP -- rotoscoping.** Mask-path animation ([STU-CMP-025]) is the manual rotoscoping mechanism and it is fully specified. An ASSISTED rotoscoping capability -- propagating a hand-drawn boundary across frames by tracking edges -- is NOT specified here. No such tool's parameter surface was recovered. It is a named future capability, recorded as [STU-CMP-100], and until it is specified an implementer builds the manual path and does not improvise a propagation algorithm. --- ## 14.27.3 Three-dimensional compositing ### 1. 3D layers",
+              "required_behavior": "ASSISTED ROTOSCOPING -- boundary propagation across frames.** Mask-path animation ([STU-CMP-025]) remains the manual rotoscoping mechanism and is unchanged. Assisted rotoscoping is the capability that turns foreground and background STROKES drawn on one frame into a per-frame matte across a span of frames by tracking the segmentation boundary, so that a subject is isolated from a moving shot without a path being drawn on every frame. It is specified here, resolving [STU-CMP-100]. The reference surface it mirrors is the Roto Brush and Refine Edge tool family of the compositing application it replaces; the recovered names of that surface are import keys only ([STU-SECTION-003]). The normative contract: 1. **Strokes, base frames and spans.** A stroke is a frame-bound record with a polarity, `foreground` or `background`, a brush diameter and a path; a stroke is never replaced by a later stroke, a later stroke is always added. The first stroke on a frame that lies in no span makes that frame a BASE FRAME and opens a SPAN that by default covers the layer duration not already covered by another span. A span carries its base frame, its in and out frames and its propagation directions; it grows with each stroke unless it abuts another span, its ends are resizable, it can be removed, and removing the capability from the layer removes every span. Strokes, spans, base frames, the engine ch [...]",
               "only_owner_root_may_change": true
             }
           ],
@@ -2225,7 +2335,7 @@
           },
           "later_embedding_ref": "MT-36204#/source_acceptance_coverage",
           "later_embedding_required": true,
-          "later_embedding_assertion": "DECLARED GAP -- rotoscoping.** Mask-path animation ([STU-CMP-025]) is the manual rotoscoping mechanism and it is fully specified. An ASSISTED rotoscoping capability -- propagating a hand-drawn boundary across frames by tracking edges -- is NOT specified here. No such tool's parameter surface was recovered. It is a named future capability, recorded as [STU-CMP-100], and until it is specified an implementer builds the manual path and does not improvise a propagation algorithm. --- ## 14.27.3 Three-dimensional compositing ### 1. 3D layers Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "ASSISTED ROTOSCOPING -- boundary propagation across frames.** Mask-path animation ([STU-CMP-025]) remains the manual rotoscoping mechanism and is unchanged. Assisted rotoscoping is the capability that turns foreground and background STROKES drawn on one frame into a per-frame matte across a span of frames by tracking the segmentation boundary, so that a subject is isolated from a moving shot without a path being drawn on every frame. It is specified here, resolving [STU-CMP-100]. The reference surface it mirrors is the Roto Brush and Refine Edge tool family of the compositing application it replaces; the recovered names of that surface are import keys only ([STU-SECTION-003]). The normative contract: 1. **Strokes, base frames and spans.** A stroke is a frame-bound record with a polarity, `foreground` or `background`, a brush diameter and a path; a stroke is never replaced by a later stroke, a later stroke is always added. The first stroke on a frame that lies in no span makes that frame a BASE FRAME and opens a SPAN that by default covers the layer duration not already covered by another span. A span carries its base frame, its in and out frames and its propagation directions; it grows with each stroke unless it abuts another span, its ends are resizable, it can be removed, and removing the capability from the layer removes every span. Strokes, spans, base frames, the engine ch [...] Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "later_embedding_refs": [
             "MT-36204#/source_acceptance_coverage"
@@ -2278,11 +2388,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-10T04:03:11.137Z",
+  "updated_at_utc": "2026-11-01T03:23:08Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
-      "criterion": "DECLARED GAP -- rotoscoping.** Mask-path animation ([STU-CMP-025]) is the manual rotoscoping mechanism and it is fully specified. An ASSISTED rotoscoping capability -- propagating a hand-drawn boundary across frames by tracking edges -- is NOT specified here. No such tool's parameter surface was recovered. It is a named future capability, recorded as [STU-CMP-100], and until it is specified an implementer builds the manual path and does not improvise a propagation algorithm. --- ## 14.27.3 Three-dimensional compositing ### 1. 3D layers",
+      "criterion": "ASSISTED ROTOSCOPING -- boundary propagation across frames.** Mask-path animation ([STU-CMP-025]) remains the manual rotoscoping mechanism and is unchanged. Assisted rotoscoping is the capability that turns foreground and background STROKES drawn on one frame into a per-frame matte across a span of frames by tracking the segmentation boundary, so that a subject is isolated from a moving shot without a path being drawn on every frame. It is specified here, resolving [STU-CMP-100]. The reference surface it mirrors is the Roto Brush and Refine Edge tool family of the compositing application it replaces; the recovered names of that surface are import keys only ([STU-SECTION-003]). The normative contract: 1. **Strokes, base frames and spans.** A stroke is a frame-bound record with a polarity, `foreground` or `background`, a brush diameter and a path; a stroke is never replaced by a later stroke, a later stroke is always added. The first stroke on a frame that lies in no span makes that frame a BASE FRAME and opens a SPAN that by default covers the layer duration not already covered by another span. A span carries its base frame, its in and out frames and its propagation directions; it grows with each stroke unless it abuts another span, its ends are resizable, it can be removed, and removing the capability from the layer removes every span. Strokes, spans, base frames, the engine ch [...]",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
   ],
@@ -2328,7 +2438,7 @@
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.228",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2364,5 +2474,57 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.228",
+      "spec_commit": "d3642cf22bbba3d126995ba907c41687a3e2657b",
+      "at": "2026-11-01T03:23:08Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": null,
+          "new": "Strokes, spans, base frames, the engine choice and every parameter value of the table below are DOCUMENT STATE under the ownership rules of [STU-CMP-002] and [STU-CMP-003]; the propagated mattes are a cache, never authority, and a reopened document MUST reproduce them from that state. 2. **Propagation.** From the base frame the segmentation propagates forward and backward within the span one frame at a time."
+        },
+        {
+          "id": "AC-002",
+          "old": null,
+          "new": "`classic` is a deterministic tracking propagation that uses no learned model and MUST always be available."
+        },
+        {
+          "id": "AC-003",
+          "old": null,
+          "new": "The refine stage of assisted rotoscoping MUST consume the unified edge-refinement surface of [STU-RAS-121] -- its `smooth`, `feather`, `contrast`, `shift_edge`, `decontaminate_colours` and `decontamination_amount` controls with the bounds declared there -- and MUST NOT define a second edge-refinement record."
+        },
+        {
+          "id": "AC-004",
+          "old": null,
+          "new": "They MUST ship as `unknown` per [STU-RAS-106], MUST NOT be clamped, and the soft bounds MUST NOT be back-filled from the hard bounds or from any observed spread. --- ## 14.27.3 Three-dimensional compositing ### 1. 3D layers"
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004"
+      ],
+      "rows_absent_from_new_spec": [],
+      "scope_summary_changed": true,
+      "clause_changed": true,
+      "old_clause": "DECLARED GAP -- rotoscoping",
+      "propagated_paths": [
+        "/identity/title",
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion",
+        "/active_acceptance_criteria[0]/criterion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

@@ -12,8 +12,9 @@
     "unit_kind": "catalogue_row",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.7.16 Glyphs, Special Characters and Text Variables",
-    "spec_line": 8876,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 9106,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.228"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "typography",
   "scope": {
-    "summary": "Special-character, break and white-space catalogs.** Three insertable catalogs. Each member is a real Unicode character or a Studio marker; markers are stored as sentinel characters in the stream and resolved at composition. *Derivation: catalogue table, splits per row; yields 4 microtasks, one per insertable character catalog.* | Catalog | Members | |---|---| | Symbols | em dash, en dash, discretionary hyphen, non-breaking hyphen, ellipsis, bullet, copyright, registered, trademark, section, paragraph mark, single and double typographer quotes (open and close), degree, currency signs | | Markers | current page number, next page number, previous page number, section marker, footnote reference, endnote reference, anchored-object marker, cross-reference marker, index marker | | Break characters | forced line break, column break, frame break, page break, odd-page break, even-page break, paragraph return | | White-space characters | em space, en space, third space, quarter space, sixth space, thin space, hair space, figure space, punctuation space, flush space, non-breaking space (fixed width), non-breaking space (flexible width) | Flush space and the two non-breaking-space variants are distinct members: flush space absorbs all remaining justification slack on a fully justified last line; fixed-width non-breaking space never stretches; flexible-width non-breaking space stretches wit [...]",
+    "summary": "Special-character, break and white-space catalogs.** Four insertable catalogs. Each member is a real Unicode character or a Studio marker; markers are stored as sentinel characters in the stream and resolved at composition. *Derivation: catalogue table, splits per row; yields 4 microtasks, one per insertable character catalog.* | Catalog | Members | |---|---| | Symbols | em dash, en dash, discretionary hyphen, non-breaking hyphen, ellipsis, bullet, copyright, registered, trademark, section, paragraph mark, single and double typographer quotes (open and close), degree, currency signs | | Markers | current page number, next page number, previous page number, section marker, footnote reference, endnote reference, anchored-object marker, cross-reference marker, index marker | | Break characters | forced line break, column break, frame break, page break, odd-page break, even-page break, paragraph return | | White-space characters | em space, en space, third space, quarter space, sixth space, thin space, hair space, figure space, punctuation space, flush space, non-breaking space (fixed width), non-breaking space (flexible width) | Flush space and the two non-breaking-space variants are distinct members: flush space absorbs all remaining justification slack on a fully justified last line; fixed-width non-breaking space never stretches; flexible-width non-breaking space stretches with [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -1728,7 +1729,7 @@
     "shared_resource_locks": [],
     "inputs": [
       {
-        "source_scope": "Special-character, break and white-space catalogs.** Three insertable catalogs. Each member is a real Unicode character or a Studio marker; markers are stored as sentinel characters in the stream and resolved at composition. *Derivation: catalogue table, splits per row; yields 4 microtasks, one per insertable character catalog.* | Catalog | Members | |---|---| | Symbols | em dash, en dash, discretionary hyphen, non-breaking hyphen, ellipsis, bullet, copyright, registered, trademark, section, paragraph mark, single and double typographer quotes (open and close), degree, currency signs | | Markers | current page number, next page number, previous page number, section marker, footnote reference, endnote reference, anchored-object marker, cross-reference marker, index marker | | Break characters | forced line break, column break, frame break, page break, odd-page break, even-page break, paragraph return | | White-space characters | em space, en space, third space, quarter space, sixth space, thin space, hair space, figure space, punctuation space, flush space, non-breaking space (fixed width), non-breaking space (flexible width) | Flush space and the two non-breaking-space variants are distinct members: flush space absorbs all remaining justification slack on a fully justified last line; fixed-width non-breaking space never stretches; flexible-width non-breaking space stretches wit [...]",
+        "source_scope": "Special-character, break and white-space catalogs.** Four insertable catalogs. Each member is a real Unicode character or a Studio marker; markers are stored as sentinel characters in the stream and resolved at composition. *Derivation: catalogue table, splits per row; yields 4 microtasks, one per insertable character catalog.* | Catalog | Members | |---|---| | Symbols | em dash, en dash, discretionary hyphen, non-breaking hyphen, ellipsis, bullet, copyright, registered, trademark, section, paragraph mark, single and double typographer quotes (open and close), degree, currency signs | | Markers | current page number, next page number, previous page number, section marker, footnote reference, endnote reference, anchored-object marker, cross-reference marker, index marker | | Break characters | forced line break, column break, frame break, page break, odd-page break, even-page break, paragraph return | | White-space characters | em space, en space, third space, quarter space, sixth space, thin space, hair space, figure space, punctuation space, flush space, non-breaking space (fixed width), non-breaking space (flexible width) | Flush space and the two non-breaking-space variants are distinct members: flush space absorbs all remaining justification slack on a fully justified last line; fixed-width non-breaking space never stretches; flexible-width non-breaking space stretches with [...]",
         "canonical_consumer": "Insert breaks into a real threaded story across canonical containers/pages and inspect exact resulting flow boundaries.",
         "source_root": "handshake-studio-assets/crates/hsk-studio-type",
         "resource_inputs": "Actual hashed font bytes and UTF-8/marker streams; ordered tab/list/nested/GREP records and explicit regex step budget; StudioStyleRegistry, StudioVariable, glyph resource, Layout page/flow and shared history ports; immutable revisions.",
@@ -2462,11 +2463,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:23:08Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.228",
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
@@ -2496,5 +2497,23 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.228",
+      "spec_commit": "d3642cf22bbba3d126995ba907c41687a3e2657b",
+      "at": "2026-11-01T03:23:08Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Break characters",
+      "propagated_paths": [
+        "/execution/inputs[0]/source_scope"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

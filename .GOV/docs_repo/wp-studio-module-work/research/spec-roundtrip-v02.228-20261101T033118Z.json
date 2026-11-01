@@ -1,0 +1,1013 @@
+{
+ "schema_id": "hsk.studio_spec_roundtrip_resolution@1",
+ "generated_at": "2026-11-01T03:31:19Z",
+ "pass": "v02.228 (second pass; first pass: research/spec-roundtrip-v02.226-20261101T031648Z.json)",
+ "operator_request": "doe the spec's round trip and resolve issues with your agents. then generate the contracts",
+ "acceptance_test": "i want the master spec to be updated so we could extract the same exact microtasks from the master spec.",
+ "spec": {
+  "version": "v02.228",
+  "commit": "d3642cf22bbba3d126995ba907c41687a3e2657b",
+  "module": "14-studio-creative-suite.md",
+  "change_vs_v02.227": "SD-26..SD-30 (lead: 318 diff lines)"
+ },
+ "counts": {
+  "roundtrip_before_v02.228": {
+   "forward_uncovered": 0,
+   "forward_declared_non_yielding": 11,
+   "backward_dangling": 0,
+   "anchor_collisions": 0,
+   "intra_file_duplicates": 0,
+   "dropped_from_previous": 4,
+   "params_incomplete": 20,
+   "params_collapsed": 18,
+   "params_stated_unknown": 7,
+   "params_complete": 187,
+   "vendor_names": 0,
+   "verdict": "PASS",
+   "normative_clauses": 1601,
+   "basis": "spec-roundtrip-check.py on v02.228 against the MT folder at HEAD 9a5da04b (git archive copy), before regeneration"
+  },
+  "roundtrip_after_v02.228": {
+   "forward_uncovered": 0,
+   "forward_declared_non_yielding": 11,
+   "backward_dangling": 0,
+   "anchor_collisions": 0,
+   "intra_file_duplicates": 0,
+   "dropped_from_previous": 4,
+   "params_incomplete": 20,
+   "params_collapsed": 18,
+   "params_stated_unknown": 7,
+   "params_complete": 187,
+   "vendor_names": 0,
+   "verdict": "PASS"
+  },
+  "strict_binding_after": {
+   "normative_clauses": 1601,
+   "normative_without_binding_citation": 0,
+   "binding_citations_of_undefined_anchors": 0
+  },
+  "derivation": {
+   "units_yielded": 5062,
+   "new_keys": 0,
+   "new_mts": 0,
+   "note": "v02.228 yields the same 5062 units as v02.227; no id allocated; id map unchanged"
+  },
+  "derived_surface_drift_before": {
+   "acceptance_criteria": 118,
+   "scope_summary": 358,
+   "clause": 42
+  },
+  "derived_surface_drift_after": {
+   "acceptance_criteria": 81,
+   "scope_summary": 141,
+   "clause": 41
+  },
+  "drift_note": "Live MT acceptance_criteria/scope.summary/clause compared with the v02.228 deriver output for the 4990 single-owner spec-derived MTs. The remainder after this pass predates v02.226 (see open_items)."
+ },
+ "mts_changed": {
+  "regenerated_total": 217,
+  "acceptance_rows_changed": [
+   "MT-30955",
+   "MT-31005",
+   "MT-31934",
+   "MT-31939",
+   "MT-31945",
+   "MT-31947",
+   "MT-31948",
+   "MT-31949",
+   "MT-31950",
+   "MT-31951",
+   "MT-31952",
+   "MT-31953",
+   "MT-31958",
+   "MT-31959",
+   "MT-31962",
+   "MT-31984",
+   "MT-31985",
+   "MT-31990",
+   "MT-31991",
+   "MT-31993",
+   "MT-31995",
+   "MT-31999",
+   "MT-32000",
+   "MT-32003",
+   "MT-32005",
+   "MT-32007",
+   "MT-32009",
+   "MT-32011",
+   "MT-32012",
+   "MT-32013",
+   "MT-32018",
+   "MT-32019",
+   "MT-32020",
+   "MT-32021",
+   "MT-32022",
+   "MT-34110",
+   "MT-34191"
+  ],
+  "acceptance_rows_changed_count": 37,
+  "scope_summary_only": {
+   "count": 180,
+   "range_note": "MT-31006..31009 (STU-TYP-207 catalogue rows), MT-31931..32139 except the acceptance-changed ones (STU-FX-131a clause + parameter tables: the SD-26 note changed the quoted clause text)",
+   "ids": [
+    "MT-31006",
+    "MT-31007",
+    "MT-31008",
+    "MT-31009",
+    "MT-31931",
+    "MT-31932",
+    "MT-31933",
+    "MT-31935",
+    "MT-31936",
+    "MT-31937",
+    "MT-31938",
+    "MT-31940",
+    "MT-31941",
+    "MT-31942",
+    "MT-31943",
+    "MT-31944",
+    "MT-31946",
+    "MT-31954",
+    "MT-31955",
+    "MT-31956",
+    "MT-31957",
+    "MT-31960",
+    "MT-31961",
+    "MT-31963",
+    "MT-31964",
+    "MT-31965",
+    "MT-31966",
+    "MT-31967",
+    "MT-31968",
+    "MT-31969",
+    "MT-31970",
+    "MT-31971",
+    "MT-31972",
+    "MT-31973",
+    "MT-31974",
+    "MT-31975",
+    "MT-31976",
+    "MT-31977",
+    "MT-31978",
+    "MT-31979",
+    "MT-31980",
+    "MT-31981",
+    "MT-31982",
+    "MT-31983",
+    "MT-31986",
+    "MT-31987",
+    "MT-31988",
+    "MT-31989",
+    "MT-31992",
+    "MT-31994",
+    "MT-31996",
+    "MT-31997",
+    "MT-31998",
+    "MT-32001",
+    "MT-32002",
+    "MT-32004",
+    "MT-32006",
+    "MT-32008",
+    "MT-32010",
+    "MT-32014",
+    "MT-32015",
+    "MT-32016",
+    "MT-32017",
+    "MT-32023",
+    "MT-32024",
+    "MT-32025",
+    "MT-32026",
+    "MT-32027",
+    "MT-32028",
+    "MT-32029",
+    "MT-32030",
+    "MT-32031",
+    "MT-32032",
+    "MT-32033",
+    "MT-32034",
+    "MT-32035",
+    "MT-32036",
+    "MT-32037",
+    "MT-32038",
+    "MT-32039",
+    "MT-32040",
+    "MT-32041",
+    "MT-32042",
+    "MT-32043",
+    "MT-32044",
+    "MT-32045",
+    "MT-32046",
+    "MT-32047",
+    "MT-32048",
+    "MT-32049",
+    "MT-32050",
+    "MT-32051",
+    "MT-32052",
+    "MT-32053",
+    "MT-32054",
+    "MT-32055",
+    "MT-32056",
+    "MT-32057",
+    "MT-32058",
+    "MT-32059",
+    "MT-32060",
+    "MT-32061",
+    "MT-32062",
+    "MT-32063",
+    "MT-32064",
+    "MT-32065",
+    "MT-32066",
+    "MT-32067",
+    "MT-32068",
+    "MT-32069",
+    "MT-32070",
+    "MT-32071",
+    "MT-32072",
+    "MT-32073",
+    "MT-32074",
+    "MT-32075",
+    "MT-32076",
+    "MT-32077",
+    "MT-32078",
+    "MT-32079",
+    "MT-32080",
+    "MT-32081",
+    "MT-32082",
+    "MT-32083",
+    "MT-32084",
+    "MT-32085",
+    "MT-32086",
+    "MT-32087",
+    "MT-32088",
+    "MT-32089",
+    "MT-32090",
+    "MT-32091",
+    "MT-32092",
+    "MT-32093",
+    "MT-32094",
+    "MT-32095",
+    "MT-32096",
+    "MT-32097",
+    "MT-32098",
+    "MT-32099",
+    "MT-32100",
+    "MT-32101",
+    "MT-32102",
+    "MT-32103",
+    "MT-32104",
+    "MT-32105",
+    "MT-32106",
+    "MT-32107",
+    "MT-32108",
+    "MT-32109",
+    "MT-32110",
+    "MT-32111",
+    "MT-32112",
+    "MT-32113",
+    "MT-32114",
+    "MT-32115",
+    "MT-32116",
+    "MT-32117",
+    "MT-32118",
+    "MT-32119",
+    "MT-32120",
+    "MT-32121",
+    "MT-32122",
+    "MT-32123",
+    "MT-32124",
+    "MT-32125",
+    "MT-32126",
+    "MT-32127",
+    "MT-32128",
+    "MT-32129",
+    "MT-32130",
+    "MT-32131",
+    "MT-32132",
+    "MT-32133",
+    "MT-32134",
+    "MT-32135",
+    "MT-32136",
+    "MT-32137",
+    "MT-32138",
+    "MT-32139"
+   ]
+  },
+  "appended_acceptance_rows": {
+   "MT-31005": [
+    "AC-001"
+   ],
+   "MT-34110": [
+    "AC-001",
+    "AC-002",
+    "AC-003",
+    "AC-004"
+   ],
+   "MT-34191": [
+    "AC-001"
+   ]
+  },
+  "mechanism": "spec-derive-microtasks.py on v02.228 (same id map; ids kept), then tools/mt-regenerate-derived.py: derived surfaces replaced, old text propagated in the active contract, lineage (preserved_original, *original* fields), lifecycle, verdicts and submissions untouched (verified against HEAD for all 217 files). derivation.spec_version and host_integration.spec_version set to v02.228; each MT gains a spec_regeneration entry with old->new rows.",
+  "by_sd": {
+   "SD-26 (STU-FX-131a ANGLE rows)": [
+    "MT-31934",
+    "MT-31939",
+    "MT-31945",
+    "MT-31947",
+    "MT-31948",
+    "MT-31949",
+    "MT-31950",
+    "MT-31951",
+    "MT-31952",
+    "MT-31953",
+    "MT-31958",
+    "MT-31959",
+    "MT-31962",
+    "MT-31984",
+    "MT-31985",
+    "MT-31990",
+    "MT-31991",
+    "MT-31993",
+    "MT-31995",
+    "MT-31999",
+    "MT-32000",
+    "MT-32003",
+    "MT-32005",
+    "MT-32007",
+    "MT-32009",
+    "MT-32011",
+    "MT-32012",
+    "MT-32013",
+    "MT-32018",
+    "MT-32019",
+    "MT-32020",
+    "MT-32021",
+    "MT-32022"
+   ],
+   "SD-27 (STU-CMP-075b engine-scale SPEC GAP)": [
+    "MT-34191"
+   ],
+   "SD-28 + SD-29 (STU-TYP-207 Four catalogs, stream sentinels)": [
+    "MT-31005"
+   ],
+   "SD-30 (STU-TYP-170 245-tag registry)": [
+    "MT-30955"
+   ],
+   "lead decision 1 (STU-CMP-034 rewrite since v02.207)": [
+    "MT-34110"
+   ]
+  },
+  "mt_34110_old_to_new": {
+   "clause": {
+    "old": "DECLARED GAP -- rotoscoping",
+    "new": "ASSISTED ROTOSCOPING -- boundary propagation across frames"
+   },
+   "acceptance_rows": [
+    {
+     "id": "AC-001",
+     "old": null,
+     "new": "Strokes, spans, base frames, the engine choice and every parameter value of the table below are DOCUMENT STATE under the ownership rules of [STU-CMP-002] and [STU-CMP-003]; the propagated mattes are a cache, never authority, and a reopened document MUST reproduce them from that state. 2. **Propagation.** From the base frame the segmentation propagates forward and backward within the span one frame at a time."
+    },
+    {
+     "id": "AC-002",
+     "old": null,
+     "new": "`classic` is a deterministic tracking propagation that uses no learned model and MUST always be available."
+    },
+    {
+     "id": "AC-003",
+     "old": null,
+     "new": "The refine stage of assisted rotoscoping MUST consume the unified edge-refinement surface of [STU-RAS-121] -- its `smooth`, `feather`, `contrast`, `shift_edge`, `decontaminate_colours` and `decontamination_amount` controls with the bounds declared there -- and MUST NOT define a second edge-refinement record."
+    },
+    {
+     "id": "AC-004",
+     "old": null,
+     "new": "They MUST ship as `unknown` per [STU-RAS-106], MUST NOT be clamped, and the soft bounds MUST NOT be back-filled from the hard bounds or from any observed spread. --- ## 14.27.3 Three-dimensional compositing ### 1. 3D layers"
+    }
+   ],
+   "materialized_ASSET-AC-001": "scope row regenerated from the declared-gap text to the current clause text; AC-001..004 appended; MT-36263 holds the 23-row parameter table",
+   "status": "PENDING, untouched"
+  },
+  "mt_34191_note": "Included with --also: its live clause text was already stale since v02.226 (SD-22) so the --auto baseline check skipped it; regenerated from the live text as baseline.",
+  "index": "entries changed: MT-31005, MT-34110, MT-34191 (clause / counts); totals.microtasks 6208 -> 6220 and totals.by_unit_kind recounted (clause 2130 -> 2141, parameter_table 418 -> 419); nothing else.",
+  "regeneration_report": "research/mt-regenerate-v02.228-write-20261101T032308Z.json"
+ },
+ "triage": [
+  {
+   "finding": "Anchor-level round trip on v02.228: FORWARD 0, BACKWARD 0, PASS before and after",
+   "class": "none",
+   "resolution": "SD-26..30 added no anchor; normative clauses 1599 -> 1601 (STU-TYP-207 and STU-CMP-075b now carry MUST), both already bound (MT-31005, MT-34191)."
+  },
+  {
+   "finding": "Unit level: the deriver yields the same 5062 units; 0 new keys",
+   "class": "none",
+   "resolution": "No MT added; id map unchanged."
+  },
+  {
+   "finding": "Derived surfaces changed by SD-26..30 for 217 MTs (37 acceptance, 180 quoted clause text only)",
+   "class": "contract regeneration",
+   "resolution": "Regenerated through the derivation mechanism, ids kept, status untouched; see mts_changed."
+  },
+  {
+   "finding": "MT-34191 live clause already stale since v02.226 (SD-22)",
+   "class": "pre-existing drift",
+   "resolution": "Regenerated with --also (affected by SD-27 too)."
+  },
+  {
+   "finding": "dropped_from_previous 4 (never-assigned anchors)",
+   "class": "tool false positive",
+   "resolution": "Same as the first pass; no action."
+  },
+  {
+   "finding": "parameter contract 20 incomplete / 18 collapsed",
+   "class": "unchanged from v02.227",
+   "resolution": "Same 10 false positives and 10 genuine clauses; SD-26 `--` ANGLE cells are stated unbounded, not flagged. Edits relocated to v02.228 lines."
+  },
+  {
+   "finding": "53 \"contract table carried into this clause's own microtask as acceptance criteria\" markers (51 in v02.227, +2 in v02.228: STU-TYP-207 sentinel table line 9131 and the SD-30 registry)",
+   "class": "deriver gap (systemic, pre-existing)",
+   "resolution": "spec-derive-microtasks.py classifies these markers as \"no microtask\" and takes acceptance only from normative sentences, so the carried table rows never become acceptance rows (e.g. the U+FDD0..FDDD sentinel rows in MT-31005, the 245 tags in MT-30955). Not changed in this pass: fixing it adds table-row acceptance to roughly 53 MTs and is a decision for the lead. No spec edit needed; the spec wording is unambiguous."
+  }
+ ],
+ "open_items_for_lead": [
+  "Pre-v02.226 derived-surface drift: 81 spec-derived MTs whose acceptance_criteria differ from the current deriver output and were not caused by v02.226..228 (list: derived_surface_drift_after_ids). Some are hand-authored on derived ids (MT-36234..36236), others are spec changes v02.207..v02.225 never regenerated (like MT-34110 was). mt-regenerate-derived.py --also <ids> regenerates them; needs your go-ahead per MT group.",
+  "MT-31005 AC-001 ends with the spec's inline \"*Derivation: contract table carried into this clause's own microtask ...*\" marker because it shares a paragraph with the sentence; the deriver keeps it verbatim."
+ ],
+ "derived_surface_drift_after_ids": [
+  "MT-30000",
+  "MT-30009",
+  "MT-30010",
+  "MT-30013",
+  "MT-30014",
+  "MT-30015",
+  "MT-30019",
+  "MT-30037",
+  "MT-30097",
+  "MT-30171",
+  "MT-30191",
+  "MT-30235",
+  "MT-30294",
+  "MT-30318",
+  "MT-30367",
+  "MT-30644",
+  "MT-30841",
+  "MT-30842",
+  "MT-30864",
+  "MT-30894",
+  "MT-31055",
+  "MT-31116",
+  "MT-31374",
+  "MT-31477",
+  "MT-31478",
+  "MT-33100",
+  "MT-33261",
+  "MT-33277",
+  "MT-33388",
+  "MT-33389",
+  "MT-33391",
+  "MT-33392",
+  "MT-33424",
+  "MT-33438",
+  "MT-33439",
+  "MT-33566",
+  "MT-33569",
+  "MT-33580",
+  "MT-33603",
+  "MT-33604",
+  "MT-33605",
+  "MT-33635",
+  "MT-33651",
+  "MT-33665",
+  "MT-33667",
+  "MT-33671",
+  "MT-33675",
+  "MT-33678",
+  "MT-33679",
+  "MT-33912",
+  "MT-34211",
+  "MT-34232",
+  "MT-34237",
+  "MT-34251",
+  "MT-34255",
+  "MT-34259",
+  "MT-34260",
+  "MT-34262",
+  "MT-34264",
+  "MT-34276",
+  "MT-34316",
+  "MT-34378",
+  "MT-34395",
+  "MT-34424",
+  "MT-34428",
+  "MT-34430",
+  "MT-34514",
+  "MT-34645",
+  "MT-35068",
+  "MT-35072",
+  "MT-35133",
+  "MT-35336",
+  "MT-35337",
+  "MT-35344",
+  "MT-35347",
+  "MT-35348",
+  "MT-35362",
+  "MT-35363",
+  "MT-36234",
+  "MT-36235",
+  "MT-36236"
+ ],
+ "reusable_tools": [
+  "tools/spec-anchor-binding.py",
+  "tools/spec-idmap-backfill.py",
+  "tools/mt-bind-clauses.py",
+  "tools/mt-promote-derived.py",
+  "tools/mt-regenerate-derived.py",
+  ".GOV/reference/studio_app_feature_research/_tools/greenroom/spec-derive-microtasks.py (--existing-mts)"
+ ],
+ "tool_reports": {
+  "after_v02.228": {
+   "schema_id": "handshake.reference.studio_spec_roundtrip@1",
+   "generated_at": "2026-11-01T03:24:35+00:00",
+   "purpose": "Proves the operator's acceptance test: the Master Spec must be complete enough that the same microtask set falls out of it, and no microtask may cite a clause that does not exist.",
+   "modules": {
+    "count": 1,
+    "per_module": [
+     {
+      "module": "14-studio-creative-suite.md",
+      "bytes": 3061462,
+      "lines": 33656,
+      "clauses": 2431,
+      "normative_clauses": 1601,
+      "has_frontmatter": true,
+      "heading_level": 1
+     }
+    ],
+    "missing_frontmatter": [],
+    "heading_level_histogram": {
+     "1": 1
+    },
+    "heading_drift": false,
+    "definition_rule": "An anchor at line start whose preceding line is blank. Style-independent, so a wrapped prose line beginning with an anchor reference is not a definition."
+   },
+   "anchors": {
+    "total_in_staged_spec": 2477,
+    "normative": 1601,
+    "collisions_across_modules": [],
+    "duplicate_definitions_within_a_file": [],
+    "duplicate_definitions_within_a_file_count": 0,
+    "dropped_from_v02_205_without_a_home": [
+     "STU-CON-007c",
+     "STU-RAS-001c",
+     "STU-RAS-140",
+     "STU-RAW-014c"
+    ],
+    "dropped_count": 4
+   },
+   "microtasks": {
+    "count": 6224,
+    "still_provisional_anchor_status": 0,
+    "distinct_anchors_referenced": 2455
+   },
+   "roundtrip": {
+    "forward_spec_clauses_with_no_microtask": [],
+    "forward_uncovered_count": 0,
+    "excluded_by_module_declaration": [
+     "STU-CMP-120",
+     "STU-CMP-121",
+     "STU-CMP-124",
+     "STU-MOT-250",
+     "STU-MOT-251",
+     "STU-MOT-253",
+     "STU-MOT-254",
+     "STU-VID-100",
+     "STU-VID-101",
+     "STU-VID-103",
+     "STU-VID-104"
+    ],
+    "excluded_by_module_declaration_count": 11,
+    "exclusion_note": "These clauses are declared non-yielding by the module that owns them, almost always a Microtask Derivation sub-section. A clause stating how the microtask set is derived is not itself a unit of work, so it is not a coverage gap.",
+    "backward_microtask_anchors_not_in_spec": [],
+    "backward_dangling_count": 0,
+    "cited_but_recorded_as_never_assigned": [
+     "STU-CON-007c",
+     "STU-RAS-001c",
+     "STU-RAS-140",
+     "STU-RAW-014c"
+    ],
+    "never_assigned_note": "The spec records these anchors as never assigned. A microtask quoting that register is not citing a missing clause.",
+    "verdict": "PASS"
+   },
+   "parameter_contract": {
+    "clauses_carrying_bounds": 214,
+    "complete": 187,
+    "stated_unknown": 7,
+    "incomplete_without_stating_unknown": [
+     {
+      "anchor": "STU-VEC-102",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-TYP-107",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-COL-108",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-FX-105a",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "unit"
+      ]
+     },
+     {
+      "anchor": "STU-FX-145",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-DS-146",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "default",
+       "unit"
+      ]
+     },
+     {
+      "anchor": "STU-DS-147",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "hard_max",
+       "soft_min",
+       "soft_max"
+      ]
+     },
+     {
+      "anchor": "STU-DS-148",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max"
+      ]
+     },
+     {
+      "anchor": "STU-DS-150",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit"
+      ]
+     },
+     {
+      "anchor": "STU-DS-155",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-PRO-119",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max"
+      ]
+     },
+     {
+      "anchor": "STU-IO-115",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max"
+      ]
+     },
+     {
+      "anchor": "STU-VID-013a",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MOT-010a",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MOT-020c",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MOT-122",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-CMP-060",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MDL-105",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-SHL-192",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "default",
+       "unit",
+       "precision"
+      ]
+     },
+     {
+      "anchor": "STU-MDL-111",
+      "module": "14-studio-creative-suite.md",
+      "missing": [
+       "soft_min",
+       "soft_max",
+       "precision"
+      ]
+     }
+    ],
+    "collapsed_hard_and_soft": [
+     "STU-TYP-107",
+     "STU-COL-108",
+     "STU-FX-145",
+     "STU-DS-146",
+     "STU-DS-147",
+     "STU-DS-148",
+     "STU-DS-150",
+     "STU-DS-155",
+     "STU-PRO-119",
+     "STU-IO-115",
+     "STU-VID-013a",
+     "STU-MOT-010a",
+     "STU-MOT-020c",
+     "STU-MOT-122",
+     "STU-CMP-060",
+     "STU-MDL-105",
+     "STU-SHL-192",
+     "STU-MDL-111"
+    ],
+    "collapsed_count": 18
+   },
+   "naming_discipline": {
+    "vendor_names_inside_normative_sentences": [],
+    "count": 0,
+    "rule": "[STU-SECTION-003]: a source product name is never a Studio tool, command, panel or manual name. Provenance mentions are legitimate; obligations must not name a vendor product."
+   }
+  },
+  "strict_after_summary": {
+   "schema_id": "hsk.studio_spec_anchor_binding_report@1",
+   "spec": ".GOV/spec/master-spec-v02.228/spec-modules/14-studio-creative-suite.md",
+   "normative_clauses": 1601,
+   "normative_without_binding": [],
+   "normative_without_binding_count": 0,
+   "masked_by_incidental_or_non_mt_mentions": [],
+   "binding_citations_of_undefined_anchors": []
+  }
+ },
+ "proposed_spec_edits_note": "ONE combined list against master-spec-v02.228 for the spec agent to apply as v02.229: the 10 from the v02.226/227 pass (relocated: every old line occurs exactly once in v02.228) plus the v02.228 pass additions. After v02.229 a final round trip is due.",
+ "proposed_spec_edits_count": 10,
+ "proposed_spec_edits": [
+  {
+   "id": "RT227-PE-01",
+   "module": "14-studio-creative-suite.md",
+   "anchor": "STU-DS-146",
+   "line": 20154,
+   "line_basis": "master-spec-v02.228",
+   "kind": "bound_field_completeness",
+   "missing_fields_reported": [
+    "soft_min",
+    "default",
+    "unit"
+   ],
+   "old": "Commands: `grid.append_child_at(node, row_index, column_index)`, `grid.reorder_rows(options)`, `grid.reorder_columns(options)`. Both reorder commands MUST return the resulting ordered track entries so a model can verify the move without a second read.",
+   "new": "Commands: `grid.append_child_at(node, row_index, column_index)`, `grid.reorder_rows(options)`, `grid.reorder_columns(options)`. Both reorder commands MUST return the resulting ordered track entries so a model can verify the move without a second read. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
+   "reason": "Parameter bounds stated inline without the full seven-field set and without saying the rest is unknown; the round-trip parameter check (incomplete and collapsed hard/soft) flags it. The edit states the missing fields as unknown and invents no value.",
+   "origin": "v02.226/v02.227 pass"
+  },
+  {
+   "id": "RT227-PE-02",
+   "module": "14-studio-creative-suite.md",
+   "anchor": "STU-DS-147",
+   "line": 20156,
+   "line_basis": "master-spec-v02.228",
+   "kind": "bound_field_completeness",
+   "missing_fields_reported": [
+    "hard_max",
+    "soft_min",
+    "soft_max"
+   ],
+   "old": "**[STU-DS-147] Grid track-size record.** `{type, value?}` where `type` ∈ {`FIXED`, `FLEX`, `HUG`}. `value` is required for `FIXED` (document unit, precision 2) and for `FLEX` (dimensionless flex factor, hard_min 0, default 1, precision 4); it MUST be absent for `HUG`.",
+   "new": "**[STU-DS-147] Grid track-size record.** `{type, value?}` where `type` ∈ {`FIXED`, `FLEX`, `HUG`}. `value` is required for `FIXED` (document unit, precision 2) and for `FLEX` (dimensionless flex factor, hard_min 0, default 1, precision 4); it MUST be absent for `HUG`. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
+   "reason": "Parameter bounds stated inline without the full seven-field set and without saying the rest is unknown; the round-trip parameter check (incomplete and collapsed hard/soft) flags it. The edit states the missing fields as unknown and invents no value.",
+   "origin": "v02.226/v02.227 pass"
+  },
+  {
+   "id": "RT227-PE-03",
+   "module": "14-studio-creative-suite.md",
+   "anchor": "STU-DS-148",
+   "line": 20166,
+   "line_basis": "master-spec-v02.228",
+   "kind": "bound_field_completeness",
+   "missing_fields_reported": [
+    "soft_min",
+    "soft_max"
+   ],
+   "old": "| `layout_sizing_vertical` | `FIXED` \\| `HUG` \\| `FILL` | `FIXED` | |",
+   "new": "| `layout_sizing_vertical` | `FIXED` \\| `HUG` \\| `FILL` | `FIXED` | |\n\nEvery bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
+   "reason": "Parameter bounds stated inline without the full seven-field set and without saying the rest is unknown; the round-trip parameter check (incomplete and collapsed hard/soft) flags it. The edit states the missing fields as unknown and invents no value.",
+   "origin": "v02.226/v02.227 pass"
+  },
+  {
+   "id": "RT227-PE-04",
+   "module": "14-studio-creative-suite.md",
+   "anchor": "STU-DS-150",
+   "line": 20170,
+   "line_basis": "master-spec-v02.228",
+   "kind": "bound_field_completeness",
+   "missing_fields_reported": [
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "old": "**[STU-DS-150] Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error.",
+   "new": "**[STU-DS-150] Grid-child placement fields.** A child of a `GRID` container additionally carries `grid_row_anchor_index`, `grid_column_anchor_index`, `grid_row_span`, `grid_column_span` (all integers, hard_min 0 for anchors and 1 for spans, hard_max bounded by the container's declared counts, precision integer), plus a read-only `grid_child_index`. Span beyond the declared track count is a validation error. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
+   "reason": "Parameter bounds stated inline without the full seven-field set and without saying the rest is unknown; the round-trip parameter check (incomplete and collapsed hard/soft) flags it. The edit states the missing fields as unknown and invents no value.",
+   "origin": "v02.226/v02.227 pass"
+  },
+  {
+   "id": "RT227-PE-05",
+   "module": "14-studio-creative-suite.md",
+   "anchor": "STU-DS-155",
+   "line": 20198,
+   "line_basis": "master-spec-v02.228",
+   "kind": "bound_field_completeness",
+   "missing_fields_reported": [
+    "soft_min",
+    "unit",
+    "precision"
+   ],
+   "old": "**[STU-DS-155] Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0.",
+   "new": "**[STU-DS-155] Rows/columns grid record.** `{pattern, alignment, gutter_size, count, section_size?, offset?, visible, color}` where `alignment` ∈ {`MIN`, `CENTER`, `MAX`, `STRETCH`}. `MIN`/`CENTER`/`MAX` are the fixed-size modes (left/center/right for columns, top/center/bottom for rows) and require `section_size` and `offset`; `STRETCH` is the margin-and-gutter mode and requires `offset` (the margin) and ignores `section_size` ([STU-DS-047b]). Contracts: `count` integer hard_min 1, hard_max NOT DECLARED IN SOURCE (Studio declares 1000), soft_max 24, default 12; `gutter_size` and `offset` and `section_size` follow the spacing contract of [STU-DS-145] with default `gutter_size` 20 and default `offset` 0. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
+   "reason": "Parameter bounds stated inline without the full seven-field set and without saying the rest is unknown; the round-trip parameter check (incomplete and collapsed hard/soft) flags it. The edit states the missing fields as unknown and invents no value.",
+   "origin": "v02.226/v02.227 pass"
+  },
+  {
+   "id": "RT227-PE-06",
+   "module": "14-studio-creative-suite.md",
+   "anchor": "STU-PRO-119",
+   "line": 20658,
+   "line_basis": "master-spec-v02.228",
+   "kind": "bound_field_completeness",
+   "missing_fields_reported": [
+    "soft_min",
+    "soft_max"
+   ],
+   "old": "Exactly one of the two function records is present. Both absent, or both present, is a validation error.",
+   "new": "Exactly one of the two function records is present. Both absent, or both present, is a validation error. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
+   "reason": "Parameter bounds stated inline without the full seven-field set and without saying the rest is unknown; the round-trip parameter check (incomplete and collapsed hard/soft) flags it. The edit states the missing fields as unknown and invents no value.",
+   "origin": "v02.226/v02.227 pass"
+  },
+  {
+   "id": "RT227-PE-07",
+   "module": "14-studio-creative-suite.md",
+   "anchor": "STU-IO-115",
+   "line": 21220,
+   "line_basis": "master-spec-v02.228",
+   "kind": "bound_field_completeness",
+   "missing_fields_reported": [
+    "soft_min",
+    "soft_max"
+   ],
+   "old": "**[STU-IO-115] Animated raster settings.** `{format: \"GIF\", fps, loop_count, constraint}` where `fps` is drawn from the closed set {8, 12, 15, 24, 30}; `loop_count` is an integer with hard_min 0 (0 = infinite), hard_max NOT DECLARED IN SOURCE (Studio declares 65535), default 0, unit = count, precision integer; `constraint` uses [STU-IO-114] restricted to `HEIGHT`, `SCALE` or `WIDTH`.",
+   "new": "**[STU-IO-115] Animated raster settings.** `{format: \"GIF\", fps, loop_count, constraint}` where `fps` is drawn from the closed set {8, 12, 15, 24, 30}; `loop_count` is an integer with hard_min 0 (0 = infinite), hard_max NOT DECLARED IN SOURCE (Studio declares 65535), default 0, unit = count, precision integer; `constraint` uses [STU-IO-114] restricted to `HEIGHT`, `SCALE` or `WIDTH`. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
+   "reason": "Parameter bounds stated inline without the full seven-field set and without saying the rest is unknown; the round-trip parameter check (incomplete and collapsed hard/soft) flags it. The edit states the missing fields as unknown and invents no value.",
+   "origin": "v02.226/v02.227 pass"
+  },
+  {
+   "id": "RT227-PE-08",
+   "module": "14-studio-creative-suite.md",
+   "anchor": "STU-VID-013a",
+   "line": 23049,
+   "line_basis": "master-spec-v02.228",
+   "kind": "bound_field_completeness",
+   "missing_fields_reported": [
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "old": "30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999.",
+   "new": "30, 50, 59.94, 60 and 120 fps, with a free numeric entry bounded `hard_min` 1, `hard_max` 999. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
+   "reason": "Parameter bounds stated inline without the full seven-field set and without saying the rest is unknown; the round-trip parameter check (incomplete and collapsed hard/soft) flags it. The edit states the missing fields as unknown and invents no value.",
+   "origin": "v02.226/v02.227 pass"
+  },
+  {
+   "id": "RT227-PE-09",
+   "module": "14-studio-creative-suite.md",
+   "anchor": "STU-MOT-122",
+   "line": 28288,
+   "line_basis": "master-spec-v02.228",
+   "kind": "bound_field_completeness",
+   "missing_fields_reported": [
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "old": "toggle, a convert-to-linear-light selection, a Cineon settings sub-record, and `embed_color_space`).",
+   "new": "toggle, a convert-to-linear-light selection, a Cineon settings sub-record, and `embed_color_space`). Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
+   "reason": "Parameter bounds stated inline without the full seven-field set and without saying the rest is unknown; the round-trip parameter check (incomplete and collapsed hard/soft) flags it. The edit states the missing fields as unknown and invents no value.",
+   "origin": "v02.226/v02.227 pass"
+  },
+  {
+   "id": "RT227-PE-10",
+   "module": "14-studio-creative-suite.md",
+   "anchor": "STU-CMP-060",
+   "line": 29994,
+   "line_basis": "master-spec-v02.228",
+   "kind": "bound_field_completeness",
+   "missing_fields_reported": [
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "old": "   declared gap [STU-CMP-102].",
+   "new": "   declared gap [STU-CMP-102]. Every bound field this clause does not state for a parameter (`hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`) is unknown: it is stored as unknown and never mirrored from its opposite bound.",
+   "reason": "Parameter bounds stated inline without the full seven-field set and without saying the rest is unknown; the round-trip parameter check (incomplete and collapsed hard/soft) flags it. The edit states the missing fields as unknown and invents no value.",
+   "origin": "v02.226/v02.227 pass"
+  }
+ ]
+}

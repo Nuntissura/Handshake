@@ -1,0 +1,2346 @@
+{
+ "schema_id": "hsk.studio_mt_regeneration_report@1",
+ "mode": "write",
+ "generated_at": "2026-11-01T03:23:08Z",
+ "spec_version": "v02.228",
+ "spec_commit": "d3642cf22bbba3d126995ba907c41687a3e2657b",
+ "regenerated": 217,
+ "acceptance_changed": [
+  "MT-30955",
+  "MT-31005",
+  "MT-31934",
+  "MT-31939",
+  "MT-31945",
+  "MT-31947",
+  "MT-31948",
+  "MT-31949",
+  "MT-31950",
+  "MT-31951",
+  "MT-31952",
+  "MT-31953",
+  "MT-31958",
+  "MT-31959",
+  "MT-31962",
+  "MT-31984",
+  "MT-31985",
+  "MT-31990",
+  "MT-31991",
+  "MT-31993",
+  "MT-31995",
+  "MT-31999",
+  "MT-32000",
+  "MT-32003",
+  "MT-32005",
+  "MT-32007",
+  "MT-32009",
+  "MT-32011",
+  "MT-32012",
+  "MT-32013",
+  "MT-32018",
+  "MT-32019",
+  "MT-32020",
+  "MT-32021",
+  "MT-32022",
+  "MT-34110",
+  "MT-34191"
+ ],
+ "scope_only": [
+  "MT-31006",
+  "MT-31007",
+  "MT-31008",
+  "MT-31009",
+  "MT-31931",
+  "MT-31932",
+  "MT-31933",
+  "MT-31935",
+  "MT-31936",
+  "MT-31937",
+  "MT-31938",
+  "MT-31940",
+  "MT-31941",
+  "MT-31942",
+  "MT-31943",
+  "MT-31944",
+  "MT-31946",
+  "MT-31954",
+  "MT-31955",
+  "MT-31956",
+  "MT-31957",
+  "MT-31960",
+  "MT-31961",
+  "MT-31963",
+  "MT-31964",
+  "MT-31965",
+  "MT-31966",
+  "MT-31967",
+  "MT-31968",
+  "MT-31969",
+  "MT-31970",
+  "MT-31971",
+  "MT-31972",
+  "MT-31973",
+  "MT-31974",
+  "MT-31975",
+  "MT-31976",
+  "MT-31977",
+  "MT-31978",
+  "MT-31979",
+  "MT-31980",
+  "MT-31981",
+  "MT-31982",
+  "MT-31983",
+  "MT-31986",
+  "MT-31987",
+  "MT-31988",
+  "MT-31989",
+  "MT-31992",
+  "MT-31994",
+  "MT-31996",
+  "MT-31997",
+  "MT-31998",
+  "MT-32001",
+  "MT-32002",
+  "MT-32004",
+  "MT-32006",
+  "MT-32008",
+  "MT-32010",
+  "MT-32014",
+  "MT-32015",
+  "MT-32016",
+  "MT-32017",
+  "MT-32023",
+  "MT-32024",
+  "MT-32025",
+  "MT-32026",
+  "MT-32027",
+  "MT-32028",
+  "MT-32029",
+  "MT-32030",
+  "MT-32031",
+  "MT-32032",
+  "MT-32033",
+  "MT-32034",
+  "MT-32035",
+  "MT-32036",
+  "MT-32037",
+  "MT-32038",
+  "MT-32039",
+  "MT-32040",
+  "MT-32041",
+  "MT-32042",
+  "MT-32043",
+  "MT-32044",
+  "MT-32045",
+  "MT-32046",
+  "MT-32047",
+  "MT-32048",
+  "MT-32049",
+  "MT-32050",
+  "MT-32051",
+  "MT-32052",
+  "MT-32053",
+  "MT-32054",
+  "MT-32055",
+  "MT-32056",
+  "MT-32057",
+  "MT-32058",
+  "MT-32059",
+  "MT-32060",
+  "MT-32061",
+  "MT-32062",
+  "MT-32063",
+  "MT-32064",
+  "MT-32065",
+  "MT-32066",
+  "MT-32067",
+  "MT-32068",
+  "MT-32069",
+  "MT-32070",
+  "MT-32071",
+  "MT-32072",
+  "MT-32073",
+  "MT-32074",
+  "MT-32075",
+  "MT-32076",
+  "MT-32077",
+  "MT-32078",
+  "MT-32079",
+  "MT-32080",
+  "MT-32081",
+  "MT-32082",
+  "MT-32083",
+  "MT-32084",
+  "MT-32085",
+  "MT-32086",
+  "MT-32087",
+  "MT-32088",
+  "MT-32089",
+  "MT-32090",
+  "MT-32091",
+  "MT-32092",
+  "MT-32093",
+  "MT-32094",
+  "MT-32095",
+  "MT-32096",
+  "MT-32097",
+  "MT-32098",
+  "MT-32099",
+  "MT-32100",
+  "MT-32101",
+  "MT-32102",
+  "MT-32103",
+  "MT-32104",
+  "MT-32105",
+  "MT-32106",
+  "MT-32107",
+  "MT-32108",
+  "MT-32109",
+  "MT-32110",
+  "MT-32111",
+  "MT-32112",
+  "MT-32113",
+  "MT-32114",
+  "MT-32115",
+  "MT-32116",
+  "MT-32117",
+  "MT-32118",
+  "MT-32119",
+  "MT-32120",
+  "MT-32121",
+  "MT-32122",
+  "MT-32123",
+  "MT-32124",
+  "MT-32125",
+  "MT-32126",
+  "MT-32127",
+  "MT-32128",
+  "MT-32129",
+  "MT-32130",
+  "MT-32131",
+  "MT-32132",
+  "MT-32133",
+  "MT-32134",
+  "MT-32135",
+  "MT-32136",
+  "MT-32137",
+  "MT-32138",
+  "MT-32139"
+ ],
+ "skipped_live_drift": [
+  {
+   "mt": "MT-34191",
+   "reason": "live derived surfaces differ from the baseline run"
+  }
+ ],
+ "index_entries_changed": [
+  "MT-31005",
+  "MT-34110",
+  "MT-34191"
+ ],
+ "totals_before": {
+  "microtasks": 6208,
+  "by_unit_kind": {
+   "legacy_patched": 509,
+   "clause": 2130,
+   "catalogue_row": 2109,
+   "parameter_table": 418,
+   "enumeration": 107,
+   "validator": 115,
+   "command_table": 59,
+   "anchor_row": 45,
+   "asset_foundation": 36,
+   "spec207_amendment": 55,
+   "source_companion": 570,
+   "host_adoption": 49,
+   "source_contribution": 6
+  }
+ },
+ "totals_after": {
+  "microtasks": 6220,
+  "by_unit_kind": {
+   "legacy_patched": 509,
+   "clause": 2141,
+   "catalogue_row": 2109,
+   "parameter_table": 419,
+   "enumeration": 107,
+   "validator": 115,
+   "command_table": 59,
+   "anchor_row": 45,
+   "asset_foundation": 36,
+   "spec207_amendment": 55,
+   "source_companion": 570,
+   "host_adoption": 49,
+   "source_contribution": 6
+  }
+ },
+ "index_only_entries_and_totals_changed": true,
+ "mts": [
+  {
+   "mt": "MT-30955",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-002",
+     "old": "Studio MUST NOT ship a closed feature list.",
+     "new": "Studio MUST NOT ship a closed feature list. v02.228 (SD-30): the registry is the table below, 245 tags: the 243 feature tags registered in OpenType 1.9.1 (126 registry rows;"
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 8,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-31005",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-001",
+     "old": null,
+     "new": "U+FDDE..U+FDEF are reserved for later Studio sentinels and MUST NOT be given another meaning. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Member | Catalog | Stored as | |---|---|---| | current page number | Markers | U+FDD0 | | next page number | Markers | U+FDD1 | | previous page number | Markers | U+FDD2 | | section marker | Markers | U+FDD3 | | footnote reference | Markers | U+FDD4 | | endnote reference | Markers | U+FDD5 | | anchored-object marker | Markers | U+FFFC OBJECT REPLACEMENT CHARACTER (the placeho [...]"
+    }
+   ],
+   "appended": [
+    "AC-001"
+   ],
+   "removed": [],
+   "propagated_path_count": 9,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-31006",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 1,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31007",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 1,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31008",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 1,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31009",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 1,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31931",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 11,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31932",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31933",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31934",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-002",
+     "old": "The parameter `1` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=-1.5e-05, soft_min=0, soft_max=7936, default=0, unit=degrees, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `1` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-31935",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31936",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31937",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31938",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31939",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-014",
+     "old": "The parameter `13` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `13` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-31940",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31941",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31942",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31943",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31944",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31945",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-008",
+     "old": "The parameter `7` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `7` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-31946",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31947",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-007",
+     "old": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    },
+    {
+     "id": "AC-008",
+     "old": "The parameter `7` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `7` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 20,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-31948",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-007",
+     "old": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-31949",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-002",
+     "old": "The parameter `1` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `1` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-31950",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-005",
+     "old": "The parameter `4` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=1, hard_max=32000, soft_min=1, soft_max=100, default=40, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `4` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=40, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    },
+    {
+     "id": "AC-008",
+     "old": "The parameter `7` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-100, hard_max=100, soft_min=0, soft_max=5, default=1, unit=degrees, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `7` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=1, unit=degrees, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 20,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-31951",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-002",
+     "old": "The parameter `1` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=-1.5e-05, soft_min=0, soft_max=3840, default=0, unit=degrees, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `1` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    },
+    {
+     "id": "AC-003",
+     "old": "The parameter `2` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=-1.5e-05, soft_min=0, soft_max=3840, default=0, unit=degrees, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `2` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 20,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-31952",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-003",
+     "old": "The parameter `2` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `2` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-31953",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-004",
+     "old": "The parameter `3` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=255, soft_min=0, soft_max=255, default=127.5, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `3` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=127.5, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-31954",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31955",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31956",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31957",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31958",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-002",
+     "old": "The parameter `1` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=-1.5e-05, soft_min=0, soft_max=7936, default=0, unit=degrees, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `1` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-31959",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-006",
+     "old": "The parameter `8` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `8` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-31960",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31961",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31962",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-004",
+     "old": "The parameter `4` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `4` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    },
+    {
+     "id": "AC-008",
+     "old": "The parameter `8` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `8` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 20,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-31963",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31964",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31965",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31966",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31967",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31968",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31969",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31970",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31971",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31972",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31973",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31974",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31975",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31976",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31977",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31978",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31979",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31980",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31981",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31982",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31983",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31984",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-003",
+     "old": "The parameter `2` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `2` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-31985",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-014",
+     "old": "The parameter `13` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `13` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-31986",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31987",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31988",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31989",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31990",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-021",
+     "old": "The parameter `38` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=1000, soft_min=0, soft_max=20, default=5, unit=degrees, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `38` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=5, unit=degrees, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    },
+    {
+     "id": "AC-023",
+     "old": "The parameter `42` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=1000, soft_min=0, soft_max=20, default=5, unit=degrees, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `42` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=5, unit=degrees, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 20,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-31991",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-006",
+     "old": "The parameter `10` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=1, soft_min=0, soft_max=1, default=1, unit=degrees, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `10` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=1, unit=degrees, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-31992",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31993",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-017",
+     "old": "The parameter `30` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `30` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-31994",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31995",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-009",
+     "old": "The parameter `8` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `8` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    },
+    {
+     "id": "AC-020",
+     "old": "The parameter `19` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0.039062, hard_max=0.063095, soft_min=0.097656, soft_max=0.390625, default=0.21875, unit=degrees, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `19` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0.21875, unit=degrees, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    },
+    {
+     "id": "AC-024",
+     "old": "The parameter `23` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `23` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 30,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-31996",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31997",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31998",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-31999",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-006",
+     "old": "The parameter `5` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=1.000015, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `5` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-32000",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-015",
+     "old": "The parameter `14` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `14` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-32001",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32002",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32003",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-002",
+     "old": "The parameter `1` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `1` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-32004",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32005",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-011",
+     "old": "The parameter `10` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0.003906, hard_max=0.496094, soft_min=0.003906, soft_max=0.039062, default=0.003906, unit=degrees, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `10` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0.003906, unit=degrees, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-32006",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32007",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-008",
+     "old": "The parameter `7` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=30000, soft_min=0, soft_max=1000, default=100, unit=degrees, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `7` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=100, unit=degrees, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-32008",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32009",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-010",
+     "old": "The parameter `9` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=1.5e-05, hard_max=0.000153, soft_min=1.5e-05, soft_max=9.2e-05, default=3.1e-05, unit=degrees, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `9` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=3.1e-05, unit=degrees, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-32010",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32011",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-005",
+     "old": "The parameter `4` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `4` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    },
+    {
+     "id": "AC-023",
+     "old": "The parameter `22` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `22` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 20,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-32012",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-007",
+     "old": "The parameter `10` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `10` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    },
+    {
+     "id": "AC-018",
+     "old": "The parameter `28` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `28` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    },
+    {
+     "id": "AC-020",
+     "old": "The parameter `32` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `32` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 30,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-32013",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-003",
+     "old": "The parameter `4` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `4` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    },
+    {
+     "id": "AC-005",
+     "old": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    },
+    {
+     "id": "AC-030",
+     "old": "The parameter `50` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `50` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    },
+    {
+     "id": "AC-034",
+     "old": "The parameter `56` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `56` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    },
+    {
+     "id": "AC-040",
+     "old": "The parameter `66` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `66` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    },
+    {
+     "id": "AC-043",
+     "old": "The parameter `72` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `72` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 60,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-32014",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32015",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32016",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32017",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32018",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-016",
+     "old": "The parameter `30` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `30` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    },
+    {
+     "id": "AC-017",
+     "old": "The parameter `32` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `32` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    },
+    {
+     "id": "AC-018",
+     "old": "The parameter `34` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `34` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 30,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-32019",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-003",
+     "old": "The parameter `2` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `2` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-32020",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-003",
+     "old": "The parameter `2` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `2` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-32021",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-003",
+     "old": "The parameter `2` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `2` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-32022",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-002",
+     "old": "The parameter `1` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=-1.5e-05, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+     "new": "The parameter `1` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+    }
+   ],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 10,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-32023",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32024",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32025",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32026",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32027",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32028",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32029",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32030",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32031",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32032",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32033",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32034",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32035",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32036",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32037",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32038",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32039",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32040",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32041",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32042",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32043",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32044",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32045",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32046",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32047",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32048",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32049",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32050",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32051",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32052",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32053",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32054",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32055",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32056",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32057",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32058",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32059",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32060",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32061",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32062",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32063",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32064",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32065",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32066",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32067",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32068",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32069",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32070",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32071",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32072",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32073",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32074",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32075",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32076",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32077",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32078",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32079",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32080",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32081",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32082",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32083",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32084",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32085",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32086",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32087",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32088",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32089",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32090",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32091",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32092",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32093",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32094",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32095",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32096",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32097",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32098",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32099",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32100",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32101",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32102",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32103",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32104",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32105",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32106",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32107",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32108",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32109",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32110",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32111",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32112",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32113",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32114",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32115",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32116",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32117",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32118",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32119",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32120",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32121",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32122",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32123",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32124",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32125",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32126",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32127",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32128",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32129",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32130",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32131",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32132",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32133",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32134",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32135",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32136",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32137",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32138",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-32139",
+   "acceptance_rows_changed": [],
+   "appended": [],
+   "removed": [],
+   "propagated_path_count": 0,
+   "scope_only": true
+  },
+  {
+   "mt": "MT-34110",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-001",
+     "old": null,
+     "new": "Strokes, spans, base frames, the engine choice and every parameter value of the table below are DOCUMENT STATE under the ownership rules of [STU-CMP-002] and [STU-CMP-003]; the propagated mattes are a cache, never authority, and a reopened document MUST reproduce them from that state. 2. **Propagation.** From the base frame the segmentation propagates forward and backward within the span one frame at a time."
+    },
+    {
+     "id": "AC-002",
+     "old": null,
+     "new": "`classic` is a deterministic tracking propagation that uses no learned model and MUST always be available."
+    },
+    {
+     "id": "AC-003",
+     "old": null,
+     "new": "The refine stage of assisted rotoscoping MUST consume the unified edge-refinement surface of [STU-RAS-121] -- its `smooth`, `feather`, `contrast`, `shift_edge`, `decontaminate_colours` and `decontamination_amount` controls with the bounds declared there -- and MUST NOT define a second edge-refinement record."
+    },
+    {
+     "id": "AC-004",
+     "old": null,
+     "new": "They MUST ship as `unknown` per [STU-RAS-106], MUST NOT be clamped, and the soft bounds MUST NOT be back-filled from the hard bounds or from any observed spread. --- ## 14.27.3 Three-dimensional compositing ### 1. 3D layers"
+    }
+   ],
+   "appended": [
+    "AC-001",
+    "AC-002",
+    "AC-003",
+    "AC-004"
+   ],
+   "removed": [],
+   "propagated_path_count": 9,
+   "scope_only": false
+  },
+  {
+   "mt": "MT-34191",
+   "acceptance_rows_changed": [
+    {
+     "id": "AC-001",
+     "old": null,
+     "new": "The per-row scale that converts it to the engine quantity (`engine_value = k * row_value`, with `k` and the engine unit) is a SPEC GAP: it is undeclared and MUST NOT be guessed, and it is declared only from an independent oracle."
+    }
+   ],
+   "appended": [
+    "AC-001"
+   ],
+   "removed": [],
+   "propagated_path_count": 9,
+   "scope_only": false
+  }
+ ]
+}

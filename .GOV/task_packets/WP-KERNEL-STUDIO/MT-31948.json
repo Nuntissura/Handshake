@@ -12,8 +12,9 @@
     "unit_kind": "parameter_table",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.9.4 Typed parameter records",
-    "spec_line": 13566,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 13825,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.228"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "effects",
   "scope": {
-    "summary": "Reading convention: `hard_min`/`hard_max` are the engine's acceptance range; `soft_min`/`soft_max` are the control's presented range; `--` means the source declares nothing and Studio declares nothing. `precision` `--` means null per [STU-FX-109]. The `flags` column carries the [STU-FX-113] source bits; `CANNOT_TIME_VARY` maps to `animatable = false` and `CANNOT_INTERP` to `interpolable = false`. #### Blur & Sharpen **Fast Radial Blur** -- `CC Radial Fast Blur` *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | # | Parameter | Kind | hard_min | hard_max | soft_min | soft_max | default | unit | precision | flags | |---|---|---|---|---|---|---|---|---|---|---| | 0 | _(unnamed)_ | LAYER | -- | -- | -- | -- | -- | -- | -- | CANNOT_TIME_VARY | | 1 | Center | POINT | -- | -- | -- | -- | (50%, 50%) of layer | -- | -- | -- | | 2 | Amount | FIX_SLIDER | 0 | 100 | 0 | 100 | 50 | -- | 1 | -- | | 3 | Zoom | POPUP | -- | -- | -- | -- | index 1 | -- | -- | -- | Enumerated options for `Zoom` (1-based, default index 1): 1=Standard; 2=Brightest; 3=Darkest **Channel Blur** -- `ADBE Channel Blur` (GPU-accelerated) *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | # | Parameter | Kind | hard_min | hard_max | soft_min | soft_max | default | unit [...]",
+    "summary": "Reading convention: `hard_min`/`hard_max` are the engine's acceptance range; `soft_min`/`soft_max` are the control's presented range; `--` means the source declares nothing and Studio declares nothing. `precision` `--` means null per [STU-FX-109]. In the `unit` column of a numeric row, `--` is the [STU-FX-108] `unitless` token (v02.228, SD-27): the value is a dimensionless coefficient on the effect's own scale, never a guessed physical unit. The `flags` column carries the [STU-FX-113] source bits; `CANNOT_TIME_VARY` maps to `animatable = false` and `CANNOT_INTERP` to `interpolable = false`. v02.228 (SD-26): an `ANGLE` row whose bound cells hold numbers came from a binary parameter-definition record, and those numbers are NOT source declarations. The capture decoded `ANGLE` records at the fixed-slider field offsets, which lie past the end of the 16-byte angle definition (value, default, valid_min, valid_max), so the cells hold unrelated bytes: `0..0` on most rows and impossible pairs such as `0..-1.5e-05` on others. Every such row is `bound_state = unbounded_in_source` with all four bounds null; the tables show `--` for them. Its `default` and `precision` cells are provisional and UNVERIFIED until the capture is re-decoded at the angle offsets; a re-decode that finds a real angle range replaces the `--` cells with it. Per [STU-FX-112] an `angle` stores the full signed value in d [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -109,9 +110,14 @@
     },
     {
       "id": "AC-007",
-      "criterion": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+      "criterion": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
       "evidence_kind": "runtime_assertion",
-      "unknown_fields": [],
+      "unknown_fields": [
+        "hard_min",
+        "hard_max",
+        "soft_min",
+        "soft_max"
+      ],
       "source": "14-studio-creative-suite.md STU-FX-131a parameter table row 7"
     },
     {
@@ -1813,7 +1819,7 @@
       },
       {
         "id": "AC-007",
-        "text": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "text": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
         "fulfillment_ref": "MT-31948#/fulfillment/legacy_acceptance_map/6"
       },
       {
@@ -8788,7 +8794,7 @@
             "hsk-studio-composite"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+          "consumer_assertion": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
           "negative_path": "Wrong kind/reference/revision, declared hard-bound violation, prohibited time variation or falsely continuous discrete evaluation or unrecovered enum/semantic binding refuses with attributed result and original snapshot intact; no source-pixel/render algorithm inferred.",
           "oracle": "Independent exact source row 13899..13921 field/enum/flag reconciliation plus typed before/after/reopened record and inverse. Numeric comparisons use exact decimal vectors; rendering needs separate established algorithm/provider oracle.",
           "planned_method_ref": "./MT-31948.json#/execution/implementation_steps",
@@ -13260,7 +13266,7 @@
         "original_text": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
         "original_row_sha256": "a961748c563c828749580d4e4218f471711e4c0d34cd0c73632ee2bc2351f76b",
         "lineage": "ORIGINAL_AC_RETAINED",
-        "semantic_fulfillment": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+        "semantic_fulfillment": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-31948-ASSET-COMPOSITE"
@@ -13270,7 +13276,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-COMPOSITE",
             "scope": "Static render-plan evaluator consumes immutable snapshot; same semantics for previews/export. Temporal/effect providers attach through typed ports; no unconditional motion/pulse engine dependency in the static render closure.",
-            "required_behavior": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+            "required_behavior": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
             "only_owner_root_may_change": true
           }
         ],
@@ -13279,7 +13285,7 @@
             "hsk-studio-composite"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+          "consumer_assertion": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
           "negative_path": "Wrong kind/reference/revision, declared hard-bound violation, prohibited time variation or falsely continuous discrete evaluation or unrecovered enum/semantic binding refuses with attributed result and original snapshot intact; no source-pixel/render algorithm inferred.",
           "oracle": "Independent exact source row 13899..13921 field/enum/flag reconciliation plus typed before/after/reopened record and inverse. Numeric comparisons use exact decimal vectors; rendering needs separate established algorithm/provider oracle.",
           "task_method_ref": "./MT-31948.json#/execution/implementation_steps",
@@ -13349,7 +13355,7 @@
         },
         "later_embedding_ref": "MT-31948-KERNEL-AC-007",
         "later_embedding_required": true,
-        "later_embedding_assertion": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           "./MT-36204.json"
@@ -15232,7 +15238,7 @@
           "original_text": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
           "original_row_sha256": "a961748c563c828749580d4e4218f471711e4c0d34cd0c73632ee2bc2351f76b",
           "lineage": "ORIGINAL_AC_RETAINED",
-          "semantic_fulfillment": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+          "semantic_fulfillment": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-31948-ASSET-COMPOSITE"
@@ -15242,7 +15248,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-COMPOSITE",
               "scope": "Static render-plan evaluator consumes immutable snapshot; same semantics for previews/export. Temporal/effect providers attach through typed ports; no unconditional motion/pulse engine dependency in the static render closure.",
-              "required_behavior": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+              "required_behavior": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
               "only_owner_root_may_change": true
             }
           ],
@@ -15251,7 +15257,7 @@
               "hsk-studio-composite"
             ],
             "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-            "consumer_assertion": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+            "consumer_assertion": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
             "negative_path": "Wrong kind/reference/revision, declared hard-bound violation, prohibited time variation or falsely continuous discrete evaluation or unrecovered enum/semantic binding refuses with attributed result and original snapshot intact; no source-pixel/render algorithm inferred.",
             "oracle": "Independent exact source row 13899..13921 field/enum/flag reconciliation plus typed before/after/reopened record and inverse. Numeric comparisons use exact decimal vectors; rendering needs separate established algorithm/provider oracle.",
             "task_method_ref": "./MT-31948.json#/execution/implementation_steps",
@@ -15321,7 +15327,7 @@
           },
           "later_embedding_ref": "MT-31948-KERNEL-AC-007",
           "later_embedding_required": true,
-          "later_embedding_assertion": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures. Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             "./MT-36204.json"
@@ -16298,11 +16304,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:23:08Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.228",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -16338,5 +16344,38 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.228",
+      "spec_commit": "d3642cf22bbba3d126995ba907c41687a3e2657b",
+      "at": "2026-11-01T03:23:08Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-007",
+          "old": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=0, soft_max=0, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+          "new": "The parameter `6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=0, unit=degrees, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures."
+        }
+      ],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Reading convention: `hard_min`/`hard_max` are the engine's acceptance range; - parameter bounds (17)",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[6]/text",
+        "/proof/checks[6]/method_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[6]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[6]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[6]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[6]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[6]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[6]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[6]/asset_proof_recipe/consumer_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[6]/later_embedding_assertion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

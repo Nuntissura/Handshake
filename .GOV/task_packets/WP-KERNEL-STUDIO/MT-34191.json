@@ -12,8 +12,9 @@
     "unit_kind": "clause",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.27.6 Simulation",
-    "spec_line": 29463,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 30088,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.228"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,11 +34,18 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "compositing",
   "scope": {
-    "summary": "Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146]. Several carry a third-party vendor prefix in their recovered names, which is an import key and never a Studio name ([STU-SECTION-003]). --- ## 14.27.7 Channel and compositing arithmetic",
+    "summary": "Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146]. Several carry a third-party vendor prefix in their recovered names, which is an import key and never a Studio name ([STU-SECTION-003]). v02.226 (SD-22): for Foam and Wave World, the recovered typed records of [STU-FX-131a] drive the simulation engine wherever they name the same quantity as an authored row of [STU-FX-146], and authored rows cover only the rest; the per-row mapping is the builder's reading, UNVERIFIED until reviewed. v02.228 (SD-27): a recovered row whose unit is `unitless` (for example Foam `Viscosity`, Wave World `Wave Speed` and `Damping`) still drives the engine quantity it names, and the recovered row is the stored and edited value. The per-row scale that converts it to the engine quantity (`engine_value = k * row_value`, with `k` and the engine unit) is a SPEC GAP: it is undeclared and MUST NOT be guessed, and it is declared only from an independent oracle. Until a row's scale is declared, the engine's own scalar for that quantity stays a `studio_declared` row under [STU-FX-146] beside the stored recovered row; whether that engine scalar is retired is decided when the scale is declared. --- ## 14.27.7 Channel and compositing arithmetic",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
-  "acceptance_criteria": [],
-  "acceptance_criteria_count": 0,
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "criterion": "The per-row scale that converts it to the engine quantity (`engine_value = k * row_value`, with `k` and the engine unit) is a SPEC GAP: it is undeclared and MUST NOT be guessed, and it is declared only from an independent oracle.",
+      "evidence_kind": "runtime_assertion",
+      "source": "14-studio-creative-suite.md STU-CMP-075b"
+    }
+  ],
+  "acceptance_criteria_count": 1,
   "implementation_notes": {
     "extracted_behaviour": [],
     "behaviour_record_count": 0,
@@ -1556,13 +1564,18 @@
       "STU-CMP-075b"
     ],
     "acceptance_refs": [
-      "ASSET-AC-001"
+      "ASSET-AC-001",
+      "AC-001"
     ],
     "materialized_acceptance": [
       {
         "id": "ASSET-AC-001",
-        "text": "Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146]. Several carry a third-party vendor prefix in their recovered names, which is an import key and never a Studio name ([STU-SECTION-003]). --- ## 14.27.7 Channel and compositing arithmetic",
+        "text": "Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146]. Several carry a third-party vendor prefix in their recovered names, which is an import key and never a Studio name ([STU-SECTION-003]). v02.226 (SD-22): for Foam and Wave World, the recovered typed records of [STU-FX-131a] drive the simulation engine wherever they name the same quantity as an authored row of [STU-FX-146], and authored rows cover only the rest; the per-row mapping is the builder's reading, UNVERIFIED until reviewed. v02.228 (SD-27): a recovered row whose unit is `unitless` (for example Foam `Viscosity`, Wave World `Wave Speed` and `Damping`) still drives the engine quantity it names, and the recovered row is the stored and edited value. The per-row scale that converts it to the engine quantity (`engine_value = k * row_value`, with `k` and the engine unit) is a SPEC GAP: it is undeclared and MUST NOT be guessed, and it is declared only from an independent oracle. Until a row's scale is declared, the engine's own scalar for that quantity stays a `studio_declared` row under [STU-FX-146] beside the stored recovered row; whether that engine scalar is retired is decided when the scale is declared. --- ## 14.27.7 Channel and compositing arithmetic",
         "fulfillment_ref": "MT-34191#/fulfillment/legacy_acceptance_map/0"
+      },
+      {
+        "id": "AC-001",
+        "text": "The per-row scale that converts it to the engine quantity (`engine_value = k * row_value`, with `k` and the engine unit) is a SPEC GAP: it is undeclared and MUST NOT be guessed, and it is declared only from an independent oracle."
       }
     ],
     "spec_basis_refs": [
@@ -1808,7 +1821,7 @@
             "hsk-studio-composite"
           ],
           "feature_policy": "Locked independently selected package/dependency closure; provider features and timeouts resolved before coding, targets created before handoff.",
-          "consumer_assertion": "Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146]. Several carry a third-party vendor prefix in their recovered names, which is an import key and never a Studio name ([STU-SECTION-003]). --- ## 14.27.7 Channel and compositing arithmetic",
+          "consumer_assertion": "Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146]. Several carry a third-party vendor prefix in their recovered names, which is an import key and never a Studio name ([STU-SECTION-003]). v02.226 (SD-22): for Foam and Wave World, the recovered typed records of [STU-FX-131a] drive the simulation engine wherever they name the same quantity as an authored row of [STU-FX-146], and authored rows cover only the rest; the per-row mapping is the builder's reading, UNVERIFIED until reviewed. v02.228 (SD-27): a recovered row whose unit is `unitless` (for example Foam `Viscosity`, Wave World `Wave Speed` and `Damping`) still drives the engine quantity it names, and the recovered row is the stored and edited value. The per-row scale that converts it to the engine quantity (`engine_value = k * row_value`, with `k` and the engine unit) is a SPEC GAP: it is undeclared and MUST NOT be guessed, and it is declared only from an independent oracle. Until a row's scale is declared, the engine's own scalar for that quantity stays a `studio_declared` row under [STU-FX-146] beside the stored recovered row; whether that engine scalar is retired is decided when the scale is declared. --- ## 14.27.7 Channel and compositing arithmetic",
           "negative_path": "Missing seed/start/required schema,invalid published units/state/refs or unknownprovider rejects typed no partial state/frame. Cancel discards staged transition; stale source/params invalidates candidate/checkpoint,providerloss retains last-good. Current authorized source/state replay retry recovers without defaultkernel; unsupported/lostinput explicit.",
           "oracle": "Independent actual output/fixture inspection; skipped provider or unavailable oracle is NOT_PROVEN.",
           "selected_package": "hsk-studio-composite",
@@ -1839,6 +1852,22 @@
           "Exact owned source/config/lock closure"
         ],
         "materialization_status": "PLANNED_NOT_RUN"
+      },
+      {
+        "check_id": "MT-34191-SPEC-AC-001",
+        "kind": "test",
+        "claim_refs": [
+          "AC-001",
+          "STU-CMP-075b"
+        ],
+        "command_or_method": "Execute the owning module natural contract target for this row once it materialises during coding.",
+        "expected": "The per-row scale that converts it to the engine quantity (`engine_value = k * row_value`, with `k` and the engine unit) is a SPEC GAP: it is undeclared and MUST NOT be guessed, and it is declared only from an independent oracle.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact candidate commit, toolchain, features and lock",
+          "Nonzero executed case count with independent expected values"
+        ]
       }
     ],
     "independent_review_required": true,
@@ -2156,7 +2185,7 @@
         "original_text": null,
         "original_row_sha256": null,
         "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-        "semantic_fulfillment": "Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146]. Several carry a third-party vendor prefix in their recovered names, which is an import key and never a Studio name ([STU-SECTION-003]). --- ## 14.27.7 Channel and compositing arithmetic",
+        "semantic_fulfillment": "Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146]. Several carry a third-party vendor prefix in their recovered names, which is an import key and never a Studio name ([STU-SECTION-003]). v02.226 (SD-22): for Foam and Wave World, the recovered typed records of [STU-FX-131a] drive the simulation engine wherever they name the same quantity as an authored row of [STU-FX-146], and authored rows cover only the rest; the per-row mapping is the builder's reading, UNVERIFIED until reviewed. v02.228 (SD-27): a recovered row whose unit is `unitless` (for example Foam `Viscosity`, Wave World `Wave Speed` and `Damping`) still drives the engine quantity it names, and the recovered row is the stored and edited value. The per-row scale that converts it to the engine quantity (`engine_value = k * row_value`, with `k` and the engine unit) is a SPEC GAP: it is undeclared and MUST NOT be guessed, and it is declared only from an independent oracle. Until a row's scale is declared, the engine's own scalar for that quantity stays a `studio_declared` row under [STU-FX-146] beside the stored recovered row; whether that engine scalar is retired is decided when the scale is declared. --- ## 14.27.7 Channel and compositing arithmetic",
         "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
         "asset_contribution_refs": [
           "MT-34191"
@@ -2166,7 +2195,7 @@
           {
             "owning_module_ref": "STUDIO-MODULE-COMPOSITE",
             "scope": "Static render-plan evaluator consumes immutable snapshot; same semantics for previews/export. Temporal/effect providers attach through typed ports; no unconditional motion/pulse engine dependency in the static render closure.",
-            "required_behavior": "Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146]. Several carry a third-party vendor prefix in their recovered names, which is an import key and never a Studio name ([STU-SECTION-003]). --- ## 14.27.7 Channel and compositing arithmetic",
+            "required_behavior": "Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146]. Several carry a third-party vendor prefix in their recovered names, which is an import key and never a Studio name ([STU-SECTION-003]). v02.226 (SD-22): for Foam and Wave World, the recovered typed records of [STU-FX-131a] drive the simulation engine wherever they name the same quantity as an authored row of [STU-FX-146], and authored rows cover only the rest; the per-row mapping is the builder's reading, UNVERIFIED until reviewed. v02.228 (SD-27): a recovered row whose unit is `unitless` (for example Foam `Viscosity`, Wave World `Wave Speed` and `Damping`) still drives the engine quantity it names, and the recovered row is the stored and edited value. The per-row scale that converts it to the engine quantity (`engine_value = k * row_value`, with `k` and the engine unit) is a SPEC GAP: it is undeclared and MUST NOT be guessed, and it is declared only from an independent oracle. Until a row's scale is declared, the engine's own scalar for that quantity stays a `studio_declared` row under [STU-FX-146] beside the stored recovered row; whether that engine scalar is retired is decided when the scale is declared. --- ## 14.27.7 Channel and compositing arithmetic",
             "only_owner_root_may_change": true
           }
         ],
@@ -2185,7 +2214,7 @@
         },
         "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36204.json",
         "later_embedding_required": true,
-        "later_embedding_assertion": "Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146]. Several carry a third-party vendor prefix in their recovered names, which is an import key and never a Studio name ([STU-SECTION-003]). --- ## 14.27.7 Channel and compositing arithmetic Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+        "later_embedding_assertion": "Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146]. Several carry a third-party vendor prefix in their recovered names, which is an import key and never a Studio name ([STU-SECTION-003]). v02.226 (SD-22): for Foam and Wave World, the recovered typed records of [STU-FX-131a] drive the simulation engine wherever they name the same quantity as an authored row of [STU-FX-146], and authored rows cover only the rest; the per-row mapping is the builder's reading, UNVERIFIED until reviewed. v02.228 (SD-27): a recovered row whose unit is `unitless` (for example Foam `Viscosity`, Wave World `Wave Speed` and `Damping`) still drives the engine quantity it names, and the recovered row is the stored and edited value. The per-row scale that converts it to the engine quantity (`engine_value = k * row_value`, with `k` and the engine unit) is a SPEC GAP: it is undeclared and MUST NOT be guessed, and it is declared only from an independent oracle. Until a row's scale is declared, the engine's own scalar for that quantity stays a `studio_declared` row under [STU-FX-146] beside the stored recovered row; whether that engine scalar is retired is decided when the scale is declared. --- ## 14.27.7 Channel and compositing arithmetic Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
         "status": "PENDING",
         "host_adoption_mt_refs": [
           ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36204.json"
@@ -2216,7 +2245,7 @@
           "original_text": null,
           "original_row_sha256": null,
           "lineage": "NEW_ACTIVE_AC_FROM_FULL_SCOPE_ORIGINAL_AC_EMPTY",
-          "semantic_fulfillment": "Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146]. Several carry a third-party vendor prefix in their recovered names, which is an import key and never a Studio name ([STU-SECTION-003]). --- ## 14.27.7 Channel and compositing arithmetic",
+          "semantic_fulfillment": "Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146]. Several carry a third-party vendor prefix in their recovered names, which is an import key and never a Studio name ([STU-SECTION-003]). v02.226 (SD-22): for Foam and Wave World, the recovered typed records of [STU-FX-131a] drive the simulation engine wherever they name the same quantity as an authored row of [STU-FX-146], and authored rows cover only the rest; the per-row mapping is the builder's reading, UNVERIFIED until reviewed. v02.228 (SD-27): a recovered row whose unit is `unitless` (for example Foam `Viscosity`, Wave World `Wave Speed` and `Damping`) still drives the engine quantity it names, and the recovered row is the stored and edited value. The per-row scale that converts it to the engine quantity (`engine_value = k * row_value`, with `k` and the engine unit) is a SPEC GAP: it is undeclared and MUST NOT be guessed, and it is declared only from an independent oracle. Until a row's scale is declared, the engine's own scalar for that quantity stays a `studio_declared` row under [STU-FX-146] beside the stored recovered row; whether that engine scalar is retired is decided when the scale is declared. --- ## 14.27.7 Channel and compositing arithmetic",
           "architecture_disposition": "FUNCTIONAL_ACCEPTANCE_RETAINED_EXACT_CURRENT_TYPED_OWNERS",
           "asset_contribution_refs": [
             "MT-34191"
@@ -2226,7 +2255,7 @@
             {
               "owning_module_ref": "STUDIO-MODULE-COMPOSITE",
               "scope": "Static render-plan evaluator consumes immutable snapshot; same semantics for previews/export. Temporal/effect providers attach through typed ports; no unconditional motion/pulse engine dependency in the static render closure.",
-              "required_behavior": "Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146]. Several carry a third-party vendor prefix in their recovered names, which is an import key and never a Studio name ([STU-SECTION-003]). --- ## 14.27.7 Channel and compositing arithmetic",
+              "required_behavior": "Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146]. Several carry a third-party vendor prefix in their recovered names, which is an import key and never a Studio name ([STU-SECTION-003]). v02.226 (SD-22): for Foam and Wave World, the recovered typed records of [STU-FX-131a] drive the simulation engine wherever they name the same quantity as an authored row of [STU-FX-146], and authored rows cover only the rest; the per-row mapping is the builder's reading, UNVERIFIED until reviewed. v02.228 (SD-27): a recovered row whose unit is `unitless` (for example Foam `Viscosity`, Wave World `Wave Speed` and `Damping`) still drives the engine quantity it names, and the recovered row is the stored and edited value. The per-row scale that converts it to the engine quantity (`engine_value = k * row_value`, with `k` and the engine unit) is a SPEC GAP: it is undeclared and MUST NOT be guessed, and it is declared only from an independent oracle. Until a row's scale is declared, the engine's own scalar for that quantity stays a `studio_declared` row under [STU-FX-146] beside the stored recovered row; whether that engine scalar is retired is decided when the scale is declared. --- ## 14.27.7 Channel and compositing arithmetic",
               "only_owner_root_may_change": true
             }
           ],
@@ -2245,7 +2274,7 @@
           },
           "later_embedding_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36204.json",
           "later_embedding_required": true,
-          "later_embedding_assertion": "Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146]. Several carry a third-party vendor prefix in their recovered names, which is an import key and never a Studio name ([STU-SECTION-003]). --- ## 14.27.7 Channel and compositing arithmetic Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
+          "later_embedding_assertion": "Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146]. Several carry a third-party vendor prefix in their recovered names, which is an import key and never a Studio name ([STU-SECTION-003]). v02.226 (SD-22): for Foam and Wave World, the recovered typed records of [STU-FX-131a] drive the simulation engine wherever they name the same quantity as an authored row of [STU-FX-146], and authored rows cover only the rest; the per-row mapping is the builder's reading, UNVERIFIED until reviewed. v02.228 (SD-27): a recovered row whose unit is `unitless` (for example Foam `Viscosity`, Wave World `Wave Speed` and `Damping`) still drives the engine quantity it names, and the recovered row is the stored and edited value. The per-row scale that converts it to the engine quantity (`engine_value = k * row_value`, with `k` and the engine unit) is a SPEC GAP: it is undeclared and MUST NOT be guessed, and it is declared only from an independent oracle. Until a row's scale is declared, the engine's own scalar for that quantity stays a `studio_declared` row under [STU-FX-146] beside the stored recovered row; whether that engine scalar is retired is decided when the scale is declared. --- ## 14.27.7 Channel and compositing arithmetic Actual authorized kernel/native/authority consumer proof remains mandatory wherever the original boundary requires it.",
           "status": "PENDING",
           "host_adoption_mt_refs": [
             ".GOV/task_packets/WP-KERNEL-STUDIO/MT-36204.json"
@@ -2307,18 +2336,18 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:23:08Z",
   "active_acceptance_criteria": [
     {
       "id": "ASSET-AC-001",
-      "criterion": "Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146]. Several carry a third-party vendor prefix in their recovered names, which is an import key and never a Studio name ([STU-SECTION-003]). --- ## 14.27.7 Channel and compositing arithmetic",
+      "criterion": "Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146]. Several carry a third-party vendor prefix in their recovered names, which is an import key and never a Studio name ([STU-SECTION-003]). v02.226 (SD-22): for Foam and Wave World, the recovered typed records of [STU-FX-131a] drive the simulation engine wherever they name the same quantity as an authored row of [STU-FX-146], and authored rows cover only the rest; the per-row mapping is the builder's reading, UNVERIFIED until reviewed. v02.228 (SD-27): a recovered row whose unit is `unitless` (for example Foam `Viscosity`, Wave World `Wave Speed` and `Damping`) still drives the engine quantity it names, and the recovered row is the stored and edited value. The per-row scale that converts it to the engine quantity (`engine_value = k * row_value`, with `k` and the engine unit) is a SPEC GAP: it is undeclared and MUST NOT be guessed, and it is declared only from an independent oracle. Until a row's scale is declared, the engine's own scalar for that quantity stays a `studio_declared` row under [STU-FX-146] beside the stored recovered row; whether that engine scalar is retired is decided when the scale is declared. --- ## 14.27.7 Channel and compositing arithmetic",
       "source": "Full preserved original scope plus complete current verified clause/catalogue ranges; new active acceptance, never an original AC claim."
     }
   ],
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.228",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2354,5 +2383,39 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.228",
+      "spec_commit": "d3642cf22bbba3d126995ba907c41687a3e2657b",
+      "at": "2026-11-01T03:23:08Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [
+        {
+          "id": "AC-001",
+          "old": null,
+          "new": "The per-row scale that converts it to the engine quantity (`engine_value = k * row_value`, with `k` and the engine unit) is a SPEC GAP: it is undeclared and MUST NOT be guessed, and it is declared only from an independent oracle."
+        }
+      ],
+      "appended_materialized_rows": [
+        "AC-001"
+      ],
+      "rows_absent_from_new_spec": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146]",
+      "propagated_paths": [
+        "/closure_unit/materialized_acceptance[0]/text",
+        "/proof/checks[0]/method_recipe/consumer_assertion",
+        "/fulfillment/legacy_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/legacy_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/legacy_acceptance_map[0]/later_embedding_assertion",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/semantic_fulfillment",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/owner_contributions[0]/required_behavior",
+        "/fulfillment/later_kernel/semantic_acceptance_map[0]/later_embedding_assertion",
+        "/active_acceptance_criteria[0]/criterion"
+      ],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }

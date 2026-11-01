@@ -12,8 +12,9 @@
     "unit_kind": "parameter_table",
     "spec_module": "14-studio-creative-suite.md",
     "spec_heading": "14.9.4 Typed parameter records",
-    "spec_line": 13566,
-    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+    "spec_line": 13825,
+    "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id.",
+    "spec_version": "v02.228"
   },
   "lifecycle": {
     "status": "PENDING",
@@ -33,7 +34,7 @@
   "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
   "domain": "effects",
   "scope": {
-    "summary": "Reading convention: `hard_min`/`hard_max` are the engine's acceptance range; `soft_min`/`soft_max` are the control's presented range; `--` means the source declares nothing and Studio declares nothing. `precision` `--` means null per [STU-FX-109]. The `flags` column carries the [STU-FX-113] source bits; `CANNOT_TIME_VARY` maps to `animatable = false` and `CANNOT_INTERP` to `interpolable = false`. #### Blur & Sharpen **Fast Radial Blur** -- `CC Radial Fast Blur` *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | # | Parameter | Kind | hard_min | hard_max | soft_min | soft_max | default | unit | precision | flags | |---|---|---|---|---|---|---|---|---|---|---| | 0 | _(unnamed)_ | LAYER | -- | -- | -- | -- | -- | -- | -- | CANNOT_TIME_VARY | | 1 | Center | POINT | -- | -- | -- | -- | (50%, 50%) of layer | -- | -- | -- | | 2 | Amount | FIX_SLIDER | 0 | 100 | 0 | 100 | 50 | -- | 1 | -- | | 3 | Zoom | POPUP | -- | -- | -- | -- | index 1 | -- | -- | -- | Enumerated options for `Zoom` (1-based, default index 1): 1=Standard; 2=Brightest; 3=Darkest **Channel Blur** -- `ADBE Channel Blur` (GPU-accelerated) *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | # | Parameter | Kind | hard_min | hard_max | soft_min | soft_max | default | unit [...]",
+    "summary": "Reading convention: `hard_min`/`hard_max` are the engine's acceptance range; `soft_min`/`soft_max` are the control's presented range; `--` means the source declares nothing and Studio declares nothing. `precision` `--` means null per [STU-FX-109]. In the `unit` column of a numeric row, `--` is the [STU-FX-108] `unitless` token (v02.228, SD-27): the value is a dimensionless coefficient on the effect's own scale, never a guessed physical unit. The `flags` column carries the [STU-FX-113] source bits; `CANNOT_TIME_VARY` maps to `animatable = false` and `CANNOT_INTERP` to `interpolable = false`. v02.228 (SD-26): an `ANGLE` row whose bound cells hold numbers came from a binary parameter-definition record, and those numbers are NOT source declarations. The capture decoded `ANGLE` records at the fixed-slider field offsets, which lie past the end of the 16-byte angle definition (value, default, valid_min, valid_max), so the cells hold unrelated bytes: `0..0` on most rows and impossible pairs such as `0..-1.5e-05` on others. Every such row is `bound_state = unbounded_in_source` with all four bounds null; the tables show `--` for them. Its `default` and `precision` cells are provisional and UNVERIFIED until the capture is re-decoded at the angle offsets; a re-decode that finds a real angle range replaces the `--` cells with it. Per [STU-FX-112] an `angle` stores the full signed value in d [...]",
     "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
   },
   "acceptance_criteria": [
@@ -2923,11 +2924,11 @@
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T03:23:08Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
-    "spec_version": "v02.225",
+    "spec_version": "v02.228",
     "gui_host": "none",
     "gpu": "via_render_provider_port",
     "diagnostics": {
@@ -2963,5 +2964,21 @@
       "collaborative_state": false
     },
     "recorded_at": "2026-10-30T22:40:37Z"
-  }
+  },
+  "spec_regeneration": [
+    {
+      "spec_version": "v02.228",
+      "spec_commit": "d3642cf22bbba3d126995ba907c41687a3e2657b",
+      "at": "2026-11-01T03:23:08Z",
+      "mechanism": "spec-derive-microtasks.py re-run on the new spec, same id map; tools/mt-regenerate-derived.py",
+      "acceptance_rows": [],
+      "appended_materialized_rows": [],
+      "rows_absent_from_new_spec": [],
+      "scope_summary_changed": true,
+      "clause_changed": false,
+      "old_clause": "Reading convention: `hard_min`/`hard_max` are the engine's acceptance range; - parameter bounds (206)",
+      "propagated_paths": [],
+      "lineage_untouched": "preserved_original and every *original* field keep the captured text"
+    }
+  ]
 }
