@@ -1,0 +1,196 @@
+{
+  "schema_id": "hsk.studio_mt_status_sync_result@1",
+  "plan_ref": ".GOV/docs_repo/wp-studio-module-work/research/mt-status-sync-plan-20261101T000709Z.json",
+  "applied_at_utc": "2026-11-01T00:07:21Z",
+  "mts": [
+    {
+      "mt_id": "MT-30820",
+      "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30820.json",
+      "status": "PASS_V1",
+      "verdict_id": "MT-30820-STUDIO-R49-PASS-V1",
+      "round": "STUDIO-R49",
+      "kernel_commit": "afa6ec13ea31065748c1dc9e9c0981306c65d9c0",
+      "product_candidate_sha": "e9c46302011587a96ddc0ece33ad1b4dc94d2311",
+      "lane": "SMB-ID-BOOKLET-1"
+    },
+    {
+      "mt_id": "MT-30829",
+      "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30829.json",
+      "status": "PASS_V1",
+      "verdict_id": "MT-30829-STUDIO-R49-PASS-V1",
+      "round": "STUDIO-R49",
+      "kernel_commit": "afa6ec13ea31065748c1dc9e9c0981306c65d9c0",
+      "product_candidate_sha": "e9c46302011587a96ddc0ece33ad1b4dc94d2311",
+      "lane": "SMB-ID-BOOKLET-1"
+    },
+    {
+      "mt_id": "MT-30830",
+      "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30830.json",
+      "status": "PASS_V1",
+      "verdict_id": "MT-30830-STUDIO-R49-PASS-V1",
+      "round": "STUDIO-R49",
+      "kernel_commit": "afa6ec13ea31065748c1dc9e9c0981306c65d9c0",
+      "product_candidate_sha": "e9c46302011587a96ddc0ece33ad1b4dc94d2311",
+      "lane": "SMB-ID-BOOKLET-1"
+    },
+    {
+      "mt_id": "MT-30831",
+      "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30831.json",
+      "status": "PASS_V1",
+      "verdict_id": "MT-30831-STUDIO-R49-PASS-V1",
+      "round": "STUDIO-R49",
+      "kernel_commit": "afa6ec13ea31065748c1dc9e9c0981306c65d9c0",
+      "product_candidate_sha": "e9c46302011587a96ddc0ece33ad1b4dc94d2311",
+      "lane": "SMB-ID-BOOKLET-1"
+    },
+    {
+      "mt_id": "MT-34181",
+      "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34181.json",
+      "status": "PASS_V1",
+      "verdict_id": "MT-34181-STUDIO-R50-PASS-V1",
+      "round": "STUDIO-R50",
+      "kernel_commit": "650a414f9d0376639563fe382fb1e1ff4834db93",
+      "product_candidate_sha": "63ecf5a6577f410b77553653a642fab072f54456",
+      "lane": "SMB-AE-WATER-SIMS-1"
+    },
+    {
+      "mt_id": "MT-34183",
+      "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34183.json",
+      "status": "PASS_V1",
+      "verdict_id": "MT-34183-STUDIO-R50-PASS-V1",
+      "round": "STUDIO-R50",
+      "kernel_commit": "650a414f9d0376639563fe382fb1e1ff4834db93",
+      "product_candidate_sha": "63ecf5a6577f410b77553653a642fab072f54456",
+      "lane": "SMB-AE-WATER-SIMS-1"
+    },
+    {
+      "mt_id": "MT-038",
+      "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-038.json",
+      "status": "PASS_V1",
+      "verdict_id": "MT-038-STUDIO-R50-PASS-V1",
+      "round": "STUDIO-R50",
+      "kernel_commit": "650a414f9d0376639563fe382fb1e1ff4834db93",
+      "product_candidate_sha": "63ecf5a6577f410b77553653a642fab072f54456",
+      "lane": "SMB-FOLIO-CHANNEL-RECORD"
+    },
+    {
+      "mt_id": "MT-30095",
+      "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30095.json",
+      "status": "PASS_V1",
+      "verdict_id": "MT-30095-STUDIO-R50-PASS-V1",
+      "round": "STUDIO-R50",
+      "kernel_commit": "650a414f9d0376639563fe382fb1e1ff4834db93",
+      "product_candidate_sha": "63ecf5a6577f410b77553653a642fab072f54456",
+      "lane": "SMB-FOLIO-CHANNEL-RECORD"
+    }
+  ],
+  "skipped": [],
+  "errors": [],
+  "index": {
+    "file": ".GOV/task_packets/WP-KERNEL-STUDIO/_MT_INDEX.json",
+    "entries_updated": 17,
+    "changes": [
+      {
+        "mt_id": "MT-038",
+        "from": "PENDING",
+        "to": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-30095",
+        "from": "PENDING",
+        "to": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-30820",
+        "from": "PENDING",
+        "to": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-30829",
+        "from": "PENDING",
+        "to": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-30830",
+        "from": "PENDING",
+        "to": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-30831",
+        "from": "PENDING",
+        "to": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-34181",
+        "from": "PENDING",
+        "to": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-34183",
+        "from": "PENDING",
+        "to": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-35528",
+        "from": "PENDING",
+        "to": "PASS_V7"
+      },
+      {
+        "mt_id": "MT-35529",
+        "from": "PENDING",
+        "to": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-35530",
+        "from": "PENDING",
+        "to": "PASS_V4"
+      },
+      {
+        "mt_id": "MT-35531",
+        "from": "PENDING",
+        "to": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-35532",
+        "from": "PENDING",
+        "to": "PASS_V2"
+      },
+      {
+        "mt_id": "MT-35533",
+        "from": "PENDING",
+        "to": "PASS_V3"
+      },
+      {
+        "mt_id": "MT-35534",
+        "from": "PENDING",
+        "to": "PASS_V2"
+      },
+      {
+        "mt_id": "MT-35535",
+        "from": "PENDING",
+        "to": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-35536",
+        "from": "PENDING",
+        "to": "PASS_V5"
+      }
+    ]
+  },
+  "counts": {
+    "written": 8,
+    "skipped": 0,
+    "errors": 0
+  },
+  "lead_amendment": {
+    "at": "2026-11-01T00:09:23Z",
+    "by": "Studio lead",
+    "stripped": [
+      "MT-038",
+      "MT-30095"
+    ],
+    "reason": "evidence rule: their only basis is SMB-FOLIO-CHANNEL-RECORD's 'closes' claim for a PASS lane, not a validator statement that the MT is met; files restored to HEAD and their _MT_INDEX.json entries restored",
+    "result": "6 MTs written PASS_V1 (MT-30820, MT-30829, MT-30830, MT-30831 from STUDIO-R49; MT-34181, MT-34183 from STUDIO-R50); 9 stale index entries (MT-35528..35536) corrected to their files' PASS status; _MT_INDEX.json re-serialised in its HEAD format (json.dumps default, ASCII escapes)",
+    "next": "R51 dispatch asks the validator to judge the 88 claimed_not_validator_judged MTs (and MT-038, MT-30095) explicitly"
+  }
+}

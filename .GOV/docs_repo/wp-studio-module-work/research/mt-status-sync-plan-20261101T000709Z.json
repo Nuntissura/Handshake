@@ -1,0 +1,765 @@
+{
+  "schema_id": "hsk.studio_mt_status_sync_plan@1",
+  "generated_at_utc": "2026-11-01T00:07:09Z",
+  "dry_run": true,
+  "authority": "Operator decision 2026-10-31T23:54:56Z (chat): approved one-time mechanical sync; recorded as MT-STATUS-SYNC in research/integration-refactor-inventory-20261030.json",
+  "evidence_rule": "Passed only when a validation round record names the MT as met/closed/claimed-and-passed for a lane whose verdict in that round is PASS_Vn; latest such round; verdict = that lane PASS_Vn in that round.",
+  "basis_tiers": {
+    "validator_statement_proven": "round record validator note states the MT (or its AC set) proven, no open AC stated for that MT",
+    "validator_statement_met": "round record finding states the MT met",
+    "round_lane_claim_closes_on_pass_lane": "round record lane entry (verdict PASS_Vn) claim_scope says closes MT with no partial qualifier; no separate validator statement; lead may strip this tier"
+  },
+  "existing_pass_before": [
+    "MT-35528",
+    "MT-35529",
+    "MT-35530",
+    "MT-35531",
+    "MT-35532",
+    "MT-35533",
+    "MT-35534",
+    "MT-35535",
+    "MT-35536"
+  ],
+  "existing_pass_count_before": 9,
+  "note_existing_pass": "task text said 10 existing PASS; 9 found (MT-35528..MT-35536); none downgraded; no later FAIL names them",
+  "counts": {
+    "written_passed": 8,
+    "written_by_lane": {
+      "SMB-ID-BOOKLET-1": 4,
+      "SMB-AE-WATER-SIMS-1": 2,
+      "SMB-FOLIO-CHANNEL-RECORD": 2
+    },
+    "written_by_round": {
+      "STUDIO-R49": 4,
+      "STUDIO-R50": 4
+    },
+    "excluded_by_category": {
+      "judged_not_met": 21,
+      "advanced_only": 6,
+      "claimed_not_validator_judged": 88
+    },
+    "excluded_total": 115
+  },
+  "index_sync": {
+    "projection": ".GOV/task_packets/WP-KERNEL-STUDIO/_MT_INDEX.json",
+    "entries_to_update": 17,
+    "note": "entries[].status; the 9 existing PASS entries still read PENDING (prior drift) and are brought in line"
+  },
+  "category_overlap_ids": [],
+  "mt_ids_without_file": [],
+  "written": [
+    {
+      "mt_id": "MT-30820",
+      "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30820.json",
+      "exists": true,
+      "round_id": "STUDIO-R49",
+      "kernel_commit": "afa6ec13ea31065748c1dc9e9c0981306c65d9c0",
+      "product_candidate_sha": "e9c46302011587a96ddc0ece33ad1b4dc94d2311",
+      "product_tree": "c4759c6e80a89108643b849e053e5678e2e7d51e",
+      "lane": "SMB-ID-BOOKLET-1",
+      "verdict": "PASS_V1",
+      "lane_idempotency_key": "STUDIO-R49:SMB-ID-BOOKLET-1:e9c463020115:PASS_V1",
+      "basis": "validator_statement_proven",
+      "ac_coverage": "AC-001..005 (5 of 5 acceptance rows)",
+      "evidence_pointer": {
+        "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R49.json",
+        "json_path": "/claim_scope_notes/4",
+        "lane_entry_json_path": "/lanes/4",
+        "quote": "MT-30820 AC-001..005 proven"
+      },
+      "later_lane_reaffirmation": {
+        "round": "STUDIO-R50",
+        "verdict": "PASS_V2",
+        "idempotency_key": "STUDIO-R50:SMB-ID-BOOKLET-1:63ecf5a6577f:PASS_V2",
+        "note": "CX-VAL-009 reopen; no MT-level statement"
+      },
+      "current_status_in_file": "PENDING"
+    },
+    {
+      "mt_id": "MT-30829",
+      "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30829.json",
+      "exists": true,
+      "round_id": "STUDIO-R49",
+      "kernel_commit": "afa6ec13ea31065748c1dc9e9c0981306c65d9c0",
+      "product_candidate_sha": "e9c46302011587a96ddc0ece33ad1b4dc94d2311",
+      "product_tree": "c4759c6e80a89108643b849e053e5678e2e7d51e",
+      "lane": "SMB-ID-BOOKLET-1",
+      "verdict": "PASS_V1",
+      "lane_idempotency_key": "STUDIO-R49:SMB-ID-BOOKLET-1:e9c463020115:PASS_V1",
+      "basis": "validator_statement_proven",
+      "ac_coverage": "AC-001 (1 of 1 acceptance rows), under the declared readings",
+      "evidence_pointer": {
+        "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R49.json",
+        "json_path": "/claim_scope_notes/4",
+        "lane_entry_json_path": "/lanes/4",
+        "quote": "MT-30829 proven under the declared readings"
+      },
+      "later_lane_reaffirmation": {
+        "round": "STUDIO-R50",
+        "verdict": "PASS_V2",
+        "idempotency_key": "STUDIO-R50:SMB-ID-BOOKLET-1:63ecf5a6577f:PASS_V2",
+        "note": "CX-VAL-009 reopen; no MT-level statement"
+      },
+      "current_status_in_file": "PENDING"
+    },
+    {
+      "mt_id": "MT-30830",
+      "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30830.json",
+      "exists": true,
+      "round_id": "STUDIO-R49",
+      "kernel_commit": "afa6ec13ea31065748c1dc9e9c0981306c65d9c0",
+      "product_candidate_sha": "e9c46302011587a96ddc0ece33ad1b4dc94d2311",
+      "product_tree": "c4759c6e80a89108643b849e053e5678e2e7d51e",
+      "lane": "SMB-ID-BOOKLET-1",
+      "verdict": "PASS_V1",
+      "lane_idempotency_key": "STUDIO-R49:SMB-ID-BOOKLET-1:e9c463020115:PASS_V1",
+      "basis": "validator_statement_proven",
+      "ac_coverage": "AC-001 (1 of 1 acceptance rows)",
+      "evidence_pointer": {
+        "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R49.json",
+        "json_path": "/claim_scope_notes/4",
+        "lane_entry_json_path": "/lanes/4",
+        "quote": "MT-30830 proven"
+      },
+      "later_lane_reaffirmation": {
+        "round": "STUDIO-R50",
+        "verdict": "PASS_V2",
+        "idempotency_key": "STUDIO-R50:SMB-ID-BOOKLET-1:63ecf5a6577f:PASS_V2",
+        "note": "CX-VAL-009 reopen; no MT-level statement"
+      },
+      "current_status_in_file": "PENDING"
+    },
+    {
+      "mt_id": "MT-30831",
+      "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30831.json",
+      "exists": true,
+      "round_id": "STUDIO-R49",
+      "kernel_commit": "afa6ec13ea31065748c1dc9e9c0981306c65d9c0",
+      "product_candidate_sha": "e9c46302011587a96ddc0ece33ad1b4dc94d2311",
+      "product_tree": "c4759c6e80a89108643b849e053e5678e2e7d51e",
+      "lane": "SMB-ID-BOOKLET-1",
+      "verdict": "PASS_V1",
+      "lane_idempotency_key": "STUDIO-R49:SMB-ID-BOOKLET-1:e9c463020115:PASS_V1",
+      "basis": "validator_statement_proven",
+      "ac_coverage": "AC-001..010 (10 of 10 acceptance rows)",
+      "evidence_pointer": {
+        "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R49.json",
+        "json_path": "/claim_scope_notes/4",
+        "lane_entry_json_path": "/lanes/4",
+        "quote": "MT-30831 AC-001..010 proven"
+      },
+      "later_lane_reaffirmation": {
+        "round": "STUDIO-R50",
+        "verdict": "PASS_V2",
+        "idempotency_key": "STUDIO-R50:SMB-ID-BOOKLET-1:63ecf5a6577f:PASS_V2",
+        "note": "CX-VAL-009 reopen; no MT-level statement"
+      },
+      "current_status_in_file": "PENDING"
+    },
+    {
+      "mt_id": "MT-34181",
+      "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34181.json",
+      "exists": true,
+      "round_id": "STUDIO-R50",
+      "kernel_commit": "650a414f9d0376639563fe382fb1e1ff4834db93",
+      "product_candidate_sha": "63ecf5a6577f410b77553653a642fab072f54456",
+      "product_tree": "9dbd0ddf8e0f7a7a5b1a4abd085b3f05c84b88ce",
+      "lane": "SMB-AE-WATER-SIMS-1",
+      "verdict": "PASS_V1",
+      "lane_idempotency_key": "STUDIO-R50:SMB-AE-WATER-SIMS-1:63ecf5a6577f:PASS_V1",
+      "basis": "validator_statement_met",
+      "ac_coverage": "validator: met (lane claim AC-001/AC-002 and headless half of AC-003; operator-surface tooltip half waits for the GUI, D7)",
+      "evidence_pointer": {
+        "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R50.json",
+        "json_path": "/findings_not_failures/0/finding",
+        "lane_entry_json_path": "/lanes/2",
+        "quote": "the claimed MTs MT-34181 / MT-34183 are STU-CMP-075 catalogue rows (capability, contract, operator surface) and are met"
+      },
+      "later_lane_reaffirmation": null,
+      "current_status_in_file": "PENDING"
+    },
+    {
+      "mt_id": "MT-34183",
+      "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-34183.json",
+      "exists": true,
+      "round_id": "STUDIO-R50",
+      "kernel_commit": "650a414f9d0376639563fe382fb1e1ff4834db93",
+      "product_candidate_sha": "63ecf5a6577f410b77553653a642fab072f54456",
+      "product_tree": "9dbd0ddf8e0f7a7a5b1a4abd085b3f05c84b88ce",
+      "lane": "SMB-AE-WATER-SIMS-1",
+      "verdict": "PASS_V1",
+      "lane_idempotency_key": "STUDIO-R50:SMB-AE-WATER-SIMS-1:63ecf5a6577f:PASS_V1",
+      "basis": "validator_statement_met",
+      "ac_coverage": "validator: met (lane claim AC-001/AC-002 and headless half of AC-003; operator-surface tooltip half waits for the GUI, D7)",
+      "evidence_pointer": {
+        "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R50.json",
+        "json_path": "/findings_not_failures/0/finding",
+        "lane_entry_json_path": "/lanes/2",
+        "quote": "the claimed MTs MT-34181 / MT-34183 are STU-CMP-075 catalogue rows (capability, contract, operator surface) and are met"
+      },
+      "later_lane_reaffirmation": null,
+      "current_status_in_file": "PENDING"
+    },
+    {
+      "mt_id": "MT-038",
+      "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-038.json",
+      "exists": true,
+      "round_id": "STUDIO-R50",
+      "kernel_commit": "650a414f9d0376639563fe382fb1e1ff4834db93",
+      "product_candidate_sha": "63ecf5a6577f410b77553653a642fab072f54456",
+      "product_tree": "9dbd0ddf8e0f7a7a5b1a4abd085b3f05c84b88ce",
+      "lane": "SMB-FOLIO-CHANNEL-RECORD",
+      "verdict": "PASS_V1",
+      "lane_idempotency_key": "STUDIO-R50:SMB-FOLIO-CHANNEL-RECORD:63ecf5a6577f:PASS_V1",
+      "basis": "round_lane_claim_closes_on_pass_lane",
+      "ac_coverage": "lane claim: closes MT-038 (no partial qualifier in the round record)",
+      "evidence_pointer": {
+        "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R50.json",
+        "json_path": "/lanes/0/claim_scope",
+        "lane_entry_json_path": "/lanes/0",
+        "quote": "closes MT-038 and MT-30095"
+      },
+      "later_lane_reaffirmation": null,
+      "current_status_in_file": "PENDING"
+    },
+    {
+      "mt_id": "MT-30095",
+      "file": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-30095.json",
+      "exists": true,
+      "round_id": "STUDIO-R50",
+      "kernel_commit": "650a414f9d0376639563fe382fb1e1ff4834db93",
+      "product_candidate_sha": "63ecf5a6577f410b77553653a642fab072f54456",
+      "product_tree": "9dbd0ddf8e0f7a7a5b1a4abd085b3f05c84b88ce",
+      "lane": "SMB-FOLIO-CHANNEL-RECORD",
+      "verdict": "PASS_V1",
+      "lane_idempotency_key": "STUDIO-R50:SMB-FOLIO-CHANNEL-RECORD:63ecf5a6577f:PASS_V1",
+      "basis": "round_lane_claim_closes_on_pass_lane",
+      "ac_coverage": "lane claim: closes MT-30095 (no partial qualifier in the round record)",
+      "evidence_pointer": {
+        "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R50.json",
+        "json_path": "/lanes/0/claim_scope",
+        "lane_entry_json_path": "/lanes/0",
+        "quote": "closes MT-038 and MT-30095"
+      },
+      "later_lane_reaffirmation": null,
+      "current_status_in_file": "PENDING"
+    }
+  ],
+  "excluded": {
+    "judged_not_met": {
+      "ac003_tooltip_half_not_proven": [
+        {
+          "mt_ids": [
+            "MT-30821",
+            "MT-30822",
+            "MT-30823",
+            "MT-30824",
+            "MT-30825",
+            "MT-30826",
+            "MT-30827",
+            "MT-30828"
+          ],
+          "round": "R49",
+          "evidence_pointer": {
+            "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R49.json",
+            "json_path": "/claim_scope_notes/4",
+            "quote": "MT-30821..30828 AC-001/AC-002 proven",
+            "quote_verified_in_record": true
+          },
+          "reason": "AC-003 headless half only; operator-surface tooltip not proven (D7); F-R49-9: index status must not be read as complete"
+        },
+        {
+          "mt_ids": [
+            "MT-34184",
+            "MT-34185",
+            "MT-34189",
+            "MT-34177"
+          ],
+          "round": "R49",
+          "evidence_pointer": {
+            "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R49.json",
+            "json_path": "/claim_scope_notes/5",
+            "quote": "MT-34184/34185/34189/34177 AC-001/AC-002 proven",
+            "quote_verified_in_record": true
+          },
+          "reason": "AC-003 headless half only (tooltip D7); F-R49-9: index status must not be read as complete"
+        }
+      ],
+      "validator_kept_pending": [
+        {
+          "mt_ids": [
+            "MT-32012",
+            "MT-32013",
+            "MT-31728",
+            "MT-31731"
+          ],
+          "round": "R50",
+          "evidence_pointer": {
+            "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R50.json",
+            "json_path": "/findings_not_failures/0/finding",
+            "quote": "the recovered-record MTs stay PENDING and unclaimed",
+            "quote_verified_in_record": true
+          },
+          "reason": "F-R50-1: validator keeps the recovered-record MTs PENDING"
+        }
+      ],
+      "host_side_open_asset_side_only": [
+        {
+          "mt_ids": [
+            "MT-36248"
+          ],
+          "round": "R46",
+          "evidence_pointer": {
+            "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R46.json",
+            "json_path": "/findings_not_failures/12/finding",
+            "quote": "MT-36248 HOST-CASES stay PLANNED",
+            "quote_verified_in_record": true
+          },
+          "reason": "asset-local evidence only, never host acceptance (AC-HOST-005)"
+        },
+        {
+          "mt_ids": [
+            "MT-36228",
+            "MT-36230"
+          ],
+          "round": "R48",
+          "evidence_pointer": {
+            "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R48.json",
+            "json_path": "/adversarial_review",
+            "quote": "host wiring MT-36230 / MT-36228",
+            "quote_verified_in_record": true
+          },
+          "reason": "host wiring remains open; asset side only"
+        },
+        {
+          "mt_ids": [
+            "MT-36190",
+            "MT-36233"
+          ],
+          "round": "R46",
+          "evidence_pointer": {
+            "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R46.json",
+            "json_path": "/lanes/1/claim_scope",
+            "quote": "Handshake prerequisites (MT-36190/36233",
+            "quote_verified_in_record": true
+          },
+          "reason": "named as Handshake prerequisites, not closed"
+        }
+      ]
+    },
+    "advanced_only": {
+      "advanced": [
+        {
+          "mt_ids": [
+            "MT-30819"
+          ],
+          "round": "R49",
+          "evidence_pointer": {
+            "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R49.json",
+            "json_path": "/claim_scope_notes/4",
+            "quote": "MT-30819 advanced",
+            "quote_verified_in_record": true
+          },
+          "reason": "AC-001 bounds and bitmap fields only; AC-002/AC-003 open"
+        },
+        {
+          "mt_ids": [
+            "MT-36249"
+          ],
+          "round": "R49",
+          "evidence_pointer": {
+            "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R49.json",
+            "json_path": "/claim_scope_notes/8",
+            "quote": "MT-36249 advanced only",
+            "quote_verified_in_record": true
+          },
+          "reason": "asset-local evidence; closes no MT"
+        },
+        {
+          "mt_ids": [
+            "MT-050"
+          ],
+          "round": "R50",
+          "evidence_pointer": {
+            "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R50.json",
+            "json_path": "/lanes/0/claim_scope",
+            "quote": "advances MT-050",
+            "quote_verified_in_record": true
+          },
+          "reason": "round-record lane claim: advances"
+        },
+        {
+          "mt_ids": [
+            "MT-30841",
+            "MT-30842"
+          ],
+          "round": "R50",
+          "evidence_pointer": {
+            "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R50.json",
+            "json_path": "/lanes/1/claim_scope",
+            "quote": "advances MT-30841 / MT-30842 (none closes)",
+            "quote_verified_in_record": true
+          },
+          "reason": "round-record lane claim: advances, none closes"
+        },
+        {
+          "mt_ids": [
+            "MT-30833"
+          ],
+          "round": "R50",
+          "evidence_pointer": {
+            "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R50.json",
+            "json_path": "/lanes/3/claim_scope",
+            "quote": "advances MT-30833 (AC-004 tagged PDF open)",
+            "quote_verified_in_record": true
+          },
+          "reason": "round-record lane claim: advances, AC-004 open"
+        }
+      ]
+    },
+    "claimed_not_validator_judged": {
+      "round_claim_headless_half_only": [
+        {
+          "mt_ids": [
+            "MT-34182",
+            "MT-34186"
+          ],
+          "round": "R50",
+          "evidence_pointer": {
+            "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R50.json",
+            "json_path": "/lanes/2/claim_scope",
+            "quote": "closes MT-34181, MT-34182, MT-34186, MT-34183 (AC-001 / AC-002, headless half of AC-003)",
+            "quote_verified_in_record": true
+          },
+          "reason": "validator names only MT-34181/MT-34183 as met; the claim carries a headless-half qualifier"
+        },
+        {
+          "mt_ids": [
+            "MT-30834",
+            "MT-30835",
+            "MT-30836",
+            "MT-30837",
+            "MT-30838",
+            "MT-30839",
+            "MT-30840"
+          ],
+          "round": "R50",
+          "evidence_pointer": {
+            "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R50.json",
+            "json_path": "/lanes/3/claim_scope",
+            "quote": "closes the headless halves of MT-30834..MT-30840",
+            "quote_verified_in_record": true
+          },
+          "reason": "round-record claim is for the headless halves only; no validator met statement"
+        }
+      ],
+      "validator_named_exercised_no_met_verdict": [
+        {
+          "mt_ids": [
+            "MT-33385",
+            "MT-33386",
+            "MT-33387",
+            "MT-33388",
+            "MT-33389",
+            "MT-33390",
+            "MT-33391",
+            "MT-33392",
+            "MT-33393",
+            "MT-33394",
+            "MT-33395"
+          ],
+          "round": "R49",
+          "evidence_pointer": {
+            "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R49.json",
+            "json_path": "/claim_scope_notes/6",
+            "quote": "MT-33385..33395 acceptance exercised by the 15 pdf_presets tests",
+            "quote_verified_in_record": true
+          },
+          "reason": "validator says exercised, not met; F-R49-5 records an open AC reading on MT-33392"
+        }
+      ],
+      "builder_brief_or_lane_note_claim_only": [
+        {
+          "mt_ids": [
+            "MT-186",
+            "MT-30535",
+            "MT-30540",
+            "MT-30545",
+            "MT-30546",
+            "MT-30547",
+            "MT-30548",
+            "MT-30549",
+            "MT-30550",
+            "MT-30559",
+            "MT-30955",
+            "MT-30956",
+            "MT-30957",
+            "MT-30958",
+            "MT-30959",
+            "MT-30960",
+            "MT-31005",
+            "MT-31006",
+            "MT-31007",
+            "MT-31008",
+            "MT-31009",
+            "MT-31140",
+            "MT-31141",
+            "MT-31174",
+            "MT-31175",
+            "MT-31176",
+            "MT-31177",
+            "MT-31178",
+            "MT-31179",
+            "MT-32980",
+            "MT-32981",
+            "MT-32982",
+            "MT-32983",
+            "MT-32984",
+            "MT-32985",
+            "MT-32986",
+            "MT-33001",
+            "MT-33002",
+            "MT-33003",
+            "MT-33911",
+            "MT-33912",
+            "MT-33915",
+            "MT-33916",
+            "MT-33917",
+            "MT-33918",
+            "MT-33919",
+            "MT-33920",
+            "MT-33926",
+            "MT-33933",
+            "MT-33934",
+            "MT-35297",
+            "MT-35301",
+            "MT-35302",
+            "MT-35303",
+            "MT-35537",
+            "MT-35540",
+            "MT-35541",
+            "MT-35546",
+            "MT-35547",
+            "MT-35548",
+            "MT-35550",
+            "MT-35551",
+            "MT-35552",
+            "MT-35554",
+            "MT-35556",
+            "MT-35557",
+            "MT-35559",
+            "MT-35563"
+          ],
+          "claim_types": {
+            "MT-186": [
+              "advances"
+            ],
+            "MT-30535": [
+              "advances"
+            ],
+            "MT-30540": [
+              "advances"
+            ],
+            "MT-30545": [
+              "advances"
+            ],
+            "MT-30546": [
+              "advances"
+            ],
+            "MT-30547": [
+              "advances"
+            ],
+            "MT-30548": [
+              "advances"
+            ],
+            "MT-30549": [
+              "advances"
+            ],
+            "MT-30550": [
+              "advances"
+            ],
+            "MT-30559": [
+              "advances"
+            ],
+            "MT-30955": [
+              "advances"
+            ],
+            "MT-30956": [
+              "advances"
+            ],
+            "MT-30957": [
+              "closes"
+            ],
+            "MT-30958": [
+              "advances"
+            ],
+            "MT-30959": [
+              "closes"
+            ],
+            "MT-30960": [
+              "advances"
+            ],
+            "MT-31005": [
+              "advances"
+            ],
+            "MT-31006": [
+              "advances"
+            ],
+            "MT-31007": [
+              "advances"
+            ],
+            "MT-31008": [
+              "advances"
+            ],
+            "MT-31009": [
+              "advances"
+            ],
+            "MT-31140": [
+              "closes"
+            ],
+            "MT-31141": [
+              "closes"
+            ],
+            "MT-31174": [
+              "advances"
+            ],
+            "MT-31175": [
+              "advances"
+            ],
+            "MT-31176": [
+              "closes"
+            ],
+            "MT-31177": [
+              "closes"
+            ],
+            "MT-31178": [
+              "advances"
+            ],
+            "MT-31179": [
+              "closes"
+            ],
+            "MT-32980": [
+              "closes"
+            ],
+            "MT-32981": [
+              "closes"
+            ],
+            "MT-32982": [
+              "closes"
+            ],
+            "MT-32983": [
+              "closes"
+            ],
+            "MT-32984": [
+              "closes"
+            ],
+            "MT-32985": [
+              "closes"
+            ],
+            "MT-32986": [
+              "closes"
+            ],
+            "MT-33001": [
+              "advances"
+            ],
+            "MT-33002": [
+              "advances"
+            ],
+            "MT-33003": [
+              "advances"
+            ],
+            "MT-33911": [
+              "advances"
+            ],
+            "MT-33912": [
+              "closes"
+            ],
+            "MT-33915": [
+              "advances"
+            ],
+            "MT-33916": [
+              "closes"
+            ],
+            "MT-33917": [
+              "advances",
+              "closes"
+            ],
+            "MT-33918": [
+              "closes"
+            ],
+            "MT-33919": [
+              "closes"
+            ],
+            "MT-33920": [
+              "closes"
+            ],
+            "MT-33926": [
+              "advances"
+            ],
+            "MT-33933": [
+              "closes"
+            ],
+            "MT-33934": [
+              "advances"
+            ],
+            "MT-35297": [
+              "advances"
+            ],
+            "MT-35301": [
+              "advances"
+            ],
+            "MT-35302": [
+              "advances"
+            ],
+            "MT-35303": [
+              "advances"
+            ],
+            "MT-35537": [
+              "closes"
+            ],
+            "MT-35540": [
+              "closes"
+            ],
+            "MT-35541": [
+              "closes"
+            ],
+            "MT-35546": [
+              "closes"
+            ],
+            "MT-35547": [
+              "closes"
+            ],
+            "MT-35548": [
+              "closes"
+            ],
+            "MT-35550": [
+              "closes"
+            ],
+            "MT-35551": [
+              "closes"
+            ],
+            "MT-35552": [
+              "closes"
+            ],
+            "MT-35554": [
+              "closes"
+            ],
+            "MT-35556": [
+              "closes"
+            ],
+            "MT-35557": [
+              "closes"
+            ],
+            "MT-35559": [
+              "closes"
+            ],
+            "MT-35563": [
+              "closes"
+            ]
+          },
+          "reason": "named by a brief / lane note / builder claim; no validator met statement and no PASS round-record claim naming it"
+        }
+      ]
+    }
+  }
+}

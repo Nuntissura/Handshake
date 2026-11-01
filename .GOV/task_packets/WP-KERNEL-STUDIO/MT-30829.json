@@ -16,15 +16,15 @@
     "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "PASS_V1",
     "depends_on": [],
     "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING",
-    "phase": "blocked",
-    "updated_at_utc": "2026-10-09T19:13:15.152291+00:00",
-    "contract_preparation_only": true,
-    "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
+    "active": true,
+    "validator_verdict": "PASS_V1",
+    "phase": "validation",
+    "updated_at_utc": "2026-11-01T00:07:21Z",
+    "contract_preparation_only": false,
+    "blocked_on": null
   },
   "clause": "Booklet and imposition MUST arrange pages for folding",
   "spec_anchor": [
@@ -1856,7 +1856,47 @@
     "current_dispatch_authorized": false
   },
   "submissions": [],
-  "verdicts": [],
+  "verdicts": [
+    {
+      "verdict_id": "MT-30829-STUDIO-R49-PASS-V1",
+      "mt_id": "MT-30829",
+      "verdict": "PASS_V1",
+      "decision": "passed",
+      "round": "STUDIO-R49",
+      "idempotency_key": "STUDIO-R49:MT-30829:e9c46302:V1",
+      "scope": "asset_local_engine_half",
+      "candidate_commit": "e9c46302011587a96ddc0ece33ad1b4dc94d2311",
+      "candidate_tree": "c4759c6e80a89108643b849e053e5678e2e7d51e",
+      "kernel_commit": "afa6ec13ea31065748c1dc9e9c0981306c65d9c0",
+      "validator_role": "wp_validator",
+      "validator_session": "wp_validator STUDIO-R49",
+      "lane": "SMB-ID-BOOKLET-1",
+      "lane_verdict": "PASS_V1",
+      "lane_idempotency_key": "STUDIO-R49:SMB-ID-BOOKLET-1:e9c463020115:PASS_V1",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R49",
+      "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+      "round_ref": ".GOV/docs_repo/wp-studio-module-work/validation/round-R49.json",
+      "started_at": "2026-10-31T14:21:09Z",
+      "completed_at": "2026-10-31T16:28:40Z",
+      "ac_coverage": "AC-001 (1 of 1 acceptance rows), under the declared readings",
+      "evidence_basis": "validator_statement_proven",
+      "evidence_ref": {
+        "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R49.json",
+        "json_path": "/claim_scope_notes/4",
+        "lane_entry_json_path": "/lanes/4",
+        "quote": "MT-30829 proven under the declared readings"
+      },
+      "later_lane_reaffirmation": {
+        "round": "STUDIO-R50",
+        "verdict": "PASS_V2",
+        "idempotency_key": "STUDIO-R50:SMB-ID-BOOKLET-1:63ecf5a6577f:PASS_V2",
+        "note": "CX-VAL-009 reopen; no MT-level statement"
+      },
+      "written_by": "MT-STATUS-SYNC",
+      "written_at": "2026-11-01T00:07:21Z",
+      "note": "mechanical status sync from the validated lane verdict; engine/asset half only, later kernel/host acceptance stays PENDING"
+    }
+  ],
   "blockers": [],
   "preserved_original": {
     "schema_id": "hsk.preserved_microtask@1",
@@ -2248,9 +2288,15 @@
       "all_original_edges_explicitly_reconciled": true,
       "asset_vs_host_phase_separated": true,
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
+    },
+    "asset_validation": {
+      "status": "PASS_V1",
+      "scope": "asset_local_engine_half",
+      "verdict_ref": "MT-30829-STUDIO-R49-PASS-V1",
+      "round": "STUDIO-R49"
     }
   },
-  "updated_at_utc": "2026-10-10T00:00:00Z",
+  "updated_at_utc": "2026-11-01T00:07:21Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",

@@ -16,15 +16,15 @@
     "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "PASS_V1",
     "depends_on": [],
     "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING",
-    "phase": "blocked",
-    "updated_at_utc": "2026-10-09T19:13:15.152291+00:00",
-    "contract_preparation_only": true,
-    "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
+    "active": true,
+    "validator_verdict": "PASS_V1",
+    "phase": "validation",
+    "updated_at_utc": "2026-11-01T00:07:21Z",
+    "contract_preparation_only": false,
+    "blocked_on": null
   },
   "clause": "Foam (2)",
   "spec_anchor": [
@@ -1994,7 +1994,42 @@
     "current_dispatch_authorized": false
   },
   "submissions": [],
-  "verdicts": [],
+  "verdicts": [
+    {
+      "verdict_id": "MT-34183-STUDIO-R50-PASS-V1",
+      "mt_id": "MT-34183",
+      "verdict": "PASS_V1",
+      "decision": "passed",
+      "round": "STUDIO-R50",
+      "idempotency_key": "STUDIO-R50:MT-34183:63ecf5a6:V1",
+      "scope": "asset_local_engine_half",
+      "candidate_commit": "63ecf5a6577f410b77553653a642fab072f54456",
+      "candidate_tree": "9dbd0ddf8e0f7a7a5b1a4abd085b3f05c84b88ce",
+      "kernel_commit": "650a414f9d0376639563fe382fb1e1ff4834db93",
+      "validator_role": "wp_validator",
+      "validator_session": "wp_validator STUDIO-R50",
+      "lane": "SMB-AE-WATER-SIMS-1",
+      "lane_verdict": "PASS_V1",
+      "lane_idempotency_key": "STUDIO-R50:SMB-AE-WATER-SIMS-1:63ecf5a6577f:PASS_V1",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R50",
+      "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+      "round_ref": ".GOV/docs_repo/wp-studio-module-work/validation/round-R50.json",
+      "started_at": "2026-10-31T18:23:19Z",
+      "completed_at": "2026-10-31T22:44:39Z",
+      "ac_coverage": "validator: met (lane claim AC-001/AC-002 and headless half of AC-003; operator-surface tooltip half waits for the GUI, D7)",
+      "evidence_basis": "validator_statement_met",
+      "evidence_ref": {
+        "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R50.json",
+        "json_path": "/findings_not_failures/0/finding",
+        "lane_entry_json_path": "/lanes/2",
+        "quote": "the claimed MTs MT-34181 / MT-34183 are STU-CMP-075 catalogue rows (capability, contract, operator surface) and are met"
+      },
+      "later_lane_reaffirmation": null,
+      "written_by": "MT-STATUS-SYNC",
+      "written_at": "2026-11-01T00:07:21Z",
+      "note": "mechanical status sync from the validated lane verdict; engine/asset half only, later kernel/host acceptance stays PENDING"
+    }
+  ],
   "blockers": [],
   "preserved_original": {
     "schema_id": "hsk.preserved_microtask@1",
@@ -2578,9 +2613,15 @@
       "all_original_edges_explicitly_reconciled": true,
       "asset_vs_host_phase_separated": true,
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
+    },
+    "asset_validation": {
+      "status": "PASS_V1",
+      "scope": "asset_local_engine_half",
+      "verdict_ref": "MT-34183-STUDIO-R50-PASS-V1",
+      "round": "STUDIO-R50"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T00:07:21Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
