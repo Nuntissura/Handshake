@@ -5,15 +5,85 @@
   "phase": "build",
   "worktree": "wt-studio-lanes/smb-type-sentinels-registry-1",
   "base": "a7be22a1",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "30f8787a",
+      "subject": "item 1 red: STU-TYP-207 stream sentinel tests",
+      "pushed": false
+    },
+    {
+      "sha": "4f5fafc2",
+      "subject": "item 2 red: STU-TYP-170 245-tag registry tests",
+      "pushed": false
+    },
+    {
+      "sha": "c47306e2",
+      "subject": "item 1: STU-TYP-207 stream sentinels (SD-29)",
+      "pushed": false
+    },
+    {
+      "sha": "41f223a5",
+      "subject": "item 1: const-fn range helpers, Observe needle",
+      "pushed": false
+    },
+    {
+      "sha": "d2aa36d0",
+      "subject": "item 2: STU-TYP-170 245-tag feature registry (SD-30)",
+      "pushed": false
+    },
+    {
+      "sha": "82957a8d",
+      "subject": "bidi_class derivative hash in third-party provenance, DESCRIPTOR wording",
+      "pushed": false
+    },
+    {
+      "sha": "7210fdc0",
+      "subject": "item 2: drop explicit deref flagged by clippy",
+      "pushed": false
+    }
+  ],
+  "capabilities_done": [
+    "SD-29: StreamForm::Sentinel; 14 members on U+FDD0..U+FDDD in spec order, anchored-object marker on U+FFFC; Pending and CatalogError::StreamFormPending removed",
+    "SD-29: break sentinels U+FDD8..U+FDDC are Bidi_Class B in the crate's one class lookup (request validation, bidi resolve, engine separator split)",
+    "SD-29: insert_literal_text refuses U+FDDE..U+FDEF (reserved_stream_sentinel); import_foreign_text replaces any foreign U+FDD0..U+FDEF with U+FFFD and reports the loss (exact count, listing bounded at 4096); report_catalog_outcome and report_import_outcome through Observe",
+    "SD-30: registry() is the 245-row table with name, FeatureStatus, observed flag; 229 observed, 243 registered, hngl/opbd deprecated and not offered for new authoring; project_groups ungrouped now means in no STU-TYP-171 group"
+  ],
+  "tests": {
+    "bundled_harfrust": {
+      "argv": "lane-check.sh --owner smb-type-sentinels-registry-1 --disk d -- cargo nextest run -p hsk-studio-type --features harfrust (step 0, clippy type + 9 dependents, nextest)",
+      "exit": 0,
+      "sha": "7210fdc038499db76b0f156d13d11faab9deadd7",
+      "passed": 106,
+      "failed": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-sentinels-registry-1/bundled-smb-type-sentinels-registry-1-7210fdc0-harfrust.log"
+    },
+    "bundled_default": {
+      "argv": "lane-check.sh --owner smb-type-sentinels-registry-1 --disk d -- cargo nextest run -p hsk-studio-type (second lane-check invocation: default-features round unit)",
+      "exit": 0,
+      "sha": "7210fdc038499db76b0f156d13d11faab9deadd7",
+      "passed": 105,
+      "failed": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-sentinels-registry-1/bundled-smb-type-sentinels-registry-1-7210fdc0-default.log"
+    },
+    "first_run_failed": {
+      "argv": "same as bundled_harfrust at d2aa36d0",
+      "exit": 100,
+      "sha": "d2aa36d0",
+      "passed": 104,
+      "failed": 2,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-sentinels-registry-1/bundled-smb-type-sentinels-registry-1-d2aa36d0-harfrust.log",
+      "cause": "provenance.rs vendored hash of char_data/mod.rs (I edited the derivative; fixed in 82957a8d) and my descriptor test wording (fixed); one clippy explicit_auto_deref in features.rs (fixed in 7210fdc0)"
+    },
+    "doctests": "none added (4d)",
+    "round_features_4e": ".config/round-features.toml has hsk-studio-type = [[harfrust]]: harfrust unit covered by bundled_harfrust; default unit by bundled_default; no cfg(feature) test file added",
+    "red_proof": "red commits compile at base by construction but were NOT executed red (no separate run); UNVERIFIED red failure, so squash red into green before pushing"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: read the brief, red-first per item, one bundled run on D:, push only after STUDIO-R51 is recorded and the lead releases",
-  "updated_at": "2026-11-01T05:38:43Z",
+  "next": "waiting for lead release after R51",
+  "updated_at": "2026-11-01T05:58:22Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -42,6 +112,35 @@
       "MT-30955",
       "MT-30959"
     ],
-    "dispatch_reason": "follow-up wave from the v02.228 SD research and SMB-ID-TOC-INDEX-1 notes; engine lane (D6); builds on D: while STUDIO-R51 holds C:"
+    "dispatch_reason": "follow-up wave from the v02.228 SD research and SMB-ID-TOC-INDEX-1 notes; engine lane (D6); builds on D: while STUDIO-R51 holds C:",
+    "finished_build_at": "2026-11-01T05:58:22Z",
+    "microtasks": {
+      "MT-31005": "met for the AC rows: AC-001 (reserved U+FDDE..U+FDEF: mt_31005_reserved_code_points_refuse_on_literal_insertion, mt_31005_stream_form_helpers_agree_with_the_catalog_table) and AC-002..AC-016 one assertion per row (mt_31005_each_sentinel_member_inserts_its_assigned_code_point, rows named in the assert messages); also normalisation stability, foreign import, Observe. Not covered because not an AC row and outside this crate: typed marker record keyed by story byte and composition of markers (layout)",
+      "MT-31007": "partly met: AC-001/002 met (mt_31007_markers_catalog_stores_assigned_stream_forms, labels and stream forms); AC-003 headless insert + tooltip met (insert_catalog_member, tooltip), operator-surface reachability not met (gui_host none, no GUI in this crate)",
+      "MT-31008": "partly met: AC-001/002 met (mt_31008_break_characters_keep_distinct_targets, mt_31008_each_break_sentinel_terminates_its_paragraph for U+FDD8..U+FDDC); AC-003 headless + tooltip met, operator surface not met",
+      "MT-31009": "partly met: AC-001/002 met (mt_31009_white_space_members_and_composition_flags, flush space U+FDDD, not U+2001: mt_31005_sentinels_and_object_replacement_survive_all_normalisation_forms); AC-003 headless + tooltip met, operator surface not met; composition of flush space (slack absorption) is layout",
+      "MT-30955": "met: AC-001 (mt_30955_observed_union_of_229_tags, mt_30955_observed_union_of_229_tags_is_proven_against_the_table, registry_pins_the_group_table_and_accepts_any_well_formed_tag), AC-002 (mt_30955_registry_holds_the_245_tag_table, no closed list), AC-003..AC-130 one assertion per table row (mt_30955_every_table_row_is_in_the_registry_with_name_status_and_observed_flag, row tag in the message; 128 rows expand to 245), plus 243 registered/deprecated (mt_30955_registered_set_is_243_with_the_deprecated_tags_marked, mt_30955_deprecated_tags_are_stored_and_applied_but_not_offered_for_new_authoring)",
+      "MT-30959": "partly met: 11 of 14 legacy booleans map to a tag and store in the tag map (mt_30959_legacy_booleans_are_tag_map_entries, mt_30959_legacy_booleans_shape_real_features) and every mapped tag is a Registered registry row (mt_30959_every_legacy_boolean_tag_is_a_registered_row); overlap_swash, stretched_alternate, hv_kana refuse legacy_projection_unmapped (no registered tag), so the AC 'These MUST be representable' is not fully met"
+    },
+    "changed_assertions": [
+      "character_catalogs.rs mt_31005 (renamed ..._assigned_stream_forms): 15 Pending members -> 14 sentinel members ids; insert markers.index refusing StreamFormPending -> Ok(U+FDD7 inserted); CatalogError::StreamFormPending.code() -> ReservedSentinel.code() [STU-TYP-207 SD-29]",
+      "character_catalogs.rs mt_31007 (renamed ..._stores_assigned_stream_forms): every marker StreamForm::Pending and insert refuses -> stream forms U+FDD0..U+FDD5, U+FFFC, U+FDD6, U+FDD7 and insert yields them [SD-29]",
+      "character_catalogs.rs mt_31009: flush space scalar None -> 0xFDDD; scalars() helper Option<u32> -> u32; mt_31006 want.map(Some) -> want; scalar() Option<char> -> char (signature change from Pending removal) [SD-29]",
+      "opentype_features.rs mt_30955 registry test: registry().len() 209 -> 245 plus 209 grouped; custom-tag loop 'sinf' -> 'abcd' (sinf is now a registry row) [STU-TYP-170 SD-30]",
+      "opentype_features.rs mt_30955_observed_union_of_229_tags: #[ignore] NOT_PROVEN removed, now asserts 229 observed rows [SD-30]",
+      "opentype_features.rs descriptor test: tests list gains stream_sentinels and feature_registry; comments on sinf updated",
+      "tests/support/mod.rs: additive optional case key paragraph_ranges; provenance.json: recorded sha256 of char_data/mod.rs updated (derivative edited)"
+    ],
+    "spec_proposals": [
+      "SD-29 does not say what replaces a foreign U+FDD0..U+FDEF code point: Studio reading is U+FFFD; propose the spec name it",
+      "SD-29 is silent on foreign U+FFFC (read as an anchored-object marker with no record) and other noncharacters (U+FFFE/U+FFFF, plane ends): they pass through unchanged here",
+      "Marker and flush sentinels get the default bidi class L in the vendored table (noncharacter, no UCD entry), so a marker is strong-L inside RTL text; propose a class for them (layout lane)",
+      "Marker and flush sentinels are refused MissingGlyph by the shaper by design; layout must substitute resolved text before shaping",
+      "Insertion of Studio's own assigned sentinels via insert_literal_text is allowed (pasted Studio content); only U+FDDE..U+FDEF refuse. Spec could state it"
+    ],
+    "host_integration_check": "no GUI, GPU, egui or wgpu line; no Cargo.toml change; pure functions on borrowed text take no ActorContext (no document mutation); outcomes through Observe (catalog_failure_code, report_catalog_outcome, report_import_outcome); no jobs, no settings",
+    "vendor_parity": "UNVERIFIED (D5): source applications' own sentinel mapping and registry",
+    "shared_files": "tests/support/mod.rs and third-party/unicode-bidi-0.3.18/provenance.json edited (type crate, no other lane's hunks); char_data/mod.rs is the vendored unicode-bidi derivative",
+    "push_plan": "squash the two red commits into their green commits before pushing (red failure not executed); then fetch, rebase, lane-check --per-sha, guarded push"
   }
 }
