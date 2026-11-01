@@ -1,7 +1,7 @@
 {
  "schema": "hsk.studio_spec_enrichment_delta@1",
  "delta_id": "STUDIO-ENRICHMENT-20261030-HOST-INTEGRATION",
- "status": "APPROVED_FOR_BATCH_APPLY 2026-10-31T23:54:56Z (Operator): SD-01..24 plus SD-25 (Operator decision) in one batch, D7/D8 decided; SD-26..30 proposed only. No Master Spec edit made yet.",
+ "status": "APPLIED v02.226 2026-11-01T00:08:46Z: SD-01..SD-25 applied in one batch (Operator approval 2026-10-31T23:54:56Z); SD-26..SD-30 PROPOSED only.",
  "purpose": "Spec-delta requests raised by the Studio lead's integration-direction review on 2026-10-30 (Operator briefing: native Vulkan workbench, one Handshake GPU owner, diagnostics wired from the beginning). Each item names the clause gap, the Studio surface that needs it, and the lead's reading used meanwhile (UNVERIFIED until the spec owner decides).",
  "base_spec": ".GOV/spec/master-spec-v02.225",
  "approval_ref": "Operator chat 2026-10-31T23:54:56Z: 'approved: applying them in one batch after D7/D8'",
@@ -14,74 +14,85 @@
   "D8 decided 2026-10-31T23:54:56Z: Kumihimo stays shared-controls owner",
   "STU-SHL-130 decided 2026-10-31T23:54:56Z: layer-based"
  ],
- "apply_rules": "none applied; proposals only",
+ "apply_rules": "SD-01..SD-25 APPLIED in Master Spec v02.226 (bundle .GOV/spec/master-spec-v02.226, activated 2026-11-01T00:08:46Z); SD-26..SD-30 PROPOSED (not approved, not applied). Non-Studio edits limited to the SD-03 toolkit-neutral wording of 5.8/5.8.1; no D7 no-wgpu prohibition added to any non-Studio clause. 'Reported, not resolved' items recorded as declared conflicts/gaps.",
  "open_items_for_spec_owner": [
   {
    "id": "SD-01",
    "gap": "Kumihimo has no clause in any v02.225 module; the briefing calls it the canonical shared-controls owner",
    "needs": "a clause naming the Kumihimo asset, its pinned revision rule and its relation to STU-ARC-014 (one control mechanic) and GUI-DESKTOP-003/004",
-   "lead_reading": "2026-10-31T23:54:56Z: D8 decided: Kumihimo is the canonical shared-controls owner; its control model (kumihimo-core, kumihimo-content) is toolkit-free and it gains a non-egui pure-Vulkan renderer beside kumihimo-egui; the clause names Kumihimo as owner and binds no toolkit (the earlier D1 conflict is resolved by D8)"
+   "lead_reading": "2026-10-31T23:54:56Z: D8 decided: Kumihimo is the canonical shared-controls owner; its control model (kumihimo-core, kumihimo-content) is toolkit-free and it gains a non-egui pure-Vulkan renderer beside kumihimo-egui; the clause names Kumihimo as owner and binds no toolkit (the earlier D1 conflict is resolved by D8)",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-02",
    "gap": "No typed Studio GPU client contract under the central owner (handle type, admission request, budget/retained-memory accounting fields, compute-only use without a surface); STU-FX-036 still makes RenderEngine own wgpu",
    "needs": "amend STU-FX-036 to point at GUI-DESKTOP-028 and define the client port",
-   "lead_reading": "render-gpu exposes a typed GPU client port with a transient in-process adapter for asset-local proof; no device ownership; 2026-10-31T23:54:56Z D7: the client is a pure-Vulkan client (no wgpu); the Vulkan binding crate is named by the GPU owner"
+   "lead_reading": "render-gpu exposes a typed GPU client port with a transient in-process adapter for asset-local proof; no device ownership; 2026-10-31T23:54:56Z D7: the client is a pure-Vulkan client (no wgpu); the Vulkan binding crate is named by the GPU owner",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-03",
    "gap": "5.8 (05:1945-1957) says 'native egui app'; STU-MDL-002/104, STU-SHL-065/245 name egui and egui_tiles",
    "needs": "remove the toolkit name: 5.8 (05:1945-1957) native egui app, STU-MDL-002/104, STU-SHL-065 egui_tiles and STU-SHL-245 must describe the kernel-owned native Vulkan shell and its control layer without naming egui (Operator decision D1 2026-10-30: drop egui)",
-   "lead_reading": "2026-10-31T23:54:56Z: D1 and D7 decided: Studio product crates carry no egui and no wgpu; the host UI and control layer renders on the Vulkan API directly; the spec names neither toolkit (remove 'native egui app', egui and egui_tiles from 5.8, STU-MDL-002/104, STU-SHL-065/245)"
+   "lead_reading": "2026-10-31T23:54:56Z: D1 and D7 decided: Studio product crates carry no egui and no wgpu; the host UI and control layer renders on the Vulkan API directly; the spec names neither toolkit (remove 'native egui app', egui and egui_tiles from 5.8, STU-MDL-002/104, STU-SHL-065/245)",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-04",
    "gap": "No closed allowlist schema maps Studio observe outcomes to internal_diagnostics DiagEventCode; the ring's per-event size and drop counters for many producers are unstated; DiagEvent has no module or correlation field",
    "needs": "the observe-to-ring mapping table, module identity and correlation fields, and per-producer drop accounting",
-   "lead_reading": "observe gains a ring-shaped producer port (code, counters, opaque ids, no text) and maps terminal outcomes to the closed codes"
+   "lead_reading": "observe gains a ring-shaped producer port (code, counters, opaque ids, no text) and maps terminal outcomes to the closed codes",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-05",
    "gap": "Section 6.13 (Palmistry) has no clause ids; the hung-window threshold is '~5 s'; the minidump/survivor schema is not given",
    "needs": "clause ids, the exact threshold, the survivor record schema, and the Studio-pane freeze/crash acceptance case",
-   "lead_reading": "Palmistry code: FREEZE_THRESHOLD 5 s, SurvivorRecord{session_id, process_id, stale_ms, minidump_path}"
+   "lead_reading": "Palmistry code: FREEZE_THRESHOLD 5 s, SurvivorRecord{session_id, process_id, stale_ms, minidump_path}",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-06",
    "gap": "HSK-PLG-011 and STU-ARC-013 cover audio callbacks only; nothing covers GPU frame callbacks or whether heartbeat/frame-time recording is allowed from Studio render callbacks; internal_diagnostics record() takes a mutex",
    "needs": "a real-time rule for GPU/render callbacks and the preallocated handoff requirement on the recorder",
-   "lead_reading": "render callbacks never call the locking recorder; heartbeat only through the wait-free path"
+   "lead_reading": "render callbacks never call the locking recorder; heartbeat only through the wait-free path",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-07",
    "gap": "No Studio module/feature tree under GUI-DESKTOP-014 and no Engine Profiles binding for Studio's render providers",
    "needs": "the Studio Settings tab and subtab list, and the Engine Profile fields Studio binds (GPU/CPU provider, budgets)",
    "lead_reading": "one tab 'Studio' with one subtab per module that owns a user-facing setting",
-   "namespace_gap": "2026-10-31T11:37:50Z (planner, SMB-SETTINGS-SCHEMA-1): SET-SCOPE-001 (spec-modules/10-product-surfaces.md:8294-8298) admits only data-roots, view-defaults, retention, feature-toggles; Studio tool defaults (brush, selection, export stage) fit none. The asset-local schema uses namespace 'studio' marked namespace_status spec_delta_pending and claims no SET-SCOPE namespace; the spec owner decides a module namespace or a mapping."
+   "namespace_gap": "2026-10-31T11:37:50Z (planner, SMB-SETTINGS-SCHEMA-1): SET-SCOPE-001 (spec-modules/10-product-surfaces.md:8294-8298) admits only data-roots, view-defaults, retention, feature-toggles; Studio tool defaults (brush, selection, export stage) fit none. The asset-local schema uses namespace 'studio' marked namespace_status spec_delta_pending and claims no SET-SCOPE namespace; the spec owner decides a module namespace or a mapping.",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-08",
    "gap": "Two id schemes: author_id (STU-MDL-104) and 'stable event/control IDs' (GUI-DESKTOP-050) with no mapping rule; the kernel-bindings bridge for client_session_id and process identity is unspecified",
    "needs": "one id rule and the bridge fields",
-   "lead_reading": "controls Registry ids are the author_id space; kernel-bindings Envelope carries client_session_id, process birth and correlation"
+   "lead_reading": "controls Registry ids are the author_id space; kernel-bindings Envelope carries client_session_id, process birth and correlation",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-09",
    "gap": "Whether Studio panels may render before account activation (NATIVE-RENDER-BOOT-001 forbids module workloads) is unstated for previews and thumbnails",
    "needs": "a rule for pre-account Studio rendering",
-   "lead_reading": "nothing Studio renders before activation"
+   "lead_reading": "nothing Studio renders before activation",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-10",
    "gap": "GPU-QUOTA-016 and NATIVE-RENDER-BOOT-007 state no API, so the bounds of Studio's own GPU proof before the kernel issuer exists are undefined",
    "needs": "what asset-local GPU proof counts while the owner is NOT_STARTED",
-   "lead_reading": "asset-local proof through the transient adapter is evidence, never host acceptance"
+   "lead_reading": "asset-local proof through the transient adapter is evidence, never host acceptance",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-11",
    "gap": "No cross-module document-revision type exists in Handshake; Studio uses expected_revision u64",
    "needs": "the revision type bound to the EventLedger revision",
-   "lead_reading": "u64 revision carried through kernel-bindings CommitRequest expected/successor revision"
+   "lead_reading": "u64 revision carried through kernel-bindings CommitRequest expected/successor revision",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-12",
@@ -90,134 +101,739 @@
    "lead_reading": "superseded: the boundary-band exemption in render-gpu tests is withdrawn by SMB-R46-FOLLOWUPS-1, which makes the WGSL tie decide as pigment does and restores exact parity",
    "raised_by": "SMB-GPU-CLIENT-PORT-1 run 1 on Vulkan",
    "correction": "2026-10-31T05:54:02Z lead correction after R46 F-R46-1: the binary64-vs-binary32 premise was FALSE. pigment Threshold is binary32 end to end (adjust_math.rs:807 apply(rgb: [f32; 3]), :878, blend_math.rs:463 lum -> f32) and kernel.wgsl:361-363 evaluates the same binary32 formula. The tie divergence is Vulkan-specific (pigment white, DX12 white, Vulkan black), most likely contraction (FMA) or evaluation order in the SPIR-V path: UNVERIFIED until the remediation lane measures it. The spec gap that remains is narrower: the Threshold reading should state whether the cut compares the exact rational luminance or round(255 lum) (PS-C07), so every backend has one target.",
-   "measured": "2026-10-31T07:34:05Z: SMB-R46-FOLLOWUPS-1 measured the tie: pigment lum and cut 0x3f000000, Vulkan 0x3effffff, DX12 0x3f000000; 49/76 of 1110 tie colours differed per backend, reproduced exactly by FMA contraction in a backend-specific order; the kernel now prevents fusion and both backends match pigment on all 1110; the remaining spec question is only whether the cut is the exact rational or round(255 lum)"
+   "measured": "2026-10-31T07:34:05Z: SMB-R46-FOLLOWUPS-1 measured the tie: pigment lum and cut 0x3f000000, Vulkan 0x3effffff, DX12 0x3f000000; 49/76 of 1110 tie colours differed per backend, reproduced exactly by FMA contraction in a backend-specific order; the kernel now prevents fusion and both backends match pigment on all 1110; the remaining spec question is only whether the cut is the exact rational or round(255 lum)",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-13",
    "gap": "STU-IO-128 compatibility_level domain is 1.3, 1.4, 1.5 (spec-modules/14-studio-creative-suite.md:21011), but press-write writes 1.4, 1.5, 1.6, 1.7, 2.0 (src/export.rs:78) and PDF/X-4 only at 1.6 or later with a GtsPdfx intent and a TrimBox (src/export.rs:261-264)",
    "needs": "the compatibility_level domain the preset contract must carry (add 1.6/1.7/2.0, or state that standards presets override the level) and whether 1.3 is a writer obligation",
-   "lead_reading": "2026-10-31T11:37:50Z: SMB-PDF-PRESETS-1 refuses 1.3 and any standards preset whose level the writer cannot honour with typed errors and reports them; it resolves nothing"
+   "lead_reading": "2026-10-31T11:37:50Z: SMB-PDF-PRESETS-1 refuses 1.3 and any standards preset whose level the writer cannot honour with typed errors and reports them; it resolves nothing",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-14",
    "gap": "STU-LAY-159 (spec-modules/14-studio-creative-suite.md:7137-7175) names CCITT as the stock monochrome image filter; STU-IO-128 lists image_filter as DCTEncode and FlateEncode only",
    "needs": "whether CCITTFaxEncode joins the STU-IO-128 filter domain (monochrome group only)",
    "lead_reading": "2026-10-31T14:42:57Z: SMB-PDF-STOCK-PRESETS-1 admits CCITTFaxEncode on monochrome_images.filter only and refuses it elsewhere with filter_not_admitted_for_group",
-   "source": "builders/briefs/lane-smb-pdf-stock-presets-1.md (planner, 2026-10-31T14:42:57Z)"
+   "source": "builders/briefs/lane-smb-pdf-stock-presets-1.md (planner, 2026-10-31T14:42:57Z)",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-15",
    "gap": "STU-LAY-159 says the stock presets' end page is nullable (never -1); STU-IO-129 stores the end page as -1 (= last)",
    "needs": "one representation of 'to the last page'",
    "lead_reading": "2026-10-31T14:42:57Z: the -1 sentinel stays inside the setting; the preset API returns Option<u32>",
-   "source": "builders/briefs/lane-smb-pdf-stock-presets-1.md (planner, 2026-10-31T14:42:57Z)"
+   "source": "builders/briefs/lane-smb-pdf-stock-presets-1.md (planner, 2026-10-31T14:42:57Z)",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-16",
    "gap": "cannot_embed_font_policy: STU-LAY-159 shows the value Error as captured; STU-IO-128 labels Error studio-declared",
    "needs": "the provenance label of Error",
    "lead_reading": "2026-10-31T14:42:57Z: press keeps its label; the conflict is reported, not resolved",
-   "source": "builders/briefs/lane-smb-pdf-stock-presets-1.md (planner, 2026-10-31T14:42:57Z)"
+   "source": "builders/briefs/lane-smb-pdf-stock-presets-1.md (planner, 2026-10-31T14:42:57Z)",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-17",
    "gap": "STU-IO-127 has two quality dictionaries; the JPEG-2000 tile size and quality of the stock presets (STU-LAY-159 common defaults) have no setting home; the threshold_to_compress_* unit is given as a ratio but its bounds are multiples of a dpi value",
    "needs": "a setting home for JPEG-2000 tile and quality, and the unit of threshold_to_compress_*",
    "lead_reading": "2026-10-31T14:42:57Z: the stock record carries the JPEG-2000 values and its receipt marks them not_representable",
-   "source": "builders/briefs/lane-smb-pdf-stock-presets-1.md (planner, 2026-10-31T14:42:57Z)"
+   "source": "builders/briefs/lane-smb-pdf-stock-presets-1.md (planner, 2026-10-31T14:42:57Z)",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-18",
    "gap": "STU-IO-130 requires an output-intent profile for PDF/X presets; the spec captured none for the three stock PDF/X presets (together with SD-13 none of them can be exported today)",
    "needs": "the output-intent profiles of the stock PDF/X-1a, X-3 and X-4 presets",
    "lead_reading": "2026-10-31T14:42:57Z: the three PDF/X stock presets refuse with typed stock_output_intent_not_captured; MT-30841/30842 stay open",
-   "source": "builders/briefs/lane-smb-pdf-stock-presets-1.md (planner, 2026-10-31T14:42:57Z)"
+   "source": "builders/briefs/lane-smb-pdf-stock-presets-1.md (planner, 2026-10-31T14:42:57Z)",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-19",
    "gap": "STU-IO-125..133 state no rule for a PDF preset that combines standard_compliant_only with standard_check_1a or standard_check_3; the press writer implements neither check",
    "needs": "whether such a preset is refused, or what 'compliant only' means without a checker",
    "lead_reading": "2026-10-31T16:35:22Z: typed refusal standard_compliance_not_provable kept until a check exists (builder-chosen, admissible per STUDIO-R49 F-R49-4); filed separately from SD-13",
-   "source": "validation/round-R49.json F-R49-4"
+   "source": "validation/round-R49.json F-R49-4",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-20",
    "gap": "MT-33392 AC-001 'asserting compliance with no intent profile is a validation error' does not say whether standard_compliant_only alone counts as asserting",
    "needs": "the reading of 'asserting compliance'",
    "lead_reading": "2026-10-31T16:35:22Z: the asset reads asserting as standard_check_1a or standard_check_3 only, so compliant_only with an empty output_intent_profile validates; if the spec owner reads it broader, refuse standard_without_output_intent for compliant_only too",
-   "source": "validation/round-R49.json F-R49-5"
+   "source": "validation/round-R49.json F-R49-5",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-21",
    "gap": "the Simulation effect table (14-studio-creative-suite.md:13267-13273) lists Rain (obsolete) / Rainfall, Snow (obsolete) / Snowfall and two Particle Systems Classic rows as separate effects",
    "needs": "whether Rainfall and Snowfall are the Rain and Snow capabilities or separate identities",
    "lead_reading": "2026-10-31T16:35:22Z: the asset maps each pair to one identity (studio_declared dedup under STU-SECTION-003, UNVERIFIED); an importer records a typed loss until the spec owner decides",
-   "source": "validation/round-R49.json F-R49-8"
+   "source": "validation/round-R49.json F-R49-8",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-22",
    "gap": "STU-CMP-075b recovers typed STU-FX-131a records for Foam (14-studio-creative-suite.md:15367) and Wave World (:15433), while the asset's simulation engines were first written on authored STU-FX-146 rows",
    "needs": "map (recovered rows drive the engine where they name the same quantity, authored rows only for the rest) or replace (the engine's parameter surface becomes exactly the recovered records)",
    "lead_reading": "2026-10-31T22:54:36Z: map, recovered first (LEAD DECISION G2, lane SMB-R50-FOLLOWUPS-1); the per-row mapping is the builder's reading, UNVERIFIED (D5)",
-   "source": "validation/round-R50.json F-R50-1"
+   "source": "validation/round-R50.json F-R50-1",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-23",
    "gap": "the SD-19 refusal entry names standard_compliant_only with the standard checks; SMB-PDF-STOCK-PRESETS-1 extended the same refusal to the new compliance_check setting",
    "needs": "whether SD-19 covers compliance_check",
    "lead_reading": "2026-10-31T22:54:36Z: the asset refuses it with the existing code (validator F-R50-3: an extension, existing triggers and codes unchanged)",
-   "source": "validation/round-R50.json F-R50-3"
+   "source": "validation/round-R50.json F-R50-3",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-24",
    "gap": "STU-LAY-158/159 threshold-to-compress is stored in dpi by layout and as the stock ratio 1.5 by press",
    "needs": "the canonical unit of the threshold (dpi or ratio of the sampling dpi)",
    "lead_reading": "2026-10-31T22:54:36Z: both readings stay disclosed; a layout <-> press mapping converts threshold_dpi = ratio x sampling dpi through layout threshold_ratio()",
-   "source": "validation/round-R50.json F-R50-4"
+   "source": "validation/round-R50.json F-R50-4",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-25",
    "gap": "STU-SHL-130 (SD-1 in the module) records the layer-versus-node compositing fork as NOT DECIDED and blocks SHL-P-14",
    "needs": "record the decision",
    "lead_reading": "2026-10-31T23:54:56Z: Operator decided layer-based (chat 'layer based'); the clause records the layer model as decided and unblocks SHL-P-14",
-   "source": "Operator decision 2026-10-31T23:54:56Z (research/integration-refactor-inventory-20261030.json STU-SHL-130)"
+   "source": "Operator decision 2026-10-31T23:54:56Z (research/integration-refactor-inventory-20261030.json STU-SHL-130)",
+   "status": "APPLIED v02.226 2026-11-01T00:08:46Z"
   },
   {
    "id": "SD-26",
    "gap": "STU-FX-131a ANGLE rows recorded with hard and soft 0..0 (e.g. Wave World Angle, Phase): read literally they lock the value to 0",
    "needs": "whether 0..0 on ANGLE rows means unbounded (wrapping) or a literal fixed 0",
    "lead_reading": "2026-10-31T23:54:56Z: stored unbounded, as folio already reads Twirl Angle (SMB-R50-FOLLOWUPS-1); the MT-32012/32013 text says literal bounds",
-   "source": "lane SMB-R50-FOLLOWUPS-1 pause notes"
+   "source": "lane SMB-R50-FOLLOWUPS-1 pause notes",
+   "status": "PROPOSED"
   },
   {
    "id": "SD-27",
    "gap": "STU-FX-131a Foam / Wave World rows that declare no unit (Foam viscosity, Wave World damping, wave speed) cannot be matched to the engine's unit-carrying scalars",
    "needs": "the units of those rows",
    "lead_reading": "2026-10-31T23:54:56Z: the engine scalars stay authored studio_declared rows beside the stored recovered rows until a unit is recorded",
-   "source": "lane SMB-R50-FOLLOWUPS-1 pause notes"
+   "source": "lane SMB-R50-FOLLOWUPS-1 pause notes",
+   "status": "PROPOSED"
   },
   {
    "id": "SD-28",
    "gap": "STU-TYP-207 says three insertable character catalogs but its table lists four",
    "needs": "the catalog count",
    "lead_reading": "2026-10-31T23:54:56Z: SMB-TYPE-OT-FEATURES-1 implements the four the table lists",
-   "source": "lane SMB-TYPE-OT-FEATURES-1 pause notes"
+   "source": "lane SMB-TYPE-OT-FEATURES-1 pause notes",
+   "status": "PROPOSED"
   },
   {
    "id": "SD-29",
    "gap": "no stream sentinels are assigned for markers, column/frame/page/odd-page/even-page breaks and flush space",
    "needs": "the sentinel assignment",
    "lead_reading": "2026-10-31T23:54:56Z: those catalog entries stay typed unavailable",
-   "source": "lane SMB-TYPE-OT-FEATURES-1 pause notes"
+   "source": "lane SMB-TYPE-OT-FEATURES-1 pause notes",
+   "status": "PROPOSED"
   },
   {
    "id": "SD-30",
    "gap": "STU-TYP-170 asks for a 229-tag OpenType feature list that the spec does not contain",
    "needs": "the list",
    "lead_reading": "2026-10-31T23:54:56Z: the registry carries the tags the spec names; the 229-tag check is NOT_PROVEN (#[ignore])",
-   "source": "lane SMB-TYPE-OT-FEATURES-1 pause notes"
+   "source": "lane SMB-TYPE-OT-FEATURES-1 pause notes",
+   "status": "PROPOSED"
   }
  ],
- "edits": [],
- "updated_at": "2026-10-31T23:54:56Z"
+ "edits": [
+  {
+   "sd_id": "SD-01",
+   "clause_id": "STU-ARC-023",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    253,
+    253
+   ],
+   "after_lines": [
+    255,
+    257
+   ],
+   "summary": "new clause in new 14.2.2: Kumihimo canonical shared-controls owner, pinned exact revision, toolkit-free model, pure-Vulkan renderer, binds no toolkit; heading 14.2.2 at 255",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-02",
+   "clause_id": "STU-FX-036",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    19636,
+    19636
+   ],
+   "after_lines": [
+    19666,
+    19666
+   ],
+   "summary": "drop the wgpu/WGSL binding from STU-FX-036",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-02",
+   "clause_id": "STU-FX-036",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    19636,
+    19636
+   ],
+   "after_lines": [
+    19666,
+    19666
+   ],
+   "summary": "STU-FX-036 points at GUI-DESKTOP-028 and the STU-ARC-024 client port",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-02",
+   "clause_id": "STU-ARC-024",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": null,
+   "after_lines": [
+    259,
+    259
+   ],
+   "summary": "new clause in 14.2.2: typed pure-Vulkan GPU client port in render-gpu, no device ownership, binding crate named by the GPU owner; port fields recorded as declared gap",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-03",
+   "clause_id": "5.8",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/05-security-and-observability.md",
+   "before_lines": [
+    1945,
+    1945
+   ],
+   "after_lines": [
+    1945,
+    1945
+   ],
+   "summary": "5.8 Why: 'native egui application' -> 'native application'",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-03",
+   "clause_id": "5.8",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/05-security-and-observability.md",
+   "before_lines": [
+    1948,
+    1948
+   ],
+   "after_lines": [
+    1948,
+    1948
+   ],
+   "summary": "5.8 What: 'native egui app' -> 'native app'",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-03",
+   "clause_id": "5.8.1",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/05-security-and-observability.md",
+   "before_lines": [
+    1954,
+    1954
+   ],
+   "after_lines": [
+    1954,
+    1954
+   ],
+   "summary": "5.8.1: 'native egui desktop application' -> 'native desktop application'",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-03",
+   "clause_id": "5.8.1",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/05-security-and-observability.md",
+   "before_lines": [
+    1957,
+    1957
+   ],
+   "after_lines": [
+    1957,
+    1957
+   ],
+   "summary": "5.8.1 Tier 2: 'egui app' -> 'native app'",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-03",
+   "clause_id": "STU-MDL-002",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    22296,
+    22296
+   ],
+   "after_lines": [
+    22326,
+    22326
+   ],
+   "summary": "remove egui from the accessibility-tree wording",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-03",
+   "clause_id": "STU-MDL-104",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    32108,
+    32108
+   ],
+   "after_lines": [
+    32141,
+    32141
+   ],
+   "summary": "'egui id' -> 'native UI node id'",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-03",
+   "clause_id": "STU-SHL-065",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    31768,
+    31768
+   ],
+   "after_lines": [
+    31801,
+    31801
+   ],
+   "summary": "'egui_tiles tree' -> 'tiling tree'",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-03",
+   "clause_id": "STU-SHL-003",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    31254,
+    31254
+   ],
+   "after_lines": [
+    31287,
+    31287
+   ],
+   "summary": "region table restates STU-SHL-065: 'egui_tiles tree' -> 'tiling tree' (same SD-03 reading)",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-03",
+   "clause_id": "STU-SHL-245",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    33253,
+    33253
+   ],
+   "after_lines": [
+    33286,
+    33286
+   ],
+   "summary": "'egui tooltip' -> 'tooltip'",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-03",
+   "clause_id": "STU-ARC-025",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": null,
+   "after_lines": [
+    261,
+    261
+   ],
+   "summary": "new clause in 14.2.2: host UI and control layer render on Vulkan directly; no separate toolkit/GPU abstraction; Studio clauses name no toolkit",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-03",
+   "clause_id": "14.1 overview (unnumbered)",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    130,
+    130
+   ],
+   "after_lines": [
+    130,
+    130
+   ],
+   "summary": "'native operator UI (egui/wgpu/AccessKit ...)' -> '(AccessKit ...)' (residual toolkit name, same SD-03 reading)",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-03",
+   "clause_id": "STU-SHL-063",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    31752,
+    31752
+   ],
+   "after_lines": [
+    31785,
+    31785
+   ],
+   "summary": "'uses `egui_tiles` for the tiling' -> 'uses a tiling tree for the tiling' (residual toolkit name, same SD-03 reading)",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-04",
+   "clause_id": "STU-ARC-026",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": null,
+   "after_lines": [
+    263,
+    263
+   ],
+   "summary": "new clause in 14.2.2: observe ring producer port (code, counters, opaque ids, no text) mapped to closed codes; mapping table, drop accounting, module/correlation fields recorded as declared gap",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-05",
+   "clause_id": "STU-ARC-027",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": null,
+   "after_lines": [
+    265,
+    265
+   ],
+   "summary": "new clause in 14.2.2: Studio pane freeze/crash via Palmistry; 6.13 ids/threshold/survivor schema recorded as declared gap with implementation reading (5 s, SurvivorRecord)",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-06",
+   "clause_id": "STU-ARC-028",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": null,
+   "after_lines": [
+    267,
+    267
+   ],
+   "summary": "new clause in 14.2.2: render callbacks never call the locking recorder; heartbeat only via wait-free path; recorder handoff recorded as declared gap",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-07",
+   "clause_id": "STU-ARC-029",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": null,
+   "after_lines": [
+    269,
+    269
+   ],
+   "summary": "new clause in 14.2.2: one Settings tab 'Studio', one subtab per setting-owning module; SET-SCOPE-001 namespace and Engine Profile fields recorded as declared gap",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-08",
+   "clause_id": "STU-ARC-030",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": null,
+   "after_lines": [
+    271,
+    271
+   ],
+   "summary": "new clause in 14.2.2: controls Registry ids = author_id space = GUI-DESKTOP-050 control ids; Envelope carries client_session_id, process birth, correlation",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-09",
+   "clause_id": "STU-ARC-031",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": null,
+   "after_lines": [
+    273,
+    273
+   ],
+   "summary": "new clause in 14.2.2: nothing Studio renders before account activation (previews, thumbnails included)",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-10",
+   "clause_id": "STU-ARC-032",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": null,
+   "after_lines": [
+    275,
+    275
+   ],
+   "summary": "new clause in 14.2.2: asset-local GPU proof via transient adapter is evidence, never host acceptance",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-11",
+   "clause_id": "STU-ARC-033",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": null,
+   "after_lines": [
+    277,
+    277
+   ],
+   "summary": "new clause in 14.2.2: u64 revision via kernel-bindings CommitRequest expected/successor; EventLedger binding recorded as declared gap",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-12",
+   "clause_id": "STU-RAS-151",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    1370,
+    1370
+   ],
+   "after_lines": [
+    1394,
+    1394
+   ],
+   "summary": "threshold row: tie decides as the CPU reference on every backend; exact-rational vs round(255 lum) cut recorded as declared gap",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-13",
+   "clause_id": "STU-IO-128",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    21011,
+    21011
+   ],
+   "after_lines": [
+    21041,
+    21041
+   ],
+   "summary": "compatibility_level row: writer-domain conflict recorded unresolved; interim typed refusal of 1.3 and unhonourable standards levels",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-14",
+   "clause_id": "STU-IO-128",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    21014,
+    21014
+   ],
+   "after_lines": [
+    21044,
+    21044
+   ],
+   "summary": "image_filter domain admits CCITTFaxEncode on the monochrome group only; elsewhere filter_not_admitted_for_group",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-15",
+   "clause_id": "STU-LAY-159",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    7173,
+    7174
+   ],
+   "after_lines": [
+    7200,
+    7202
+   ],
+   "summary": "one representation of 'to the last page': -1 stays in the setting, preset API returns Option<u32> (supersedes 'rather than storing -1')",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-15",
+   "clause_id": "STU-IO-129",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    21039,
+    21039
+   ],
+   "after_lines": [
+    21069,
+    21069
+   ],
+   "summary": "end_page row cross-references the Option<u32> preset API reading",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-16",
+   "clause_id": "STU-IO-128",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    21023,
+    21023
+   ],
+   "after_lines": [
+    21053,
+    21053
+   ],
+   "summary": "cannot_embed_font_policy provenance conflict with STU-LAY-159 recorded, not resolved",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-17",
+   "clause_id": "STU-IO-127",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    21005,
+    21005
+   ],
+   "after_lines": [
+    21035,
+    21035
+   ],
+   "summary": "JPEG-2000 tile/quality setting home recorded as declared gap; stock record carries values marked not_representable",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-18",
+   "clause_id": "STU-IO-130",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    21045,
+    21045
+   ],
+   "after_lines": [
+    21075,
+    21075
+   ],
+   "summary": "stock PDF/X output-intent gap recorded; those presets refuse with stock_output_intent_not_captured",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-19",
+   "clause_id": "STU-IO-130",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    21045,
+    21045
+   ],
+   "after_lines": [
+    21075,
+    21075
+   ],
+   "summary": "compliant_only combined with standard_check_1a/standard_check_3 refused with standard_compliance_not_provable until a checker exists",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-20",
+   "clause_id": "STU-IO-130",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    21045,
+    21045
+   ],
+   "after_lines": [
+    21075,
+    21075
+   ],
+   "summary": "'asserting compliance' = standard_check_1a or standard_check_3; compliant_only with empty output_intent_profile validates",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-21",
+   "clause_id": "STU-FX-130",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    13278,
+    13278
+   ],
+   "after_lines": [
+    13306,
+    13308
+   ],
+   "summary": "Simulation table: Rain/Rainfall, Snow/Snowfall identity recorded as declared gap with interim one-identity mapping and typed import loss",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-22",
+   "clause_id": "STU-CMP-075b",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    29860,
+    29861
+   ],
+   "after_lines": [
+    29891,
+    29894
+   ],
+   "summary": "Foam/Wave World: map, recovered records first, authored STU-FX-146 rows for the rest; per-row mapping UNVERIFIED",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-23",
+   "clause_id": "STU-IO-130",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    21045,
+    21045
+   ],
+   "after_lines": [
+    21075,
+    21075
+   ],
+   "summary": "the standard_compliance_not_provable refusal extends to the compliance_check setting with the existing code",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-24",
+   "clause_id": "STU-LAY-158",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    7112,
+    7112
+   ],
+   "after_lines": [
+    7136,
+    7139
+   ],
+   "summary": "threshold-to-compress dpi vs ratio recorded as disclosed dual reading with the layout<->press conversion",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-25",
+   "clause_id": "STU-SHL-130",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    32187,
+    32187
+   ],
+   "after_lines": [
+    32220,
+    32220
+   ],
+   "summary": "heading records the fork as decided layer-based; prior heading text kept as superseded",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-25",
+   "clause_id": "STU-SHL-130",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    32201,
+    32201
+   ],
+   "after_lines": [
+    32234,
+    32234
+   ],
+   "summary": "disposition records the Operator decision and unblocks SHL-P-14; prior disposition kept as superseded",
+   "spec_version": "v02.226"
+  },
+  {
+   "sd_id": "SD-25",
+   "clause_id": "STU-SHL-130",
+   "file": ".GOV/spec/master-spec-v02.226/spec-modules/14-studio-creative-suite.md",
+   "before_lines": [
+    32163,
+    32163
+   ],
+   "after_lines": [
+    32196,
+    32196
+   ],
+   "summary": "SHL-P-14 phase row unblocked",
+   "spec_version": "v02.226"
+  }
+ ],
+ "updated_at": "2026-11-01T00:08:46Z"
 }
