@@ -325,6 +325,14 @@
    "lead_reading": "2026-11-01T05:59:08Z: breaks split paragraphs in Studio's own partition before bidi; markers and flush space keep the default class",
    "source": "lane SMB-TYPE-SENTINELS-REGISTRY-1 notes (builders/lanes/hsk-studio-type-sentinels-registry-1.json), v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-39",
+   "gap": "Glow Color Phase (STU-FX-131a ANGLE row, unbounded since v02.228 SD-26) has no stated semantics in module 14: how the phase offsets the A/B colour loop, and in what unit; composite's Glow engine therefore refuses any phase that differs from the captured default (composition_effect_option, temporal/composition/effects.rs:620-623), and that default (0.003906) is itself unproven per SD-26",
+   "needs": "the Color Phase semantics (offset of the A & B colour cycle per degree) and a proven default",
+   "lead_reading": "2026-11-01T06:02:30Z: no invented behaviour; the engine keeps the typed not-implemented refusal, accepting values equal to the default modulo 360 (lane SMB-FOLIO-ANGLE-UNBOUNDED-1)",
+   "source": "lane SMB-FOLIO-ANGLE-UNBOUNDED-1 notes, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [
@@ -914,5 +922,5 @@
    "spec_version": "v02.226"
   }
  ],
- "updated_at": "2026-11-01T05:59:08Z"
+ "updated_at": "2026-11-01T06:02:30Z"
 }
