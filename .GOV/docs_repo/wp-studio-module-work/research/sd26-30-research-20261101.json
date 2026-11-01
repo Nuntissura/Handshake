@@ -1,0 +1,2707 @@
+{
+ "schema": "hsk.studio.research@1",
+ "file_id": "sd26-30-research-20261101",
+ "generated_at": "2026-11-01T03:12:29Z",
+ "by": "research agent (Claude Opus 5.5) for WP-KERNEL-STUDIO spec-owner items",
+ "operator_request": "research what is commonly expected fpr sd 26-30 and apply (2026-11-01)",
+ "spec_basis": "master-spec-v02.226 spec-modules/14-studio-creative-suite.md (line numbers and old text from v02.226; v02.227 only changes wgpu/egui wording)",
+ "sd_source": "spec-enrichment/STUDIO-ENRICHMENT-20261030-HOST-INTEGRATION.json open_items_for_spec_owner",
+ "rules": "permissive sources only (vendor docs, published specs, Unicode, Microsoft typography, MIT/Apache crates and typings); no GPL/LGPL/MPL source read; tag names and friendly names are facts; no long quotes",
+ "blocked_sources": [
+  "helpx.adobe.com pages returned HTTP 403 to WebFetch",
+  "mayart.de special-idml-chars.pdf returned 404",
+  "raw captures (installed_exports) absent on this machine"
+ ],
+ "items": {
+  "SD-26": {
+   "question": "STU-FX-131a ANGLE rows with hard and soft bounds 0..0: unbounded wrapping angle or literal 0?",
+   "sources_checked": [
+    {
+     "url": "https://docs.rs/after-effects-sys/latest/after_effects_sys/struct.PF_AngleDef.html",
+     "what": "Generated bindings of the After Effects SDK headers (Apache-2.0/BSD-3/MIT/Zlib): PF_AngleDef has four PF_Fixed fields value, dephault, valid_min, valid_max (16 bytes)."
+    },
+    {
+     "url": "https://docs.rs/after-effects-sys/latest/after_effects_sys/struct.PF_FixedSliderDef.html",
+     "what": "PF_FixedSliderDef field order: value, value_str[32], value_desc[32], valid_min, valid_max, slider_min, slider_max, dephault, precision, display_flags."
+    },
+    {
+     "url": "https://ae-plugins.docsforadobe.dev/effect-basics/parameters/",
+     "what": "AE SDK guide: angle parameters are fixed-point degrees; users can enter multiple revolutions, giving values above 360."
+    },
+    {
+     "url": "https://ae-plugins.docsforadobe.dev/effect-details/parameters-floating-point-values/",
+     "what": "PF_AngleParamSuite1 / PF_GetFloatingPointValueFromAngleDef returns the angle as a float; no range semantics stated."
+    },
+    {
+     "url": "https://community.adobe.com/t5/premiere-pro-discussions/how-to-get-the-value-of-an-ae-angle-param-in-premiere-gpu-render-sdk/m-p/14444321",
+     "what": "Community: angle registered with PF_ADD_ANGLE(name, default, id), no range argument (UNVERIFIED secondary source)."
+    },
+    {
+     "url": "https://openfx.readthedocs.io/en/main/Reference/ofxParameter.html",
+     "what": "OpenFX: kOfxParamDoubleTypeAngle marks a double as an angle; values reach the plug-in in degrees; range defaults not stated on the page (not verified)."
+    },
+    {
+     "url": "repo:.GOV/reference/studio_app_feature_research/_tools/greenroom/ae_common.py decode_pard",
+     "what": "Capture decoder: ANGLE shares the FIX_SLIDER branch and reads valid/slider min/max, default and precision at 0x7C-0x93; the union starts at 0x38 (FIX_SLIDER value_in_preset at 0x38, valid_min at 0x7C = 0x38 + 4 + 32 + 32)."
+    },
+    {
+     "url": "repo:.GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports_manifest.json",
+     "what": "Raw captures are working-tree only; installed_exports/ is absent on this machine (checked kernel and offline-green-room), so a re-decode was not possible."
+    },
+    {
+     "url": "spec v02.226 module 14 lines 13640-17235",
+     "what": "All 78 ANGLE rows surveyed: 50 carry numeric bounds from pard records (32 all-zero, 18 impossible or implausible pairs such as 0..-1.5e-05, 1..32000, 0.003906..0.496094), 22 PresetEffects.xml rows and 6 layer-style rows carry `--` bounds."
+    },
+    {
+     "url": "product origin/codex/handshake-studio-assets 63ecf5a6 crates/hsk-studio-folio/src/composition/effects.rs",
+     "what": "Folio reads Twirl Angle and Hue/Saturation hues as unbounded (no-range encoding), but keeps Directional Blur Direction soft 0..7936 (declared_soft_only) and Glow Color Phase hard 0.003906..0.496094 degrees."
+    }
+   ],
+   "findings": [
+    "PF_AngleDef is 16 bytes: value at union offset 0, default at +4, valid_min at +8, valid_max at +12; with the union at record offset 0x38 these sit at 0x38, 0x3C, 0x40, 0x44.",
+    "ae_common.decode_pard reads ANGLE records with the FIX_SLIDER layout (valid_min 0x7C, valid_max 0x80, slider_min 0x84, slider_max 0x88, default 0x8C, precision 0x90). Those offsets lie 0x34+ bytes past the end of PF_AngleDef, so every numeric bound, default and precision cell of a pard-origin ANGLE row is unrelated record bytes, not a declaration.",
+    "This explains the pattern in the tables: 32 rows read 0..0 (zeroed padding) and 18 rows read impossible values (max below min, 1..32000 on a direction, a 0.003906..0.496094 degree hard range on Glow Color Phase, 0..255 with default 127.5 on Drop Shadow Direction).",
+    "Neither literal reading of 0..0 is right: it is neither a declared unbounded marker nor a declared lock to 0. It is absence of a decoded declaration, which [STU-FX-106] names unbounded_in_source.",
+    "The AE SDK does carry valid_min/valid_max inside PF_AngleDef, so some effects may declare a real angle range; whether shipped effects set it is UNVERIFIED until the captures are re-decoded at 0x40/0x44 (captures are absent on this machine).",
+    "The ANGLE default and precision cells are equally unproven; the defaults recorded for pard rows are provisional (UNVERIFIED). Defaults on the 22 PresetEffects.xml rows were parsed from XML and are unaffected.",
+    "Field: AE stores angles as signed fixed-point degrees with whole revolutions (2x+0 is 720), and OpenFX passes angles in degrees; neither reduces the stored value modulo 360. Folio's own test stores Twirl Angle -720.",
+    "Product defect found: folio Glow Color Phase rejects any phase above 0.496094 degrees, and Directional Blur Direction presents a 0..7936 soft range; both come from the misread bytes."
+   ],
+   "field_expectation": "Effect SDKs declare an angle by value and default; a range is optional and usually absent. Hosts store the full signed degree value including extra revolutions and present it as revolutions plus remainder; they do not clamp an angle that declares no range.",
+   "recommendation": "Read every pard-origin ANGLE row as unbounded_in_source (four bounds null, shown as `--`), keep its default and precision as provisional UNVERIFIED values pending a re-decode at the angle offsets, store full signed degrees including revolutions, and fix the decoder (governance tool) so a later capture run reads 0x3C/0x40/0x44.",
+   "proposed_spec_edits": [
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 13643,
+     "old": "the [STU-FX-113] source bits; `CANNOT_TIME_VARY` maps to `animatable = false` and `CANNOT_INTERP`\nto `interpolable = false`.",
+     "new": "the [STU-FX-113] source bits; `CANNOT_TIME_VARY` maps to `animatable = false` and `CANNOT_INTERP`\nto `interpolable = false`.\n\nSD-26: an `ANGLE` row whose bound cells hold numbers came from a binary parameter-definition record,\nand those numbers are NOT source declarations. The capture decoded `ANGLE` records at the\nfixed-slider field offsets, which lie past the end of the 16-byte angle definition (value, default,\nvalid_min, valid_max), so the cells hold unrelated bytes: `0..0` on most rows and impossible pairs\nsuch as `0..-1.5e-05` on others. Every such row is `bound_state = unbounded_in_source` with all four\nbounds null; the tables show `--` for them. Its `default` and `precision` cells are provisional and\nUNVERIFIED until the capture is re-decoded at the angle offsets; a re-decode that finds a real\nangle range replaces the `--` cells with it. Per [STU-FX-112] an `angle` stores the full signed\nvalue in degrees, including whole extra revolutions (720 is two turns and is never reduced modulo\n360); \"wraps\" governs presentation only, where the control shows revolutions plus a remainder.\n`ANGLE` rows recorded from name-and-default sources already carry `--` bounds and are unaffected.",
+     "note": "Required edit. The spec agent prefixes its version token (as v02.226 did with SD-22). Disjoint from the SD-27 edit in the same paragraph."
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": "50 rows, see angle_cell_edits",
+     "old": "per row: the four bound cells as recorded",
+     "new": "per row: the four bound cells `--`; default, unit, precision and flags unchanged",
+     "note": "Recommended companion edit so regenerated MT acceptance text matches the reading; 50 exact old/new row pairs are in angle_cell_edits. Some row texts recur verbatim in several effect tables (old_occurrences_in_file > 1); every recurrence is itself one of the 50 rows and takes the same replacement, so address rows by line_at_v02_226."
+    }
+   ],
+   "angle_cell_edits": [
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 13685,
+     "effect": "Directional Blur",
+     "import_key": "ADBE Motion Blur",
+     "row": "1",
+     "parameter": "Direction",
+     "old": "| 1 | Direction | ANGLE | 0 | -1.5e-05 | 0 | 7936 | 0 | degrees | -- | -- |",
+     "new": "| 1 | Direction | ANGLE | -- | -- | -- | -- | 0 | degrees | -- | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 13771,
+     "effect": "Blob Displace",
+     "import_key": "CC Blobbylize",
+     "row": "13",
+     "parameter": "Light Direction",
+     "old": "| 13 | Light Direction | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "new": "| 13 | Light Direction | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 13883,
+     "effect": "Ripple",
+     "import_key": "ADBE Ripple",
+     "row": "7",
+     "parameter": "Ripple Phase",
+     "old": "| 7 | Ripple Phase | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | -- |",
+     "new": "| 7 | Ripple Phase | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 13913,
+     "effect": "Transform",
+     "import_key": "ADBE Geometry2",
+     "row": "6",
+     "parameter": "Skew Axis",
+     "old": "| 6 | Skew Axis | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | -- |",
+     "new": "| 6 | Skew Axis | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 13914,
+     "effect": "Transform",
+     "import_key": "ADBE Geometry2",
+     "row": "7",
+     "parameter": "Rotation",
+     "old": "| 7 | Rotation | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | -- |",
+     "new": "| 7 | Rotation | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 13937,
+     "effect": "Turbulent Displace",
+     "import_key": "ADBE Turbulent Displace",
+     "row": "6",
+     "parameter": "Evolution",
+     "old": "| 6 | Evolution | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | -- |",
+     "new": "| 6 | Evolution | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 13962,
+     "effect": "Twirl",
+     "import_key": "ADBE Twirl",
+     "row": "1",
+     "parameter": "Angle",
+     "old": "| 1 | Angle | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | -- |",
+     "new": "| 1 | Angle | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 13978,
+     "effect": "Wave Warp",
+     "import_key": "ADBE Wave Warp",
+     "row": "4",
+     "parameter": "Direction",
+     "old": "| 4 | Direction | ANGLE | 1 | 32000 | 1 | 100 | 40 | degrees | 0 | -- |",
+     "new": "| 4 | Direction | ANGLE | -- | -- | -- | -- | 40 | degrees | 0 | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 13981,
+     "effect": "Wave Warp",
+     "import_key": "ADBE Wave Warp",
+     "row": "7",
+     "parameter": "Phase",
+     "old": "| 7 | Phase | ANGLE | -100 | 100 | 0 | 5 | 1 | degrees | 1 | -- |",
+     "new": "| 7 | Phase | ANGLE | -- | -- | -- | -- | 1 | degrees | 1 | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 14001,
+     "effect": "Basic 3D",
+     "import_key": "ADBE Basic 3D",
+     "row": "1",
+     "parameter": "Swivel",
+     "old": "| 1 | Swivel | ANGLE | 0 | -1.5e-05 | 0 | 3840 | 0 | degrees | -- | -- |",
+     "new": "| 1 | Swivel | ANGLE | -- | -- | -- | -- | 0 | degrees | -- | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 14002,
+     "effect": "Basic 3D",
+     "import_key": "ADBE Basic 3D",
+     "row": "2",
+     "parameter": "Tilt",
+     "old": "| 2 | Tilt | ANGLE | 0 | -1.5e-05 | 0 | 3840 | 0 | degrees | -- | -- |",
+     "new": "| 2 | Tilt | ANGLE | -- | -- | -- | -- | 0 | degrees | -- | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 14015,
+     "effect": "Bevel Alpha",
+     "import_key": "ADBE Bevel Alpha",
+     "row": "2",
+     "parameter": "Light Angle",
+     "old": "| 2 | Light Angle | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | -- |",
+     "new": "| 2 | Light Angle | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 14030,
+     "effect": "Drop Shadow",
+     "import_key": "ADBE Drop Shadow",
+     "row": "3",
+     "parameter": "Direction",
+     "old": "| 3 | Direction | ANGLE | 0 | 255 | 0 | 255 | 127.5 | degrees | 0 | -- |",
+     "new": "| 3 | Direction | ANGLE | -- | -- | -- | -- | 127.5 | degrees | 0 | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 14113,
+     "effect": "Color Balance (HLS)",
+     "import_key": "ADBE Color Balance (HLS)",
+     "row": "1",
+     "parameter": "Hue",
+     "old": "| 1 | Hue | ANGLE | 0 | -1.5e-05 | 0 | 7936 | 0 | degrees | -- | -- |",
+     "new": "| 1 | Hue | ANGLE | -- | -- | -- | -- | 0 | degrees | -- | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 14128,
+     "effect": "Colorama",
+     "import_key": "APC Colorama",
+     "row": "8",
+     "parameter": "Phase Shift",
+     "old": "| 8 | Phase Shift | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | -- |",
+     "new": "| 8 | Phase Shift | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 14222,
+     "effect": "Hue/Saturation",
+     "import_key": "ADBE HUE SATURATION",
+     "row": "4",
+     "parameter": "Master Hue",
+     "old": "| 4 | Master Hue | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | CANNOT_TIME_VARY,SUPERVISE |",
+     "new": "| 4 | Master Hue | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | CANNOT_TIME_VARY,SUPERVISE |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 14226,
+     "effect": "Hue/Saturation",
+     "import_key": "ADBE HUE SATURATION",
+     "row": "8",
+     "parameter": "Colorize Hue",
+     "old": "| 8 | Colorize Hue | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "new": "| 8 | Colorize Hue | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 14721,
+     "effect": "Light Sweep",
+     "import_key": "CC Light Sweep",
+     "row": "2",
+     "parameter": "Direction",
+     "old": "| 2 | Direction | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | -- |",
+     "new": "| 2 | Direction | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | -- |",
+     "old_occurrences_in_file": 2
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 14753,
+     "effect": "Cell Pattern",
+     "import_key": "ADBE Cell Pattern",
+     "row": "13",
+     "parameter": "Evolution",
+     "old": "| 13 | Evolution | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | SUPERVISE |",
+     "new": "| 13 | Evolution | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | SUPERVISE |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 14871,
+     "effect": "Radio Waves",
+     "import_key": "APC Radio Waves",
+     "row": "38",
+     "parameter": "Orientation",
+     "old": "| 38 | Orientation | ANGLE | 0 | 1000 | 0 | 20 | 5 | degrees | 2 | COLLAPSE_TWIRLY |",
+     "new": "| 38 | Orientation | ANGLE | -- | -- | -- | -- | 5 | degrees | 2 | COLLAPSE_TWIRLY |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 14873,
+     "effect": "Radio Waves",
+     "import_key": "APC Radio Waves",
+     "row": "42",
+     "parameter": "Direction",
+     "old": "| 42 | Direction | ANGLE | 0 | 1000 | 0 | 20 | 5 | degrees | 2 | COLLAPSE_TWIRLY |",
+     "new": "| 42 | Direction | ANGLE | -- | -- | -- | -- | 5 | degrees | 2 | COLLAPSE_TWIRLY |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 14915,
+     "effect": "Scribble",
+     "import_key": "ADBE Scribble Fill",
+     "row": "10",
+     "parameter": "Angle",
+     "old": "| 10 | Angle | ANGLE | 0 | 1 | 0 | 1 | 1 | degrees | 1 | COLLAPSE_TWIRLY |",
+     "new": "| 10 | Angle | ANGLE | -- | -- | -- | -- | 1 | degrees | 1 | COLLAPSE_TWIRLY |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 14998,
+     "effect": "Vegas",
+     "import_key": "APC Vegas",
+     "row": "30",
+     "parameter": "Rotation",
+     "old": "| 30 | Rotation | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "new": "| 30 | Rotation | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15059,
+     "effect": "Fractal Noise",
+     "import_key": "ADBE Fractal Noise",
+     "row": "8",
+     "parameter": "Rotation",
+     "old": "| 8 | Rotation | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "new": "| 8 | Rotation | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15070,
+     "effect": "Fractal Noise",
+     "import_key": "ADBE Fractal Noise",
+     "row": "19",
+     "parameter": "Sub Rotation",
+     "old": "| 19 | Sub Rotation | ANGLE | 0.039062 | 0.063095 | 0.097656 | 0.390625 | 0.21875 | degrees | -- | -- |",
+     "new": "| 19 | Sub Rotation | ANGLE | -- | -- | -- | -- | 0.21875 | degrees | -- | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15074,
+     "effect": "Fractal Noise",
+     "import_key": "ADBE Fractal Noise",
+     "row": "23",
+     "parameter": "Evolution",
+     "old": "| 23 | Evolution | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | -- |",
+     "new": "| 23 | Evolution | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15134,
+     "effect": "Noise Alpha",
+     "import_key": "ADBE Noise Alpha2",
+     "row": "5",
+     "parameter": "Contextual Control",
+     "old": "| 5 | Contextual Control | ANGLE | 1.000015 | 0 | 0 | 0 | 0 | degrees | -- | -- |",
+     "new": "| 5 | Contextual Control | ANGLE | -- | -- | -- | -- | 0 | degrees | -- | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15168,
+     "effect": "Glass",
+     "import_key": "CC Glass",
+     "row": "14",
+     "parameter": "Light Direction",
+     "old": "| 14 | Light Direction | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "new": "| 14 | Light Direction | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15222,
+     "effect": "Color Emboss",
+     "import_key": "ADBE Color Emboss",
+     "row": "1",
+     "parameter": "Direction",
+     "old": "| 1 | Direction | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | -- |",
+     "new": "| 1 | Direction | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15255,
+     "effect": "Glow",
+     "import_key": "ADBE Glo2",
+     "row": "10",
+     "parameter": "Color Phase",
+     "old": "| 10 | Color Phase | ANGLE | 0.003906 | 0.496094 | 0.003906 | 0.039062 | 0.003906 | degrees | -- | -- |",
+     "new": "| 10 | Color Phase | ANGLE | -- | -- | -- | -- | 0.003906 | degrees | -- | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15297,
+     "effect": "Motion Tile",
+     "import_key": "ADBE Tile",
+     "row": "7",
+     "parameter": "Phase",
+     "old": "| 7 | Phase | ANGLE | 0 | 30000 | 0 | 1000 | 100 | degrees | 1 | -- |",
+     "new": "| 7 | Phase | ANGLE | -- | -- | -- | -- | 100 | degrees | 1 | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15328,
+     "effect": "Roughen Edges",
+     "import_key": "ADBE Roughen Edges",
+     "row": "9",
+     "parameter": "Evolution",
+     "old": "| 9 | Evolution | ANGLE | 1.5e-05 | 0.000153 | 1.5e-05 | 9.2e-05 | 3.1e-05 | degrees | 2 | -- |",
+     "new": "| 9 | Evolution | ANGLE | -- | -- | -- | -- | 3.1e-05 | degrees | 2 | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15359,
+     "effect": "Mercury Particles",
+     "import_key": "CC Mr. Mercury",
+     "row": "4",
+     "parameter": "Direction",
+     "old": "| 4 | Direction | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | -- |",
+     "new": "| 4 | Direction | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15377,
+     "effect": "Mercury Particles",
+     "import_key": "CC Mr. Mercury",
+     "row": "22",
+     "parameter": "Light Direction",
+     "old": "| 22 | Light Direction | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "new": "| 22 | Light Direction | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15409,
+     "effect": "Foam",
+     "import_key": "APC Foam",
+     "row": "10",
+     "parameter": "Producer Orientation",
+     "old": "| 10 | Producer Orientation | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "new": "| 10 | Producer Orientation | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15420,
+     "effect": "Foam",
+     "import_key": "APC Foam",
+     "row": "28",
+     "parameter": "Initial Direction",
+     "old": "| 28 | Initial Direction | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "new": "| 28 | Initial Direction | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15422,
+     "effect": "Foam",
+     "import_key": "APC Foam",
+     "row": "32",
+     "parameter": "Wind Direction",
+     "old": "| 32 | Wind Direction | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "new": "| 32 | Wind Direction | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15471,
+     "effect": "Wave World",
+     "import_key": "APC Wave World",
+     "row": "4",
+     "parameter": "Horizontal Rotation",
+     "old": "| 4 | Horizontal Rotation | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "new": "| 4 | Horizontal Rotation | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15473,
+     "effect": "Wave World",
+     "import_key": "APC Wave World",
+     "row": "6",
+     "parameter": "Vertical Rotation",
+     "old": "| 6 | Vertical Rotation | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "new": "| 6 | Vertical Rotation | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15498,
+     "effect": "Wave World",
+     "import_key": "APC Wave World",
+     "row": "50",
+     "parameter": "Angle",
+     "old": "| 50 | Angle | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "new": "| 50 | Angle | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15502,
+     "effect": "Wave World",
+     "import_key": "APC Wave World",
+     "row": "56",
+     "parameter": "Phase",
+     "old": "| 56 | Phase | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "new": "| 56 | Phase | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15508,
+     "effect": "Wave World",
+     "import_key": "APC Wave World",
+     "row": "66",
+     "parameter": "Angle",
+     "old": "| 66 | Angle | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "new": "| 66 | Angle | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15511,
+     "effect": "Wave World",
+     "import_key": "APC Wave World",
+     "row": "72",
+     "parameter": "Phase",
+     "old": "| 72 | Phase | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "new": "| 72 | Phase | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15607,
+     "effect": "Card Wipe",
+     "import_key": "APC CardWipeCam",
+     "row": "30",
+     "parameter": "X Rotation",
+     "old": "| 30 | X Rotation | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "new": "| 30 | X Rotation | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15608,
+     "effect": "Card Wipe",
+     "import_key": "APC CardWipeCam",
+     "row": "32",
+     "parameter": "Y Rotation",
+     "old": "| 32 | Y Rotation | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "new": "| 32 | Y Rotation | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15609,
+     "effect": "Card Wipe",
+     "import_key": "APC CardWipeCam",
+     "row": "34",
+     "parameter": "Z Rotation",
+     "old": "| 34 | Z Rotation | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "new": "| 34 | Z Rotation | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | COLLAPSE_TWIRLY |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15676,
+     "effect": "Linear Wipe",
+     "import_key": "ADBE Linear Wipe",
+     "row": "2",
+     "parameter": "Wipe Angle",
+     "old": "| 2 | Wipe Angle | ANGLE | 0 | 100 | 0 | 100 | 0 | degrees | 0 | -- |",
+     "new": "| 2 | Wipe Angle | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15687,
+     "effect": "Radial Wipe",
+     "import_key": "ADBE Radial Wipe",
+     "row": "2",
+     "parameter": "Start Angle",
+     "old": "| 2 | Start Angle | ANGLE | 0 | 100 | 0 | 100 | 0 | degrees | 0 | -- |",
+     "new": "| 2 | Start Angle | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | -- |",
+     "old_occurrences_in_file": 1
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15702,
+     "effect": "Venetian Blinds",
+     "import_key": "ADBE Venetian Blinds",
+     "row": "2",
+     "parameter": "Direction",
+     "old": "| 2 | Direction | ANGLE | 0 | 0 | 0 | 0 | 0 | degrees | 0 | -- |",
+     "new": "| 2 | Direction | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | -- |",
+     "old_occurrences_in_file": 2
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 15715,
+     "effect": "Angle Control",
+     "import_key": "ADBE Angle Control",
+     "row": "1",
+     "parameter": "Angle",
+     "old": "| 1 | Angle | ANGLE | 0 | -1.5e-05 | 0 | 0 | 0 | degrees | 0 | -- |",
+     "new": "| 1 | Angle | ANGLE | -- | -- | -- | -- | 0 | degrees | 0 | -- |",
+     "old_occurrences_in_file": 1
+    }
+   ],
+   "mt_impact": {
+    "method": "grep of MT-*.json citing STU-FX-131a for acceptance criteria with unit=degrees and numeric bounds (python scan, not a full load)",
+    "mts_citing_anchor": 247,
+    "affected_mts": 33,
+    "affected_acceptance_criteria": 50,
+    "all_zero_rows": 32,
+    "other_numeric_rows": 18,
+    "acceptance_text_change": "yes: each of the 50 criteria states the bounds literally (e.g. MT-32012 AC-007 'hard_min=0, hard_max=0, soft_min=0, soft_max=0'); after the edit they read bounds null / unbounded_in_source, default and precision provisional.",
+    "mt_ids": [
+     "MT-31934",
+     "MT-31939",
+     "MT-31945",
+     "MT-31947",
+     "MT-31948",
+     "MT-31949",
+     "MT-31950",
+     "MT-31951",
+     "MT-31952",
+     "MT-31953",
+     "MT-31958",
+     "MT-31959",
+     "MT-31962",
+     "MT-31984",
+     "MT-31985",
+     "MT-31990",
+     "MT-31991",
+     "MT-31993",
+     "MT-31995",
+     "MT-31999",
+     "MT-32000",
+     "MT-32003",
+     "MT-32005",
+     "MT-32007",
+     "MT-32009",
+     "MT-32011",
+     "MT-32012",
+     "MT-32013",
+     "MT-32018",
+     "MT-32019",
+     "MT-32020",
+     "MT-32021",
+     "MT-32022"
+    ],
+    "unaffected": "22 ANGLE criteria in MT-32035..MT-32139 already carry `--` bounds (PresetEffects.xml origin)."
+   },
+   "lane_impact": [
+    {
+     "lane": "SMB-R50-FOLLOWUPS-1",
+     "follow_up": false,
+     "note": "Already stores the nine Foam/Wave World 0..0 rows unbounded; push as is; only the UNVERIFIED label on the reading can drop once the spec lands."
+    },
+    {
+     "lane": "new folio follow-up (code from SMB-AE-EFFECT-FAMILIES-2, at origin)",
+     "follow_up": true,
+     "note": "Glow Color Phase hard 0.003906..0.496094 and Directional Blur Direction soft 0..7936 become unbounded_in_source; folio tests asserting those pairs change."
+    },
+    {
+     "lane": "governance tooling (_tools/greenroom/ae_common.py decode_pard)",
+     "follow_up": true,
+     "note": "Decode ANGLE at value 0x38, default 0x3C, valid_min 0x40, valid_max 0x44; blocked on the absent installed_exports captures for a re-run."
+    }
+   ],
+   "confidence": "high for the decoder defect and the unbounded reading; low for the recorded ANGLE defaults (unproven)",
+   "unverified": [
+    "whether any shipped effect sets PF_AngleDef valid_min/valid_max",
+    "the true defaults of pard-origin ANGLE rows",
+    "PF_ADD_ANGLE macro signature (only a community post seen)"
+   ]
+  },
+  "SD-27": {
+   "question": "Foam Viscosity, Wave World Damping and Wave Speed declare no unit: which unit or explicit dimensionless token?",
+   "sources_checked": [
+    {
+     "url": "https://helpx.adobe.com/after-effects/using/simulation-effects.html",
+     "what": "Adobe help for Foam / Wave World: BLOCKED (HTTP 403 to WebFetch)."
+    },
+    {
+     "url": "https://www.manualsdir.com/manuals/753844/adobe-after-effects.html?page=585",
+     "what": "After Effects user manual mirror (via search snippets): Wave Speed = how fast waves travel from their start; Damping = how quickly the liquid absorbs wave energy; no unit stated."
+    },
+    {
+     "url": "https://www.manualsdir.com/manuals/753846/adobe-after-effects-cs4.html?page=566",
+     "what": "Foam Physics controls (via search snippets): Viscosity raises resistance so bubbles slow and stop; Universe Size is relative to the layer; no unit stated."
+    },
+    {
+     "url": "https://docs.rs/after-effects-sys/latest/after_effects_sys/struct.PF_FixedSliderDef.html",
+     "what": "FIX_SLIDER carries only display_flags (percent, pixel) besides range/default/precision: the SDK has no unit field."
+    },
+    {
+     "url": "https://openfx.readthedocs.io/en/main/Reference/ofxParameter.html",
+     "what": "OpenFX kOfxParamDoubleTypePlain: an uninterpreted number the user sees as passed; kOfxParamDoubleTypeScale for 0..1 factors."
+    },
+    {
+     "url": "repo:.GOV/reference/studio_app_feature_research/_tools/greenroom/ae_effects.py and ae_common.py",
+     "what": "Units come only from DISPLAY_PERCENT / DISPLAY_PIXEL flags (and ANGLE = degrees); a FIX_SLIDER without those flags has no recoverable unit."
+    },
+    {
+     "url": "spec v02.226 module 14 [STU-FX-108] line 12665",
+     "what": "StudioUnitToken already has `unitless`; a parameter whose source declares no unit carries `unitless`."
+    },
+    {
+     "url": "product origin crates/hsk-studio-folio/src/composition/effects.rs StudioUnitToken",
+     "what": "Folio maps the source `--` to Unitless."
+    },
+    {
+     "url": "product origin crates/hsk-studio-composite/src/simulations/foam.rs, wave_world.rs",
+     "what": "Engine scalars carry Studio-authored units: viscosity 1/s, damping 1/s, wave_speed cells/s."
+    }
+   ],
+   "findings": [
+    "The effect SDK has no unit field for sliders; the only unit-like data is the percent/pixel display flags, which these rows do not set. The vendor help describes all three controls qualitatively with no unit.",
+    "The spec already answers the unit: [STU-FX-108] makes an undeclared source unit `unitless`. The gap is a reading conflict in [STU-FX-131a], whose `--` text says Studio declares nothing.",
+    "Other systems type such sliders as plain uninterpreted numbers (OpenFX DoubleTypePlain); none invents a physical unit.",
+    "The real gap is the engine mapping: the record rows are unitless coefficients (Viscosity 0..4, Damping 0..1, Wave Speed 0.01..10), while the engine uses 1/s and cells/s. Matching them needs a declared conversion, and keeping both as editable scalars gives two controls for one quantity.",
+    "Adjacent (not edited): Wave World row 24 is named `Pre-roll (seconds)` but its unit cell is `--`; the unit sits in the recovered name. The spec owner can decide whether a unit carried by the recovered name counts as declared."
+   ],
+   "field_expectation": "Unitless sliders are stored as plain numbers on the effect's own scale; hosts do not attach a physical unit that the source does not declare.",
+   "recommendation": "Declare the three rows `unitless` explicitly (`--` in a numeric row's unit column is the STU-FX-108 `unitless` token); make the recovered row the single stored value and have the engine read it through one Studio-declared, documented scale per row (UNVERIFIED until an oracle confirms), instead of keeping a second editable studio_declared engine scalar for the same quantity.",
+   "proposed_spec_edits": [
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-FX-131a",
+     "line_at_v02_226": 13641,
+     "old": "`--` means the source declares nothing and\nStudio declares nothing. `precision` `--` means null per [STU-FX-109].",
+     "new": "`--` means the source declares nothing and\nStudio declares nothing. `precision` `--` means null per [STU-FX-109]. In the `unit` column of\na numeric row, `--` is the [STU-FX-108] `unitless` token (SD-27): the value is a dimensionless\ncoefficient on the effect's own scale, never a guessed physical unit."
+    },
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-CMP-075b",
+     "line_at_v02_226": 29889,
+     "old": "**[STU-CMP-075b]** Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146].\nSeveral carry a third-party vendor prefix in their recovered names, which is an import key and\nnever a Studio name ([STU-SECTION-003]). v02.226 (SD-22): for Foam and Wave World, the recovered\ntyped records of [STU-FX-131a] drive the simulation engine wherever they name the same quantity as\nan authored row of [STU-FX-146], and authored rows cover only the rest; the per-row mapping is the\nbuilder's reading, UNVERIFIED until reviewed.",
+     "new": "**[STU-CMP-075b]** Only 3 of the 22 have typed parameter records; the rest fall under [STU-FX-146].\nSeveral carry a third-party vendor prefix in their recovered names, which is an import key and\nnever a Studio name ([STU-SECTION-003]). v02.226 (SD-22): for Foam and Wave World, the recovered\ntyped records of [STU-FX-131a] drive the simulation engine wherever they name the same quantity as\nan authored row of [STU-FX-146], and authored rows cover only the rest; the per-row mapping is the\nbuilder's reading, UNVERIFIED until reviewed. SD-27: a recovered\nrow whose unit is `unitless` (for example Foam `Viscosity`, Wave World `Wave Speed` and `Damping`)\nstill drives the engine quantity it names. The stored and edited value is the recovered row; the\nengine reads it through one Studio-declared conversion per row (`engine_value = k * row_value`,\nwith `k` and the engine unit documented beside the mapping and marked UNVERIFIED until an\nindependent oracle confirms them). No second editable engine scalar exists for a quantity a\nrecovered row names; authored rows remain only for engine quantities no recovered row names."
+    }
+   ],
+   "mt_impact": {
+    "mts_citing_anchor": "STU-FX-131a: 247; STU-CMP-075b: 1 (MT-34191, clause MT with no acceptance criteria recorded)",
+    "affected_mts": 3,
+    "rows": {
+     "MT-32012": [
+      "AC-027 (Foam Viscosity, row 42)"
+     ],
+     "MT-32013": [
+      "AC-019 (Wave World Wave Speed, row 30)",
+      "AC-020 (Wave World Damping, row 32)"
+     ]
+    },
+    "acceptance_text_change": "no for MT-32012/MT-32013: the criteria state unit=-- exactly as the table does; the edit only fixes how `--` is read (folio already stores Unitless). MT-34191 (STU-CMP-075b clause) gains the single-authority mapping sentence in its scope on regeneration."
+   },
+   "lane_impact": [
+    {
+     "lane": "SMB-R50-FOLLOWUPS-1",
+     "follow_up": true,
+     "note": "Push with the lead reading; follow-up maps viscosity, wave_speed and damping from the recovered rows with a declared k per row and removes the duplicate studio_declared editable scalars."
+    }
+   ],
+   "confidence": "high for `unitless`; medium for the single-authority engine mapping (a design choice; the scale factors stay UNVERIFIED)"
+  },
+  "SD-28": {
+   "question": "STU-TYP-207 says three insertable catalogs; its table lists four. Which count is right?",
+   "sources_checked": [
+    {
+     "url": "spec v02.226 module 14 lines 8964-8979, 9326, 9354",
+     "what": "Clause says three; the table has four rows; its derivation line says 4 microtasks; the microtask index rows say 4 (catalogue row) and 4 (one per insertable character catalog)."
+    },
+    {
+     "url": "repo:.GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.provenance.json STU-TYP-207",
+     "what": "Provenance: paragraph break types and page number types parsed from the InDesign text model; catalog retained and extended from the earlier STU-TYP-022 four-row table (line 9592 in v02.226 also has four rows)."
+    },
+    {
+     "url": "repo:.GOV/reference/studio_app_feature_research/_tools/greenroom/indesign-menu-action-extract.py",
+     "what": "Menu capture tool present; its outputs (installed_exports) are absent on this machine, so the menu tree was not re-read."
+    },
+    {
+     "url": "https://developer.adobe.com/indesign/dom/api/s/SpecialCharacters/",
+     "what": "InDesign SpecialCharacters enumeration (64 entries) groups markers, symbols, breaks and spaces as separate families."
+    },
+    {
+     "url": "https://www.manualsdir.com/manuals/753860/adobe-indesign-cs3.html?page=159",
+     "what": "InDesign manual (search snippet): Type > Insert Special Character, Insert White Space and Insert Break Character are three menus."
+    },
+    {
+     "url": "https://helpx.adobe.com/illustrator/desktop/design-with-text/special-characters-glyphs/insert-white-space-and-break-characters.html",
+     "what": "Illustrator help: insert special characters and insert white space / break characters (search result)."
+    },
+    {
+     "url": "https://www.scribd.com/document/245479547/InDesign-Keyboard-Shortcuts",
+     "what": "Shortcut list: Markers sit as a submenu under Insert Special Character (UNVERIFIED secondary source)."
+    }
+   ],
+   "findings": [
+    "The table, its derivation line, the microtask index (two places), MT-31005's step ('Keep all four insertable catalogs') and the lane all use four. Only the clause sentence says three.",
+    "The field explains the three: InDesign exposes three insert menus (special character, white space, break character), with Symbols and Markers both under Insert Special Character (Markers placement UNVERIFIED from a secondary source). Studio deliberately splits Markers out because markers are sentinels resolved at composition, not real characters."
+   ],
+   "field_expectation": "Layout apps expose special characters (symbols and markers), white space and breaks; whether markers are a separate group varies by app. Studio's table separates them.",
+   "recommendation": "Four is right: change 'Three insertable catalogs' to 'Four insertable catalogs'; nothing else changes.",
+   "proposed_spec_edits": [
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-TYP-207",
+     "line_at_v02_226": 8964,
+     "old": "**[STU-TYP-207] Special-character, break and white-space catalogs.** Three insertable catalogs. Each",
+     "new": "**[STU-TYP-207] Special-character, break and white-space catalogs.** Four insertable catalogs. Each"
+    }
+   ],
+   "mt_impact": {
+    "mts_citing_anchor": 10,
+    "mt_ids": [
+     "MT-018",
+     "MT-31005",
+     "MT-31006",
+     "MT-31007",
+     "MT-31008",
+     "MT-31009",
+     "MT-34528",
+     "MT-35657",
+     "MT-35658",
+     "MT-35659"
+    ],
+    "acceptance_text_change": "no: no acceptance criterion contains the count; MT-31005..MT-31009 quote the clause sentence verbatim in scope/context_capsule/preserved_original, which would read 'Four' on regeneration."
+   },
+   "lane_impact": [
+    {
+     "lane": "SMB-TYPE-OT-FEATURES-1",
+     "follow_up": false,
+     "note": "Implements the four catalogs; push as is."
+    }
+   ],
+   "confidence": "high"
+  },
+  "SD-29": {
+   "question": "Stream sentinels for markers, column/frame/page/odd-page/even-page breaks and flush space.",
+   "sources_checked": [
+    {
+     "url": "https://developer.adobe.com/indesign/dom/api/s/SpecialCharacters/",
+     "what": "InDesign scripting: distinct enumerators AUTO_PAGE_NUMBER, NEXT_PAGE_NUMBER, PREVIOUS_PAGE_NUMBER, SECTION_MARKER, FOOTNOTE_SYMBOL, COLUMN_BREAK, FRAME_BREAK, PAGE_BREAK, ODD_PAGE_BREAK, EVEN_PAGE_BREAK, FORCED_LINE_BREAK, FLUSH_SPACE, FIXED_WIDTH_NONBREAKING_SPACE, NONBREAKING_SPACE and the other spaces."
+    },
+    {
+     "url": "https://community.adobe.com/t5/indesign/as-insert-quot-column-break-quot-or-quot-frame-break-quot/m-p/1109653",
+     "what": "Community: column and frame breaks share the carriage-return code of a paragraph end inside InDesign, distinguished by a break attribute (secondary source)."
+    },
+    {
+     "url": "https://idml.paged.media/stories-text/text-variables/",
+     "what": "IDML reader documentation: page number is processing instruction ACE 18, next/previous via a PageNumberType attribute on the range; section marker is ACE 19."
+    },
+    {
+     "url": "https://idml.paged.media/stories-text/story-structure/",
+     "what": "IDML: <Br/> ends a paragraph; U+2028 is a forced line break inside Content; U+2029 is not written by InDesign."
+    },
+    {
+     "url": "https://mayart.de/download/indesign-idml/special-idml-chars.pdf",
+     "what": "Practitioner sheet (via search snippet; direct fetch 404): ParagraphBreakType NextFrame / NextPage / NextOddPage / NextEvenPage on the break's range (UNVERIFIED)."
+    },
+    {
+     "url": "https://github.com/sumandouble9-bit/idml_automation_workflow",
+     "what": "Practitioner note: character-level ParagraphBreakType always forces a break, while paragraph-level StartParagraph does not advance if already at the start (UNVERIFIED)."
+    },
+    {
+     "url": "https://gist.github.com/M-O-Z-G/adb3e3ff49eb932cf1319afefea41373",
+     "what": "InDesign GREP codes: ~M column, ~R frame, ~P page, ~L odd page, ~E even page, ~x section marker, ~N/~X/~V page numbers, ~f flush space: each break and marker is searchable as its own character."
+    },
+    {
+     "url": "https://helpx.adobe.com/indesign/desktop/language-and-proofing/glyphs-characters-and-expressions/hidden-character-glossary.html",
+     "what": "Adobe hidden-character glossary (search snippet): flush space fills the last line of justified text. Direct fetch BLOCKED (403) for helpx pages."
+    },
+    {
+     "url": "https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.wordprocessing.breakvalues",
+     "what": "OOXML w:br types: page, column, textWrapping (character-level); odd/even page exist only as section break types."
+    },
+    {
+     "url": "https://issues.oasis-open.org/browse/OFFICE-3751",
+     "what": "ODF: fo:break-before / fo:break-after are paragraph properties (auto, column, page); even-page and odd-page added for ODF 1.4."
+    },
+    {
+     "url": "https://learn.microsoft.com/previous-versions/office/developer/office2000/aa140277(v=office.10)",
+     "what": "RTF 1.6: \\line forced line break; \\sbkcol/\\sbkpage/\\sbkodd/\\sbkeven section breaks."
+    },
+    {
+     "url": "https://www.unicode.org/faq/private_use.html",
+     "what": "Unicode FAQ: 66 noncharacters including U+FDD0..U+FDEF, intended for internal use (placeholders, sentinels), valid in strings since Corrigendum #9; private-use characters are for interchange and fonts map them."
+    },
+    {
+     "url": "python unicodedata 16.0.0 (local)",
+     "what": "U+2001 EM QUAD canonically decomposes to U+2003 (NFC maps it to U+2003); U+FDD0 is Cn with no decomposition; U+FFFC is So."
+    },
+    {
+     "url": "https://www.fontshop.com/content/adventures-in-space_spaces",
+     "what": "Flush space is an InDesign-specific space with no Unicode equivalent (secondary source)."
+    },
+    {
+     "url": "spec v02.226 module 14 STU-TYP-110 (7930), STU-TYP-186 (8698-8718), STU-TYP-207 (8964-8979)",
+     "what": "UTF-8 stream with independent character-range and paragraph partitions; start_paragraph is a six-value paragraph attribute; no stream sentinel scheme exists anywhere in the module."
+    },
+    {
+     "url": "product origin crates/hsk-studio-folio/src/layoutflow.rs, longdoc.rs; crates/hsk-studio-layout tests",
+     "what": "Anchored items are typed records keyed by anchor_byte, 'inline: the start of its placeholder character', with U+FFFC in tests; footnotes name the host byte of their reference."
+    },
+    {
+     "url": "lane commit 51456c44 crates/hsk-studio-type/src/catalog.rs",
+     "what": "Lane keeps 9 markers, 5 breaks and flush space as StreamForm::Pending; real members use Unicode scalars (U+2028 forced line break, U+2029 paragraph return, U+2002..U+200A spaces, U+00A0/U+202F non-breaking spaces)."
+    }
+   ],
+   "findings": [
+    "Layout text models use two encodings side by side. Character level: InDesign has one enumerator per break and per marker, GREP finds each as its own character, OOXML writes w:br page/column, RTF \\page/\\line. Attribute level: inside InDesign, column/frame breaks share the paragraph-end code with a break attribute; IDML writes ACE 18 plus a PageNumberType attribute for current/next/previous page, and Br plus a ParagraphBreakType attribute for breaks; ODF stores breaks as paragraph properties; OOXML and RTF store odd/even page only as section properties.",
+    "Studio already has the paragraph-level counterpart (STU-TYP-186 start_paragraph, six values). STU-TYP-207 and MT-31007 ('distinct stream sentinels') call for character-level members, so each break and marker needs its own stream form.",
+    "An attribute on the terminating character is fragile in a model whose character ranges and paragraphs are independent partitions: range edits and overrides can split or drop it. One sentinel per member is searchable, survives copy/paste and gives one stream character per inserted catalog member, as the InDesign scripting and GREP surfaces present it.",
+    "Unicode noncharacters U+FDD0..U+FDEF are the standard internal-sentinel block: never assigned, not mapped by fonts, unchanged by normalization, valid in UTF-8 and Rust char. Private use (U+E000..U+F8FF) collides with icon fonts and foreign text.",
+    "Flush space must not be U+2001: U+2001 canonically decomposes to U+2003 EM SPACE, so normalization (search, import, clipboard) would silently turn flush space into an em space; Unicode also defines U+2001 as a fixed em quad, not a slack-absorbing space. InDesign's own internal code point for flush space is UNVERIFIED.",
+    "U+FFFC OBJECT REPLACEMENT CHARACTER is the Unicode placeholder for an embedded object and is what folio's anchored items already sit on; reusing it for the anchored-object marker avoids a second convention.",
+    "Breaks end their paragraph in InDesign (shared paragraph-end code), so a break sentinel must act as a paragraph terminator in the STU-TYP-110 partition."
+   ],
+   "field_expectation": "Breaks and page-number/section markers are distinct addressable text elements, stored either as distinct control characters or as a paragraph-end/marker character plus a type attribute; odd/even page breaks degrade to section properties in word-processor formats; flush space is an application-specific space without a Unicode equivalent.",
+   "recommendation": "Assign Unicode noncharacters U+FDD0..U+FDDD to the 14 members without a Unicode character (6 markers, cross-reference and index markers, 5 breaks, flush space), reuse U+FFFC for the anchored-object marker, reserve U+FDDE..U+FDEF, make break sentinels paragraph terminators, keep markers' targets in typed byte-keyed records, and define the import/export mappings (IDML ACE 18/19 + PageNumberType, Br + ParagraphBreakType, OOXML w:br and section breaks, ODF fo:break-before to start_paragraph).",
+   "assignment": [
+    {
+     "member": "current page number",
+     "catalog": "Markers",
+     "stored_as": "U+FDD0"
+    },
+    {
+     "member": "next page number",
+     "catalog": "Markers",
+     "stored_as": "U+FDD1"
+    },
+    {
+     "member": "previous page number",
+     "catalog": "Markers",
+     "stored_as": "U+FDD2"
+    },
+    {
+     "member": "section marker",
+     "catalog": "Markers",
+     "stored_as": "U+FDD3"
+    },
+    {
+     "member": "footnote reference",
+     "catalog": "Markers",
+     "stored_as": "U+FDD4"
+    },
+    {
+     "member": "endnote reference",
+     "catalog": "Markers",
+     "stored_as": "U+FDD5"
+    },
+    {
+     "member": "anchored-object marker",
+     "catalog": "Markers",
+     "stored_as": "U+FFFC OBJECT REPLACEMENT CHARACTER (the placeholder at the anchored item's story byte)"
+    },
+    {
+     "member": "cross-reference marker",
+     "catalog": "Markers",
+     "stored_as": "U+FDD6"
+    },
+    {
+     "member": "index marker",
+     "catalog": "Markers",
+     "stored_as": "U+FDD7"
+    },
+    {
+     "member": "column break",
+     "catalog": "Break characters",
+     "stored_as": "U+FDD8"
+    },
+    {
+     "member": "frame break",
+     "catalog": "Break characters",
+     "stored_as": "U+FDD9"
+    },
+    {
+     "member": "page break",
+     "catalog": "Break characters",
+     "stored_as": "U+FDDA"
+    },
+    {
+     "member": "odd-page break",
+     "catalog": "Break characters",
+     "stored_as": "U+FDDB"
+    },
+    {
+     "member": "even-page break",
+     "catalog": "Break characters",
+     "stored_as": "U+FDDC"
+    },
+    {
+     "member": "flush space",
+     "catalog": "White-space characters",
+     "stored_as": "U+FDDD"
+    }
+   ],
+   "paragraph_attribute_note": "Field formats that store these as attributes: IDML (PageNumberType on the ACE 18 range; ParagraphBreakType on the Br range), ODF (fo:break-before/after on the paragraph), OOXML/RTF (odd/even page only as section breaks). Studio keeps the paragraph-level form as STU-TYP-186 start_paragraph and maps ODF paragraph breaks there; IDML character-level breaks map to the sentinels.",
+   "proposed_spec_edits": [
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-TYP-207",
+     "line_at_v02_226": 8977,
+     "old": "Flush space and the two non-breaking-space variants are distinct members: flush space absorbs all\nremaining justification slack on a fully justified last line; fixed-width non-breaking space never\nstretches; flexible-width non-breaking space stretches with justification but never breaks.",
+     "new": "Flush space and the two non-breaking-space variants are distinct members: flush space absorbs all\nremaining justification slack on a fully justified last line; fixed-width non-breaking space never\nstretches; flexible-width non-breaking space stretches with justification but never breaks.\n\nSD-29: stream encoding. A member that is a real Unicode character is stored as that scalar; forced\nline break is U+2028 and paragraph return is U+2029. A member with no Unicode character carrying\nits meaning is stored as one Studio stream sentinel from the Unicode noncharacter block\nU+FDD0..U+FDEF, which Unicode reserves for internal use, which fonts do not map, and which no\nnormalization form changes. Private-use code points are NOT used, because fonts and foreign text\ncarry them legitimately. The assignment below is stable; U+FDDE..U+FDEF are reserved for later\nStudio sentinels and MUST NOT be given another meaning.\n\n*Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.*\n\n| Member | Catalog | Stored as |\n|---|---|---|\n| current page number | Markers | U+FDD0 |\n| next page number | Markers | U+FDD1 |\n| previous page number | Markers | U+FDD2 |\n| section marker | Markers | U+FDD3 |\n| footnote reference | Markers | U+FDD4 |\n| endnote reference | Markers | U+FDD5 |\n| anchored-object marker | Markers | U+FFFC OBJECT REPLACEMENT CHARACTER (the placeholder at the anchored item's story byte) |\n| cross-reference marker | Markers | U+FDD6 |\n| index marker | Markers | U+FDD7 |\n| column break | Break characters | U+FDD8 |\n| frame break | Break characters | U+FDD9 |\n| page break | Break characters | U+FDDA |\n| odd-page break | Break characters | U+FDDB |\n| even-page break | Break characters | U+FDDC |\n| flush space | White-space characters | U+FDDD |\n\nA marker sentinel carries no text: its kind, target and options live in a typed record keyed by the\nsentinel's story byte, composition shows the resolved value without rewriting the stream, and an\nunresolved marker shows an explicit unresolved state, never a guessed value. Each break sentinel\nends its paragraph exactly as U+2029 does, so the paragraph partition of [STU-TYP-110] treats it as\na terminator, and its flow target applies after it; it is distinct from the paragraph attribute\n`start_paragraph` of [STU-TYP-186], which places a paragraph's start and is stored on the paragraph.\nFlush space is a sentinel and not U+2001 EM QUAD, because U+2001 canonically decomposes to U+2003\nEM SPACE and would become an em space under normalization. On import, a code point in\nU+FDD0..U+FDEF arriving in foreign text is never read as a sentinel: it is replaced and the loss\nreported. A source that stores a page-number marker as one marker plus a current/next/previous\nattribute, or a break as a paragraph end plus a break-type attribute, maps to the matching\nsentinel. On export, a target with no equivalent reports the loss: plain text receives the\nresolved marker value, U+2029 for a break and U+0020 for flush space, and a target whose odd-page\nand even-page breaks exist only as section properties receives them there.",
+     "note": "Appends to STU-TYP-207 (no new anchor) with a contract table that yields no microtask, so the 14.7.21 microtask counts stay unchanged."
+    }
+   ],
+   "mt_impact": {
+    "mts_citing_anchor": 10,
+    "affected_mts": [
+     "MT-31005 (clause: gains the sentinel table as acceptance)",
+     "MT-31007 (markers: 'distinct stream sentinels' becomes provable)",
+     "MT-31008 (breaks)",
+     "MT-31009 (flush space)"
+    ],
+    "acceptance_text_change": "MT-31005 gains acceptance rows from the contract table on regeneration; MT-31007..MT-31009 criteria text unchanged (they list members), their steps become satisfiable instead of typed unavailable."
+   },
+   "lane_impact": [
+    {
+     "lane": "SMB-TYPE-OT-FEATURES-1",
+     "follow_up": true,
+     "note": "Push with the lead reading (Pending); follow-up replaces StreamForm::Pending with the assigned sentinels and adds tests for paragraph termination and NFC stability."
+    },
+    {
+     "lane": "later layout / interop-layout lane",
+     "follow_up": true,
+     "note": "Paragraph partition treats break sentinels as terminators; composition resolves markers; IDML/OOXML/ODF import-export mappings and the foreign-noncharacter replacement."
+    }
+   ],
+   "confidence": "medium-high: the field shows both encodings; the noncharacter block and the U+2001 normalization hazard are verified facts; the specific code-point order is a design choice",
+   "adjacent_risk": "Fixed-width non-breaking space is mapped by the lane to U+202F NARROW NO-BREAK SPACE, which Unicode defines as narrow, not word-space width; if Studio's fixed-width member must equal a word space, a reserved sentinel (U+FDDE) may be the better encoding. Not edited; spec-owner decision."
+  },
+  "SD-30": {
+   "question": "STU-TYP-170 asks for a 229-tag OpenType feature list that the spec does not contain.",
+   "sources_checked": [
+    {
+     "url": "https://learn.microsoft.com/en-us/typography/opentype/spec/featurelist",
+     "what": "OpenType 1.9.1 registered features: 126 rows (tag + friendly name), with cv01-cv99 and ss01-ss20 as one row each."
+    },
+    {
+     "url": "https://learn.microsoft.com/en-us/typography/opentype/spec/featuretags",
+     "what": "Registration rules; uppercase four-letter tags are a vendor space."
+    },
+    {
+     "url": "https://learn.microsoft.com/en-us/typography/opentype/spec/features_fj",
+     "what": "'hngl' marked DEPRECATED."
+    },
+    {
+     "url": "https://learn.microsoft.com/en-us/typography/opentype/spec/features_ko",
+     "what": "'opbd' marked DEPRECATED; 'mset' not recommended for new fonts."
+    },
+    {
+     "url": "https://learn.microsoft.com/en-us/typography/opentype/spec/features_pt",
+     "what": "'size' use superseded by the STAT table (note, not a deprecation label); 'ss01'-'ss20'."
+    },
+    {
+     "url": "https://learn.microsoft.com/en-us/typography/opentype/spec/features_ae",
+     "what": "'cv01'-'cv99'; no deprecations a-e."
+    },
+    {
+     "url": "https://learn.microsoft.com/en-us/typography/opentype/spec/features_uz",
+     "what": "No deprecations u-z."
+    },
+    {
+     "url": "https://registry.npmjs.org/@figma/plugin-typings/-/plugin-typings-1.142.0.tgz",
+     "what": "MIT-licensed design-tool plugin typings (downloaded to scratch, read with python -I): type OpenTypeFeature is a union of exactly 229 uppercase four-character tags."
+    },
+    {
+     "url": "repo:.GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.provenance.json STU-TYP-170/171",
+     "what": "Provenance: the 229 tags were parsed from figma_object_model.json enums.OpenTypeFeature (capture absent on this machine; the published typings were used instead)."
+    },
+    {
+     "url": "lane commit e80f767c/51456c44 crates/hsk-studio-type/tests/opentype_features.rs:288-292",
+     "what": "mt_30955_observed_union_of_229_tags is #[ignore] NOT_PROVEN and asserts only registry().len() >= 229; the registry carries the 209 tags of the STU-TYP-171 table. The test is not at origin (lane unpushed)."
+    }
+   ],
+   "findings": [
+    "The 229 is the design-tool plugin API's OpenTypeFeature union, not the OpenType registry. The registry expands to 243 tags (124 single rows + 99 cv + 20 ss; 241 current plus deprecated hngl and opbd).",
+    "Counting: 126 registry rows - 2 range rows + 99 + 20 = 243. The observed union equals 243 registered minus 16 it omits (abvf, apkn, c2sc, chws, frac, jalt, lnum, mset, onum, pnum, smcp, subs, sups, tnum, vapk, vchw) plus 2 unregistered tags it adds (abrv, just): 243 - 16 + 2 = 229.",
+    "The union includes deprecated hngl and opbd and the superseded size; it omits common figure, fraction and caps tags (likely exposed through separate text properties in that tool; UNVERIFIED).",
+    "A registry of all 243 registered tags plus abrv and just (245) contains every observed tag, so 'at least the 229' holds and nothing registered is missing. Versus the STU-TYP-171 group table (209 tags), 36 tags must be added: the 32 observed tags outside the group table plus apkn, chws, vapk, vchw."
+   ],
+   "field_expectation": "Applications key OpenType features by the Microsoft-registered four-character tag list, enumerate cvNN/ssNN ranges from the font, keep deprecated tags readable, and accept unregistered tags.",
+   "recommendation": "Add a 245-row-equivalent registry table (128 rows with the cv/ss ranges collapsed) under STU-TYP-170 as a contract table, with status registered/deprecated/observed_unregistered and an in-observed-union column, so the 229 observed tags and the 243 registered tags are both checkable.",
+   "registry_counts": {
+    "registry_rows": 126,
+    "registered_tags": 243,
+    "deprecated": [
+     "hngl",
+     "opbd"
+    ],
+    "observed_union": 229,
+    "observed_unregistered": [
+     "abrv",
+     "just"
+    ],
+    "registered_not_observed": [
+     "abvf",
+     "apkn",
+     "c2sc",
+     "chws",
+     "frac",
+     "jalt",
+     "lnum",
+     "mset",
+     "onum",
+     "pnum",
+     "smcp",
+     "subs",
+     "sups",
+     "tnum",
+     "vapk",
+     "vchw"
+    ],
+    "studio_registry_total": 245,
+    "added_vs_stu_typ_171": 36
+   },
+   "tag_list": [
+    {
+     "tag": "aalt",
+     "friendly_name": "Access All Alternates",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "abvf",
+     "friendly_name": "Above-base Forms",
+     "status": "registered",
+     "observed": false
+    },
+    {
+     "tag": "abvm",
+     "friendly_name": "Above-base Mark Positioning",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "abvs",
+     "friendly_name": "Above-base Substitutions",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "afrc",
+     "friendly_name": "Alternative Fractions",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "akhn",
+     "friendly_name": "Akhand",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "apkn",
+     "friendly_name": "Kerning for Alternate Proportional Widths",
+     "status": "registered",
+     "observed": false
+    },
+    {
+     "tag": "blwf",
+     "friendly_name": "Below-base Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "blwm",
+     "friendly_name": "Below-base Mark Positioning",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "blws",
+     "friendly_name": "Below-base Substitutions",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "c2pc",
+     "friendly_name": "Petite Capitals From Capitals",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "c2sc",
+     "friendly_name": "Small Capitals From Capitals",
+     "status": "registered",
+     "observed": false
+    },
+    {
+     "tag": "calt",
+     "friendly_name": "Contextual Alternates",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "case",
+     "friendly_name": "Case-sensitive Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ccmp",
+     "friendly_name": "Glyph Composition / Decomposition",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cfar",
+     "friendly_name": "Conjunct Form After Ro",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "chws",
+     "friendly_name": "Contextual Half-width Spacing",
+     "status": "registered",
+     "observed": false
+    },
+    {
+     "tag": "cjct",
+     "friendly_name": "Conjunct Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "clig",
+     "friendly_name": "Contextual Ligatures",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cpct",
+     "friendly_name": "Centered CJK Punctuation",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cpsp",
+     "friendly_name": "Capital Spacing",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cswh",
+     "friendly_name": "Contextual Swash",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "curs",
+     "friendly_name": "Cursive Positioning",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv01",
+     "friendly_name": "Character Variant 1",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv02",
+     "friendly_name": "Character Variant 2",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv03",
+     "friendly_name": "Character Variant 3",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv04",
+     "friendly_name": "Character Variant 4",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv05",
+     "friendly_name": "Character Variant 5",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv06",
+     "friendly_name": "Character Variant 6",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv07",
+     "friendly_name": "Character Variant 7",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv08",
+     "friendly_name": "Character Variant 8",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv09",
+     "friendly_name": "Character Variant 9",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv10",
+     "friendly_name": "Character Variant 10",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv11",
+     "friendly_name": "Character Variant 11",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv12",
+     "friendly_name": "Character Variant 12",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv13",
+     "friendly_name": "Character Variant 13",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv14",
+     "friendly_name": "Character Variant 14",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv15",
+     "friendly_name": "Character Variant 15",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv16",
+     "friendly_name": "Character Variant 16",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv17",
+     "friendly_name": "Character Variant 17",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv18",
+     "friendly_name": "Character Variant 18",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv19",
+     "friendly_name": "Character Variant 19",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv20",
+     "friendly_name": "Character Variant 20",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv21",
+     "friendly_name": "Character Variant 21",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv22",
+     "friendly_name": "Character Variant 22",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv23",
+     "friendly_name": "Character Variant 23",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv24",
+     "friendly_name": "Character Variant 24",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv25",
+     "friendly_name": "Character Variant 25",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv26",
+     "friendly_name": "Character Variant 26",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv27",
+     "friendly_name": "Character Variant 27",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv28",
+     "friendly_name": "Character Variant 28",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv29",
+     "friendly_name": "Character Variant 29",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv30",
+     "friendly_name": "Character Variant 30",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv31",
+     "friendly_name": "Character Variant 31",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv32",
+     "friendly_name": "Character Variant 32",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv33",
+     "friendly_name": "Character Variant 33",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv34",
+     "friendly_name": "Character Variant 34",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv35",
+     "friendly_name": "Character Variant 35",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv36",
+     "friendly_name": "Character Variant 36",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv37",
+     "friendly_name": "Character Variant 37",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv38",
+     "friendly_name": "Character Variant 38",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv39",
+     "friendly_name": "Character Variant 39",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv40",
+     "friendly_name": "Character Variant 40",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv41",
+     "friendly_name": "Character Variant 41",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv42",
+     "friendly_name": "Character Variant 42",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv43",
+     "friendly_name": "Character Variant 43",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv44",
+     "friendly_name": "Character Variant 44",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv45",
+     "friendly_name": "Character Variant 45",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv46",
+     "friendly_name": "Character Variant 46",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv47",
+     "friendly_name": "Character Variant 47",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv48",
+     "friendly_name": "Character Variant 48",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv49",
+     "friendly_name": "Character Variant 49",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv50",
+     "friendly_name": "Character Variant 50",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv51",
+     "friendly_name": "Character Variant 51",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv52",
+     "friendly_name": "Character Variant 52",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv53",
+     "friendly_name": "Character Variant 53",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv54",
+     "friendly_name": "Character Variant 54",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv55",
+     "friendly_name": "Character Variant 55",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv56",
+     "friendly_name": "Character Variant 56",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv57",
+     "friendly_name": "Character Variant 57",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv58",
+     "friendly_name": "Character Variant 58",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv59",
+     "friendly_name": "Character Variant 59",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv60",
+     "friendly_name": "Character Variant 60",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv61",
+     "friendly_name": "Character Variant 61",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv62",
+     "friendly_name": "Character Variant 62",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv63",
+     "friendly_name": "Character Variant 63",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv64",
+     "friendly_name": "Character Variant 64",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv65",
+     "friendly_name": "Character Variant 65",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv66",
+     "friendly_name": "Character Variant 66",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv67",
+     "friendly_name": "Character Variant 67",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv68",
+     "friendly_name": "Character Variant 68",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv69",
+     "friendly_name": "Character Variant 69",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv70",
+     "friendly_name": "Character Variant 70",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv71",
+     "friendly_name": "Character Variant 71",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv72",
+     "friendly_name": "Character Variant 72",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv73",
+     "friendly_name": "Character Variant 73",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv74",
+     "friendly_name": "Character Variant 74",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv75",
+     "friendly_name": "Character Variant 75",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv76",
+     "friendly_name": "Character Variant 76",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv77",
+     "friendly_name": "Character Variant 77",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv78",
+     "friendly_name": "Character Variant 78",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv79",
+     "friendly_name": "Character Variant 79",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv80",
+     "friendly_name": "Character Variant 80",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv81",
+     "friendly_name": "Character Variant 81",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv82",
+     "friendly_name": "Character Variant 82",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv83",
+     "friendly_name": "Character Variant 83",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv84",
+     "friendly_name": "Character Variant 84",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv85",
+     "friendly_name": "Character Variant 85",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv86",
+     "friendly_name": "Character Variant 86",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv87",
+     "friendly_name": "Character Variant 87",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv88",
+     "friendly_name": "Character Variant 88",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv89",
+     "friendly_name": "Character Variant 89",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv90",
+     "friendly_name": "Character Variant 90",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv91",
+     "friendly_name": "Character Variant 91",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv92",
+     "friendly_name": "Character Variant 92",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv93",
+     "friendly_name": "Character Variant 93",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv94",
+     "friendly_name": "Character Variant 94",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv95",
+     "friendly_name": "Character Variant 95",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv96",
+     "friendly_name": "Character Variant 96",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv97",
+     "friendly_name": "Character Variant 97",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv98",
+     "friendly_name": "Character Variant 98",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "cv99",
+     "friendly_name": "Character Variant 99",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "dist",
+     "friendly_name": "Distances",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "dlig",
+     "friendly_name": "Discretionary Ligatures",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "dnom",
+     "friendly_name": "Denominators",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "dtls",
+     "friendly_name": "Dotless Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "expt",
+     "friendly_name": "Expert Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "falt",
+     "friendly_name": "Final Glyph on Line Alternates",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "fin2",
+     "friendly_name": "Terminal Forms #2",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "fin3",
+     "friendly_name": "Terminal Forms #3",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "fina",
+     "friendly_name": "Terminal Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "flac",
+     "friendly_name": "Flattened Accent Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "frac",
+     "friendly_name": "Fractions",
+     "status": "registered",
+     "observed": false
+    },
+    {
+     "tag": "fwid",
+     "friendly_name": "Full Widths",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "half",
+     "friendly_name": "Half Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "haln",
+     "friendly_name": "Halant Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "halt",
+     "friendly_name": "Alternate Half Widths",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "hist",
+     "friendly_name": "Historical Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "hkna",
+     "friendly_name": "Horizontal Kana Alternates",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "hlig",
+     "friendly_name": "Historical Ligatures",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "hngl",
+     "friendly_name": "Hangul",
+     "status": "deprecated",
+     "observed": true
+    },
+    {
+     "tag": "hojo",
+     "friendly_name": "Hojo Kanji Forms (JIS X 0212-1990 Kanji Forms)",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "hwid",
+     "friendly_name": "Half Widths",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "init",
+     "friendly_name": "Initial Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "isol",
+     "friendly_name": "Isolated Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ital",
+     "friendly_name": "Italics",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "jalt",
+     "friendly_name": "Justification Alternates",
+     "status": "registered",
+     "observed": false
+    },
+    {
+     "tag": "jp04",
+     "friendly_name": "JIS2004 Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "jp78",
+     "friendly_name": "JIS78 Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "jp83",
+     "friendly_name": "JIS83 Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "jp90",
+     "friendly_name": "JIS90 Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "kern",
+     "friendly_name": "Kerning",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "lfbd",
+     "friendly_name": "Left Bounds",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "liga",
+     "friendly_name": "Standard Ligatures",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ljmo",
+     "friendly_name": "Leading Jamo Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "lnum",
+     "friendly_name": "Lining Figures",
+     "status": "registered",
+     "observed": false
+    },
+    {
+     "tag": "locl",
+     "friendly_name": "Localized Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ltra",
+     "friendly_name": "Left-to-right Alternates",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ltrm",
+     "friendly_name": "Left-to-right Mirrored Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "mark",
+     "friendly_name": "Mark Positioning",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "med2",
+     "friendly_name": "Medial Forms #2",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "medi",
+     "friendly_name": "Medial Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "mgrk",
+     "friendly_name": "Mathematical Greek",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "mkmk",
+     "friendly_name": "Mark to Mark Positioning",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "mset",
+     "friendly_name": "Mark Positioning via Substitution",
+     "status": "registered",
+     "observed": false
+    },
+    {
+     "tag": "nalt",
+     "friendly_name": "Alternate Annotation Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "nlck",
+     "friendly_name": "NLC Kanji Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "nukt",
+     "friendly_name": "Nukta Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "numr",
+     "friendly_name": "Numerators",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "onum",
+     "friendly_name": "Oldstyle Figures",
+     "status": "registered",
+     "observed": false
+    },
+    {
+     "tag": "opbd",
+     "friendly_name": "Optical Bounds",
+     "status": "deprecated",
+     "observed": true
+    },
+    {
+     "tag": "ordn",
+     "friendly_name": "Ordinals",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ornm",
+     "friendly_name": "Ornaments",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "palt",
+     "friendly_name": "Proportional Alternate Widths",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "pcap",
+     "friendly_name": "Petite Capitals",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "pkna",
+     "friendly_name": "Proportional Kana",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "pnum",
+     "friendly_name": "Proportional Figures",
+     "status": "registered",
+     "observed": false
+    },
+    {
+     "tag": "pref",
+     "friendly_name": "Pre-base Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "pres",
+     "friendly_name": "Pre-base Substitutions",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "pstf",
+     "friendly_name": "Post-base Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "psts",
+     "friendly_name": "Post-base Substitutions",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "pwid",
+     "friendly_name": "Proportional Widths",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "qwid",
+     "friendly_name": "Quarter Widths",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "rand",
+     "friendly_name": "Randomize",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "rclt",
+     "friendly_name": "Required Contextual Alternates",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "rkrf",
+     "friendly_name": "Rakar Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "rlig",
+     "friendly_name": "Required Ligatures",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "rphf",
+     "friendly_name": "Reph Form",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "rtbd",
+     "friendly_name": "Right Bounds",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "rtla",
+     "friendly_name": "Right-to-left Alternates",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "rtlm",
+     "friendly_name": "Right-to-left Mirrored Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ruby",
+     "friendly_name": "Ruby Notation Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "rvrn",
+     "friendly_name": "Required Variation Alternates",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "salt",
+     "friendly_name": "Stylistic Alternates",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "sinf",
+     "friendly_name": "Scientific Inferiors",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "size",
+     "friendly_name": "Optical size",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "smcp",
+     "friendly_name": "Small Capitals",
+     "status": "registered",
+     "observed": false
+    },
+    {
+     "tag": "smpl",
+     "friendly_name": "Simplified Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ss01",
+     "friendly_name": "Stylistic Set 1",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ss02",
+     "friendly_name": "Stylistic Set 2",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ss03",
+     "friendly_name": "Stylistic Set 3",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ss04",
+     "friendly_name": "Stylistic Set 4",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ss05",
+     "friendly_name": "Stylistic Set 5",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ss06",
+     "friendly_name": "Stylistic Set 6",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ss07",
+     "friendly_name": "Stylistic Set 7",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ss08",
+     "friendly_name": "Stylistic Set 8",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ss09",
+     "friendly_name": "Stylistic Set 9",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ss10",
+     "friendly_name": "Stylistic Set 10",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ss11",
+     "friendly_name": "Stylistic Set 11",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ss12",
+     "friendly_name": "Stylistic Set 12",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ss13",
+     "friendly_name": "Stylistic Set 13",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ss14",
+     "friendly_name": "Stylistic Set 14",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ss15",
+     "friendly_name": "Stylistic Set 15",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ss16",
+     "friendly_name": "Stylistic Set 16",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ss17",
+     "friendly_name": "Stylistic Set 17",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ss18",
+     "friendly_name": "Stylistic Set 18",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ss19",
+     "friendly_name": "Stylistic Set 19",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ss20",
+     "friendly_name": "Stylistic Set 20",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "ssty",
+     "friendly_name": "Math Script-style Alternates",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "stch",
+     "friendly_name": "Stretching Glyph Decomposition",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "subs",
+     "friendly_name": "Subscript",
+     "status": "registered",
+     "observed": false
+    },
+    {
+     "tag": "sups",
+     "friendly_name": "Superscript",
+     "status": "registered",
+     "observed": false
+    },
+    {
+     "tag": "swsh",
+     "friendly_name": "Swash",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "titl",
+     "friendly_name": "Titling",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "tjmo",
+     "friendly_name": "Trailing Jamo Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "tnam",
+     "friendly_name": "Traditional Name Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "tnum",
+     "friendly_name": "Tabular Figures",
+     "status": "registered",
+     "observed": false
+    },
+    {
+     "tag": "trad",
+     "friendly_name": "Traditional Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "twid",
+     "friendly_name": "Third Widths",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "unic",
+     "friendly_name": "Unicase",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "valt",
+     "friendly_name": "Alternate Vertical Metrics",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "vapk",
+     "friendly_name": "Kerning for Alternate Proportional Vertical Metrics",
+     "status": "registered",
+     "observed": false
+    },
+    {
+     "tag": "vatu",
+     "friendly_name": "Vattu Variants",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "vchw",
+     "friendly_name": "Vertical Contextual Half-width Spacing",
+     "status": "registered",
+     "observed": false
+    },
+    {
+     "tag": "vert",
+     "friendly_name": "Vertical Alternates",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "vhal",
+     "friendly_name": "Alternate Vertical Half Metrics",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "vjmo",
+     "friendly_name": "Vowel Jamo Forms",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "vkna",
+     "friendly_name": "Vertical Kana Alternates",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "vkrn",
+     "friendly_name": "Vertical Kerning",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "vpal",
+     "friendly_name": "Proportional Alternate Vertical Metrics",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "vrt2",
+     "friendly_name": "Vertical Alternates and Rotation",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "vrtr",
+     "friendly_name": "Vertical Alternates for Rotation",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "zero",
+     "friendly_name": "Slashed Zero",
+     "status": "registered",
+     "observed": true
+    },
+    {
+     "tag": "abrv",
+     "friendly_name": null,
+     "status": "observed_unregistered",
+     "observed": true
+    },
+    {
+     "tag": "just",
+     "friendly_name": null,
+     "status": "observed_unregistered",
+     "observed": true
+    }
+   ],
+   "placement": "Contract table appended to STU-TYP-170 in 14.7.11 (after 'feature list.', line 8549), derivation 'contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own', so MT-30955 receives it as acceptance and the 14.7.21 counts are unchanged. An appendix was rejected: module 14 keeps clause data inline and the derivation rules bind tables to clauses.",
+   "proposed_spec_edits": [
+    {
+     "module": "14-studio-creative-suite.md",
+     "anchor": "STU-TYP-170",
+     "line_at_v02_226": 8544,
+     "old": "**[STU-TYP-170] Feature-tag registry.** OpenType features are stored on the character range as an\nordered map from a four-character OpenType feature tag to a value (a boolean for a binary feature,\nan unsigned integer for an alternate index). Studio MUST carry a registry of at least the 229\nfeature tags observed in the captured design-tool feature union, and MUST accept any well-formed\nfour-character tag not in the registry, storing and applying it. Studio MUST NOT ship a closed\nfeature list.",
+     "new": "**[STU-TYP-170] Feature-tag registry.** OpenType features are stored on the character range as an\nordered map from a four-character OpenType feature tag to a value (a boolean for a binary feature,\nan unsigned integer for an alternate index). Studio MUST carry a registry of at least the 229\nfeature tags observed in the captured design-tool feature union, and MUST accept any well-formed\nfour-character tag not in the registry, storing and applying it. Studio MUST NOT ship a closed\nfeature list.\n\nSD-30: the registry is the table below, 245 tags: the 243 feature tags registered in OpenType 1.9.1\n(126 registry rows; `cv01`-`cv99` and `ss01`-`ss20` each count every member; `hngl` and `opbd`\nare registered but deprecated) plus the two tags `abrv` and `just` that the captured union carries\nand the registry does not. The captured union is the 229-tag `OpenTypeFeature` set of the\ndesign-tool plugin API; it omits 16 registered tags (`abvf`, `apkn`, `c2sc`, `chws`, `frac`,\n`jalt`, `lnum`, `mset`, `onum`, `pnum`, `smcp`, `subs`, `sups`, `tnum`, `vapk`, `vchw`), which the\nregistry still carries. A deprecated tag is stored and applied like any other and is not offered\nfor new authoring. The registry is not closed: any well-formed tag outside it is still accepted.\n\n*Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.*\n\n| Tag | Friendly name | Status | In the 229-tag observed union |\n|---|---|---|---|\n| `aalt` | Access All Alternates | registered | yes |\n| `abvf` | Above-base Forms | registered | no |\n| `abvm` | Above-base Mark Positioning | registered | yes |\n| `abvs` | Above-base Substitutions | registered | yes |\n| `afrc` | Alternative Fractions | registered | yes |\n| `akhn` | Akhand | registered | yes |\n| `apkn` | Kerning for Alternate Proportional Widths | registered | no |\n| `blwf` | Below-base Forms | registered | yes |\n| `blwm` | Below-base Mark Positioning | registered | yes |\n| `blws` | Below-base Substitutions | registered | yes |\n| `calt` | Contextual Alternates | registered | yes |\n| `case` | Case-sensitive Forms | registered | yes |\n| `ccmp` | Glyph Composition / Decomposition | registered | yes |\n| `cfar` | Conjunct Form After Ro | registered | yes |\n| `chws` | Contextual Half-width Spacing | registered | no |\n| `cjct` | Conjunct Forms | registered | yes |\n| `clig` | Contextual Ligatures | registered | yes |\n| `cpct` | Centered CJK Punctuation | registered | yes |\n| `cpsp` | Capital Spacing | registered | yes |\n| `cswh` | Contextual Swash | registered | yes |\n| `curs` | Cursive Positioning | registered | yes |\n| `cv01`-`cv99` | Character Variant 1 – Character Variant 99 | registered | all 99 |\n| `c2pc` | Petite Capitals From Capitals | registered | yes |\n| `c2sc` | Small Capitals From Capitals | registered | no |\n| `dist` | Distances | registered | yes |\n| `dlig` | Discretionary Ligatures | registered | yes |\n| `dnom` | Denominators | registered | yes |\n| `dtls` | Dotless Forms | registered | yes |\n| `expt` | Expert Forms | registered | yes |\n| `falt` | Final Glyph on Line Alternates | registered | yes |\n| `fin2` | Terminal Forms #2 | registered | yes |\n| `fin3` | Terminal Forms #3 | registered | yes |\n| `fina` | Terminal Forms | registered | yes |\n| `flac` | Flattened Accent Forms | registered | yes |\n| `frac` | Fractions | registered | no |\n| `fwid` | Full Widths | registered | yes |\n| `half` | Half Forms | registered | yes |\n| `haln` | Halant Forms | registered | yes |\n| `halt` | Alternate Half Widths | registered | yes |\n| `hist` | Historical Forms | registered | yes |\n| `hkna` | Horizontal Kana Alternates | registered | yes |\n| `hlig` | Historical Ligatures | registered | yes |\n| `hngl` | Hangul | deprecated | yes |\n| `hojo` | Hojo Kanji Forms (JIS X 0212-1990 Kanji Forms) | registered | yes |\n| `hwid` | Half Widths | registered | yes |\n| `init` | Initial Forms | registered | yes |\n| `isol` | Isolated Forms | registered | yes |\n| `ital` | Italics | registered | yes |\n| `jalt` | Justification Alternates | registered | no |\n| `jp78` | JIS78 Forms | registered | yes |\n| `jp83` | JIS83 Forms | registered | yes |\n| `jp90` | JIS90 Forms | registered | yes |\n| `jp04` | JIS2004 Forms | registered | yes |\n| `kern` | Kerning | registered | yes |\n| `lfbd` | Left Bounds | registered | yes |\n| `liga` | Standard Ligatures | registered | yes |\n| `ljmo` | Leading Jamo Forms | registered | yes |\n| `lnum` | Lining Figures | registered | no |\n| `locl` | Localized Forms | registered | yes |\n| `ltra` | Left-to-right Alternates | registered | yes |\n| `ltrm` | Left-to-right Mirrored Forms | registered | yes |\n| `mark` | Mark Positioning | registered | yes |\n| `med2` | Medial Forms #2 | registered | yes |\n| `medi` | Medial Forms | registered | yes |\n| `mgrk` | Mathematical Greek | registered | yes |\n| `mkmk` | Mark to Mark Positioning | registered | yes |\n| `mset` | Mark Positioning via Substitution | registered | no |\n| `nalt` | Alternate Annotation Forms | registered | yes |\n| `nlck` | NLC Kanji Forms | registered | yes |\n| `nukt` | Nukta Forms | registered | yes |\n| `numr` | Numerators | registered | yes |\n| `onum` | Oldstyle Figures | registered | no |\n| `opbd` | Optical Bounds | deprecated | yes |\n| `ordn` | Ordinals | registered | yes |\n| `ornm` | Ornaments | registered | yes |\n| `palt` | Proportional Alternate Widths | registered | yes |\n| `pcap` | Petite Capitals | registered | yes |\n| `pkna` | Proportional Kana | registered | yes |\n| `pnum` | Proportional Figures | registered | no |\n| `pref` | Pre-base Forms | registered | yes |\n| `pres` | Pre-base Substitutions | registered | yes |\n| `pstf` | Post-base Forms | registered | yes |\n| `psts` | Post-base Substitutions | registered | yes |\n| `pwid` | Proportional Widths | registered | yes |\n| `qwid` | Quarter Widths | registered | yes |\n| `rand` | Randomize | registered | yes |\n| `rclt` | Required Contextual Alternates | registered | yes |\n| `rkrf` | Rakar Forms | registered | yes |\n| `rlig` | Required Ligatures | registered | yes |\n| `rphf` | Reph Form | registered | yes |\n| `rtbd` | Right Bounds | registered | yes |\n| `rtla` | Right-to-left Alternates | registered | yes |\n| `rtlm` | Right-to-left Mirrored Forms | registered | yes |\n| `ruby` | Ruby Notation Forms | registered | yes |\n| `rvrn` | Required Variation Alternates | registered | yes |\n| `salt` | Stylistic Alternates | registered | yes |\n| `sinf` | Scientific Inferiors | registered | yes |\n| `size` | Optical size | registered | yes |\n| `smcp` | Small Capitals | registered | no |\n| `smpl` | Simplified Forms | registered | yes |\n| `ss01`-`ss20` | Stylistic Set 1 – Stylistic Set 20 | registered | all 20 |\n| `ssty` | Math Script-style Alternates | registered | yes |\n| `stch` | Stretching Glyph Decomposition | registered | yes |\n| `subs` | Subscript | registered | no |\n| `sups` | Superscript | registered | no |\n| `swsh` | Swash | registered | yes |\n| `titl` | Titling | registered | yes |\n| `tjmo` | Trailing Jamo Forms | registered | yes |\n| `tnam` | Traditional Name Forms | registered | yes |\n| `tnum` | Tabular Figures | registered | no |\n| `trad` | Traditional Forms | registered | yes |\n| `twid` | Third Widths | registered | yes |\n| `unic` | Unicase | registered | yes |\n| `valt` | Alternate Vertical Metrics | registered | yes |\n| `vapk` | Kerning for Alternate Proportional Vertical Metrics | registered | no |\n| `vatu` | Vattu Variants | registered | yes |\n| `vchw` | Vertical Contextual Half-width Spacing | registered | no |\n| `vert` | Vertical Alternates | registered | yes |\n| `vhal` | Alternate Vertical Half Metrics | registered | yes |\n| `vjmo` | Vowel Jamo Forms | registered | yes |\n| `vkna` | Vertical Kana Alternates | registered | yes |\n| `vkrn` | Vertical Kerning | registered | yes |\n| `vpal` | Proportional Alternate Vertical Metrics | registered | yes |\n| `vrt2` | Vertical Alternates and Rotation | registered | yes |\n| `vrtr` | Vertical Alternates for Rotation | registered | yes |\n| `zero` | Slashed Zero | registered | yes |\n| `abrv` | (not registered) | observed_unregistered | yes |\n| `just` | (not registered) | observed_unregistered | yes |"
+    }
+   ],
+   "test_path": "In the type crate, embed the spec table's tags as test data (or a generated const), then replace the ignored test with assertions that: every one of the 229 observed tags is in registry(); every one of the 243 registered tags is in registry(); registry().len() == 245; hngl and opbd are flagged deprecated; abrv and just are flagged observed_unregistered. Remove #[ignore]; MT-30955 AC-001 becomes provable.",
+   "mt_impact": {
+    "mts_citing_anchor": 6,
+    "mt_ids": [
+     "MT-018",
+     "MT-30955",
+     "MT-30959",
+     "MT-35657",
+     "MT-35658",
+     "MT-35659"
+    ],
+    "acceptance_text_change": "MT-30955 AC-001 text unchanged ('at least the 229'); it gains the table rows as acceptance on regeneration and becomes provable. Others only quote the clause."
+   },
+   "lane_impact": [
+    {
+     "lane": "SMB-TYPE-OT-FEATURES-1",
+     "follow_up": true,
+     "note": "Push with the lead reading; follow-up grows the registry from 209 to 245 tags, adds status flags, and un-ignores the 229-tag test."
+    }
+   ],
+   "confidence": "high"
+  }
+ }
+}
