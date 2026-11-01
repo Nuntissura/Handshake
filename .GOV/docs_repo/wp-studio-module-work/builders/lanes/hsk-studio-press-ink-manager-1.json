@@ -5,15 +5,70 @@
   "phase": "build",
   "worktree": "wt-studio-lanes/smb-press-ink-manager-1",
   "base": "99836457",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "pushed": false,
+      "sha": "838036f2f625bdfaa6989c84657da70801512203",
+      "subject": "press-write, press (SMB-PRESS-INK-MANAGER-1 items 1-3): ink manager contract, PDF/X standards, separations readouts (STU-LAY-160)",
+      "paths": [
+        "crates/hsk-studio-press-write/src/inks.rs",
+        "crates/hsk-studio-press-write/src/export.rs",
+        "crates/hsk-studio-press-write/src/export/pdfx.rs",
+        "crates/hsk-studio-press-write/src/separations.rs (readouts only)",
+        "crates/hsk-studio-press-write/src/lib.rs (exports)",
+        "crates/hsk-studio-press-write/tests/ink_manager_contract.rs (new, 13 tests)",
+        "crates/hsk-studio-press/src/lib.rs (re-exports + DESCRIPTOR separations.ink_manager entry)"
+      ],
+      "note": "red-first commit 3e03509b (tests only) did not compile without the contract and was squashed into this commit per RED COMMITS"
+    },
+    {
+      "pushed": false,
+      "sha": "c420f273d59b420bea7cb1c9411474410494ef9c",
+      "subject": "layout (SMB-PRESS-INK-MANAGER-1 item 4): transparency flattener preset record (STU-LAY-161)",
+      "paths": [
+        "crates/hsk-studio-layout/src/print.rs",
+        "crates/hsk-studio-layout/src/pdf_export_prefs.rs (name resolution only)",
+        "crates/hsk-studio-layout/src/lib.rs (re-exports only; OUTSIDE the brief's listed layout paths, see notes.out_of_path_touch)",
+        "crates/hsk-studio-layout/tests/id_flattener_preset.rs (new, 8 tests)"
+      ],
+      "note": "red-first commit b4565e5f (tests only) did not compile without the record and was squashed into this commit per RED COMMITS"
+    }
+  ],
+  "capabilities_done": [
+    "STU-LAY-160 ink table: ink_angle, ink_frequency, neutral_density, solidity as seven-field records (InkParameter::spec, reusing coverage ParamValue/ParamPrecision); unknown never mirrored; hard bounds and neutral_density precision 3 refused, never clamped or rounded",
+    "STU-LAY-160 ink_type: the one four-member InkType (from_code added), reused by separations plates and coverage; no second enumeration",
+    "STU-LAY-160 ink manager edits: InkManager::apply_edit(ActorContext, InkEdit) for add spot, parameter, ink type, alias, per-ink spot-to-process, all-spots-to-process, use-standard-Lab; whole-manager validation, attributed receipt, input unchanged on refusal",
+    "STU-LAY-160 typed errors: process_ink_cannot_be_aliased; mixed ink <= 27 spot and <= 31 inks; mixed-ink group <= 1000 swatches (checked before any swatch is built); plus mixed_ink_duplicate_part and process_ink_not_convertible (Studio rules)",
+    "STU-LAY-160 PDF/X: PdfXStandard six members (exact tokens); ExportOptions::pdfx_standard / with_pdfx_standard writes only the X-4 identification, refuses x1a_2001, x3_2002, x1a_2003, x3_2003 with pdfx_standard_not_implemented; ExportReceipt::effective_pdfx_standard read back; conformance stays not_proven",
+    "STU-LAY-160 separations preview: SeparationsViewState (per-plate switches, ink-limit threshold bounded 0..=100 x plates) -> SeparationsReadout (PlateReadout with coverage, InkLimitViewReadout counting exactly the pixels PlateView::InkLimit marks) and view_for driving render",
+    "STU-LAY-161 flattener preset: line_art_and_text_resolution 1..9600 dpi and gradient_and_mesh_resolution 0..1200 dpi seven-field rows; raster_vector_balance all seven fields unknown (SPEC GAP, finite only); three switches; FlattenerLevel five members of STU-LAY-135 (new: none existed at base)",
+    "STU-LAY-161 stored presets: FlattenerPresets edited under the caller's CommandContext (command id required, stale revision refused, input unchanged); flattener_preset_name and applied_flattener_preset resolve by exact name, dangling -> flattener_preset_missing, non-text print value -> flattener_preset_name_not_text; refusals report through layout report_command (codes only)"
+  ],
+  "tests": {
+    "bundled_run": {
+      "argv": "bash tools/lane-check.sh --owner smb-press-ink-manager-1 --disk d -- cargo nextest run -p hsk-studio-press-write -p hsk-studio-press -p hsk-studio-layout --no-fail-fast",
+      "sha": "c420f273d59b420bea7cb1c9411474410494ef9c",
+      "exit": 0,
+      "passed": 425,
+      "failed": 0,
+      "run": 1,
+      "step0": "clean (V4-03 machine paths, V4-05 frozen duplicates)",
+      "clippy": "press-write, press, layout and dependents [harness, harness-core, harness-view, interop-fig, interop-fig-native, interop-layout] --tests: no warning in any press-write, press or layout file (warnings only in hsk-studio-type, hsk-studio-observe, hsk-studio-render-cpu, pre-existing)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-press-ink-manager-1/lane-check-smb-press-ink-manager-1-c420f273-run1.log",
+      "started_at": "2026-11-01T11:02:50Z",
+      "finished_at": "2026-11-01T11:04:49Z"
+    },
+    "doctests": "none added (no doc examples)",
+    "feature_gates": "none: both new test targets are not feature-gated (4e)",
+    "per_sha": "not run yet: runs after the lead releases the lane (rebase onto origin, then --per-sha)",
+    "diff_stat": "99836457..c420f273: only the 11 lane paths (1432 insertions, 33 deletions)"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: read the brief, red-first per item, one bundled run on D:, push only after STUDIO-R52 is recorded and the lead releases",
-  "updated_at": "2026-11-01T10:46:05Z",
+  "next": "waiting for lead release after R52",
+  "updated_at": "2026-11-01T11:05:20Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -21,13 +76,13 @@
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
-      "internal_diagnostics": "none: press-write has no observe edge (steward item, F-R51-7); layout producer_through_observe",
+      "internal_diagnostics": "press-write none: no observe edge (steward item, F-R51-7; InkError/ExportError/SepViewError are typed codes for the press face or host to emit); layout producer_through_observe: FlattenerPresetError::failure_code via report_command (test flattener_preset_edits_report_through_observe_codes_only, no preset name reaches the sink)",
       "flight_recorder": "none",
       "palmistry": "none"
     },
-    "control_descriptors": "none",
-    "attribution": "required: editing inks, aliases and stored flattener presets are mutating document edits and take an ActorContext from the caller; never default_actor()",
-    "jobs": "none",
+    "control_descriptors": "none: no command or control registered (engine records; the host registers ink-manager and flattener-preset commands and RUN_COMMANDS rows when it exposes them)",
+    "attribution": "ink edits take the caller's ActorContext (InkManager::apply_edit, receipt carries it); flattener-preset edits take the caller's CommandContext (FlattenerPresets::apply); no default_actor() or literal actor in product code",
+    "jobs": "none: bounded synchronous calls, no queue or worker",
     "settings": "none",
     "refactor_exposure": "low"
   },
@@ -41,6 +96,62 @@
       "MT-30849",
       "MT-35695 (ink/separations/flattener-preset rows only)"
     ],
-    "dispatch_reason": "engine lane (D6), gap verified by git grep at base 99836457; builds on D: while STUDIO-R52 holds C:"
-  }
+    "dispatch_reason": "engine lane (D6), gap verified by git grep at base 99836457; builds on D: while STUDIO-R52 holds C:",
+    "spec_basis": "Master Spec v02.229 module 14: STU-LAY-160 (:7206), STU-LAY-161 (:7417), STU-LAY-100, STU-LAY-102, STU-LAY-103, STU-LAY-135 (spread_flattener_override), STU-LAY-105 (overprint_black_on_save, unchanged)",
+    "changed_preexisting_assertions": "none: no pre-existing test changed. Behaviour notes: InkManager::validate now also refuses a neutral_density with more than 3 decimal places (ink_parameter_precision; previously any in-range value) and MixedInk::validate refuses a part listed twice (mixed_ink_duplicate_part); range error codes unchanged (ink_angle_out_of_range etc.); id_prepress_separations stays green (its repeated-S0 group only calls swatch_count)",
+    "mixed_ink_location": "mixed inks and mixed-ink groups are represented only in press-write inks.rs (Folio stores spot inks, StudioSpotInk, no mixed-ink record), so the 27/31/1000 limits are enforced there",
+    "mixed_ink_total_note": "with unique parts and only four process inks, a mixed ink of 32 parts always holds >= 28 spots; the 31-total refusal is counted first (mixed_ink_too_many_inks), so a 32-total case with <= 27 spots does not exist to test independently",
+    "pdfx_design": "no new ExportOptions field: hsk-studio-press src/preset.rs (outside owned paths) builds ExportOptions with a full struct literal, so a new field would break it; the standard is carried by ExportOptions::pdfx4 and read/written through the typed pdfx_standard / with_pdfx_standard; the identification written is this crate's PDF/X-4 one, labelled pdfx.x4_2010 (edition mapping UNVERIFIED, D5); no conformance claimed for any member",
+    "spec_conflict_for_steward": "press preset ComplianceCheck (STU-LAY-159, src/preset.rs) carries 'PDF/X-4:2007' while STU-LAY-160 enumerates pdfx.x4_2010; layout pdf_export_prefs STANDARDS_COMPLIANCE_KNOWN carries the same STU-LAY-159 tokens. Not unified here (outside paths); propose a spec note on which edition the X-4 member names",
+    "brief_vs_spec": "the brief names 'the four booleans'; STU-LAY-161 names three switches (convert-all-text-to-outlines, convert-all-strokes-to-outlines, clip-complex-regions) plus the raster-vector balance; three implemented, no fourth invented",
+    "flattener_level_placement": "FlattenerLevel is the STU-LAY-135 spread_flattener_override vocabulary; the preset carries it as level: Option<FlattenerLevel>; no mapping from a level to parameter values is invented (none captured)",
+    "studio_rules_unverified": "process_ink_not_convertible (conversion flag on a process ink refused), mixed_ink_duplicate_part, flattener names exact and case-sensitive, MAX_FLATTENER_PRESETS 1024 and name bound 256 bytes (= MAX_PDF_NAME_BYTES): Studio rules, vendor parity UNVERIFIED (D5)",
+    "out_of_path_touch": "crates/hsk-studio-layout/src/lib.rs: 4 added re-export lines (print module is private, so the flattener types are unreachable without it); the brief lists lib.rs exports for press-write but not for layout. Waiver requested from the lead",
+    "bounds": "InkManager MAX_INKS 1024 and names <= 256 bytes on apply_edit; mixed-ink group swatch count checked arithmetic before allocation; SeparationsViewState toggles <= MAX_SEP_PLATES (64), threshold finite within 0..=100 x plates; FlattenerPresets <= 1024, names <= 256 bytes checked before copying; tests ink_manager_hostile_sizes_are_typed_refusals, flattener_presets_hostile_count_is_bounded",
+    "follow_ups": [
+      "flattener PREVIEW (STU-LAY-161 second sentence, MT-30848) and actual flattening: not built; press-write coverage stage transparency_flattening stays unperformed",
+      "Folio persistence of FlattenerPresets (a records schema like hsk.studio.trap_preset_records@1) - folio-owned",
+      "press-write -> observe edge (steward item F-R51-7) so ink-edit and export outcomes are emitted",
+      "host: register ink-manager / flattener-preset commands in the controls Registry with RUN_COMMANDS rows; GUI panels"
+    ],
+    "mt_proposals": "MT-30844/30845/30848/30849 proof checks plan hsk-studio-layout test targets (mixed_ink_limits_typed_separations, ink_numeric_metadata_effective_print); the ink contract is owned by hsk-studio-press-write (tests/ink_manager_contract.rs) and the flattener record by hsk-studio-layout (tests/id_flattener_preset.rs). Proposal only, MTs not edited",
+    "spec_proposals": [
+      "STU-LAY-160: name the PDF/X-4 edition consistently with STU-LAY-159 (x4_2010 vs PDF/X-4:2007)",
+      "STU-LAY-161: recover or declare bounds for the raster-vector balance (SPEC GAP) and state how the flattener level relates to the preset parameters"
+    ],
+    "parity": "vendor parity UNVERIFIED (D5)",
+    "mt_claims": {
+      "MT-30844": {
+        "AC-001": "met: mixed_ink_limits_27_spots_31_inks_1000_swatches_are_typed (27 ok / 28 refused, 31 ok / 32 refused, 1000 ok / 1001 refused, hostile u32 repeats)",
+        "AC-002": "met: separations_readouts_plate_switches_threshold_and_coverage_are_typed (plate switches, threshold and coverage as typed values)"
+      },
+      "MT-30845": {
+        "AC-001": "met: ink_row_ink_angle",
+        "AC-002": "met: ink_row_ink_frequency",
+        "AC-003": "met: ink_row_neutral_density (incl. precision 3)",
+        "AC-004": "met: ink_row_solidity"
+      },
+      "MT-30848": {
+        "AC-001": "not met: the flattener PREVIEW is out of scope (brief); only the preset record it would read exists"
+      },
+      "MT-30849": {
+        "AC-001": "met: flattener_row_line_art_and_text_resolution",
+        "AC-002": "met: flattener_row_gradient_and_mesh_resolution"
+      },
+      "MT-35695": {
+        "AC-001 (PDF/X intents)": "partly met: pdfx_standards_six_members_exact_tokens + pdfx_export_writes_only_the_implemented_identification (six-member enumeration; X-4 identification only, other four refused typed; built-in presets are the press preset lane's)",
+        "AC-002 (Ink manager)": "met for the engine rows: spot_to_process_all_spots_aliasing_and_standard_lab_edits_drive_separation, ink_type_four_members_exact_tokens_and_reused_by_plates, ink_edits_are_attributed_to_the_caller_and_never_partial (per-ink trap sequence not in the spec table, not built)",
+        "AC-005 (Separations preview)": "partly met: separations_readouts_plate_switches_threshold_and_coverage_are_typed (typed readouts and view state; GUI panel is host)",
+        "AC-006 (Flattener surfaces)": "partly met: flattener_preset_names_resolve_against_stored_presets_or_refuse, flattener_presets_store_attributed_edits_and_typed_refusals (preset record and resolution; preview not built)",
+        "AC-003, AC-004": "not claimed (overprint, trap presets)"
+      }
+    }
+  },
+  "claimed_mts": [
+    "MT-30844",
+    "MT-30845",
+    "MT-30849",
+    "MT-30848 (not met: preview out of scope)",
+    "MT-35695 (ink / separations / flattener-preset / PDF/X rows only, partly)"
+  ]
 }
