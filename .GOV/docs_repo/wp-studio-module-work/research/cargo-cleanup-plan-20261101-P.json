@@ -2,11 +2,11 @@
  "schema": "hsk.studio.cleanup_plan@1",
  "file_id": "CARGO-CLEANUP-PLAN-20261101-P",
  "generated_at": "2026-11-01T03:48:00Z",
- "status": "EXECUTED: P-D01 DELETED; P-C01 DEFERRED (C: lock held) (result research/cargo-cleanup-result-20261101-P.json)",
+ "status": "EXECUTED: P-D01 and P-C01 DELETED (result research/cargo-cleanup-result-20261101-P.json)",
  "authority": "Operator standing grant START_LOG 2026-10-24 (~600-601); rule P2 of research/cargo-plan-20261024.json; method precedent batch O; holders (orphaned tail.exe) stopped by Operator approval",
  "state_basis": {
   "round": "STUDIO-R50 (ledger.json lane_id uppercase)",
-  "locks": "D: free (no held, queue empty) at 03:47Z; C: held by smb-id-toc-index-1 + 1 queued",
+  "locks": "D: free at 03:47Z; C: held at 03:47Z/03:52Z (deferred), free (no held, queue empty) at 05:34Z",
   "other_disk_search": "not repeated; batch O dry runs already checked"
  },
  "measure_at_dry_run": {
@@ -38,15 +38,15 @@
    "files": 4935,
    "newest_write_utc": "2026-10-31T13:35:59Z",
    "ledger_status": "PASS_V2 in STUDIO-R50 (ledger.json lane_id uppercase, re-read 2026-11-01)",
-   "dry_run_status": "NOT_RUN",
-   "execute_status": "DEFERRED",
-   "detail": "C: build lock held by smb-id-toc-index-1 (lane-check, per-sha cargo check) with one queued ticket at 03:47Z and 03:52Z; C: not run"
+   "dry_run_status": "WOULD_DELETE",
+   "execute_status": "DELETED",
+   "detail": "first deferred (C: lock held 03:47-03:52Z), run 05:34Z after lead confirmed no builder"
   }
  ],
  "not_candidates": "logs, results, receipts, red logs, exports, per-sha dirs, tmp, nextest, studio-round, steward dirs, locks, registry",
  "script": "phase2-guarded-delete.ps1 sha256 dd8d5380cf36db964f15625af39f86522b63286b3f0f39b4b16816ea306e1699 (unchanged from batch O)",
  "execute_commands": {
   "D": "-Plan batchP.json -Disk D -Approve P-D01 -NormalIo -KeepOrder -MaxFilesPerSec 600 -MaxBytesPerSec 524288000 -Execute",
-  "C": "not run (deferred); would be -Plan batchP.json -Disk C -Approve P-C01 -ReleaseKeepSlot -AllowLanes -KeepLanes smb-fig-grid-3 -NormalIo -KeepOrder -MaxFilesPerSec 600 -MaxBytesPerSec 524288000 -Execute"
+  "C": "-Plan batchP.json -Disk C -Approve P-C01 -ReleaseKeepSlot -AllowLanes -KeepLanes smb-fig-grid-3 -NormalIo -KeepOrder -MaxFilesPerSec 600 -MaxBytesPerSec 524288000 -Execute"
  }
 }
