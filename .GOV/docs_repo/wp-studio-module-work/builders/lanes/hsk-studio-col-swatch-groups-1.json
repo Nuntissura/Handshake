@@ -1,38 +1,30 @@
 {
   "crate": "hsk-studio-folio (swatch groups, palette scope, colour-book records), ICC-parsing crate (named-colour binding, if it parses ICC tags)",
   "lane": "SMB-COL-SWATCH-GROUPS-1",
-  "status": null,
-  "phase": "green_local_waiting_release",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed",
   "worktree": "wt-studio-lanes/smb-col-swatch-groups-1",
   "base": "99836457",
   "commits": [
     {
-      "sha": "8ec36c6a",
-      "kind": "red",
-      "subject": "folio red: swatch group, palette scope, colour-book tests",
-      "compiles": false,
-      "pushed": false,
-      "plan": "squash into ecd161bd before push (RED COMMITS: a red commit that does not compile stays local); not run: it calls API absent at base 99836457"
-    },
-    {
-      "sha": "ecd161bd",
+      "sha": "a888bf3e",
       "kind": "green",
-      "subject": "folio: swatch groups, palette scope, colour-book resource (+ package externals classification, rule 4b)",
-      "pushed": false
+      "subject": "folio (SMB-COL-SWATCH-GROUPS-1): swatch groups, palette scope, colour-book resource",
+      "pushed": true,
+      "squashed_from": [
+        "8ec36c6a (red, did not compile, not run)",
+        "ecd161bd (green)"
+      ]
     },
     {
-      "sha": "6c392204",
-      "kind": "red",
-      "subject": "prism red: named-colour profile tests",
-      "compiles": false,
-      "pushed": false,
-      "plan": "squash into 49fb3912 before push; not run: parse_named_colour_profile absent at base"
-    },
-    {
-      "sha": "49fb3912",
+      "sha": "174ebc56",
       "kind": "green",
-      "subject": "prism: ICC named-colour (ncl2) profile parsing",
-      "pushed": false
+      "subject": "prism (SMB-COL-SWATCH-GROUPS-1): ICC named-colour (ncl2) profile parsing",
+      "pushed": true,
+      "squashed_from": [
+        "6c392204 (red, did not compile, not run)",
+        "49fb3912 (green)"
+      ]
     }
   ],
   "capabilities_done": [
@@ -59,7 +51,8 @@
       },
       "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-col-swatch-groups-1/bundle-smb-col-swatch-groups-1-49fb3912.log",
       "clippy_warnings_in_changed_crates": 0,
-      "run": "bundled run 1 of 1, green; no re-run"
+      "run": "bundled run 1 of 1, green; no re-run",
+      "applies_to_pushed": "bundled run at 49fb3912 stands for 174ebc56: the squash kept the tree identical (HEAD^{tree} == 49fb3912^{tree} before rebase) and the rebases brought in only layout, press and press-write commits, which are not folio or prism dependencies (lead rule 5: no bundled re-run)"
     },
     "doctests": "none added or changed (rule 4d not triggered)",
     "new_tests": {
@@ -89,14 +82,21 @@
         "malformed_and_unsupported_named_colour_profiles_are_refused_typed",
         "named_colour_dims_u32_max_and_aggregate_over_budget_are_refused_before_storing"
       ]
+    },
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-col-swatch-groups-1 --disk d --per-sha origin/codex/handshake-studio-assets",
+      "exit": 0,
+      "result": "PER_SHA_RESULT OK shas=2 range=295c6029..174ebc56",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-col-swatch-groups-1/per-sha-smb-col-swatch-groups-1-174ebc56.log",
+      "earlier_attempts": "per-sha OK at 99836457..3e7f4eda and c420f273..cae867cd; origin advanced twice (SMB-PRESS-INK-MANAGER-1 layout/press/press-write, SMB-PRESS-OBSERVE-1 press-write) before the push, so rebased and re-ran each time"
     }
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "waiting for lead release after R52",
-  "updated_at": "2026-11-01T11:14:03Z",
+  "next": "validator: judge range 295c6029..174ebc56 (folio a888bf3e, prism 174ebc56)",
+  "updated_at": "2026-11-01T13:32:46Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -218,9 +218,19 @@
       "later prism lane: WIDE_DESCRIPTOR not_in_scope still names named-colour profiles (now parsed by named_colour.rs; use as a transform stays out of scope)",
       "later lane: host join NamedColourTable -> StudioColourBook::from_named_colours and the STU-COL-188 proof comparison; OS system-palette adapter; remaining STU-COL-179 panel commands"
     ],
-    "shared_files_other_lane": "none; diff-stat 99836457..49fb3912 lists 13 files, all lane paths (folio src lib.rs, vector.rs, vector_tools.rs, swatch_library.rs, colour_book.rs and 3 tests; package tests/externals.rs; prism src lib.rs, wide.rs, named_colour.rs and tests/named_colour.rs)",
-    "release_procedure": "on release: fetch; squash the two non-compiling red commits into their greens while rebasing onto origin/codex/handshake-studio-assets (folio commit = 8ec36c6a+ecd161bd, prism commit = 6c392204+49fb3912); lane-check --per-sha origin/codex/handshake-studio-assets; diff-stat; push on PER_SHA_RESULT OK with the guarded sha form",
-    "cargo_lock": "not committed; no new dependency"
+    "shared_files_other_lane": "none; diff-stat 295c6029..174ebc56 lists 13 files, all lane paths (folio src lib.rs, vector.rs, vector_tools.rs, swatch_library.rs, colour_book.rs and 3 tests; package tests/externals.rs; prism src lib.rs, wide.rs, named_colour.rs and tests/named_colour.rs)",
+    "cargo_lock": "not committed; no new dependency",
+    "release": {
+      "released_by": "lead, after STUDIO-R52 recorded (cd791095, 312 PASS / 0 FAIL)",
+      "squash": "the two non-compiling red commits were squashed into their greens (rebase todo: pick red, fixup -C green), before any push; neither red commit was ever pushed",
+      "rebase": "onto origin/codex/handshake-studio-assets c420f273, then 295c6029 (non-fast-forward races with SMB-PRESS-INK-MANAGER-1 and SMB-PRESS-OBSERVE-1; re-fetched, rebased, per-sha re-run, pushed)",
+      "push": "SHA=$(git rev-parse HEAD) && [ -n \"$SHA\" ] && git push origin \"$SHA:refs/heads/codex/handshake-studio-assets\": exit 0, 295c6029..174ebc56; fetch shows origin == 174ebc56",
+      "diff_stat": "git diff --stat 295c6029..174ebc56: 13 files, 2188+/10-, all lane paths plus the accepted edits"
+    },
+    "lead_acceptances": {
+      "owned_path_deviations": "lead accepted the folio src/vector.rs edits and the prism src/lib.rs (mod line) and src/wide.rs (Tag fields pub(crate)) edits as lane paths for this lane's diff-stat check",
+      "bundled_rerun": "lead: re-run the bundled run only if the rebase touched folio, prism or their dependencies (it did not)"
+    }
   },
   "changed_assertions": [
     "hsk-studio-package tests/externals.rs CLASSIFIED: +1 row StudioVectorRecords.swatch_book_links (internal; the vocab word 'link' is in the new member name). No existing assertion changed.",
