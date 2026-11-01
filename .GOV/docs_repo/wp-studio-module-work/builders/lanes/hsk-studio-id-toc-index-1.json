@@ -5,15 +5,75 @@
   "phase": "build",
   "worktree": "wt-studio-lanes/smb-id-toc-index-1",
   "base": "31454a07",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "1d61c6c8",
+      "slice": "item 3 trap preset (red: panicking bodies, compiling)",
+      "pushed": false
+    },
+    {
+      "sha": "9218a503",
+      "slice": "item 3 trap preset",
+      "pushed": false
+    },
+    {
+      "sha": "78480e3b",
+      "slice": "item 1 TOC contract (red: panicking generation, compiling)",
+      "pushed": false
+    },
+    {
+      "sha": "9f0a48c3",
+      "slice": "item 1 TOC generate/update/update-all",
+      "pushed": false
+    },
+    {
+      "sha": "d1bad6a8",
+      "slice": "item 2 index contract (red: panicking bodies, compiling)",
+      "pushed": false
+    },
+    {
+      "sha": "dd69e2e2",
+      "slice": "item 2 index generate/capitalise/capture",
+      "pushed": false
+    },
+    {
+      "sha": "3df5ad01",
+      "slice": "DESCRIPTOR toc_index_trap entry",
+      "pushed": false
+    }
+  ],
+  "capabilities_done": [
+    "STU-LAY-148 TocStyle (11 style fields + default_styled + entries) and TocEntryStyle (8 entry fields), typed ParagraphStyleRef/CharacterStyleRef scope-checked against StudioTypeStyleRecords",
+    "TOC generate/update/update-all with CommandContext attribution, include_overset request flag, include_hidden, remove_forced_line_break, run_in, sort_alphabet, page_number_position, separator/page-number character styles, make_anchor anchors with typed NotCreatedStoryLocked outcome, create_bookmarks, book documents via combined book or toc_book_unavailable, replace-existing in place",
+    "STU-LAY-149 IndexOptions (every table field, six independent separators, level_1..4 styles, replace/book/hidden flags, char styles), STUDIO_MAX_INDEX_LEVELS=4, per-mark PageRangeScope, XREF_CODES (8), IndexCaps (4, whole-index constraint), SectionHeaderSet + HeaderType (13 named + captured tokens), generate_index_contract, capitalize_index_topics, capture_index_mark (last-name-first), five captured typed errors with offending mark id",
+    "STU-LAY-152 TrapParameter seven bound sets on NumericBounds (PrintUnit gains pt, ratio), black_density hard max 12.0 with captured_hard_max [10,12], width bounds derived from pt, TrapEndType/TrapImagePlacement exact codes, TrapPreset record",
+    "report_command: one Observe terminal outcome per command (correlation + base revision, codes only)"
+  ],
+  "tests": {
+    "bundled_run_1": {
+      "argv": "bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-id-toc-index-1 -- cargo nextest run -p hsk-studio-layout",
+      "scope": "rule 4a: whole hsk-studio-layout suite; clippy over layout and dependents harness, harness-view, interop-layout; folio unchanged (4b n/a); no doc examples added (4d n/a); no feature-gated tests (4e n/a)",
+      "exit": 0,
+      "sha": "3df5ad013bdaf41e75263d380138c8a5d1b2b96c",
+      "passed": 185,
+      "failed": 0,
+      "new_tests": 32,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-toc-index-1/bundled-smb-id-toc-index-1-3df5ad01-run1.log",
+      "clippy_warnings_in_lane_files": "warn-level only: collapsible_if src/index_contract.rs:820; type_complexity tests/id_toc_contract.rs:36 and tests/id_index_contract.rs:36; cloned_ref_to_slice_refs tests/id_index_contract.rs:383"
+    },
+    "per_sha_prerebase": {
+      "argv": "lane-check.sh --owner smb-id-toc-index-1 --per-sha 31454a07",
+      "result": "PER_SHA_RESULT OK shas=7 range=31454a07..3df5ad01",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-toc-index-1/persha-smb-id-toc-index-1-3df5ad01-prerebase.log",
+      "note": "pre-check on the old base; the push still reruns --per-sha origin/codex/handshake-studio-assets after the rebase"
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: read the brief, red-first per item, one bundled run, push after SMB-R50-FOLLOWUPS-1 is on origin",
-  "updated_at": "2026-11-01T02:58:58Z",
+  "next": "waiting for R50 followups push",
+  "updated_at": "2026-11-01T03:58:23Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -44,6 +104,167 @@
       "MT-30846",
       "MT-30847"
     ],
-    "dispatch_reason": "post-R50 wave slot after the five paused lanes resumed; engine lane (D6), gap verified by git grep at base (no TOC/index model, no trap-preset record; press-write ink-limit preview predates STU-LAY-250..254)"
+    "dispatch_reason": "post-R50 wave slot after the five paused lanes resumed; engine lane (D6), gap verified by git grep at base (no TOC/index model, no trap-preset record; press-write ink-limit preview predates STU-LAY-250..254)",
+    "spec_basis": "Master Spec v02.226 module 14: STU-LAY-044/148 (:6628-6670), STU-LAY-045/149 (:6672-6719), STU-LAY-152 (:7394-7415), with STU-LAY-036/037/042/147/100/103/107/166",
+    "brief_correction": "the brief said base had no TOC/index model; base has src/toc.rs (generate_toc over Folio StudioTocStyle) and src/index.rs (generate_index over Folio StudioIndexOptions/StudioIndexMark). They are unchanged (interop-layout tests call them); the new toc_contract.rs/index_contract.rs carry the full contracts, lift Folio records (from_folio) and are tested equal to the old generators for lifted records",
+    "folio_not_changed": "adding fields to StudioTocStyle/StudioTocEntry/StudioIndexOptions/StudioIndexMark would break struct literals in hsk-studio-interop-layout (src/idml_longdoc.rs:705,714; tests/longdoc_pdf.rs:521-970) and layout tests outside the owned paths. Persistence of the new fields (TOC flags and entry char styles, index flags and char styles, per-mark page-range scopes, header sets, trap presets) needs a steward-coordinated folio + interop-layout change (lead)",
+    "page_object": "layout has no page object of its own (pages are Folio StudioPage); applied_trap_preset not added, stopped at the record (brief item 3)",
+    "attribution": "commands take hsk_studio_accord::CommandContext; a context without a command id (command_id_missing) or with base_revision != document.revision (stale_revision) is refused; no default_actor",
+    "hostile_input": "TocLimits/IndexLimits bound entries, marks, scopes, text bytes; MAX_TOC_ENTRIES, MAX_TOCS_PER_UPDATE, MAX_HEADER_GROUPS/INITIALS, MAX_TOPIC_BYTES, MAX_TRAP_PRESET_NAME_BYTES; new modules carry deny(clippy::arithmetic_side_effects)",
+    "spec_gaps": [
+      "STU-LAY-148 numbered_paragraphs: enumeration without members; carried as a captured token, no effect on generation",
+      "STU-LAY-149 header-type enumeration: 27 members, 13 families named; the other 14 carried as captured tokens",
+      "STU-LAY-148 run_in: no joiner declared; Studio RUN_IN_JOINER = '; ' (UNVERIFIED)",
+      "STU-LAY-149 lists no page-range scope members; MT-174's members implemented",
+      "STU-LAY-152 cicero width: capture 0c7.507, shared converter (0.376065 mm Didot) derives 0c7.505",
+      "STU-LAY-148 default-styled TOC: representation undeclared; Studio flag default_styled",
+      "STU-LAY-149 capitalisation behaviour undeclared; Studio upper-cases the first character",
+      "index cross-reference lead-in words undeclared; generate_index's English words reused"
+    ],
+    "proposals": [
+      "MT-30847 AC-004: regenerate from STU-LAY-152 (normative hard_max 12.0, both captures recorded)",
+      "folio persistence follow-up for the new TOC/index/trap fields (steward)"
+    ],
+    "vendor_parity": "InDesign TOC, index and trapping behaviour UNVERIFIED (D5)",
+    "push_order": "SMB-R50-FOLLOWUPS-1 not on origin/codex/handshake-studio-assets at 2026-11-01T03:58:23Z; not pushed"
+  },
+  "mt_claims": {
+    "MT-173": {
+      "status": "partly met",
+      "rows": {
+        "AC-001": [
+          "met",
+          "toc_style_driven_levels_positions_separators_and_styles; toc_forced_breaks_run_in_and_sort"
+        ],
+        "AC-002": [
+          "met",
+          "toc_multiple_independent_tocs_and_update_all"
+        ],
+        "AC-003": [
+          "met",
+          "toc_multiple_independent_tocs_and_update_all"
+        ],
+        "AC-004": [
+          "partly met",
+          "toc_anchors_bookmarks_and_locked_story_outcome (engine anchors + bookmark records; export handoff to 14.11 not in lane)"
+        ]
+      },
+      "not_met": "MT host_integration asks gui_host vulkan_shell_client and shared control descriptors: out of this engine lane's scope"
+    },
+    "MT-174": {
+      "status": "partly met",
+      "rows": {
+        "AC-001": [
+          "met",
+          "index_four_levels_supported_and_declared; index_hierarchy_scopes_xrefs_separators_and_styles"
+        ],
+        "AC-002": [
+          "met",
+          "index_hierarchy_scopes_xrefs_separators_and_styles; index_xref_codes_and_capitalisation"
+        ],
+        "AC-003": [
+          "partly met",
+          "index_capture_selection_and_proper_names (engine capture; no shortcut/UI)"
+        ],
+        "AC-004": [
+          "met",
+          "index_hierarchy_scopes_xrefs_separators_and_styles; index_section_headings_from_pluggable_header_sets"
+        ]
+      }
+    },
+    "MT-30776": {
+      "status": "met",
+      "rows": {
+        "AC-001": [
+          "met",
+          "toc_style_driven_levels_positions_separators_and_styles"
+        ]
+      }
+    },
+    "MT-30777": {
+      "status": "met",
+      "rows": {
+        "AC-001": [
+          "met",
+          "toc_include_overset_and_include_hidden_flags"
+        ],
+        "AC-002": [
+          "met",
+          "toc_multiple_independent_tocs_and_update_all"
+        ],
+        "AC-003": [
+          "met",
+          "toc_typed_errors; toc_anchors_bookmarks_and_locked_story_outcome"
+        ]
+      }
+    },
+    "MT-30778": {
+      "status": "met",
+      "rows": {
+        "AC-001": [
+          "met",
+          "index_hierarchy_scopes_xrefs_separators_and_styles (scope members from MT-174, STU-LAY-149 lists none)"
+        ]
+      }
+    },
+    "MT-30779": {
+      "status": "partly met",
+      "rows": {
+        "AC-001": [
+          "met",
+          "index_four_levels_supported_and_declared; index_options_lift_from_folio_matches_generate_index"
+        ],
+        "AC-002": [
+          "met",
+          "index_option_rules_attribution_and_budgets; index_hierarchy_scopes_xrefs_separators_and_styles"
+        ],
+        "AC-003": [
+          "met",
+          "index_xref_codes_and_capitalisation"
+        ],
+        "AC-004": [
+          "partly met",
+          "index_section_headings_from_pluggable_header_sets; index_header_types_named_and_captured (pluggable model, non-Latin group tested; 14 of 27 header types unnamed by the spec; matching by first character, no Hangul-initial decomposition)"
+        ]
+      }
+    },
+    "MT-30846": {
+      "status": "partly met",
+      "rows": {},
+      "note": "no acceptance rows in the MT; record per STU-LAY-152 done (tests/id_trap_preset.rs); page applied_trap_preset not carried (layout has no page object)"
+    },
+    "MT-30847": {
+      "status": "partly met",
+      "rows": {
+        "AC-001": [
+          "met",
+          "trap_row_default_trap_width"
+        ],
+        "AC-002": [
+          "met",
+          "trap_row_black_width"
+        ],
+        "AC-003": [
+          "met",
+          "trap_row_black_color_threshold"
+        ],
+        "AC-004": [
+          "partly met",
+          "trap_row_black_density_with_capture_conflict: normative hard_max 12.0 per STU-LAY-152/103, the row's 10 recorded in captured_hard_max; the MT row text says hard_max=10 (propose MT regeneration)"
+        ],
+        "AC-005": [
+          "met",
+          "trap_row_sliding_trap_threshold"
+        ],
+        "AC-006": [
+          "met",
+          "trap_row_step_threshold"
+        ],
+        "AC-007": [
+          "met",
+          "trap_row_color_reduction"
+        ]
+      }
+    }
   }
 }
