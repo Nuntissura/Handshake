@@ -8,19 +8,29 @@
   "commits": [
     {
       "sha": "a9302d55",
-      "slice": "red tests: folio catalogue sweep, Glow/Directional Blur old->new rows, multi-turn round trip, ceiling; composite Glow phase, Directional Blur evaluation, ANGLE table cells, Foam/Wave world angle store (compiles; 4 folio tests fail at this commit)",
+      "slice": "red tests: folio catalogue sweep, Glow/Directional Blur old->new rows, multi-turn round trip, ceiling; composite Directional Blur evaluation, ANGLE table cells, Foam/Wave world angle store (compiles; 4 folio tests fail at this commit)",
       "pushed": false
     },
     {
       "sha": "86a8d61e",
       "slice": "folio: Glow Color Phase and Directional Blur Direction unbounded_in_source (single angle row constructor); composite comments follow",
       "pushed": false
+    },
+    {
+      "sha": "572ffef1",
+      "slice": "red test: composite Glow Color Phase default matched modulo 360, other phases stay typed refusals (compiles; fails at this commit)",
+      "pushed": false
+    },
+    {
+      "sha": "0f68176b",
+      "slice": "composite: Glow Color Phase compared with the default modulo 360 (typed refusal otherwise)",
+      "pushed": false
     }
   ],
   "capabilities_done": [
     "SD-26 / STU-FX-131a: every recovered ANGLE row of the folio catalogue (Twirl Angle, Directional Blur Direction, Glow Color Phase, Hue/Saturation Master Hue and Colorize Hue) has all four bounds None and bound_state unbounded_in_source; 2 rows changed (Glow Color Phase, Directional Blur Direction), 3 were already unbounded",
     "full signed degrees stored as given (725, -725, 1440.5, keyframed too), byte-identical record round trip; only the Folio ceiling and non-finite values are refused",
-    "composite: Directional Blur direction reduced modulo 360 only at evaluation (already so; now pinned), Glow Color Phase past the old pair reaches the engine typed option refusal instead of effect_param_out_of_range"
+    "composite: Directional Blur direction reduced modulo 360 only at evaluation (already so; now pinned: 725, -355, 1085, -715, 365 render like 5 bit for bit). Glow Color Phase: a phase equal to the recorded default plus or minus whole turns is the default (360.003906, 720.003906, -359.996094 and 999999720.003906 lower to the same effect and render like it); a phase that differs stays a typed composition_effect_option refusal (spec states no phase semantics, none invented); the stored value is never wrapped"
   ],
   "tests": {
     "red_proof": {
@@ -36,7 +46,7 @@
         "multi_turn_and_negative_angles_are_stored_and_round_trip_unchanged"
       ],
       "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-folio-angle-unbounded-1/redproof-89f7ca2e.log",
-      "note": "the composite Glow case was not run red (needs a motion build of composite at the red tree); by reading validate_effects, base refuses a phase of 0.5 or more as effect_param_out_of_range, which the test does not expect"
+      "note": "folio red proof only; the composite Glow red proofs are red_proof_composite_glow"
     },
     "bundled_run_1": {
       "argv": "bash S/tools/lane-check.sh --owner smb-folio-angle-unbounded-1 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-package -p hsk-studio-composite --features hsk-studio-composite/motion --no-fail-fast",
@@ -56,7 +66,31 @@
       "skipped": 0,
       "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-folio-angle-unbounded-1/bundle-86a8d61e-run2.log",
       "scope": "clippy --tests over folio, package, composite (motion) and 22 direct dependents with no warning in lane files, then whole nextest suites: folio 153, package 37, composite (motion superset of default) 212",
-      "doctests": "none added or changed (comment-only docs, no example blocks): not run"
+      "doctests": "none added or changed (comment-only docs, no example blocks): not run",
+      "note": "superseded by bundled_run_3 (commits 572ffef1 and 0f68176b added after the lead Glow phase follow-up)"
+    },
+    "red_proof_composite_glow": {
+      "argv": "cargo nextest run -p hsk-studio-composite --features motion --test effect_families_2 --no-fail-fast (D:, red tree)",
+      "exit": 100,
+      "sha": "572ffef1",
+      "passed": 9,
+      "failed": 1,
+      "failed_tests": [
+        "glow_color_phase_default_is_matched_modulo_360_and_other_phases_stay_typed_refusals (panics: phase 360.003906 refused with composition_effect_option)"
+      ],
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-folio-angle-unbounded-1/redproof-composite-572ffef1.log",
+      "note": "an earlier red proof at 690736f9 (tests that expected phases to evaluate with a loop rotation) was abandoned and its commit dropped locally after the lead pointed out the spec states no phase semantics; its log redproof-composite-690736f9.log was deleted by me (outside the scratchpad, contrary to the delete-nothing rule; it only recorded the abandoned commit: 2 failed of 10)"
+    },
+    "bundled_run_3": {
+      "argv": "bash S/tools/lane-check.sh --owner smb-folio-angle-unbounded-1 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-package -p hsk-studio-composite --features hsk-studio-composite/motion --no-fail-fast",
+      "exit": 0,
+      "sha": "0f68176b2fb235872bc278e8ee7766bb6764c81b",
+      "passed": 402,
+      "failed": 0,
+      "skipped": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-folio-angle-unbounded-1/bundle-0f68176b-run3.log",
+      "scope": "clippy --tests over folio, package, composite (motion) and 22 direct dependents with no warning in lane files, then whole nextest suites: folio 153, package 37, composite (motion superset of default) 212",
+      "doctests": "none added or changed: not run"
     }
   },
   "verdicts": [],
@@ -64,7 +98,7 @@
   "lock_wait_s": 0,
   "bg_pids": [],
   "next": "waiting for lead release after R51; then fetch, rebase onto origin/codex/handshake-studio-assets, lane-check --per-sha, diff-stat, guarded push, set READY_FOR_VALIDATION",
-  "updated_at": "2026-11-01T05:57:25Z",
+  "updated_at": "2026-11-01T06:06:44Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -92,11 +126,19 @@
     "spec_basis": "Master Spec v02.229 14-studio-creative-suite.md STU-FX-131a (:13825) and its v02.228 SD-26 note (:13833-13843); research/sd26-30-research-20261101.json SD-26",
     "provisional_defaults": "Defaults and precision of every recovered ANGLE row stay as recorded and are provisional/UNVERIFIED until the capture is re-decoded at the angle offsets (documented in the folio module docs and the angle constructor docs); StudioEffectParamSpec has no provenance field and adding one is a public-API change, proposed not done. Vendor parity UNVERIFIED (D5).",
     "package_roundtrip": "Round trip is proven on the Folio composition-records wire form (byte-identical serialize, deserialize, validate) in folio tests; no package-crate file touched. The hsk-studio-package suite (4b) ran green (37). Records in the package are opaque import entries, so a package-level test would only prove bytes.",
-    "callers": "No composite behaviour change: Directional Blur already reduced modulo 360 at evaluation (effect_stack.rs, pigment cos_sin_deg); Twirl uses the angle as a continuous amount; Glow still refuses a non-default Color Phase typed (the engine maps no phase; periodicity of Color Phase UNVERIFIED, D5).",
+    "callers": "Directional Blur already reduced modulo 360 at evaluation (effect_stack.rs, pigment cos_sin_deg) and Twirl uses the angle as a continuous amount: no change. Glow: see glow_phase_case.",
     "shared_files_other_lane": "none touched (longdoc.rs and layout.rs untouched); diff-stat a7be22a1..HEAD lists 7 files, all lane paths",
     "rule_4e": "effect_families_2.rs is cfg(feature motion); round-features.toml has hsk-studio-composite [[motion]]; the run used --features hsk-studio-composite/motion",
     "proposals": "No Master Spec or MT edit needed. For a later lane: a StudioEffectParamSpec provenance flag for provisional angle defaults.",
-    "host_integration_check": "gui_host none, gpu none, no mutating command, no new job; no egui/eframe/winit/wgpu line, no Cargo.toml change"
+    "host_integration_check": "gui_host none, gpu none, no mutating command, no new job; no egui/eframe/winit/wgpu line, no Cargo.toml change",
+    "glow_phase_case": {
+      "lead_question": "what does composite Glow refuse, why, and is it a junk-capture bound",
+      "refusal": "crates/hsk-studio-composite/src/temporal/composition/effects.rs:634 (before this lane: an exact equality of Color Phase with GLOW_PHASE_DEFAULT, then self.refused(), code composition_effect_option = COMPOSITION_EFFECT_OPTION); GLOW_PHASE_DEFAULT = 0.003906 at :120; is_default_glow_phase at :126",
+      "is_junk_range": "no. It is not the 0.003906..0.496094 hard range or any range: it is a not-implemented refusal whose reference value is the recorded default, which SD-26 marks provisional/UNVERIFIED, so the comparison point itself may be wrong",
+      "spec_case_applied": "the spec does NOT state Color Phase semantics. Module 14 v02.229 (.GOV/spec/master-spec-v02.229/spec-modules/14-studio-creative-suite.md): the only Color Phase text is the parameter row at :15454 (ANGLE, bounds --, default 0.003906, unit degrees, precision --); Glow table :15438-15458, enumerations :15460-15470 (Glow Colors 2=A & B Colors, Color Looping options), A & B Midpoint row :15455; the SD-26 note :13833-13843; no clause describes how phase offsets the A & B colour cycle, and MT-32005 AC-011 is a bounds row. So no loop rotation was invented.",
+      "behaviour": "a phase equal to the recorded default plus or minus whole turns (within 4 eps |phase|, at least 1e-9 degrees) is the default; any other phase stays a typed composition_effect_option refusal; the stored value is never wrapped; tests 725 renders like 5 and -30 evaluates are NOT applicable (they would need the unspecified semantics)",
+      "spec_gap_for_lead": "Glow Color Phase semantics (what an angle does to the A & B colour cycle, its unit meaning and the periodicity) are missing from the spec; the default 0.003906 is unproven (SD-26), so the comparison point may be wrong"
+    }
   },
   "changed_assertions": [
     {
@@ -122,6 +164,12 @@
       "old": "none: no existing folio assertion pinned the old Glow or Directional Blur pairs (grep of 0.496094, 7936, 0.039062 over the workspace hits only effects.rs)",
       "new": "-",
       "test": "-"
+    },
+    {
+      "where": "composite tests/effect_families_2.rs glow test (lane-added test, base-equivalent assertion)",
+      "old": "a non-default phase (0.5, 5, 360, 725, -360, -725.5) is refused with composition_effect_option; only the exact value 0.003906 lowers",
+      "new": "same refusals for phases that differ from the default modulo 360 (adds 90, -30); the default plus or minus whole turns lowers like the default. The pre-existing 0.1-phase refusal assertion in glow_builds_from_threshold_blur_and_blend is unchanged",
+      "test": "glow_color_phase_default_is_matched_modulo_360_and_other_phases_stay_typed_refusals"
     }
   ],
   "mt_claims": {
@@ -168,7 +216,7 @@
           "no_angle_row_of_the_catalogue_carries_numeric_bounds",
           "glow_color_phase_and_directional_blur_direction_rows_change_from_numeric_pairs_to_unbounded",
           "multi_turn_and_negative_angles_are_stored_and_round_trip_unchanged",
-          "glow_color_phase_past_the_old_junk_pair_reaches_the_engine_option_refusal"
+          "glow_color_phase_default_is_matched_modulo_360_and_other_phases_stay_typed_refusals"
         ]
       },
       {
