@@ -2,18 +2,101 @@
   "crate": "hsk-studio-folio (swatch groups, palette scope, colour-book records), ICC-parsing crate (named-colour binding, if it parses ICC tags)",
   "lane": "SMB-COL-SWATCH-GROUPS-1",
   "status": null,
-  "phase": "build",
+  "phase": "green_local_waiting_release",
   "worktree": "wt-studio-lanes/smb-col-swatch-groups-1",
   "base": "99836457",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "8ec36c6a",
+      "kind": "red",
+      "subject": "folio red: swatch group, palette scope, colour-book tests",
+      "compiles": false,
+      "pushed": false,
+      "plan": "squash into ecd161bd before push (RED COMMITS: a red commit that does not compile stays local); not run: it calls API absent at base 99836457"
+    },
+    {
+      "sha": "ecd161bd",
+      "kind": "green",
+      "subject": "folio: swatch groups, palette scope, colour-book resource (+ package externals classification, rule 4b)",
+      "pushed": false
+    },
+    {
+      "sha": "6c392204",
+      "kind": "red",
+      "subject": "prism red: named-colour profile tests",
+      "compiles": false,
+      "pushed": false,
+      "plan": "squash into 49fb3912 before push; not run: parse_named_colour_profile absent at base"
+    },
+    {
+      "sha": "49fb3912",
+      "kind": "green",
+      "subject": "prism: ICC named-colour (ncl2) profile parsing",
+      "pushed": false
+    }
+  ],
+  "capabilities_done": [
+    "STU-COL-177 swatch group records (one root first, flat, group_ref -> named group, absent = root) with typed refusals",
+    "STU-COL-177/179 group commands create_root/create/rename/delete+replace/reorder/move_swatch with CommandContext, atomic, undo",
+    "STU-COL-178 palette scope document/application/system, StudioHostPalettes resolution, validate_vector_records_with_palettes, system read-only",
+    "STU-COL-185 StudioColourBook resource, bounded parse, fan-deck pages, swatch population",
+    "STU-COL-186 per-book license_state, origin match, bundled_books, document references only, absent = lookup lost only",
+    "STU-COL-187 CAPTURED_BOOK_COVERAGE planning data",
+    "STU-COL-188 prism parse_named_colour_profile (ncl2) + folio StudioColourBook::from_named_colours binding"
+  ],
+  "tests": {
+    "bundled": {
+      "argv": "cd <lane worktree>/handshake-studio-assets && bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-col-swatch-groups-1 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-package -p hsk-studio-prism --no-fail-fast (step 0 clean; clippy --tests over folio, package, prism + 24 dependents: chronicle, components, composite, develop, harness, harness-core, harness-view, interop-fig, interop-fig-base, interop-fig-native, interop-layout, interop-lrcat, interop-media, interop-psd, interop-vector, interop-vector-core, interop-vector-svg, kernel-bindings, layout, pigment, pulse, render-cpu, render-gpu, session; then the WHOLE suites)",
+      "exit": 0,
+      "sha": "49fb3912",
+      "passed": 427,
+      "failed": 0,
+      "skipped": 2,
+      "per_crate_passed": {
+        "hsk-studio-folio": 172,
+        "hsk-studio-package": 37,
+        "hsk-studio-prism": 207
+      },
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-col-swatch-groups-1/bundle-smb-col-swatch-groups-1-49fb3912.log",
+      "clippy_warnings_in_changed_crates": 0,
+      "run": "bundled run 1 of 1, green; no re-run"
+    },
+    "doctests": "none added or changed (rule 4d not triggered)",
+    "new_tests": {
+      "folio/tests/swatch_group_records.rs": [
+        "group_records_round_trip_and_enforce_one_root_and_resolvable_membership",
+        "group_list_is_budgeted",
+        "group_operations_mutate_membership_and_order_and_undo_restores_them",
+        "group_commands_refuse_without_mutation"
+      ],
+      "folio/tests/palette_scope_records.rs": [
+        "references_resolve_document_then_application_then_system",
+        "unresolvable_references_are_validation_errors_never_a_fallback_colour",
+        "system_palette_is_read_only_and_application_palette_is_editable",
+        "host_palettes_are_budgeted"
+      ],
+      "folio/tests/colour_book_records.rs": [
+        "book_resource_carries_every_field_and_pages_like_a_fan_deck",
+        "book_resource_refuses_hostile_shapes_atomically",
+        "book_dims_u32_max_and_aggregate_over_budget_are_refused",
+        "licensing_is_per_book_and_an_operator_book_loads_from_the_same_format",
+        "an_absent_book_loses_only_lookup_and_never_changes_stored_colours",
+        "captured_coverage_is_planning_data_and_never_enables_a_book",
+        "named_colour_profile_entries_build_a_bound_book"
+      ],
+      "prism/tests/named_colour.rs": [
+        "named_colour_profile_decodes_names_measured_lab_and_device_values",
+        "malformed_and_unsupported_named_colour_profiles_are_refused_typed",
+        "named_colour_dims_u32_max_and_aggregate_over_budget_are_refused_before_storing"
+      ]
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: read the brief, red-first per item, one bundled run on D:, push only after STUDIO-R52 is recorded and the lead releases",
-  "updated_at": "2026-11-01T10:46:05Z",
+  "next": "waiting for lead release after R52",
+  "updated_at": "2026-11-01T11:14:03Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -43,6 +126,104 @@
       "MT-31250",
       "MT-31251"
     ],
-    "dispatch_reason": "engine lane (D6), gap verified by git grep at base 99836457; builds on D: while STUDIO-R52 holds C:"
-  }
+    "dispatch_reason": "engine lane (D6), gap verified by git grep at base 99836457; builds on D: while STUDIO-R52 holds C:",
+    "spec_basis": {
+      "STU-COL-177": "Swatches organise into named groups. Exactly one ROOT group exists per palette and is not deletable. A swatch belongs to at most one group. Group operations: create, rename, delete (with a replace-on-delete target), reorder, and move-between-groups.",
+      "STU-COL-178": "Three scopes: document, application, system ... a system palette reflects the OS palette and is read-only. A swatch reference resolves in document -> application -> system order and an unresolvable reference is a validation error, never a silent black.",
+      "STU-COL-185": "A branded book is a DATA ADAPTER that populates native spot swatches ... the displayed swatch name is name_prefix + name + name_postfix",
+      "STU-COL-186": "license_state (bundled | operator_supplied | absent) and license_note ... MUST NOT bundle a book whose rights holder does not permit redistribution ... an absent book loses only the ability to LOOK UP",
+      "STU-COL-187": "five bundled families, PANTONE not bundled; NOT a Studio bundling instruction",
+      "STU-COL-188": "a book supplied as an ICC named-colour profile (ncl2) is bound through STU-COL-126, not a bespoke parser",
+      "source": "Master Spec v02.229 14-studio-creative-suite.md :10605-10619, :10662-10693; STU-COL-103 counts :9918-9928; STU-COL-126 :10256"
+    },
+    "icc_crate_finding": "hsk-studio-prism is the crate that parses ICC profiles and their tags: moxcms 0.9.1 parses (header incl. ProfileClass::Named, but it ignores unknown tags such as ncl2), Prism's own wide.rs frame() reads the raw tag table (sig, type, offset, size) and icc_eval.rs interprets curv/para/mft1/mft2/mAB/mBA. No crate parsed ncl2 at base (WIDE_DESCRIPTOR lists named-colour profiles as not_in_scope; admit() refuses nmcl). Added prism src/named_colour.rs reusing wide::verify + wide::frame.",
+    "ncl2_encoding_evidence": "Field order and sizes and the legacy Lab V2 PCS reading checked against LittleCMS 2 source (cmstypes.c Type_NamedColor_Read; cmsio1.c _cmsReadInputLUT appends _cmsStageAllocLabV2ToV4 to every named-colour pipeline), read 2026-11-01. ICC.1:2022 text not checked: UNVERIFIED (D5). XYZ-PCS named-colour profiles are refused because LittleCMS applies the Lab V2->V4 stage whatever the PCS.",
+    "owned_path_deviations": "folio src/vector.rs (StudioVectorRecords lives there): +3 members swatch_groups / colour_book_refs / swatch_book_links, StudioVectorRecords::new, the two #[path] module declarations (so the new modules can reuse tools::validate_swatch), validate_vector_records_with_palettes and an internal validate_vector_records_in; validate_vector_records keeps its signature. prism src/lib.rs: +2 lines (mod named_colour; pub use). prism src/wide.rs: Tag fields sig/kind/offset pub(crate), no behaviour change. Reason: otherwise the new modules could not be reached or reuse the shared admission.",
+    "studio_readings_unverified_d5": "root group listed first and not reorderable; delete appends the deleted group's members after the replacement group's own members, in their prior order; naming the root in group_ref is refused (absent = root member, one encoding); page_selector_offset = the entry of a page shown by the page selector (< page_size); a named-colour book = one flat page, root name used as code; entry codes unique and non-empty. Vendor parity of each UNVERIFIED (D5).",
+    "host_integration_check": "gui_host none, gpu none, no egui/eframe/winit/wgpu line, no Cargo.toml change, no new dependency or crate edge, no job. Attribution: apply_swatch_group_command, undo_swatch_group_command and add_colour_book_swatches require the caller's CommandContext (command id swatch.group.* / swatch.book.add, base revision == caller revision); StudioColourBookLibrary::load/mark_absent take &CommandContext. Diagnostics: folio has no hsk-studio-observe edge, so its ops return reports with codes, counters and the opaque correlation (StudioSwatchEditReport, StudioBookReport) for the host to emit; prism parse_named_colour_profile is a pure bounded parse (like parse_cube) that returns typed codes.",
+    "v4": "V4-01: swatch_library.rs, colour_book.rs and named_colour.rs carry deny(clippy::arithmetic_side_effects) (vector.rs and vector_tools.rs already did). V4-02 dims_u32_max + aggregate_over_budget tests: book_dims_u32_max_and_aggregate_over_budget_are_refused, named_colour_dims_u32_max_and_aggregate_over_budget_are_refused_before_storing, group_list_is_budgeted, host_palettes_are_budgeted. V4-03: no machine path in tests (step 0 clean). V4-07: the DESCRIPTOR 'never' claims cite their tests (unresolvable_references_are_validation_errors_never_a_fallback_colour, an_absent_book_loses_only_lookup_and_never_changes_stored_colours). V4-08 n/a (JSON through serde, binary ICC).",
+    "rule_4b": "new Folio record members swatch_groups, colour_book_refs, swatch_book_links: the hsk-studio-package suite ran (37 passed) with the one new CLASSIFIED row; the dependents of folio's public API compiled through bundled clippy --tests.",
+    "rule_4e": "no feature-gated test added; folio, prism and package use their default units.",
+    "branded_data": "none committed: the test books and profiles are synthetic (Glimmerbrook Test Inks, Quuxberry, Wobblefern, Zorblue, zzyzx-test). CAPTURED_BOOK_COVERAGE holds only the family/book names, counts and spaces from the Master Spec (STU-COL-103/187; naming permitted as provenance by STU-COL-104A).",
+    "mts": {
+      "MT-31239": {
+        "verdict": "met (record contract and commands; registry/GUI out of scope)",
+        "rows": {
+          "exactly one root": "group_records_round_trip_and_enforce_one_root_and_resolvable_membership",
+          "root not deletable": "group_commands_refuse_without_mutation",
+          "at most one group per swatch, dangling group_ref": "group_records_round_trip_and_enforce_one_root_and_resolvable_membership",
+          "create/rename/delete with replacement/reorder/move-between-groups, undo": "group_operations_mutate_membership_and_order_and_undo_restores_them",
+          "refusal without mutation": "group_commands_refuse_without_mutation"
+        }
+      },
+      "MT-31240": {
+        "verdict": "partly met",
+        "rows": {
+          "document shadowing, application and system fallback": "references_resolve_document_then_application_then_system",
+          "document round-trip portability": "references_resolve_document_then_application_then_system",
+          "unresolvable = validation error": "unresolvable_references_are_validation_errors_never_a_fallback_colour",
+          "system read-only (group commands)": "system_palette_is_read_only_and_application_palette_is_editable",
+          "restored provider entry resolves the retained reference": "references_resolve_document_then_application_then_system"
+        },
+        "not_met": "no OS palette adapter (system palette content is caller-supplied); swatch edit/remove commands do not exist yet, so read-only is proven for group commands only"
+      },
+      "MT-31241": {
+        "verdict": "partly met (group operations only)",
+        "rows": {
+          "group create/rename/delete-with-replacement/reorder/move: typed, attributed, undoable": "group_operations_mutate_membership_and_order_and_undo_restores_them; group_commands_refuse_without_mutation"
+        },
+        "not_met": "duplicate, edit, swatch delete-with-replace, merge, add unnamed/used colours, select/delete unused, sort, colorize; controls Registry / RUN_COMMANDS rows"
+      },
+      "MT-31248": {
+        "verdict": "partly met",
+        "rows": {
+          "every resource field round-trips, copyright verbatim": "book_resource_carries_every_field_and_pages_like_a_fan_deck",
+          "fan-deck pages and selector offset": "book_resource_carries_every_field_and_pages_like_a_fan_deck",
+          "empty prefix/postfix legal": "book_resource_carries_every_field_and_pages_like_a_fan_deck",
+          "count/arity/truncated/page-layout refusals": "book_resource_refuses_hostile_shapes_atomically",
+          "last-good resource kept": "licensing_is_per_book_and_an_operator_book_loads_from_the_same_format",
+          "populates native spot/process swatches": "an_absent_book_loses_only_lookup_and_never_changes_stored_colours; book_resource_carries_every_field_and_pages_like_a_fan_deck"
+        },
+        "not_met": "painting the populated swatches (composite) is not proven here"
+      },
+      "MT-31249": {
+        "verdict": "partly met",
+        "rows": {
+          "AC-001 no bundling of a book that is not bundled; operator book from the same format; absent book degrades": "licensing_is_per_book_and_an_operator_book_loads_from_the_same_format; an_absent_book_loses_only_lookup_and_never_changes_stored_colours",
+          "AC-002 losing lookup changes no colour": "an_absent_book_loses_only_lookup_and_never_changes_stored_colours (stored definitions byte-identical)"
+        },
+        "not_met": "AC-002 at rendered paint/proof/separation bytes (composite/press) not proven"
+      },
+      "MT-31250": {
+        "verdict": "met",
+        "rows": {
+          "coverage as data, no auto-enable, unresolved decision stays unknown": "captured_coverage_is_planning_data_and_never_enables_a_book",
+          "a later supplied book activates lookup through the same format": "an_absent_book_loses_only_lookup_and_never_changes_stored_colours"
+        }
+      },
+      "MT-31251": {
+        "verdict": "partly met",
+        "rows": {
+          "ncl2 parsed by the STU-COL-126 profile owner": "named_colour_profile_decodes_names_measured_lab_and_device_values",
+          "malformed, missing entry, unsupported profile refused": "malformed_and_unsupported_named_colour_profiles_are_refused_typed",
+          "book bound to the profile reference with measured Lab": "named_colour_profile_entries_build_a_bound_book"
+        },
+        "not_met": "the host join (a crate depending on prism and folio) and the proof comparison of a spot against the same profile engine entry output"
+      }
+    },
+    "mt_contract_divergence": "MT-31239..31251 proof recipes name hsk-studio-prism and tests mt_312xx; the brief puts the swatch/book records in folio, so folio holds them and prism holds only the ncl2 parser. Proposal: update the MT relevant_input_paths and proof commands to the folio and prism tests above.",
+    "proposals": [
+      "steward: a folio -> hsk-studio-observe edge, or a host adapter, to emit StudioSwatchEditReport/StudioBookReport through Observe (rule 5)",
+      "lead: controls Registry ids and RUN_COMMANDS rows for swatch.group.create_root|create|rename|delete|reorder|move_swatch|undo and swatch.book.add (rule 3; control_descriptors none in this brief)",
+      "later prism lane: WIDE_DESCRIPTOR not_in_scope still names named-colour profiles (now parsed by named_colour.rs; use as a transform stays out of scope)",
+      "later lane: host join NamedColourTable -> StudioColourBook::from_named_colours and the STU-COL-188 proof comparison; OS system-palette adapter; remaining STU-COL-179 panel commands"
+    ],
+    "shared_files_other_lane": "none; diff-stat 99836457..49fb3912 lists 13 files, all lane paths (folio src lib.rs, vector.rs, vector_tools.rs, swatch_library.rs, colour_book.rs and 3 tests; package tests/externals.rs; prism src lib.rs, wide.rs, named_colour.rs and tests/named_colour.rs)",
+    "release_procedure": "on release: fetch; squash the two non-compiling red commits into their greens while rebasing onto origin/codex/handshake-studio-assets (folio commit = 8ec36c6a+ecd161bd, prism commit = 6c392204+49fb3912); lane-check --per-sha origin/codex/handshake-studio-assets; diff-stat; push on PER_SHA_RESULT OK with the guarded sha form",
+    "cargo_lock": "not committed; no new dependency"
+  },
+  "changed_assertions": [
+    "hsk-studio-package tests/externals.rs CLASSIFIED: +1 row StudioVectorRecords.swatch_book_links (internal; the vocab word 'link' is in the new member name). No existing assertion changed.",
+    "folio behaviour change: StudioSwatch.group_ref must now name a named group of swatch_groups (was: any key string). No existing test or dependent sets group_ref (base: harness-view swatch.rs, interop-vector-core ai_import.rs, layout tests id_prepress_find_change.rs all set None)."
+  ]
 }
