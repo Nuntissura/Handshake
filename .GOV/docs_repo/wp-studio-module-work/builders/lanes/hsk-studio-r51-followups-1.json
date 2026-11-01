@@ -117,7 +117,7 @@
   "lock_wait_s": 0,
   "bg_pids": [],
   "next": "waiting for folio angle push",
-  "updated_at": "2026-11-01T08:57:59Z",
+  "updated_at": "2026-11-01T08:58:41Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -206,7 +206,7 @@
       "fixed": 4,
       "not_applicable": 3,
       "count_check": "7 mapping entries at base: 5 fixed (preroll, x, y, amplitude, frequency), 2 not applicable (phase, wind_direction). By recovered row: 6 rows, 4 fixed (24, 44, 52, 54), 2 not applicable (56, 32)",
-      "note_on_count": "the lead message expected 7 sites = 4 fixed + 3 not applicable; neither count gives that: by mapping entry it is 5 + 2 = 7, by row 4 + 2 = 6. No third site with a declared unit exists in wave_world.rs or foam.rs (regex RecoveredMapping \\{ over both files at a7be22a1: 7 entries). Reported for the lead to reconcile; no site left unlisted"
+      "note_on_count": "lead reconciled 2026-11-01: 7 mapping sites, 5 fixed, 2 not applicable (by recovered row: 6 rows, 4 fixed, 2 not applicable); nothing blocks READY"
     },
     "changed_assertions": [
       {
@@ -323,7 +323,8 @@
     "lead_decisions": [
       "2026-11-01: preroll (row 24) and position x, y (row 44) are in the V4-06 class; unmapped (0d2489ef red, 9b9c8e58 green)",
       "2026-11-01: amending the unpushed, non-compiling red commit 345da55d into 0914d7b4 inside the lane worktree is accepted (recorded in tests.red_evidence)",
-      "2026-11-01: the 1053 alpha-identifier append is accepted as in scope (needed to write a valid added channel)"
+      "2026-11-01: the 1053 alpha-identifier append is accepted as in scope (needed to write a valid added channel)",
+      "2026-11-01: lead reconciled 2026-11-01: 7 mapping sites, 5 fixed, 2 not applicable"
     ],
     "resource_1053": "in scope per lead decision: when the file has 1053, export normalises it to one identifier per existing extra plane and appends a fresh smallest unused non-zero identifier per added channel (0 would read as the merged transparency); absent stays absent; asserted in channel_saved_from_a_selection_exports_and_reimports_beside_the_imported_one (ids len 3, [0, 5, fresh non-zero]) and the colour-only case (stays absent)"
   }
