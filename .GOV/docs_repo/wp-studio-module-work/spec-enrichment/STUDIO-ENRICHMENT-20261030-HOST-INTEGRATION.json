@@ -1,7 +1,7 @@
 {
  "schema": "hsk.studio_spec_enrichment_delta@1",
  "delta_id": "STUDIO-ENRICHMENT-20261030-HOST-INTEGRATION",
- "status": "APPLIED v02.226 2026-11-01T00:08:46Z: SD-01..SD-25 applied in one batch (Operator approval 2026-10-31T23:54:56Z); SD-26..SD-30 PROPOSED only.",
+ "status": "APPLIED v02.226 2026-11-01T00:08:46Z: SD-01..SD-25 applied in one batch (Operator approval 2026-10-31T23:54:56Z). APPLIED v02.228 2026-11-01T03:16:35Z: SD-26..SD-30 applied from research/sd26-30-research-20261101.json (Operator 2026-11-01: 'research what is commonly expected fpr sd 26-30 and apply').",
  "purpose": "Spec-delta requests raised by the Studio lead's integration-direction review on 2026-10-30 (Operator briefing: native Vulkan workbench, one Handshake GPU owner, diagnostics wired from the beginning). Each item names the clause gap, the Studio surface that needs it, and the lead's reading used meanwhile (UNVERIFIED until the spec owner decides).",
  "base_spec": ".GOV/spec/master-spec-v02.225",
  "approval_ref": "Operator chat 2026-10-31T23:54:56Z: 'approved: applying them in one batch after D7/D8'",
@@ -14,7 +14,7 @@
   "D8 decided 2026-10-31T23:54:56Z: Kumihimo stays shared-controls owner",
   "STU-SHL-130 decided 2026-10-31T23:54:56Z: layer-based"
  ],
- "apply_rules": "SD-01..SD-25 APPLIED in Master Spec v02.226 (bundle .GOV/spec/master-spec-v02.226, activated 2026-11-01T00:08:46Z); SD-26..SD-30 PROPOSED (not approved, not applied). Non-Studio edits limited to the SD-03 toolkit-neutral wording of 5.8/5.8.1; no D7 no-wgpu prohibition added to any non-Studio clause. 'Reported, not resolved' items recorded as declared conflicts/gaps.",
+ "apply_rules": "SD-01..SD-25 APPLIED in Master Spec v02.226 (bundle .GOV/spec/master-spec-v02.226, activated 2026-11-01T00:08:46Z); SD-26..SD-30 PROPOSED (not approved, not applied). Non-Studio edits limited to the SD-03 toolkit-neutral wording of 5.8/5.8.1; no D7 no-wgpu prohibition added to any non-Studio clause. 'Reported, not resolved' items recorded as declared conflicts/gaps. Update 2026-11-01T03:16:35Z: SD-26..SD-30 APPLIED in Master Spec v02.228 (bundle .GOV/spec/master-spec-v02.228), module 14 only.",
  "open_items_for_spec_owner": [
   {
    "id": "SD-01",
@@ -213,9 +213,10 @@
    "needs": "whether 0..0 on ANGLE rows means unbounded (wrapping) or a literal fixed 0",
    "lead_reading": "2026-10-31T23:54:56Z: stored unbounded, as folio already reads Twirl Angle (SMB-R50-FOLLOWUPS-1); the MT-32012/32013 text says literal bounds",
    "source": "lane SMB-R50-FOLLOWUPS-1 pause notes",
-   "status": "RESEARCHED",
+   "status": "APPLIED v02.228",
    "research_ref": "research/sd26-30-research-20261101.json",
-   "recommended_resolution": "Read every ANGLE row whose bounds were decoded from a binary parameter record as unbounded_in_source (the capture read fixed-slider offsets past the 16-byte angle definition, so 0..0 and the other numbers are not declarations), keep default and precision provisional, store full signed degrees including revolutions."
+   "recommended_resolution": "Read every ANGLE row whose bounds were decoded from a binary parameter record as unbounded_in_source (the capture read fixed-slider offsets past the 16-byte angle definition, so 0..0 and the other numbers are not declarations), keep default and precision provisional, store full signed degrees including revolutions.",
+   "applied_note": "STU-FX-131a: SD-26 note added (binary-decoded ANGLE bound cells are decoder artefacts; unbounded_in_source; default and precision provisional UNVERIFIED; full signed degrees); the four bound cells of the 50 listed ANGLE rows set to `--`, no other cell changed. Decoder fix (0x3C/0x40/0x44) is a governance-tool follow-up recorded in the v02.228 changelog entry; the companion MT-acceptance wording is not spec text."
   },
   {
    "id": "SD-27",
@@ -223,9 +224,10 @@
    "needs": "the units of those rows",
    "lead_reading": "2026-10-31T23:54:56Z: the engine scalars stay authored studio_declared rows beside the stored recovered rows until a unit is recorded",
    "source": "lane SMB-R50-FOLLOWUPS-1 pause notes",
-   "status": "RESEARCHED",
+   "status": "APPLIED v02.228",
    "research_ref": "research/sd26-30-research-20261101.json",
-   "recommended_resolution": "The three rows are unitless (STU-FX-131a's `--` unit is the STU-FX-108 unitless token); the recovered row stays the single stored value and the engine reads it through one declared, UNVERIFIED scale per row instead of a second editable studio_declared scalar."
+   "recommended_resolution": "The three rows are unitless (STU-FX-131a's `--` unit is the STU-FX-108 unitless token); the recovered row stays the single stored value and the engine reads it through one declared, UNVERIFIED scale per row instead of a second editable studio_declared scalar.",
+   "applied_note": "STU-FX-131a: `--` in a numeric row's unit column declared the STU-FX-108 `unitless` token. STU-CMP-075b: unitless recovered rows drive the engine quantity they name and are the stored value; the per-row engine scale is a SPEC GAP (undeclared, never guessed, oracle only); until declared the engine scalar stays a studio_declared STU-FX-146 row beside the recovered row (lead reading G2, SMB-R50-FOLLOWUPS-1); no removal required."
   },
   {
    "id": "SD-28",
@@ -233,9 +235,10 @@
    "needs": "the catalog count",
    "lead_reading": "2026-10-31T23:54:56Z: SMB-TYPE-OT-FEATURES-1 implements the four the table lists",
    "source": "lane SMB-TYPE-OT-FEATURES-1 pause notes",
-   "status": "RESEARCHED",
+   "status": "APPLIED v02.228",
    "research_ref": "research/sd26-30-research-20261101.json",
-   "recommended_resolution": "Four is right: change 'Three insertable catalogs' to 'Four insertable catalogs'; the table, derivation line, microtask index and MT-31005 already say four."
+   "recommended_resolution": "Four is right: change 'Three insertable catalogs' to 'Four insertable catalogs'; the table, derivation line, microtask index and MT-31005 already say four.",
+   "applied_note": "STU-TYP-207: 'Three insertable catalogs' -> 'Four insertable catalogs'."
   },
   {
    "id": "SD-29",
@@ -243,9 +246,10 @@
    "needs": "the sentinel assignment",
    "lead_reading": "2026-10-31T23:54:56Z: those catalog entries stay typed unavailable",
    "source": "lane SMB-TYPE-OT-FEATURES-1 pause notes",
-   "status": "RESEARCHED",
+   "status": "APPLIED v02.228",
    "research_ref": "research/sd26-30-research-20261101.json",
-   "recommended_resolution": "Store the 14 members without a Unicode character as noncharacter sentinels U+FDD0..U+FDDD (markers, five breaks as paragraph terminators, flush space instead of U+2001), the anchored-object marker as U+FFFC, and reserve U+FDDE..U+FDEF."
+   "recommended_resolution": "Store the 14 members without a Unicode character as noncharacter sentinels U+FDD0..U+FDDD (markers, five breaks as paragraph terminators, flush space instead of U+2001), the anchored-object marker as U+FFFC, and reserve U+FDDE..U+FDEF.",
+   "applied_note": "STU-TYP-207: stream-encoding paragraph and contract table: U+FDD0..U+FDDD for the 14 members, U+FFFC anchored-object marker, U+FDDE..U+FDEF reserved, break sentinels terminate paragraphs, marker records keyed by story byte, import/export mappings. No prior use of these code points in module 14. U+202F fixed-width NBSP risk left for the spec owner."
   },
   {
    "id": "SD-30",
@@ -253,9 +257,10 @@
    "needs": "the list",
    "lead_reading": "2026-10-31T23:54:56Z: the registry carries the tags the spec names; the 229-tag check is NOT_PROVEN (#[ignore])",
    "source": "lane SMB-TYPE-OT-FEATURES-1 pause notes",
-   "status": "RESEARCHED",
+   "status": "APPLIED v02.228",
    "research_ref": "research/sd26-30-research-20261101.json",
-   "recommended_resolution": "Append a contract table under STU-TYP-170 listing the 243 OpenType 1.9.1 registered tags plus the observed unregistered abrv and just (245), flagging hngl/opbd deprecated and the 229-tag observed union, which makes the ignored 229-tag test provable."
+   "recommended_resolution": "Append a contract table under STU-TYP-170 listing the 243 OpenType 1.9.1 registered tags plus the observed unregistered abrv and just (245), flagging hngl/opbd deprecated and the 229-tag observed union, which makes the ignored 229-tag test provable.",
+   "applied_note": "STU-TYP-170: 245-tag registry contract table (126 rows; 243 OpenType 1.9.1 registered incl. deprecated hngl/opbd, plus abrv/just; observed-union column) with the module's contract-table derivation marker (yields no microtask)."
   }
  ],
  "edits": [
@@ -845,5 +850,5 @@
    "spec_version": "v02.226"
   }
  ],
- "updated_at": "2026-11-01T00:08:46Z"
+ "updated_at": "2026-11-01T03:16:35Z"
 }
