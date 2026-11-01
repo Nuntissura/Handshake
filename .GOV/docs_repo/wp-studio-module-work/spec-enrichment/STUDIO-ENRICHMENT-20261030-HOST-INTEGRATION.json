@@ -349,6 +349,14 @@
    "lead_reading": "2026-11-01T13:46:33Z: EXR channel interchange not implemented; MT-30095 stays partly met on the EXR row",
    "source": "STUDIO-R52 F-R52-2 and lane SMB-R52-FOLLOWUPS-1 item 3",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-42",
+   "gap": "sentinel resolution at composition leaves nine questions the spec does not answer (lane proposals SENT-SD-1..9): next/previous page meaning, the index marker's displayed value, odd/even parity source and blank-page insertion, overset at a missing break target, flush space outside a fully justified last line, the unresolved-marker display, markers that never settle, empty section-marker text (running.rs reads it differently), whether flush space is a break opportunity",
+   "needs": "a statement per question",
+   "lead_reading": "2026-11-01T14:45:44Z: SMB-LAYOUT-SENTINELS-1 implements typed unresolved outcomes and records each reading; see builders/lanes/hsk-studio-layout-sentinels-1.json",
+   "source": "lane SMB-LAYOUT-SENTINELS-1 notes, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [
@@ -938,5 +946,5 @@
    "spec_version": "v02.226"
   }
  ],
- "updated_at": "2026-11-01T13:46:33Z"
+ "updated_at": "2026-11-01T14:45:44Z"
 }
