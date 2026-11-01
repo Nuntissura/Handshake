@@ -1,19 +1,91 @@
 {
   "crate": "hsk-studio-interop-psd (typed-loss tests, channel_opacity_rounded), hsk-studio-interop-tiff (Folio channel records as extra samples)",
   "lane": "SMB-R52-FOLLOWUPS-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "item 1 pushed at e3afbb62 (red e65e182c, green e3afbb62); item 2 BLOCKED (interop-tiff -> folio edge not allowed); item 3 recorded (no EXR reader; finding below)",
   "worktree": "wt-studio-lanes/smb-r52-followups-1",
   "base": "99836457",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "e65e182c",
+      "subject": "interop-psd (SMB-R52-FOLLOWUPS-1 item 1, red): F-R52-3 negative fixtures and channel_opacity_rounded",
+      "note": "red; local sha before rebase 6e01b4fa (red proof run there); compiles (per-sha OK); fails channel_opacity_the_display_entry_cannot_hold_is_a_typed_loss"
+    },
+    {
+      "sha": "e3afbb62",
+      "subject": "interop-psd (SMB-R52-FOLLOWUPS-1 item 1): channel_opacity_rounded and channel_opacity_clamped on export",
+      "note": "green; local sha before rebase 9563c7f3; pushed to origin/codex/handshake-studio-assets (174ebc56..e3afbb62), verified by fetch"
+    }
+  ],
+  "capabilities_done": [
+    "interop-psd F-R52-3: three added_channel_fits branches covered by negative fixtures asserting the typed loss channel_added_in_edit_not_exported (Unsupported) and a byte-identical file: multichannel or 1-bit (added_channel_in_a_multichannel_or_one_bit_file_is_a_typed_loss), no merged image data (added_channel_without_merged_image_data_is_a_typed_loss), extra plane 0 of a merged-transparency file with a positive-count control (added_channel_as_extra_plane_zero_of_a_merged_transparency_file_is_a_typed_loss)",
+    "interop-psd F-R52-3: export.rs display_opacity at both 1077 write sites: fractional opacity -> Transformed loss channel_opacity_rounded (path channel[i]/opacity), outside 0..=100 or not finite -> channel_opacity_clamped; value written unchanged (round, clamp); test channel_opacity_the_display_entry_cannot_hold_is_a_typed_loss (edited imported channel 62.4/62.5/60/120/-0.5 and an added channel 33.5/40, re-import reads the stored integer)",
+    "proposal.rs loss vocabulary comment lists channel_opacity_rounded and channel_opacity_clamped"
+  ],
+  "tests": {
+    "red": {
+      "argv": "cargo nextest run -p hsk-studio-interop-psd --test psd_alpha_channels --no-fail-fast -E 'test(added_channel_in_a_multichannel) | test(added_channel_without_merged) | test(added_channel_as_extra_plane_zero) | test(channel_opacity_the_display_entry)'",
+      "exit": 100,
+      "sha": "6e01b4fa (= e65e182c before rebase)",
+      "passed": 3,
+      "failed": 1,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r52-followups-1/red-smb-r52-followups-1-6e01b4fa.log",
+      "note": "the opacity test fails at base (left [] right [(channel[1]/opacity, channel_opacity_rounded, Transformed)]); the three fixtures pass at base (they cover existing branches)"
+    },
+    "counterfactual": {
+      "argv": "same runner, the three fixture tests, with added_channel_fits stripped of the depth 8/16/32, multichannel, image-data and merged-alpha conditions (uncommitted mutation, restored with git checkout before the green commit)",
+      "exit": 100,
+      "sha": "6e01b4fa + mutation",
+      "passed": 0,
+      "failed": 3,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r52-followups-1/counterfactual-smb-r52-followups-1-6e01b4fa.log",
+      "note": "each fixture bites on its branch (multichannel and merged transparency: no loss recorded; no image data: Encode(channel_planes_missing)); the 1-bit half of the first test is not separately mutated"
+    },
+    "bundled_pre_rebase": {
+      "argv": "lane-check.sh --owner smb-r52-followups-1 --disk d -- cargo nextest run -p hsk-studio-interop-psd -p hsk-studio-interop-tiff -p hsk-studio-harness --features hsk-studio-harness/import-psd,hsk-studio-harness/import-tiff --no-fail-fast -E 'package(hsk-studio-interop-psd) | package(hsk-studio-interop-tiff) | (package(hsk-studio-harness) & (binary(import_psd) | binary(import_colour) | binary(import_tiff)))'",
+      "exit": 0,
+      "sha": "9563c7f3",
+      "passed": 137,
+      "failed": 0,
+      "skipped": 17,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r52-followups-1/bundled-smb-r52-followups-1-9563c7f3.log"
+    },
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-r52-followups-1 --disk d --per-sha origin/codex/handshake-studio-assets",
+      "exit": 0,
+      "sha": "e3afbb62",
+      "result": "PER_SHA_RESULT OK shas=2 range=174ebc56..e3afbb62",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r52-followups-1/per-sha-smb-r52-followups-1-e3afbb62.log"
+    },
+    "bundled": {
+      "argv": "same as bundled_pre_rebase (re-run: the rebase brought folio and prism commits, dependencies of interop-psd)",
+      "exit": 0,
+      "sha": "e3afbb62",
+      "passed": 137,
+      "failed": 0,
+      "skipped": 17,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r52-followups-1/bundled-smb-r52-followups-1-e3afbb62.log",
+      "scope": "step 0 clean; clippy over interop-psd, interop-tiff, harness (import-psd,import-tiff) and dependents develop, harness-core, harness-view (warnings only, all pre-existing: proposal.rs:608 too_many_arguments, observe lib.rs:924/1024, harness tests/import_psd.rs unused imports); WHOLE suites of interop-psd (incl. 16 psd_alpha_channels) and interop-tiff; harness import_psd (6), import_colour (2), import_tiff (4). No doctests added."
+    }
+  },
   "verdicts": [],
-  "blockers": [],
+  "blockers": [
+    {
+      "item": 2,
+      "finding": "F-R52-2 (TIFF)",
+      "code": "dependency_outside_declared_dag",
+      "detail": "interop-tiff may depend only on accord and observe: root Cargo.toml [workspace.metadata.studio.dependencies.hsk-studio-interop-tiff] allowed = [accord, observe]; WORKSPACE_RULES path-deps lists no interop-tiff edge (folio is allowed for package, interop-media, interop-lrcat, press, web, interop-psd, ...). Mapping StudioRasterRecords.channels in interop-tiff needs a new edge interop-tiff -> folio: a lead decision. Item stopped before any code; no Cargo.toml change.",
+      "options_for_lead": [
+        "(a) declare interop-tiff -> folio (folio depends on accord only; develop and harness-core/view/harness already depend on interop-tiff, so no cycle by reading the manifests; edges.py acyclicity check not run here)",
+        "(b) keep interop-tiff Folio-free: interop-tiff exposes a neutral extra-plane API (N extra samples with their ExtraSamples values, per-plane samples at 8/16/32) and the record mapping lives in a crate already allowed folio + interop-tiff (harness-core import-tiff path) or interop-psd's raster_proposal (interop-psd allowed: folio, pigment, prism, type; it has no interop-tiff edge either)"
+      ],
+      "also_needed_either_way": "at e3afbb62 interop-tiff decodes at most ONE extra sample on a colour page (scan.rs extra_sample_patch: more than one is refused `extra_samples_unsupported`) and encode.rs writes a single ExtraSamples value through the tiff crate's fixed ColorType (RGBA etc.); a channel record beyond the alpha needs multi-extra-sample decode and encode (a custom sample layout; whether the tiff 0.11.3 encoder takes an arbitrary ColorType is UNVERIFIED). Typed losses TIFF cannot carry: name, display colour, opacity/solidity, kind beyond the ExtraSamples value (0 unspecified / 1 associated / 2 unassociated), visibility, unless written into a private tag or the Photoshop 37724 block (vendor behaviour UNVERIFIED, D5)."
+    }
+  ],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: read the brief, red-first per item, one bundled run on D:, push when green (rebase, per-sha)",
-  "updated_at": "2026-11-01T12:58:23Z",
+  "next": "validator: item 1 at e3afbb62; lead: decide item 2 edge (interop-tiff -> folio or neutral API) and item 3 EXR owner, then a new lane",
+  "updated_at": "2026-11-01T13:44:54Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -42,6 +114,51 @@
       "MT-30095 (TIFF rows)",
       "MT-038 rows touched"
     ],
-    "dispatch_reason": "STUDIO-R52 follow-up (findings_not_failures)"
+    "dispatch_reason": "STUDIO-R52 follow-up (findings_not_failures)",
+    "spec_basis": [
+      "STU-RAS-022 (:844): saving a selection to a persistent alpha/spare channel ... preserved in round-trippable interchange formats (14.13)",
+      "STU-RAS-043 (:1885): preserve alpha channels, spot channels ... wherever the target format supports them (14.13), and MUST report, as inspectable state, any capability lost on flatten/export rather than dropping it silently",
+      "STU-IO-006 row 3 TIFF I-EP-X-RT 'alpha ... preserved'; row 9 OpenEXR I-EP-X-RT 'multi-channel/multi-part (EXR) preserved'"
+    ],
+    "item_1_F_R52_3": {
+      "fixtures": {
+        "multichannel_or_depth": "added_channel_in_a_multichannel_or_one_bit_file_is_a_typed_loss: mode 7 at 8 bits (only the multichannel condition fails) and mode 0 at 1 bit with a 1-bit record (only the 8/16/32 condition fails; a 1-bit record is outside Folio's 8/16/32 contract, so this half is a hostile record: the only way to reach that branch alone, because any 8/16/32 record fails the depth-equality branch first)",
+        "no_merged_image_data": "added_channel_without_merged_image_data_is_a_typed_loss: RGB 8-bit, image data section absent",
+        "merged_transparency_plane_0": "added_channel_as_extra_plane_zero_of_a_merged_transparency_file_is_a_typed_loss: RGB, three header channels, negative layer count; control with a positive count writes the channel",
+        "assertion": "each: loss [(channels/<id>, channel_added_in_edit_not_exported, Unsupported)], applied empty, exported bytes == input bytes"
+      },
+      "opacity": "export.rs display_opacity(): both 1077 write sites (edited imported channel, added channel) record channel_opacity_rounded (Transformed, path channel[i]/opacity) when the opacity is finite and not integral, and channel_opacity_clamped (Transformed; the code the import already uses) when outside 0..=100 or not finite; value written = round().clamp(0,100) as before. Test channel_opacity_the_display_entry_cannot_hold_is_a_typed_loss. Vocabulary comment in proposal.rs updated.",
+      "v4_06_class": "class: silent opacity rounding into the 1077 u16; search regex `opacity.*round\\(\\)\\.clamp\\(0\\.0, 100\\.0\\)` in crates/hsk-studio-interop-psd/src at base: 2 sites (export.rs:478 edited channel, export.rs:535 added channel), both fixed via display_opacity; at HEAD 1 match, inside display_opacity (the writer itself). Other `.round().clamp(` hits (export.rs:82 layer opacity percent->u8, proposal.rs:2521-2522 adjustment raw values, samples.rs:57 16-bit samples) are a different class (layer/adjustment/sample quantisation), not-applicable to F-R52-3; layer opacity 82 is noted for the lead as a possible sibling finding (UNVERIFIED whether it already reports)."
+    },
+    "exr_finding_item_3": {
+      "who_reads_or_writes_openexr": "No crate reads OpenEXR in product code at e3afbb62. One writer: hsk-studio-composite src/three_d/exr.rs (encode_exr_f32, encode_exr_f32_with_attributes; lane SMB-AE-3D-2/3), used by three_d.rs AuxPlanes::to_exr for the 3D renderer's auxiliary planes (STU-CMP-050). Format written: single-part scanline, uncompressed, every channel 32-bit FLOAT, names 1..31 printable ASCII sorted (no long-name flag), at most 64 channels, extra header attributes of type string only. EXR readers exist only as test helpers (composite tests/three_d_adapter.rs read_exr, tests/support/three_d_scene.rs read_exr_f32).",
+      "what_a_channel_record_mapping_needs": [
+        "an owning crate: composite may depend on folio (WORKSPACE_RULES), but it is the compositor, not an interop crate; interop-raster/interop-tiff have no folio edge; a new interop-exr crate or moving the writer is a lead decision (new crate + DAG entries)",
+        "an EXR reader for import / edit-preserve / round-trip (STU-IO-006 row 9 I-EP-X-RT): header parse, chlist, at least NONE compression (ZIP/PIZ/etc. for real files), multi-part, all budgeted (V4-01/02)",
+        "a channel naming convention for records (e.g. a layer prefix per record; how Photoshop/Nuke name extra channels is UNVERIFIED, D5) within the 31-byte short-name limit or a long-name flag the writer lacks",
+        "depth mapping: record depth 32 -> FLOAT exact, 16 -> HALF or UINT (writer has neither), 8 -> no EXR 8-bit type (transformed, typed loss)",
+        "record fields EXR has no slot for (name beyond the channel name, kind, colour, opacity, visibility): string header attributes (writer supports them) or typed losses",
+        "tile/sample conversion from the coverage_u8/u16le/f32le tile payloads and the 256 grid (as interop-psd channel_plane does)"
+      ],
+      "decision_for_lead": "implement EXR mapping (owner crate + reader) or have the spec owner limit STU-RAS-022 interchange rows (F-R52-2 repair_direction)"
+    },
+    "spec_proposals": [
+      "none for item 1; item 2/3 are lead decisions (edge, owner crate) or a spec-owner limit of STU-RAS-022 to PSD/PSB, per F-R52-2 repair_direction"
+    ],
+    "vendor_parity": "Photoshop behaviour for fractional channel opacity and for 1-bit/multichannel extra channels UNVERIFIED (D5)",
+    "shared_files": "none; diff-stat 174ebc56..e3afbb62 lists only crates/hsk-studio-interop-psd/{src/export.rs,src/proposal.rs,tests/psd_alpha_channels.rs}",
+    "feature_gates_4e": "harness tests import_colour.rs and import_tiff.rs are #![cfg(feature = \"import-tiff\")], import_psd.rs import-psd; .config/round-features.toml declares hsk-studio-harness [import-psd] and [import-tiff] units, so rounds compile them"
+  },
+  "changed_assertions": [
+    "none: no existing assertion changed (only new tests; existing tests pin integral opacities 40, 50, 60, 75, so they record no new loss)"
+  ],
+  "mts": {
+    "MT-038": {
+      "AC-003 Round-trips through interchange": "met for the rows item 1 touches (PSD typed losses where PSD cannot carry an added channel or an opacity): tests added_channel_in_a_multichannel_or_one_bit_file_is_a_typed_loss, added_channel_without_merged_image_data_is_a_typed_loss, added_channel_as_extra_plane_zero_of_a_merged_transparency_file_is_a_typed_loss, channel_opacity_the_display_entry_cannot_hold_is_a_typed_loss",
+      "AC-001, AC-002": "not touched by this lane"
+    },
+    "MT-30095": {
+      "AC-001 (TIFF and EXR interchange rows)": "NOT met by this lane: TIFF mapping blocked (item 2), EXR not implemented (item 3); MT-30095 stays partly met (PSD only, as R52 judged)"
+    }
   }
 }
