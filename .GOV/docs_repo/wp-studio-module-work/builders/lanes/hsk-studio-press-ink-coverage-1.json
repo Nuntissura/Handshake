@@ -5,15 +5,50 @@
   "phase": "build",
   "worktree": "wt-studio-lanes/smb-press-ink-coverage-1",
   "base": "31454a07",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "73bfe5a8a8a46103bc724ba16697710dc8ca6fc6",
+      "pushed": false,
+      "subject": "press-write (SMB-PRESS-INK-COVERAGE-1): total ink coverage contract STU-LAY-250..254",
+      "paths": [
+        "crates/hsk-studio-press-write/src/coverage.rs (new)",
+        "crates/hsk-studio-press-write/src/separations.rs",
+        "crates/hsk-studio-press-write/src/inks.rs (ink-type reads and additive accessors only)",
+        "crates/hsk-studio-press-write/src/lib.rs (exports)",
+        "crates/hsk-studio-press-write/tests/ink_coverage_contract.rs (new)",
+        "crates/hsk-studio-press/src/lib.rs (re-exports + DESCRIPTOR separations.coverage entry)"
+      ],
+      "note": "local only (base 31454a07); red-first commit 20fdf9bc did not compile without the contract and was squashed into this one per RED COMMITS"
+    }
+  ],
+  "capabilities_done": [
+    "STU-LAY-250 parameter table as seven-field records; total hard_max scaled 100 x plates; values validated, never clamped",
+    "STU-LAY-251 InkLimitSites (stored contract), ordered ink_limit_source, per-field first-declared resolution with source; undeclared/disabled -> not_checked; indeterminate distinct",
+    "STU-LAY-252 evaluation on separated planes: maximum, mean, area_above_limit at the declared sample resolution; opaque/opaque_ignore per ink_type; introduced_by for live stages only",
+    "STU-LAY-253 InkCoverageFinding (13 fields + limit) with to_json; InkCoverageReport::to_json",
+    "STU-LAY-254 shipped default declares nothing (not_checked); published figures kept as reference rows; evaluation read-only"
+  ],
+  "tests": {
+    "bundled_run": {
+      "argv": "bash tools/lane-check.sh --owner smb-press-ink-coverage-1 --disk d -- cargo nextest run -p hsk-studio-press-write -p hsk-studio-press --no-fail-fast",
+      "sha": "73bfe5a8a8a46103bc724ba16697710dc8ca6fc6",
+      "exit": 0,
+      "passed": 214,
+      "failed": 0,
+      "clippy": "press-write, press and dependents [harness, harness-core, harness-view, interop-fig, interop-fig-native, interop-layout] --tests: no warning in press-write or press",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-press-ink-coverage-1/lane-check-smb-press-ink-coverage-1-73bfe5a8-run2.log",
+      "earlier_run": "run1 on 68fdb4f9 (same tree minus one const-assert lint fix): 214/214, exit 0"
+    },
+    "doctests": "none added (no doc examples)",
+    "feature_gates": "none: new test target is not feature-gated (4e)",
+    "per_sha": "not yet run: runs after the rebase at push time"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: read the brief, red-first per item, one bundled run, push after SMB-R50-FOLLOWUPS-1 is on origin",
-  "updated_at": "2026-11-01T02:58:58Z",
+  "next": "waiting for R50 followups push (SMB-R50-FOLLOWUPS-1 not on origin at 2026-11-01T03:45:57Z); then rebase, lane-check --per-sha, diff --stat, guarded push, READY_FOR_VALIDATION",
+  "updated_at": "2026-11-01T03:45:57Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -21,7 +56,7 @@
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
-      "internal_diagnostics": "producer_through_observe",
+      "internal_diagnostics": "none",
       "flight_recorder": "none",
       "palmistry": "none"
     },
@@ -45,6 +80,79 @@
       "MT-35432",
       "MT-35695 (ink-coverage rows only)"
     ],
-    "dispatch_reason": "post-R50 wave slot after the five paused lanes resumed; engine lane (D6), gap verified by git grep at base (no TOC/index model, no trap-preset record; press-write ink-limit preview predates STU-LAY-250..254)"
+    "dispatch_reason": "post-R50 wave slot after the five paused lanes resumed; engine lane (D6), gap verified by git grep at base (no TOC/index model, no trap-preset record; press-write ink-limit preview predates STU-LAY-250..254)",
+    "spec_basis": "Master Spec v02.226 module 14: STU-LAY-250..254 (:7236-7392), STU-LAY-100, STU-LAY-154, STU-LAY-160, STU-LAY-166, STU-LAY-057",
+    "mt_claims_draft": {
+      "MT-35425": {
+        "AC-001": "met: effective_limit_is_first_declared_site_and_records_its_source + finding_carries_thirteen_fields_and_serialises_as_data",
+        "AC-002": "met: total_ink_hard_max_scales_with_ink_count_never_clamped_to_400",
+        "AC-003": "met: coverage_parameter_table_seven_fields_unknown_never_mirrored"
+      },
+      "MT-35426": {
+        "AC-001": "met: coverage_parameter_table_seven_fields_unknown_never_mirrored (row total_ink_limit asserted separately)",
+        "AC-002": "met: coverage_parameter_table_seven_fields_unknown_never_mirrored (row single_ink_limit asserted separately)",
+        "AC-003": "met: coverage_parameter_table_seven_fields_unknown_never_mirrored (row black_ink_limit asserted separately)",
+        "AC-004": "met: coverage_parameter_table_seven_fields_unknown_never_mirrored (row coverage_warning_margin asserted separately)",
+        "AC-005": "met: coverage_parameter_table_seven_fields_unknown_never_mirrored (row coverage_sample_resolution asserted separately)"
+      },
+      "MT-35427": {
+        "AC-001": "met: effective_limit_is_first_declared_site_and_records_its_source",
+        "AC-002": "met: effective_limit_is_first_declared_site_and_records_its_source",
+        "AC-003": "met: studio_ships_undeclared_and_reports_not_checked_never_a_pass",
+        "AC-004": "met: studio_ships_undeclared_and_reports_not_checked_never_a_pass (enumeration rows: ink_limit_enumerations_exact_members_round_trip)",
+        "AC-005": "met: unseparable_content_is_indeterminate_not_not_checked_or_within"
+      },
+      "MT-35428": {
+        "AC-001": "met: ink_limit_enumerations_exact_members_round_trip",
+        "AC-002": "met: ink_limit_enumerations_exact_members_round_trip",
+        "AC-003": "met: ink_limit_enumerations_exact_members_round_trip",
+        "AC-004": "met: ink_limit_enumerations_exact_members_round_trip"
+      },
+      "MT-35429": {
+        "AC-001": "partly met: evaluation_measures_separated_device_values_with_three_metrics_at_declared_resolution (separated planes, declared resolution); transparency flattening and placed-image separation are not performed, so such pages are indeterminate instead of evaluated",
+        "AC-002": "met (Studio rule, vendor parity UNVERIFIED): opaque_inks_contribute_per_declared_ink_type_not_a_plain_sum"
+      },
+      "MT-35430": {
+        "AC-001": "met: ink_limit_enumerations_exact_members_round_trip",
+        "AC-002": "met: ink_limit_enumerations_exact_members_round_trip"
+      },
+      "MT-35431": {
+        "AC-001": "partly met: finding_carries_thirteen_fields_and_serialises_as_data (typed structured finding, STU-LAY-166 typed errors); reaching the command surface (STU-LAY-057) is a host follow-up"
+      },
+      "MT-35432": {
+        "AC-001": "met: studio_ships_undeclared_and_reports_not_checked_never_a_pass",
+        "AC-002": "met: published_reference_figures_keep_ranges_and_are_never_a_default",
+        "AC-003": "met for the no-repair rule: evaluation_never_re_separates_the_document; the propose-work re-separation mutation (STU-LAY-067) is not in this crate"
+      },
+      "MT-35695": {
+        "AC-005 (ink-coverage part of Separations preview)": "partly met: ink-limit view kept, contract evaluation readable as typed values; other rows (PDF/X, overprint, trap, flattener, GUI) not claimed"
+      }
+    },
+    "changed_preexisting_assertions": "none: no pre-existing test file changed. Behaviour notes: Severity (InkLimitSeverity) gained Disabled and Informational to be exactly the STU-LAY-154 vocabulary (Error/Warning names unchanged, id_prepress_separations unchanged and green); total_pt / check_ink_limits / InkLimit view now apply the ink_type total rule, identical to the plain sum when no ink is opaque or opaque_ignore (STU-LAY-252)",
+    "live_coverage_stages": "performed and attributable: stage.spot_to_process_conversion, stage.ink_alias_resolution, stage.overprint_composition, stage.authored_rich_black (incl. registration All), stage.opaque_ink_handling; not performed, never reported as introduced_by: stage.transparency_flattening, stage.placed_image_separation (pages with transparency painted opaque are indeterminate with cause transparency_not_flattened)",
+    "introduced_by_rule": "replay of the composition at the worst location (same 4x4 sampling and f32 compositing as the paint): the last object after which the measure rose past the threshold; overprint_composition if knocking out would have stayed at or below it; else its first paint stage in order spot-to-process, alias, rich black, opaque; else null (authored process values)",
+    "opaque_rule": "total = sum(obscuring tones) + (1 - top obscuring tone) x sum(other tones); no print sequence exists in the ink manager, so obscuring inks are taken to lie over the others. UNVERIFIED (D5); spec proposal below",
+    "host_follow_ups": [
+      "route InkCoverageFinding / InkCoverageReport::to_json to the model-steerable command surface (STU-LAY-057) with the other preflight findings (host / layout preflight engine)",
+      "observe emission: press-write has no hsk-studio-observe edge (Cargo.toml unchanged); the press face (has the edge) or the host must emit evaluation outcomes; host_integration.diagnostics.internal_diagnostics set to none accordingly",
+      "export-time evaluation hook: call evaluate_ink_coverage with the export recipe/output intent declarations of an output operation"
+    ],
+    "host_integration_note": "internal_diagnostics changed producer_through_observe -> none: no observe edge in press-write; a new edge is steward-owned (not requested here)",
+    "scopes": "document, spread (pages sharing one spread id) and page evaluated; ink_limit_scope.object and .plate refused with ink_limit_scope_not_evaluated (no per-object or per-plate evaluation in this pipeline)",
+    "bounds": "MAX_COVERAGE_PAGES 4096, MAX_INDETERMINATE_CAUSES 4096, MAX_COVERAGE_SAMPLES 2^30, MAX_COVERAGE_OBJECT_REFS 256, rule/page ids 256 B, object refs 1024 B; object and clip records charged to SepLimits::max_bytes before plates change; SepLimits and SepError unchanged",
+    "design_choices_to_review": [
+      "severity inside the warning margin: error -> warning -> informational (informational stays); spec says only \"a lower severity\"",
+      "severity.disabled rule -> not_checked with no finding",
+      "indeterminate wins over over_limit when a cause exists (metrics still reported)",
+      "check_ink_limits kept as the STU-LAY-160 preview view (its API is pinned by hsk-studio-harness tests/viewer_ai_type_path_recolor.rs, outside owned paths); the contract shares its planes, total rule and epsilon",
+      "crates/hsk-studio-press/src/lib.rs touched for re-exports and the DESCRIPTOR text (brief: lib.rs exports and DESCRIPTOR text; DESCRIPTOR lives in the press face)"
+    ],
+    "spec_proposals": [
+      "STU-LAY-252: state how opaque/opaque-ignore contribution is computed (print sequence? solidity?) - the clause requires it but gives no formula",
+      "STU-LAY-250: name the lower-severity mapping for the warning margin",
+      "STU-LAY-251: define ink_limit_scope.object and .plate evaluation semantics"
+    ],
+    "mt_proposals": "MT-35425..35432 proof checks plan hsk-studio-layout targets; the owned implementation is hsk-studio-press-write tests/ink_coverage_contract.rs (proposal only, MT not edited)",
+    "parity": "vendor parity UNVERIFIED (D5)"
   }
 }
