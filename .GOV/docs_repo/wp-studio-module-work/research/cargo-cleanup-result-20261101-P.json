@@ -1,0 +1,56 @@
+{
+ "schema": "hsk.studio.cleanup_result@2",
+ "file_id": "CARGO-CLEANUP-RESULT-20261101-P",
+ "generated_at": "2026-11-01T03:53:00Z",
+ "plan": "research/cargo-cleanup-plan-20261101-P.json",
+ "why": "rule P2: lanes PASS_V2 in STUDIO-R50",
+ "outcome": "PARTIAL: DELETED D: 1 lane target 84.077 GiB (16885 files, 245.5s). DEFERRED: P-C01 smb-ae-particles-2 (C: build lock held by smb-id-toc-index-1, queue non-empty). Nothing else touched.",
+ "dry_runs": [
+  {
+   "disk": "D",
+   "file": "phase2-D-dryrun-20261101T034826Z",
+   "counts": [
+    "WOULD_DELETE 1 (84.077 GiB)"
+   ]
+  }
+ ],
+ "result_files_location": "scratchpad cargo-manager-20261101-P",
+ "execute_run": {
+  "D": "phase2-D-execute-20261101T034834Z: 03:48:34Z-03:52:43Z; P-D01 84.077 GiB 245.5s 16885 files",
+  "C": "not run: C: deferred (lock held)"
+ },
+ "summary": {
+  "deleted": {
+   "D": {
+    "count": 1,
+    "gib": 84.077,
+    "files": 16885
+   },
+   "C": {
+    "count": 0,
+    "gib": 0,
+    "files": 0
+   }
+  },
+  "recycled_remainder_gib": 0,
+  "skipped": [],
+  "deferred": [
+   "P-C01 smb-ae-particles-2 3.479 GiB (C: lock held by smb-id-toc-index-1)"
+  ]
+ },
+ "recycle_bin_gib_for_operator": 0,
+ "locks": "D: free at dry run and execute; C: held (builder smb-id-toc-index-1) with 1 queued ticket at 03:47Z and 03:52Z, no C: script run",
+ "free_space": {
+  "before": {
+   "C": 414.31,
+   "D": 1440.68
+  },
+  "after": {
+   "C": 414.32,
+   "D": 1524.35
+  }
+ },
+ "p3": {
+  "note": "live lane targets remaining: C smb-ae-particles-2 (3.479 GiB, deferred); smb-fig-grid-3 PAUSED"
+ }
+}

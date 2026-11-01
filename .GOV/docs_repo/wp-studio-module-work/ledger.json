@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-01T02:58:58Z",
+ "updated_at": "2026-11-01T03:53:20Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -15632,7 +15632,15 @@
   "general bounded ZIP reading now has THREE in-crate implementations: interop-layout (IDML), interop-fig (4cfbf0f, over miniz_oxide), package (strict canonical STORE-only container). CX-CAP-001 -> one owner needed; needs a module-map edge or new leaf crate = Operator decision D16",
   "CRC-32 table duplicated: interop-vector gzip.rs vs interop-layout (R5 review C PLAUSIBLE) -> fold into D16 single owner for bounded ZIP/deflate/CRC"
  ],
- "steward_next_sync": [],
+ "steward_next_sync": [
+  {
+   "added_at": "2026-11-01T03:53:20Z",
+   "by": "lead",
+   "item": "module edge hsk-studio-press-write -> hsk-studio-observe",
+   "why": "SMB-PRESS-INK-COVERAGE-1 (73bfe5a8, local) cannot emit its terminal outcomes through observe (HOST INTEGRATION rule 5) because press-write has no observe edge; the builder set host_integration.diagnostics.internal_diagnostics to none and recorded the gap",
+   "owner": "workspace steward (new module edges are steward-owned)"
+  }
+ ],
  "round_R4": {
   "candidate": "2abb984",
   "status": "ABANDONED",
