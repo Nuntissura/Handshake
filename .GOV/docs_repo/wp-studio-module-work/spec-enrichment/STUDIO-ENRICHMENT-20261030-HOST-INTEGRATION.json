@@ -261,6 +261,54 @@
    "research_ref": "research/sd26-30-research-20261101.json",
    "recommended_resolution": "Append a contract table under STU-TYP-170 listing the 243 OpenType 1.9.1 registered tags plus the observed unregistered abrv and just (245), flagging hngl/opbd deprecated and the 229-tag observed union, which makes the ignored 229-tag test provable.",
    "applied_note": "STU-TYP-170: 245-tag registry contract table (126 rows; 243 OpenType 1.9.1 registered incl. deprecated hngl/opbd, plus abrv/just; observed-union column) with the module's contract-table derivation marker (yields no microtask)."
+  },
+  {
+   "id": "SD-31",
+   "gap": "STU-LAY-152 trap-preset table row `black_density` states hard_max 10 while the clause text makes 12.0 (the wider capture, per STU-LAY-103) the normative hard maximum; MT-30847 AC-004 pins 10",
+   "needs": "one value in the table row and the derived MT",
+   "lead_reading": "2026-11-01T03:59:19Z: the lane implements 12.0 (clause text); MT-30847 AC-004 to be regenerated once the table row is corrected",
+   "source": "lane SMB-ID-TOC-INDEX-1 notes (builders/lanes/hsk-studio-id-toc-index-1.json), v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-32",
+   "gap": "STU-LAY-148 TOC style field `numbered_paragraphs` is an enumeration with no members",
+   "needs": "the member list",
+   "lead_reading": "2026-11-01T03:59:19Z: stored as a typed open enumeration with no invented members",
+   "source": "lane SMB-ID-TOC-INDEX-1 notes (builders/lanes/hsk-studio-id-toc-index-1.json), v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-33",
+   "gap": "STU-LAY-149 says the captured header-type enumeration has twenty-seven members but names only thirteen",
+   "needs": "the fourteen missing member names",
+   "lead_reading": "2026-11-01T03:59:19Z: the lane carries the thirteen named members in a pluggable header-set model",
+   "source": "lane SMB-ID-TOC-INDEX-1 notes (builders/lanes/hsk-studio-id-toc-index-1.json), v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-34",
+   "gap": "STU-LAY-045/149 require per-reference page-range scoping but list no page-range scope members",
+   "needs": "the page-range scope enumeration",
+   "lead_reading": "2026-11-01T03:59:19Z: the lane uses the members MT-174 lists",
+   "source": "lane SMB-ID-TOC-INDEX-1 notes (builders/lanes/hsk-studio-id-toc-index-1.json), v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-35",
+   "gap": "STU-LAY-152 declares the trap-width cicero bound as 0c7.507 while layout's existing unit converter yields 0c7.505 for 8 pt",
+   "needs": "which value is normative (conversion constant)",
+   "lead_reading": "2026-11-01T03:59:19Z: pt stays canonical; the converted cicero bound follows the existing converter, discrepancy recorded",
+   "source": "lane SMB-ID-TOC-INDEX-1 notes (builders/lanes/hsk-studio-id-toc-index-1.json), v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-36",
+   "gap": "STU-LAY-148/149 leave undeclared: the default-styled TOC exception's content, the run-in joiner string, index capitalisation behaviour and the cross-reference lead-in words",
+   "needs": "those values or an explicit statement that they are Studio-declared",
+   "lead_reading": "2026-11-01T03:59:19Z: the lane stores them as unknown or Studio-declared and invents no captured value",
+   "source": "lane SMB-ID-TOC-INDEX-1 notes (builders/lanes/hsk-studio-id-toc-index-1.json), v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [
@@ -850,5 +898,5 @@
    "spec_version": "v02.226"
   }
  ],
- "updated_at": "2026-11-01T03:16:35Z"
+ "updated_at": "2026-11-01T03:59:19Z"
 }
