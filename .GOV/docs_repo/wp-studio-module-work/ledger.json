@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-31T23:54:56Z",
+ "updated_at": "2026-11-01T02:52:23Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -15410,7 +15410,7 @@
   {
    "lane_id": "SMB-AI-DISTORT-EFFECTS-1",
    "status": null,
-   "phase": "paused",
+   "phase": "build",
    "crate": "hsk-studio-nib (Illustrator Distort & Transform effects on recovered STU-VEC-154/155/158 records)",
    "lane_file": "builders/lanes/hsk-studio-ai-distort-effects-1.json",
    "brief": "builders/briefs/lane-smb-ai-distort-effects-1.md",
@@ -15436,13 +15436,15 @@
     "pushed": false,
     "last_run": "bundled green (nib 96/96, clippy clean)",
     "resume_step": "fetch, rebase, --per-sha (disk d), push",
-    "open_on_resume": "slices 1-4 landed as one commit with no separate red run (validator to judge red-first); object-mosaic typed record added for MT-30559"
+    "open_on_resume": "slices 1-4 landed as one commit with no separate red run (validator to judge red-first); object-mosaic typed record added for MT-30559",
+    "resumed_at": "2026-11-01T02:52:23Z",
+    "resumed_by": "push agent D: (after mode-convert)"
    }
   },
   {
    "lane_id": "SMB-AE-EXPR-LIBRARY-1",
    "status": null,
-   "phase": "paused",
+   "phase": "build",
    "crate": "hsk-studio-motion + hsk-studio-motion-js (expression catalogue, dual spellings, recovered signatures, mathematical function families)",
    "lane_file": "builders/lanes/hsk-studio-ae-expr-library-1.json",
    "brief": "builders/briefs/lane-smb-ae-expr-library-1.md",
@@ -15470,13 +15472,15 @@
     "pushed": false,
     "last_run": "bundled green (125 passed: default 52, quickjs 35, quickjs+test-faults 38)",
     "resume_step": "fetch, rebase, --per-sha, one push for both commits",
-    "open_on_resume": "refusals are catchable by user try/catch (fix needs quickjs.rs, outside lane); sub/div binding by definition is a follow-up candidate"
+    "open_on_resume": "refusals are catchable by user try/catch (fix needs quickjs.rs, outside lane); sub/div binding by definition is a follow-up candidate",
+    "resumed_at": "2026-11-01T02:52:23Z",
+    "resumed_by": "push agent C: (first)"
    }
   },
   {
    "lane_id": "SMB-TYPE-OT-FEATURES-1",
    "status": null,
-   "phase": "paused",
+   "phase": "build",
    "crate": "hsk-studio-type (OpenType feature-tag registry STU-TYP-171, per-font availability, legacy projections, STU-TYP-207 character catalogs)",
    "lane_file": "builders/lanes/hsk-studio-type-ot-features-1.json",
    "brief": "builders/briefs/lane-smb-type-ot-features-1.md",
@@ -15501,13 +15505,15 @@
     "pushed": false,
     "last_run": "bundled green (type 89 default / 90 harfrust; 1 NOT_PROVEN ignore: 229-tag list absent from spec)",
     "resume_step": "fetch, rebase, --per-sha, push",
-    "open_on_resume": "four slices in two commits, tests never run red first (validator to judge); spec-owner: stream sentinels for breaks unassigned, STU-TYP-207 says three catalogs but tables four"
+    "open_on_resume": "four slices in two commits, tests never run red first (validator to judge); spec-owner: stream sentinels for breaks unassigned, STU-TYP-207 says three catalogs but tables four",
+    "resumed_at": "2026-11-01T02:52:23Z",
+    "resumed_by": "push agent C: (second)"
    }
   },
   {
    "lane_id": "SMB-PS-MODE-CONVERT-1",
    "status": null,
-   "phase": "paused",
+   "phase": "build",
    "crate": "hsk-studio-prism (Image > Mode: grayscale->bitmap, RGB->indexed, indexed colour table and codec; STU-COL-119/121)",
    "lane_file": "builders/lanes/hsk-studio-ps-mode-convert-1.json",
    "brief": "builders/briefs/lane-smb-ps-mode-convert-1.md",
@@ -15529,13 +15535,15 @@
     "pushed": false,
     "last_run": "bundled green at tip (prism 213 passed, 2 skipped); per-sha FAIL at 8ad6f1e6 (slice-3 tests use RED/GREEN/BLUE defined in slice 4)",
     "resume_step": "move the three colour constants into slice 3 and re-create commits 3-5 (tip byte-identical), fetch, rebase, --per-sha, push",
-    "open_on_resume": "8ad6f1e6 must not be pushed as is (RED COMMITS)"
+    "open_on_resume": "8ad6f1e6 must not be pushed as is (RED COMMITS)",
+    "resumed_at": "2026-11-01T02:52:23Z",
+    "resumed_by": "push agent D: (re-create commits 3-5, then rebase, --per-sha, push)"
    }
   },
   {
    "lane_id": "SMB-R50-FOLLOWUPS-1",
    "status": null,
-   "phase": "paused",
+   "phase": "build",
    "crate": "hsk-studio-composite, hsk-studio-folio (additive), hsk-studio-interop-psd, hsk-studio-harness-core, hsk-studio-harness (tests)",
    "lane_file": "builders/lanes/hsk-studio-r50-followups-1.json",
    "brief": "builders/briefs/lane-smb-r50-followups-1.md",
@@ -15562,7 +15570,9 @@
     "pushed": false,
     "last_run": "bundled green (450 passed) + composite[motion] 209 passed",
     "resume_step": "push LAST: after the four engine lanes are on origin, rebase, --per-sha, push",
-    "open_on_resume": "open for spec owner: angle rows recorded 0..0 stored unbounded; viscosity/damping/wave speed stay authored (no unit in the record)"
+    "open_on_resume": "open for spec owner: angle rows recorded 0..0 stored unbounded; viscosity/damping/wave speed stay authored (no unit in the record)",
+    "resumed_at": "2026-11-01T02:52:23Z",
+    "resumed_by": "push agent C: (last, after the four engine lanes are on origin; bundled re-run)"
    }
   }
  ],
@@ -17346,7 +17356,17 @@
   "d8": "DECIDED 2026-10-31T23:54:56Z: Kumihimo stays shared-controls owner; non-egui pure-Vulkan renderer beside kumihimo-egui (Kumihimo asset work)",
   "stu_shl_130": "DECIDED 2026-10-31T23:54:56Z: layer-based compositing; SHL-P-14 unblocked for engine work; keyframe-timeline panel still waits on the D7/D8 GUI layer",
   "d5": "DECIDED 2026-10-31T23:54:56Z: apply SD-01..24 (+SD-25) to the Master Spec in one batch",
-  "mt_status_sync": "DECIDED 2026-10-31T23:54:56Z: one-time mechanical MT status sync from validated lane verdicts; afterwards the round validator writes it each round"
+  "mt_status_sync": "DECIDED 2026-10-31T23:54:56Z: one-time mechanical MT status sync from validated lane verdicts; afterwards the round validator writes it each round",
+  "resume_20261101": {
+   "at": "2026-11-01T02:52:23Z",
+   "operator_instruction": "let an agent refactor the 108 lines, then doe the spec's round trip and resolve issues with your agents. then generate the contracts, research what is commonly expected fpr sd 26-30 and apply. then focus back to studio product dev. / or do the paperwork in parallel with agents.",
+   "product": "five paused lanes resume: two push agents (C: and D:), one disk-heavy job per disk; R51 after the pushes; cargo batch P after the pushes",
+   "paperwork_in_parallel": [
+    "spec agent: D7/D1 alignment of every non-Studio wgpu/egui/eframe/WGSL line (127 at v02.226) -> v02.227, then SD-26..30 -> v02.228",
+    "research agent: SD-26..30 field expectations -> research/sd26-30-research-20261101.json",
+    "round-trip agent: spec-roundtrip-check on v02.226, triage, derive and promote MT contracts for uncovered clauses (STU-ARC-023..033), re-run on v02.227/228"
+   ]
+  }
  },
  "round_R45": {
   "candidate": "b425b54a",
