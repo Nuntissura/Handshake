@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-01T05:34:56Z",
+ "updated_at": "2026-11-01T05:38:43Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -15628,6 +15628,62 @@
     "MT-35695 (ink-coverage rows only)"
    ],
    "pushed": "3b7a6976"
+  },
+  {
+   "lane_id": "SMB-TYPE-SENTINELS-REGISTRY-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-type (stream sentinels SD-29, 245-tag feature registry SD-30)",
+   "lane_file": "builders/lanes/hsk-studio-type-sentinels-registry-1.json",
+   "brief": "builders/briefs/lane-smb-type-sentinels-registry-1.md",
+   "worktree": "wt-studio-lanes/smb-type-sentinels-registry-1",
+   "base": "a7be22a1",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-01T05:38:43Z",
+   "closes": [
+    "MT-31005",
+    "MT-31007",
+    "MT-31008",
+    "MT-31009",
+    "MT-30955",
+    "MT-30959"
+   ]
+  },
+  {
+   "lane_id": "SMB-FOLIO-ANGLE-UNBOUNDED-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-folio (recovered ANGLE parameters unbounded, SD-26), hsk-studio-composite (pinned bounds only)",
+   "lane_file": "builders/lanes/hsk-studio-folio-angle-unbounded-1.json",
+   "brief": "builders/briefs/lane-smb-folio-angle-unbounded-1.md",
+   "worktree": "wt-studio-lanes/smb-folio-angle-unbounded-1",
+   "base": "a7be22a1",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-01T05:38:43Z",
+   "closes": [
+    "SD-26 angle rows of the STU-FX-131a angle-table MTs (MT-31934..MT-32022 range), partial claims expected"
+   ]
+  },
+  {
+   "lane_id": "SMB-ID-TOC-PERSIST-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-folio (TOC/index contract fields, StudioPage applied_trap_preset), hsk-studio-layout (lift), hsk-studio-interop-layout (literals only)",
+   "lane_file": "builders/lanes/hsk-studio-id-toc-persist-1.json",
+   "brief": "builders/briefs/lane-smb-id-toc-persist-1.md",
+   "worktree": "wt-studio-lanes/smb-id-toc-persist-1",
+   "base": "a7be22a1",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-01T05:38:43Z",
+   "closes": [
+    "MT-30777",
+    "MT-30779",
+    "MT-30846",
+    "MT-173 / MT-174 persistence rows if any"
+   ]
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

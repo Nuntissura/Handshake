@@ -1,0 +1,45 @@
+{
+  "crate": "hsk-studio-folio (TOC/index contract fields, StudioPage applied_trap_preset), hsk-studio-layout (lift), hsk-studio-interop-layout (literals only)",
+  "lane": "SMB-ID-TOC-PERSIST-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-id-toc-persist-1",
+  "base": "a7be22a1",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: read the brief, red-first per item, one bundled run on D:, push only after STUDIO-R51 is recorded and the lead releases",
+  "updated_at": "2026-11-01T05:38:43Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: setting a page's applied trap preset is a mutating document edit and takes an ActorContext from the caller; never default_actor()",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-01T05:38:43Z",
+    "disk": "D",
+    "closes_candidates": [
+      "MT-30777",
+      "MT-30779",
+      "MT-30846",
+      "MT-173 / MT-174 persistence rows if any"
+    ],
+    "dispatch_reason": "follow-up wave from the v02.228 SD research and SMB-ID-TOC-INDEX-1 notes; engine lane (D6); builds on D: while STUDIO-R51 holds C:"
+  }
+}
