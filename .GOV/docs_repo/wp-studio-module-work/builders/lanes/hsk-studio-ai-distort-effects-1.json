@@ -1,16 +1,17 @@
 {
   "crate": "hsk-studio-nib (vector live effects: Distort & Transform family on the recovered STU-VEC-155 records; convert-to-shape typed contract)",
   "lane": "SMB-AI-DISTORT-EFFECTS-1",
-  "status": null,
-  "phase": "paused (lead/Operator PAUSE 2026-10-31; green bundled run, NOT pushed)",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed; READY_FOR_VALIDATION (not PASS: validator judges)",
   "worktree": "wt-studio-lanes/smb-ai-distort-effects-1",
-  "base": "63ecf5a6",
+  "base": "0ce2bc48",
   "commits": [
     {
-      "sha": "82f85bde6439b053aca78dc2ef7ea9c5503b7798",
+      "sha": "4b5ba2da6eab111b2ff55aed7589b8d3ccd81721",
+      "old_sha": "82f85bde6439b053aca78dc2ef7ea9c5503b7798",
       "subject": "nib (SMB-AI-DISTORT-EFFECTS-1, MT-32980..32986): vector live effects, Distort & Transform family",
-      "pushed": false,
-      "base": "63ecf5a6"
+      "pushed": true,
+      "base": "0ce2bc48"
     }
   ],
   "capabilities_done": [
@@ -31,14 +32,21 @@
     "focused": "tests/vector_live_effects.rs 13/13 (pre-commit focused run, D:)",
     "doctests": "none added (4d n/a)",
     "started": "2026-10-31T23:18:27Z",
-    "finished": "2026-10-31T23:27:17Z"
+    "finished": "2026-10-31T23:27:17Z",
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-ai-distort-effects-1 --disk d --per-sha origin/codex/handshake-studio-assets",
+      "result": "PER_SHA_RESULT OK shas=1 range=0ce2bc48..4b5ba2da",
+      "exit": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-distort-effects-1/smb-ai-distort-effects-1-4b5ba2da-persha.log"
+    },
+    "bundled_rerun": "not re-run: the rebase 63ecf5a6 -> 0ce2bc48 brought motion, motion-js, type and prism commits; none touches nib or its dependencies (accord, observe); bundled log stays smb-ai-distort-effects-1-bundled-82f85bde.log (nib subtree unchanged by the rebase); per-sha cargo check --tests of nib and its direct dependents on 4b5ba2da OK"
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": null,
   "bg_pids": [],
-  "next": "RESUME (after lead lifts the pause): in the lane worktree `git fetch origin` + `git rebase origin/codex/handshake-studio-assets`; if the rebase touched nib's closure re-run the bundled lane-check above, else proceed; run `lane-check.sh --owner smb-ai-distort-effects-1 --disk d --per-sha origin/codex/handshake-studio-assets`; on PER_SHA_RESULT OK push with PUSH SAFETY (`SHA=$(git rev-parse HEAD) && [ -n \"$SHA\" ] && git push origin \"$SHA\":refs/heads/codex/handshake-studio-assets`), check exit code, then set status READY_FOR_VALIDATION with the pushed sha",
-  "updated_at": "2026-10-31T23:27:51Z",
+  "next": "validator round on 4b5ba2da",
+  "updated_at": "2026-11-01T03:42:41Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -100,6 +108,9 @@
     "round_features_4e": "nib tests are not feature-gated (default unit); harness-view/harness reach nib only via viewer: included in clippy and test build with [viewer]",
     "deviations": "slices 1-4 landed as one commit (one module; per-slice commits would have needed intermediate stubs); no separate red run (tests written with the code); shape_ops change is pub(crate) visibility only, public items unchanged",
     "host_integration": "no egui/GPU/command/job/settings; outcomes codes-only via observe; ActorContext not taken because operators do not mutate a document (later Folio stack commit carries it)",
-    "open_questions": "lead: confirm one-commit landing is acceptable vs per-slice commits; confirm object-mosaic typed token record (beyond brief's carried-forward note) is wanted on MT-30559"
-  }
+    "open_questions": "answered by lead: see notes.lead_answers_for_validator",
+    "resume": "2026-11-01T03:42:41Z: resumed after the Operator lifted the pause (2026-11-01). Old local head 82f85bde. git fetch; origin had moved 63ecf5a6 -> 0ce2bc48 (type, motion, motion-js, prism SMB-PS-MODE-CONVERT-1); rebase clean to 4b5ba2da; per-sha 0ce2bc48..4b5ba2da OK (disk d); pushed 4b5ba2da (0ce2bc48..4b5ba2da fast-forward, exit 0), fetched origin = 4b5ba2da.",
+    "lead_answers_for_validator": "Lead (pause record 2026-10-31T23:38:29Z, relayed on resume): slices 1-4 landed as one commit with no separate red run; the validator judges red-first. The object-mosaic typed record for MT-30559 is part of the claim (test shape_mosaic_gap_contract)."
+  },
+  "pushed_head": "4b5ba2da6eab111b2ff55aed7589b8d3ccd81721"
 }

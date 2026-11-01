@@ -1,35 +1,43 @@
 {
   "crate": "hsk-studio-prism (document mode records and depth availability, grayscale -> bitmap, RGB -> indexed, indexed colour table and colour-table file codec)",
   "lane": "SMB-PS-MODE-CONVERT-1",
-  "status": null,
-  "phase": "paused (lead/Operator PAUSE; nothing pushed)",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed; READY_FOR_VALIDATION (not PASS: validator judges)",
   "worktree": "wt-studio-lanes/smb-ps-mode-convert-1",
-  "base": "63ecf5a6",
+  "base": "17f03d1c",
   "commits": [
     {
-      "sha": "79c4205b",
+      "sha": "aadbf42e",
+      "old_sha": "79c4205b",
       "subject": "prism (SMB-PS-MODE-CONVERT-1, slice 1): Image > Mode contract",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "9c8aa057",
+      "sha": "2f3f7b81",
+      "old_sha": "9c8aa057",
       "subject": "prism (SMB-PS-MODE-CONVERT-1, slice 2): grayscale -> bitmap",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "8ad6f1e6",
+      "sha": "9895f6fd",
+      "old_sha": "8ad6f1e6",
+      "pre_rebase_sha": "ee0c7223",
       "subject": "prism (SMB-PS-MODE-CONVERT-1, slice 3): indexed colour table and colour-table file codec",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "39c1ae7d",
+      "sha": "7d6adc9f",
+      "old_sha": "39c1ae7d",
+      "pre_rebase_sha": "e0d393e6",
       "subject": "prism (SMB-PS-MODE-CONVERT-1, slice 4): RGB -> indexed",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "5a05b3c7",
+      "sha": "0ce2bc48b878328e1059e45a14c2f1daa726f240",
+      "old_sha": "5a05b3c7",
+      "pre_rebase_sha": "783f94fc",
       "subject": "prism (SMB-PS-MODE-CONVERT-1): clippy fixes in the mode conversions",
-      "pushed": false
+      "pushed": true
     }
   ],
   "capabilities_done": [
@@ -54,20 +62,23 @@
       "smb-ps-mode-convert-1-39c1ae7d-bundled.log (FAIL clippy)",
       "smb-ps-mode-convert-1-5a05b3c7-persha.log (FAIL)"
     ],
-    "note": "whole prism suite incl. 26 tests/mode_conversion.rs; clippy prism + 9 dependents + harness-core[import-psd], harness-view[viewer], harness[import-psd] clean of prism warnings"
+    "note": "whole prism suite incl. 26 tests/mode_conversion.rs; clippy prism + 9 dependents + harness-core[import-psd], harness-view[viewer], harness[import-psd] clean of prism warnings",
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-ps-mode-convert-1 --disk d --per-sha origin/codex/handshake-studio-assets",
+      "result": "PER_SHA_RESULT OK shas=5 range=17f03d1c..0ce2bc48",
+      "exit": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-mode-convert-1/smb-ps-mode-convert-1-0ce2bc48-persha.log",
+      "pre_rebase": "PER_SHA_RESULT OK shas=5 range=63ecf5a6..783f94fc, log Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-mode-convert-1/smb-ps-mode-convert-1-783f94fc-persha.log"
+    },
+    "bundled_log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-mode-convert-1/smb-ps-mode-convert-1-5a05b3c7-bundled.log",
+    "bundled_rerun": "not re-run: tip tree 783f94fc byte-identical to 5a05b3c7 (git diff 5a05b3c7 783f94fc empty); the rebase onto 17f03d1c brought only motion, motion-js and type commits (not prism, accord, observe or a prism dependent); prism subtree at 0ce2bc48 identical to 5a05b3c7"
   },
   "verdicts": [],
-  "blockers": [
-    {
-      "error": "per-sha FAIL sha=8ad6f1e6 unit=default exit=101: E0425 cannot find RED/GREEN/BLUE in tests/mode_conversion.rs:378 (slice-3 colour-table tests use the colour constants that are defined in the slice-4 section)",
-      "file_line": "crates/hsk-studio-prism/tests/mode_conversion.rs:378 at 8ad6f1e6",
-      "attempts": 1
-    }
-  ],
+  "blockers": [],
   "lock_wait_s": null,
   "bg_pids": [],
-  "next": "RESUME: (1) rebuild the local branch so 8ad6f1e6 compiles: move `const RED/GREEN/BLUE` (and nothing else) from the slice-4 section into the slice-3 section of tests/mode_conversion.rs in slice 3, keep slice 4 without them, re-create commits 3..5 (tip tree unchanged: only the constants' position moves; the clippy fix 5a05b3c7 may be folded into its slices); (2) fetch; if origin moved, rebase; (3) lane-check --per-sha origin/codex/handshake-studio-assets; (4) push only on PER_SHA_RESULT OK with PUSH SAFETY; (5) READY_FOR_VALIDATION. The bundled run at 5a05b3c7 stays valid if the tip tree is byte-identical (else re-run).",
-  "updated_at": "2026-10-31T23:37:51Z",
+  "next": "validator round on 0ce2bc48 (aadbf42e..0ce2bc48)",
+  "updated_at": "2026-11-01T03:37:32Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -127,14 +138,16 @@
     "unverified": "UNVERIFIED (D5): Photoshop parity of legal-change routes (bitmap only from 8/16-bit grayscale and only back to grayscale, indexed only from 8-bit RGB), discard classification, threshold rule, 8x8 Bayer matrix, Floyd-Steinberg raster-order kernel, the six spot functions and cell-rank coverage, custom-pattern threshold rule, exact palette first-occurrence order, web order (red outermost), uniform cube/gray ramp, local palette median cut and selective weighting, nearest metric, matte colours (semi_gray 128, netscape_gray 192), transparency alpha cutoff 128 and the appended transparency entry, pattern/noise spread +-16, black_white table order, colour-table 0xFFFF = no transparency; colour-table byte order big-endian taken from the specification's general statement for load files (the Color Table section states none)",
     "act_layout_source": "Adobe Photoshop File Formats Specification (adobe.com/devnet-apps/photoshop/fileformatashtml), Color Table section: 'The file is 768 or 772 bytes long and contains 256 RGB colors'; trailer = two bytes count + two bytes transparency index; fetched 2026-10-31",
     "studio_bounds": "MAX_MODE_PIXELS 2^28 (16384^2), MAX_PATTERN_TILE_CELLS 2^20, memo cap 2^20 (results independent of it), histogram 32768 bins; Studio bounds, not spec",
-    "red_first": "slices were written with their tests and committed green; no red-first run per slice (one bundled run per push); per-slice commits each compile on their own (checked by lane-check --per-sha)",
+    "red_first": "slices were written with their tests and committed green; no red-first run per slice (one bundled run per push); per-slice commits each compile on their own (checked by lane-check --per-sha) | resume: the re-created slice 3 compiles and passes per-sha check (cargo check --tests); tests still not run red first (validator judges)",
     "round_feature_units": "prism has no round feature unit; tests/mode_conversion.rs is not feature-gated (4e satisfied for prism); harness-core [import-psd], harness-view [viewer], harness [import-psd] included in the bundled clippy via the test command's -p/--features",
     "bundled_runs": [
       "#1 39c1ae7d FAIL clippy (exit 101): arithmetic_side_effects on wrapping_rem/wrapping_div with runtime divisor (bitmap.rs:375, indexed.rs:618/619) + needless_range_loop + collapsible ifs; log smb-ps-mode-convert-1-39c1ae7d-bundled.log; fixed in 5a05b3c7 (focused cargo clippy -p hsk-studio-prism --tests clean before re-run)",
       "#2 5a05b3c7 GREEN (exit 0): 213 passed, 2 skipped (pre-existing ignored); log smb-ps-mode-convert-1-5a05b3c7-bundled.log",
       "per-sha 63ecf5a6..5a05b3c7: 79c4205b and 9c8aa057 OK; FAIL at 8ad6f1e6 default unit (log smb-ps-mode-convert-1-5a05b3c7-persha.log, per-sha-*/8ad6f1e6-default.log)"
     ],
-    "local_commits": "79c4205b slice1 contract (per-sha OK all 25 units), 9c8aa057 slice2 bitmap (per-sha OK all units), 8ad6f1e6 slice3 colour table (per-sha FAIL: tests do not compile, NON-GREEN, local only; could not be re-subjected 'WIP pause:' without a history rewrite, which the pause forbids), 39c1ae7d slice4 indexed, 5a05b3c7 clippy fixes (tip; bundled run green). Working tree clean. origin/codex/handshake-studio-assets = 63ecf5a6 at 2026-10-31T23:22Z",
-    "open_questions": "none for the lead beyond the pause; MT proof commands name --test mt_3117N targets that the brief replaced with one tests/mode_conversion.rs (recorded)"
-  }
+    "local_commits": "superseded by notes.resume: 8ad6f1e6 was replaced by 9895f6fd (compiles alone); nothing non-green was pushed",
+    "open_questions": "none for the lead beyond the pause; MT proof commands name --test mt_3117N targets that the brief replaced with one tests/mode_conversion.rs (recorded)",
+    "resume": "2026-11-01T03:37:32Z: resumed after the Operator lifted the pause (2026-11-01). Old local head 5a05b3c7 (commits 79c4205b 9c8aa057 8ad6f1e6 39c1ae7d 5a05b3c7, still reachable through the reflog). Re-created slices 3-5 with git commit-tree (no reset --hard, no clean, no force): slice 3 ee0c7223 = 8ad6f1e6 tree plus `const RED/GREEN/BLUE` after the slice-3 `use` line of tests/mode_conversion.rs (4 lines), so slice 3 compiles alone; slice 4 e0d393e6 = tree of 39c1ae7d (moves the constants to the slice-4 section); slice 5 783f94fc = tree of 5a05b3c7; `git diff 5a05b3c7 783f94fc` empty. Branch moved by update-ref with old-value check (index/worktree unchanged). per-sha 63ecf5a6..783f94fc OK; origin had moved to 17f03d1c (type, motion, motion-js lanes): rebased cleanly to aadbf42e 2f3f7b81 9895f6fd 7d6adc9f 0ce2bc48; per-sha 17f03d1c..0ce2bc48 OK; pushed 0ce2bc48 (17f03d1c..0ce2bc48 fast-forward, exit 0), fetched origin = 0ce2bc48."
+  },
+  "pushed_head": "0ce2bc48b878328e1059e45a14c2f1daa726f240"
 }
