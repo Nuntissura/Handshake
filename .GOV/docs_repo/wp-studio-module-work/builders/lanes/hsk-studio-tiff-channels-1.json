@@ -1,19 +1,76 @@
 {
   "crate": "hsk-studio-interop-tiff (Folio-free multi extra-sample planes), hsk-studio-harness-core (TIFF extra planes <-> Folio channel records)",
   "lane": "SMB-TIFF-CHANNELS-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed d7127bf1 (red 1eed1b6f, green a3a29095, test lint fix d7127bf1); bundled run and per-sha green on D:",
   "worktree": "wt-studio-lanes/smb-tiff-channels-1",
   "base": "e3afbb62",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "1eed1b6f",
+      "subject": "interop-tiff, harness-core (SMB-TIFF-CHANNELS-1, red): TIFF extra planes and channel records",
+      "note": "red; local sha before rebase 63ec2cb3 (red proof there): stubs encode_with_planes (Err extra_planes_unsupported) and export_tiff_with_channels (Err), real ExtraPlane/extra_planes/colour_samples_per_pixel, tests; compiles (per-sha OK)"
+    },
+    {
+      "sha": "a3a29095",
+      "subject": "interop-tiff, harness-core (SMB-TIFF-CHANNELS-1): TIFF extra samples <-> Folio channel records",
+      "note": "green; local sha before rebase ba7cb1f7"
+    },
+    {
+      "sha": "d7127bf1",
+      "subject": "interop-tiff, harness tests (SMB-TIFF-CHANNELS-1): clippy identity_op and type_complexity in new tests",
+      "note": "test-only; pushed tip 3c0d8ec9..d7127bf1, verified by fetch"
+    }
+  ],
+  "capabilities_done": [
+    "interop-tiff (Folio-free): ExtraPlane {extra_sample, samples}; PageInfo::colour_samples_per_pixel; TiffPage::extra_planes (every extra sample as a plane, alpha first when declared); decode of any number of extra samples up to max_samples_per_pixel (64); encode_with_planes (extra planes after the colour model, ExtraSamples alpha kind first, every compression, horizontal predictor over the whole pixel, LE/BE, BigTIFF, u8/u16/u32/f32), MAX_ENCODE_SAMPLES_PER_PIXEL = 64; DESCRIPTOR and PUBLIC_ENTRYPOINTS updated",
+    "harness-core TIFF import (src/import/tiff.rs): each extra sample beyond the image alpha -> StudioChannelRecord tiff-channel-<sample>, depth 8/16/32f, tone copied exactly into 256-pixel cells stored as package assets (package_proposal_with), defaults Alpha <n> / masked_area_alpha / red / 50 / hidden; receipt tiff.channels lists channel_id, sample index, ExtraSamples value; layered (tag 37724) and composite routes both map them",
+    "harness-core export_tiff_with_channels (re-exported as hsk_studio_harness::import::export_tiff_with_channels): channel records -> unspecified extra planes after the image (base EncodeRequest), tiles served by digest and checked"
+  ],
+  "tests": {
+    "red": {
+      "argv": "cargo nextest run -p hsk-studio-interop-tiff -p hsk-studio-harness --features hsk-studio-harness/import-tiff --no-fail-fast -E '(package(hsk-studio-interop-tiff) & binary(extra_samples)) | (package(hsk-studio-harness) & binary(import_tiff))'",
+      "exit": 100,
+      "sha": "63ec2cb3 (= 1eed1b6f before rebase)",
+      "passed": 4,
+      "failed": 5,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-tiff-channels-1/red-smb-tiff-channels-1-63ec2cb3.log",
+      "note": "all 5 new tests fail (extra_planes_unsupported, extra_samples_unsupported value 3); the 4 existing import_tiff tests pass"
+    },
+    "bundled_pre_rebase": {
+      "argv": "lane-check.sh --owner smb-tiff-channels-1 --disk d -- cargo nextest run -p hsk-studio-interop-tiff -p hsk-studio-harness-core -p hsk-studio-harness --features hsk-studio-harness/import-tiff --no-fail-fast -E 'package(hsk-studio-interop-tiff) | package(hsk-studio-harness-core) | (package(hsk-studio-harness) & (binary(import_tiff) | binary(import_colour)))'",
+      "exit": 0,
+      "sha": "ba7cb1f7",
+      "passed": 70,
+      "failed": 0,
+      "skipped": 1,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-tiff-channels-1/bundled-smb-tiff-channels-1-ba7cb1f7.log",
+      "note": "clippy showed two warnings in the new tests (identity_op, type_complexity), fixed in d7127bf1"
+    },
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-tiff-channels-1 --disk d --per-sha origin/codex/handshake-studio-assets",
+      "exit": 0,
+      "sha": "d7127bf1",
+      "result": "PER_SHA_RESULT OK shas=3 range=3c0d8ec9..d7127bf1",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-tiff-channels-1/per-sha-smb-tiff-channels-1-d7127bf1.log"
+    },
+    "bundled": {
+      "argv": "same as bundled_pre_rebase (re-run: the rebase brought the steward sync of root Cargo.toml and Cargo.lock)",
+      "exit": 0,
+      "sha": "d7127bf1",
+      "passed": 70,
+      "failed": 0,
+      "skipped": 1,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-tiff-channels-1/bundled-smb-tiff-channels-1-d7127bf1.log",
+      "scope": "step 0 clean; clippy over interop-tiff, harness-core, harness (import-tiff) and dependents develop, harness-view: no warning in lane files (remaining: observe lib.rs:924/1024, interop-psd proposal.rs:608, pre-existing); WHOLE suites of interop-tiff (24 incl. 3 extra_samples, 1 corpus test skipped/ignored) and harness-core (lib + 7 test binaries); harness import_tiff (6) and import_colour (2) with import-tiff. No doctests added."
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-01T13:46:33Z",
+  "next": "validator: SMB-TIFF-CHANNELS-1 at d7127bf1; lead: wiring export_tiff_with_channels into a document TIFF export command is a later lane",
+  "updated_at": "2026-11-01T14:18:32Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -41,6 +98,65 @@
       "MT-30095 (TIFF rows)",
       "MT-038 rows touched"
     ],
-    "lead_decision_T1": "no interop-tiff -> folio edge; interop-tiff stays Folio-free; mapping in harness-core"
+    "lead_decision_T1": "no interop-tiff -> folio edge; interop-tiff stays Folio-free; mapping in harness-core",
+    "spec_basis": [
+      "STU-RAS-022 (:844): saving a selection to a persistent alpha/spare channel ... preserved in round-trippable interchange formats (14.13)",
+      "STU-RAS-043 (:1885): preserve alpha channels ... wherever the target format supports them (14.13), and MUST report ... any capability lost on flatten/export",
+      "STU-IO-006 row 3: TIFF I-EP-X-RT, alpha preserved"
+    ],
+    "export_host_path": "No host path writes a document to TIFF at 3c0d8ec9: the only TIFF writer call is hsk-studio-develop src/export.rs (raw develop export, no channel records); harness-view/harness export PNG/JPEG only. Per the brief, the export is a host-callable function (export_tiff_with_channels) taking the image request plus the records; wiring it into a document export command is future work (a new command needs a controls Registry id and RUN_COMMANDS row, HOST INTEGRATION (3)).",
+    "feature_gating": "export_tiff_with_channels and the import mapping exist only with harness-core feature import-tiff (harness/harness-view import-tiff forward it); round unit hsk-studio-harness [import-tiff] compiles and runs the tests; harness-core's own suite runs default features and does not reach this code (4e: the proof is the harness import-tiff unit)",
+    "owned_paths": "the TIFF import code lives in harness-core src/import/tiff.rs (brief named src/import.rs); import.rs got only the package_proposal_with hook (channel tile assets), its cfg narrowed for package_proposal, and the pub use of the export function",
+    "pigment": "the 'channel saved from a selection' record in the harness test is assembled by the test as Pigment's save rule stores it (selected_area_alpha, tone = full - coverage, 256 grid): pigment is not a dependency of the import-tiff unit",
+    "observe": "export_tiff_with_channels returns tiff::Result; its terminal outcome is emitted through hsk_studio_interop_tiff::report (codes only); no separate observe call was added and the test does not emit a frame",
+    "v4_06_class": "class: extra samples dropped or refused instead of carried; search regex `extra_samples_unsupported|tiff_extra_samples_not_imported|write_tag\\(Tag::ExtraSamples` over crates/hsk-studio-interop-tiff/src and crates/hsk-studio-harness-core/src at base e3afbb62: 5 matching lines in 4 files (scan.rs:550 refusal for any colour page, encode.rs:349 single ExtraSamples value, lib.rs:72 DESCRIPTOR refusal text, harness-core import/tiff.rs:20 doc and :292 loss); all fixed: refusal narrowed to JPEG/YCbCr pages (scan.rs:560 plus its doc :545), encoder writes every value (encode.rs:475), DESCRIPTOR rewritten, import loss now only for extras that cannot become channels (tiff.rs:29 doc, :397); count at HEAD 6 lines, each a fixed site",
+    "vendor_parity": "how Photoshop writes alpha channels in TIFF (ExtraSamples 0, tone convention) and whether it reads unspecified extra samples back as alpha channels: UNVERIFIED (D5)",
+    "shared_files": "none; diff-stat 3c0d8ec9..d7127bf1 lists only interop-tiff src/{encode,lib,model,scan}.rs, tests/extra_samples.rs, harness-core src/import.rs, src/import/tiff.rs, harness tests/import_tiff.rs",
+    "cargo_lock": "the lane worktree had an uncommitted Cargo.lock line (press-read -> observe) from base; rebase --autostash applied it back and it now matches origin; nothing committed"
+  },
+  "changed_assertions": [
+    "none: no existing test assertion changed"
+  ],
+  "behaviour_changes": [
+    "interop-tiff decode: RGB/CMYK/ICCLab pages with more than one extra sample decode (presented to the codec as BlackIsZero multiband) instead of extra_samples_unsupported; that code now covers only JPEG/YCbCr pages",
+    "interop-tiff decode: an ExtraSamples tag whose count differs from the number of extra samples is refused extra_samples_count_mismatch (accepted before); every corpus file pinned in tests/real_tiff.rs has matching counts",
+    "harness TIFF import: extra samples beyond the image alpha are channel records instead of the loss page[0]/extra_samples tiff_extra_samples_not_imported (no test pinned the old loss)"
+  ],
+  "typed_losses": {
+    "import": [
+      "channel[n] tiff_channel_display_defaulted (Transformed): TIFF carries no name, kind, display colour or opacity",
+      "page[0]/extra_sample[k] tiff_extra_samples_not_imported (PreservedOpaque): past Folio MAX_CHANNELS (56) or a sample type without a channel format",
+      "refusal tiff_channel_tiles_over_budget (channel cells over psd Limits::max_decoded_bytes, checked before any allocation; again after the layer tiles); tiff_channel_record (record does not deserialize)"
+    ],
+    "export": [
+      "channel[i]/name tiff_channel_name_not_exported (Unsupported)",
+      "channel[i]/kind tiff_channel_kind_not_exported (Transformed: re-imports as masked_area_alpha)",
+      "channel[i]/colour tiff_channel_colour_not_exported (Unsupported)",
+      "channel[i]/opacity tiff_channel_opacity_not_exported, spot: tiff_channel_solidity_not_exported (Unsupported)",
+      "channel[i]/visible tiff_channel_visibility_not_exported (Unsupported, visible channels only)",
+      "channel[i] tiff_channel_extent_not_exported, tiff_channel_depth_not_exported, tiff_channel_count_not_exported (Unsupported, channel left out)",
+      "errors: channel_tile_missing, channel_tile_size, channel_tile_digest, channel_tile_format, channel_tile_edge, channel_tile_grid, limit_encode_bytes; interop-tiff refusals pass through"
+    ],
+    "interop_tiff_refusals": [
+      "extra_samples_unsupported (JPEG/YCbCr page with several extra samples)",
+      "extra_samples_count_mismatch",
+      "limit_samples_per_pixel (decode and encode)",
+      "extra_sample_unsupported (value > 2)",
+      "extra_plane_sample_type",
+      "sample_count_mismatch",
+      "limit_encode_bytes",
+      "limit_page_bytes / aggregate_over_budget with extra samples"
+    ],
+    "not_tested": "solidity and visibility export codes, channel_tile_size/format/grid, and the no-channel-format import loss (u32/f64 pages are refused by the raster route first) have no dedicated test"
+  },
+  "mts": {
+    "MT-30095": {
+      "AC-001 TIFF row (STU-IO-006 row 3)": "met for TIFF: tiff_alpha_channel_and_saved_selection_round_trip_as_channel_records (8/16/32f: alpha channel and saved-selection channel export to TIFF and re-import as channel records with identical tile digests; layer tiles unchanged)",
+      "overall": "still partly met: OpenEXR row 9 not mapped (spec-owner item SD-41, out of scope)"
+    },
+    "MT-038": {
+      "AC-003 Round-trips through interchange": "met for the TIFF row: same test; plus tiff_channel_mapping_is_bounded_and_export_refuses_what_it_cannot_write for the typed losses and bounds",
+      "AC-001, AC-002": "not touched"
+    }
   }
 }
