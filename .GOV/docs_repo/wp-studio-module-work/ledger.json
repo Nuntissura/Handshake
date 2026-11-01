@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-01T10:46:05Z",
+ "updated_at": "2026-11-01T11:36:40Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -16121,7 +16121,8 @@
    "by": "lead",
    "item": "module edge hsk-studio-press-write -> hsk-studio-observe",
    "why": "SMB-PRESS-INK-COVERAGE-1 (73bfe5a8, local) cannot emit its terminal outcomes through observe (HOST INTEGRATION rule 5) because press-write has no observe edge; the builder set host_integration.diagnostics.internal_diagnostics to none and recorded the gap",
-   "owner": "workspace steward (new module edges are steward-owned)"
+   "owner": "workspace steward (new module edges are steward-owned)",
+   "lead_update": "2026-11-01T11:36:40Z: builders/WORKSPACE_RULES.md path-deps says every crate may use accord + observe (folio -> accord only), so the edge needs no lead decision; plan after STUDIO-R52: lane SMB-PRESS-OBSERVE-1 adds the observe path dependency to press-write's Cargo.toml (with a dep-requests line) and emits coverage / ink-edit outcomes through observe (F-R51-7); the next steward sync carries the Cargo.lock change and the round canary runs (crate Cargo.toml is a root input)"
   }
  ],
  "round_R4": {
