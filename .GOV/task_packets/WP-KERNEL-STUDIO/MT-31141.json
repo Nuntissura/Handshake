@@ -16,15 +16,15 @@
     "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "PASS_V1",
     "depends_on": [],
     "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING",
-    "phase": "blocked",
-    "updated_at_utc": "2026-10-09T19:13:15.152291+00:00",
-    "contract_preparation_only": true,
-    "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
+    "active": true,
+    "validator_verdict": "PASS_V1",
+    "phase": "validation",
+    "updated_at_utc": "2026-11-01T08:16:12Z",
+    "contract_preparation_only": false,
+    "blocked_on": null
   },
   "clause": "Studio MUST expose the font-declared OpenType feature set per character range; a feature is offered only when the active font declares it. Features map to standard OpenType feature tags and are stored [...] - enumeration (2)",
   "spec_anchor": [
@@ -2011,7 +2011,42 @@
     "current_dispatch_authorized": false
   },
   "submissions": [],
-  "verdicts": [],
+  "verdicts": [
+    {
+      "verdict_id": "MT-31141-STUDIO-R51-PASS-V1",
+      "mt_id": "MT-31141",
+      "verdict": "PASS_V1",
+      "decision": "passed",
+      "round": "STUDIO-R51",
+      "idempotency_key": "STUDIO-R51:MT-31141:a7be22a1:V1",
+      "scope": "asset_local_engine_half",
+      "candidate_commit": "a7be22a15af174a66fa9803f654ee6f8c44c74de",
+      "candidate_tree": "77374f94bfb82f107402127a5522769184394ccb",
+      "kernel_base_commit": "275e75a54abf0392ec22f8e10b8a663c58021250",
+      "kernel_record": "the gov_kernel commit that records validation/round-R51.json (ledger round_R51)",
+      "validator_role": "wp_validator",
+      "validator_session": "wp_validator STUDIO-R51",
+      "lane": "SMB-TYPE-OT-FEATURES-1",
+      "lane_verdict": "PASS_V1",
+      "lane_idempotency_key": "STUDIO-R51:SMB-TYPE-OT-FEATURES-1:a7be22a15af1:PASS_V1",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R51",
+      "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+      "round_ref": ".GOV/docs_repo/wp-studio-module-work/validation/round-R51.json",
+      "started_at": "2026-11-01T05:37:15Z",
+      "completed_at": "2026-11-01T08:11:57Z",
+      "ac_coverage": "AC-001..AC-013 (13 of 13 acceptance rows)",
+      "evidence_basis": "validator_statement_met",
+      "evidence_ref": {
+        "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R51.json",
+        "json_path": "/mt_judgments/claims/SMB-TYPE-OT-FEATURES-1/MT-31141",
+        "quote": "met: AC-001..013: the 13 STU-TYP-017 members with meanings and tags exact (mt_31141_enumeration_members_are_exact; Caps forms without c2pc as tabled), selections substitute real glyphs (mt_31141_group_selections_substitute_real_glyphs)"
+      },
+      "prior_status": "PENDING",
+      "written_by": "wp_validator STUDIO-R51 (step 6)",
+      "written_at": "2026-11-01T08:16:12Z",
+      "note": "round validator status write from the validated lane verdict; engine/asset half only, later kernel/host acceptance stays PENDING"
+    }
+  ],
   "blockers": [],
   "preserved_original": {
     "schema_id": "hsk.preserved_microtask@1",
@@ -3550,9 +3585,15 @@
       "all_original_edges_explicitly_reconciled": true,
       "asset_vs_host_phase_separated": true,
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
+    },
+    "asset_validation": {
+      "status": "PASS_V1",
+      "scope": "asset_local_engine_half",
+      "verdict_ref": "MT-31141-STUDIO-R51-PASS-V1",
+      "round": "STUDIO-R51"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-01T08:16:12Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
