@@ -1,13 +1,13 @@
 {
   "crate": "hsk-studio-press-write (ink manager STU-LAY-160, PDF/X enumeration), hsk-studio-layout (flattener preset STU-LAY-161)",
   "lane": "SMB-PRESS-INK-MANAGER-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-press-ink-manager-1",
   "base": "99836457",
   "commits": [
     {
-      "pushed": false,
+      "pushed": true,
       "sha": "838036f2f625bdfaa6989c84657da70801512203",
       "subject": "press-write, press (SMB-PRESS-INK-MANAGER-1 items 1-3): ink manager contract, PDF/X standards, separations readouts (STU-LAY-160)",
       "paths": [
@@ -19,10 +19,12 @@
         "crates/hsk-studio-press-write/tests/ink_manager_contract.rs (new, 13 tests)",
         "crates/hsk-studio-press/src/lib.rs (re-exports + DESCRIPTOR separations.ink_manager entry)"
       ],
-      "note": "red-first commit 3e03509b (tests only) did not compile without the contract and was squashed into this commit per RED COMMITS"
+      "note": "red-first commit 3e03509b (tests only) did not compile without the contract and was squashed into this commit per RED COMMITS",
+      "pushed_at": "2026-11-01T13:04:51Z",
+      "base_on_push": "99836457 (origin tip unchanged; rebase was a no-op)"
     },
     {
-      "pushed": false,
+      "pushed": true,
       "sha": "c420f273d59b420bea7cb1c9411474410494ef9c",
       "subject": "layout (SMB-PRESS-INK-MANAGER-1 item 4): transparency flattener preset record (STU-LAY-161)",
       "paths": [
@@ -31,7 +33,9 @@
         "crates/hsk-studio-layout/src/lib.rs (re-exports only; OUTSIDE the brief's listed layout paths, see notes.out_of_path_touch)",
         "crates/hsk-studio-layout/tests/id_flattener_preset.rs (new, 8 tests)"
       ],
-      "note": "red-first commit b4565e5f (tests only) did not compile without the record and was squashed into this commit per RED COMMITS"
+      "note": "red-first commit b4565e5f (tests only) did not compile without the record and was squashed into this commit per RED COMMITS",
+      "pushed_at": "2026-11-01T13:04:51Z",
+      "base_on_push": "99836457 (origin tip unchanged; rebase was a no-op)"
     }
   ],
   "capabilities_done": [
@@ -56,19 +60,26 @@
       "clippy": "press-write, press, layout and dependents [harness, harness-core, harness-view, interop-fig, interop-fig-native, interop-layout] --tests: no warning in any press-write, press or layout file (warnings only in hsk-studio-type, hsk-studio-observe, hsk-studio-render-cpu, pre-existing)",
       "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-press-ink-manager-1/lane-check-smb-press-ink-manager-1-c420f273-run1.log",
       "started_at": "2026-11-01T11:02:50Z",
-      "finished_at": "2026-11-01T11:04:49Z"
+      "finished_at": "2026-11-01T11:04:49Z",
+      "applies_to_pushed_sha": "yes: pushed sha c420f273 is the tested sha (origin stayed 99836457, rebase no-op), so the bundled run was not repeated"
     },
     "doctests": "none added (no doc examples)",
     "feature_gates": "none: both new test targets are not feature-gated (4e)",
-    "per_sha": "not run yet: runs after the lead releases the lane (rebase onto origin, then --per-sha)",
-    "diff_stat": "99836457..c420f273: only the 11 lane paths (1432 insertions, 33 deletions)"
+    "per_sha": {
+      "argv": "bash tools/lane-check.sh --owner smb-press-ink-manager-1 --disk d --per-sha origin/codex/handshake-studio-assets",
+      "range": "99836457..c420f273",
+      "result": "PER_SHA_RESULT OK shas=2 (default unit + round feature units)",
+      "exit": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-press-ink-manager-1/per-sha-smb-press-ink-manager-1-c420f273.log"
+    },
+    "diff_stat": "origin/codex/handshake-studio-assets (99836457)..c420f273 before push: only the 11 lane paths incl. the accepted layout lib.rs re-exports"
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "waiting for lead release after R52",
-  "updated_at": "2026-11-01T11:05:20Z",
+  "next": "validator: judge c420f273 (commits 838036f2, c420f273) against MT-30844, MT-30845, MT-30849, MT-30848 (not met) and the MT-35695 ink/separations/flattener/PDF/X rows; never claim PASS here",
+  "updated_at": "2026-11-01T13:04:51Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -106,7 +117,7 @@
     "brief_vs_spec": "the brief names 'the four booleans'; STU-LAY-161 names three switches (convert-all-text-to-outlines, convert-all-strokes-to-outlines, clip-complex-regions) plus the raster-vector balance; three implemented, no fourth invented",
     "flattener_level_placement": "FlattenerLevel is the STU-LAY-135 spread_flattener_override vocabulary; the preset carries it as level: Option<FlattenerLevel>; no mapping from a level to parameter values is invented (none captured)",
     "studio_rules_unverified": "process_ink_not_convertible (conversion flag on a process ink refused), mixed_ink_duplicate_part, flattener names exact and case-sensitive, MAX_FLATTENER_PRESETS 1024 and name bound 256 bytes (= MAX_PDF_NAME_BYTES): Studio rules, vendor parity UNVERIFIED (D5)",
-    "out_of_path_touch": "crates/hsk-studio-layout/src/lib.rs: 4 added re-export lines (print module is private, so the flattener types are unreachable without it); the brief lists lib.rs exports for press-write but not for layout. Waiver requested from the lead",
+    "out_of_path_touch": "crates/hsk-studio-layout/src/lib.rs: 4 added re-export lines; accepted by the lead 2026-11-01T13:04:51Z",
     "bounds": "InkManager MAX_INKS 1024 and names <= 256 bytes on apply_edit; mixed-ink group swatch count checked arithmetic before allocation; SeparationsViewState toggles <= MAX_SEP_PLATES (64), threshold finite within 0..=100 x plates; FlattenerPresets <= 1024, names <= 256 bytes checked before copying; tests ink_manager_hostile_sizes_are_typed_refusals, flattener_presets_hostile_count_is_bounded",
     "follow_ups": [
       "flattener PREVIEW (STU-LAY-161 second sentence, MT-30848) and actual flattening: not built; press-write coverage stage transparency_flattening stays unperformed",
@@ -145,7 +156,13 @@
         "AC-006 (Flattener surfaces)": "partly met: flattener_preset_names_resolve_against_stored_presets_or_refuse, flattener_presets_store_attributed_edits_and_typed_refusals (preset record and resolution; preview not built)",
         "AC-003, AC-004": "not claimed (overprint, trap presets)"
       }
-    }
+    },
+    "lead_decisions_2026-11-01T13:04:51Z": [
+      "released after STUDIO-R52 recorded (cd791095, 312 PASS / 0 FAIL)",
+      "crates/hsk-studio-layout/src/lib.rs re-exports (4 lines) accepted as in scope",
+      "three flattener switches accepted (spec STU-LAY-161 names three; the brief's \"four booleans\" superseded)",
+      "PDF/X standard not yet a field on the export settings accepted: carried by ExportOptions::pdfx4 through pdfx_standard / with_pdfx_standard, because press src/preset.rs builds ExportOptions with a full struct literal"
+    ]
   },
   "claimed_mts": [
     "MT-30844",
