@@ -5,15 +5,89 @@
   "phase": "build",
   "worktree": "wt-studio-lanes/smb-r51-followups-1",
   "base": "a7be22a1",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "0914d7b4788354dcc78f102f3b905add3f411d1c",
+      "item": "1 red",
+      "subject": "composite: SD-27 unitless rows stay beside studio_declared engine scalars (red)"
+    },
+    {
+      "sha": "e978fe822ec9ca4a258766cc19c34e603ce38435",
+      "item": "1 green",
+      "subject": "composite: Wave world amplitude and frequency stay studio_declared beside unitless rows 52/54 (SD-27)"
+    },
+    {
+      "sha": "4588593e3881e503539488e0384efa66546688c4",
+      "item": "2 red",
+      "subject": "interop-psd: a channel saved from a selection exports and re-imports (red)"
+    },
+    {
+      "sha": "b29c42fb7cf8b73b10b3af4f404ef8b1ef5f77a5",
+      "item": "2 green",
+      "subject": "interop-psd: export writes a channel added in edit as a new extra plane"
+    },
+    {
+      "sha": "91b08c4e8eddd7e71d525255cf47aa515080777c",
+      "item": "2 lint",
+      "subject": "interop-psd: clear the redundant_closure lint of the added-channel order check"
+    }
+  ],
+  "capabilities_done": [
+    "F-R51-1: Wave world producer amplitude/frequency back to authored studio_declared rows (63ecf5a6 bounds and defaults); recovered rows 52/54 stored, validated, drive nothing (SD-27)",
+    "MT-038 AC-003 / MT-30095: PSD export writes a channel added in edit (saved from a selection) as a new extra plane with 1006/1045/1077 (and 1053 when present) entries; re-import yields the same record and samples at 8/16/32 bits"
+  ],
+  "tests": {
+    "argv": "lane-check.sh --owner smb-r51-followups-1 --disk ssd -- cargo nextest run -p hsk-studio-composite -p hsk-studio-interop-psd -p hsk-studio-harness --features hsk-studio-harness/import-psd --no-fail-fast; then lane-check.sh --owner smb-r51-followups-1 --disk ssd -- cargo nextest run -p hsk-studio-composite --features motion --no-fail-fast",
+    "exit": 0,
+    "sha": "91b08c4e8eddd7e71d525255cf47aa515080777c",
+    "passed": 477,
+    "failed": 0,
+    "logs": [
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/smb-r51-followups-1-91b08c4e-bundled.log (267 passed, 16 skipped, exit 0)",
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/smb-r51-followups-1-91b08c4e-composite-motion.log (210 passed, exit 0)"
+    ],
+    "first_run": {
+      "sha": "b29c42fb7cf8b73b10b3af4f404ef8b1ef5f77a5",
+      "exit": 0,
+      "passed": 477,
+      "failed": 0,
+      "logs": [
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/smb-r51-followups-1-b29c42fb-bundled.log (267 passed, 16 skipped)",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/smb-r51-followups-1-b29c42fb-composite-motion.log (210 passed)"
+      ],
+      "why_rerun": "no test failed; clippy flagged one warn-level redundant_closure in this lane's export.rs:413, fixed in 91b08c4e, then the one re-run"
+    },
+    "clippy": "clippy ran inside both lane-check holds over composite, interop-psd, harness and dependents (harness-core, harness-view, interop-fig, pulse, render-cpu, render-gpu); after 91b08c4e no warning points into a hunk of this lane (remaining warnings are pre-existing, e.g. proposal.rs:608 too_many_arguments, hsk-studio-type)",
+    "step0": "lane-check step 0 policy clean (V4-03, V4-05)",
+    "doctests": "none added or changed",
+    "red_evidence": [
+      {
+        "sha": "0914d7b4788354dcc78f102f3b905add3f411d1c",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/red-smb-r51-followups-1-0914d7b4-composite.log",
+        "argv": "cargo nextest run -p hsk-studio-composite --test simulations_records --no-fail-fast",
+        "result": "exit 100: 3 passed, 2 failed (unitless_recovered_rows_stay_beside_their_studio_declared_engine_scalars at 'amplitude: row #52 drives no engine scalar'; mapped_engine_scalars_take_the_recovered_bounds_and_defaults at the 5-entry WAVE_PRODUCER_MAPPINGS)"
+      },
+      {
+        "sha": "4588593e3881e503539488e0384efa66546688c4",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/red-smb-r51-followups-1-4588593e-interop-psd.log",
+        "argv": "cargo nextest run -p hsk-studio-interop-psd --test psd_alpha_channels --no-fail-fast",
+        "result": "exit 100: 8 passed, 4 failed (the three new tests and channel_edits_psd_cannot_take_are_typed_losses, each on the old channel_added_in_edit_not_exported refusal)"
+      },
+      {
+        "note": "the first local version of the item-1 red commit (345da55d) did not compile (E0277, array length [_;5] vs [_;3]); it was never pushed and was amended locally into 0914d7b4, which compiles and fails as above (RED COMMITS: a non-compiling red stays local)",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/red-smb-r51-followups-1-345da55d-composite.log"
+      }
+    ],
+    "per_sha": null,
+    "pushed_sha": null,
+    "finished_at": "2026-11-01T08:50:36Z"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: read the brief, red-first per item, one bundled run on C:, push after SMB-FOLIO-ANGLE-UNBOUNDED-1 is on origin",
-  "updated_at": "2026-11-01T08:22:53Z",
+  "next": "waiting for folio angle push",
+  "updated_at": "2026-11-01T08:50:36Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -42,6 +116,150 @@
       "MT-30095",
       "MT-32013 / MT-34181 frequency and amplitude rows"
     ],
-    "dispatch_reason": "STUDIO-R51 remediation: F-R51-1 and the MT-038/MT-30095 interchange gap (channel_added_in_edit_not_exported)"
+    "dispatch_reason": "STUDIO-R51 remediation: F-R51-1 and the MT-038/MT-30095 interchange gap (channel_added_in_edit_not_exported)",
+    "spec_basis": [
+      "STU-FX-131a reading note (v02.228/229, spec-modules/14-studio-creative-suite.md :13825-13830): a `--` unit cell of a numeric row is the STU-FX-108 unitless token, never a guessed physical unit",
+      "STU-CMP-075b SD-27 (:30092-30102): the per-row engine scale is a SPEC GAP, MUST NOT be guessed; until declared the engine scalar stays a studio_declared row under STU-FX-146 beside the stored recovered row",
+      "Wave World table (:15662-15715): rows 52 Amplitude 0..5 / 0..1 / 0.5 / -- ; 54 Frequency 0..20 / 0..3 / 1 / --",
+      "STU-RAS-022 via MT-038 / MT-30095: save a selection to a persistent channel, reload it as a selection, preserved in round-trippable interchange formats (14.13)"
+    ],
+    "v4_06_failure_class": {
+      "class": "a recovered STU-FX-131a row whose unit cell is `--` (unitless) mapped onto an engine scalar that carries a unit or drives the simulation, with any conversion (k = 1 included)",
+      "regex": "RecoveredMapping \\{|_MAPPINGS|conversion|Conversion::None in crates/hsk-studio-composite/src/simulations/{wave_world,foam}.rs (no Conversion type exists; RecoveredMapping documents 'no conversion')",
+      "site_count_at_base_a7be22a1": 7,
+      "sites_listed": 7,
+      "sites": [
+        {
+          "site": "wave_world.rs WAVE_WORLD_MAPPINGS preroll <- row 24 Pre-roll (seconds)",
+          "unit_cell": "--",
+          "verdict": "not applicable",
+          "basis": "the parameter name declares seconds; F-R51-1 states pre-roll is not affected. Strictly the unit cell is `--`; spec-owner confirmation proposed (open question 1)"
+        },
+        {
+          "site": "wave_world.rs WAVE_PRODUCER_MAPPINGS x <- row 44 Position component 0",
+          "unit_cell": "--",
+          "verdict": "not applicable",
+          "basis": "POINT row whose default cell declares layer fractions '(50%, 50%) of layer'; F-R51-1 states position is not affected (open question 1)"
+        },
+        {
+          "site": "wave_world.rs WAVE_PRODUCER_MAPPINGS y <- row 44 Position component 1",
+          "unit_cell": "--",
+          "verdict": "not applicable",
+          "basis": "as x"
+        },
+        {
+          "site": "wave_world.rs WAVE_PRODUCER_MAPPINGS amplitude <- row 52 Amplitude",
+          "unit_cell": "--",
+          "verdict": "fixed (e978fe82)",
+          "basis": "unmapped; engine scalar back to authored row height 0..1e6 soft 0..2 default 0.5 (63ecf5a6); row 52 stored and validated in WAVE_WORLD_RECORD"
+        },
+        {
+          "site": "wave_world.rs WAVE_PRODUCER_MAPPINGS frequency <- row 54 Frequency",
+          "unit_cell": "--",
+          "verdict": "fixed (e978fe82)",
+          "basis": "unmapped; engine scalar back to authored row Hz 0..1000 soft 0..5 default 1 (63ecf5a6); row 54 stored and validated"
+        },
+        {
+          "site": "wave_world.rs WAVE_PRODUCER_MAPPINGS phase <- row 56 Phase",
+          "unit_cell": "degrees",
+          "verdict": "not applicable",
+          "basis": "declared unit degrees (ANGLE)"
+        },
+        {
+          "site": "foam.rs FOAM_MAPPINGS wind_direction <- row 32 Wind Direction",
+          "unit_cell": "degrees",
+          "verdict": "not applicable",
+          "basis": "declared unit degrees (ANGLE)"
+        }
+      ],
+      "already_authored_sd27_rows_checked": "wave_speed (row 30), damping (row 32), Foam viscosity (row 42) were not mapped at base and stay authored; now asserted by the same SD-27 test"
+    },
+    "changed_assertions": [
+      {
+        "test": "composite tests/simulations_records.rs::mapped_engine_scalars_take_the_recovered_bounds_and_defaults",
+        "old": "WAVE_PRODUCER_MAPPINGS == [x 44, y 44, amplitude 52 height, frequency 54 Hz, phase 56]",
+        "new": "WAVE_PRODUCER_MAPPINGS == [x 44, y 44, phase 56]",
+        "clause": "STU-CMP-075b SD-27 + STU-FX-131a unitless token (F-R51-1)"
+      },
+      {
+        "test": "same",
+        "old": "assert_mapping over amplitude/frequency: default from rows 52/54, hard 0..5 / 0..20 enforced, 'the authored row is gone'",
+        "new": "removed for those two keys; replaced by assert_sd27 in unitless_recovered_rows_stay_beside_their_studio_declared_engine_scalars: row stored with unit Unitless, mapped by nothing, authored studio_declared row with 63ecf5a6 bounds/default, authored bounds enforced, a value past the recovered hard_max accepted",
+        "clause": "SD-27, STU-FX-146"
+      },
+      {
+        "test": "same",
+        "old": "WaveWorld.validate(): producer amplitude 5.next_up -> Err(amplitude); frequency 20.next_up -> Err(frequency)",
+        "new": "moved to the SD-27 test: amplitude 5.next_up and frequency 20.next_up -> Ok; amplitude 1e6.next_up -> Err(amplitude); frequency 1000.next_up -> Err(frequency). The mapped test checks phase instead: INFINITY -> Err(phase), 720 -> Ok",
+        "clause": "SD-27 (recovered bounds do not constrain the engine until k is declared)"
+      },
+      {
+        "test": "interop-psd tests/psd_alpha_channels.rs::channel_edits_psd_cannot_take_are_typed_losses",
+        "old": "an added channel (clone of channel 0, id 'new') -> output == input bytes, losses == [channel_added_in_edit_not_exported]",
+        "new": "the added channel is written: no loss, applied channel_added, re-import has 3 channels",
+        "clause": "MT-038 AC-003, MT-30095 (STU-RAS-022 round-trippable interchange)"
+      },
+      {
+        "note": "tests/simulations_water.rs unchanged: its WAVE_PRODUCER_ROWS loop now also covers amplitude/frequency (studio_declared, default equal); the frequency 1000.5 refusal holds again via the authored row. Determinism and budget tests unchanged."
+      }
+    ],
+    "new_tests": [
+      "composite tests/simulations_records.rs::unitless_recovered_rows_stay_beside_their_studio_declared_engine_scalars",
+      "interop-psd tests/psd_alpha_channels.rs::channel_saved_from_a_selection_exports_and_reimports_beside_the_imported_one",
+      "interop-psd tests/psd_alpha_channels.rs::added_channels_over_the_header_channel_limit_are_typed_losses",
+      "interop-psd tests/psd_alpha_channels.rs::added_channels_psd_cannot_carry_stay_typed_and_the_rest_write_back"
+    ],
+    "typed_loss_kept": "channel_added_in_edit_not_exported (path channels/<channel_id>) stays only where PSD cannot carry the added channel: header already at 56 channels; channel extent or depth differs from the file (all merged planes share header size and depth); file depth not 8/16/32 or Multichannel mode (no extra planes); no merged image data; or it would be extra plane 0 of a file whose negative layer count marks extra plane 0 as the merged transparency. Tested: the 56 limit and the depth mismatch; the other three are code-read only (no fixture)",
+    "export_reading": [
+      "1006: Latin-1 entry appended; channel_name_transcoded when inexact (rule unchanged, also when 1045 keeps it exact, F-R51-10 behaviour kept)",
+      "1045: Unicode entry appended when present; created with 1006 only for a file with no extra planes and neither list",
+      "1077: entry appended (display_of_colour, opacity rounded and clamped 0..100 as for an edit, mode_of_kind); created only for a file with no extra planes; bytes after the last entry as read stay after the entries written (the old code computed that offset from the written count; same result for edits)",
+      "1053: not named by the brief; when the file has it, normalised to one identifier per existing plane and a fresh smallest unused non-zero identifier appended (keeps one id per extra plane; 0 would read as transparency); absent stays absent. Photoshop use of 1053 ids UNVERIFIED (D5)",
+      "a new channel placed before an imported one is written last with channel_reorder_not_exported; visible=true is written with channel_visibility_not_exported (PSD stores no channel visibility, import reads false)",
+      "tiles must be on the 256 grid as for edits (channel_tile_edge typed error otherwise); a host saving on another grid is not exported (existing error path, unchanged)",
+      "V4-02: before each new plane is allocated, (header channels + 1) x plane bytes is checked against Limits::max_decoded_bytes (PixelLimit)",
+      "a fractional opacity rounds as for an edited channel, so it does not round-trip exactly (unchanged behaviour of the edit path, no loss code)"
+    ],
+    "mts": {
+      "MT-038": {
+        "claim": "met",
+        "rows": {
+          "AC-001": "met (pigment save_then_load_is_identical_at_16_and_32_bits_and_quantised_at_8, unchanged)",
+          "AC-002": "met as judged in R51 (one Folio channel record shared with Channels; its proof_target is REQUIRED in the MT, contract defect, not edited)",
+          "AC-003": "met for PSD: channel_saved_from_a_selection_exports_and_reimports_beside_the_imported_one"
+        }
+      },
+      "MT-30095": {
+        "claim": "met for the gap R51 named (PSD)",
+        "rows": {
+          "AC-001": "save/reload as a selection: pigment tests (unchanged); interchange round trip of a newly saved channel: channel_saved_from_a_selection_exports_and_reimports_beside_the_imported_one. PSD is the only interop crate that maps Folio channel records (grep of crates/ at a7be22a1); whether 14.13 requires other formats to carry channels is NOT_INSPECTED"
+        }
+      },
+      "MT-32013": {
+        "claim": "met (rows 52/54 unchanged)",
+        "rows": {
+          "AC-031": "wave_world_recovered_record_is_stored_row_for_row (row 52 seven fields, unit unitless) + unitless_recovered_rows_stay_beside_their_studio_declared_engine_scalars (stored, drives nothing)",
+          "AC-032": "same for row 54"
+        }
+      },
+      "MT-34181": {
+        "claim": "partly met",
+        "rows": {
+          "AC-001/AC-002": "met, simulations_water wave_world_* tests unchanged and green",
+          "AC-003": "not met: tooltip half (D7, F-R51-11)"
+        }
+      }
+    },
+    "open_questions_for_spec_owner": [
+      "1: Wave world row 24 Pre-roll (seconds) and row 44 Position carry `--` unit cells; F-R51-1 reads them as declared by name/default and they stay mapped. If STU-FX-131a's unitless token applies to them strictly, they are the same class (SPEC GAP SD-27).",
+      "2: SD-27 engine scales (k and engine unit) for Wave Speed, Damping, Amplitude, Frequency and Foam Viscosity remain undeclared; this lane declares none."
+    ],
+    "unverified": [
+      "After Effects Wave World parity (D5)",
+      "Photoshop reading of appended 1006/1045/1077/1053 entries for a new channel (D5); the layouts follow the readers already used by import"
+    ],
+    "shared_file": "tests/simulations_records.rs is also edited by SMB-FOLIO-ANGLE-UNBOUNDED-1 (ANGLE bound cells); rebase over it and keep both",
+    "host_integration_check": "no new command, control, job, GPU, egui/eframe/winit/wgpu line, actor or observe emission; export keeps its context",
+    "no_cargo_toml_change": true
   }
 }
