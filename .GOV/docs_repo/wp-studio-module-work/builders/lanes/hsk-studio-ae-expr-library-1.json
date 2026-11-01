@@ -1,20 +1,20 @@
 {
   "crate": "hsk-studio-motion (expression identifier catalogue, signatures, dual spelling, seeded random reference) + hsk-studio-motion-js (After Effects globals prelude bindings)",
   "lane": "SMB-AE-EXPR-LIBRARY-1",
-  "status": null,
-  "phase": "paused",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed 2026-11-01: rebase onto 63ecf5a6 was a no-op (origin tip = lane base), per-sha OK, one push for both commits",
   "worktree": "wt-studio-lanes/smb-ae-expr-library-1",
   "base": "63ecf5a6",
   "commits": [
     {
       "sha": "1a77c4aa",
       "subject": "motion (SMB-AE-EXPR-LIBRARY-1 slice 1): expression identifier catalogue",
-      "pushed": false
+      "pushed": true
     },
     {
       "sha": "31454a07",
       "subject": "motion-js (SMB-AE-EXPR-LIBRARY-1 slices 2-4): After Effects library bound from the Motion catalogue",
-      "pushed": false
+      "pushed": true
     }
   ],
   "capabilities_done": [
@@ -28,14 +28,23 @@
     "passed": "52 + 35 + 38 = 125 (whole suites per unit)",
     "failed": 0,
     "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-expr-library-1/bundled-smb-ae-expr-library-1-31454a07.log",
-    "finished_at": "2026-10-31T23:28:34Z"
+    "finished_at": "2026-10-31T23:28:34Z",
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-ae-expr-library-1 --per-sha origin/codex/handshake-studio-assets",
+      "result": "PER_SHA_RESULT OK shas=2 range=63ecf5a6..31454a07",
+      "units": "default, features:hsk-studio-composite+motion (1a77c4aa), motion-js+quickjs, motion-js+quickjs+test-faults",
+      "log_dir": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-expr-library-1/per-sha-31454a07/",
+      "scratch_log": "push-c/l1-persha.log"
+    },
+    "bundled_rerun": "not re-run: rebase was a no-op; the bundled run above (sha 31454a07, same tree) stands",
+    "pushed_sha": "31454a076424bd36cd85e799f973803d9a595e93"
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": null,
   "bg_pids": [],
-  "next": "RESUME (after lead lifts PAUSE): in the lane worktree `git fetch origin` -> `git rebase origin/codex/handshake-studio-assets` (base 63ecf5a6) -> if the rebase touched motion/motion-js or their deps re-run the bundled script (scratchpad smb-ae-expr-library-1/bundled.sh, log named with lane+sha) -> `lane-check.sh --owner smb-ae-expr-library-1 --per-sha origin/codex/handshake-studio-assets` -> on PER_SHA_RESULT OK `git diff --stat origin/codex/handshake-studio-assets..HEAD` (own paths only) -> guarded push of both commits in ONE push -> READY_FOR_VALIDATION",
-  "updated_at": "2026-10-31T23:29:12Z",
+  "next": "validator round on pushed 1a77c4aa..31454a07",
+  "updated_at": "2026-11-01T03:08:24Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -103,6 +112,11 @@
     "open_items": "(1) library refusals are thrown errors: an author's own try/catch can catch them (host-read failures are uncatchable via quickjs.rs, not an owned path); (2) argument refusals inside bound helpers carry no span (throw site is the prelude line); (3) MT-33912 'normalise on write' is published per identifier (canonical_spelling); no binding-aware source rewriter exists (validator is lexical); (4) MT AC tooltip halves wait for D7; (5) candidates with mathematical semantics left unavailable because the brief scoped Vector Math/Other Math only: sub, div; (6) assigning to an unavailable name without a declaration (strict `color = 5`) now creates the binding via the accessor setter instead of ReferenceMissing",
     "open_questions": "lead: accept typed refusals being catchable by user try/catch, or require an uncatchable path (needs quickjs.rs, outside owned paths)?; bind sub/div by definition in a follow-up?",
     "mt_contract_handling": "MT plans name tests/contracts.rs with filters mt_<id>::; the brief owns tests/expr_catalogue.rs, whose modules are named mt_33911, mt_33912, mt_33915, mt_33916, mt_33917, mt_33918, mt_33919, mt_33920, mt_33926, mt_33933 for filter mapping",
-    "feature_gating_4e": "tests/ae_expression_library.rs is #![cfg(feature = \"quickjs\")]; .config/round-features.toml enables hsk-studio-motion-js [quickjs] and [quickjs,test-faults]: covered"
+    "feature_gating_4e": "tests/ae_expression_library.rs is #![cfg(feature = \"quickjs\")]; .config/round-features.toml enables hsk-studio-motion-js [quickjs] and [quickjs,test-faults]: covered",
+    "resume": "Pushed 2026-11-01 by the push-only builder (C: slot): origin/codex/handshake-studio-assets = 31454a07 after push; nothing left to resume. Validator: judge the two lead answers below; no code was changed for them.",
+    "lead_answers_for_validator": [
+      "Expression refusals can be caught by a user try/catch. Accepted by the lead as a known limit; the fix needs quickjs.rs, which is outside the lane, and becomes a follow-up lane.",
+      "Sub/div binding by definition is a follow-up candidate."
+    ]
   }
 }
