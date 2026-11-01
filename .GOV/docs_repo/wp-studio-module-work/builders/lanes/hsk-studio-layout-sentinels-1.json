@@ -1,19 +1,96 @@
 {
   "crate": "hsk-studio-layout (resolve marker, break and flush-space sentinels at composition)",
   "lane": "SMB-LAYOUT-SENTINELS-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "ready",
   "worktree": "wt-studio-lanes/smb-layout-sentinels-1",
   "base": "99836457",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    "7483a2fd layout (item 1, red): marker sentinel API and tests (earlier ids 6a6af763 -> 7ffbea87 -> 142a3714 -> daf4bd0c through rebases; 6a6af763 did not compile (PageSide variant names, a glob name clash with folio MAX_MARKER_TEXT_BYTES) and was amended locally into 7ffbea87 before any push)",
+    "aebce456 layout (item 1): markers resolve at composition",
+    "d4569bc1 layout (item 2, red): break sentinel flow tests",
+    "9e5dacd6 layout (item 2): break sentinels direct the flow",
+    "890b373c layout (item 3, red): flush-space tests",
+    "92ae2232 layout (item 3): flush space absorbs fully justified slack; DESCRIPTOR stream_sentinels (pushed tip)"
+  ],
+  "capabilities_done": [
+    "compose_with_sentinels: marker sentinels U+FDD0..U+FDD7 replaced for shaping only by their resolved text where the line lands (page labels, section marker, Generated record text), story bytes unchanged, typed UnresolvedMarker states, iterated to a fixed point (passes, markers_unstable)",
+    "MarkerRecord typed record keyed by story byte (kind + target Placement | Generated{record_id, text}), checked (marker_record_invalid)",
+    "break sentinels U+FDD8..U+FDDC direct the flow in the reflow core (column, frame, page, odd/even page by page number); missing target oversets from the break byte; BreakOutcome per reached break",
+    "flush space U+FDDD: zero-advance glyph, absorbs the slack of a JustifiedAll last line (shared equally), no width elsewhere; FlushOutcome per placed flush space",
+    "paragraph_partition / ends_paragraph = Type's partition (UAX #9 class B + break sentinels, terminator included); replace_story_text re-splits the same way",
+    "report_sentinels: one Observe terminal outcome per call, codes only; DESCRIPTOR stream_sentinels entry"
+  ],
+  "tests": {
+    "red_item1": {
+      "argv": "cargo nextest run -p hsk-studio-layout --test stream_sentinels --no-fail-fast (lane worktree, owner smb-layout-sentinels-1, C:)",
+      "exit": 100,
+      "sha": "7ffbea87",
+      "passed": 2,
+      "failed": 7,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-sentinels-1/red-proof-smb-layout-sentinels-1-7ffbea87.log",
+      "note": "the 2 passing tests cover the MarkerKind table and report_sentinels scaffolding added by the red commit itself; the first attempt at 6a6af763 did not compile (log red-proof-smb-layout-sentinels-1-6a6af763.log, exit 101)"
+    },
+    "red_item2": {
+      "argv": "same",
+      "exit": 100,
+      "sha": "10e0f8e5",
+      "passed": 9,
+      "failed": 4,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-sentinels-1/red-proof-smb-layout-sentinels-1-10e0f8e5.log",
+      "note": "all 4 new mt_31008 tests fail; the 9 passing are item 1"
+    },
+    "red_item3": {
+      "argv": "same",
+      "exit": 100,
+      "sha": "fc927dbe",
+      "passed": 13,
+      "failed": 2,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-sentinels-1/red-proof-smb-layout-sentinels-1-fc927dbe.log",
+      "note": "both new mt_31009 tests fail"
+    },
+    "bundled_run1": {
+      "argv": "lane-check.sh --owner smb-layout-sentinels-1 -- cargo nextest run -p hsk-studio-layout -p hsk-studio-interop-layout --no-fail-fast (step 0, clippy layout + interop-layout + dependents harness, harness-view, nextest whole suites)",
+      "exit": 0,
+      "sha": "c9ed10e4",
+      "passed": 257,
+      "failed": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-sentinels-1/bundled-run1-smb-layout-sentinels-1-c9ed10e4.log"
+    },
+    "bundled_run2": {
+      "argv": "same, after rebase onto 295c6029 (that range changed layout print.rs, lib.rs, pdf_export_prefs.rs)",
+      "exit": 0,
+      "sha": "123cf839",
+      "passed": 265,
+      "failed": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-sentinels-1/bundled-run2-smb-layout-sentinels-1-123cf839.log"
+    },
+    "bundled_run3": {
+      "argv": "same, after rebase onto 3c0d8ec9 (that range changed folio, a layout dependency)",
+      "exit": 0,
+      "sha": "f6daf16c",
+      "passed": 265,
+      "failed": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-sentinels-1/bundled-run3-smb-layout-sentinels-1-f6daf16c.log",
+      "note": "214 layout (15 in tests/stream_sentinels.rs) + 51 interop-layout; clippy clean for layout, interop-layout, harness, harness-view"
+    },
+    "per_sha_final": {
+      "argv": "lane-check.sh --owner smb-layout-sentinels-1 --per-sha origin/codex/handshake-studio-assets",
+      "exit": 0,
+      "sha": "92ae2232",
+      "result": "PER_SHA_RESULT OK shas=6 range=d7127bf1..92ae2232",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-sentinels-1/per-sha-run-smb-layout-sentinels-1-92ae2232.log"
+    },
+    "ready_claim_basis": "bundled_run3 at f6daf16c; the pushed tip 92ae2232 is the same 6 commits rebased onto d7127bf1, whose 3 extra upstream commits touch only interop-tiff, harness-core and harness tests (not layout or its dependencies accord, folio, observe, type), so the bundled run was not repeated; per_sha_final covers every pushed commit",
+    "doctests": "none added (no doc examples)",
+    "round_features_4e": "no feature-gated test file added; stream_sentinels.rs runs in the default unit"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: read the brief, red-first per item, one bundled run on C:, push when green (rebase, per-sha)",
-  "updated_at": "2026-11-01T12:58:23Z",
+  "next": "validator: judge SMB-LAYOUT-SENTINELS-1 at the pushed sha (F-R52-1); spec owner: proposals SENT-SD-1..9 in notes.spec_proposals",
+  "updated_at": "2026-11-01T14:44:45Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -43,6 +120,36 @@
       "MT-31008",
       "MT-31009"
     ],
-    "dispatch_reason": "STUDIO-R52 follow-up (findings_not_failures)"
-  }
+    "dispatch_reason": "STUDIO-R52 follow-up (findings_not_failures)",
+    "finished_build_at": "2026-11-01T14:43:09Z",
+    "pushed_at": "2026-11-01T14:43:09Z",
+    "spec_basis": "v02.229 14-studio-creative-suite.md STU-TYP-207 (:9106-9160): markers are stored as sentinel characters in the stream and resolved at composition; a marker sentinel carries no text, its kind, target and options live in a typed record keyed by the sentinel's story byte, composition shows the resolved value without rewriting the stream, an unresolved marker shows an explicit unresolved state, never a guessed value; each break sentinel ends its paragraph exactly as U+2029 does and its flow target applies after it; flush space absorbs all remaining justification slack on a fully justified last line. STU-LAY-015 (:5732) page-number markers resolve to the current page's section number; STU-LAY-108 (:5672) section record (marker, prefix, number style); STU-LAY-018/122 threading; STU-LAY-021 columns.",
+    "microtasks": {
+      "MT-31005": "closure_unit ASSET-AC-001 'resolved at composition': met for the layout part. Rows: typed marker record by story byte (mt_31007_note_and_cross_reference_markers_take_their_record_and_index_is_unresolved, records checked), resolution at composition without rewriting the stream (mt_31007_page_and_section_markers_resolve_where_their_line_lands, mt_31007_a_marker_in_overset_text_is_unresolved_and_the_story_bytes_never_change), explicit unresolved state (same tests: NoPreviousPage, NoNextPage, NotPlaced, NoSectionMarker, RecordMissing, RuleUnstated), never shaped as a guessed glyph (mt_31005_the_shaper_sees_resolved_text_and_never_a_sentinel), break flow target (mt_31008_*), partition at break sentinels as Type (mt_31005_paragraph_partition_ends_after_every_terminator_as_type_does, mt_31008_story_edits_split_paragraphs_after_every_terminator), budgets (mt_31005_marker_counts_texts_and_passes_are_budgeted), Observe (mt_31005_terminal_outcomes_are_reported_through_observe). AC-001..AC-016 were met by SMB-TYPE-SENTINELS-REGISTRY-1 and are unchanged here (mt_31005_marker_kinds_follow_the_spec_assignment re-checks the 8 marker code points from the spec table). Limits: index marker value is a spec gap (typed marker_rule_unstated); anchored-object marker U+FFFC out of scope",
+      "MT-31007": "partly met: AC-001/AC-002 for composition: current page number, next page number, previous page number, section marker (mt_31007_page_and_section_markers_resolve_where_their_line_lands, mt_31007_recomposition_after_a_page_move_updates_the_resolved_text), footnote reference, endnote reference, cross-reference marker (mt_31007_note_and_cross_reference_markers_take_their_record_and_index_is_unresolved: Generated record text; missing record = marker_record_missing), index marker (same test: typed marker_rule_unstated, spec gap); anchored-object marker not met (out of scope per brief). AC-003 headless met (compose_with_sentinels), operator surface not met (gui_host none)",
+      "MT-31008": "partly met: AC-002 column break, frame break, page break, odd-page break, even-page break each with its flow target (mt_31008_each_break_sentinel_directs_the_following_text_to_its_flow_target), overset when no target (mt_31008_a_break_without_a_target_oversets_from_the_break_byte), plain entry points (mt_31008_plain_reflow_honours_breaks_and_oversets_parity_breaks_it_cannot_number), paragraph partition after every terminator (mt_31008_story_edits_split_paragraphs_after_every_terminator); forced line break and paragraph return keep their existing UAX #14 / partition behaviour (not changed). AC-003 headless met, operator surface not met",
+      "MT-31009": "partly met: flush space only (the other white-space members are real Unicode characters, type lane): absorbs the slack of a fully justified last line, shared equally (mt_31009_flush_space_absorbs_the_slack_of_a_fully_justified_last_line_only), no width on non-justified or non-last lines, one zero-advance glyph, never shaped (mt_31009_flush_space_on_a_line_that_is_not_the_last_has_no_width). Fixed / flexible non-breaking space composition not in this lane. AC-003 headless met, operator surface not met"
+    },
+    "changed_assertions": "none: no existing test assertion changed. Behaviour change without an existing pin: replace_story_text re-splits after every Type paragraph terminator (UAX #9 class B and the break sentinels) instead of after newline only",
+    "spec_proposals": [
+      "SENT-SD-1 next/previous page number: Studio reads document page order (the page after / before the page holding the line). The jump-line reading (page of the next / previous frame of the thread) is the other candidate; the spec should state which. Vendor UNVERIFIED (D5)",
+      "SENT-SD-2 index marker: the spec states no displayed value; layout returns typed marker_rule_unstated (shaped as nothing). Proposal: state that the index marker composes as empty (zero width) and resolves only for the index generator",
+      "SENT-SD-3 odd/even-page break: parity read as the page NUMBER from the section numbering (not page side, not document ordinal); the spec states no blank-page insertion, so none is inserted and frames of the wrong parity are passed over (skipped_frames). Proposal: state the parity source and whether a blank page is inserted",
+      "SENT-SD-4 break without a target (no later column, frame or page): Studio oversets from the break byte (the break itself and everything after it), also when the break ends the story. Proposal: state overset vs ignore at story end",
+      "SENT-SD-5 flush space: 'fully justified last line' read as the last line of a justify-all-lines paragraph only; on the last line of a justify-last-left paragraph and on every other line it has no width; several flush spaces on one line share the slack equally. Proposal: state these three cases",
+      "SENT-SD-6 explicit unresolved state: layout reports it (MarkerOutcome.state, typed codes) and shapes nothing; the visible indicator belongs to a GUI lane (spec: 'shows an explicit unresolved state'). Proposal: state the visual form",
+      "SENT-SD-7 marker resolution that does not settle (a resolved number that pushes its own line to another page): spec silent; Studio refuses markers_unstable after max_passes (default 4). Proposal: state the rule",
+      "SENT-SD-8 section marker of a section without marker text: STU-TYP-207 says unresolved (layout: marker_no_section_marker); the running-text variable reading in running.rs resolves it as empty. The two readings should be reconciled in the spec",
+      "SENT-SD-9 flush space as a break opportunity: Type's CompositionFlags reading says break_opportunity true; layout's UAX #14 classifies U+FDDD as XX (no break) and does not break there. The spec should state it; if it is an opportunity, layout needs a rule change"
+    ],
+    "type_crate_needs": "(reported, not changed) Type keeps its paragraph terminator test private (validate::ends_paragraph with the vendored bidi class); layout pins the UAX #9 class-B set itself (sentinels::ends_paragraph). A public hsk_studio_type::ends_paragraph would remove the duplicate. A host-level proof that a Type request built from layout's partition is accepted (no InvalidBidi) needs a Type-shaping host test (interop-layout or harness); layout has no Type fixtures or serde_json dev-dependency and no Cargo.toml change was allowed",
+    "host_integration_check": "(1)(2) no egui, eframe, winit, wgpu or GPU line; (3) no new command or control (composition is a call, not a command); (4) no mutating op (attribution unchanged); (5) report_sentinels emits one Observe terminal outcome per compose_with_sentinels call, codes only (mt_31005_terminal_outcomes_are_reported_through_observe); (6) no queue, worker or job (bounded call, max_passes budget); (7) host_integration block present",
+    "hostile_input": "V4-01: sentinels.rs carries #![deny(clippy::arithmetic_side_effects)] (checked ops); textflow.rs already did. V4-02: marker plus flush count checked while scanning, before per-marker allocation (MAX_STORY_MARKERS 65536 -> budget_exceeded), composition text bounded by MAX_STORY_BYTES, resolved text per marker MAX_RESOLVED_MARKER_BYTES 256 (marker_text_over_budget), paragraph count vs Limits.max_paragraphs, passes max_passes (markers_unstable); test mt_31005_marker_counts_texts_and_passes_are_budgeted",
+    "vendor_parity": "InDesign marker, break and flush-space behaviour UNVERIFIED (D5)",
+    "shared_files": "none: pathspec commits of crates/hsk-studio-layout only; diff --stat d7127bf1..92ae2232 = 5 files under crates/hsk-studio-layout",
+    "cargo_lock": "Cargo.lock left uncommitted; the cargo-regenerated lock (one press-write observe dependency line) was stashed in the lane worktree (message 'SAFETY: smb-layout-sentinels-1 cargo-regenerated Cargo.lock before rebase onto 3c0d8ec9') to allow the rebase; the stash is kept",
+    "push_plan": "pushed 92ae2232 with the guarded SHA form after PER_SHA_RESULT OK; one earlier attempt was not sent because origin had advanced (merge-base --is-ancestor guard): re-fetched, rebased, per-sha re-run",
+    "pushed": "92ae2232"
+  },
+  "pushed_sha": "92ae22329f986a90408cb01e09297e1b83d97378"
 }
