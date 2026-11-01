@@ -5,15 +5,95 @@
   "phase": "build",
   "worktree": "wt-studio-lanes/smb-id-toc-persist-1",
   "base": "a7be22a1",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "90208048",
+      "slice": "item 1 red: folio TOC/index contract members, layout re-exports, literals (check_section_header_set todo!)",
+      "pushed": false
+    },
+    {
+      "sha": "6a4e953a",
+      "slice": "item 1: section header-set rules",
+      "pushed": false
+    },
+    {
+      "sha": "10695afe",
+      "slice": "item 2 red: StudioPage.applied_trap_preset, trap_preset_records (validator todo!), StudioPage literals",
+      "pushed": false
+    },
+    {
+      "sha": "1f98a3ff",
+      "slice": "item 2: trap-preset record validation",
+      "pushed": false
+    },
+    {
+      "sha": "177c8ed5",
+      "slice": "rule 4b: package externals classification",
+      "pushed": false
+    },
+    {
+      "sha": "b5eeab31",
+      "slice": "item 3 red: lift API, Option flags, trap assignment (bodies todo!)",
+      "pushed": false
+    },
+    {
+      "sha": "30846f11",
+      "slice": "item 3: lossless lift, persisted scopes, legacy generators, assign_trap_preset",
+      "pushed": false
+    },
+    {
+      "sha": "29beb25b",
+      "slice": "bundled run 1 fixes (folio page key allowlist, two test expectations)",
+      "pushed": false
+    }
+  ],
+  "capabilities_done": [
+    "item 1 Folio records: StudioTocStyle gains include_book_documents/include_hidden/run_in/create_bookmarks/make_anchor/remove_forced_line_break (Option<bool>, absent = unknown), numbered_paragraphs (captured token), set_story_direction (TocStoryDirection, now Folio-owned, layout re-exports), default_styled; StudioTocEntry gains page_number_style/separator_style; StudioIndexMark gains page_range_scope (StudioPageRangeScope, 7 MT-174 members, absent = current page); StudioIndexOptions gains replace_existing_index/include_book_documents/include_hidden_entries (Option<bool>), the three character styles and section_header_set (name ref); StudioLongDocRecords gains section_header_sets (StudioSectionHeaderSet/StudioHeaderGroup) with check_section_header_set shared by layout",
+    "item 2: StudioPage.applied_trap_preset (typed StudioTrapPresetRef by preset name, absent = none applied); new record set hsk.studio.trap_preset_records@1 (StudioTrapPresetRecords/StudioTrapPreset = layout TrapPreset by value, StudioTrapEnd, StudioTrapImagePlacement), trap_preset_records_schema, validate_trap_preset_records (dangling page refs, names, finiteness; bounds stay layout's)",
+    "item 3 lift: PersistedTocStyle, TocStyle::from_folio/to_folio, PersistedIndexOptions (+header_set resolution), IndexOptions::from_folio/to_folio, PageRangeScope::from_folio/to_folio, SectionHeaderSet::from_folio/to_folio, TrapPreset::from_folio/to_folio; default-filling lift of SMB-ID-TOC-INDEX-1 removed; unknown flags refused at generation (toc_flag_unset, index_flag_unset); generate_index_contract reads persisted mark scopes; legacy generate_toc/generate_index honour persisted include_hidden/remove_forced_line_break/include_hidden_entries and refuse members they cannot write (toc_contract_only, index_contract_only, index_header_set_unresolved)",
+    "attribution: assign_trap_preset(ctx: &CommandContext, ...) applies one preset reference to every page of a range at revision + 1; typed TrapAssignError; outcome via report_command (Observe, codes only); no default_actor",
+    "item 4: interop-layout struct literals only (idml_longdoc.rs TOC import + 3 test files), explicit None/false"
+  ],
+  "tests": {
+    "bundled_run_1": {
+      "argv": "bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-id-toc-persist-1 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-package -p hsk-studio-layout -p hsk-studio-interop-layout",
+      "exit": 100,
+      "sha": "30846f112dfb9256c27b1bbb479b399752c5a241",
+      "passed": 429,
+      "failed": 5,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-toc-persist-1/bundled-smb-id-toc-persist-1-30846f11-run1.log",
+      "failures": "folio inspect_bytes page allowlist refused applied_trap_preset (2 tests); old-shape fixture omitted always-encoded index_format (2 tests); trap Observe test opened Observe with the wrong correlation (1 test); all fixed in 29beb25b"
+    },
+    "bundled_run_2": {
+      "argv": "bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-id-toc-persist-1 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-package -p hsk-studio-layout -p hsk-studio-interop-layout",
+      "scope": "step 0 clean; clippy over folio, package, layout, interop-layout and every direct dependent (incl. harness, harness-view); WHOLE nextest suites of folio, package (4b), layout, interop-layout (4a); no clippy warning in lane-touched files; no doc examples added (4d n/a); no feature-gated tests (4e n/a)",
+      "exit": 0,
+      "sha": "29beb25be7fd19e7037e2fed777f63272dbfe63f",
+      "passed": 434,
+      "failed": 0,
+      "new_tests": 12,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-toc-persist-1/bundled-smb-id-toc-persist-1-29beb25b-run2.log"
+    },
+    "per_sha_prerebase": {
+      "argv": "lane-check.sh --owner smb-id-toc-persist-1 --disk d --per-sha a7be22a1",
+      "result": "PER_SHA_RESULT OK shas=8 range=a7be22a1..29beb25b",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-toc-persist-1/persha-smb-id-toc-persist-1-29beb25b-prerebase.log",
+      "note": "compile pre-check of every local commit on the old base; the push still reruns --per-sha origin/codex/handshake-studio-assets after the rebase"
+    },
+    "new_tests": [
+      "hsk-studio-folio tests/toc_index_persist_records.rs: toc_index_contract_members_round_trip_byte_identical, old_shape_records_load_with_new_members_unknown, toc_index_contract_member_refusals",
+      "hsk-studio-folio tests/trap_preset_page_records.rs: page_applied_trap_preset_round_trips, old_shape_page_loads_without_trap_preset, trap_preset_records_round_trip_and_refusals",
+      "hsk-studio-layout tests/id_toc_contract.rs: toc_persisted_style_lift_is_lossless_both_ways, toc_generators_read_persisted_members",
+      "hsk-studio-layout tests/id_index_contract.rs: index_persisted_options_scopes_and_header_sets_lift_losslessly, index_generators_read_persisted_members",
+      "hsk-studio-layout tests/id_trap_persist.rs: trap_preset_lift_is_lossless_both_ways, trap_preset_applied_to_page_range_with_attribution"
+    ]
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: read the brief, red-first per item, one bundled run on D:, push only after STUDIO-R51 is recorded and the lead releases",
-  "updated_at": "2026-11-01T05:38:43Z",
+  "next": "waiting for lead release after R51",
+  "updated_at": "2026-11-01T06:50:44Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -40,6 +120,117 @@
       "MT-30846",
       "MT-173 / MT-174 persistence rows if any"
     ],
-    "dispatch_reason": "follow-up wave from the v02.228 SD research and SMB-ID-TOC-INDEX-1 notes; engine lane (D6); builds on D: while STUDIO-R51 holds C:"
+    "dispatch_reason": "follow-up wave from the v02.228 SD research and SMB-ID-TOC-INDEX-1 notes; engine lane (D6); builds on D: while STUDIO-R51 holds C:",
+    "spec_basis": "Master Spec v02.229 module 14: STU-LAY-107 (:5480, applied_trap_preset row :5500), STU-LAY-148 (:6630), STU-LAY-149 (:6675), STU-LAY-152 (:7394, page-range assignment :7415)",
+    "changed_assertions": [
+      "layout tests/id_toc_contract.rs toc_record_fields_enumerations_and_folio_lift: the Folio fixture now persists generate_toc's flags explicitly (Some) and the assertion compares the lifted Option values (was: bool flags filled in by the old default-filling lift)",
+      "layout tests/id_index_contract.rs index_options_lift_from_folio_matches_generate_index: same change for include_hidden_entries/replace_existing_index/include_book_documents"
+    ],
+    "changed_literals_only": [
+      "layout tests: id_toc_contract.rs (style() flags Some(..), 8 flag assignments), id_index_contract.rs (options() flags, 3 functional updates, mark()), layout_book.rs, longdoc_numbering_toc.rs, longdoc_notes_index.rs, cjk_kinsoku.rs, composer_wiring.rs, layout_columns.rs, longdoc_graphics.rs, longdoc_running_notes.rs, longdoc_tables.rs, parent_adapter.rs, support_layout/mod.rs, threaded_reflow.rs, typeset.rs; layout examples/layout-consumer.rs; layout src index_contract.rs capture_index_mark (page_range_scope: None)",
+      "interop-layout: src/idml_longdoc.rs (TOC import struct literal, explicit None/false), tests/longdoc_pdf.rs, tests/layout_flow_pdf.rs, tests/pdf_export.rs",
+      "harness tests/layout_ui_fixture/mod.rs, tests/viewer_layout_ui.rs; harness-view src/view/shell.rs blank_layout_doc (applied_trap_preset: None)"
+    ],
+    "out_of_owned_paths_waiver_request": {
+      "why": "adding applied_trap_preset to StudioPage (brief item 2) breaks every StudioPage struct literal and the folio inspect_bytes key allowlist; the brief lists only folio longdoc.rs/layout.rs, layout toc/index/print and interop-layout literals",
+      "touched": [
+        "hsk-studio-harness-view/src/view/shell.rs (one literal field, no egui change)",
+        "hsk-studio-harness/tests/layout_ui_fixture/mod.rs, tests/viewer_layout_ui.rs (one literal field each)",
+        "hsk-studio-folio/src/lib.rs (page key allowlist of the extension guard gains applied_trap_preset; without it inspect_bytes refuses such a page as unknown_field)",
+        "hsk-studio-layout/src/lib.rs (re-exports of the new layout items, DESCRIPTOR toc_index_trap.persist entry, not_here updated)",
+        "hsk-studio-layout/examples/layout-consumer.rs and the non-TOC/index layout tests listed in changed_literals_only (one literal field each)"
+      ],
+      "decision_needed": "lead: accept these literal/allowlist edits before the push"
+    },
+    "design": {
+      "unknown": "STU-LAY-148/149 declare no default for the booleans: absent = None (unknown) in Folio and in the layout contract (TocStyle/IndexOptions flags became Option<bool>), so the lift is a bijection; the contract generators refuse an unknown flag (toc_flag_unset/index_flag_unset) instead of filling one; the legacy generators keep their documented pre-lane behaviour for unknown (hidden listed, forced breaks removed), the only behaviour an old record ever had",
+      "level_styles": "IndexOptions::to_folio writes level styles up to the deepest set one; Folio [a, null] and [a] lift to the same record (lossless for the canonical form; tested)",
+      "header_set_ref": "StudioIndexOptions.section_header_set and StudioTocStyle.default_styled are Studio members (the spec tables name no such field); absent header set = layout's built-in Latin set",
+      "trap_presets": "stored by name (the preset's identity, no spec id); Folio checks finiteness only and layout's TrapPreset::from_folio admits values against the STU-LAY-152 bound sets (one owner of the bounds); page range = document page order",
+      "capitalisation": "IndexCaps is a command argument (no stored member in the STU-LAY-149 table): not persisted",
+      "include_overset": "a generate-command argument persisted on the Folio TOC style since SMB-LAYOUT-LONGDOC; PersistedTocStyle carries it beside the style record"
+    },
+    "idml_mapping_for_later_lane": {
+      "status": "no new IDML mapping in this lane; attribute names below are UNVERIFIED (D5) until checked against the IDML specification",
+      "TOCStyle": "IncludeBookDocuments, IncludeHidden, RunIn, CreateBookmarks, MakeAnchor, RemoveForcedLineBreak, NumberedParagraphs, SetStoryDirection -> StudioTocStyle members of the same names",
+      "TOCStyleEntry": "PageNumberStyle, SeparatorStyle (character style refs) -> StudioTocEntry.page_number_style / separator_style",
+      "IndexOptions / Index": "IndexFormat, IncludeSectionHeadings, IncludeEmptyIndexSections, ReplaceExistingIndex, IncludeBookDocuments, IncludeHiddenEntries, Level1Style..Level4Style, SectionHeadingStyle, PageNumberStyle, CrossReferenceStyle, CrossReferenceTopicStyle and the six separator attributes -> StudioIndexOptions",
+      "PageReference": "PageReferenceType (range scope) -> StudioIndexMark.page_range_scope",
+      "IndexSectionHeader / header sets": "-> StudioSectionHeaderSet",
+      "Page": "AppliedTrapPreset -> StudioPage.applied_trap_preset; TrapPreset objects -> StudioTrapPresetRecords"
+    },
+    "spec_gaps_unchanged": "SD-31..SD-36 as recorded by SMB-ID-TOC-INDEX-1; no member or default invented",
+    "proposals": [
+      "MT-173 scope says TOC definitions are stored as TOC styles in StudioStyleRegistry (MT-168); Studio persists them in hsk.studio.longdoc_records@1 toc_styles: regenerate the MT text or route a registry lane",
+      "MT-30777/MT-30779 'No row is added' rows: default_styled and section_header_set are Studio members outside the tables; record them in the spec as Studio extensions"
+    ],
+    "vendor_parity": "InDesign TOC, index and trap-preset persistence UNVERIFIED (D5)",
+    "red_commits": "90208048, 10695afe, b5eeab31 compile and fail their new tests (todo!() bodies, default-filling lift); the package externals census fails on 90208048..1f98a3ff until 177c8ed5 classifies the two new reference-vocabulary members"
+  },
+  "mt_claims": {
+    "MT-30777": {
+      "status": "met (persistence rows)",
+      "rows": {
+        "AC-001": [
+          "met",
+          "toc_persisted_style_lift_is_lossless_both_ways; toc_generators_read_persisted_members (persisted include_overset passed to generation)"
+        ],
+        "AC-002": [
+          "met",
+          "toc_index_contract_members_round_trip_byte_identical (two independent TOC styles persisted)"
+        ],
+        "AC-003": [
+          "met",
+          "toc_index_contract_member_refusals (toc_no_entries with default_styled false; default-styled TOC without entries admitted)"
+        ],
+        "AC-004..AC-020": [
+          "met",
+          "toc_index_contract_members_round_trip_byte_identical (every style/entry row persisted with its kind); toc_persisted_style_lift_is_lossless_both_ways (row-for-row lift, nothing renamed or remapped)"
+        ]
+      }
+    },
+    "MT-30779": {
+      "status": "partly met (persistence rows)",
+      "rows": {
+        "AC-001": [
+          "met",
+          "index_persisted_options_scopes_and_header_sets_lift_losslessly (four level styles, Folio refuses a fifth)"
+        ],
+        "AC-002": [
+          "met",
+          "toc_index_contract_members_round_trip_byte_identical; index_persisted_options_scopes_and_header_sets_lift_losslessly"
+        ],
+        "AC-003": [
+          "not met",
+          "capitalisation is a command argument with no stored member; nothing to persist"
+        ],
+        "AC-004": [
+          "met",
+          "toc_index_contract_members_round_trip_byte_identical (non-Latin pluggable header set persisted); index_generators_read_persisted_members (persisted set drives headings)"
+        ],
+        "AC-005..AC-020": [
+          "met",
+          "toc_index_contract_members_round_trip_byte_identical; index_persisted_options_scopes_and_header_sets_lift_losslessly"
+        ]
+      }
+    },
+    "MT-30846": {
+      "status": "met (page assignment)",
+      "rows": {},
+      "note": "no acceptance rows; page applied_trap_preset and page-range assignment: page_applied_trap_preset_round_trips, trap_preset_applied_to_page_range_with_attribution, trap_preset_lift_is_lossless_both_ways"
+    },
+    "MT-174": {
+      "status": "partly met (persistence addition)",
+      "rows": {
+        "AC-001": [
+          "partly met",
+          "index_generators_read_persisted_members (per-reference page-range scopes now persisted per mark and read by generation)"
+        ]
+      }
+    },
+    "MT-173": {
+      "status": "not met by this lane",
+      "note": "persistence clause names StudioStyleRegistry (proposal above)"
+    }
   }
 }
