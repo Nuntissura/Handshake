@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-01T05:38:43Z",
+ "updated_at": "2026-11-01T06:04:03Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -17484,7 +17484,17 @@
     "research agent: SD-26..30 field expectations -> research/sd26-30-research-20261101.json",
     "round-trip agent: spec-roundtrip-check on v02.226, triage, derive and promote MT contracts for uncovered clauses (STU-ARC-023..033), re-run on v02.227/228"
    ]
-  }
+  },
+  "cleanup_pending_operator_approval": [
+   {
+    "added_at": "2026-11-01T06:04:03Z",
+    "kind": "registered git worktree (detached, red-proof scratch)",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-sentinels-registry-1/rw",
+    "studio_owner_target": "smb-type-sentinels-registry-1-red",
+    "created_by": "builder SMB-TYPE-SENTINELS-REGISTRY-1 (red proof per V4-11)",
+    "action_needed": "git worktree remove + its cargo target, only on Operator approval of an exact list (CLAUDE.md branching rules)"
+   }
+  ]
  },
  "round_R45": {
   "candidate": "b425b54a",
