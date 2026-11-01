@@ -30,35 +30,34 @@
       "sha": "91b08c4e8eddd7e71d525255cf47aa515080777c",
       "item": "2 lint",
       "subject": "interop-psd: clear the redundant_closure lint of the added-channel order check"
+    },
+    {
+      "sha": "0d2489ef76af486d8781f1bd78b37fea0919af40",
+      "item": "1b red (lead decision SD-40)",
+      "subject": "composite: pre-roll and position rows are in the SD-27 class too (red)"
+    },
+    {
+      "sha": "9b9c8e58976245af7ccc95b6b6c133fa40c79e64",
+      "item": "1b green (lead decision SD-40)",
+      "subject": "composite: Wave world pre-roll and position stay studio_declared beside unitless rows 24/44 (SD-27, SD-40)"
     }
   ],
   "capabilities_done": [
-    "F-R51-1: Wave world producer amplitude/frequency back to authored studio_declared rows (63ecf5a6 bounds and defaults); recovered rows 52/54 stored, validated, drive nothing (SD-27)",
+    "F-R51-1 (with lead decision SD-40): every Wave world recovered row with a `--` unit cell that drove an engine scalar is unmapped: record preroll (row 24), producer x, y (row 44), amplitude (row 52), frequency (row 54) are back on their authored studio_declared rows (63ecf5a6 bounds and defaults); the recovered rows stay stored, validated, drive nothing. Mapped: producer phase (row 56) and Foam wind_direction (row 32), both degrees",
     "MT-038 AC-003 / MT-30095: PSD export writes a channel added in edit (saved from a selection) as a new extra plane with 1006/1045/1077 (and 1053 when present) entries; re-import yields the same record and samples at 8/16/32 bits"
   ],
   "tests": {
     "argv": "lane-check.sh --owner smb-r51-followups-1 --disk ssd -- cargo nextest run -p hsk-studio-composite -p hsk-studio-interop-psd -p hsk-studio-harness --features hsk-studio-harness/import-psd --no-fail-fast; then lane-check.sh --owner smb-r51-followups-1 --disk ssd -- cargo nextest run -p hsk-studio-composite --features motion --no-fail-fast",
     "exit": 0,
-    "sha": "91b08c4e8eddd7e71d525255cf47aa515080777c",
+    "sha": "9b9c8e58976245af7ccc95b6b6c133fa40c79e64",
     "passed": 477,
     "failed": 0,
     "logs": [
-      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/smb-r51-followups-1-91b08c4e-bundled.log (267 passed, 16 skipped, exit 0)",
-      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/smb-r51-followups-1-91b08c4e-composite-motion.log (210 passed, exit 0)"
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/smb-r51-followups-1-9b9c8e58-bundled.log (267 passed, 16 skipped, exit 0)",
+      "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/smb-r51-followups-1-9b9c8e58-composite-motion.log (210 passed, exit 0)"
     ],
-    "first_run": {
-      "sha": "b29c42fb7cf8b73b10b3af4f404ef8b1ef5f77a5",
-      "exit": 0,
-      "passed": 477,
-      "failed": 0,
-      "logs": [
-        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/smb-r51-followups-1-b29c42fb-bundled.log (267 passed, 16 skipped)",
-        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/smb-r51-followups-1-b29c42fb-composite-motion.log (210 passed)"
-      ],
-      "why_rerun": "no test failed; clippy flagged one warn-level redundant_closure in this lane's export.rs:413, fixed in 91b08c4e, then the one re-run"
-    },
-    "clippy": "clippy ran inside both lane-check holds over composite, interop-psd, harness and dependents (harness-core, harness-view, interop-fig, pulse, render-cpu, render-gpu); after 91b08c4e no warning points into a hunk of this lane (remaining warnings are pre-existing, e.g. proposal.rs:608 too_many_arguments, hsk-studio-type)",
-    "step0": "lane-check step 0 policy clean (V4-03, V4-05)",
+    "clippy": "clippy ran inside both lane-check holds on 9b9c8e58 over composite, interop-psd, harness and their dependents; no warning points into a hunk of this lane (remaining warnings pre-existing, e.g. interop-psd proposal.rs:608 too_many_arguments, hsk-studio-type)",
+    "step0": "lane-check step 0 policy clean (V4-03, V4-05) on 9b9c8e58",
     "doctests": "none added or changed",
     "red_evidence": [
       {
@@ -76,18 +75,49 @@
       {
         "note": "the first local version of the item-1 red commit (345da55d) did not compile (E0277, array length [_;5] vs [_;3]); it was never pushed and was amended locally into 0914d7b4, which compiles and fails as above (RED COMMITS: a non-compiling red stays local)",
         "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/red-smb-r51-followups-1-345da55d-composite.log"
+      },
+      {
+        "sha": "0d2489ef76af486d8781f1bd78b37fea0919af40",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/red-smb-r51-followups-1-0d2489ef-composite.log",
+        "argv": "cargo nextest run -p hsk-studio-composite --test simulations_records --no-fail-fast",
+        "result": "exit 100: 2 passed, 3 failed (mapped test at WAVE_WORLD_MAPPINGS == [preroll]; kinds_without_a_recovered_record_have_none at WaveWorld; SD-27 test at 'preroll: row #24 drives no engine scalar')",
+        "note": "the red commit's y-position refusal wrote -1.0e3_f64.next_down() (unary minus after the method call, so -999.99...); fixed to (-1.0e3_f64).next_down() inside the green commit 9b9c8e58; the red commit still compiles and fails"
       }
     ],
     "per_sha": null,
     "pushed_sha": null,
-    "finished_at": "2026-11-01T08:50:36Z"
+    "finished_at": "2026-11-01T08:57:59Z",
+    "previous_runs": [
+      {
+        "sha": "b29c42fb7cf8b73b10b3af4f404ef8b1ef5f77a5",
+        "exit": 0,
+        "passed": 477,
+        "failed": 0,
+        "logs": [
+          "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/smb-r51-followups-1-b29c42fb-bundled.log (267 passed, 16 skipped)",
+          "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/smb-r51-followups-1-b29c42fb-composite-motion.log (210 passed)"
+        ],
+        "why_rerun": "no test failed; clippy flagged one warn-level redundant_closure in this lane's export.rs:413, fixed in 91b08c4e, then the one re-run"
+      },
+      {
+        "argv": "lane-check.sh --owner smb-r51-followups-1 --disk ssd -- cargo nextest run -p hsk-studio-composite -p hsk-studio-interop-psd -p hsk-studio-harness --features hsk-studio-harness/import-psd --no-fail-fast; then lane-check.sh --owner smb-r51-followups-1 --disk ssd -- cargo nextest run -p hsk-studio-composite --features motion --no-fail-fast",
+        "exit": 0,
+        "sha": "91b08c4e8eddd7e71d525255cf47aa515080777c",
+        "passed": 477,
+        "failed": 0,
+        "logs": [
+          "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/smb-r51-followups-1-91b08c4e-bundled.log (267 passed, 16 skipped, exit 0)",
+          "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r51-followups-1/smb-r51-followups-1-91b08c4e-composite-motion.log (210 passed, exit 0)"
+        ]
+      }
+    ]
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
   "next": "waiting for folio angle push",
-  "updated_at": "2026-11-01T08:50:36Z",
+  "updated_at": "2026-11-01T08:57:59Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -124,7 +154,7 @@
       "STU-RAS-022 via MT-038 / MT-30095: save a selection to a persistent channel, reload it as a selection, preserved in round-trippable interchange formats (14.13)"
     ],
     "v4_06_failure_class": {
-      "class": "a recovered STU-FX-131a row whose unit cell is `--` (unitless) mapped onto an engine scalar that carries a unit or drives the simulation, with any conversion (k = 1 included)",
+      "class": "a recovered STU-FX-131a row whose unit cell is `--` (unitless) that drives an engine scalar, with any conversion (k = 1 included); a unit read from the row name or default cell is the guess SD-27 forbids (lead decision 2026-11-01)",
       "regex": "RecoveredMapping \\{|_MAPPINGS|conversion|Conversion::None in crates/hsk-studio-composite/src/simulations/{wave_world,foam}.rs (no Conversion type exists; RecoveredMapping documents 'no conversion')",
       "site_count_at_base_a7be22a1": 7,
       "sites_listed": 7,
@@ -132,20 +162,20 @@
         {
           "site": "wave_world.rs WAVE_WORLD_MAPPINGS preroll <- row 24 Pre-roll (seconds)",
           "unit_cell": "--",
-          "verdict": "not applicable",
-          "basis": "the parameter name declares seconds; F-R51-1 states pre-roll is not affected. Strictly the unit cell is `--`; spec-owner confirmation proposed (open question 1)"
+          "verdict": "fixed (9b9c8e58)",
+          "basis": "lead decision: in the class (unit read from the name is a guess); WAVE_WORLD_MAPPINGS now empty; engine preroll back to authored row s 0..60 soft 0..5 default 0 (63ecf5a6); row 24 stored and validated, drives nothing; units asked as SD-40"
         },
         {
           "site": "wave_world.rs WAVE_PRODUCER_MAPPINGS x <- row 44 Position component 0",
           "unit_cell": "--",
-          "verdict": "not applicable",
-          "basis": "POINT row whose default cell declares layer fractions '(50%, 50%) of layer'; F-R51-1 states position is not affected (open question 1)"
+          "verdict": "fixed (9b9c8e58)",
+          "basis": "lead decision: in the class (unit read from the default cell is a guess); engine x, y back to authored rows ratio -1e3..1e3 soft 0..1 default 0.5 (63ecf5a6); row 44 stored and validated, drives nothing; units asked as SD-40"
         },
         {
           "site": "wave_world.rs WAVE_PRODUCER_MAPPINGS y <- row 44 Position component 1",
           "unit_cell": "--",
-          "verdict": "not applicable",
-          "basis": "as x"
+          "verdict": "fixed (9b9c8e58)",
+          "basis": "lead decision: in the class (unit read from the default cell is a guess); engine x, y back to authored rows ratio -1e3..1e3 soft 0..1 default 0.5 (63ecf5a6); row 44 stored and validated, drives nothing; units asked as SD-40"
         },
         {
           "site": "wave_world.rs WAVE_PRODUCER_MAPPINGS amplitude <- row 52 Amplitude",
@@ -172,7 +202,11 @@
           "basis": "declared unit degrees (ANGLE)"
         }
       ],
-      "already_authored_sd27_rows_checked": "wave_speed (row 30), damping (row 32), Foam viscosity (row 42) were not mapped at base and stay authored; now asserted by the same SD-27 test"
+      "already_authored_sd27_rows_checked": "wave_speed (row 30), damping (row 32), Foam viscosity (row 42) were not mapped at base and stay authored; now asserted by the same SD-27 test",
+      "fixed": 4,
+      "not_applicable": 3,
+      "count_check": "7 mapping entries at base: 5 fixed (preroll, x, y, amplitude, frequency), 2 not applicable (phase, wind_direction). By recovered row: 6 rows, 4 fixed (24, 44, 52, 54), 2 not applicable (56, 32)",
+      "note_on_count": "the lead message expected 7 sites = 4 fixed + 3 not applicable; neither count gives that: by mapping entry it is 5 + 2 = 7, by row 4 + 2 = 6. No third site with a declared unit exists in wave_world.rs or foam.rs (regex RecoveredMapping \\{ over both files at a7be22a1: 7 entries). Reported for the lead to reconcile; no site left unlisted"
     },
     "changed_assertions": [
       {
@@ -201,6 +235,30 @@
       },
       {
         "note": "tests/simulations_water.rs unchanged: its WAVE_PRODUCER_ROWS loop now also covers amplitude/frequency (studio_declared, default equal); the frequency 1000.5 refusal holds again via the authored row. Determinism and budget tests unchanged."
+      },
+      {
+        "test": "composite tests/simulations_records.rs::mapped_engine_scalars_take_the_recovered_bounds_and_defaults",
+        "old": "WAVE_WORLD_MAPPINGS == [(preroll, 24, 0, s)] and assert_mapping over it",
+        "new": "WAVE_WORLD_MAPPINGS is empty (loop runs over nothing)",
+        "clause": "SD-27 + lead decision (SD-40)"
+      },
+      {
+        "test": "same",
+        "old": "WAVE_PRODUCER_MAPPINGS == [x 44, y 44, phase 56] (this lane's first fix)",
+        "new": "WAVE_PRODUCER_MAPPINGS == [phase 56]",
+        "clause": "SD-27 + lead decision (SD-40)"
+      },
+      {
+        "test": "composite tests/simulations_records.rs::kinds_without_a_recovered_record_have_none",
+        "old": "recovered_mappings().is_empty() == !recovered (Wave world non-empty)",
+        "new": "recovered_mappings().is_empty() == (kind != Foam): Wave world has a recovered record but no record-level mapping",
+        "clause": "SD-27 + lead decision (SD-40)"
+      },
+      {
+        "test": "composite tests/simulations_records.rs::unitless_recovered_rows_stay_beside_their_studio_declared_engine_scalars",
+        "old": "SD-27 pairs wave_speed, damping, amplitude, frequency, viscosity; 'past the recovered hard_max accepted' required for every pair",
+        "new": "adds preroll (24, s 0..60 / 0..5 / 0), x and y (44, ratio -1e3..1e3 / 0..1 / 0.5); the past-recovered-bound check runs only where the recovered hard_max is narrower (preroll's equals the authored 60, position declares none); validate(): position past +-1e3 -> Err(x)/Err(y), preroll 60 Ok, 60.next_up Err(preroll)",
+        "clause": "SD-27 + lead decision (SD-40), STU-FX-146"
       }
     ],
     "new_tests": [
@@ -239,7 +297,8 @@
         "claim": "met (rows 52/54 unchanged)",
         "rows": {
           "AC-031": "wave_world_recovered_record_is_stored_row_for_row (row 52 seven fields, unit unitless) + unitless_recovered_rows_stay_beside_their_studio_declared_engine_scalars (stored, drives nothing)",
-          "AC-032": "same for row 54"
+          "AC-032": "same for row 54",
+          "AC-019/AC-029 (rows 24, 44)": "rows stay stored row for row (wave_world_recovered_record_is_stored_row_for_row) and drive nothing (SD-27 test)"
         }
       },
       "MT-34181": {
@@ -251,7 +310,7 @@
       }
     },
     "open_questions_for_spec_owner": [
-      "1: Wave world row 24 Pre-roll (seconds) and row 44 Position carry `--` unit cells; F-R51-1 reads them as declared by name/default and they stay mapped. If STU-FX-131a's unitless token applies to them strictly, they are the same class (SPEC GAP SD-27).",
+      "1 (answered by the lead 2026-11-01): rows 24 and 44 are in the SD-27 class; the lead records spec-owner item SD-40 asking for their units",
       "2: SD-27 engine scales (k and engine unit) for Wave Speed, Damping, Amplitude, Frequency and Foam Viscosity remain undeclared; this lane declares none."
     ],
     "unverified": [
@@ -260,6 +319,12 @@
     ],
     "shared_file": "tests/simulations_records.rs is also edited by SMB-FOLIO-ANGLE-UNBOUNDED-1 (ANGLE bound cells); rebase over it and keep both",
     "host_integration_check": "no new command, control, job, GPU, egui/eframe/winit/wgpu line, actor or observe emission; export keeps its context",
-    "no_cargo_toml_change": true
+    "no_cargo_toml_change": true,
+    "lead_decisions": [
+      "2026-11-01: preroll (row 24) and position x, y (row 44) are in the V4-06 class; unmapped (0d2489ef red, 9b9c8e58 green)",
+      "2026-11-01: amending the unpushed, non-compiling red commit 345da55d into 0914d7b4 inside the lane worktree is accepted (recorded in tests.red_evidence)",
+      "2026-11-01: the 1053 alpha-identifier append is accepted as in scope (needed to write a valid added channel)"
+    ],
+    "resource_1053": "in scope per lead decision: when the file has 1053, export normalises it to one identifier per existing extra plane and appends a fresh smallest unused non-zero identifier per added channel (0 would read as the merged transparency); absent stays absent; asserted in channel_saved_from_a_selection_exports_and_reimports_beside_the_imported_one (ids len 3, [0, 5, fresh non-zero]) and the colour-only case (stays absent)"
   }
 }
