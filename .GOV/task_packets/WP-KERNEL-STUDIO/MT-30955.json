@@ -17,15 +17,15 @@
     "spec_version": "v02.229"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "PASS_V1",
     "depends_on": [],
     "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING",
-    "phase": "blocked",
-    "updated_at_utc": "2026-10-09T19:13:15.152291+00:00",
-    "contract_preparation_only": true,
-    "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
+    "active": true,
+    "validator_verdict": "PASS_V1",
+    "phase": "validation",
+    "updated_at_utc": "2026-11-01T12:54:03Z",
+    "contract_preparation_only": false,
+    "blocked_on": null
   },
   "clause": "Feature-tag registry",
   "spec_anchor": [
@@ -5325,7 +5325,42 @@
     "current_dispatch_authorized": false
   },
   "submissions": [],
-  "verdicts": [],
+  "verdicts": [
+    {
+      "verdict_id": "MT-30955-STUDIO-R52-PASS-V1",
+      "mt_id": "MT-30955",
+      "verdict": "PASS_V1",
+      "decision": "passed",
+      "round": "STUDIO-R52",
+      "idempotency_key": "STUDIO-R52:MT-30955:99836457:V1",
+      "scope": "asset_local_engine_half",
+      "candidate_commit": "99836457865b25a1b9bd3cf86a6837564cb0f6c5",
+      "candidate_tree": "67e915ef0abc0505a320913d0d229739f6969181",
+      "kernel_base_commit": "00668431",
+      "kernel_record": "the gov_kernel commit that records validation/round-R52.json (ledger round_R52)",
+      "validator_role": "wp_validator",
+      "validator_session": "wp_validator STUDIO-R52",
+      "lane": "SMB-TYPE-SENTINELS-REGISTRY-1",
+      "lane_verdict": "PASS_V1",
+      "lane_idempotency_key": "STUDIO-R52:SMB-TYPE-SENTINELS-REGISTRY-1:99836457865b:PASS_V1",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R52",
+      "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+      "round_ref": ".GOV/docs_repo/wp-studio-module-work/validation/round-R52.json",
+      "started_at": "2026-11-01T10:44:56Z",
+      "completed_at": "2026-11-01T12:50:28Z",
+      "ac_coverage": "AC-001..AC-130 (130 of 130 acceptance rows)",
+      "evidence_basis": "validator_statement_met",
+      "evidence_ref": {
+        "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R52.json",
+        "json_path": "/mt_judgments/claims/SMB-TYPE-SENTINELS-REGISTRY-1/MT-30955",
+        "quote": "met: re-judged (R51 not met, F-R51-4). AC-001: 229 observed rows and any well-formed tag outside the registry stored and applied (mt_30955_observed_union_of_229_tags_is_proven_against_the_table, mt_30955_observed_union_of_229_tags no longer #[ignore], mt_30955_registry_holds_the_245_tag_table: xyz1/ss21/cv00 stored); AC-002: the 245-tag table, not closed; AC-003..AC-130: validator compared feature"
+      },
+      "prior_status": "PENDING",
+      "written_by": "wp_validator STUDIO-R52 (step 6)",
+      "written_at": "2026-11-01T12:54:03Z",
+      "note": "round validator status write from the validated lane verdict; engine/asset half only, later kernel/host acceptance stays PENDING"
+    }
+  ],
   "blockers": [],
   "preserved_original": {
     "schema_id": "hsk.preserved_microtask@1",
@@ -5808,9 +5843,15 @@
       "all_original_edges_explicitly_reconciled": true,
       "asset_vs_host_phase_separated": true,
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
+    },
+    "asset_validation": {
+      "status": "PASS_V1",
+      "scope": "asset_local_engine_half",
+      "verdict_ref": "MT-30955-STUDIO-R52-PASS-V1",
+      "round": "STUDIO-R52"
     }
   },
-  "updated_at_utc": "2026-11-01T03:39:53Z",
+  "updated_at_utc": "2026-11-01T12:54:03Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",

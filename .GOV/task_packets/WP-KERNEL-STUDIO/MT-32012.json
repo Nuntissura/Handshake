@@ -23,7 +23,7 @@
     "active": true,
     "validator_verdict": "PASS_V1",
     "phase": "validation",
-    "updated_at_utc": "2026-11-01T08:16:12Z",
+    "updated_at_utc": "2026-11-01T12:54:03Z",
     "contract_preparation_only": false,
     "blocked_on": null
   },
@@ -32303,6 +32303,40 @@
       "written_by": "wp_validator STUDIO-R51 (step 6)",
       "written_at": "2026-11-01T08:16:12Z",
       "note": "round validator status write from the validated lane verdict; engine/asset half only, later kernel/host acceptance stays PENDING"
+    },
+    {
+      "verdict_id": "MT-32012-STUDIO-R52-PASS-V1",
+      "mt_id": "MT-32012",
+      "verdict": "PASS_V1",
+      "decision": "passed",
+      "round": "STUDIO-R52",
+      "idempotency_key": "STUDIO-R52:MT-32012:99836457:V1",
+      "scope": "asset_local_engine_half",
+      "candidate_commit": "99836457865b25a1b9bd3cf86a6837564cb0f6c5",
+      "candidate_tree": "67e915ef0abc0505a320913d0d229739f6969181",
+      "kernel_base_commit": "00668431",
+      "kernel_record": "the gov_kernel commit that records validation/round-R52.json (ledger round_R52)",
+      "validator_role": "wp_validator",
+      "validator_session": "wp_validator STUDIO-R52",
+      "lane": "SMB-FOLIO-ANGLE-UNBOUNDED-1",
+      "lane_verdict": "PASS_V1",
+      "lane_idempotency_key": "STUDIO-R52:SMB-FOLIO-ANGLE-UNBOUNDED-1:99836457865b:PASS_V1",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R52",
+      "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+      "round_ref": ".GOV/docs_repo/wp-studio-module-work/validation/round-R52.json",
+      "started_at": "2026-11-01T10:44:56Z",
+      "completed_at": "2026-11-01T12:50:28Z",
+      "ac_coverage": "AC-001..AC-047 (47 of 47 acceptance rows)",
+      "evidence_basis": "validator_statement_met",
+      "evidence_ref": {
+        "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R52.json",
+        "json_path": "/mt_judgments/claims/SMB-FOLIO-ANGLE-UNBOUNDED-1/MT-32012",
+        "quote": "met: re-judged (R51 PASS_V1): AC-001..AC-047, the 47 Foam rows stored field by field; the three ANGLE rows (10, 28, 32) now transcribed -- x4 in the test and stored [None; 4] unbounded_in_source as the v02.229 table shows (foam_recovered_record_is_stored_row_for_row, recovered_angle_rows_store_multi_turn_and_negative_degrees_unchanged)"
+      },
+      "prior_status": "PASS_V1",
+      "written_by": "wp_validator STUDIO-R52 (step 6)",
+      "written_at": "2026-11-01T12:54:03Z",
+      "note": "round validator status write from the validated lane verdict; engine/asset half only, later kernel/host acceptance stays PENDING"
     }
   ],
   "blockers": [],
@@ -44208,11 +44242,11 @@
     "asset_validation": {
       "status": "PASS_V1",
       "scope": "asset_local_engine_half",
-      "verdict_ref": "MT-32012-STUDIO-R51-PASS-V1",
-      "round": "STUDIO-R51"
+      "verdict_ref": "MT-32012-STUDIO-R52-PASS-V1",
+      "round": "STUDIO-R52"
     }
   },
-  "updated_at_utc": "2026-11-01T08:16:12Z",
+  "updated_at_utc": "2026-11-01T12:54:03Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
