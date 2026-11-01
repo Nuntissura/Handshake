@@ -1,30 +1,30 @@
 {
   "crate": "hsk-studio-folio (recovered ANGLE parameters unbounded, SD-26), hsk-studio-composite (pinned bounds only)",
   "lane": "SMB-FOLIO-ANGLE-UNBOUNDED-1",
-  "status": null,
-  "phase": "build_done_waiting_release",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "ready",
   "worktree": "wt-studio-lanes/smb-folio-angle-unbounded-1",
   "base": "a7be22a1",
   "commits": [
     {
-      "sha": "a9302d55",
-      "slice": "red tests: folio catalogue sweep, Glow/Directional Blur old->new rows, multi-turn round trip, ceiling; composite Directional Blur evaluation, ANGLE table cells, Foam/Wave world angle store (compiles; 4 folio tests fail at this commit)",
-      "pushed": false
+      "sha": "f47bb6f3",
+      "slice": "red tests: folio catalogue sweep, Glow/Directional Blur old->new rows, multi-turn round trip, ceiling; composite Directional Blur evaluation, ANGLE table cells, Foam/Wave world angle store (compiles; 4 folio tests fail at this commit; pre-rebase a9302d55)",
+      "pushed": true
     },
     {
-      "sha": "86a8d61e",
-      "slice": "folio: Glow Color Phase and Directional Blur Direction unbounded_in_source (single angle row constructor); composite comments follow",
-      "pushed": false
+      "sha": "c3280682",
+      "slice": "folio: Glow Color Phase and Directional Blur Direction unbounded_in_source (single angle row constructor); composite comments follow (pre-rebase 86a8d61e)",
+      "pushed": true
     },
     {
-      "sha": "572ffef1",
-      "slice": "red test: composite Glow Color Phase default matched modulo 360, other phases stay typed refusals (compiles; fails at this commit)",
-      "pushed": false
+      "sha": "aeee48b8",
+      "slice": "red test: composite Glow Color Phase default matched modulo 360, other phases stay typed refusals (compiles; fails at this commit; pre-rebase 572ffef1)",
+      "pushed": true
     },
     {
-      "sha": "0f68176b",
-      "slice": "composite: Glow Color Phase compared with the default modulo 360 (typed refusal otherwise)",
-      "pushed": false
+      "sha": "8c7f257a",
+      "slice": "composite: Glow Color Phase compared with the default modulo 360, typed refusal otherwise (pre-rebase 0f68176b)",
+      "pushed": true
     }
   ],
   "capabilities_done": [
@@ -90,15 +90,34 @@
       "skipped": 0,
       "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-folio-angle-unbounded-1/bundle-0f68176b-run3.log",
       "scope": "clippy --tests over folio, package, composite (motion) and 22 direct dependents with no warning in lane files, then whole nextest suites: folio 153, package 37, composite (motion superset of default) 212",
-      "doctests": "none added or changed: not run"
+      "doctests": "none added or changed: not run",
+      "note": "pre-rebase run; superseded by bundled_run_rebased on the pushed tree"
+    },
+    "per_sha_rebased": {
+      "argv": "bash S/tools/lane-check.sh --owner smb-folio-angle-unbounded-1 --disk d --per-sha origin/codex/handshake-studio-assets",
+      "result": "PER_SHA_RESULT OK shas=4 range=cb887ea5..8c7f257a",
+      "exit": 0,
+      "sha": "8c7f257a2a4892fdf25eb4536cbe1e1bcbb3b87e",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-folio-angle-unbounded-1/persha-8c7f257a-rebased.log"
+    },
+    "bundled_run_rebased": {
+      "argv": "bash S/tools/lane-check.sh --owner smb-folio-angle-unbounded-1 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-package -p hsk-studio-composite --features hsk-studio-composite/motion --no-fail-fast",
+      "exit": 0,
+      "sha": "8c7f257a2a4892fdf25eb4536cbe1e1bcbb3b87e",
+      "passed": 402,
+      "failed": 0,
+      "skipped": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-folio-angle-unbounded-1/bundle-8c7f257a-rebased.log",
+      "why_rerun": "the rebase onto cb887ea5 (SMB-TYPE-SENTINELS-REGISTRY-1) changed hsk-studio-type, which hsk-studio-composite depends on directly (crates/hsk-studio-composite/Cargo.toml); folio and package do not depend on type",
+      "scope": "folio 153, package 37, composite (motion superset of default) 212"
     }
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "waiting for lead release after R51; then fetch, rebase onto origin/codex/handshake-studio-assets, lane-check --per-sha, diff-stat, guarded push, set READY_FOR_VALIDATION",
-  "updated_at": "2026-11-01T06:06:44Z",
+  "next": "validator: judge on pushed commit 8c7f257a; claims in mt_claims, spec gap in notes.glow_phase_case",
+  "updated_at": "2026-11-01T09:25:55Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -242,5 +261,11 @@
     ],
     "not_met": "the other 27 ANGLE-table MTs of the range (MT-31939, 31945, 31947, 31948, 31950, 31951, 31952, 31953, 31958, 31959, 31984, 31985, 31990, 31991, 31993, 31995, 31999, 32000, 32003, 32007, 32009, 32011, 32018, 32019, 32020, 32021, 32022): their effects have no Folio kind or recovered record in this product",
     "rule": "claims only; no MT file edited, no PASS claimed"
+  },
+  "push": {
+    "sha": "8c7f257a2a4892fdf25eb4536cbe1e1bcbb3b87e",
+    "pushed_at": "2026-11-01T09:25:55Z",
+    "diff_stat": "8 files, only lane paths (folio src/composition/effects.rs and tests/composition_effect_records.rs; composite src/simulations.rs, simulations/foam.rs, simulations/wave_world.rs, temporal/composition/effects.rs, tests/effect_families_2.rs, tests/simulations_records.rs)",
+    "origin_verified": "git fetch then origin/codex/handshake-studio-assets == 8c7f257a2a4892fdf25eb4536cbe1e1bcbb3b87e"
   }
 }
