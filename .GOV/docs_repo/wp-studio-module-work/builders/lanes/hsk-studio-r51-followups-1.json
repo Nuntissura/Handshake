@@ -1,0 +1,47 @@
+{
+  "crate": "hsk-studio-composite (unitless-row mappings per SD-27), hsk-studio-interop-psd (export a channel added in edit)",
+  "lane": "SMB-R51-FOLLOWUPS-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-r51-followups-1",
+  "base": "a7be22a1",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: read the brief, red-first per item, one bundled run on C:, push after SMB-FOLIO-ANGLE-UNBOUNDED-1 is on origin",
+  "updated_at": "2026-11-01T08:22:53Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "unchanged: export and the simulation keep their existing context; no new mutating command",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-01T08:22:53Z",
+    "disk": "C",
+    "closes": [
+      "F-R51-1 (MEDIUM)"
+    ],
+    "closes_candidates": [
+      "MT-038",
+      "MT-30095",
+      "MT-32013 / MT-34181 frequency and amplitude rows"
+    ],
+    "dispatch_reason": "STUDIO-R51 remediation: F-R51-1 and the MT-038/MT-30095 interchange gap (channel_added_in_edit_not_exported)"
+  }
+}

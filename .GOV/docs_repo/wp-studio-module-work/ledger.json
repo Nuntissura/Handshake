@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-01T06:04:03Z",
+ "updated_at": "2026-11-01T08:22:53Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -16038,6 +16038,25 @@
     "MT-30779",
     "MT-30846",
     "MT-173 / MT-174 persistence rows if any"
+   ]
+  },
+  {
+   "lane_id": "SMB-R51-FOLLOWUPS-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-composite (unitless-row mappings per SD-27), hsk-studio-interop-psd (export a channel added in edit)",
+   "lane_file": "builders/lanes/hsk-studio-r51-followups-1.json",
+   "brief": "builders/briefs/lane-smb-r51-followups-1.md",
+   "worktree": "wt-studio-lanes/smb-r51-followups-1",
+   "base": "a7be22a1",
+   "disk_planned": "C",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-01T08:22:53Z",
+   "closes": [
+    "F-R51-1",
+    "MT-038",
+    "MT-30095",
+    "MT-32013 / MT-34181 frequency and amplitude rows"
    ]
   }
  ],
