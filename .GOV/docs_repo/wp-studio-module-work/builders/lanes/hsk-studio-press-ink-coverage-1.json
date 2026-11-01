@@ -1,14 +1,13 @@
 {
   "crate": "hsk-studio-press-write (total ink coverage contract on the separations path)",
   "lane": "SMB-PRESS-INK-COVERAGE-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-press-ink-coverage-1",
   "base": "31454a07",
   "commits": [
     {
-      "sha": "73bfe5a8a8a46103bc724ba16697710dc8ca6fc6",
-      "pushed": false,
+      "pushed": true,
       "subject": "press-write (SMB-PRESS-INK-COVERAGE-1): total ink coverage contract STU-LAY-250..254",
       "paths": [
         "crates/hsk-studio-press-write/src/coverage.rs (new)",
@@ -18,7 +17,11 @@
         "crates/hsk-studio-press-write/tests/ink_coverage_contract.rs (new)",
         "crates/hsk-studio-press/src/lib.rs (re-exports + DESCRIPTOR separations.coverage entry)"
       ],
-      "note": "local only (base 31454a07); red-first commit 20fdf9bc did not compile without the contract and was squashed into this one per RED COMMITS"
+      "note": "rebased 73bfe5a8 -> 3b7a6976 onto fcc1c6d7; red-first commit 20fdf9bc did not compile without the contract and was squashed into this one per RED COMMITS",
+      "tested_sha": "73bfe5a8a8a46103bc724ba16697710dc8ca6fc6",
+      "sha": "3b7a69767dad15fc8bd8ef394083d8e8a140dd25",
+      "pushed_at": "2026-11-01T04:33:15Z",
+      "base_on_push": "fcc1c6d7 (origin tip with SMB-R50-FOLLOWUPS-1)"
     }
   ],
   "capabilities_done": [
@@ -37,18 +40,26 @@
       "failed": 0,
       "clippy": "press-write, press and dependents [harness, harness-core, harness-view, interop-fig, interop-fig-native, interop-layout] --tests: no warning in press-write or press",
       "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-press-ink-coverage-1/lane-check-smb-press-ink-coverage-1-73bfe5a8-run2.log",
-      "earlier_run": "run1 on 68fdb4f9 (same tree minus one const-assert lint fix): 214/214, exit 0"
+      "earlier_run": "run1 on 68fdb4f9 (same tree minus one const-assert lint fix): 214/214, exit 0",
+      "applies_to_pushed_sha": "yes: git diff 73bfe5a8 3b7a6976 over press-write, press, press-read, accord, observe, root Cargo.toml/Cargo.lock and .config is empty (0 lines); the rebase brought only composite, folio, harness, harness-core, interop-psd, nib, prism and type, none in the press dependency closure [accord, observe, press-read, press-write, press], so per the lead the bundled run was not repeated"
     },
     "doctests": "none added (no doc examples)",
     "feature_gates": "none: new test target is not feature-gated (4e)",
-    "per_sha": "not yet run: runs after the rebase at push time"
+    "per_sha": {
+      "argv": "bash tools/lane-check.sh --owner smb-press-ink-coverage-1 --disk d --per-sha origin/codex/handshake-studio-assets",
+      "range": "fcc1c6d7..3b7a6976",
+      "result": "PER_SHA_RESULT OK shas=1 (default unit + 21 round feature units incl. hsk-studio-harness+import-pdf and harness-view+viewer)",
+      "exit": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-press-ink-coverage-1/per-sha-smb-press-ink-coverage-1-3b7a6976.log"
+    },
+    "diff_stat": "origin/codex/handshake-studio-assets..HEAD before push: only the six lane paths (2305 insertions, 88 deletions)"
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "waiting for R50 followups push (SMB-R50-FOLLOWUPS-1 not on origin at 2026-11-01T03:45:57Z); then rebase, lane-check --per-sha, diff --stat, guarded push, READY_FOR_VALIDATION",
-  "updated_at": "2026-11-01T03:45:57Z",
+  "next": "validator: judge 3b7a6976 against MT-35425..35432 and MT-35695 ink-coverage rows; never claim PASS here",
+  "updated_at": "2026-11-01T04:33:15Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -82,7 +93,33 @@
     ],
     "dispatch_reason": "post-R50 wave slot after the five paused lanes resumed; engine lane (D6), gap verified by git grep at base (no TOC/index model, no trap-preset record; press-write ink-limit preview predates STU-LAY-250..254)",
     "spec_basis": "Master Spec v02.226 module 14: STU-LAY-250..254 (:7236-7392), STU-LAY-100, STU-LAY-154, STU-LAY-160, STU-LAY-166, STU-LAY-057",
-    "mt_claims_draft": {
+    "changed_preexisting_assertions": "none: no pre-existing test file changed. Behaviour notes: Severity (InkLimitSeverity) gained Disabled and Informational to be exactly the STU-LAY-154 vocabulary (Error/Warning names unchanged, id_prepress_separations unchanged and green); total_pt / check_ink_limits / InkLimit view now apply the ink_type total rule, identical to the plain sum when no ink is opaque or opaque_ignore (STU-LAY-252)",
+    "live_coverage_stages": "performed and attributable: stage.spot_to_process_conversion, stage.ink_alias_resolution, stage.overprint_composition, stage.authored_rich_black (incl. registration All), stage.opaque_ink_handling; not performed, never reported as introduced_by: stage.transparency_flattening, stage.placed_image_separation (pages with transparency painted opaque are indeterminate with cause transparency_not_flattened)",
+    "introduced_by_rule": "replay of the composition at the worst location (same 4x4 sampling and f32 compositing as the paint): the last object after which the measure rose past the threshold; overprint_composition if knocking out would have stayed at or below it; else its first paint stage in order spot-to-process, alias, rich black, opaque; else null (authored process values)",
+    "opaque_rule": "total = sum(obscuring tones) + (1 - top obscuring tone) x sum(other tones); no print sequence exists in the ink manager, so obscuring inks are taken to lie over the others. UNVERIFIED (D5); spec proposal below",
+    "host_follow_ups": [
+      "route InkCoverageFinding / InkCoverageReport::to_json to the model-steerable command surface (STU-LAY-057) with the other preflight findings (host / layout preflight engine)",
+      "observe emission: press-write has no hsk-studio-observe edge (Cargo.toml unchanged); the press face (has the edge) or the host must emit evaluation outcomes; host_integration.diagnostics.internal_diagnostics set to none accordingly",
+      "export-time evaluation hook: call evaluate_ink_coverage with the export recipe/output intent declarations of an output operation",
+      "stages stage.transparency_flattening and stage.placed_image_separation: follow-ups (lead decision); until then such pages are indeterminate"
+    ],
+    "host_integration_note": "internal_diagnostics changed producer_through_observe -> none: no observe edge in press-write; a new edge is steward-owned (not requested here)",
+    "scopes": "document, spread (pages sharing one spread id) and page evaluated; ink_limit_scope.object and .plate refused with ink_limit_scope_not_evaluated (no per-object or per-plate evaluation in this pipeline)",
+    "bounds": "MAX_COVERAGE_PAGES 4096, MAX_INDETERMINATE_CAUSES 4096, MAX_COVERAGE_SAMPLES 2^30, MAX_COVERAGE_OBJECT_REFS 256, rule/page ids 256 B, object refs 1024 B; object and clip records charged to SepLimits::max_bytes before plates change; SepLimits and SepError unchanged",
+    "design_choices_to_review": [
+      "severity inside the warning margin: error -> warning -> informational (informational stays); spec says only \"a lower severity\"",
+      "severity.disabled rule -> not_checked with no finding",
+      "indeterminate wins over over_limit when a cause exists (metrics still reported)",
+      "check_ink_limits kept as the STU-LAY-160 preview view (its API is pinned by hsk-studio-harness tests/viewer_ai_type_path_recolor.rs, outside owned paths); the contract shares its planes, total rule and epsilon"
+    ],
+    "spec_proposals": [
+      "STU-LAY-252: state how opaque/opaque-ignore contribution is computed (print sequence? solidity?) - the clause requires it but gives no formula",
+      "STU-LAY-250: name the lower-severity mapping for the warning margin",
+      "STU-LAY-251: define ink_limit_scope.object and .plate evaluation semantics"
+    ],
+    "mt_proposals": "MT-35425..35432 proof checks plan hsk-studio-layout targets; the owned implementation is hsk-studio-press-write tests/ink_coverage_contract.rs (proposal only, MT not edited)",
+    "parity": "vendor parity UNVERIFIED (D5)",
+    "mt_claims": {
       "MT-35425": {
         "AC-001": "met: effective_limit_is_first_declared_site_and_records_its_source + finding_carries_thirteen_fields_and_serialises_as_data",
         "AC-002": "met: total_ink_hard_max_scales_with_ink_count_never_clamped_to_400",
@@ -128,31 +165,23 @@
         "AC-005 (ink-coverage part of Separations preview)": "partly met: ink-limit view kept, contract evaluation readable as typed values; other rows (PDF/X, overprint, trap, flattener, GUI) not claimed"
       }
     },
-    "changed_preexisting_assertions": "none: no pre-existing test file changed. Behaviour notes: Severity (InkLimitSeverity) gained Disabled and Informational to be exactly the STU-LAY-154 vocabulary (Error/Warning names unchanged, id_prepress_separations unchanged and green); total_pt / check_ink_limits / InkLimit view now apply the ink_type total rule, identical to the plain sum when no ink is opaque or opaque_ignore (STU-LAY-252)",
-    "live_coverage_stages": "performed and attributable: stage.spot_to_process_conversion, stage.ink_alias_resolution, stage.overprint_composition, stage.authored_rich_black (incl. registration All), stage.opaque_ink_handling; not performed, never reported as introduced_by: stage.transparency_flattening, stage.placed_image_separation (pages with transparency painted opaque are indeterminate with cause transparency_not_flattened)",
-    "introduced_by_rule": "replay of the composition at the worst location (same 4x4 sampling and f32 compositing as the paint): the last object after which the measure rose past the threshold; overprint_composition if knocking out would have stayed at or below it; else its first paint stage in order spot-to-process, alias, rich black, opaque; else null (authored process values)",
-    "opaque_rule": "total = sum(obscuring tones) + (1 - top obscuring tone) x sum(other tones); no print sequence exists in the ink manager, so obscuring inks are taken to lie over the others. UNVERIFIED (D5); spec proposal below",
-    "host_follow_ups": [
-      "route InkCoverageFinding / InkCoverageReport::to_json to the model-steerable command surface (STU-LAY-057) with the other preflight findings (host / layout preflight engine)",
-      "observe emission: press-write has no hsk-studio-observe edge (Cargo.toml unchanged); the press face (has the edge) or the host must emit evaluation outcomes; host_integration.diagnostics.internal_diagnostics set to none accordingly",
-      "export-time evaluation hook: call evaluate_ink_coverage with the export recipe/output intent declarations of an output operation"
-    ],
-    "host_integration_note": "internal_diagnostics changed producer_through_observe -> none: no observe edge in press-write; a new edge is steward-owned (not requested here)",
-    "scopes": "document, spread (pages sharing one spread id) and page evaluated; ink_limit_scope.object and .plate refused with ink_limit_scope_not_evaluated (no per-object or per-plate evaluation in this pipeline)",
-    "bounds": "MAX_COVERAGE_PAGES 4096, MAX_INDETERMINATE_CAUSES 4096, MAX_COVERAGE_SAMPLES 2^30, MAX_COVERAGE_OBJECT_REFS 256, rule/page ids 256 B, object refs 1024 B; object and clip records charged to SepLimits::max_bytes before plates change; SepLimits and SepError unchanged",
-    "design_choices_to_review": [
-      "severity inside the warning margin: error -> warning -> informational (informational stays); spec says only \"a lower severity\"",
-      "severity.disabled rule -> not_checked with no finding",
-      "indeterminate wins over over_limit when a cause exists (metrics still reported)",
-      "check_ink_limits kept as the STU-LAY-160 preview view (its API is pinned by hsk-studio-harness tests/viewer_ai_type_path_recolor.rs, outside owned paths); the contract shares its planes, total rule and epsilon",
-      "crates/hsk-studio-press/src/lib.rs touched for re-exports and the DESCRIPTOR text (brief: lib.rs exports and DESCRIPTOR text; DESCRIPTOR lives in the press face)"
-    ],
-    "spec_proposals": [
-      "STU-LAY-252: state how opaque/opaque-ignore contribution is computed (print sequence? solidity?) - the clause requires it but gives no formula",
-      "STU-LAY-250: name the lower-severity mapping for the warning margin",
-      "STU-LAY-251: define ink_limit_scope.object and .plate evaluation semantics"
-    ],
-    "mt_proposals": "MT-35425..35432 proof checks plan hsk-studio-layout targets; the owned implementation is hsk-studio-press-write tests/ink_coverage_contract.rs (proposal only, MT not edited)",
-    "parity": "vendor parity UNVERIFIED (D5)"
-  }
+    "test_file": "crates/hsk-studio-press-write/tests/ink_coverage_contract.rs (15 tests)",
+    "lead_decisions_2026-11-01T04:33:15Z": [
+      "crates/hsk-studio-press/src/lib.rs edit (re-exports, DESCRIPTOR) accepted as in scope: the DESCRIPTOR lives in the press face",
+      "internal_diagnostics none accepted as a recorded gap: press-write has no observe edge; the edge is a steward ledger item and the validator judges HOST INTEGRATION rule 5 with this note",
+      "opaque-ink total rule stays UNVERIFIED (D5)",
+      "transparency flattening and placed-image separation stages are follow-ups"
+    ]
+  },
+  "claimed_mts": [
+    "MT-35425",
+    "MT-35426",
+    "MT-35427",
+    "MT-35428",
+    "MT-35429",
+    "MT-35430",
+    "MT-35431",
+    "MT-35432",
+    "MT-35695 (ink-coverage rows only)"
+  ]
 }
