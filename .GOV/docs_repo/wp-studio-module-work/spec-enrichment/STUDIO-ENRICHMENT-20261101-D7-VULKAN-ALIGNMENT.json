@@ -1,0 +1,3062 @@
+{
+ "schema": "hsk.studio_spec_enrichment_delta@1",
+ "delta_id": "STUDIO-ENRICHMENT-20261101-D7-VULKAN-ALIGNMENT",
+ "status": "APPLIED v02.227 2026-11-01T03:05:52Z: Master Spec v02.227 activated (bundle .GOV/spec/master-spec-v02.227; v02.226 archived byte-identically at .GOV/spec/spec_archive/master-spec-v02.226).",
+ "purpose": "Align every Master Spec line that names wgpu, WGSL, Naga, egui or eframe to Operator decisions D7 (pure Vulkan, no wgpu) and D1 (drop egui), using the vocabulary of spec module 15 (Vulkan-backed native GUI, central GPU owner). Lines that are prohibitions, history or non-normative third-party facts are kept; contracts that cannot be derived from D7/D1 plus module 15 are kept and listed as open items.",
+ "base_spec": ".GOV/spec/master-spec-v02.226",
+ "result_spec": ".GOV/spec/master-spec-v02.227",
+ "approval_ref": "Operator chat 2026-11-01: \"let an agent refactor the 108 lines, then doe the spec's round trip and resolve issues with your agents.\"",
+ "decisions_covered": [
+  "D7 decided 2026-10-31T23:54:56Z (Operator): 'i want pure vulkan, no wgpu, i think this is also the direction we are going for wp kernel'",
+  "D1 decided 2026-10-30 (Operator): 'Drop egui' (no egui or eframe GUI anywhere in the product)"
+ ],
+ "decision_sources": [
+  ".GOV/docs_repo/wp-studio-module-work/research/integration-refactor-inventory-20261030.json#/decisions_for_operator",
+  ".GOV/docs_repo/wp-studio-module-work/ledger.json#/direction/d7"
+ ],
+ "apply_rules": "Enumeration: case-insensitive grep wgpu|egui|eframe|egui-wgpu|wgsl|naga over v02.226 spec-modules. Classes: a = prescribes/assumes wgpu/WGSL/egui/eframe, rewritten to Vulkan through the central GPU owner of module 15 (generic 'Vulkan shader module' wording where no representation is named); a-open = class a kept unchanged because rewriting would invent syntax/types/quantities (covered by [TAI-VK-003] and listed in open_items_for_spec_owner); b = prohibition/quarantine/supersession consistent with D7/D1; c = history; d = true non-normative third-party/provenance fact; fp = substring of an unrelated word (wireframe, reframe, timeframe, Devanagari, manageguides...). No id renumbered or deleted; TECH-WGPU/TECH-WGSL retired with pointers; new ids only where the 13.0 override and registry conventions need them. Module 14 unchanged. No WP-KERNEL-012 file opened.",
+ "enumeration": {
+  "raw_grep_lines_total": 273,
+  "true_reference_lines_total": 228,
+  "raw_lines_by_module": {
+   "00": 1,
+   "01": 1,
+   "02": 2,
+   "10": 4,
+   "11": 1,
+   "12": 60,
+   "13": 169,
+   "14": 35,
+   "15": 0
+  },
+  "true_reference_lines_by_module": {
+   "00": 1,
+   "01": 1,
+   "02": 0,
+   "10": 1,
+   "11": 0,
+   "12": 60,
+   "13": 161,
+   "14": 4,
+   "15": 0
+  },
+  "note": "The lead's v02.226 counts (00:1, 01:1, 02:2, 10:4, 11:1, 12:30, 13:88) differ: 02 and 11 hold only false positives (wireframes, reframed); 10 has 1 true line of 4; module 12 has 60 true lines (30 TECH-WGSL + 30 TECH-WGPU); module 13 has 161 true lines; module 14 has 4 true lines (31 false positives). GUI-DESKTOP-003 (module 15) has no token but was named by the lead and is edited.",
+  "edit_records_by_module": {
+   "00": 1,
+   "01": 1,
+   "02": 0,
+   "10": 1,
+   "11": 0,
+   "12": 30,
+   "13": 126,
+   "14": 0,
+   "15": 1
+  },
+  "remaining_matches_by_module_and_class": {
+   "00": {},
+   "01": {},
+   "02": {
+    "fp": 2
+   },
+   "10": {
+    "fp": 3
+   },
+   "11": {
+    "fp": 1
+   },
+   "12": {
+    "b": 6
+   },
+   "13": {
+    "b": 12,
+    "d": 3,
+    "a-open": 26,
+    "fp": 9
+   },
+   "14": {
+    "b": 4,
+    "fp": 31
+   },
+   "15": {
+    "b": 1
+   }
+  }
+ },
+ "new_ids": [
+  "13.0A (section)",
+  "TAI-VK-001",
+  "TAI-VK-002",
+  "TAI-VK-003",
+  "TECH-VULKAN"
+ ],
+ "retired_or_superseded_ids": [
+  "TECH-WGPU (retired; superseded by TECH-VULKAN)",
+  "TECH-WGSL (retired; superseded by Vulkan shader modules via TECH-VULKAN; shader source language not named)"
+ ],
+ "wp_kernel_012": "WP-KERNEL-012 divergence: the current spec (v02.227) now diverges from WP-KERNEL-012's recorded implementation path (kernel 1ee71110, phase02 successor handoff v8: handshake-native's Vulkan backend reached through eframe/egui-wgpu; Kumihimo native mount keeps eframe/egui-wgpu patches). Aligning WP-KERNEL-012's in-flight work is a decision for WP-KERNEL-012's owner and the Operator. WP-KERNEL-012's pinned acceptance is unchanged. Codex HSK-START-009 and CX-MODULE-LIFECYCLE preserve in-flight WP pins; no WP-KERNEL-012 file was opened or edited.",
+ "open_items_for_spec_owner": [
+  {
+   "id": "D7A-01",
+   "module": "13",
+   "anchors": [
+    "ARCH-001",
+    "ARCH-004",
+    "ARCH-011",
+    "13.3 <N>.<i>.2",
+    "TAI-VK-003",
+    "TECH-VULKAN"
+   ],
+   "item": "Vulkan binding crate and version pin that replace the removed `wgpu = \"29\"` pins (ARCH-011, 13.3.2 Cargo.toml) and 'wgpu v29' (ARCH-001).",
+   "reason": "D7 names no binding crate (ash, vulkano or other); the lead records it as open for the GPU owner (MT-203), to be aligned with WP-KERNEL-012. Written as a TOML comment placeholder, not invented."
+  },
+  {
+   "id": "D7A-02",
+   "module": "13",
+   "anchors": [
+    "ARCH-010",
+    "ARCH-012",
+    "13.3 <N>.<i>.8.2",
+    "TECH-WGSL"
+   ],
+   "item": "Shader source language and build tool that replace WGSL, `wgsl_to_wgpu 0.15` and `wgpu::include_wgsl!`. The obligations (build-time validation, generated typed Rust binding structs, embedded shaders, no runtime shader loading) are kept generically.",
+   "reason": "Neither module 15 nor any other module names a shader representation; Vulkan consumes SPIR-V shader modules but the source language and tool are a design choice."
+  },
+  {
+   "id": "D7A-03",
+   "module": "13",
+   "anchors": [
+    "COL-CAPSULE-003 canonical binding layout (collision_body)",
+    "COL-BUST-001 sphere-correction sketch",
+    "13.9 grain-rotation fragment shader excerpt (pbr_cloth)",
+    "13.9 UV-atlas vertex shader excerpt (pbr_cloth)",
+    "R-ANIM-023 GpuSimParams wind fields",
+    "13.12 12.3.2 ClothViewport struct contract (wgpu field types)",
+    "13.12 12.3.3 debug_constraints fragment shader",
+    "13.12 12.3.4 capture_frame readback pattern (wgpu API)"
+   ],
+   "item": "Translate the code samples still in WGSL notation or written against the wgpu API into the chosen Vulkan shader language/binding API. Until then [TAI-VK-003] declares them legacy notation whose binding numbers, struct fields, orders, sizes and pass/dispatch rules stay normative.",
+   "reason": "Translation needs the D7A-01/D7A-02 choices; rewriting them now would invent syntax and types.",
+   "lines_at_new": {
+    "COL-CAPSULE-003 canonical binding layout (collision_body)": [
+     2004,
+     2005
+    ],
+    "COL-BUST-001 sphere-correction sketch": [
+     2189
+    ],
+    "13.9 grain-rotation fragment shader excerpt (pbr_cloth)": [
+     5401,
+     5402
+    ],
+    "13.9 UV-atlas vertex shader excerpt (pbr_cloth)": [
+     5567,
+     5568
+    ],
+    "R-ANIM-023 GpuSimParams wind fields": [
+     6546
+    ],
+    "13.12 12.3.2 ClothViewport struct contract (wgpu field types)": [
+     7723,
+     7724,
+     7725,
+     7726,
+     7727,
+     7728,
+     7729,
+     7730,
+     7731
+    ],
+    "13.12 12.3.3 debug_constraints fragment shader": [
+     7762,
+     7763
+    ],
+    "13.12 12.3.4 capture_frame readback pattern (wgpu API)": [
+     7787,
+     7789,
+     7797,
+     7799,
+     7805,
+     7813,
+     7814
+    ]
+   },
+   "lines_at_base": {
+    "COL-CAPSULE-003 canonical binding layout (collision_body)": [
+     1980,
+     1981
+    ],
+    "COL-BUST-001 sphere-correction sketch": [
+     2165
+    ],
+    "13.9 grain-rotation fragment shader excerpt (pbr_cloth)": [
+     5377,
+     5378
+    ],
+    "13.9 UV-atlas vertex shader excerpt (pbr_cloth)": [
+     5543,
+     5544
+    ],
+    "R-ANIM-023 GpuSimParams wind fields": [
+     6522
+    ],
+    "13.12 12.3.2 ClothViewport struct contract (wgpu field types)": [
+     7699,
+     7700,
+     7701,
+     7702,
+     7703,
+     7704,
+     7705,
+     7706,
+     7707
+    ],
+    "13.12 12.3.3 debug_constraints fragment shader": [
+     7738,
+     7739
+    ],
+    "13.12 12.3.4 capture_frame readback pattern (wgpu API)": [
+     7763,
+     7765,
+     7773,
+     7775,
+     7781,
+     7789,
+     7790
+    ]
+   }
+  },
+  {
+   "id": "D7A-04",
+   "module": "13",
+   "anchors": [
+    "13.3 <N>.<i>.8.1",
+    "13.3 <N>.<i>.7"
+   ],
+   "item": "macOS GPU coverage: D7 withdrew the Metal (and DX12) backend; 13.3.8.1 now says macOS coverage is undecided. Related untouched non-matching text still names backends: 13.3.7 'given the same GPU backend (Vulkan, Metal, or DX12)' and the 'WASM/WebGPU secondary target' sentence.",
+   "reason": "Whether macOS is covered through a Vulkan portability layer, dropped, or CPU-only is not derivable from D7 or module 15 (GUI-DESKTOP-026 only requires limitations to stay explicit)."
+  },
+  {
+   "id": "D7A-05",
+   "module": "13",
+   "anchors": [
+    "13.3 <N>.<i>.8.1"
+   ],
+   "item": "'The GPU adapter MUST be requested with `PowerPreference::HighPerformance`' is a wgpu API term (not a grep match, left unchanged). Under GUI-DESKTOP-027/028 adapter selection belongs to the central GPU owner.",
+   "reason": "Rewriting changes who selects the adapter; not decided."
+  },
+  {
+   "id": "D7A-06",
+   "module": "13",
+   "anchors": [
+    "13.3 <N>.<i>.10"
+   ],
+   "item": "`ClothSolverError::DeviceError` payload type (was `wgpu::Error`); written generically as carrying the Vulkan device error reported through the central GPU owner.",
+   "reason": "Depends on D7A-01 and on the owner's typed error contract (GUI-DESKTOP-023/047)."
+  },
+  {
+   "id": "D7A-07",
+   "module": "13",
+   "anchors": [
+    "TAI-PHY-002"
+   ],
+   "item": "'error scopes' (a wgpu construct) replaced by 'device-error reporting of the central GPU owner (15.5)'; confirm the intended Vulkan-side contract.",
+   "reason": "No canonical Vulkan-side name in module 15."
+  },
+  {
+   "id": "D7A-08",
+   "module": "13",
+   "anchors": [
+    "COL-KERNEL-001"
+   ],
+   "item": "COL-KERNEL-001 keeps `AdapterIsolationTier::Process` + `SandboxCapability::Device` but now forbids an independently owned device (GUI-DESKTOP-025). How a separate-process sandbox reaches the central GPU owner is not specified.",
+   "reason": "Module 15 forbids independent devices; the cross-process client mechanism is not defined anywhere in the spec."
+  },
+  {
+   "id": "D7A-09",
+   "module": "13",
+   "anchors": [
+    "13.12 12.3.3"
+   ],
+   "item": "'Geometry shaders MUST NOT be used' is kept; its former rationale ('wgpu/WGSL does not expose them') no longer holds under Vulkan, where geometry shaders are an optional device feature.",
+   "reason": "Keeping or lifting the prohibition changes a contract; not derivable from D7."
+  },
+  {
+   "id": "D7A-10",
+   "module": "13",
+   "anchors": [
+    "13.3 <N>.<i>.8.4"
+   ],
+   "item": "Added 'with explicit pipeline barriers between dependent passes' to the single-command-buffer substep rule: wgpu inserted these implicitly; Vulkan requires them for the stated ordering guarantee. Confirm wording.",
+   "reason": "Correctness note derived from Vulkan semantics, not from module 15."
+  },
+  {
+   "id": "D7A-11",
+   "module": "13",
+   "anchors": [
+    "ARCH-004",
+    "ARCH-011",
+    "13.3 <N>.<i>.2",
+    "13.3 <N>.<i>.8.3"
+   ],
+   "item": "`encase` (a WGSL memory-layout helper crate) stays in the dependency lists and in 8.3; its fit for Vulkan std430 layouts is unverified.",
+   "reason": "Not a grep match; dependency choice not derivable from D7."
+  },
+  {
+   "id": "D7A-12",
+   "module": "13",
+   "anchors": [
+    "13.12 12.2",
+    "ARCH-010",
+    "ARCH-011",
+    "13.3 <N>.<i>.2"
+   ],
+   "item": "The throwaway Bevy testbed (13.12 12.2; ARCH-010 examples/bevy_testbed.rs; ARCH-011 bevy dev-dependency) renders through Bevy's wgpu-based renderer, and 12.2.3 names wgpu API calls (`copy_texture_to_buffer`, `BufferUsages::MAP_READ`, `PollType::Wait`). The egui-wgpu debug panel was made toolkit-neutral (D1); the Bevy/wgpu dependency was left.",
+   "reason": "The testbed is dev-only and never ships; whether D7 'no wgpu' reaches dev-only tooling is for the spec owner. [TAI-VK-002] scopes the prohibition to Tailor product crates."
+  },
+  {
+   "id": "D7A-13",
+   "module": "13",
+   "anchors": [
+    "COL-BODY-002"
+   ],
+   "item": "'max 32 capsules and max 16 spheres ... to fit a single WGSL bind group' now reads 'a single Vulkan descriptor set'; the quantities are unchanged; confirm the rationale still motivates these bounds.",
+   "reason": "Quantities kept per scope rule 4."
+  },
+  {
+   "id": "D7A-14",
+   "module": "13",
+   "anchors": [
+    "GAR-LAYOUT-002"
+   ],
+   "item": "Layout comment 'WgpuClothSolver implementing ClothSolver' now names the canonical ARCH-005 type `ClothSolverGpu`; confirm (the same block also uses the non-canonical `CpuClothSolver`).",
+   "reason": "Type name embedded wgpu."
+  },
+  {
+   "id": "D7A-15",
+   "module": "13",
+   "anchors": [
+    "13.1 2.1"
+   ],
+   "item": "Topic id `T-WGSL-SHADERS` (a research-package topic id) kept for anchor continuity although it names WGSL.",
+   "reason": "Ids are never renamed."
+  },
+  {
+   "id": "D7A-16",
+   "module": "01",
+   "anchors": [
+    "1.1.3"
+   ],
+   "item": "1.1.3 Frontend row keeps 'toolkit decided by WP-KERNEL-011 spike'; what that spike decided was NOT_INSPECTED and may name egui.",
+   "reason": "Outside the files this agent may open for the decision."
+  },
+  {
+   "id": "D7A-17",
+   "module": "multiple",
+   "anchors": [
+    "WP-KERNEL-012"
+   ],
+   "item": "WP-KERNEL-012 divergence: the current spec (v02.227) now diverges from WP-KERNEL-012's recorded implementation path (kernel 1ee71110, phase02 successor handoff v8: handshake-native's Vulkan backend reached through eframe/egui-wgpu; Kumihimo native mount keeps eframe/egui-wgpu patches). Aligning WP-KERNEL-012's in-flight work is a decision for WP-KERNEL-012's owner and the Operator. WP-KERNEL-012's pinned acceptance is unchanged.",
+   "reason": "Codex HSK-START-009 and CX-MODULE-LIFECYCLE preserve in-flight WP pins; no WP-KERNEL-012 file was opened or edited."
+  }
+ ],
+ "edits": [
+  {
+   "module": "00",
+   "line_at_base": 308,
+   "base_line_count": 1,
+   "anchor": "Table of Contents",
+   "class": "a",
+   "old": "  - [13.3 XPBD Solver Core (WGSL/wgpu)](#133-xpbd-solver-core-wgsl-wgpu)",
+   "new": "  - [13.3 XPBD Solver Core (Vulkan)](#133-xpbd-solver-core-vulkan)",
+   "remaining_match_class": null,
+   "note": "TOC entry follows the renamed 13.3 heading; section number 13.3 unchanged"
+  },
+  {
+   "module": "01",
+   "line_at_base": 77,
+   "base_line_count": 1,
+   "anchor": "1.1.3 Key Architecture Decisions (From Research)",
+   "class": "a",
+   "old": "| Frontend | **Native Rust GUI** (egui/GPUI-class; toolkit decided by WP-KERNEL-011 spike) | handmade primitives, model-steerable via AccessKit; supersedes React + TypeScript [§0A CX-004/005-VIS] |",
+   "new": "| Frontend | **Native Rust GUI** (GPUI-class; renders through the Vulkan-backed path and central GPU owner of section 15; toolkit decided by WP-KERNEL-011 spike) | handmade primitives, model-steerable via AccessKit; supersedes React + TypeScript [§0A CX-004/005-VIS] |",
+   "remaining_match_class": null,
+   "note": "D1 drops egui; module 15 names the Vulkan-backed native GUI"
+  },
+  {
+   "module": "10",
+   "line_at_base": 8010,
+   "base_line_count": 1,
+   "anchor": "10.12.5 Three-tier diagnostic model (Flight Recorder + internal_diagnostics + Palmistry) [ADD v02.196]",
+   "class": "a",
+   "old": "- **internal_diagnostics** (Section 5.8) -- the Handshake-native, in-process self-diagnostics tool inside the native egui app (heartbeat, frame-time, resource counters, panic record, open diagnostic-event API).",
+   "new": "- **internal_diagnostics** (Section 5.8) -- the Handshake-native, in-process self-diagnostics tool inside the native desktop app (section 15) (heartbeat, frame-time, resource counters, panic record, open diagnostic-event API).",
+   "remaining_match_class": null,
+   "note": "same toolkit-neutral wording as the v02.226 5.8 change"
+  },
+  {
+   "module": "15",
+   "line_at_base": 26,
+   "base_line_count": 1,
+   "anchor": "GUI-DESKTOP-003",
+   "class": "a",
+   "old": "[GUI-DESKTOP-003] Implementation MUST inspect and reuse or extend the actual canonical component owner before introducing a replacement, near-duplicate mechanic, renderer framework or new asset. A supported existing pinned toolkit/backend is sufficient when it fulfills this topic.",
+   "new": "[GUI-DESKTOP-003] Implementation MUST inspect and reuse or extend the actual canonical component owner before introducing a replacement, near-duplicate mechanic, renderer framework or new asset. A supported existing pinned toolkit/backend is sufficient when it fulfills this topic; under Operator decisions D7 (pure Vulkan, no wgpu) and D1 (no egui) a toolkit or backend built on wgpu, egui or eframe does not fulfil it (v02.227).",
+   "remaining_match_class": "b",
+   "note": "not a grep match at v02.226; named by the lead (GUI-DESKTOP-003). D1 record: egui had been read as permitted by this sentence"
+  },
+  {
+   "module": "12",
+   "line_at_base": 1619,
+   "base_line_count": 2,
+   "anchor": "FEAT-TAILOR-CLOTH",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 1665,
+   "base_line_count": 2,
+   "anchor": "FEAT-TAILOR-BODYKIT",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 1695,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-RASTER",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 1721,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-VECTOR",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 1747,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-LAYOUT",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 1770,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-TYPOGRAPHY",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 1794,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-COLOR",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 1819,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-EFFECTS",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 1847,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-DESIGN-SYSTEM",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 1871,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-PROTOTYPE",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 1895,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-RAW",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 1918,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-INTEROP",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 1941,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-AUTOMATION",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 1964,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-WHITEBOARD",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 7156,
+   "base_line_count": 1,
+   "anchor": "TECH-WGPU",
+   "class": "a",
+   "old": "      \"notes\": \"[ADD v02.198] GPU compute/render abstraction for the tailor-solver and native viewport.\"",
+   "new": "      \"notes\": \"[ADD v02.198] GPU compute/render abstraction for the tailor-solver and native viewport. [RETIRED v02.227] Retired by Operator decision D7 (2026-10-31: 'pure vulkan, no wgpu'); kept for id continuity only and MUST NOT authorize implementation. Superseded by TECH-VULKAN (section 15.4-15.5).\"",
+   "remaining_match_class": "b",
+   "note": "row whose whole subject is wgpu: retired with pointer"
+  },
+  {
+   "module": "12",
+   "line_at_base": 7161,
+   "base_line_count": 2,
+   "anchor": "TECH-WGSL",
+   "class": "a",
+   "old": "      \"notes\": \"[ADD v02.198] Compute shader language for XPBD solver passes.\"\n    }",
+   "new": "      \"notes\": \"[ADD v02.198] Compute shader language for XPBD solver passes. [RETIRED v02.227] Retired by Operator decision D7 (2026-10-31: 'pure vulkan, no wgpu'); kept for id continuity only and MUST NOT authorize implementation. Superseded by Vulkan shader modules executed through TECH-VULKAN; the spec names no shader source language (open item).\"\n    },\n    {\n      \"technology_id\": \"TECH-VULKAN\",\n      \"title\": \"Vulkan\",\n      \"notes\": \"[ADD v02.227] Vulkan API for the native desktop GUI and all GPU work through the centralized GPU owner (section 15.4-15.5; Operator decision D7, pure Vulkan). The spec names no binding crate or shader source language.\"\n    }",
+   "remaining_match_class": "b",
+   "note": "TECH-WGSL retired with pointer; TECH-VULKAN added as the replacement row the registry needs for the supersession pointer and feature tech assignments"
+  },
+  {
+   "module": "12",
+   "line_at_base": 9074,
+   "base_line_count": 2,
+   "anchor": "FEAT-TAILOR-CLOTH",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 9121,
+   "base_line_count": 2,
+   "anchor": "FEAT-TAILOR-BODYKIT",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 9151,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-RASTER",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 9175,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-VECTOR",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 9199,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-LAYOUT",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 9220,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-TYPOGRAPHY",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 9242,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-COLOR",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 9265,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-EFFECTS",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 9291,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-DESIGN-SYSTEM",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 9313,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-PROTOTYPE",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 9335,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-RAW",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 9356,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-INTEROP",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 9377,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-AUTOMATION",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "12",
+   "line_at_base": 9398,
+   "base_line_count": 2,
+   "anchor": "FEAT-STUDIO-WHITEBOARD",
+   "class": "a",
+   "old": "        \"TECH-WGSL\",\n        \"TECH-WGPU\",",
+   "new": "        \"TECH-VULKAN\",",
+   "remaining_match_class": null,
+   "note": "feature technology assignment moved from retired TECH-WGSL/TECH-WGPU to TECH-VULKAN"
+  },
+  {
+   "module": "13",
+   "line_at_base": 21,
+   "base_line_count": 1,
+   "anchor": "13. Tailor -- Cloth & BodyKit Creative Module [TAI-SECTION-001]",
+   "class": "a",
+   "old": "Tailor attaches to the kernel like the atelier module: a `handshake_core::tailor` domain module bound to Handshake-managed SurrealDB/EventLedger authority, CRDT collaboration, the sandbox->validation->promotion lifecycle, canonical kernel actions, and model lanes, plus a standalone UI-agnostic `tailor-solver` Rust crate reached only through typed solver traits. The solver owns three deliberately distinct lanes: a deterministic CPU-f64 reference oracle, a wgpu interactive XPBD lane, and a CPU-f64 final-quality nonlinear lane with finite-thickness contact. This section is product LAW. The canonical authority for every Cloth type, field, unit, event, schema-id, table, migration, validation check, and promotion-equivalence rule is sub-section 13.14 as extended by 13.28-13.36 and the v02.204 authority override below; where earlier text conflicts with the v02.204 authority override, the override wins. BodyKit canonical contracts live in 13.16 and are likewise extended by 13.28-13.36 without forking shared authority. The research packages `.GOV/reference/cloth_engine_research/` and `.GOV/reference/tailor_bodykit_research/` are non-normative provenance only; operator-stated body requirements (OBR-001..004) bind through the normative clauses in 13.16-13.36.",
+   "new": "Tailor attaches to the kernel like the atelier module: a `handshake_core::tailor` domain module bound to Handshake-managed SurrealDB/EventLedger authority, CRDT collaboration, the sandbox->validation->promotion lifecycle, canonical kernel actions, and model lanes, plus a standalone UI-agnostic `tailor-solver` Rust crate reached only through typed solver traits. The solver owns three deliberately distinct lanes: a deterministic CPU-f64 reference oracle, a Vulkan interactive XPBD lane, and a CPU-f64 final-quality nonlinear lane with finite-thickness contact. This section is product LAW. The canonical authority for every Cloth type, field, unit, event, schema-id, table, migration, validation check, and promotion-equivalence rule is sub-section 13.14 as extended by 13.28-13.36 and the v02.204 authority override below; where earlier text conflicts with the v02.204 authority override, the override wins. BodyKit canonical contracts live in 13.16 and are likewise extended by 13.28-13.36 without forking shared authority. The research packages `.GOV/reference/cloth_engine_research/` and `.GOV/reference/tailor_bodykit_research/` are non-normative provenance only; operator-stated body requirements (OBR-001..004) bind through the normative clauses in 13.16-13.36.",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 111,
+   "base_line_count": 1,
+   "anchor": "13.1 Overview, Scope, and Model-First Differentiator",
+   "class": "a",
+   "old": "## 13.1 Overview, Scope, and Model-First Differentiator",
+   "new": "## 13.0A Vulkan GPU Backend Override (v02.227) [TAI-VK-001]\n\nOperator decision D7 (2026-10-31: \"i want pure vulkan, no wgpu\") and decision D1 (2026-10-30:\n\"Drop egui\") apply to all of Section 13. The clauses in this sub-section override every\nincompatible GPU-backend phrase, dependency pin, shader file name, code sample and test\ninstruction elsewhere in Section 13, in the same way [TAI-SDB-001] overrides legacy storage\nwording. They do not change any CPU-f64 lane, quantity, pass order, tolerance or acceptance.\n\n**[TAI-VK-002] GPU backend.** Every Tailor and BodyKit GPU lane (interactive XPBD, collision,\nviewport, PBR, bake and toon passes) MUST run on Vulkan as a typed client of the centralized GPU\nowner of section 15.5 ([GUI-DESKTOP-025], [GUI-DESKTOP-028]) and render through the Vulkan-backed\npath of section 15.4. `wgpu`, WGSL, Naga, `wgsl_to_wgpu`, `egui`, `egui-wgpu` and `eframe` MUST NOT\nbe a dependency of any Tailor product crate (`tailor-solver`, `handshake_core::tailor`, the Tailor\nviewport).\n\n**[TAI-VK-003] Legacy notation and unnamed choices.** Code samples in this section still written in\nWGSL syntax or against the wgpu API are legacy notation. Their binding numbers, struct fields and\nfield order, sizes, counts, pass order and dispatch rules remain normative; their WGSL syntax and\nwgpu type, method and crate names do not authorize wgpu or WGSL. This specification names no\nVulkan binding crate, shader source language or shader build tool. Until it does, that gap MUST\nNOT be read as permission to use wgpu or WGSL; the choices are open spec items recorded with the\nv02.227 changelog entry.\n\n## 13.1 Overview, Scope, and Model-First Differentiator",
+   "remaining_match_class": "b",
+   "note": "new override sub-section 13.0A with ids TAI-VK-001..003, following the 13.0 [TAI-SDB-001] override convention; inserted before 13.1"
+  },
+  {
+   "module": "13",
+   "line_at_base": 132,
+   "base_line_count": 1,
+   "anchor": "1. What Tailor Is",
+   "class": "a",
+   "old": "   It contains the XPBD cloth simulation loop, WGSL compute shaders, `wgpu` device management,",
+   "new": "   It contains the XPBD cloth simulation loop, Vulkan compute shader modules, GPU access as a typed client of the central GPU owner (15.5),",
+   "remaining_match_class": null,
+   "note": "module 15: modules do not own devices (GUI-DESKTOP-025/028)"
+  },
+  {
+   "module": "13",
+   "line_at_base": 162,
+   "base_line_count": 1,
+   "anchor": "2.1 In Scope",
+   "class": "a",
+   "old": "| Three solver lanes: CPU-f64 reference oracle, wgpu interactive XPBD, CPU-f64 final-quality nonlinear finite-thickness contact | T-SOLVER-CORE; 13.29 |",
+   "new": "| Three solver lanes: CPU-f64 reference oracle, Vulkan interactive XPBD, CPU-f64 final-quality nonlinear finite-thickness contact | T-SOLVER-CORE; 13.29 |",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 172,
+   "base_line_count": 1,
+   "anchor": "2.1 In Scope",
+   "class": "a",
+   "old": "| WGSL compute shader architecture | T-WGSL-SHADERS |",
+   "new": "| Vulkan compute shader architecture (topic id kept; WGSL superseded by D7, v02.227) | T-WGSL-SHADERS |",
+   "remaining_match_class": "b",
+   "note": "topic id T-WGSL-SHADERS is an anchor and is not renamed"
+  },
+  {
+   "module": "13",
+   "line_at_base": 365,
+   "base_line_count": 1,
+   "anchor": "5. Build-Order Summary",
+   "class": "a",
+   "old": "   wgpu interactive XPBD lane, CPU-f64 final-quality lane, fixtures, certificates and lane-specific",
+   "new": "   Vulkan interactive XPBD lane, CPU-f64 final-quality lane, fixtures, certificates and lane-specific",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 438,
+   "base_line_count": 1,
+   "anchor": "ARCH-001.",
+   "class": "a",
+   "old": "   XPBD cloth physics via wgpu v29 / WGSL compute shaders.",
+   "new": "   XPBD cloth physics via Vulkan compute shader modules through the central GPU owner (15.5).",
+   "remaining_match_class": null,
+   "note": "wgpu v29 pin removed (D7); replacement binding crate and pin are an open item"
+  },
+  {
+   "module": "13",
+   "line_at_base": 452,
+   "base_line_count": 1,
+   "anchor": "ARCH-004.",
+   "class": "a",
+   "old": "**ARCH-004.** `wgpu`, `wgsl_to_wgpu`, `bytemuck`, `encase`, `parry3d`, and any other GPU or",
+   "new": "**ARCH-004.** `bytemuck`, `encase`, `parry3d`, the Vulkan GPU client and shader build dependencies, and any other GPU or",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 454,
+   "base_line_count": 1,
+   "anchor": "ARCH-004.",
+   "class": "a",
+   "old": "added to `handshake_core/Cargo.toml`.",
+   "new": "added to `handshake_core/Cargo.toml`. `wgpu` and `wgsl_to_wgpu` MUST NOT be added to any Handshake crate (v02.227, D7).",
+   "remaining_match_class": "b",
+   "note": "placement rule kept; wgpu/wgsl_to_wgpu become a prohibition"
+  },
+  {
+   "module": "13",
+   "line_at_base": 457,
+   "base_line_count": 1,
+   "anchor": "ARCH-004.",
+   "class": "a",
+   "old": "`FACT-NO-GPU`). Introducing `wgpu` into the kernel crate would pull Naga, SPIR-V toolchains,",
+   "new": "`FACT-NO-GPU`). Introducing a GPU API binding into the kernel crate would pull shader toolchains,",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 472,
+   "base_line_count": 1,
+   "anchor": "ARCH-005.",
+   "class": "a",
+   "old": "/// Two implementors are required: ClothSolverGpu (wgpu) and ClothSolverCpu (test/no-GPU",
+   "new": "/// Two implementors are required: ClothSolverGpu (Vulkan) and ClothSolverCpu (test/no-GPU",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 558,
+   "base_line_count": 1,
+   "anchor": "ARCH-010.",
+   "class": "a",
+   "old": "  build.rs                 -- wgsl_to_wgpu codegen: generates Rust bind-group structs from",
+   "new": "  build.rs                 -- shader build step (tool not named, [TAI-VK-003]): generates Rust binding structs from",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 559,
+   "base_line_count": 1,
+   "anchor": "ARCH-010.",
+   "class": "a",
+   "old": "                              WGSL via naga; eliminates runtime bind-group alignment bugs",
+   "new": "                              the Vulkan shader module layouts; eliminates runtime binding-layout alignment bugs",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 564,
+   "base_line_count": 1,
+   "anchor": "ARCH-010.",
+   "class": "a",
+   "old": "    solver.rs              -- ClothSolverGpu: wgpu Device/Queue, pipeline init, substep dispatch",
+   "new": "    solver.rs              -- ClothSolverGpu: Vulkan client of the central GPU owner (15.5), pipeline init, substep dispatch",
+   "remaining_match_class": null,
+   "note": "no owned device/queue under GUI-DESKTOP-025"
+  },
+  {
+   "module": "13",
+   "line_at_base": 578,
+   "base_line_count": 1,
+   "anchor": "ARCH-010.",
+   "class": "a",
+   "old": "  shaders/",
+   "new": "  shaders/                 -- Vulkan shader modules; source language not named ([TAI-VK-003])",
+   "remaining_match_class": null,
+   "note": "context line for the renamed shader entries (not a grep match)"
+  },
+  {
+   "module": "13",
+   "line_at_base": 579,
+   "base_line_count": 1,
+   "anchor": "ARCH-010.",
+   "class": "a",
+   "old": "    predict.wgsl",
+   "new": "    predict",
+   "remaining_match_class": null,
+   "note": "shader entry keeps its name; .wgsl extension dropped (D7)"
+  },
+  {
+   "module": "13",
+   "line_at_base": 580,
+   "base_line_count": 1,
+   "anchor": "ARCH-010.",
+   "class": "a",
+   "old": "    stretch.wgsl",
+   "new": "    stretch",
+   "remaining_match_class": null,
+   "note": "shader entry keeps its name; .wgsl extension dropped (D7)"
+  },
+  {
+   "module": "13",
+   "line_at_base": 581,
+   "base_line_count": 1,
+   "anchor": "ARCH-010.",
+   "class": "a",
+   "old": "    bend.wgsl",
+   "new": "    bend",
+   "remaining_match_class": null,
+   "note": "shader entry keeps its name; .wgsl extension dropped (D7)"
+  },
+  {
+   "module": "13",
+   "line_at_base": 582,
+   "base_line_count": 1,
+   "anchor": "ARCH-010.",
+   "class": "a",
+   "old": "    seam.wgsl",
+   "new": "    seam",
+   "remaining_match_class": null,
+   "note": "shader entry keeps its name; .wgsl extension dropped (D7)"
+  },
+  {
+   "module": "13",
+   "line_at_base": 583,
+   "base_line_count": 1,
+   "anchor": "ARCH-010.",
+   "class": "a",
+   "old": "    self_collide.wgsl",
+   "new": "    self_collide",
+   "remaining_match_class": null,
+   "note": "shader entry keeps its name; .wgsl extension dropped (D7)"
+  },
+  {
+   "module": "13",
+   "line_at_base": 584,
+   "base_line_count": 1,
+   "anchor": "ARCH-010.",
+   "class": "a",
+   "old": "    body_collide.wgsl",
+   "new": "    body_collide",
+   "remaining_match_class": null,
+   "note": "shader entry keeps its name; .wgsl extension dropped (D7)"
+  },
+  {
+   "module": "13",
+   "line_at_base": 585,
+   "base_line_count": 1,
+   "anchor": "ARCH-010.",
+   "class": "a",
+   "old": "    velocity.wgsl",
+   "new": "    velocity",
+   "remaining_match_class": null,
+   "note": "shader entry keeps its name; .wgsl extension dropped (D7)"
+  },
+  {
+   "module": "13",
+   "line_at_base": 586,
+   "base_line_count": 1,
+   "anchor": "ARCH-010.",
+   "class": "a",
+   "old": "    hash_build.wgsl",
+   "new": "    hash_build",
+   "remaining_match_class": null,
+   "note": "shader entry keeps its name; .wgsl extension dropped (D7)"
+  },
+  {
+   "module": "13",
+   "line_at_base": 600,
+   "base_line_count": 1,
+   "anchor": "ARCH-011.",
+   "class": "a",
+   "old": "wgpu        = \"29\"",
+   "new": "# Vulkan GPU client of the central GPU owner (15.5): crate and pin not named ([TAI-VK-003])",
+   "remaining_match_class": null,
+   "note": "wgpu pin removed (D7); replacement is an open item"
+  },
+  {
+   "module": "13",
+   "line_at_base": 613,
+   "base_line_count": 1,
+   "anchor": "ARCH-011.",
+   "class": "a",
+   "old": "wgsl_to_wgpu = \"0.15\"",
+   "new": "# shader build tool for the Vulkan shader modules: not named ([TAI-VK-003])",
+   "remaining_match_class": null,
+   "note": "wgsl_to_wgpu pin removed (D7); replacement is an open item"
+  },
+  {
+   "module": "13",
+   "line_at_base": 627,
+   "base_line_count": 1,
+   "anchor": "ARCH-012.",
+   "class": "a",
+   "old": "**ARCH-012.** WGSL shaders MUST be compiled into the binary at build time via",
+   "new": "**ARCH-012.** Vulkan shader modules MUST be compiled into the binary at build time by the",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 628,
+   "base_line_count": 1,
+   "anchor": "ARCH-012.",
+   "class": "a",
+   "old": "`wgpu::include_wgsl!()` or `wgsl_to_wgpu` codegen. Shaders MUST NOT be read from disk at",
+   "new": "shader build step of ARCH-010. Shaders MUST NOT be read from disk at",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 1114,
+   "base_line_count": 1,
+   "anchor": "<N>.<i>.15 Constraints and Prohibitions Summary",
+   "class": "a",
+   "old": "title: \"XPBD Solver Core (WGSL/wgpu)\"",
+   "new": "title: \"XPBD Solver Core (Vulkan)\"",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 1123,
+   "base_line_count": 1,
+   "anchor": "13.3 XPBD Solver Core (WGSL/wgpu)",
+   "class": "a",
+   "old": "## 13.3 XPBD Solver Core (WGSL/wgpu)",
+   "new": "## 13.3 XPBD Solver Core (Vulkan)",
+   "remaining_match_class": null,
+   "note": "heading text only; section number 13.3 unchanged; only reference (00 TOC) updated"
+  },
+  {
+   "module": "13",
+   "line_at_base": 1130,
+   "base_line_count": 1,
+   "anchor": "<N>.<i>.1 Scope and Placement",
+   "class": "a",
+   "old": "algorithm, constraint projection pipeline executed as WGSL compute shaders via wgpu, constraint",
+   "new": "algorithm, constraint projection pipeline executed as Vulkan compute shader modules through the central GPU owner (15.5), constraint",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 1161,
+   "base_line_count": 1,
+   "anchor": "<N>.<i>.2 Crate Identity and Isolation Contract",
+   "class": "a",
+   "old": "implementation is `ClothSolverGpu` (wgpu WGSL backend). A `ClothSolverCpu` fallback",
+   "new": "implementation is `ClothSolverGpu` (Vulkan compute backend). A `ClothSolverCpu` fallback",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 1170,
+   "base_line_count": 1,
+   "anchor": "tailor-solver/Cargo.toml  (canonical; all versions as of 2026-06-17)",
+   "class": "a",
+   "old": "wgpu        = \"29\"",
+   "new": "# Vulkan GPU client of the central GPU owner (15.5): crate and pin not named ([TAI-VK-003])",
+   "remaining_match_class": null,
+   "note": "wgpu pin removed (D7); replacement is an open item"
+  },
+  {
+   "module": "13",
+   "line_at_base": 1186,
+   "base_line_count": 1,
+   "anchor": "tailor-solver/Cargo.toml  (canonical; all versions as of 2026-06-17)",
+   "class": "a",
+   "old": "wgsl_to_wgpu = \"0.15\"   # build.rs: compile-time WGSL→Rust bind-group structs",
+   "new": "# shader build tool (not named, [TAI-VK-003]); build.rs: compile-time shader layout -> Rust binding structs",
+   "remaining_match_class": null,
+   "note": "wgsl_to_wgpu pin removed (D7); replacement is an open item"
+  },
+  {
+   "module": "13",
+   "line_at_base": 1465,
+   "base_line_count": 2,
+   "anchor": "<N>.<i>.7 Per-Backend Determinism",
+   "class": "a",
+   "old": "**Cross-backend determinism is NOT required and MUST NOT be asserted.** WGSL compiled via Naga\nto SPIR-V (Vulkan), MSL (Metal), and HLSL (DX12) does not guarantee identical floating-point",
+   "new": "**Cross-backend determinism is NOT required and MUST NOT be asserted.** GPU shader compilers and\ndrivers do not guarantee identical floating-point",
+   "remaining_match_class": null,
+   "note": "rationale only; the prohibition is unchanged"
+  },
+  {
+   "module": "13",
+   "line_at_base": 1542,
+   "base_line_count": 2,
+   "anchor": "<N>.<i>.7 Per-Backend Determinism",
+   "class": "a",
+   "old": "   non-determinism. Atomic float operations MUST NOT be used for delta accumulation (WGSL does\n   not support `atomicAdd<f32>`; see also wgpu issue #5329).",
+   "new": "   non-determinism. Atomic float operations MUST NOT be used for delta accumulation (shader float\n   atomics are an optional device capability; see [COL-SELF-009]).",
+   "remaining_match_class": null,
+   "note": "rationale only; obligation unchanged"
+  },
+  {
+   "module": "13",
+   "line_at_base": 1547,
+   "base_line_count": 1,
+   "anchor": "<N>.<i>.8 wgpu Backend and WGSL Compute Pipeline",
+   "class": "a",
+   "old": "##### <N>.<i>.8 wgpu Backend and WGSL Compute Pipeline",
+   "new": "##### <N>.<i>.8 Vulkan Backend and Compute Pipeline",
+   "remaining_match_class": null,
+   "note": "heading text only; sub-section number unchanged"
+  },
+  {
+   "module": "13",
+   "line_at_base": 1551,
+   "base_line_count": 2,
+   "anchor": "<N>.<i>.8.1 Backend Coverage",
+   "class": "a",
+   "old": "The solver MUST compile and run correctly on all wgpu backends available on the Handshake\nprimary deployment target (Windows: Vulkan + DX12; macOS: Metal; Linux: Vulkan). WASM/WebGPU",
+   "new": "The solver MUST compile and run correctly on Vulkan on the Handshake\nprimary deployment target (Windows: Vulkan; Linux: Vulkan; macOS coverage undecided since D7 withdrew the Metal backend, v02.227). WASM/WebGPU",
+   "remaining_match_class": null,
+   "note": "DX12 and Metal backends withdrawn (D7, GUI-DESKTOP-020/026); macOS coverage is an open item"
+  },
+  {
+   "module": "13",
+   "line_at_base": 1562,
+   "base_line_count": 5,
+   "anchor": "<N>.<i>.8.2 Shader Compilation",
+   "class": "a",
+   "old": "All WGSL shaders MUST be validated at compile time using `wgsl_to_wgpu` (version `0.15` in\n`build.rs`). This generates typesafe Rust bind-group structs from WGSL layout declarations and\nMUST catch bind-group alignment bugs before runtime. Shaders MUST be embedded via\n`wgpu::include_wgsl!` so they are bundled with the binary; no runtime shader file loading\nis permitted.",
+   "new": "All Vulkan shader modules MUST be validated at build time by the shader build step of ARCH-010\n(tool and version not named, [TAI-VK-003]). That step generates typesafe Rust binding structs from\nthe shader layout declarations and MUST catch binding-layout alignment bugs before runtime. Shader\nmodules MUST be embedded at build time so they are bundled with the binary; no runtime shader file\nloading is permitted.",
+   "remaining_match_class": null,
+   "note": "obligations kept; tool pin removed (open item)"
+  },
+  {
+   "module": "13",
+   "line_at_base": 1575,
+   "base_line_count": 1,
+   "anchor": "<N>.<i>.8.3 GPU Data Layout",
+   "class": "a",
+   "old": "MUST be aligned to `std430` (WGSL storage buffer) rules; use `encase` where padding is",
+   "new": "MUST be aligned to `std430` (Vulkan storage buffer) layout rules; use `encase` where padding is",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 1656,
+   "base_line_count": 1,
+   "anchor": "<N>.<i>.8.3 GPU Data Layout",
+   "class": "a",
+   "old": "each substep (via a zero-fill compute pass or `wgpu::Queue::write_buffer`).",
+   "new": "each substep (via a zero-fill compute pass or a buffer fill/update transfer command).",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 1661,
+   "base_line_count": 2,
+   "anchor": "<N>.<i>.8.4 Compute Pass Sequence Per Substep",
+   "class": "a",
+   "old": "reordered. All passes within one substep MUST be encoded into a single `wgpu::CommandEncoder`\nand submitted as one `wgpu::CommandBuffer` to ensure GPU ordering:",
+   "new": "reordered. All passes within one substep MUST be recorded into a single Vulkan command buffer,\nwith explicit pipeline barriers between dependent passes, and submitted as one submission through\nthe central GPU owner (15.5) to ensure GPU ordering:",
+   "remaining_match_class": null,
+   "note": "Vulkan does not order dependent dispatches without barriers; see open items"
+  },
+  {
+   "module": "13",
+   "line_at_base": 1664,
+   "base_line_count": 1,
+   "anchor": "<N>.<i>.8.4 Compute Pass Sequence Per Substep",
+   "class": "a",
+   "old": "| Pass | Shader file | Dispatch | Notes |",
+   "new": "| Pass | Shader module | Dispatch | Notes |",
+   "remaining_match_class": null,
+   "note": "context line (not a grep match)"
+  },
+  {
+   "module": "13",
+   "line_at_base": 1666,
+   "base_line_count": 1,
+   "anchor": "<N>.<i>.8.4 Compute Pass Sequence Per Substep",
+   "class": "a",
+   "old": "| 1. Predict | `predict.wgsl` | `ceil(N/64)` | External forces + position prediction + shrinkage |",
+   "new": "| 1. Predict | `predict` | `ceil(N/64)` | External forces + position prediction + shrinkage |",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 1667,
+   "base_line_count": 1,
+   "anchor": "<N>.<i>.8.4 Compute Pass Sequence Per Substep",
+   "class": "a",
+   "old": "| 2. Hash build | `hash_build.wgsl` | `ceil(N/64)` | Spatial hash for self-collision broad phase |",
+   "new": "| 2. Hash build | `hash_build` | `ceil(N/64)` | Spatial hash for self-collision broad phase |",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 1668,
+   "base_line_count": 1,
+   "anchor": "<N>.<i>.8.4 Compute Pass Sequence Per Substep",
+   "class": "a",
+   "old": "| 3. Stretch solve | `stretch.wgsl` | `ceil(C_s/64)` per color | Repeated once per color partition |",
+   "new": "| 3. Stretch solve | `stretch` | `ceil(C_s/64)` per color | Repeated once per color partition |",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 1669,
+   "base_line_count": 1,
+   "anchor": "<N>.<i>.8.4 Compute Pass Sequence Per Substep",
+   "class": "a",
+   "old": "| 4. Bend solve | `bend.wgsl` | `ceil(C_b/64)` per color | Repeated once per color partition |",
+   "new": "| 4. Bend solve | `bend` | `ceil(C_b/64)` per color | Repeated once per color partition |",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 1670,
+   "base_line_count": 1,
+   "anchor": "<N>.<i>.8.4 Compute Pass Sequence Per Substep",
+   "class": "a",
+   "old": "| 5. Seam solve | `seam.wgsl` | `ceil(C_seam/64)` | Single pass (seams are few; no coloring needed) |",
+   "new": "| 5. Seam solve | `seam` | `ceil(C_seam/64)` | Single pass (seams are few; no coloring needed) |",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 1671,
+   "base_line_count": 1,
+   "anchor": "<N>.<i>.8.4 Compute Pass Sequence Per Substep",
+   "class": "a",
+   "old": "| 6. Self-collision | `self_collide.wgsl` | `ceil(N/64)` | Spatial hash narrow phase |",
+   "new": "| 6. Self-collision | `self_collide` | `ceil(N/64)` | Spatial hash narrow phase |",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 1672,
+   "base_line_count": 1,
+   "anchor": "<N>.<i>.8.4 Compute Pass Sequence Per Substep",
+   "class": "a",
+   "old": "| 7. Body collision | `body_collide.wgsl` | `ceil(N/64)` | Cloth vs avatar capsule/sphere proxies |",
+   "new": "| 7. Body collision | `body_collide` | `ceil(N/64)` | Cloth vs avatar capsule/sphere proxies |",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 1673,
+   "base_line_count": 1,
+   "anchor": "<N>.<i>.8.4 Compute Pass Sequence Per Substep",
+   "class": "a",
+   "old": "| 8. Velocity update | `velocity.wgsl` | `ceil(N/64)` | v = (x_pred - x) / dt; x = x_pred |",
+   "new": "| 8. Velocity update | `velocity` | `ceil(N/64)` | v = (x_pred - x) / dt; x = x_pred |",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 1693,
+   "base_line_count": 3,
+   "anchor": "<N>.<i>.9 Constraint Graph Coloring",
+   "class": "a",
+   "old": "WGSL XPBD (confirmed by `jspdown/cloth` and `ccincotti3/webgpu_cloth_simulator` reference\nimplementations, and required by the absence of `atomicAdd<f32>` in WGSL baseline — see wgpu\nissue #5329).",
+   "new": "GPU XPBD (as in the `jspdown/cloth` and `ccincotti3/webgpu_cloth_simulator` reference\nimplementations), and it keeps delta accumulation free of float atomics, which are an optional\ndevice capability (§<N>.<i>.7 point 4).",
+   "remaining_match_class": null,
+   "note": "rationale only"
+  },
+  {
+   "module": "13",
+   "line_at_base": 1714,
+   "base_line_count": 1,
+   "anchor": "<N>.<i>.9 Constraint Graph Coloring",
+   "class": "a",
+   "old": "`deltas[i]` in WGSL are race-free. A separate apply pass (reading `deltas` and `delta_cnt` to",
+   "new": "`deltas[i]` in the shader are race-free. A separate apply pass (reading `deltas` and `delta_cnt` to",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 1716,
+   "base_line_count": 1,
+   "anchor": "<N>.<i>.9 Constraint Graph Coloring",
+   "class": "a",
+   "old": "Atomic scatter (`atomicAdd` on `f32`) MUST NOT be used, as WGSL does not support it.",
+   "new": "Atomic scatter (`atomicAdd` on `f32`) MUST NOT be used (§<N>.<i>.7 point 4).",
+   "remaining_match_class": null,
+   "note": "rationale only; prohibition unchanged"
+  },
+  {
+   "module": "13",
+   "line_at_base": 1768,
+   "base_line_count": 1,
+   "anchor": "<N>.<i>.10 `ClothSolver` Public Trait",
+   "class": "a",
+   "old": "`NoAdapter`, `DeviceError(wgpu::Error)`, `ShaderCompile(String)`,",
+   "new": "`NoAdapter`, `DeviceError` (carrying the Vulkan device error reported through the central GPU owner; payload type not named, [TAI-VK-003]), `ShaderCompile(String)`,",
+   "remaining_match_class": null,
+   "note": "variant kept; payload type is an open item"
+  },
+  {
+   "module": "13",
+   "line_at_base": 1904,
+   "base_line_count": 1,
+   "anchor": "COL-BODY-002",
+   "class": "a",
+   "old": "**max 32 capsules** and **max 16 spheres** per body proxy to fit a single WGSL bind group.",
+   "new": "**max 32 capsules** and **max 16 spheres** per body proxy to fit a single Vulkan descriptor set.",
+   "remaining_match_class": null,
+   "note": "quantities 32/16 unchanged; rationale mapped from bind group to descriptor set"
+  },
+  {
+   "module": "13",
+   "line_at_base": 1968,
+   "base_line_count": 1,
+   "anchor": "COL-CAPSULE-001",
+   "class": "a",
+   "old": "entirely in WGSL compute shaders on GPU. There MUST NOT be a CPU readback per substep for body",
+   "new": "entirely in Vulkan compute shader modules on GPU. There MUST NOT be a CPU readback per substep for body",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 1971,
+   "base_line_count": 1,
+   "anchor": "COL-CAPSULE-002",
+   "class": "a",
+   "old": "**[COL-CAPSULE-002]** The body-collision compute pass (`collision_body.wgsl`) MUST be a",
+   "new": "**[COL-CAPSULE-002]** The body-collision compute pass (`collision_body` shader module) MUST be a",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 1976,
+   "base_line_count": 1,
+   "anchor": "COL-CAPSULE-003",
+   "class": "a",
+   "old": "**[COL-CAPSULE-003]** The WGSL shader MUST bind capsule and sphere buffers via storage bindings",
+   "new": "**[COL-CAPSULE-003]** The shader module MUST bind capsule and sphere buffers via storage-buffer bindings",
+   "remaining_match_class": null,
+   "note": "the binding layout block below is legacy notation under [TAI-VK-003]"
+  },
+  {
+   "module": "13",
+   "line_at_base": 2070,
+   "base_line_count": 2,
+   "anchor": "COL-SELF-003",
+   "class": "a",
+   "old": "**[COL-SELF-003]** The curvature pass MUST run in a dedicated WGSL compute shader\n(`shaders/curvature_cull.wgsl`) that writes a per-particle `active_flags: array<u32>` buffer.",
+   "new": "**[COL-SELF-003]** The curvature pass MUST run in a dedicated Vulkan compute shader module\n(`shaders/curvature_cull`) that writes a per-particle `active_flags: array<u32>` buffer.",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 2098,
+   "base_line_count": 1,
+   "anchor": "COL-SELF-006",
+   "class": "a",
+   "old": "**[COL-SELF-006]** The WGSL self-collision query shader MUST query the **27 neighbouring cells**",
+   "new": "**[COL-SELF-006]** The self-collision query shader module MUST query the **27 neighbouring cells**",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 2114,
+   "base_line_count": 1,
+   "anchor": "COL-SELF-009",
+   "class": "a",
+   "old": "**[COL-SELF-009]** WGSL `f32` atomics MUST NOT be assumed universally available. The implementation",
+   "new": "**[COL-SELF-009]** Shader `f32` atomics MUST NOT be assumed universally available. The implementation",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 2116,
+   "base_line_count": 1,
+   "anchor": "COL-SELF-009",
+   "class": "a",
+   "old": "enabled at runtime when the `shader-atomic-float` wgpu feature is detected.",
+   "new": "enabled at runtime when the Vulkan device reports shader float-atomic support.",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 2195,
+   "base_line_count": 1,
+   "anchor": "COL-BUST-004",
+   "class": "a",
+   "old": "`\"LeftBreast\"`, or `\"RightBreast\"` (case-insensitive) as a breast bone. The WGSL pass MUST branch",
+   "new": "`\"LeftBreast\"`, or `\"RightBreast\"` (case-insensitive) as a breast bone. The body-collision shader pass MUST branch",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 2314,
+   "base_line_count": 1,
+   "anchor": "COL-KERNEL-001",
+   "class": "a",
+   "old": "**[COL-KERNEL-001]** The WGSL collision shaders MUST run inside the `TailorSandboxAdapter`",
+   "new": "**[COL-KERNEL-001]** The collision shader modules MUST run inside the `TailorSandboxAdapter`",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 2316,
+   "base_line_count": 1,
+   "anchor": "COL-KERNEL-001",
+   "class": "a",
+   "old": "`AdapterIsolationTier::Process` with `SandboxCapability::Device` to permit `wgpu` device creation.",
+   "new": "`AdapterIsolationTier::Process` with `SandboxCapability::Device` to permit Vulkan GPU access as a typed client of the central GPU owner (15.5); the adapter MUST NOT create an independently owned device ([GUI-DESKTOP-025]).",
+   "remaining_match_class": null,
+   "note": "module 15 forbids independently owned devices; Process-tier sharing is an open item"
+  },
+  {
+   "module": "13",
+   "line_at_base": 2504,
+   "base_line_count": 2,
+   "anchor": "<N>.<i>.2 Anisotropic Compliance Model",
+   "class": "a",
+   "old": "The WGSL solver MUST consume material via a `MaterialParams` uniform at\n`@group(0) @binding(2)`. The Rust mirror type MUST be `repr(C)` + `bytemuck::Pod` so the",
+   "new": "The GPU solver MUST consume material via a `MaterialParams` uniform at\ndescriptor set 0, binding 2 (legacy notation `@group(0) @binding(2)`). The Rust mirror type MUST be `repr(C)` + `bytemuck::Pod` so the",
+   "remaining_match_class": null,
+   "note": "same set/binding numbers"
+  },
+  {
+   "module": "13",
+   "line_at_base": 2506,
+   "base_line_count": 1,
+   "anchor": "<N>.<i>.2 Anisotropic Compliance Model",
+   "class": "a",
+   "old": "CPU can upload it without unsafe pointer arithmetic. Field order MUST match the WGSL struct",
+   "new": "CPU can upload it without unsafe pointer arithmetic. Field order MUST match the shader-side struct",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 2536,
+   "base_line_count": 1,
+   "anchor": "<N>.<i>.2 Anisotropic Compliance Model",
+   "class": "a",
+   "old": "The WGSL uniform block MUST declare the same field set and order as `MaterialParamsGpu`.",
+   "new": "The shader uniform block MUST declare the same field set and order as `MaterialParamsGpu`.",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 3940,
+   "base_line_count": 1,
+   "anchor": "GAR-LAYOUT-002",
+   "class": "a",
+   "old": "    Cargo.toml          # wgpu, bytemuck, glam, parry3d; no sqlx, no tauri",
+   "new": "    Cargo.toml          # Vulkan GPU client (15.5), bytemuck, glam, parry3d; no sqlx, no tauri",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 3950,
+   "base_line_count": 1,
+   "anchor": "GAR-LAYOUT-002",
+   "class": "a",
+   "old": "            constraint_stretch.wgsl",
+   "new": "            constraint_stretch    # Vulkan shader modules; source language not named ([TAI-VK-003])",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 3951,
+   "base_line_count": 1,
+   "anchor": "GAR-LAYOUT-002",
+   "class": "a",
+   "old": "            constraint_bend.wgsl",
+   "new": "            constraint_bend",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 3952,
+   "base_line_count": 1,
+   "anchor": "GAR-LAYOUT-002",
+   "class": "a",
+   "old": "            constraint_seam.wgsl",
+   "new": "            constraint_seam",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 3953,
+   "base_line_count": 1,
+   "anchor": "GAR-LAYOUT-002",
+   "class": "a",
+   "old": "            collision.wgsl",
+   "new": "            collision",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 3954,
+   "base_line_count": 1,
+   "anchor": "GAR-LAYOUT-002",
+   "class": "a",
+   "old": "        gpu_solver.rs   # WgpuClothSolver implementing ClothSolver",
+   "new": "        gpu_solver.rs   # Vulkan GPU solver implementing ClothSolver (canonical type name ClothSolverGpu, ARCH-005)",
+   "remaining_match_class": null,
+   "note": "type name WgpuClothSolver replaced by the canonical ARCH-005 name"
+  },
+  {
+   "module": "13",
+   "line_at_base": 4649,
+   "base_line_count": 1,
+   "anchor": "TR-1.1",
+   "class": "a",
+   "old": "cloth panels share a single substep loop, the same Lagrange multiplier update, and the same WGPU",
+   "new": "cloth panels share a single substep loop, the same Lagrange multiplier update, and the same GPU",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 4678,
+   "base_line_count": 1,
+   "anchor": "TR-2.1",
+   "class": "a",
+   "old": "layout without updating all referencing WGSL struct definitions is forbidden.",
+   "new": "layout without updating all referencing shader-side struct definitions is forbidden.",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 4746,
+   "base_line_count": 1,
+   "anchor": "TR-3.1",
+   "class": "a",
+   "old": "new passes (`tack.wgsl` and `trim_contact.wgsl`) MUST appear at the positions shown and MUST NOT",
+   "new": "new passes (`tack` and `trim_contact`) MUST appear at the positions shown and MUST NOT",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 4751,
+   "base_line_count": 1,
+   "anchor": "TR-3.1",
+   "class": "a",
+   "old": "  Pass 1:   predict.wgsl          -- cloth particles + trim rigid bodies (extended predict)",
+   "new": "  Pass 1:   predict               -- cloth particles + trim rigid bodies (extended predict)",
+   "remaining_match_class": null,
+   "note": "pass name kept; .wgsl dropped, column alignment kept"
+  },
+  {
+   "module": "13",
+   "line_at_base": 4752,
+   "base_line_count": 1,
+   "anchor": "TR-3.1",
+   "class": "a",
+   "old": "  Pass 2..K: stretch.wgsl         -- cloth stretch, per color partition",
+   "new": "  Pass 2..K: stretch              -- cloth stretch, per color partition",
+   "remaining_match_class": null,
+   "note": "pass name kept; .wgsl dropped, column alignment kept"
+  },
+  {
+   "module": "13",
+   "line_at_base": 4753,
+   "base_line_count": 1,
+   "anchor": "TR-3.1",
+   "class": "a",
+   "old": "  Pass K+1..M: bend.wgsl          -- cloth bend, per color partition",
+   "new": "  Pass K+1..M: bend               -- cloth bend, per color partition",
+   "remaining_match_class": null,
+   "note": "pass name kept; .wgsl dropped, column alignment kept"
+  },
+  {
+   "module": "13",
+   "line_at_base": 4754,
+   "base_line_count": 1,
+   "anchor": "TR-3.1",
+   "class": "a",
+   "old": "  Pass M+1: seam.wgsl             -- seam distance constraints (incl. zipper active segments)",
+   "new": "  Pass M+1: seam                  -- seam distance constraints (incl. zipper active segments)",
+   "remaining_match_class": null,
+   "note": "pass name kept; .wgsl dropped, column alignment kept"
+  },
+  {
+   "module": "13",
+   "line_at_base": 4755,
+   "base_line_count": 1,
+   "anchor": "TR-3.1",
+   "class": "a",
+   "old": "  Pass M+2: tack.wgsl             -- cloth-particle to rigid-body ball-joint constraints [NEW]",
+   "new": "  Pass M+2: tack                  -- cloth-particle to rigid-body ball-joint constraints [NEW]",
+   "remaining_match_class": null,
+   "note": "pass name kept; .wgsl dropped, column alignment kept"
+  },
+  {
+   "module": "13",
+   "line_at_base": 4756,
+   "base_line_count": 1,
+   "anchor": "TR-3.1",
+   "class": "a",
+   "old": "  Pass M+3: trim_contact.wgsl     -- rigid trim mesh vs cloth particle contact [NEW]",
+   "new": "  Pass M+3: trim_contact          -- rigid trim mesh vs cloth particle contact [NEW]",
+   "remaining_match_class": null,
+   "note": "pass name kept; .wgsl dropped, column alignment kept"
+  },
+  {
+   "module": "13",
+   "line_at_base": 4757,
+   "base_line_count": 1,
+   "anchor": "TR-3.1",
+   "class": "a",
+   "old": "  Pass M+4: body_collide.wgsl     -- cloth vs avatar capsule/sphere proxy",
+   "new": "  Pass M+4: body_collide          -- cloth vs avatar capsule/sphere proxy",
+   "remaining_match_class": null,
+   "note": "pass name kept; .wgsl dropped, column alignment kept"
+  },
+  {
+   "module": "13",
+   "line_at_base": 4758,
+   "base_line_count": 1,
+   "anchor": "TR-3.1",
+   "class": "a",
+   "old": "  Pass M+5: self_collide.wgsl     -- cloth self-collision",
+   "new": "  Pass M+5: self_collide          -- cloth self-collision",
+   "remaining_match_class": null,
+   "note": "pass name kept; .wgsl dropped, column alignment kept"
+  },
+  {
+   "module": "13",
+   "line_at_base": 4759,
+   "base_line_count": 1,
+   "anchor": "TR-3.1",
+   "class": "a",
+   "old": "  Pass M+6: velocity.wgsl         -- velocity update for cloth particles AND trim bodies",
+   "new": "  Pass M+6: velocity              -- velocity update for cloth particles AND trim bodies",
+   "remaining_match_class": null,
+   "note": "pass name kept; .wgsl dropped, column alignment kept"
+  },
+  {
+   "module": "13",
+   "line_at_base": 4786,
+   "base_line_count": 1,
+   "anchor": "TR-4. Tack Coupling Pass (tack.wgsl)",
+   "class": "a",
+   "old": "### TR-4. Tack Coupling Pass (tack.wgsl)",
+   "new": "### TR-4. Tack Coupling Pass (tack shader module)",
+   "remaining_match_class": null,
+   "note": "heading text only; id TR-4 unchanged"
+  },
+  {
+   "module": "13",
+   "line_at_base": 4839,
+   "base_line_count": 1,
+   "anchor": "TR-5. Trim-Cloth Contact Pass (trim_contact.wgsl)",
+   "class": "a",
+   "old": "### TR-5. Trim-Cloth Contact Pass (trim_contact.wgsl)",
+   "new": "### TR-5. Trim-Cloth Contact Pass (trim_contact shader module)",
+   "remaining_match_class": null,
+   "note": "heading text only; id TR-5 unchanged"
+  },
+  {
+   "module": "13",
+   "line_at_base": 4847,
+   "base_line_count": 1,
+   "anchor": "TR-5.2",
+   "class": "a",
+   "old": "MUST run before `trim_contact.wgsl` in the same substep.",
+   "new": "MUST run before the `trim_contact` pass in the same substep.",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 5264,
+   "base_line_count": 1,
+   "anchor": "TR-14.3",
+   "class": "a",
+   "old": "**TR-14.3** The WGSL tack shader MUST NOT use atomic operations to resolve multi-invocation",
+   "new": "**TR-14.3** The `tack` shader module MUST NOT use atomic operations to resolve multi-invocation",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 5286,
+   "base_line_count": 1,
+   "anchor": "TR-15. Non-Normative Notes",
+   "class": "a",
+   "old": "MIT) provides a concrete CPU-side reference implementation of the ball-joint constraint. WGSL",
+   "new": "MIT) provides a concrete CPU-side reference implementation of the ball-joint constraint. GPU shader",
+   "remaining_match_class": null,
+   "note": "non-normative note; claim kept"
+  },
+  {
+   "module": "13",
+   "line_at_base": 5368,
+   "base_line_count": 1,
+   "anchor": "1.2 Grain Direction Is Shared Authority",
+   "class": "a",
+   "old": "   drives the WGSL anisotropic constraint axis (warp vs weft compliance) as specified in the",
+   "new": "   drives the GPU solver's anisotropic constraint axis (warp vs weft compliance) as specified in the",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 5373,
+   "base_line_count": 1,
+   "anchor": "1.2 Grain Direction Is Shared Authority",
+   "class": "a",
+   "old": "   the wgpu PBR fragment shader.",
+   "new": "   the Vulkan PBR fragment shader.",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 5615,
+   "base_line_count": 1,
+   "anchor": "4.2 Compositing Order",
+   "class": "a",
+   "old": "The wgpu fragment shader MUST apply layers in this bottom-to-top order:",
+   "new": "The Vulkan fragment shader MUST apply layers in this bottom-to-top order:",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 6097,
+   "base_line_count": 1,
+   "anchor": "13. Required and Optional Texture Extensions",
+   "class": "a",
+   "old": "  wrinkle-baked AO) back to UV texture space via a UV-space wgpu render pass. Feature-gated;",
+   "new": "  wrinkle-baked AO) back to UV texture space via a UV-space Vulkan render pass. Feature-gated;",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 6101,
+   "base_line_count": 1,
+   "anchor": "13. Required and Optional Texture Extensions",
+   "class": "a",
+   "old": "- **Toon shader** (MT-390): wgpu toon pass (bands/outline/rim/MatCap) behind a render feature",
+   "new": "- **Toon shader** (MT-390): Vulkan toon pass (bands/outline/rim/MatCap) behind a render feature",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 6514,
+   "base_line_count": 1,
+   "anchor": "10.5.2 Wind Turbulence on GPU (WGSL)",
+   "class": "a",
+   "old": "###### 10.5.2 Wind Turbulence on GPU (WGSL)",
+   "new": "###### 10.5.2 Wind Turbulence on GPU (Vulkan shader)",
+   "remaining_match_class": null,
+   "note": "heading text only"
+  },
+  {
+   "module": "13",
+   "line_at_base": 6516,
+   "base_line_count": 1,
+   "anchor": "R-ANIM-023",
+   "class": "a",
+   "old": "**R-ANIM-023** — The predict shader (`predict.wgsl`) MUST implement inline hash-based",
+   "new": "**R-ANIM-023** — The predict shader (`predict`) MUST implement inline hash-based",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 6810,
+   "base_line_count": 1,
+   "anchor": "CONSTRAINT-ANIM-001",
+   "class": "a",
+   "old": "`sin()` and `fract()` in WGSL, whose precision differs across GPU vendors. The determinism",
+   "new": "`sin()` and `fract()` in the shader, whose precision differs across GPU vendors. The determinism",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 6856,
+   "base_line_count": 1,
+   "anchor": "11-K-1.3",
+   "class": "a",
+   "old": "**11-K-1.3** Physics-internal types (particles, constraints, WGSL kernels) MUST use the `Cloth*`",
+   "new": "**11-K-1.3** Physics-internal types (particles, constraints, GPU shader kernels) MUST use the `Cloth*`",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 6882,
+   "base_line_count": 1,
+   "anchor": "11-K-1.3",
+   "class": "a",
+   "old": "    simulate.rs         -- XPBD engine, WGSL shaders (wgpu)",
+   "new": "    simulate.rs         -- XPBD engine, Vulkan shader modules (central GPU owner client)",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 7270,
+   "base_line_count": 1,
+   "anchor": "11-K-8.5",
+   "class": "a",
+   "old": "headless CI and container environments where wgpu cannot initialize a GPU backend can fall back to",
+   "new": "headless CI and container environments where no Vulkan device is available through the central GPU owner can fall back to",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 7374,
+   "base_line_count": 2,
+   "anchor": "11-K-11.1",
+   "class": "a",
+   "old": "differ in float rounding due to WGSL/Naga sub-expression ordering (confirmed by wgpu issue\n#5329). Implementation MUST NOT assume cross-backend bit-identical results.",
+   "new": "differ in float rounding because GPU shader compilers and drivers do not guarantee\nsub-expression ordering. Implementation MUST NOT assume cross-backend bit-identical results.",
+   "remaining_match_class": null,
+   "note": "rationale only"
+  },
+  {
+   "module": "13",
+   "line_at_base": 7528,
+   "base_line_count": 1,
+   "anchor": "11-K-16  Full Garment Lifecycle (Normative Sequence)",
+   "class": "a",
+   "old": "          -> XPBD solver: WGSL compute on wgpu (Vulkan/DX12/Metal or CPU fallback)",
+   "new": "          -> XPBD solver: Vulkan compute through the central GPU owner (or CPU fallback)",
+   "remaining_match_class": null,
+   "note": "DX12/Metal withdrawn (D7)"
+  },
+  {
+   "module": "13",
+   "line_at_base": 7611,
+   "base_line_count": 1,
+   "anchor": "12.1 Scope",
+   "class": "a",
+   "old": "2. The Handshake-native wgpu viewport panel embedded in the native Rust shell.",
+   "new": "2. The Handshake-native Vulkan viewport panel embedded in the native Rust shell.",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 7658,
+   "base_line_count": 1,
+   "anchor": "12.2.4 Testbed Crate Layout",
+   "class": "a",
+   "old": "    debug_overlay.rs  # egui-wgpu panels: particle count, constraint residuals, step timing",
+   "new": "    debug_overlay.rs  # debug panels: particle count, constraint residuals, step timing",
+   "remaining_match_class": null,
+   "note": "D1: no egui; toolkit not named"
+  },
+  {
+   "module": "13",
+   "line_at_base": 7670,
+   "base_line_count": 1,
+   "anchor": "12.2.5 Debug Overlay",
+   "class": "a",
+   "old": "The testbed SHOULD surface a live egui-wgpu debug panel using `egui-wgpu::CallbackTrait`. The panel MUST display at minimum: particle count, constraint count, max constraint residual, kinetic energy, and step time in ms. A residual-history line plot SHOULD be included to make convergence visible without pixel analysis.",
+   "new": "The testbed SHOULD surface a live debug panel. The panel MUST display at minimum: particle count, constraint count, max constraint residual, kinetic energy, and step time in ms. A residual-history line plot SHOULD be included to make convergence visible without pixel analysis.",
+   "remaining_match_class": null,
+   "note": "D1: no egui; panel obligations unchanged"
+  },
+  {
+   "module": "13",
+   "line_at_base": 7678,
+   "base_line_count": 1,
+   "anchor": "12.3.1 Architecture: Rendered-to-Texture",
+   "class": "a",
+   "old": "The Handshake-native Tailor viewport MUST use the shared native-shell wgpu device and render into",
+   "new": "The Handshake-native Tailor viewport MUST use the shared Vulkan device of the central GPU owner (15.5) and render into",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 7684,
+   "base_line_count": 1,
+   "anchor": "12.3.1 Architecture: Rendered-to-Texture",
+   "class": "a",
+   "old": "1. The viewport renders into a shell-owned/shareable `wgpu::Texture`.",
+   "new": "1. The viewport renders into a shell-owned/shareable Vulkan image.",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 7727,
+   "base_line_count": 1,
+   "anchor": "12.3.2 ClothViewport Struct Contract",
+   "class": "a",
+   "old": "wgpu device/queue through a narrow interface and is driven by canonical Tailor actions and native",
+   "new": "Vulkan device/queue access of the central GPU owner (15.5) through a narrow interface and is driven by canonical Tailor actions and native",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 7732,
+   "base_line_count": 1,
+   "anchor": "12.3.3 Render Pipelines",
+   "class": "a",
+   "old": "The viewport MUST implement three wgpu render pipelines:",
+   "new": "The viewport MUST implement three Vulkan graphics pipelines:",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 7735,
+   "base_line_count": 1,
+   "anchor": "12.3.3 Render Pipelines",
+   "class": "a",
+   "old": "- **Wireframe pipeline**: `wgpu::PrimitiveTopology::LineList` with an index buffer enumerating triangle edges. MUST be compositable as an overlay on top of the solid pipeline by a second render pass.",
+   "new": "- **Wireframe pipeline**: a line-list primitive topology with an index buffer enumerating triangle edges. MUST be compositable as an overlay on top of the solid pipeline by a second render pass.",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 7736,
+   "base_line_count": 1,
+   "anchor": "12.3.3 Render Pipelines",
+   "class": "a",
+   "old": "- **Debug pipeline**: renders particles as point sprites and constraint edges as colored lines. Constraint residuals MUST be encoded as a color gradient: green (residual near 0) through yellow to red (residual near 1.0). This is achieved in WGSL without geometry shaders:",
+   "new": "- **Debug pipeline**: renders particles as point sprites and constraint edges as colored lines. Constraint residuals MUST be encoded as a color gradient: green (residual near 0) through yellow to red (residual near 1.0). This is achieved in the fragment shader without geometry shaders (legacy notation below, [TAI-VK-003]):",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 7752,
+   "base_line_count": 1,
+   "anchor": "12.3.3 Render Pipelines",
+   "class": "a",
+   "old": "Normal visualization MUST be implemented via a CPU-side arrow mesh (one arrow per vertex normal, uploaded as a vertex buffer each frame). WGSL geometry shaders MUST NOT be used; wgpu/WGSL does not expose them.",
+   "new": "Normal visualization MUST be implemented via a CPU-side arrow mesh (one arrow per vertex normal, uploaded as a vertex buffer each frame). Geometry shaders MUST NOT be used.",
+   "remaining_match_class": null,
+   "note": "prohibition kept; its former rationale no longer holds under Vulkan (open item)"
+  },
+  {
+   "module": "13",
+   "line_at_base": 7795,
+   "base_line_count": 1,
+   "anchor": "12.3.4 GPU-to-CPU Readback",
+   "class": "a",
+   "old": "thread; it MUST run as a cancellable bounded job over the shared injected wgpu device/queue and",
+   "new": "thread; it MUST run as a cancellable bounded job over the shared Vulkan device/queue injected from the central GPU owner (15.5) and",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 8727,
+   "base_line_count": 1,
+   "anchor": "<N>.<i>.8 Promotion Equivalence: Lane Profile (not content_hash)",
+   "class": "a",
+   "old": "The `PromotionGate` `ValidationRunner` MUST use the method and measured tolerances selected by the versioned `TailorQualificationProfileV1`, not `content_hash` equality. Cross-backend float rounding in WGSL/wgpu means identical-quality drapes produce different hashes on different GPU backends or driver versions; gating promotion on hash equality produces spurious failures.",
+   "new": "The `PromotionGate` `ValidationRunner` MUST use the method and measured tolerances selected by the versioned `TailorQualificationProfileV1`, not `content_hash` equality. Cross-backend and cross-driver float rounding in GPU shader execution means identical-quality drapes produce different hashes on different GPU backends or driver versions; gating promotion on hash equality produces spurious failures.",
+   "remaining_match_class": null,
+   "note": "rationale only"
+  },
+  {
+   "module": "13",
+   "line_at_base": 9641,
+   "base_line_count": 1,
+   "anchor": "Determinism vs Promotion-Equivalence (MeshComparator)",
+   "class": "a",
+   "old": "`SolverResult.content_hash` (SHA-256 of the final position buffer) MUST NOT be used as the promotion-equivalence gate. Cross-backend float rounding differs because WGSL/Naga do not guarantee sub-expression ordering and WGSL has no f64 (confirmed: wgpu issue #5329). Identical-quality drapes on different GPU backends produce different hashes; gating on hash equality causes spurious promotion failures.",
+   "new": "`SolverResult.content_hash` (SHA-256 of the final position buffer) MUST NOT be used as the promotion-equivalence gate. Cross-backend float rounding differs because GPU shader compilers and drivers do not guarantee sub-expression ordering and the GPU lane computes in f32. Identical-quality drapes on different GPU backends produce different hashes; gating on hash equality causes spurious promotion failures.",
+   "remaining_match_class": null,
+   "note": "rationale only; f32 per the GPU struct set"
+  },
+  {
+   "module": "13",
+   "line_at_base": 9708,
+   "base_line_count": 1,
+   "anchor": "Contract-Deferral Rules for Implementation Work Packets",
+   "class": "a",
+   "old": "Algorithms, GPU/WGSL design, OSS adaptation notes, MCP tool behaviour details, and risk analysis remain owned by their respective Tailor sub-sections. This sub-section owns only the contract surfaces.",
+   "new": "Algorithms, GPU/shader design, OSS adaptation notes, MCP tool behaviour details, and risk analysis remain owned by their respective Tailor sub-sections. This sub-section owns only the contract surfaces.",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 9922,
+   "base_line_count": 2,
+   "anchor": "15-validation-hbr.3.1  The Hash-Equality Gap",
+   "class": "a",
+   "old": "identical float result), but is NOT deterministic cross-backend. WGSL/Naga sub-expression\nordering is unspecified and WGSL has no f64 (confirmed by wgpu issue #5329). An exact SHA-256",
+   "new": "identical float result), but is NOT deterministic cross-backend. GPU shader sub-expression\nordering is unspecified and the GPU lane computes in f32. An exact SHA-256",
+   "remaining_match_class": null,
+   "note": "rationale only"
+  },
+  {
+   "module": "13",
+   "line_at_base": 10494,
+   "base_line_count": 1,
+   "anchor": "TAI-BK-023",
+   "class": "a",
+   "old": "**[TAI-BK-023]** The body viewport reuses the Tailor wgpu viewport with body render pipelines",
+   "new": "**[TAI-BK-023]** The body viewport reuses the Tailor Vulkan viewport with body render pipelines",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 11087,
+   "base_line_count": 1,
+   "anchor": "TAI-BK-089",
+   "class": "a",
+   "old": "update, the same WGPU dispatch, extending the existing `SoftBodySpec` lane. A forked or",
+   "new": "update, the same GPU dispatch, extending the existing `SoftBodySpec` lane. A forked or",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 11092,
+   "base_line_count": 1,
+   "anchor": "TAI-BK-089",
+   "class": "a",
+   "old": "passes and before `body_collide.wgsl`, so cloth sees the settled tissue surface of the current",
+   "new": "passes and before the `body_collide` pass, so cloth sees the settled tissue surface of the current",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 11378,
+   "base_line_count": 1,
+   "anchor": "TAI-BK-121",
+   "class": "a",
+   "old": "(authoring/authority layer) with render-side evaluation in the Tailor wgpu viewport pipelines",
+   "new": "(authoring/authority layer) with render-side evaluation in the Tailor Vulkan viewport pipelines",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 12334,
+   "base_line_count": 1,
+   "anchor": "TAI-BK-223",
+   "class": "a",
+   "old": "**[TAI-BK-223]** Viewport: BodyKit MUST reuse the Tailor wgpu rendered-to-texture viewport",
+   "new": "**[TAI-BK-223]** Viewport: BodyKit MUST reuse the Tailor Vulkan rendered-to-texture viewport",
+   "remaining_match_class": null,
+   "note": null
+  },
+  {
+   "module": "13",
+   "line_at_base": 12641,
+   "base_line_count": 2,
+   "anchor": "TAI-PHY-002",
+   "class": "a",
+   "old": "**[TAI-PHY-002]** `InteractiveGpuXpbd` MUST use the shell-injected pinned wgpu device, queue,\nadapter identity, feature set, limit set, and error scopes. It MUST NOT create an untracked second",
+   "new": "**[TAI-PHY-002]** `InteractiveGpuXpbd` MUST use the shell-injected pinned Vulkan device, queue,\nadapter identity, feature set, limit set, and device-error reporting of the central GPU owner (15.5). It MUST NOT create an untracked second",
+   "remaining_match_class": null,
+   "note": "'error scopes' was a wgpu construct; see open items"
+  },
+  {
+   "module": "13",
+   "line_at_base": 13099,
+   "base_line_count": 1,
+   "anchor": "TAI-GATE-001",
+   "class": "a",
+   "old": "wgpu features/limits, solver lane profiles, SI/unit conversions, material calibration fixtures,",
+   "new": "Vulkan device features/limits, solver lane profiles, SI/unit conversions, material calibration fixtures,",
+   "remaining_match_class": null,
+   "note": null
+  }
+ ],
+ "retained_matches": [
+  {
+   "module": "02",
+   "line_at_new": 1191,
+   "class": "fp",
+   "matched": [
+    "wireframes"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 1191
+  },
+  {
+   "module": "02",
+   "line_at_new": 17325,
+   "class": "fp",
+   "matched": [
+    "reframed"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 17325
+  },
+  {
+   "module": "10",
+   "line_at_new": 1148,
+   "class": "fp",
+   "matched": [
+    "timeframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 1148
+  },
+  {
+   "module": "10",
+   "line_at_new": 3370,
+   "class": "fp",
+   "matched": [
+    "wireframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 3370
+  },
+  {
+   "module": "10",
+   "line_at_new": 5457,
+   "class": "fp",
+   "matched": [
+    "wireframes"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 5457
+  },
+  {
+   "module": "11",
+   "line_at_new": 6180,
+   "class": "fp",
+   "matched": [
+    "wireframes"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 6180
+  },
+  {
+   "module": "12",
+   "line_at_new": 7140,
+   "line_at_base": 7154,
+   "anchor": "TECH-WGPU",
+   "class": "b",
+   "text": "      \"technology_id\": \"TECH-WGPU\",",
+   "note": "TECH-WGPU row id, retired v02.227 (notes carry the retirement and pointer)"
+  },
+  {
+   "module": "12",
+   "line_at_new": 7141,
+   "line_at_base": 7155,
+   "anchor": "TECH-WGPU",
+   "class": "b",
+   "text": "      \"title\": \"wgpu\",",
+   "note": "TECH-WGPU row title, retired v02.227"
+  },
+  {
+   "module": "12",
+   "line_at_new": 7142,
+   "edit_line_at_base": 7156,
+   "anchor": "TECH-WGPU",
+   "class": "b",
+   "text": "      \"notes\": \"[ADD v02.198] GPU compute/render abstraction for the tailor-solver and native viewport. [RETIRED v02.227] Retired by Operator decision D7 (2026-10-31: 'pure vulkan, no wgpu'); kept for id continuity only and MUST NOT authorize implementation. Superseded by TECH-VULKAN (section 15.4-15.5).\"",
+   "note": "text written by this delta: row whose whole subject is wgpu: retired with pointer"
+  },
+  {
+   "module": "12",
+   "line_at_new": 7145,
+   "line_at_base": 7159,
+   "anchor": "TECH-WGSL",
+   "class": "b",
+   "text": "      \"technology_id\": \"TECH-WGSL\",",
+   "note": "TECH-WGSL row id, retired v02.227"
+  },
+  {
+   "module": "12",
+   "line_at_new": 7146,
+   "line_at_base": 7160,
+   "anchor": "TECH-WGSL",
+   "class": "b",
+   "text": "      \"title\": \"WGSL\",",
+   "note": "TECH-WGSL row title, retired v02.227"
+  },
+  {
+   "module": "12",
+   "line_at_new": 7147,
+   "edit_line_at_base": 7161,
+   "anchor": "TECH-WGSL",
+   "class": "b",
+   "text": "      \"notes\": \"[ADD v02.198] Compute shader language for XPBD solver passes. [RETIRED v02.227] Retired by Operator decision D7 (2026-10-31: 'pure vulkan, no wgpu'); kept for id continuity only and MUST NOT authorize implementation. Superseded by Vulkan shader modules executed through TECH-VULKAN; the spec names no shader source language (open item).\"",
+   "note": "text written by this delta: TECH-WGSL retired with pointer; TECH-VULKAN added as the replacement row the registry needs for the supersession pointer and feature tech assignments"
+  },
+  {
+   "module": "13",
+   "line_at_new": 113,
+   "edit_line_at_base": 111,
+   "anchor": "13.1 Overview, Scope, and Model-First Differentiator",
+   "class": "b",
+   "text": "Operator decision D7 (2026-10-31: \"i want pure vulkan, no wgpu\") and decision D1 (2026-10-30:",
+   "note": "text written by this delta: new override sub-section 13.0A with ids TAI-VK-001..003, following the 13.0 [TAI-SDB-001] override convention; inserted before 13.1"
+  },
+  {
+   "module": "13",
+   "line_at_new": 114,
+   "edit_line_at_base": 111,
+   "anchor": "13.1 Overview, Scope, and Model-First Differentiator",
+   "class": "b",
+   "text": "\"Drop egui\") apply to all of Section 13. The clauses in this sub-section override every",
+   "note": "text written by this delta: new override sub-section 13.0A with ids TAI-VK-001..003, following the 13.0 [TAI-SDB-001] override convention; inserted before 13.1"
+  },
+  {
+   "module": "13",
+   "line_at_new": 122,
+   "edit_line_at_base": 111,
+   "anchor": "13.1 Overview, Scope, and Model-First Differentiator",
+   "class": "b",
+   "text": "path of section 15.4. `wgpu`, WGSL, Naga, `wgsl_to_wgpu`, `egui`, `egui-wgpu` and `eframe` MUST NOT",
+   "note": "text written by this delta: new override sub-section 13.0A with ids TAI-VK-001..003, following the 13.0 [TAI-SDB-001] override convention; inserted before 13.1"
+  },
+  {
+   "module": "13",
+   "line_at_new": 127,
+   "edit_line_at_base": 111,
+   "anchor": "13.1 Overview, Scope, and Model-First Differentiator",
+   "class": "b",
+   "text": "WGSL syntax or against the wgpu API are legacy notation. Their binding numbers, struct fields and",
+   "note": "text written by this delta: new override sub-section 13.0A with ids TAI-VK-001..003, following the 13.0 [TAI-SDB-001] override convention; inserted before 13.1"
+  },
+  {
+   "module": "13",
+   "line_at_new": 128,
+   "edit_line_at_base": 111,
+   "anchor": "13.1 Overview, Scope, and Model-First Differentiator",
+   "class": "b",
+   "text": "field order, sizes, counts, pass order and dispatch rules remain normative; their WGSL syntax and",
+   "note": "text written by this delta: new override sub-section 13.0A with ids TAI-VK-001..003, following the 13.0 [TAI-SDB-001] override convention; inserted before 13.1"
+  },
+  {
+   "module": "13",
+   "line_at_new": 129,
+   "edit_line_at_base": 111,
+   "anchor": "13.1 Overview, Scope, and Model-First Differentiator",
+   "class": "b",
+   "text": "wgpu type, method and crate names do not authorize wgpu or WGSL. This specification names no",
+   "note": "text written by this delta: new override sub-section 13.0A with ids TAI-VK-001..003, following the 13.0 [TAI-SDB-001] override convention; inserted before 13.1"
+  },
+  {
+   "module": "13",
+   "line_at_new": 131,
+   "edit_line_at_base": 111,
+   "anchor": "13.1 Overview, Scope, and Model-First Differentiator",
+   "class": "b",
+   "text": "NOT be read as permission to use wgpu or WGSL; the choices are open spec items recorded with the",
+   "note": "text written by this delta: new override sub-section 13.0A with ids TAI-VK-001..003, following the 13.0 [TAI-SDB-001] override convention; inserted before 13.1"
+  },
+  {
+   "module": "13",
+   "line_at_new": 195,
+   "edit_line_at_base": 172,
+   "anchor": "2.1 In Scope",
+   "class": "b",
+   "text": "| Vulkan compute shader architecture (topic id kept; WGSL superseded by D7, v02.227) | T-WGSL-SHADERS |",
+   "note": "text written by this delta: topic id T-WGSL-SHADERS is an anchor and is not renamed"
+  },
+  {
+   "module": "13",
+   "line_at_new": 347,
+   "line_at_base": 324,
+   "anchor": "TAI-OVR-009",
+   "class": "b",
+   "text": "**[TAI-OVR-009]** `handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, `CubeCL`, or any WGSL",
+   "note": "TAI-OVR-009 prohibition: handshake_core MUST NOT gain wgpu/CubeCL/WGSL"
+  },
+  {
+   "module": "13",
+   "line_at_new": 477,
+   "edit_line_at_base": 454,
+   "anchor": "ARCH-004.",
+   "class": "b",
+   "text": "added to `handshake_core/Cargo.toml`. `wgpu` and `wgsl_to_wgpu` MUST NOT be added to any Handshake crate (v02.227, D7).",
+   "note": "text written by this delta: placement rule kept; wgpu/wgsl_to_wgpu become a prohibition"
+  },
+  {
+   "module": "13",
+   "line_at_new": 1121,
+   "line_at_base": 1098,
+   "anchor": "<N>.<i>.15 Constraints and Prohibitions Summary",
+   "class": "b",
+   "text": "| Adding `wgpu` to `handshake_core/Cargo.toml` | ARCH-004 |",
+   "note": "prohibition row (ARCH-004)"
+  },
+  {
+   "module": "13",
+   "line_at_new": 1853,
+   "line_at_base": 1829,
+   "anchor": "<N>.<i>.13 Non-Normative Provenance",
+   "class": "d",
+   "text": "The design rationale, OSS evidence, WGSL code sketches, and algorithm pseudocode in",
+   "note": "describes non-normative research file content (WGSL code sketches in 04-cloth-solver.md)"
+  },
+  {
+   "module": "13",
+   "line_at_new": 2004,
+   "line_at_base": 1980,
+   "anchor": "COL-CAPSULE-003",
+   "class": "a-open",
+   "text": "```wgsl",
+   "note": "COL-CAPSULE-003 canonical binding layout in WGSL notation; legacy notation under TAI-VK-003"
+  },
+  {
+   "module": "13",
+   "line_at_new": 2005,
+   "line_at_base": 1981,
+   "anchor": "COL-CAPSULE-003",
+   "class": "a-open",
+   "text": "// tailor-solver/shaders/collision_body.wgsl  (canonical binding layout)",
+   "note": "COL-CAPSULE-003 canonical binding layout in WGSL notation; legacy notation under TAI-VK-003"
+  },
+  {
+   "module": "13",
+   "line_at_new": 2189,
+   "line_at_base": 2165,
+   "anchor": "COL-BUST-001",
+   "class": "a-open",
+   "text": "```wgsl",
+   "note": "COL-BUST-001 code sketch in WGSL notation"
+  },
+  {
+   "module": "13",
+   "line_at_new": 3127,
+   "line_at_base": 3103,
+   "anchor": "<N>.<i>.10 Risks and Mitigations",
+   "class": "d",
+   "text": "*Non-normative provenance: The OSS evidence, compliance calibration tables, WGSL examples,",
+   "note": "non-normative provenance: research files contain WGSL examples"
+  },
+  {
+   "module": "13",
+   "line_at_new": 5313,
+   "line_at_base": 5289,
+   "anchor": "TR-15. Non-Normative Notes",
+   "class": "d",
+   "text": "maps, risk tables, and WGSL shader sketches as non-normative implementation guidance.",
+   "note": "non-normative: research notes contain WGSL shader sketches"
+  },
+  {
+   "module": "13",
+   "line_at_new": 5401,
+   "line_at_base": 5377,
+   "anchor": "1.2 Grain Direction Is Shared Authority",
+   "class": "a-open",
+   "text": "```wgsl",
+   "note": "grain-rotation fragment shader excerpt in WGSL notation"
+  },
+  {
+   "module": "13",
+   "line_at_new": 5402,
+   "line_at_base": 5378,
+   "anchor": "1.2 Grain Direction Is Shared Authority",
+   "class": "a-open",
+   "text": "// tailor-solver/src/shaders/pbr_cloth.wgsl  (fragment shader excerpt)",
+   "note": "grain-rotation fragment shader excerpt in WGSL notation"
+  },
+  {
+   "module": "13",
+   "line_at_new": 5567,
+   "line_at_base": 5543,
+   "anchor": "3.2 Implementation: `rectangle-pack` Crate",
+   "class": "a-open",
+   "text": "```wgsl",
+   "note": "UV atlas vertex shader excerpt in WGSL notation"
+  },
+  {
+   "module": "13",
+   "line_at_new": 5568,
+   "line_at_base": 5544,
+   "anchor": "3.2 Implementation: `rectangle-pack` Crate",
+   "class": "a-open",
+   "text": "// tailor-solver/src/shaders/pbr_cloth.wgsl  (vertex shader excerpt)",
+   "note": "UV atlas vertex shader excerpt in WGSL notation"
+  },
+  {
+   "module": "13",
+   "line_at_new": 6546,
+   "line_at_base": 6522,
+   "anchor": "R-ANIM-023",
+   "class": "a-open",
+   "text": "```wgsl",
+   "note": "R-ANIM-023 GpuSimParams wind fields in WGSL notation"
+  },
+  {
+   "module": "13",
+   "line_at_new": 7723,
+   "line_at_base": 7699,
+   "anchor": "12.3.2 ClothViewport Struct Contract",
+   "class": "a-open",
+   "text": "    device: wgpu::Device,",
+   "note": "ClothViewport struct with wgpu field types"
+  },
+  {
+   "module": "13",
+   "line_at_new": 7724,
+   "line_at_base": 7700,
+   "anchor": "12.3.2 ClothViewport Struct Contract",
+   "class": "a-open",
+   "text": "    queue: wgpu::Queue,",
+   "note": "ClothViewport struct with wgpu field types"
+  },
+  {
+   "module": "13",
+   "line_at_new": 7725,
+   "line_at_base": 7701,
+   "anchor": "12.3.2 ClothViewport Struct Contract",
+   "class": "a-open",
+   "text": "    color_texture: wgpu::Texture,",
+   "note": "ClothViewport struct with wgpu field types"
+  },
+  {
+   "module": "13",
+   "line_at_new": 7726,
+   "line_at_base": 7702,
+   "anchor": "12.3.2 ClothViewport Struct Contract",
+   "class": "a-open",
+   "text": "    color_view: wgpu::TextureView,",
+   "note": "ClothViewport struct with wgpu field types"
+  },
+  {
+   "module": "13",
+   "line_at_new": 7727,
+   "line_at_base": 7703,
+   "anchor": "12.3.2 ClothViewport Struct Contract",
+   "class": "a-open",
+   "text": "    depth_texture: wgpu::Texture,",
+   "note": "ClothViewport struct with wgpu field types"
+  },
+  {
+   "module": "13",
+   "line_at_new": 7728,
+   "line_at_base": 7704,
+   "anchor": "12.3.2 ClothViewport Struct Contract",
+   "class": "a-open",
+   "text": "    staging_buffer: wgpu::Buffer,",
+   "note": "ClothViewport struct with wgpu field types"
+  },
+  {
+   "module": "13",
+   "line_at_new": 7729,
+   "line_at_base": 7705,
+   "anchor": "12.3.2 ClothViewport Struct Contract",
+   "class": "a-open",
+   "text": "    solid_pipeline: wgpu::RenderPipeline,",
+   "note": "ClothViewport struct with wgpu field types"
+  },
+  {
+   "module": "13",
+   "line_at_new": 7730,
+   "line_at_base": 7706,
+   "anchor": "12.3.2 ClothViewport Struct Contract",
+   "class": "a-open",
+   "text": "    wireframe_pipeline: wgpu::RenderPipeline,",
+   "note": "ClothViewport struct with wgpu field types"
+  },
+  {
+   "module": "13",
+   "line_at_new": 7731,
+   "line_at_base": 7707,
+   "anchor": "12.3.2 ClothViewport Struct Contract",
+   "class": "a-open",
+   "text": "    debug_pipeline: wgpu::RenderPipeline,",
+   "note": "ClothViewport struct with wgpu field types"
+  },
+  {
+   "module": "13",
+   "line_at_new": 7739,
+   "class": "fp",
+   "matched": [
+    "show_wireframe_overlay"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 7715
+  },
+  {
+   "module": "13",
+   "line_at_new": 7747,
+   "class": "fp",
+   "matched": [
+    "wireframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 7723
+  },
+  {
+   "module": "13",
+   "line_at_new": 7759,
+   "class": "fp",
+   "matched": [
+    "wireframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference"
+  },
+  {
+   "module": "13",
+   "line_at_new": 7762,
+   "line_at_base": 7738,
+   "anchor": "12.3.3 Render Pipelines",
+   "class": "a-open",
+   "text": "```wgsl",
+   "note": "debug_constraints fragment shader in WGSL notation"
+  },
+  {
+   "module": "13",
+   "line_at_new": 7763,
+   "line_at_base": 7739,
+   "anchor": "12.3.3 Render Pipelines",
+   "class": "a-open",
+   "text": "// debug_constraints.wgsl",
+   "note": "debug_constraints fragment shader in WGSL notation"
+  },
+  {
+   "module": "13",
+   "line_at_new": 7787,
+   "line_at_base": 7763,
+   "anchor": "12.3.4 GPU-to-CPU Readback",
+   "class": "a-open",
+   "text": "let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {",
+   "note": "capture_frame readback pattern written against the wgpu API"
+  },
+  {
+   "module": "13",
+   "line_at_new": 7789,
+   "line_at_base": 7765,
+   "anchor": "12.3.4 GPU-to-CPU Readback",
+   "class": "a-open",
+   "text": "    usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,",
+   "note": "capture_frame readback pattern written against the wgpu API"
+  },
+  {
+   "module": "13",
+   "line_at_new": 7797,
+   "line_at_base": 7773,
+   "anchor": "12.3.4 GPU-to-CPU Readback",
+   "class": "a-open",
+   "text": "    wgpu::TexelCopyBufferInfo {",
+   "note": "capture_frame readback pattern written against the wgpu API"
+  },
+  {
+   "module": "13",
+   "line_at_new": 7799,
+   "line_at_base": 7775,
+   "anchor": "12.3.4 GPU-to-CPU Readback",
+   "class": "a-open",
+   "text": "        layout: wgpu::TexelCopyBufferLayout {",
+   "note": "capture_frame readback pattern written against the wgpu API"
+  },
+  {
+   "module": "13",
+   "line_at_new": 7805,
+   "line_at_base": 7781,
+   "anchor": "12.3.4 GPU-to-CPU Readback",
+   "class": "a-open",
+   "text": "    wgpu::Extent3d {",
+   "note": "capture_frame readback pattern written against the wgpu API"
+  },
+  {
+   "module": "13",
+   "line_at_new": 7813,
+   "line_at_base": 7789,
+   "anchor": "12.3.4 GPU-to-CPU Readback",
+   "class": "a-open",
+   "text": "slice.map_async(wgpu::MapMode::Read, |_| {});",
+   "note": "capture_frame readback pattern written against the wgpu API"
+  },
+  {
+   "module": "13",
+   "line_at_new": 7814,
+   "line_at_base": 7790,
+   "anchor": "12.3.4 GPU-to-CPU Readback",
+   "class": "a-open",
+   "text": "self.device.poll(wgpu::PollType::Wait);",
+   "note": "capture_frame readback pattern written against the wgpu API"
+  },
+  {
+   "module": "13",
+   "line_at_new": 7839,
+   "class": "fp",
+   "matched": [
+    "wireframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 7815
+  },
+  {
+   "module": "13",
+   "line_at_new": 7886,
+   "class": "fp",
+   "matched": [
+    "wireframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 7862
+  },
+  {
+   "module": "13",
+   "line_at_new": 7963,
+   "class": "fp",
+   "matched": [
+    "captureframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 7939
+  },
+  {
+   "module": "13",
+   "line_at_new": 7967,
+   "class": "fp",
+   "matched": [
+    "wireframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 7943
+  },
+  {
+   "module": "13",
+   "line_at_new": 7993,
+   "class": "fp",
+   "matched": [
+    "captureframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 7969
+  },
+  {
+   "module": "13",
+   "line_at_new": 7995,
+   "class": "fp",
+   "matched": [
+    "captureframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 7971
+  },
+  {
+   "module": "13",
+   "line_at_new": 10194,
+   "line_at_base": 10170,
+   "anchor": "TAI-BK-002",
+   "class": "b",
+   "text": "- `handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, `CubeCL`, or any WGSL dependency for",
+   "note": "BodyKit prohibition: handshake_core MUST NOT gain wgpu/CubeCL/WGSL"
+  },
+  {
+   "module": "14",
+   "line_at_new": 553,
+   "line_at_base": 553,
+   "anchor": "STU-RAS-004",
+   "class": "b",
+   "text": "crate through the `RasterEngine`/`RenderEngine` traits and MUST NOT introduce `wgpu`/WGSL/GPU",
+   "note": "prohibition: MUST NOT introduce wgpu/WGSL/GPU dependencies"
+  },
+  {
+   "module": "14",
+   "line_at_new": 5119,
+   "line_at_base": 5119,
+   "anchor": "STU-VEC-179",
+   "class": "b",
+   "text": "byte-identical outputs on every host. `handshake_core` MUST NOT gain `wgpu`, WGSL or any GPU",
+   "note": "prohibition: handshake_core MUST NOT gain wgpu/WGSL"
+  },
+  {
+   "module": "14",
+   "line_at_new": 5504,
+   "class": "fp",
+   "matched": [
+    "reframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 5504
+  },
+  {
+   "module": "14",
+   "line_at_new": 7603,
+   "line_at_base": 7603,
+   "anchor": "STU-LAY-167",
+   "class": "b",
+   "text": "engine even where one would be easier. `handshake_core` MUST NOT gain `wgpu`, WGSL or any GPU",
+   "note": "prohibition: handshake_core MUST NOT gain wgpu/WGSL"
+  },
+  {
+   "module": "14",
+   "line_at_new": 8109,
+   "class": "fp",
+   "matched": [
+    "devanagari"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 8109
+  },
+  {
+   "module": "14",
+   "line_at_new": 8115,
+   "class": "fp",
+   "matched": [
+    "devanagari"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 8115
+  },
+  {
+   "module": "14",
+   "line_at_new": 9133,
+   "class": "fp",
+   "matched": [
+    "devanagari"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 9133
+  },
+  {
+   "module": "14",
+   "line_at_new": 15472,
+   "class": "fp",
+   "matched": [
+    "wireframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 15472
+  },
+  {
+   "module": "14",
+   "line_at_new": 15518,
+   "class": "fp",
+   "matched": [
+    "wireframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 15518
+  },
+  {
+   "module": "14",
+   "line_at_new": 17340,
+   "class": "fp",
+   "matched": [
+    "aefilterautoreframe",
+    "reframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 17340
+  },
+  {
+   "module": "14",
+   "line_at_new": 20668,
+   "class": "fp",
+   "matched": [
+    "baseframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 20668
+  },
+  {
+   "module": "14",
+   "line_at_new": 20670,
+   "class": "fp",
+   "matched": [
+    "baseframe",
+    "baseframemixin"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 20670
+  },
+  {
+   "module": "14",
+   "line_at_new": 23975,
+   "class": "fp",
+   "matched": [
+    "reframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 23975
+  },
+  {
+   "module": "14",
+   "line_at_new": 24025,
+   "class": "fp",
+   "matched": [
+    "oneframeoffrippletrimpreviousedittoplayhead"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 24025
+  },
+  {
+   "module": "14",
+   "line_at_new": 24104,
+   "class": "fp",
+   "matched": [
+    "moveaudiooneframeearlier"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 24104
+  },
+  {
+   "module": "14",
+   "line_at_new": 24105,
+   "class": "fp",
+   "matched": [
+    "moveaudiooneframelater"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 24105
+  },
+  {
+   "module": "14",
+   "line_at_new": 24108,
+   "class": "fp",
+   "matched": [
+    "movevideooneframeearlier"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 24108
+  },
+  {
+   "module": "14",
+   "line_at_new": 24109,
+   "class": "fp",
+   "matched": [
+    "movevideooneframelater"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 24109
+  },
+  {
+   "module": "14",
+   "line_at_new": 24267,
+   "class": "fp",
+   "matched": [
+    "manageguides"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 24267
+  },
+  {
+   "module": "14",
+   "line_at_new": 24314,
+   "class": "fp",
+   "matched": [
+    "removeguides"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 24314
+  },
+  {
+   "module": "14",
+   "line_at_new": 24318,
+   "class": "fp",
+   "matched": [
+    "saveguides"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 24318
+  },
+  {
+   "module": "14",
+   "line_at_new": 25014,
+   "class": "fp",
+   "matched": [
+    "adbeframefieldcoding"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 25014
+  },
+  {
+   "module": "14",
+   "line_at_new": 25045,
+   "class": "fp",
+   "matched": [
+    "adbevideoignoreframeinterval"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 25045
+  },
+  {
+   "module": "14",
+   "line_at_new": 25808,
+   "class": "fp",
+   "matched": [
+    "wireframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 25808
+  },
+  {
+   "module": "14",
+   "line_at_new": 25809,
+   "class": "fp",
+   "matched": [
+    "wireframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 25809
+  },
+  {
+   "module": "14",
+   "line_at_new": 25812,
+   "class": "fp",
+   "matched": [
+    "wireframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 25812
+  },
+  {
+   "module": "14",
+   "line_at_new": 28058,
+   "class": "fp",
+   "matched": [
+    "wireframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 28058
+  },
+  {
+   "module": "14",
+   "line_at_new": 28240,
+   "class": "fp",
+   "matched": [
+    "wireframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 28240
+  },
+  {
+   "module": "14",
+   "line_at_new": 28440,
+   "class": "fp",
+   "matched": [
+    "wireframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 28440
+  },
+  {
+   "module": "14",
+   "line_at_new": 28441,
+   "class": "fp",
+   "matched": [
+    "wireframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 28441
+  },
+  {
+   "module": "14",
+   "line_at_new": 29000,
+   "class": "fp",
+   "matched": [
+    "wireframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 29000
+  },
+  {
+   "module": "14",
+   "line_at_new": 29996,
+   "class": "fp",
+   "matched": [
+    "wireframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 29996
+  },
+  {
+   "module": "14",
+   "line_at_new": 31301,
+   "line_at_base": 31301,
+   "anchor": "STU-SHL-009",
+   "class": "b",
+   "text": "**[STU-SHL-009] Observability and quiet operation.** Every surface specified here MUST be discoverable, inspectable and steerable out of process through the AccessKit tree by stable `author_id` per [STU-MDL-002] and [STU-MDL-004], and MUST satisfy [STU-QUIET-001] through [STU-QUIET-005]: no foreground window, no focus steal, no OS-level input injection, no cursor warping, no pane popping while an operator or another agent works elsewhere. `handshake_core` MUST NOT gain `wgpu`, WGSL or GPU-compute dependencies for any surface in this sub-section ([STU-ARC-002]); all GPU work stays behind the six engine traits in the owning modular Studio asset crate.",
+   "note": "STU-SHL-009 prohibition: handshake_core MUST NOT gain wgpu/WGSL"
+  },
+  {
+   "module": "14",
+   "line_at_new": 31410,
+   "class": "fp",
+   "matched": [
+    "wireframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 31410
+  },
+  {
+   "module": "14",
+   "line_at_new": 32437,
+   "class": "fp",
+   "matched": [
+    "reframe"
+   ],
+   "note": "substring of an unrelated word, not a wgpu/egui/eframe/WGSL/Naga reference",
+   "line_at_base": 32437
+  },
+  {
+   "module": "15",
+   "line_at_new": 26,
+   "edit_line_at_base": 26,
+   "anchor": "GUI-DESKTOP-003",
+   "class": "b",
+   "text": "[GUI-DESKTOP-003] Implementation MUST inspect and reuse or extend the actual canonical component owner before introducing a replacement, near-duplicate mechanic, renderer framework or new asset. A supported existing pinned toolkit/backend is sufficient when it fulfills this topic; under Operator decisions D7 (pure Vulkan, no wgpu) and D1 (no egui) a toolkit or backend built on wgpu, egui or eframe does not fulfil it (v02.227).",
+   "note": "text written by this delta: not a grep match at v02.226; named by the lead (GUI-DESKTOP-003). D1 record: egui had been read as permitted by this sentence"
+  }
+ ],
+ "verification": {
+  "reindex": "spec-bundle-reindex.py (no built-in self-check); manifest/INDEX module hashes, body hashes, frontmatter stamps, heading counts, reconstruction hash, changelog sha/entry count and pointer sha re-verified by an independent script",
+  "ids": "no id lost in any module versus v02.226",
+  "diff_scope": "git diff --no-index --stat v02.226..v02.227: bodies changed only in modules 00, 01, 10, 12, 13, 15; all other modules differ only in frontmatter stamps; INDEX/manifest/README/changelog version metadata",
+  "roundtrip": "spec-roundtrip-check.py not run (another agent runs it)"
+ },
+ "updated_at": "2026-11-01T03:08:06Z"
+}
