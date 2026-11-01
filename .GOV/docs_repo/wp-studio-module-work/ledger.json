@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-01T12:58:23Z",
+ "updated_at": "2026-11-01T13:05:59Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -16407,8 +16407,8 @@
   },
   {
    "lane_id": "SMB-PRESS-INK-MANAGER-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-press-write (ink manager STU-LAY-160, PDF/X enumeration), hsk-studio-layout (flattener preset STU-LAY-161)",
    "lane_file": "builders/lanes/hsk-studio-press-ink-manager-1.json",
    "brief": "builders/briefs/lane-smb-press-ink-manager-1.md",
@@ -16416,14 +16416,15 @@
    "base": "99836457",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-01T10:46:05Z",
+   "updated_at": "2026-11-01T13:05:59Z",
    "closes": [
     "MT-30844",
     "MT-30845",
     "MT-30848",
     "MT-30849",
     "MT-35695 (ink/separations/flattener-preset rows only)"
-   ]
+   ],
+   "pushed": "838036f2..c420f273"
   },
   {
    "lane_id": "SMB-LAYOUT-SENTINELS-1",
@@ -16462,6 +16463,22 @@
     "F-R52-2 (LOW, TIFF part)",
     "MT-30095 (TIFF rows)",
     "MT-038 rows touched"
+   ]
+  },
+  {
+   "lane_id": "SMB-PRESS-OBSERVE-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-press-write (observe dependency and emission)",
+   "lane_file": "builders/lanes/hsk-studio-press-observe-1.json",
+   "brief": "builders/briefs/lane-smb-press-observe-1.md",
+   "worktree": "wt-studio-lanes/smb-press-observe-1",
+   "base": "c420f273",
+   "disk_planned": "C",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-01T13:05:59Z",
+   "closes": [
+    "F-R51-7"
    ]
   }
  ],

@@ -1,0 +1,42 @@
+{
+  "crate": "hsk-studio-press-write (observe dependency and emission)",
+  "lane": "SMB-PRESS-OBSERVE-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-press-observe-1",
+  "base": "c420f273",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on C:, push when green; steward sync follows (Cargo.lock)",
+  "updated_at": "2026-11-01T13:05:59Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "unchanged",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-01T13:05:59Z",
+    "disk": "C",
+    "closes": [
+      "F-R51-7 (LOW)"
+    ],
+    "crate_cargo_toml_change": "press-write gains the observe path dependency (allowed edge, WORKSPACE_RULES path-deps)"
+  }
+}
