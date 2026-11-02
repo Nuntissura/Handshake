@@ -1,0 +1,39 @@
+{
+  "crate": "hsk-studio-layout (marker / anchor line lookups)",
+  "lane": "SMB-LAYOUT-MARKER-LOOKUPS-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-layout-marker-lookups-1",
+  "base": "b7066f94",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: V4-06 sweep, red first per applicable site, one bundled run on D:, push when green",
+  "updated_at": "2026-11-02T14:47:56Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "unchanged",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-02T14:47:56Z",
+    "disk": "D",
+    "origin": "SMB-R54-FOLLOWUPS-1 notes: four similar lookups unchecked (footnotes.rs, toc.rs, toc_contract.rs, xref.rs)"
+  }
+}
