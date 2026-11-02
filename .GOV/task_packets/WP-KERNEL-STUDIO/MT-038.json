@@ -12,7 +12,7 @@
   "wp_id": "WP-KERNEL-STUDIO",
   "mt_id": "MT-038",
   "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": "2026-11-01T12:54:03Z",
+  "updated_at_utc": "2026-11-02T08:29:39Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-038.json",
     "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-038.md",
@@ -27,7 +27,7 @@
     "active": true,
     "validator_verdict": "PASS_V1",
     "phase": "validation",
-    "updated_at_utc": "2026-11-01T12:54:03Z",
+    "updated_at_utc": "2026-11-02T08:29:39Z",
     "contract_preparation_only": false,
     "blocked_on": null
   },
@@ -2109,6 +2109,41 @@
       "written_by": "wp_validator STUDIO-R52 (step 6)",
       "written_at": "2026-11-01T12:54:03Z",
       "note": "round validator status write from the validated lane verdict; engine/asset half only, later kernel/host acceptance stays PENDING"
+    },
+    {
+      "verdict_id": "MT-038-STUDIO-R53-PASS-V1",
+      "mt_id": "MT-038",
+      "verdict": "PASS_V1",
+      "decision": "passed",
+      "round": "STUDIO-R53",
+      "attempt": 2,
+      "idempotency_key": "STUDIO-R53:MT-038:92ae2232:V1",
+      "scope": "asset_local_engine_half",
+      "candidate_commit": "92ae22329f986a90408cb01e09297e1b83d97378",
+      "candidate_tree": "fb7e868288d7ee04f4d8e939c3a75d7db63f8b2e",
+      "kernel_base_commit": "bba7313c6fc67acd4295d405612a0c332836d931",
+      "kernel_record": "the gov_kernel commit that records validation/round-R53.json attempt 2 (ledger round_R53)",
+      "validator_role": "wp_validator",
+      "validator_session": "wp_validator STUDIO-R53 (attempt 2)",
+      "lane": "SMB-TIFF-CHANNELS-1",
+      "lane_verdict": "PASS_V1",
+      "lane_idempotency_key": "STUDIO-R53:SMB-TIFF-CHANNELS-1:92ae22329f98:a2:PASS_V1",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R53",
+      "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+      "round_ref": ".GOV/docs_repo/wp-studio-module-work/validation/round-R53.json",
+      "started_at": "2026-11-02T03:01:06Z",
+      "completed_at": "2026-11-02T08:26:04Z",
+      "ac_coverage": "AC-001..AC-003 (3 of 3 acceptance rows)",
+      "evidence_basis": "validator_statement_met",
+      "evidence_ref": {
+        "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R53.json",
+        "json_path": "/mt_judgments/claims/SMB-TIFF-CHANNELS-1/MT-038",
+        "quote": "met: re-judged (R52 PASS_V1; attempt 2). AC-001 selection persists to a channel and reloads identically (pigment save_then_load_is_identical_at_16_and_32_bits_and_quantised_at_8); AC-002 one Folio channel record shared with Channels; AC-003 'Round-trips through interchange': PSD (R52) and now TIFF, the channel record re-imports with identical tiles (tiff_alpha_channel_and_saved_selection_round_tri"
+      },
+      "prior_status": "PASS_V1",
+      "written_by": "wp_validator STUDIO-R53 attempt 2 (step 6)",
+      "written_at": "2026-11-02T08:29:39Z",
+      "note": "round validator status write from the validated lane verdict; engine/asset half only, later kernel/host acceptance stays PENDING"
     }
   ],
   "blockers": [],
@@ -2807,8 +2842,8 @@
     "asset_validation": {
       "status": "PASS_V1",
       "scope": "asset_local_engine_half",
-      "verdict_ref": "MT-038-STUDIO-R52-PASS-V1",
-      "round": "STUDIO-R52"
+      "verdict_ref": "MT-038-STUDIO-R53-PASS-V1",
+      "round": "STUDIO-R53"
     }
   },
   "rule_refs": [

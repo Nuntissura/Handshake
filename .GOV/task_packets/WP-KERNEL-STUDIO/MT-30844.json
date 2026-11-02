@@ -16,15 +16,15 @@
     "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "PASS_V1",
     "depends_on": [],
     "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING",
-    "phase": "blocked",
-    "updated_at_utc": "2026-10-09T19:13:15.152291+00:00",
-    "contract_preparation_only": true,
-    "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
+    "active": true,
+    "validator_verdict": "PASS_V1",
+    "phase": "validation",
+    "updated_at_utc": "2026-11-02T08:29:39Z",
+    "contract_preparation_only": false,
+    "blocked_on": null
   },
   "clause": "Ink, overprint and separation contract",
   "spec_anchor": [
@@ -1910,7 +1910,43 @@
     "current_dispatch_authorized": false
   },
   "submissions": [],
-  "verdicts": [],
+  "verdicts": [
+    {
+      "verdict_id": "MT-30844-STUDIO-R53-PASS-V1",
+      "mt_id": "MT-30844",
+      "verdict": "PASS_V1",
+      "decision": "passed",
+      "round": "STUDIO-R53",
+      "attempt": 2,
+      "idempotency_key": "STUDIO-R53:MT-30844:92ae2232:V1",
+      "scope": "asset_local_engine_half",
+      "candidate_commit": "92ae22329f986a90408cb01e09297e1b83d97378",
+      "candidate_tree": "fb7e868288d7ee04f4d8e939c3a75d7db63f8b2e",
+      "kernel_base_commit": "bba7313c6fc67acd4295d405612a0c332836d931",
+      "kernel_record": "the gov_kernel commit that records validation/round-R53.json attempt 2 (ledger round_R53)",
+      "validator_role": "wp_validator",
+      "validator_session": "wp_validator STUDIO-R53 (attempt 2)",
+      "lane": "SMB-PRESS-INK-MANAGER-1",
+      "lane_verdict": "PASS_V1",
+      "lane_idempotency_key": "STUDIO-R53:SMB-PRESS-INK-MANAGER-1:92ae22329f98:a2:PASS_V1",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R53",
+      "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+      "round_ref": ".GOV/docs_repo/wp-studio-module-work/validation/round-R53.json",
+      "started_at": "2026-11-02T03:01:06Z",
+      "completed_at": "2026-11-02T08:26:04Z",
+      "ac_coverage": "AC-001..AC-002 (2 of 2 acceptance rows)",
+      "evidence_basis": "validator_statement_met",
+      "evidence_ref": {
+        "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R53.json",
+        "json_path": "/mt_judgments/claims/SMB-PRESS-INK-MANAGER-1/MT-30844",
+        "quote": "met: AC-001 mixed-ink limits as typed errors: 27 spots ok / 28 mixed_ink_too_many_spot_inks, 31 inks ok / 32 mixed_ink_too_many_inks, group 1000 ok / 1001 mixed_ink_group_too_large before any swatch, hostile u32 repeats refused (mixed_ink_limits_27_spots_31_inks_1000_swatches_are_typed); AC-002 the separations preview readable as typed values: per-plate switches, ink-limit threshold, per-ink cover"
+      },
+      "prior_status": "PENDING",
+      "written_by": "wp_validator STUDIO-R53 attempt 2 (step 6)",
+      "written_at": "2026-11-02T08:29:39Z",
+      "note": "round validator status write from the validated lane verdict; engine/asset half only, later kernel/host acceptance stays PENDING"
+    }
+  ],
   "blockers": [],
   "preserved_original": {
     "schema_id": "hsk.preserved_microtask@1",
@@ -2398,9 +2434,15 @@
       "all_original_edges_explicitly_reconciled": true,
       "asset_vs_host_phase_separated": true,
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
+    },
+    "asset_validation": {
+      "status": "PASS_V1",
+      "scope": "asset_local_engine_half",
+      "verdict_ref": "MT-30844-STUDIO-R53-PASS-V1",
+      "round": "STUDIO-R53"
     }
   },
-  "updated_at_utc": "2026-10-10T00:00:00Z",
+  "updated_at_utc": "2026-11-02T08:29:39Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
