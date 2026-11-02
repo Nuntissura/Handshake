@@ -96,7 +96,7 @@
   "lock_wait_s": 0,
   "bg_pids": [],
   "next": "validator: judge range 295c6029..174ebc56 (folio a888bf3e, prism 174ebc56)",
-  "updated_at": "2026-11-01T13:32:46Z",
+  "updated_at": "2026-11-02T02:32:04Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -104,7 +104,7 @@
     "gui_host": "none",
     "gpu": "none",
     "diagnostics": {
-      "internal_diagnostics": "producer_through_observe",
+      "internal_diagnostics": "report_for_host: folio may depend only on accord (WORKSPACE_RULES path-deps), so the new entries return code-and-counter reports with the opaque correlation; a host adapter emits them through observe (SMB-R53-FOLLOWUPS-1)",
       "flight_recorder": "none",
       "palmistry": "none"
     },
@@ -230,6 +230,12 @@
     "lead_acceptances": {
       "owned_path_deviations": "lead accepted the folio src/vector.rs edits and the prism src/lib.rs (mod line) and src/wide.rs (Tag fields pub(crate)) edits as lane paths for this lane's diff-stat check",
       "bundled_rerun": "lead: re-run the bundled run only if the rebase touched folio, prism or their dependencies (it did not)"
+    },
+    "lead_correction_F_R53_1": {
+      "at": "2026-11-02T02:32:04Z",
+      "field": "host_integration.diagnostics.internal_diagnostics",
+      "old": "producer_through_observe",
+      "reason": "STUDIO-R53 F-R53-1: the block claimed producer_through_observe, but folio cannot reach observe"
     }
   },
   "changed_assertions": [
