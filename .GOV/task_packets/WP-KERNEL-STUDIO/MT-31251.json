@@ -16,15 +16,15 @@
     "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "PASS_V1",
     "depends_on": [],
     "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING",
-    "phase": "blocked",
-    "updated_at_utc": "2026-10-09T19:13:15.152291+00:00",
-    "contract_preparation_only": true,
-    "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
+    "active": true,
+    "validator_verdict": "PASS_V1",
+    "phase": "validation",
+    "updated_at_utc": "2026-11-02T13:57:45Z",
+    "contract_preparation_only": false,
+    "blocked_on": null
   },
   "clause": "Named-colour profile binding",
   "spec_anchor": [
@@ -1858,7 +1858,42 @@
     "current_dispatch_authorized": false
   },
   "submissions": [],
-  "verdicts": [],
+  "verdicts": [
+    {
+      "verdict_id": "MT-31251-STUDIO-R54-PASS-V1",
+      "mt_id": "MT-31251",
+      "verdict": "PASS_V1",
+      "decision": "passed",
+      "round": "STUDIO-R54",
+      "idempotency_key": "STUDIO-R54:MT-31251:96ace3ca:V1",
+      "scope": "asset_local_engine_half",
+      "candidate_commit": "96ace3ca01de1e91348ac774e742d6e57fc76224",
+      "candidate_tree": "4e510219107ffd1048339b828591e647523d6068",
+      "kernel_base_commit": "ed4991a78ee9c8216786e4274f8af8a24e7f8700",
+      "kernel_record": "the gov_kernel commit that records validation/round-R54.json (ledger round_R54)",
+      "validator_role": "wp_validator",
+      "validator_session": "wp_validator STUDIO-R54",
+      "lane": "SMB-R53-FOLLOWUPS-1",
+      "lane_verdict": "PASS_V1",
+      "lane_idempotency_key": "STUDIO-R54:SMB-R53-FOLLOWUPS-1:96ace3ca01de:PASS_V1",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R54",
+      "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+      "round_ref": ".GOV/docs_repo/wp-studio-module-work/validation/round-R54.json",
+      "started_at": "2026-11-02T09:47:37Z",
+      "completed_at": "2026-11-02T13:52:59Z",
+      "ac_coverage": "AC-001..AC-001 (1 of 1 acceptance rows)",
+      "evidence_basis": "validator_statement_met",
+      "evidence_ref": {
+        "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R54.json",
+        "json_path": "/mt_judgments/claims/SMB-R53-FOLLOWUPS-1/MT-31251",
+        "quote": "met: re-judged (R53 partly met: join and 'measured values drive proofing directly' not built). AC-001 (STU-COL-188): an ICC named-colour profile (ncl2) is bound through the STU-COL-126 profile owner (prism::parse_named_colour_profile; no bespoke parser in harness-core or folio) and joined into a Folio colour book whose entries carry Prism's measured PCS Lab unchanged, bound to the profile (SCPF id"
+      },
+      "prior_status": "PENDING",
+      "written_by": "wp_validator STUDIO-R54 (step 6)",
+      "written_at": "2026-11-02T13:57:45Z",
+      "note": "round validator status write from the validated lane verdict; engine/asset half only, later kernel/host acceptance stays PENDING"
+    }
+  ],
   "blockers": [],
   "preserved_original": {
     "schema_id": "hsk.preserved_microtask@1",
@@ -2245,9 +2280,15 @@
       "all_original_edges_explicitly_reconciled": true,
       "asset_vs_host_phase_separated": true,
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
+    },
+    "asset_validation": {
+      "status": "PASS_V1",
+      "scope": "asset_local_engine_half",
+      "verdict_ref": "MT-31251-STUDIO-R54-PASS-V1",
+      "round": "STUDIO-R54"
     }
   },
-  "updated_at_utc": "2026-10-09T19:35:32.252813+00:00",
+  "updated_at_utc": "2026-11-02T13:57:45Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
