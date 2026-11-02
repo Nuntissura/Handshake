@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-02T02:32:04Z",
+ "updated_at": "2026-11-02T02:34:03Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -16502,6 +16502,46 @@
     "MT-30095"
    ],
    "pushed": "1eed1b6f..d7127bf1"
+  },
+  {
+   "lane_id": "SMB-R53-FOLLOWUPS-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness-core (folio report adapter through observe; prism named-colour -> folio colour-book join), interop-tiff / harness-core tests",
+   "lane_file": "builders/lanes/hsk-studio-r53-followups-1.json",
+   "brief": "builders/briefs/lane-smb-r53-followups-1.md",
+   "worktree": "wt-studio-lanes/smb-r53-followups-1",
+   "base": "92ae2232",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-02T02:34:03Z",
+   "closes": [
+    "F-R53-1 (LOW)",
+    "F-R53-2 (LOW)",
+    "MT-31251",
+    "MT-31248 / MT-31249 join rows",
+    "MT-30095 TIFF rows touched"
+   ]
+  },
+  {
+   "lane_id": "SMB-SENTINELS-NATIVE-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-type (public ends_paragraph), hsk-studio-layout (use it), hsk-studio-interop-layout (native Type composition test; IDML sentinel mappings)",
+   "lane_file": "builders/lanes/hsk-studio-sentinels-native-1.json",
+   "brief": "builders/briefs/lane-smb-sentinels-native-1.md",
+   "worktree": "wt-studio-lanes/smb-sentinels-native-1",
+   "base": "92ae2232",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-02T02:34:03Z",
+   "closes": [
+    "F-R53-3 (LOW)",
+    "MT-31005",
+    "MT-31007",
+    "MT-31008",
+    "MT-31009"
+   ]
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

@@ -1,0 +1,48 @@
+{
+  "crate": "hsk-studio-type (public ends_paragraph), hsk-studio-layout (use it), hsk-studio-interop-layout (native Type composition test; IDML sentinel mappings)",
+  "lane": "SMB-SENTINELS-NATIVE-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-sentinels-native-1",
+  "base": "92ae2232",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push only after STUDIO-R53 is recorded and the lead releases",
+  "updated_at": "2026-11-02T02:34:03Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "unchanged: composition and import / export keep their existing context",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-02T02:34:03Z",
+    "disk": "D",
+    "closes": [
+      "F-R53-3 (LOW)"
+    ],
+    "closes_candidates": [
+      "MT-31005",
+      "MT-31007",
+      "MT-31008",
+      "MT-31009"
+    ],
+    "dispatch_reason": "STUDIO-R53 static-review findings; builds on D: while R53 holds C:"
+  }
+}
