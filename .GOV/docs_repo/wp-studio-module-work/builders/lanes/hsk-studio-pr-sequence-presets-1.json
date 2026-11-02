@@ -1,0 +1,50 @@
+{
+  "crate": "hsk-studio-folio (sequence settings, presets, editing modes, immersive and preview-render settings)",
+  "lane": "SMB-PR-SEQUENCE-PRESETS-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-pr-sequence-presets-1",
+  "base": "96ace3ca",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on C:, push when green",
+  "updated_at": "2026-11-02T14:03:34Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "report_for_host: folio may depend only on accord; operations return code-only reports",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: preset and editing-mode operations are mutating document edits and take an ActorContext from the caller; never default_actor()",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-02T14:03:34Z",
+    "disk": "C",
+    "closes": [],
+    "closes_candidates": [
+      "MT-33686",
+      "MT-33695",
+      "MT-33696",
+      "MT-33697",
+      "MT-33698",
+      "MT-33699",
+      "MT-33700",
+      "MT-33701",
+      "MT-33702"
+    ]
+  }
+}
