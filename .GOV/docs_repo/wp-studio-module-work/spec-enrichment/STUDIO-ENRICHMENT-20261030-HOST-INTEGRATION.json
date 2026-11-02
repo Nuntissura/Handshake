@@ -357,6 +357,14 @@
    "lead_reading": "2026-11-01T14:45:44Z: SMB-LAYOUT-SENTINELS-1 implements typed unresolved outcomes and records each reading; see builders/lanes/hsk-studio-layout-sentinels-1.json",
    "source": "lane SMB-LAYOUT-SENTINELS-1 notes, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-43",
+   "gap": "IDML mapping of the stream sentinels is incomplete in the spec (lane proposals SENT-SD-10..14): no IDML value is stated for the column break, flush space, or the footnote / endnote / cross-reference / index markers; the frame / page / odd / even ParagraphBreakType values rest on a practitioner source marked UNVERIFIED",
+   "needs": "the IDML representation per member, or a statement that the member is not carried by IDML",
+   "lead_reading": "2026-11-02T03:09:53Z: SMB-SENTINELS-NATIVE-1 maps what is stated and leaves the rest typed unavailable",
+   "source": "lane SMB-SENTINELS-NATIVE-1 notes, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [
@@ -946,5 +954,5 @@
    "spec_version": "v02.226"
   }
  ],
- "updated_at": "2026-11-01T14:45:44Z"
+ "updated_at": "2026-11-02T03:09:53Z"
 }
