@@ -7,43 +7,57 @@
   "base": "92ae2232",
   "commits": [
     {
-      "sha": "7f166b75",
-      "subject": "type, layout (item 1, red): one public paragraph-terminator rule (stub returning false; compiles, 3 tests fail)",
+      "sha": "f28efc16",
+      "subject": "layout (SMB-LAYOUT-SENTINELS-1 remediation, red): a break after a glyph-less marker",
+      "claimed_by": "SMB-LAYOUT-SENTINELS-1",
       "pushed": false
     },
     {
-      "sha": "94a4d3e0",
+      "sha": "d42c89c7",
+      "subject": "layout (SMB-LAYOUT-SENTINELS-1 remediation): a break after a glyph-less marker directs the flow",
+      "claimed_by": "SMB-LAYOUT-SENTINELS-1",
+      "pushed": false
+    },
+    {
+      "sha": "8a3781e2",
+      "subject": "type, layout (item 1, red): one public paragraph-terminator rule",
+      "was": "7f166b75",
+      "pushed": false
+    },
+    {
+      "sha": "f47268cd",
       "subject": "type, layout (item 1): one public paragraph-terminator rule",
+      "was": "94a4d3e0",
       "pushed": false
     },
     {
-      "sha": "6a990769",
-      "subject": "interop-layout, layout (item 2, red): sentinels composed through native Type",
+      "sha": "6d90fa7a",
+      "subject": "interop-layout (item 2, red): sentinels composed through native Type",
+      "was": "6a990769 (without its layout test, which moved into f28efc16)",
       "pushed": false
     },
     {
-      "sha": "8a7bbf8d",
-      "subject": "layout (item 2): a break after a glyph-less marker directs the flow (threaded_reflow.rs paragraph_break; outside owned paths, waiver requested)",
-      "pushed": false
-    },
-    {
-      "sha": "89fd3782",
+      "sha": "ffa05aca",
       "subject": "interop-layout (item 3, red): IDML mappings of the stream sentinels",
+      "was": "89fd3782",
       "pushed": false
     },
     {
-      "sha": "0d560051",
+      "sha": "d1d29751",
       "subject": "interop-layout (item 3): IDML mappings of the stream sentinels",
+      "was": "0d560051",
       "pushed": false
     },
     {
-      "sha": "a347c42e",
+      "sha": "d3cac7ed",
       "subject": "interop-layout (item 3): V4-01 guard on idml_encode",
+      "was": "a347c42e",
       "pushed": false
     },
     {
-      "sha": "d234e039",
-      "subject": "interop-layout (item 3): drop an unused constant (dead_code warning seen in the bundled run; no other change)",
+      "sha": "26950a31",
+      "subject": "interop-layout (item 3): drop an unused constant",
+      "was": "d234e039",
       "pushed": false
     }
   ],
@@ -58,9 +72,9 @@
   ],
   "tests": {
     "bundled_default": {
-      "argv": "lane-check.sh --owner smb-sentinels-native-1 --disk d -- cargo nextest run -p hsk-studio-type -p hsk-studio-layout -p hsk-studio-interop-layout --no-fail-fast (step 0, clippy type + layout + interop-layout and dependents composite, harness, harness-view, interop-fig, interop-fig-native, render-cpu, render-gpu, nextest whole suites, default units)",
+      "argv": "lane-check.sh --owner smb-sentinels-native-1 --disk d -- cargo nextest run -p hsk-studio-type -p hsk-studio-layout -p hsk-studio-interop-layout --no-fail-fast (step 0, clippy type + layout + interop-layout and dependents composite, harness, harness-view, interop-fig, interop-fig-native, render-cpu, render-gpu, whole suites, default units)",
       "exit": 0,
-      "sha": "a347c42e",
+      "sha": "26950a31",
       "passed": 384,
       "failed": 0,
       "per_crate": {
@@ -68,19 +82,18 @@
         "hsk-studio-layout": 216,
         "hsk-studio-interop-layout": 60
       },
-      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-sentinels-native-1/bundled-smb-sentinels-native-1-a347c42e-default.log",
-      "log_sha256": "9feef639bdb15e537ef31f58fdb0c9d7628e2dfa97bcd9a6b243513c702facc9"
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-sentinels-native-1/bundled-smb-sentinels-native-1-26950a31-default.log",
+      "log_sha256": "77ea6f73fbd3560240490e112bd6ebe061eff5cf557537872dded99ad1e9a08e"
     },
     "bundled_harfrust": {
-      "argv": "lane-check.sh --owner smb-sentinels-native-1 --disk d -- cargo nextest run -p hsk-studio-type --features harfrust --no-fail-fast (second call of the same batch: type's harfrust round unit, clippy type + dependents)",
+      "argv": "lane-check.sh --owner smb-sentinels-native-1 --disk d -- cargo nextest run -p hsk-studio-type --features harfrust --no-fail-fast (second call of the batch: type harfrust unit)",
       "exit": 0,
-      "sha": "a347c42e",
+      "sha": "26950a31",
       "passed": 109,
       "failed": 0,
-      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-sentinels-native-1/bundled-smb-sentinels-native-1-a347c42e-harfrust.log",
-      "log_sha256": "f65d96490b0d2aea5980f2fc938273200c2335ae60f520baa64a599a73cc8269"
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-sentinels-native-1/bundled-smb-sentinels-native-1-26950a31-harfrust.log",
+      "log_sha256": "0f2f81e12532cfb59064135e1559fd6ae095a8ac059137edb80320a6b4b57c59"
     },
-    "tip_note": "tip d234e039 differs from a347c42e only by deleting one unused pub(crate) const (idml_sentinels::COLUMN_BREAK, the dead_code warning in both logs); no rerun; --per-sha at release compiles every commit",
     "red_proof": {
       "7f166b75": {
         "compiles": true,
@@ -110,19 +123,31 @@
         "failed": 6,
         "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-sentinels-native-1/red-proof-smb-sentinels-native-1-89fd3782.log"
       },
-      "note": "red runs in the lane's own worktree at the red commit, then edited forward (no revert/restore, V4-11); every red commit compiles, none needed squashing. mt_31005_foreign_noncharacters_in_idml_note_text_are_replaced_and_reported was added with the item 3 green commit (no separate red run)"
+      "note": "red runs for 7f166b75 / 6a990769 / 89fd3782 were taken before the reorder; their re-created commits 8a3781e2 / 6d90fa7a / ffa05aca carry the same item diffs (6d90fa7a without the layout test). f28efc16 red run after the reorder. Every red commit compiles; none needs squashing",
+      "f28efc16": {
+        "compiles": true,
+        "argv": "cargo nextest run -p hsk-studio-layout --no-fail-fast -E 'test(mt_31008_a_break_after_a_marker_without_glyphs)' in a git-archive copy (not a git worktree) at Handshake_Artifacts/WP-KERNEL-STUDIO/smb-sentinels-native-1/red-tree-f28efc16, owner smb-sentinels-native-1-red, D:",
+        "exit": 100,
+        "passed": 0,
+        "failed": 1,
+        "failing": "control assertions pass; first failure at stream_sentinels.rs:682 ('ab' INDEX PAGE 'cd': breaks [] instead of Page at byte 5)",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-sentinels-native-1/red-proof-smb-sentinels-native-1-f28efc16.log"
+      }
     },
     "not_proven": "mt_31008_a_forced_line_break_through_native_type prints NOT_PROVEN (log focus4/red-proof 6a990769 with --no-capture): Type refuses the paragraph holding U+2028 with MissingGlyph (Type shapes U+2028 as content; the Inter fixture maps no glyph). The test asserts the refusal is not InvalidBidi",
     "doctests": "none added (4d)",
     "round_features_4e": "no cfg(feature) test file added; type's harfrust unit covered by bundled_harfrust",
-    "step0": "lane-check step 0 passed in both calls (no machine path: fixtures via env!(CARGO_MANIFEST_DIR)/../hsk-studio-type/tests/fixtures, sha256-pinned)"
+    "step0": "lane-check step 0 passed in both calls (no machine path: fixtures via env!(CARGO_MANIFEST_DIR)/../hsk-studio-type/tests/fixtures, sha256-pinned)",
+    "superseded_runs": [
+      "a347c42e default 384/384 and harfrust 109/109 (logs bundled-smb-sentinels-native-1-a347c42e-*.log; pre-reorder history, interop dead_code warning)"
+    ]
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
   "next": "waiting for lead release after R53",
-  "updated_at": "2026-11-02T03:08:47Z",
+  "updated_at": "2026-11-02T03:29:14Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -182,12 +207,12 @@
     "microtasks": {
       "MT-31005": "partly met. F-R53-3 closed for the composition clause: markers, the five break sentinels, paragraph return and flush space compose through native Type with layout's partition accepted (sentinels_native_type.rs mt_31005_a_multi_page_multi_section_story_composes_through_native_type); one terminator rule (item 1). Not met: forced line break through native Type (NOT_PROVEN, Type refuses U+2028), the fixed / flexible non-breaking-space rules (outside this lane)",
       "MT-31007": "partly met: AC-001/AC-002 page-number, section, footnote, endnote, cross-reference and index markers through native Type (index typed rule_unstated) and IDML import/export of the four page-number/section markers (idml_sentinels.rs mt_31007_*); anchored-object marker out of scope; AC-003 operator surface open (gui_host none)",
-      "MT-31008": "partly met: column, frame, page, odd-page, even-page breaks reach their targets through native Type, a break after a glyph-less marker now applies (layout mt_31008_a_break_after_a_marker_without_glyphs_still_directs_the_flow), paragraph return composes; IDML Br + ParagraphBreakType for four of the five sentinels (column break typed unavailable). Not met: forced line break through native Type (NOT_PROVEN), AC-003 operator surface",
+      "MT-31008": "partly met: column, frame, page, odd-page, even-page breaks reach their targets through native Type, a break after a glyph-less marker now applies (layout mt_31008_a_break_after_a_marker_without_glyphs_still_directs_the_flow, the SMB-LAYOUT-SENTINELS-1 remediation f28efc16 / d42c89c7), paragraph return composes; IDML Br + ParagraphBreakType for four of the five sentinels (column break typed unavailable). Not met: forced line break through native Type (NOT_PROVEN), AC-003 operator surface",
       "MT-31009": "partly met: flush space through native Type (zero-advance glyph, absorbs the JustifiedAll last-line slack: absorbed + line width = 180 pt slot); IDML export typed loss (U+0020); the other white-space members are Type's real characters; AC-003 operator surface open"
     },
     "changed_assertions": "none: no existing assertion changed (all new tests appended or in new files). Behaviour changes without an existing pin: (1) layout paragraph_break reports the terminator's byte, which differs from before only when a glyph-less marker precedes the break (before: break ignored); (2) IDML import maps ACE 18/19 to sentinels instead of dropping them (special_character_dropped no longer noted for them) and Br + one of the four ParagraphBreakType values to a break sentinel instead of U+000A; (3) foreign U+FDD0..U+FDEF in IDML text become U+FFFD (before: kept and read as sentinels); (4) replace_content and export_model refuse sentinels they cannot carry (before: raw noncharacters written); (5) export_folio maps or reports sentinels (before: written raw)",
     "findings": [
-      "NATIVE-1: layout threaded_reflow::paragraph_break missed a break sentinel preceded by a glyph-less marker (index marker, or any unresolved marker): the following text stayed in the frame and no BreakOutcome was reported. Found by the native-Type host test, fixed in 8a7bbf8d (threaded_reflow.rs is outside this lane's owned paths: waiver requested below)",
+      "NATIVE-1: layout threaded_reflow::paragraph_break missed a break sentinel preceded by a glyph-less marker (also found by the R53 validator probe). Fixed as the SMB-LAYOUT-SENTINELS-1 remediation, commits f28efc16 (red) and d42c89c7 (fix), first on this branch",
       "NATIVE-2: Type refuses a paragraph holding U+2028 (forced line break) with MissingGlyph: the engine shapes U+2028 as content and the Inter fixture maps no glyph to it. STU-TYP-207 stores the forced line break as U+2028, so native composition of a forced line break fails today. Proposal for a type lane: keep U+2028 outside the shaping buffer like the paragraph separators and let layout break the line there (layout's UAX #14 already treats it as mandatory)"
     ],
     "spec_proposals": [
@@ -203,7 +228,7 @@
     "scope_waiver_request": {
       "why": "item 2's host test showed breaks after glyph-less markers were ignored; the assertion 'breaks reach their targets' could not hold without the fix",
       "touched_outside_brief_paths": [
-        "crates/hsk-studio-layout/src/threaded_reflow.rs (paragraph_break only, 8a7bbf8d)",
+        "crates/hsk-studio-layout/src/threaded_reflow.rs and tests/stream_sentinels.rs remediation test (f28efc16, d42c89c7: claimed by SMB-LAYOUT-SENTINELS-1 per lead instruction)",
         "crates/hsk-studio-interop-layout/src/model.rs (RunModel::paragraph_end / story_len, additive)",
         "crates/hsk-studio-interop-layout/src/proposal.rs, idml_composition.rs, idml_longdoc.rs (story offsets and terminator through story_len / paragraph_end; longdoc fragment foreign replacement)",
         "crates/hsk-studio-interop-layout/src/folio_export.rs, idml_encode.rs (export side of the mappings)"
@@ -211,6 +236,54 @@
       "note": "the brief names 'the IDML story import / export modules'; model, proposal, composition and longdoc are listed so the lead can judge"
     },
     "external_research": "WebFetch 2026-11-02: idml.paged.media/stories-text/text-variables (ACE 18 + PageNumberType NextPageNumber / PreviousPageNumber on the CharacterStyleRange, ACE 19 section marker); idml.paged.media/stories-text/story-structure (no break types listed); developer.adobe.com StartParagraph enum (scripting names only); two web searches found no IDML source for ParagraphBreakType=NextColumn",
-    "side_effect_note": "one stray empty file /tmp/x (Git Bash temp dir) created by a mistyped command; not deleted (delete nothing)"
+    "side_effect_note": "one stray empty file /tmp/x (Git Bash temp dir) created by a mistyped command; not deleted (delete nothing)",
+    "remediation_smb_layout_sentinels_1": {
+      "commits": [
+        "f28efc16 (red)",
+        "d42c89c7 (fix)"
+      ],
+      "paths": [
+        "crates/hsk-studio-layout/tests/stream_sentinels.rs (test mt_31008_a_break_after_a_marker_without_glyphs_still_directs_the_flow)",
+        "crates/hsk-studio-layout/src/threaded_reflow.rs (paragraph_break)"
+      ],
+      "cases": "validator R53 probe: 'ab' INDEX PAGE 'cd', INDEX PAGE 'cd', 'ab' XREF FRAME 'cd' without a record, control 'ab' PAGE 'cd'; plus an unresolved previous-page marker before a frame break, the plain reflow entry point, and the no-target overset from the break byte",
+      "failure_class": "break / paragraph detection that derives a character boundary from glyph positions (cluster of the last glyph), which loses glyph-less sentinels (index marker, unresolved markers, empty substitutions)",
+      "search_regex": "cluster\\.(start|end)  (over crates/hsk-studio-layout/src/*.rs; every glyph-cluster position read, then judged)",
+      "v4_06_sites": [
+        "threaded_reflow.rs:856 paragraph_break content_end = last glyph's cluster end: FIXED (d42c89c7, the terminator is the last character before the next paragraph's start)",
+        "threaded_reflow.rs:1199 boundary() of an empty line (glyph start or paragraph source end): not applicable, line extent of an empty range, no break detection",
+        "threaded_reflow.rs:1215 and :1216 line source span from its first / last glyph: not applicable, line extent by definition (markers are placed by paragraph, sentinels.rs place_markers)",
+        "threaded_reflow.rs:1229 and :1236 ligature line-part sources: not applicable, line-end parts of glyphs",
+        "threaded_reflow.rs:1302 flush spaces on a line: not applicable, flush space always has its own zero-advance glyph (sentinels.rs shape_story)",
+        "paragraph.rs:172 and :173 from_type cluster copy: not applicable, copies Type's clusters",
+        "paragraph.rs:394 glyph cluster validation: not applicable, input check",
+        "paragraph.rs:411 and :412 opp_after (UAX #14 opportunity between glyph i and the next glyph): not applicable, scans all text bytes between the two glyphs, so a glyph-less sentinel there is seen",
+        "paragraph.rs:473, :479, :480, :484, :485, :528 hyphenation word spans and break parts: not applicable, word extents of glyphs",
+        "cjk.rs:573 glyph cluster validation: not applicable, input check",
+        "cjk.rs:594 and :595 opp_after (CJK): not applicable, same gap scan as paragraph.rs",
+        "anchors.rs:115 inline anchor glyph (cluster start == anchor byte) and :280 glyphs before an anchor: not applicable, anchor placement (U+FFFC), not paragraph or break detection",
+        "footnotes.rs:230 glyphs before a footnote reference (take_while start < anchor): not applicable, anchor offset; correct for a glyph-less reference",
+        "styles.rs:181 glyph of a wanted character, :300 and :302 style range per glyph: not applicable, style lookup",
+        "sentinels.rs:698 flush glyph insertion point by story byte: not applicable, inserts at the story byte"
+      ],
+      "v4_06_count": "28 regex hits in 7 files; 1 fixed, 27 not applicable; autosize.rs, textflow.rs (uses ends_paragraph on text) and the rest of layout src have no hit",
+      "tests": "bundled_default at 26950a31 (layout 216/216, incl. the remediation test)"
+    }
+  },
+  "history_rewrite": {
+    "why": "lead instruction 2026-11-02 (V4-15): the threaded_reflow fix is the SMB-LAYOUT-SENTINELS-1 remediation and comes first on the branch, free of other lane changes",
+    "how": "commits re-created with git commit-tree over a private index (no checkout, reset or force); branch moved with git update-ref old=d234e039 new=26950a31; final tree 87ddf19d equals the work tree before the move (old tip d234e039 plus the extended test and one comment)",
+    "old_chain": [
+      "7f166b75",
+      "94a4d3e0",
+      "6a990769",
+      "8a7bbf8d",
+      "89fd3782",
+      "0d560051",
+      "a347c42e",
+      "d234e039"
+    ],
+    "dropped": "8a7bbf8d (its threaded_reflow change is d42c89c7)",
+    "old_shas_reachable": "local reflog only; nothing was pushed"
   }
 }
