@@ -1,8 +1,8 @@
 {
   "crate": "hsk-studio-type (public ends_paragraph), hsk-studio-layout (use it), hsk-studio-interop-layout (native Type composition test; IDML sentinel mappings)",
   "lane": "SMB-SENTINELS-NATIVE-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "ready",
   "worktree": "wt-studio-lanes/smb-sentinels-native-1",
   "base": "92ae2232",
   "commits": [
@@ -10,55 +10,55 @@
       "sha": "f28efc16",
       "subject": "layout (SMB-LAYOUT-SENTINELS-1 remediation, red): a break after a glyph-less marker",
       "claimed_by": "SMB-LAYOUT-SENTINELS-1",
-      "pushed": false
+      "pushed": true
     },
     {
       "sha": "d42c89c7",
       "subject": "layout (SMB-LAYOUT-SENTINELS-1 remediation): a break after a glyph-less marker directs the flow",
       "claimed_by": "SMB-LAYOUT-SENTINELS-1",
-      "pushed": false
+      "pushed": true
     },
     {
       "sha": "8a3781e2",
       "subject": "type, layout (item 1, red): one public paragraph-terminator rule",
       "was": "7f166b75",
-      "pushed": false
+      "pushed": true
     },
     {
       "sha": "f47268cd",
       "subject": "type, layout (item 1): one public paragraph-terminator rule",
       "was": "94a4d3e0",
-      "pushed": false
+      "pushed": true
     },
     {
       "sha": "6d90fa7a",
       "subject": "interop-layout (item 2, red): sentinels composed through native Type",
       "was": "6a990769 (without its layout test, which moved into f28efc16)",
-      "pushed": false
+      "pushed": true
     },
     {
       "sha": "ffa05aca",
       "subject": "interop-layout (item 3, red): IDML mappings of the stream sentinels",
       "was": "89fd3782",
-      "pushed": false
+      "pushed": true
     },
     {
       "sha": "d1d29751",
       "subject": "interop-layout (item 3): IDML mappings of the stream sentinels",
       "was": "0d560051",
-      "pushed": false
+      "pushed": true
     },
     {
       "sha": "d3cac7ed",
       "subject": "interop-layout (item 3): V4-01 guard on idml_encode",
       "was": "a347c42e",
-      "pushed": false
+      "pushed": true
     },
     {
       "sha": "26950a31",
       "subject": "interop-layout (item 3): drop an unused constant",
       "was": "d234e039",
-      "pushed": false
+      "pushed": true
     }
   ],
   "capabilities_done": [
@@ -140,14 +140,22 @@
     "step0": "lane-check step 0 passed in both calls (no machine path: fixtures via env!(CARGO_MANIFEST_DIR)/../hsk-studio-type/tests/fixtures, sha256-pinned)",
     "superseded_runs": [
       "a347c42e default 384/384 and harfrust 109/109 (logs bundled-smb-sentinels-native-1-a347c42e-*.log; pre-reorder history, interop dead_code warning)"
-    ]
+    ],
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-sentinels-native-1 --disk d --per-sha origin/codex/handshake-studio-assets",
+      "result": "PER_SHA_RESULT OK shas=9 range=92ae2232..26950a31",
+      "exit": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-sentinels-native-1/persha-smb-sentinels-native-1-26950a31.log",
+      "rebase": "after the R53 release origin was still 92ae2232: rebase a no-op, the bundled run at 26950a31 stands (no rerun)"
+    },
+    "push": "git push origin 26950a31:refs/heads/codex/handshake-studio-assets exit 0 (92ae2232..26950a31, fast-forward); fetch shows origin = 26950a31; diff --stat 92ae2232..26950a31 lists only crates/hsk-studio-type, hsk-studio-layout, hsk-studio-interop-layout paths (16 files)"
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "waiting for lead release after R53",
-  "updated_at": "2026-11-02T03:29:14Z",
+  "next": "validator: judge SMB-SENTINELS-NATIVE-1 at pushed 26950a31 (items 8a3781e2..26950a31; F-R53-3)",
+  "updated_at": "2026-11-02T08:52:09Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -268,7 +276,8 @@
       ],
       "v4_06_count": "28 regex hits in 7 files; 1 fixed, 27 not applicable; autosize.rs, textflow.rs (uses ends_paragraph on text) and the rest of layout src have no hit",
       "tests": "bundled_default at 26950a31 (layout 216/216, incl. the remediation test)"
-    }
+    },
+    "pushed_at": "2026-11-02T08:52:09Z"
   },
   "history_rewrite": {
     "why": "lead instruction 2026-11-02 (V4-15): the threaded_reflow fix is the SMB-LAYOUT-SENTINELS-1 remediation and comes first on the branch, free of other lane changes",
@@ -285,5 +294,12 @@
     ],
     "dropped": "8a7bbf8d (its threaded_reflow change is d42c89c7)",
     "old_shas_reachable": "local reflog only; nothing was pushed"
+  },
+  "pushed_sha": "26950a3113b47882a8db6082647eea83260b6ae8",
+  "claim": {
+    "lane_items": "SMB-SENTINELS-NATIVE-1 items 1-3 = commits 8a3781e2..26950a31 (7 commits); closes F-R53-3 (host composition through native Type) for this lane's claim; F-R53-11 (U+2028 refused by Type) stays open: the forced-line-break test prints NOT_PROVEN",
+    "not_claimed_here": "f28efc16 (red) and d42c89c7 (fix) are the SMB-LAYOUT-SENTINELS-1 remediation (lead records them on that lane)",
+    "mts": "MT-31005, MT-31007, MT-31008, MT-31009 all partly met (notes.microtasks); no PASS claimed",
+    "vendor_parity": "UNVERIFIED (D5)"
   }
 }
