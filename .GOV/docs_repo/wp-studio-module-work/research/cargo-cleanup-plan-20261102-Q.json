@@ -1,0 +1,110 @@
+{
+ "schema": "hsk.studio.cleanup_plan@1",
+ "file_id": "CARGO-CLEANUP-PLAN-20261102-Q",
+ "generated_at": "2026-11-02T02:36:00Z",
+ "status": "EXECUTED: Q-C01..Q-C06 DELETED (result research/cargo-cleanup-result-20261102-Q.json)",
+ "authority": "Operator 2026-11-02 'clean up cargo on c if you think this is needed. then continue work' (covers studio-round/target); Operator standing grant START_LOG 2026-10-24 (~600-601) and rule P2 of research/cargo-plan-20261024.json for PASS lanes; method precedent batches O and P",
+ "state_basis": {
+  "round": "STUDIO-R53 canary stopped by C: cap guard (validation/round-R53.json F-R53-9); no round and no builder running",
+  "locks": "C: lock free (no held, queue empty) at 02:36Z and 02:37Z; D: lock free (no held, queue empty) at 02:35Z",
+  "process_check": "no cargo/rustc/nextest process; orphaned tail.exe processes reference only D: paths, none matched a candidate",
+  "ledger": "lane_id uppercase in ledger.json lanes, read 2026-11-02; KEPT lanes (READY_FOR_VALIDATION): smb-layout-sentinels-1, smb-press-observe-1 (the only other lane dirs on C:); smb-fig-grid-3 not on C:"
+ },
+ "measure_at_dry_run": {
+  "at": "2026-11-02T02:36:36Z",
+  "C_free_gib": 294.03,
+  "D_free_gib": 1501.28,
+  "C_studio_round_gib": 336.67,
+  "C_studio_team_dev_gib": 22.0
+ },
+ "candidates": [
+  {
+   "id": "Q-C01",
+   "disk": "C",
+   "lane": "studio-round",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target",
+   "gib": 336.674,
+   "files": 45147,
+   "newest_write_utc": "2026-11-01T16:13:47Z",
+   "ledger_status": "n/a (round cargo target; Operator approval 2026-11-02 'clean up cargo on c if you think this is needed')",
+   "dry_run_status": "WOULD_DELETE",
+   "execute_status": "DELETED",
+   "detail": "C: round cargo target dir only (CARGO_TARGET_DIR of tools/run-round.sh round entry; markers: debug/.fingerprint, .rustc_info.json, .studio-workspace-root); Operator approval 2026-11-02; studio-round/ itself and everything outside target/ untouched"
+  },
+  {
+   "id": "Q-C02",
+   "disk": "C",
+   "lane": "smb-ae-expr-library-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-ae-expr-library-1",
+   "gib": 0.531,
+   "files": 3056,
+   "newest_write_utc": "2026-11-01T02:53:07Z",
+   "ledger_status": "PASS_V1 (ledger.json lane_id SMB-AE-EXPR-LIBRARY-1, read 2026-11-02)",
+   "dry_run_status": "WOULD_DELETE",
+   "execute_status": "DELETED"
+  },
+  {
+   "id": "Q-C03",
+   "disk": "C",
+   "lane": "smb-id-toc-index-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-id-toc-index-1",
+   "gib": 1.469,
+   "files": 13878,
+   "newest_write_utc": "2026-11-01T05:32:54Z",
+   "ledger_status": "PASS_V2 (ledger.json lane_id SMB-ID-TOC-INDEX-1, read 2026-11-02)",
+   "dry_run_status": "WOULD_DELETE",
+   "execute_status": "DELETED"
+  },
+  {
+   "id": "Q-C04",
+   "disk": "C",
+   "lane": "smb-r50-followups-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-r50-followups-1",
+   "gib": 8.13,
+   "files": 26421,
+   "newest_write_utc": "2026-11-01T04:25:27Z",
+   "ledger_status": "PASS_V2 (ledger.json lane_id SMB-R50-FOLLOWUPS-1, read 2026-11-02)",
+   "dry_run_status": "WOULD_DELETE",
+   "execute_status": "DELETED"
+  },
+  {
+   "id": "Q-C05",
+   "disk": "C",
+   "lane": "smb-r51-followups-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-r51-followups-1",
+   "gib": 5.854,
+   "files": 21223,
+   "newest_write_utc": "2026-11-01T10:04:50Z",
+   "ledger_status": "PASS_V1 (ledger.json lane_id SMB-R51-FOLLOWUPS-1, read 2026-11-02)",
+   "dry_run_status": "WOULD_DELETE",
+   "execute_status": "DELETED"
+  },
+  {
+   "id": "Q-C06",
+   "disk": "C",
+   "lane": "smb-type-ot-features-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-type-ot-features-1",
+   "gib": 1.409,
+   "files": 18198,
+   "newest_write_utc": "2026-11-01T03:07:41Z",
+   "ledger_status": "PASS_V2 (ledger.json lane_id SMB-TYPE-OT-FEATURES-1, read 2026-11-02)",
+   "dry_run_status": "WOULD_DELETE",
+   "execute_status": "DELETED"
+  }
+ ],
+ "not_candidates": "logs, results, receipts, red logs, exports, per-sha dirs, tmp, nextest, validator-* folders, ROUND_IDENTITY, steward dirs, locks, registry (~/.cargo/registry), oracle corpus, D: anything, READY lanes smb-layout-sentinels-1 and smb-press-observe-1",
+ "script": {
+  "name": "phase2-guarded-delete.ps1",
+  "base_sha256": "dd8d5380cf36db964f15625af39f86522b63286b3f0f39b4b16816ea306e1699 (batch P, verified on copy)",
+  "new_sha256": "0d2163f8c4ca4d7d4054a407043c6a9beda431105d89537fc57f41c99db2d733",
+  "diff": [
+   "new switch -AllowRoundTarget",
+   "when set and Disk=C: shape '^studio-round/target$' added to allowed shapes",
+   "when set, rel exactly 'studio-round/target' is checked against forbiddenAlways minus the studio-round token ($rtForbidden), every other forbidden name still applies; all other paths use forbiddenAlways unchanged",
+   "unchanged for studio-round target: plan-listed path, root, reparse, cargo marker, recent-write (60 min), process-reference, and lane-lock-not-free checks (shape <owner>/target counts as lane target)"
+  ]
+ },
+ "execute_commands": {
+  "C": "-Plan batchQ.json -Disk C -Approve Q-C01,Q-C02,Q-C03,Q-C04,Q-C05,Q-C06 -AllowLanes -AllowRoundTarget -ReleaseKeepSlot -KeepLanes 'smb-fig-grid-3|smb-layout-sentinels-1|smb-press-observe-1' -NormalIo -KeepOrder -MaxFilesPerSec 600 -MaxBytesPerSec 524288000 -Execute"
+ }
+}

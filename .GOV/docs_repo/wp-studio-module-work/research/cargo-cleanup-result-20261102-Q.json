@@ -1,0 +1,67 @@
+{
+ "schema": "hsk.studio.cleanup_result@2",
+ "file_id": "CARGO-CLEANUP-RESULT-20261102-Q",
+ "generated_at": "2026-11-02T02:58:00Z",
+ "plan": "research/cargo-cleanup-plan-20261102-Q.json",
+ "why": "Operator approval for studio-round/target (STUDIO-R53 canary stopped by the C: cap guard, F-R53-9) plus rule P2 for five PASS lanes",
+ "outcome": "DELETED: C: studio-round/target 336.674 GiB (45147 files, 818s); lanes smb-ae-expr-library-1 0.531, smb-id-toc-index-1 1.469, smb-r50-followups-1 8.130, smb-r51-followups-1 5.854, smb-type-ot-features-1 1.409 GiB. Total 354.067 GiB. Nothing else touched.",
+ "dry_runs": [
+  {
+   "disk": "C",
+   "file": "phase2-C-dryrun-20261102T023559Z",
+   "counts": [
+    "WOULD_DELETE 6 (354.067 GiB)"
+   ]
+  }
+ ],
+ "result_files_location": "scratchpad cargo-manager-20261102-Q",
+ "execute_run": {
+  "C": "phase2-C-execute-20261102T023705Z: 02:37:05Z-02:56:23Z; Q-C01 336.674 GiB 818s 45147 files; Q-C02 0.531 GiB 13.4s 3056 files; Q-C03 1.469 GiB 45.9s 13878 files; Q-C04 8.13 GiB 98.1s 26421 files; Q-C05 5.854 GiB 93.3s 21223 files; Q-C06 1.409 GiB 61.7s 18198 files"
+ },
+ "summary": {
+  "deleted": {
+   "C": {
+    "count": 6,
+    "gib": 354.067,
+    "files": 127923
+   }
+  },
+  "recycled_remainder_gib": 0,
+  "skipped": [],
+  "deferred": []
+ },
+ "recycle_bin_gib_for_operator": 0,
+ "locks": "C: free at dry run, tree measure and execute start (no held, queue empty); D: free at 02:35Z",
+ "free_space": {
+  "before": {
+   "C": 294.03,
+   "D": 1501.28
+  },
+  "after": {
+   "C": 643.84,
+   "D": 1493.67
+  },
+  "note": "D fell 7.61 GiB during the run from other activity, not from this batch (nothing on D: touched)"
+ },
+ "c_studio_tree_gib": {
+  "before": {
+   "studio_round": 336.67,
+   "studio_team_dev": 22.0,
+   "total": 358.67
+  },
+  "after": {
+   "studio_round": 0.0,
+   "studio_team_dev": 4.61,
+   "total": 4.61
+  },
+  "cap_gib": 360
+ },
+ "p3": {
+  "note": "live C: lane targets remaining: smb-layout-sentinels-1, smb-press-observe-1 (both READY_FOR_VALIDATION, kept)"
+ },
+ "script": {
+  "new_sha256": "0d2163f8c4ca4d7d4054a407043c6a9beda431105d89537fc57f41c99db2d733",
+  "base_sha256": "dd8d5380cf36db964f15625af39f86522b63286b3f0f39b4b16816ea306e1699",
+  "change": "-AllowRoundTarget (exact shape ^studio-round/target$, C: only); see plan"
+ }
+}
