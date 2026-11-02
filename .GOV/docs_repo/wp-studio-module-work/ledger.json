@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-02T02:34:03Z",
+ "updated_at": "2026-11-02T02:57:49Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -16561,6 +16561,13 @@
    "why": "SMB-PRESS-INK-COVERAGE-1 (73bfe5a8, local) cannot emit its terminal outcomes through observe (HOST INTEGRATION rule 5) because press-write has no observe edge; the builder set host_integration.diagnostics.internal_diagnostics to none and recorded the gap",
    "owner": "workspace steward (new module edges are steward-owned)",
    "lead_update": "2026-11-01T11:36:40Z: builders/WORKSPACE_RULES.md path-deps says every crate may use accord + observe (folio -> accord only), so the edge needs no lead decision; plan after STUDIO-R52: lane SMB-PRESS-OBSERVE-1 adds the observe path dependency to press-write's Cargo.toml (with a dep-requests line) and emits coverage / ink-edit outcomes through observe (F-R51-7); the next steward sync carries the Cargo.lock change and the round canary runs (crate Cargo.toml is a root input)"
+  },
+  {
+   "added_at": "2026-11-02T02:57:49Z",
+   "by": "lead",
+   "item": ".config/round-features.toml: add a harness-core unit `hsk-studio-harness-core = [[\"import-tiff\"]]` (rule 4e)",
+   "why": "SMB-R53-FOLLOWUPS-1 adds harness-core tests that need its import-tiff feature (named_colour_book.rs, tiff_export_outcomes.rs); SMB-TIFF-CHANNELS-1 (in R53) may have the same gap; without the unit a round compiles them to zero tests",
+   "when": "steward sync before STUDIO-R54 (after SMB-R53-FOLLOWUPS-1 pushes); root input change -> canary"
   }
  ],
  "round_R4": {
