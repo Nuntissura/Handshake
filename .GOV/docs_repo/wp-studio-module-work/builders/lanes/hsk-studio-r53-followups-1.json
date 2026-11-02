@@ -2,18 +2,146 @@
   "crate": "hsk-studio-harness-core (folio report adapter through observe; prism named-colour -> folio colour-book join), interop-tiff / harness-core tests",
   "lane": "SMB-R53-FOLLOWUPS-1",
   "status": null,
-  "phase": "build",
+  "phase": "green, local (not pushed)",
   "worktree": "wt-studio-lanes/smb-r53-followups-1",
   "base": "92ae2232",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "a270a6a0",
+      "kind": "red",
+      "item": 1,
+      "subject": "harness-core: folio report adapter tests (stub adapter emits nothing; compiles)",
+      "pushed": false
+    },
+    {
+      "sha": "5bceeea1",
+      "kind": "red",
+      "item": 2,
+      "subject": "harness-core: named-colour book join tests (stub join refuses; compiles)",
+      "pushed": false
+    },
+    {
+      "sha": "88cab7f6",
+      "kind": "red",
+      "item": 4,
+      "subject": "folio: undo validates restored swatches tests (folio unchanged; compiles)",
+      "pushed": false
+    },
+    {
+      "sha": "9c8c11ad",
+      "kind": "tests",
+      "item": 3,
+      "subject": "harness-core: TIFF export typed-outcome tests (pass at base; red = logged temporary mutation)",
+      "pushed": false
+    },
+    {
+      "sha": "61842f16",
+      "kind": "green",
+      "item": 1,
+      "subject": "harness-core: Folio reports through observe",
+      "pushed": false
+    },
+    {
+      "sha": "8b8c31c7",
+      "kind": "green",
+      "item": 2,
+      "subject": "harness-core: Prism named-colour profile -> Folio colour book",
+      "pushed": false
+    },
+    {
+      "sha": "ff6d12c1",
+      "kind": "green",
+      "item": 4,
+      "subject": "folio: undo validates restored swatches",
+      "pushed": false
+    }
+  ],
+  "capabilities_done": [
+    "F-R53-1: harness-core folio_report: apply_swatch_group_command_observed, undo_swatch_group_command_observed, add_colour_book_swatches_observed, load_colour_book_observed, mark_colour_book_absent_observed; each calls the Folio entry with the caller's CommandContext and emits exactly one observe emit_detail (v2) terminal: closed outcome, disposition, diagnostic code, five capped counters, the context's correlation and base revision; no name, id, colour or document content; emission never changes the result",
+    "MT-31251: harness-core named_colour_book (cfg import-psd|import-raw|import-tiff|import-raster, the features that enable prism): colour_book_from_named_colour_profile, load_named_colour_book, load_named_colour_book_observed; entries = Prism root names + measured PCS Lab unchanged, prefix/suffix from the profile, named_colour_profile = SCPF id + sha256 Prism verified; posture bundled -> bundled origin (ships), operator_supplied -> operator origin (loads, never ships; bundled origin refused license_state_mismatch, library unchanged), absent -> mark_absent without reading the profile; the book enters the library through Folio's resource format (all book and library budgets apply)",
+    "F-R53-2: five negative tests of export_tiff_with_channels (solidity and visibility losses with the complete file; channel_tile_size, channel_tile_format, channel_tile_grid refusals with nothing written)",
+    "F-R53-6: folio undo_swatch_group_command validates the caller-supplied state before restoring: at most PALETTE_SWATCHES_MAX swatches, SSWT ids, validate_swatch per swatch; refusal InvalidPalette(code)"
+  ],
+  "tests": {
+    "red": {
+      "argv": "cargo nextest run -p hsk-studio-harness-core -p hsk-studio-folio --features hsk-studio-harness-core/import-tiff --no-fail-fast -E '(package(hsk-studio-harness-core) & (binary(folio_report) | binary(named_colour_book) | binary(tiff_export_outcomes))) | (package(hsk-studio-folio) & binary(swatch_group_undo))' (studio-env, STUDIO_BUILD_DISK=d, STUDIO_OWNER=smb-r53-followups-1, own lane worktree)",
+      "exit": 100,
+      "sha": "9c8c11ad",
+      "passed": 5,
+      "failed": 11,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r53-followups-1/red-smb-r53-followups-1-9c8c11ad.log",
+      "note": "all 11 new tests of items 1, 2, 4 fail on their assertions (stubs / unchanged folio); the 5 item-3 tests pass at base (checks already present)"
+    },
+    "counterfactual_item3": {
+      "argv": "cargo nextest run -p hsk-studio-harness-core --features import-tiff --no-fail-fast -E 'binary(tiff_export_outcomes)' with a temporary uncommitted mutation of harness-core src/import/tiff.rs removing the five checks (solidity branch, visibility loss, tile format check, tile size check, grid try_from); the patch is appended to the log; reverted with git apply -R and touched (V4-11)",
+      "exit": 100,
+      "sha": "9c8c11ad + mutation",
+      "passed": 0,
+      "failed": 5,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r53-followups-1/counterfactual-smb-r53-followups-1-9c8c11ad.log",
+      "note": "one defect per fixture, so each test fails on its own check"
+    },
+    "focused_green": {
+      "argv": "same filter as red",
+      "exit": 0,
+      "sha": "ff6d12c1",
+      "passed": 16,
+      "failed": 0,
+      "log": "session scratch (not a READY proof)"
+    },
+    "bundled": {
+      "argv": "cd <lane worktree>/handshake-studio-assets && bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-r53-followups-1 --disk d -- cargo nextest run -p hsk-studio-harness-core -p hsk-studio-interop-tiff -p hsk-studio-folio -p hsk-studio-package --features hsk-studio-harness-core/import-tiff --no-fail-fast",
+      "exit": 0,
+      "sha": "ff6d12c1",
+      "passed": 289,
+      "failed": 0,
+      "skipped": 1,
+      "per_crate_passed": {
+        "hsk-studio-harness-core": 52,
+        "hsk-studio-interop-tiff": 24,
+        "hsk-studio-folio": 176,
+        "hsk-studio-package": 37
+      },
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r53-followups-1/bundle-smb-r53-followups-1-ff6d12c1.log",
+      "log_sha256_prefix": "f28b9758518b2234",
+      "scope": "step 0 clean; clippy --tests over harness-core [import-tiff], interop-tiff, folio, package and 21 dependents (chronicle, components, composite, develop, harness, harness-view, interop-fig, interop-fig-base, interop-fig-native, interop-layout, interop-lrcat, interop-media, interop-psd, interop-vector, interop-vector-core, interop-vector-svg, kernel-bindings, layout, pigment, pulse, session): no warning in a lane file (remaining warnings pre-existing in observe, interop-psd, pigment, render-cpu, type); WHOLE suites of the four crates; 1 skipped = the ignored interop-tiff corpus test",
+      "run": "bundled run 1 of 1, green"
+    },
+    "default_features": "cargo clippy -p hsk-studio-harness-core --tests (default features: folio_report and its tests without prism): exit 0, no lane-file warning",
+    "doctests": "none added or changed (4d not triggered)",
+    "new_tests": {
+      "harness-core/tests/folio_report.rs (default features)": [
+        "swatch_group_commands_emit_one_terminal_with_code_and_counters",
+        "swatch_group_refusals_emit_one_rejected_terminal",
+        "colour_book_operations_emit_one_terminal_with_code_and_counters",
+        "frames_carry_no_name_id_or_colour",
+        "emission_never_changes_the_result"
+      ],
+      "harness-core/tests/named_colour_book.rs (cfg prism-enabling import feature)": [
+        "named_colour_profile_joins_into_a_bound_lab_spot_book",
+        "licensing_posture_decides_bundling_lookup_or_reference_only",
+        "hostile_profiles_and_full_libraries_are_refused_typed_within_budgets",
+        "joined_book_outcomes_emit_one_terminal_each"
+      ],
+      "harness-core/tests/tiff_export_outcomes.rs (cfg import-tiff)": [
+        "spot_channel_solidity_is_a_typed_loss_and_the_file_is_complete",
+        "visible_channel_visibility_is_a_typed_loss_and_the_file_is_complete",
+        "channel_tile_of_another_size_is_refused_with_nothing_written",
+        "channel_tile_of_another_format_is_refused_with_nothing_written",
+        "channel_tile_off_the_grid_is_refused_with_nothing_written"
+      ],
+      "folio/tests/swatch_group_undo.rs": [
+        "undo_refuses_restored_swatches_that_fail_the_swatch_rules",
+        "undo_refuses_a_restored_swatch_list_over_the_palette_bound"
+      ]
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push only after STUDIO-R53 is recorded and the lead releases",
-  "updated_at": "2026-11-02T02:34:03Z",
+  "next": "waiting for lead release after R53",
+  "updated_at": "2026-11-02T02:56:40Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -43,6 +171,65 @@
       "MT-31248 / MT-31249 join rows",
       "MT-30095 TIFF rows touched"
     ],
-    "dispatch_reason": "STUDIO-R53 static-review findings; builds on D: while R53 holds C:"
+    "dispatch_reason": "STUDIO-R53 static-review findings; builds on D: while R53 holds C:",
+    "codes_emitted": {
+      "wire": "observe emit_detail version 2: outcome success|failure|canceled, failure validation|unavailable|unsupported, disposition changed|no_change|rejected, diagnostic code, five capped counters, no address; Observation correlation = the CommandContext correlation, revision = its base revision",
+      "success": "swatch.group.create_root|create|rename|delete|reorder|move_swatch|undo (changed, or no_change when the palette is unchanged; counters [groups, moved, groups, moved, moved]); book.load, book.mark_absent, swatch.book.add (changed; [books, entries, books, entries, entries])",
+      "swatch_refusals": "command_missing, command_mismatch (validation/InvalidCommand); stale_revision (unavailable/RevisionConflict); read_only_scope (unsupported/InvalidTarget); second_root, duplicate_group (validation/DuplicateAddress); root_missing, root_not_deletable, root_not_movable, group_missing, swatch_missing, invalid_replacement (validation/InvalidTarget); invalid_group_id, invalid_name, index_out_of_range (validation/InvalidInput); budget_exceeded (validation/BudgetExceeded); invalid_palette (validation/ValidationRejected)",
+      "book_refusals": "all failure validation unless stated: budget_exceeded (BudgetExceeded); malformed, invalid_swatch_id (InvalidInput); invalid_field, arity_mismatch, count_mismatch, invalid_page_layout, invalid_components, license_state_mismatch, absent_with_entries (ValidationRejected); duplicate_entry (DuplicateAddress); entry_missing (MissingRead); command_missing (InvalidCommand); stale_revision (unavailable/RevisionConflict); canceled (canceled outcome/Canceled)",
+      "join_profile_refusals": "Prism codes: named_colour_count_limit, named_colour_device_coord_limit (validation/BudgetExceeded); unsupported_version, not_named_colour_class, unsupported_pcs (unsupported/InvalidInput); wide admission codes, missing_named_colour_tag, named_colour_tag_type, named_colour_truncated, named_colour_invalid_name (validation/InvalidInput); canceled (canceled/Canceled)",
+      "proven_by": "tests/folio_report.rs (wire decoded byte by byte; needle test over swatch, group and book names, ids, entry codes and colour values) and tests/named_colour_book.rs joined_book_outcomes_emit_one_terminal_each"
+    },
+    "mts": {
+      "MT-31251": {
+        "verdict": "met (record contract and host join; Registry/GUI out of scope)",
+        "rows": {
+          "ncl2 parsed by the STU-COL-126 profile owner and joined to a Folio book (host join)": "named_colour_profile_joins_into_a_bound_lab_spot_book",
+          "book bound to the profile reference with measured Lab": "named_colour_profile_joins_into_a_bound_lab_spot_book",
+          "proof comparison: a populated spot's measured Lab equals the profile engine's entry output": "named_colour_profile_joins_into_a_bound_lab_spot_book",
+          "malformed, unsupported or out-of-budget profiles refused through the join": "hostile_profiles_and_full_libraries_are_refused_typed_within_budgets"
+        }
+      },
+      "MT-31248": {
+        "verdict": "partly met (join row)",
+        "rows": {
+          "a named-colour book populates native spot swatches that validate": "named_colour_profile_joins_into_a_bound_lab_spot_book"
+        },
+        "not_met": "painting the populated swatches (composite) is still not proven"
+      },
+      "MT-31249": {
+        "verdict": "partly met (join rows)",
+        "rows": {
+          "AC-001 a book whose posture forbids bundling never ships; operator book from the same format; posture/origin mismatch refused unchanged": "licensing_posture_decides_bundling_lookup_or_reference_only",
+          "AC-002 absent book: only the reference stays, stored swatches byte-identical and valid": "licensing_posture_decides_bundling_lookup_or_reference_only"
+        },
+        "not_met": "AC-002 at rendered paint/proof/separation bytes"
+      },
+      "MT-30095": {
+        "verdict": "TIFF rows touched; overall still partly met (OpenEXR row 9, SD-41)",
+        "rows": {
+          "TIFF export typed loss: spot solidity": "spot_channel_solidity_is_a_typed_loss_and_the_file_is_complete",
+          "TIFF export typed loss: visibility": "visible_channel_visibility_is_a_typed_loss_and_the_file_is_complete",
+          "TIFF export refusal, nothing written: tile size": "channel_tile_of_another_size_is_refused_with_nothing_written",
+          "TIFF export refusal, nothing written: tile format": "channel_tile_of_another_format_is_refused_with_nothing_written",
+          "TIFF export refusal, nothing written: tile grid": "channel_tile_off_the_grid_is_refused_with_nothing_written"
+        }
+      }
+    },
+    "rule_4e": "GAP for the steward: tests/named_colour_book.rs (cfg any prism-enabling import feature) and tests/tiff_export_outcomes.rs (cfg import-tiff) are harness-core test files, and .config/round-features.toml has no harness-core unit, so the round's default harness-core unit compiles them to zero tests (the harness [import-tiff] unit runs only harness's own tests). Proposal: hsk-studio-harness-core = [[\"import-tiff\"]] (one unit enables both files; import-tiff turns on prism). tests/folio_report.rs and folio's swatch_group_undo.rs run in default units. The lane's bundled run used --features hsk-studio-harness-core/import-tiff.",
+    "rule_4b": "no Folio record field added or renamed; the package suite ran anyway (37 passed). Folio public API unchanged (undo signature unchanged; it refuses more forged states)",
+    "v4": "V4-01: folio_report.rs and named_colour_book.rs carry deny(clippy::arithmetic_side_effects); swatch_library.rs already did. V4-02 through the join: hostile_profiles_and_full_libraries_are_refused_typed_within_budgets (count u32::MAX, truncation, the largest admitted profile of 16384 colours fits the 4 MiB book resource, a full 256-book library refuses one more unchanged); undo bound: undo_refuses_a_restored_swatch_list_over_the_palette_bound. V4-03: step 0 clean. V4-07: module doc claims cite their tests.",
+    "v4_06_class": "class: caller-supplied swatch state admitted without the swatch rules; regex `StudioSwatchPaletteState` over crates/hsk-studio-folio/src at ff6d12c1: 4 lines, all swatch_library.rs (385 struct: n/a; 408 outcome field: n/a; 546 finish builds the undo from the palette's own lists: n/a; 571 undo_swatch_group_command: fixed). 1 admitting site, 1 fixed.",
+    "owned_paths": "diff --stat 92ae2232..ff6d12c1: 8 files, 1148+/1-: harness-core src folio_report.rs, named_colour_book.rs, lib.rs (2 mod lines with docs), tests folio_report.rs, named_colour_book.rs, tiff_export_outcomes.rs; folio src swatch_library.rs (item 4) and tests swatch_group_undo.rs (new folio test file for item 4). No Cargo.toml, no root input, no egui/eframe/winit/wgpu line, no new dependency or edge (harness-core already depends on folio, observe and, with import-*, prism).",
+    "item3_test_location": "the five TIFF tests are in harness-core tests (brief owned paths), not harness tests/import_tiff.rs; they build channel records directly",
+    "host_integration_check": "gui_host none, gpu none, no control descriptor, no job. Attribution: every *_observed function takes the caller's CommandContext and forwards it to Folio; the host builds the Observe emitter (resource, actor); nothing mints an actor or correlation. Diagnostics: producer_through_observe is now true for Folio's reports (F-R53-1).",
+    "branded_data": "none: Quillfrond, Mossgrove, Zibbleshade, Gribblet and Plimsoll names are invented",
+    "proposals": [
+      "steward: round unit hsk-studio-harness-core [import-tiff] (rule_4e)",
+      "lead: controls Registry ids and RUN_COMMANDS rows for swatch.group.*, swatch.book.add and book load/absent when a host exposes them (rule 3; control_descriptors none here)",
+      "later prism lane: NAMED_COLOUR_DESCRIPTOR 'binding' can name harness-core named_colour_book as the host join",
+      "MT contract (no edit made): MT-31251 proof recipe could point at harness-core tests/named_colour_book.rs [import-tiff]"
+    ],
+    "cargo_lock": "not committed; no new dependency"
   }
 }
