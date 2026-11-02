@@ -5,15 +5,124 @@
   "phase": "build",
   "worktree": "wt-studio-lanes/smb-sentinels-native-1",
   "base": "92ae2232",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "7f166b75",
+      "subject": "type, layout (item 1, red): one public paragraph-terminator rule (stub returning false; compiles, 3 tests fail)",
+      "pushed": false
+    },
+    {
+      "sha": "94a4d3e0",
+      "subject": "type, layout (item 1): one public paragraph-terminator rule",
+      "pushed": false
+    },
+    {
+      "sha": "6a990769",
+      "subject": "interop-layout, layout (item 2, red): sentinels composed through native Type",
+      "pushed": false
+    },
+    {
+      "sha": "8a7bbf8d",
+      "subject": "layout (item 2): a break after a glyph-less marker directs the flow (threaded_reflow.rs paragraph_break; outside owned paths, waiver requested)",
+      "pushed": false
+    },
+    {
+      "sha": "89fd3782",
+      "subject": "interop-layout (item 3, red): IDML mappings of the stream sentinels",
+      "pushed": false
+    },
+    {
+      "sha": "0d560051",
+      "subject": "interop-layout (item 3): IDML mappings of the stream sentinels",
+      "pushed": false
+    },
+    {
+      "sha": "a347c42e",
+      "subject": "interop-layout (item 3): V4-01 guard on idml_encode",
+      "pushed": false
+    },
+    {
+      "sha": "d234e039",
+      "subject": "interop-layout (item 3): drop an unused constant (dead_code warning seen in the bundled run; no other change)",
+      "pushed": false
+    }
+  ],
+  "capabilities_done": [
+    "item 1: hsk_studio_type::ends_paragraph(char) -> bool, public; the engine's own rule (validate::ends_paragraph, unchanged; vendored bidi table unchanged) evaluated outside a request (fixed epoch, never-cancelled token, no admission, 64 work units); hsk_studio_layout::ends_paragraph is now a re-export of it and layout's duplicate class-B list is removed",
+    "item 2: host test interop-layout tests/sentinels_native_type.rs composes a 7-paragraph, 4-page, 2-section, 5-frame story through hsk_studio_type::TextEngine (Inter fixture, sha256 checked against type's FIXTURES_PROVENANCE.json, repo-relative path): every Type request is the whole composition text with layout's partition; Type accepts it on every call (no InvalidBidi), 11 markers resolve per page (glyphs carry the sentinel cluster, unresolved ones have none), column/frame/page/odd/even breaks reach their targets, flush space absorbs the JustifiedAll last-line slack, stored story bytes unchanged",
+    "item 2 (found by the host test): layout threaded_reflow::paragraph_break read the character right after the last glyph, so an index marker or unresolved marker (no glyphs) before a break sentinel hid the break; it now reads the paragraph's terminator (last character before the next paragraph)",
+    "item 3: IDML import maps <?ACE 18?> + PageNumberType (absent / NextPageNumber / PreviousPageNumber) to U+FDD0 / U+FDD1 / U+FDD2 and <?ACE 19?> to U+FDD3; Br + ParagraphBreakType NextFrame / NextPage / NextOddPage / NextEvenPage to U+FDD9..U+FDDC (RunModel::paragraph_end; RunModel::story_len at every offset site: proposal, idml_composition, idml_longdoc x2); canonical export writes them back (PIs, attributes kept)",
+    "item 3: foreign U+FDD0..U+FDEF in IDML story Content and in note/cell fragments (import_longdoc) replaced by U+FFFD through hsk_studio_type::import_foreign_text, exact count as loss foreign_stream_sentinel_replaced (LossBook::note_n)",
+    "item 3: Folio export (export_folio) writes U+FDD0/U+FDD3 as ACE 18/19 inline, U+FDD1/U+FDD2 in a range of their own with PageNumberType, a typed break as a Br-only range with ParagraphBreakType; typed losses: column_break_unavailable_in_idml (plain Br), flush_space_unavailable_in_idml (U+0020), stream_marker_unavailable_in_idml (footnote/endnote/xref/index dropped), stream_sentinel_unmapped (any other block code point dropped)",
+    "item 3: write paths refuse what they cannot carry: replace_content InvalidEdit(stream_sentinel_in_content); export_model InvalidEdit(page_number_type_mismatch | stream_sentinel_unmapped) instead of writing a raw noncharacter"
+  ],
+  "tests": {
+    "bundled_default": {
+      "argv": "lane-check.sh --owner smb-sentinels-native-1 --disk d -- cargo nextest run -p hsk-studio-type -p hsk-studio-layout -p hsk-studio-interop-layout --no-fail-fast (step 0, clippy type + layout + interop-layout and dependents composite, harness, harness-view, interop-fig, interop-fig-native, render-cpu, render-gpu, nextest whole suites, default units)",
+      "exit": 0,
+      "sha": "a347c42e",
+      "passed": 384,
+      "failed": 0,
+      "per_crate": {
+        "hsk-studio-type": 108,
+        "hsk-studio-layout": 216,
+        "hsk-studio-interop-layout": 60
+      },
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-sentinels-native-1/bundled-smb-sentinels-native-1-a347c42e-default.log",
+      "log_sha256": "9feef639bdb15e537ef31f58fdb0c9d7628e2dfa97bcd9a6b243513c702facc9"
+    },
+    "bundled_harfrust": {
+      "argv": "lane-check.sh --owner smb-sentinels-native-1 --disk d -- cargo nextest run -p hsk-studio-type --features harfrust --no-fail-fast (second call of the same batch: type's harfrust round unit, clippy type + dependents)",
+      "exit": 0,
+      "sha": "a347c42e",
+      "passed": 109,
+      "failed": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-sentinels-native-1/bundled-smb-sentinels-native-1-a347c42e-harfrust.log",
+      "log_sha256": "f65d96490b0d2aea5980f2fc938273200c2335ae60f520baa64a599a73cc8269"
+    },
+    "tip_note": "tip d234e039 differs from a347c42e only by deleting one unused pub(crate) const (idml_sentinels::COLUMN_BREAK, the dead_code warning in both logs); no rerun; --per-sha at release compiles every commit",
+    "red_proof": {
+      "7f166b75": {
+        "compiles": true,
+        "argv": "cargo nextest run -p hsk-studio-type -p hsk-studio-layout --no-fail-fast -E 'test(public_ends_paragraph) | test(mt_31005_layout_partitions_with_types_public_terminator_rule)' (own worktree, owner smb-sentinels-native-1, D:)",
+        "exit": 100,
+        "passed": 0,
+        "failed": 3,
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-sentinels-native-1/red-proof-smb-sentinels-native-1-7f166b75.log"
+      },
+      "6a990769": {
+        "compiles": true,
+        "argv": "cargo nextest run -p hsk-studio-layout -p hsk-studio-interop-layout --no-fail-fast --no-capture -E 'binary(sentinels_native_type) | test(mt_31008_a_break_after_a_marker_without_glyphs)' (own worktree, D:)",
+        "exit": 100,
+        "passed": 1,
+        "failed": 2,
+        "failing": [
+          "mt_31005_a_multi_page_multi_section_story_composes_through_native_type (frame break at byte 35 missing from BreakOutcomes)",
+          "mt_31008_a_break_after_a_marker_without_glyphs_still_directs_the_flow"
+        ],
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-sentinels-native-1/red-proof-smb-sentinels-native-1-6a990769.log"
+      },
+      "89fd3782": {
+        "compiles": true,
+        "argv": "cargo nextest run -p hsk-studio-interop-layout --no-fail-fast -E 'binary(idml_sentinels)' (own worktree, D:)",
+        "exit": 100,
+        "passed": 0,
+        "failed": 6,
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-sentinels-native-1/red-proof-smb-sentinels-native-1-89fd3782.log"
+      },
+      "note": "red runs in the lane's own worktree at the red commit, then edited forward (no revert/restore, V4-11); every red commit compiles, none needed squashing. mt_31005_foreign_noncharacters_in_idml_note_text_are_replaced_and_reported was added with the item 3 green commit (no separate red run)"
+    },
+    "not_proven": "mt_31008_a_forced_line_break_through_native_type prints NOT_PROVEN (log focus4/red-proof 6a990769 with --no-capture): Type refuses the paragraph holding U+2028 with MissingGlyph (Type shapes U+2028 as content; the Inter fixture maps no glyph). The test asserts the refusal is not InvalidBidi",
+    "doctests": "none added (4d)",
+    "round_features_4e": "no cfg(feature) test file added; type's harfrust unit covered by bundled_harfrust",
+    "step0": "lane-check step 0 passed in both calls (no machine path: fixtures via env!(CARGO_MANIFEST_DIR)/../hsk-studio-type/tests/fixtures, sha256-pinned)"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push only after STUDIO-R53 is recorded and the lead releases",
-  "updated_at": "2026-11-02T02:34:03Z",
+  "next": "waiting for lead release after R53",
+  "updated_at": "2026-11-02T03:08:47Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -43,6 +152,65 @@
       "MT-31008",
       "MT-31009"
     ],
-    "dispatch_reason": "STUDIO-R53 static-review findings; builds on D: while R53 holds C:"
+    "dispatch_reason": "STUDIO-R53 static-review findings; builds on D: while R53 holds C:",
+    "finished_build_at": "2026-11-02T03:08:47Z",
+    "spec_basis": "v02.229 14-studio-creative-suite.md STU-TYP-207 with v02.228 SD-29 (:9106-9160): break sentinels end their paragraph exactly as U+2029 (STU-TYP-110 partition); marker sentinels carry no text, resolve at composition, unresolved shows an explicit state; on import a U+FDD0..U+FDEF code point in foreign text is never read as a sentinel, it is replaced and the loss reported; a source storing a page-number marker as one marker plus a current/next/previous attribute, or a break as a paragraph end plus a break-type attribute, maps to the matching sentinel; on export a target with no equivalent reports the loss (plain text: resolved marker value, U+2029 for a break, U+0020 for flush space). Research record research/sd26-30-research-20261101.json SD-29: IDML ACE 18 + PageNumberType, ACE 19 section marker (idml.paged.media), Br + ParagraphBreakType NextFrame / NextPage / NextOddPage / NextEvenPage (practitioner sheet, UNVERIFIED)",
+    "idml_members": {
+      "mapped_both_ways": [
+        "current page number U+FDD0 = <?ACE 18?> without PageNumberType",
+        "next page number U+FDD1 = <?ACE 18?> + PageNumberType=NextPageNumber",
+        "previous page number U+FDD2 = <?ACE 18?> + PageNumberType=PreviousPageNumber",
+        "section marker U+FDD3 = <?ACE 19?>",
+        "frame break U+FDD9 = Br + ParagraphBreakType=NextFrame",
+        "page break U+FDDA = NextPage",
+        "odd-page break U+FDDB = NextOddPage",
+        "even-page break U+FDDC = NextEvenPage"
+      ],
+      "import_only": [
+        "foreign U+FDD0..U+FDEF in story Content and note/cell fragments -> U+FFFD + loss foreign_stream_sentinel_replaced (SD-37 reading, as Type's import_foreign_text)"
+      ],
+      "typed_unavailable": [
+        "column break U+FDD8: no ParagraphBreakType value in the spec or research record; export = plain Br + column_break_unavailable_in_idml; import of any unknown ParagraphBreakType (e.g. NextColumn) = U+000A + paragraph_break_type_unmapped",
+        "flush space U+FDDD: no IDML form recorded; export U+0020 + flush_space_unavailable_in_idml",
+        "footnote / endnote / cross-reference / index markers U+FDD4..U+FDD7: no IDML form stated; export drops them + stream_marker_unavailable_in_idml (IDML Footnote/Endnote objects stay with import_longdoc)",
+        "PageNumberType values other than the two recorded (e.g. AutoPageNumber): page_number_type_unmapped + special_character_dropped",
+        "anchored-object marker U+FFFC: real character, out of scope (unchanged)",
+        "ACE markers inside note/cell fragments (import_longdoc fragment_paragraphs) are still not mapped (PIs dropped as before)"
+      ],
+      "vendor_parity": "UNVERIFIED (D5): no InDesign has opened these packages; ParagraphBreakType values are from a practitioner source the research record marks UNVERIFIED; PageNumberType values checked against idml.paged.media only (fetched 2026-11-02)"
+    },
+    "microtasks": {
+      "MT-31005": "partly met. F-R53-3 closed for the composition clause: markers, the five break sentinels, paragraph return and flush space compose through native Type with layout's partition accepted (sentinels_native_type.rs mt_31005_a_multi_page_multi_section_story_composes_through_native_type); one terminator rule (item 1). Not met: forced line break through native Type (NOT_PROVEN, Type refuses U+2028), the fixed / flexible non-breaking-space rules (outside this lane)",
+      "MT-31007": "partly met: AC-001/AC-002 page-number, section, footnote, endnote, cross-reference and index markers through native Type (index typed rule_unstated) and IDML import/export of the four page-number/section markers (idml_sentinels.rs mt_31007_*); anchored-object marker out of scope; AC-003 operator surface open (gui_host none)",
+      "MT-31008": "partly met: column, frame, page, odd-page, even-page breaks reach their targets through native Type, a break after a glyph-less marker now applies (layout mt_31008_a_break_after_a_marker_without_glyphs_still_directs_the_flow), paragraph return composes; IDML Br + ParagraphBreakType for four of the five sentinels (column break typed unavailable). Not met: forced line break through native Type (NOT_PROVEN), AC-003 operator surface",
+      "MT-31009": "partly met: flush space through native Type (zero-advance glyph, absorbs the JustifiedAll last-line slack: absorbed + line width = 180 pt slot); IDML export typed loss (U+0020); the other white-space members are Type's real characters; AC-003 operator surface open"
+    },
+    "changed_assertions": "none: no existing assertion changed (all new tests appended or in new files). Behaviour changes without an existing pin: (1) layout paragraph_break reports the terminator's byte, which differs from before only when a glyph-less marker precedes the break (before: break ignored); (2) IDML import maps ACE 18/19 to sentinels instead of dropping them (special_character_dropped no longer noted for them) and Br + one of the four ParagraphBreakType values to a break sentinel instead of U+000A; (3) foreign U+FDD0..U+FDEF in IDML text become U+FFFD (before: kept and read as sentinels); (4) replace_content and export_model refuse sentinels they cannot carry (before: raw noncharacters written); (5) export_folio maps or reports sentinels (before: written raw)",
+    "findings": [
+      "NATIVE-1: layout threaded_reflow::paragraph_break missed a break sentinel preceded by a glyph-less marker (index marker, or any unresolved marker): the following text stayed in the frame and no BreakOutcome was reported. Found by the native-Type host test, fixed in 8a7bbf8d (threaded_reflow.rs is outside this lane's owned paths: waiver requested below)",
+      "NATIVE-2: Type refuses a paragraph holding U+2028 (forced line break) with MissingGlyph: the engine shapes U+2028 as content and the Inter fixture maps no glyph to it. STU-TYP-207 stores the forced line break as U+2028, so native composition of a forced line break fails today. Proposal for a type lane: keep U+2028 outside the shaping buffer like the paragraph separators and let layout break the line there (layout's UAX #14 already treats it as mandatory)"
+    ],
+    "spec_proposals": [
+      "SENT-SD-10 IDML ParagraphBreakType for the column break: no value is recorded (research lists NextFrame/NextPage/NextOddPage/NextEvenPage only); state it (InDesign scripting StartParagraph has NEXT_COLUMN; IDML spelling UNVERIFIED) or state the loss",
+      "SENT-SD-11 IDML form of flush space and of footnote / endnote / cross-reference / index markers: the spec states none; Studio exports flush space as U+0020 and drops the four markers with typed losses",
+      "SENT-SD-12 PageNumberType values other than NextPageNumber / PreviousPageNumber (e.g. AutoPageNumber): Studio reports page_number_type_unmapped; state whether any maps to the current page number",
+      "SENT-SD-13 (SD-37) foreign U+FDD0..U+FDEF replacement character: Studio uses U+FFFD (as Type's import_foreign_text); state it in STU-TYP-207",
+      "SENT-SD-14 forced line break U+2028 at shaping: state that it is a line separator outside glyph shaping (NATIVE-2)"
+    ],
+    "v4_rules": "V4-01: idml_sentinels.rs and idml_encode.rs carry #![deny(clippy::arithmetic_side_effects)] (idml_encode added, one capacity sum saturating); idml_decode, idml_longdoc, idml_composition already did; proposal, folio_export, model (projection / Folio-side export, no untrusted bytes decoded) and layout threaded_reflow (checked ops in the change) not applicable. V4-02: foreign replacement count exact at 20 000 code points (mt_31005_foreign_noncharacters_in_idml_text_are_replaced_and_reported); marker bytes are charged by the existing model-bytes budget. V4-03: fixture font repo-relative and sha256-checked; forced line break prints NOT_PROVEN. V4-08: mt_31007_idml_marker_instructions_are_tokenised_not_substring_matched (escape, comment / decoy text, case and whitespace)",
+    "host_integration_check": "(1)(2) no egui, eframe, winit, wgpu or GPU line; (3) no new command or control; (4) no new mutating op (import / export / composition keep their context); (5) import / export outcomes through the existing interop-layout report(), new losses are typed codes; (6) no queue, worker or job; (7) host_integration block present",
+    "shared_files": "none: pathspec commits of crates/hsk-studio-type, crates/hsk-studio-layout, crates/hsk-studio-interop-layout only; Cargo.lock untouched",
+    "scope_waiver_request": {
+      "why": "item 2's host test showed breaks after glyph-less markers were ignored; the assertion 'breaks reach their targets' could not hold without the fix",
+      "touched_outside_brief_paths": [
+        "crates/hsk-studio-layout/src/threaded_reflow.rs (paragraph_break only, 8a7bbf8d)",
+        "crates/hsk-studio-interop-layout/src/model.rs (RunModel::paragraph_end / story_len, additive)",
+        "crates/hsk-studio-interop-layout/src/proposal.rs, idml_composition.rs, idml_longdoc.rs (story offsets and terminator through story_len / paragraph_end; longdoc fragment foreign replacement)",
+        "crates/hsk-studio-interop-layout/src/folio_export.rs, idml_encode.rs (export side of the mappings)"
+      ],
+      "note": "the brief names 'the IDML story import / export modules'; model, proposal, composition and longdoc are listed so the lead can judge"
+    },
+    "external_research": "WebFetch 2026-11-02: idml.paged.media/stories-text/text-variables (ACE 18 + PageNumberType NextPageNumber / PreviousPageNumber on the CharacterStyleRange, ACE 19 section marker); idml.paged.media/stories-text/story-structure (no break types listed); developer.adobe.com StartParagraph enum (scripting names only); two web searches found no IDML source for ParagraphBreakType=NextColumn",
+    "side_effect_note": "one stray empty file /tmp/x (Git Bash temp dir) created by a mistyped command; not deleted (delete nothing)"
   }
 }
