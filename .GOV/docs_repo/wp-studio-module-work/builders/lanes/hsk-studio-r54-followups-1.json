@@ -1,19 +1,121 @@
 {
   "crate": "hsk-studio-type (U+2028 forced line break; terminator fast path), hsk-studio-layout (marker attribution before overset)",
   "lane": "SMB-R54-FOLLOWUPS-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-r54-followups-1",
   "base": "96ace3ca",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "9a16976b",
+      "subject": "type, interop-layout (item 1, red): forced line break U+2028",
+      "pushed": true
+    },
+    {
+      "sha": "eb1dbfae",
+      "subject": "layout (item 2, red): glyph-less marker at a line start",
+      "pushed": true
+    },
+    {
+      "sha": "e07011c6",
+      "subject": "type (item 3, red): measure the public terminator rule",
+      "pushed": true
+    },
+    {
+      "sha": "977834cc",
+      "subject": "type (item 1): forced line break U+2028 outside shaping",
+      "pushed": true
+    },
+    {
+      "sha": "e25e2425",
+      "subject": "layout (item 2): a glyph-less marker at a line start",
+      "pushed": true
+    },
+    {
+      "sha": "24ab995d",
+      "subject": "type (item 3): constant-time public terminator rule",
+      "pushed": true
+    },
+    {
+      "sha": "b7066f94",
+      "subject": "layout (item 2): overset marker state in the new test",
+      "pushed": true
+    }
+  ],
+  "capabilities_done": [
+    "F-R54-3: Type keeps the forced line break U+2028 outside the shaping buffer (one glyph-less NonrenderingControl coverage entry, paragraph not split, stored code point kept), vendored and harfrust; layout breaks the line there through native Type",
+    "F-R54-6: a glyph-less marker at a line start (at or after the UAX #14 break taken in the gap) belongs to the next line: its page, or overset (NotPlaced)",
+    "F-R54-4: measured; hsk_studio_type::ends_paragraph is a constant-time match kept equal to the metered rule for every scalar"
+  ],
+  "tests": {
+    "red_proof": {
+      "argv": "cargo nextest run -p hsk-studio-type -p hsk-studio-layout -p hsk-studio-interop-layout --no-fail-fast --no-capture -E 'test(mt_31008_forced_line_break_is_a_line_break_outside_shaping) | test(public_ends_paragraph) | test(mt_31007_a_glyphless_marker_at_a_line_start) | test(mt_31008_a_forced_line_break_through_native_type)'; then cargo nextest run -p hsk-studio-type --features harfrust with the type part of that filter; own lane worktree at the red tip, owner smb-r54-followups-1, C: SSD",
+      "sha": "e07011c6",
+      "compiles": true,
+      "default": {
+        "exit": 100,
+        "passed": 2,
+        "failed": 4
+      },
+      "harfrust": {
+        "exit": 100,
+        "passed": 2,
+        "failed": 3
+      },
+      "failing": {
+        "9a16976b": "type mt_31008_forced_line_break_is_a_line_break_outside_shaping and _harfrust: 'ab U+2028 cd' refused MissingGlyph; interop-layout mt_31008_a_forced_line_break_through_native_type: refusals [(0, MissingGlyph)]",
+        "eb1dbfae": "layout mt_31007_a_glyphless_marker_at_a_line_start_belongs_to_that_line: marker 29 page_id Some(page-1), expected None (overset)",
+        "e07011c6": "type terminator::tests::public_ends_paragraph_answers_a_long_story_without_the_metered_lookup: 65536 metered calls, expected 0"
+      },
+      "passing_controls": "public_ends_paragraph_is_the_metered_rule_for_every_scalar, mt_31008_public_ends_paragraph_names_exactly_the_terminators_type_partitions_at",
+      "note": "the three red commits hold tests only (e07011c6 adds a cfg(test) call counter), so one run at their tip proves each red; every red commit compiles, none squashed",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r54-followups-1/red-proof-smb-r54-followups-1-e07011c6.log"
+    },
+    "bundled_default": {
+      "argv": "lane-check.sh --owner smb-r54-followups-1 -- cargo nextest run -p hsk-studio-type -p hsk-studio-layout -p hsk-studio-interop-layout --no-fail-fast (step 0; clippy type, layout, interop-layout and dependents composite, harness, harness-view, interop-fig, interop-fig-native, render-cpu, render-gpu; whole suites, default units)",
+      "exit": 0,
+      "sha": "b7066f94",
+      "passed": 387,
+      "failed": 0,
+      "per_crate": {
+        "hsk-studio-type": 110,
+        "hsk-studio-layout": 217,
+        "hsk-studio-interop-layout": 60
+      },
+      "not_proven_lines": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r54-followups-1/bundled-smb-r54-followups-1-b7066f94-default.log",
+      "log_sha256": "18039a1b31a2d626a88ee51b453c896a933c8e73327c71e49019793dc2215e55"
+    },
+    "bundled_harfrust": {
+      "argv": "lane-check.sh --owner smb-r54-followups-1 -- cargo nextest run -p hsk-studio-type --features harfrust --no-fail-fast (second call of the batch: type harfrust unit)",
+      "exit": 0,
+      "sha": "24ab995d",
+      "passed": 112,
+      "failed": 0,
+      "reuse": "valid at b7066f94: b7066f94 changes only crates/hsk-studio-layout/tests/stream_sentinels.rs, no input of the type harfrust unit",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r54-followups-1/bundled-smb-r54-followups-1-24ab995d-harfrust.log",
+      "log_sha256": "455684aeae675cc8ef134c10e458c125bd44599f8a888eed3dc8df8f81bf5891"
+    },
+    "superseded_runs": [
+      "24ab995d default 386/387 (exit 100; log bundled-smb-r54-followups-1-24ab995d-default.log): the new layout test expected RuleUnstated for the overset index marker; corrected in b7066f94 (the attribution under test already passed)"
+    ],
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-r54-followups-1 --per-sha origin/codex/handshake-studio-assets",
+      "result": "PER_SHA_RESULT OK shas=7 range=96ace3ca..b7066f94 (exit 0)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r54-followups-1/persha-smb-r54-followups-1-b7066f94.log",
+      "rebase": "origin/codex/handshake-studio-assets still 96ace3ca after fetch: rebase a no-op, the bundled runs stand"
+    },
+    "push": "git push origin b7066f94:refs/heads/codex/handshake-studio-assets exit 0 (96ace3ca..b7066f94, fast-forward); re-fetch shows origin/codex/handshake-studio-assets = b7066f94 at 2026-11-02T14:46:54Z",
+    "doctests": "none added or changed (4d)",
+    "round_features_4e": "the harfrust twin is cfg(feature = harfrust) in type tests/stream_sentinels.rs; .config/round-features.toml has hsk-studio-type [[harfrust]], so rounds run it",
+    "step0": "lane-check step 0 clean in every call (no machine path)"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on C:, push when green",
-  "updated_at": "2026-11-02T14:03:34Z",
+  "next": "validator: judge 9a16976b..b7066f94 (F-R54-3, F-R54-6, F-R54-4)",
+  "updated_at": "2026-11-02T14:46:54Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -42,6 +144,47 @@
     "closes_candidates": [
       "MT-31008 forced line break row",
       "MT-31005 / MT-31007 rows touched"
-    ]
-  }
+    ],
+    "spec_basis": "Master Spec v02.229 STU-TYP-207: forced line break is a Break characters member stored as U+2028 (SD-29); break sentinels end their paragraph as U+2029; a marker shows the resolved value where composition places it, an unresolved marker an explicit unresolved state",
+    "measurement_f_r54_4": {
+      "test": "hsk-studio-type src/lib.rs terminator::tests::public_ends_paragraph_answers_a_long_story_without_the_metered_lookup (counted operations; wall time printed, never asserted)",
+      "story": "65 536 scalars (Latin, Arabic, CJK, U+2028, the 7 class-B terminators, U+FDD0..U+FDEF), 8 191 terminators",
+      "before_e07011c6": "public helper = metered rule per scalar: 65 536 provider Contexts, 634 210 table-search steps (9.68 per scalar, max 11), 699 746 epoch-port polls; wall about 19-22 ms per 64 Ki scalars on this machine (debug build, informative only)",
+      "after_24ab995d": "constant-time match on the 12 terminators: 0 metered evaluations; answers equal to the metered rule for every Unicode scalar (public_ends_paragraph_is_the_metered_rule_for_every_scalar)",
+      "verdict": "material (one Context and about 10 dyn epoch polls per character in layout's paragraph_partition and replace_story_text): fast path added"
+    },
+    "changed_assertions": [
+      "interop-layout tests/sentinels_native_type.rs mt_31008_a_forced_line_break_through_native_type: NOT_PROVEN print and early return on a Type refusal -> assert no refusal, one paragraph, no glyph on U+2028, lines 0..1 and 4..5, 'I' on the next baseline, page-1, no overset, stored text unchanged",
+      "type src/lib.rs public_ends_paragraph_answers_a_long_story_without_the_metered_lookup (new in e07011c6): counter terminator::METERED_CALLS (in the removed terminator::metered) -> validate::METERED_CALLS (the metered rule itself); assertion calls == 0 unchanged",
+      "layout tests/stream_sentinels.rs mt_31007_a_glyphless_marker_at_a_line_start_belongs_to_that_line (new in eb1dbfae): overset index marker state RuleUnstated -> NotPlaced (as every overset marker); page_id None unchanged"
+    ],
+    "behaviour_change_type": "Type no longer shapes U+2028 under either composition token (v1, v2): before, a font without a U+2028 glyph refused MissingGlyph and a font with one shaped it as content; now it is a glyph-less coverage entry. The token was not bumped (proposal below)",
+    "v4_06": {
+      "class": "story-byte-to-line attribution by glyph extent misplaces a glyph-less item at a line boundary",
+      "regex": "partition_point\\(\\|l\\| ?l\\.(1|source\\.start) <=|source\\.start <= (at|byte|story_byte|anchor)",
+      "sites": [
+        "layout src/sentinels.rs place_markers (mine.partition_point(|l| l.1 <= at)): FIXED e25e2425",
+        "layout src/footnotes.rs:223 locate (anchor inside a line's source span): outside owned paths; a footnote reference is shaped, so NOT_APPLICABLE to glyph-less markers; a glyph-less anchor there is UNVERIFIED",
+        "layout src/toc.rs:201 and :212 (page / baseline of a TOC source paragraph start): outside owned paths; UNVERIFIED for a paragraph opening with a glyph-less marker (proposal)",
+        "layout src/toc_contract.rs:653 (same lookup): outside owned paths; as toc.rs",
+        "layout src/xref.rs:307 page_of (byte inside a line span): outside owned paths; UNVERIFIED for a glyph-less target byte between lines (proposal)"
+      ],
+      "count": "5 sites matched (toc.rs twice), 1 fixed in scope, 4 outside owned paths"
+    },
+    "declared_readings": [
+      "F-R54-6: in a gap between a line's last glyph and the next line's first glyph, the break taken is the first mandatory UAX #14 opportunity of the stored story in the gap, else the first allowed one; a marker at or after it belongs to the next line. InDesign placement UNVERIFIED (D5)",
+      "F-R54-3: U+2028 ends the shaping context (no run crosses it). Vendor parity UNVERIFIED (D5)"
+    ],
+    "spec_proposals": [
+      "SENT-SD-14 (carried, NATIVE-2): state in STU-TYP-207 that the forced line break U+2028 is a mandatory line break outside glyph shaping (UAX #14 BK), not a paragraph terminator (UAX #9 WS), never a glyph",
+      "STU-TYP-130: state whether keeping U+2028 out of shaping needs a composition-token bump (a font mapping U+2028 composed it as a glyph under the v1/v2 tokens); Studio applied it under both tokens",
+      "STU-TYP-207 marker placement: state the line of a glyph-less marker at a line boundary (Studio: the line after the break opportunity taken)"
+    ],
+    "microtasks": {
+      "MT-31008": "partly met: forced line break row met through native Type (type mt_31008_forced_line_break_is_a_line_break_outside_shaping and _harfrust; interop-layout mt_31008_a_forced_line_break_through_native_type, no NOT_PROVEN line); other break rows as SMB-SENTINELS-NATIVE-1; AC-003 operator surface open (gui_host none)",
+      "MT-31005": "partly met: the forced line break composes through native Type (the NOT_PROVEN of SMB-SENTINELS-NATIVE-1 closed); fixed / flexible non-breaking-space rules and AC-003 open",
+      "MT-31007": "partly met: marker placement at a line boundary corrected (layout mt_31007_a_glyphless_marker_at_a_line_start_belongs_to_that_line); anchored-object marker and AC-003 operator surface open"
+    }
+  },
+  "pushed_sha": "b7066f94"
 }
