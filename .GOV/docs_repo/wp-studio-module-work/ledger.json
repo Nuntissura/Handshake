@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-02T14:47:56Z",
+ "updated_at": "2026-11-03T20:29:24Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -17374,7 +17374,7 @@
    "base": "96ace3ca",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-02T14:03:34Z",
+   "updated_at": "2026-11-03T20:29:24Z",
    "closes": [
     "MT-33686",
     "MT-33695",
@@ -17385,7 +17385,9 @@
     "MT-33700",
     "MT-33701",
     "MT-33702"
-   ]
+   ],
+   "pushed": "3ebf63df..cc58a511",
+   "pause_note": "pushed and verified on origin by the builder before the pause; its lane file (tests, MTs, READY) is not yet written: resume the builder to finish it, then READY_FOR_VALIDATION"
   },
   {
    "lane_id": "SMB-LAYOUT-MARKER-LOOKUPS-1",
@@ -17398,10 +17400,11 @@
    "base": "b7066f94",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-02T14:47:56Z",
+   "updated_at": "2026-11-03T20:29:24Z",
    "closes": [
     "F-R54-6 class sweep"
-   ]
+   ],
+   "pause_note": "local only: red commit 9402a1c0 plus uncommitted edits in layout endnotes.rs, footnotes.rs, index.rs, index_contract.rs, sentinels.rs, toc.rs, toc_contract.rs; resume the builder"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -19252,7 +19255,17 @@
     "item": "type: U+2028 forced line break is refused with MissingGlyph (finding NATIVE-2 in SMB-SENTINELS-NATIVE-1 notes); STU-TYP-207 catalogs it as a break member",
     "owner": "a later type lane"
    }
-  ]
+  ],
+  "pause_20261103": {
+   "at": "2026-11-03T20:29:24Z",
+   "operator_instruction": "just tests, we will restart session later tonight, i want to game first and use the pc at its fullest",
+   "state": "both builders stopped by the lead (TaskStop); no cargo / rustc / nextest process running; product origin cc58a511",
+   "resume_steps": [
+    "resume SMB-PR-SEQUENCE-PRESETS-1 builder to write its lane file (tests, MTs) and set READY",
+    "resume SMB-LAYOUT-MARKER-LOOKUPS-1 builder (sweep in progress, uncommitted edits)",
+    "then STUDIO-R55 (scoped) over SMB-R54-FOLLOWUPS-1, SMB-PR-SEQUENCE-PRESETS-1, SMB-LAYOUT-MARKER-LOOKUPS-1"
+   ]
+  }
  },
  "round_R45": {
   "candidate": "b425b54a",
