@@ -1,19 +1,116 @@
 {
   "crate": "hsk-studio-layout (marker / anchor line lookups)",
   "lane": "SMB-LAYOUT-MARKER-LOOKUPS-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-layout-marker-lookups-1",
   "base": "b7066f94",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "4566d5e7",
+      "subject": "layout (red): glyph-less bytes at a line break in note, TOC, index and xref lookups",
+      "pushed": true
+    },
+    {
+      "sha": "e07bab61",
+      "subject": "layout (red 2): sidenote, index contract and running-text call sites",
+      "pushed": true
+    },
+    {
+      "sha": "4671e6a1",
+      "subject": "layout: one byte-to-line rule for notes, TOC, index, running text and xref",
+      "pushed": true
+    },
+    {
+      "sha": "ce644577",
+      "subject": "layout: clippy on the new helper and test",
+      "pushed": true
+    }
+  ],
+  "capabilities_done": [
+    "The rule of place_markers (R54 F-R54-6) is one helper, sentinels::line_holding; place_markers, footnotes::locate and the new toc::line_of all use it, no second copy",
+    "A footnote, endnote or sidenote reference on a glyph-less byte at a line break (host with inline text; footnotes also with resolved stored text) keeps its line instead of reading as overset",
+    "A TOC source paragraph opening with a glyph-less marker takes the page and baseline of its first line, in generate_toc and generate_table_of_contents; on a hidden layer it counts as hidden, not overset",
+    "Index marks in the gap take the page of their line (generate_index, generate_index_contract), and hidden-layer marks count as hidden",
+    "A page range ending on a paragraph terminator ends on that paragraph's page, not the story's last placed page (index_contract scope_end; before: 'x, 1-2', now 'x, 1')",
+    "A running-text paragraph match finds a paragraph opening with a glyph-less marker on its own page",
+    "A cross-reference destination (text anchor or paragraph start) in the gap resolves its page instead of Unplaced"
+  ],
+  "tests": {
+    "red_proof": {
+      "argv": "cargo nextest run -p hsk-studio-layout --test marker_lookups --no-fail-fast; own lane worktree at the tests-only red tip, source edits stashed (git rewrites them with fresh mtimes and they were touched on restore, V4-11), owner smb-layout-marker-lookups-1, D:",
+      "compiles": true,
+      "sha_map_before_rebase": {
+        "9402a1c0": "4566d5e7",
+        "955a3260": "e07bab61"
+      },
+      "runs": [
+        {
+          "sha": "9402a1c0",
+          "exit": 100,
+          "passed": 1,
+          "failed": 6,
+          "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-marker-lookups-1/red-proof-smb-layout-marker-lookups-1-9402a1c0-clean.log"
+        },
+        {
+          "sha": "955a3260",
+          "exit": 100,
+          "passed": 1,
+          "failed": 10,
+          "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-marker-lookups-1/red-proof-smb-layout-marker-lookups-1-955a3260.log"
+        }
+      ],
+      "failing_at_955a3260": {
+        "mt_30780_a_footnote_reference_at_a_line_end_before_a_line_break_stays_on_that_line": "(iterations, bands) (1, [0.0]), expected (2, [15.0])",
+        "mt_30781_endnote_references_in_a_line_break_gap_keep_their_position": "all positions None",
+        "mt_30781_sidenotes_of_references_in_a_line_break_gap_are_placed_beside_their_line": "no note placed",
+        "mt_30776_a_toc_paragraph_opening_with_a_glyphless_marker_takes_its_first_lines_page": "P1 entry missing",
+        "mt_30777_the_toc_contract_places_a_paragraph_opening_with_a_glyphless_marker": "P1 entry missing",
+        "mt_30776_index_marks_in_a_line_break_gap_take_the_page_of_their_line": "story text 'Index' only",
+        "mt_30778_the_index_contract_places_marks_in_a_line_break_gap": "story text 'Index' only",
+        "mt_30779_a_page_range_ending_on_a_paragraph_terminator_ends_on_its_lines_page": "'Index\\nx, 1-2', expected 'Index\\nx, 1'",
+        "a_running_header_finds_a_paragraph_opening_with_a_glyphless_marker_on_its_page": "text does not end with Chapter (P0 from the page before)",
+        "mt_30785_cross_reference_destinations_in_a_line_break_gap_resolve_their_page": "all six Unplaced"
+      },
+      "passing_control": "the_shared_composition_breaks_where_the_oracle_says (the lines of the fixture, no lookup)",
+      "squashed": "none: every red commit compiles"
+    },
+    "bundled": {
+      "argv": "lane-check.sh --owner smb-layout-marker-lookups-1 --disk d -- cargo nextest run -p hsk-studio-layout -p hsk-studio-interop-layout --no-fail-fast (step 0; clippy layout, interop-layout and dependents harness, harness-view; whole suites)",
+      "exit": 0,
+      "sha": "ce644577",
+      "passed": 288,
+      "failed": 0,
+      "per_crate": {
+        "hsk-studio-layout": 228,
+        "hsk-studio-interop-layout": 60
+      },
+      "not_proven_lines": 0,
+      "clippy": "no warning located in layout or interop-layout",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-marker-lookups-1/bundled-smb-layout-marker-lookups-1-ce644577.log",
+      "log_sha256": "e24445daf638ffbbb6f6e0d824ecb9247d4a2d8b9391cce2b3428cd2b203bf30"
+    },
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-layout-marker-lookups-1 --disk d --per-sha origin/codex/handshake-studio-assets",
+      "result": "PER_SHA_RESULT OK shas=4 range=cc58a511..ce644577 (exit 0)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-marker-lookups-1/persha-smb-layout-marker-lookups-1-ce644577.log",
+      "rebase": "rebased onto cc58a511 (folio, a layout dependency, changed) BEFORE the bundled runs, so they cover the rebased tree; origin still cc58a511 at push"
+    },
+    "superseded_runs": [
+      "red-proof-smb-layout-marker-lookups-1-9402a1c0.log: not proof. Source edits were made while that build ran; replaced by the -clean log",
+      "bundled-smb-layout-marker-lookups-1-4671e6a1.log and persha-smb-layout-marker-lookups-1-4671e6a1.log: 288/288 and PER_SHA OK, but with two clippy warnings of this lane; ce644577 fixed them and both runs were repeated"
+    ],
+    "push": "git push origin ce64457749b9dce252647a3eea422d5e8340b034:refs/heads/codex/handshake-studio-assets exit 0 (cc58a511..ce644577, fast-forward); re-fetch shows origin = ce644577 at 2026-11-05T04:31:33Z",
+    "doctests": "none added or changed (4d)",
+    "round_features_4e": "tests/marker_lookups.rs has no feature gate; the default unit runs it",
+    "step0": "lane-check step 0 clean"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: V4-06 sweep, red first per applicable site, one bundled run on D:, push when green",
-  "updated_at": "2026-11-02T14:47:56Z",
+  "next": "validator: judge 4566d5e7..ce644577",
+  "updated_at": "2026-11-05T04:33:31Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -34,6 +131,76 @@
   "notes": {
     "dispatched_at": "2026-11-02T14:47:56Z",
     "disk": "D",
-    "origin": "SMB-R54-FOLLOWUPS-1 notes: four similar lookups unchecked (footnotes.rs, toc.rs, toc_contract.rs, xref.rs)"
-  }
+    "origin": "SMB-R54-FOLLOWUPS-1 notes: four similar lookups unchecked (footnotes.rs, toc.rs, toc_contract.rs, xref.rs)",
+    "spec_basis": "Master Spec v02.229 STU-TYP-207: 'composition shows the resolved value without rewriting the stream, and an unresolved marker shows an explicit unresolved state, never a guessed value'; STU-LAY-044, STU-LAY-046, STU-LAY-047 name TOC, notes and cross-references. The spec does not state the line of a glyph-less byte at a line boundary",
+    "v4_06": {
+      "class": "a lookup that finds the line or page of a story byte from line extents misplaces a byte with no glyph at a line boundary. In place_markers before F-R54-6 it went to the previous line; at every other site it matched no line and read as overset",
+      "regex": "\\.source\\.start (<=|==) ?[a-z_.]+|partition_point\\(\\|l\\| ?(l\\.(1|source\\.start)|source\\(l\\)\\.start) <=|\\(\\|l\\| \\(?l\\.source",
+      "regex_callers": "\\b(page_of|baseline_of|frame_of|on_hidden_layer|locate|line_of|line_holding)\\(",
+      "scope": "crates/hsk-studio-layout/src/*.rs at ce644577; the callers regex leaves out grids.rs page_of and threaded_reflow.rs baseline_of, which are unrelated functions of the same name",
+      "regex_matches": [
+        "sentinels.rs:603 line_holding (from place_markers, sentinels.rs:658): FIXED by F-R54-6 at e25e2425; rule extracted here unchanged, proof stream_sentinels mt_31007_a_glyphless_marker_at_a_line_start_belongs_to_that_line",
+        "footnotes.rs:244 locate: FIXED 4671e6a1; a miss goes through line_holding (footnotes.rs:270)",
+        "toc.rs:202 line_of (replaces toc.rs page_of :201 and baseline_of :212 at base): FIXED 4671e6a1; a miss goes through line_holding (toc.rs:216)",
+        "anchors.rs:270 place_anchored_objects: NOT_APPLICABLE. The anchor byte is the shaped placeholder: Type shapes U+FFFC (validate.rs outside_shaping is None for it; engine.rs refuses a non-ignorable character with no glyph) and an inline anchor needs its glyph (anchors.rs:115). Line-extent lookup, but its byte always has a glyph. No test added",
+        "footnotes.rs:262: NOT_APPLICABLE, added by this lane; finds the paragraph, not the line",
+        "anchors.rs:122: NOT_APPLICABLE, finds a paragraph by exact start (above-line anchor), no line",
+        "story_tables.rs:120: NOT_APPLICABLE, finds a paragraph by exact start (table anchor), no line",
+        "styles.rs:238: NOT_APPLICABLE, matches a paragraph to a style span, no line",
+        "table.rs:282: NOT_APPLICABLE, finds a paragraph by exact start in a cell, no line",
+        "threaded_reflow.rs:564: NOT_APPLICABLE, validates a paragraph start, no line",
+        "threaded_reflow.rs:665: NOT_APPLICABLE, validates a paragraph start, no line"
+      ],
+      "sites_moved_at_base": [
+        "toc_contract.rs:653 frame_of: FIXED, now toc::line_of (toc_contract.rs:654)",
+        "xref.rs:307 page_of: FIXED, now toc::line_of (xref.rs:308)"
+      ],
+      "call_sites": [
+        "endnotes.rs:72 reference: FIXED through locate for an inline host; stored host NOT FIXED (see open_gaps)",
+        "endnotes.rs:196 place_sidenotes: same",
+        "footnotes.rs:332 layout_footnotes: FIXED through locate, inline or resolved stored text (stored path not run by a test)",
+        "toc.rs:315, :318, :336 generate_toc: FIXED through line_of",
+        "toc_contract.rs:873, :877, :909 generate_inner: FIXED through line_of",
+        "index.rs:205, :209 generate_index: FIXED through line_of (red proves :209; hidden check :205 has no test of its own, same on_hidden_layer as index_contract.rs:883)",
+        "index_contract.rs:761 scope_end, :883, :887: FIXED through line_of",
+        "running.rs:116 occurrences: FIXED through line_of",
+        "xref.rs:378 resolve_cross_references: FIXED through line_of"
+      ],
+      "not_matched_read": "endnotes.rs:223 picks the line at an already located baseline, no byte lookup: NOT_APPLICABLE. index_contract.rs:763 is the overset-end fallback, no byte lookup: NOT_APPLICABLE",
+      "count": "11 regex matches: 3 fixed, 8 not applicable (anchors.rs:270 is the only line-extent lookup among those 8). Plus 2 base sites that moved into line_of and 9 call-site groups",
+      "other_crates": "same regex over crates/ outside layout, tests excluded: 3 matches, none a byte-to-line lookup: hsk-studio-harness-view layout_ui/threads.rs:123 and :124 report a frame's source extents; hsk-studio-type engine.rs:267 is a coverage order check"
+    },
+    "open_gaps": [
+      "NOT FIXED: an endnote or sidenote host with StoryContent::Stored. NoteHost has no resolved text, so locate cannot run the rule and a reference outside every line span stays unplaced (as before). Fix needs a NoteHost field, a public API change whose constructors include interop-layout tests/longdoc_pdf.rs: outside this lane's paths",
+      "NOT_PROVEN: every proof uses toy shaping with hand-removed glyphs through reflow, not native Type. U+2028 and markers as glyph-less are read from Type (validate.rs outside_shaping) and earlier lanes' tests; no new native-Type test",
+      "NOT_PROVEN by a test: layout_footnotes with Stored content and resolved_text; generate_index hidden check index.rs:205",
+      "UNVERIFIED (D5): InDesign placement of a marker at a line boundary; declared reading as F-R54-6"
+    ],
+    "declared_readings": [
+      "A byte in no line span follows line_holding: inside the paragraph's gap by the F-R54-6 break rule; before the paragraph's first glyph its first line; after its last line, terminator included, its last line. A byte inside a line span keeps its old answer. InDesign placement UNVERIFIED (D5)",
+      "The toc.rs, toc_contract, index, running and xref path takes the paragraph from story.paragraphs and its lines by position (source start inside the paragraph), because hand-built placements carry paragraph 0 on every line; footnotes uses Line.paragraph, which indexes the paragraphs it reflowed"
+    ],
+    "observations_out_of_scope": [
+      "Read from code, not changed: TOC entry text and running-text matches keep marker sentinels (toc.rs clean_keeping removes only trailing breaks, U+2028 and tabs), so a heading opening with an index marker now writes U+FDD7 into the generated TOC story. Before this lane such a heading was left out of the TOC. Tests assert page, not this text. Needs its own lane decision"
+    ],
+    "spec_proposals": [
+      "STU-TYP-207 / STU-LAY-046 / STU-LAY-047: state the line of a glyph-less byte at a line boundary (carried from SMB-R54-FOLLOWUPS-1, now for references, marks and destinations too)"
+    ],
+    "behaviour_change": "Index page ranges that end on a paragraph terminator (ToNextStyleChange, ToNextUseOfStyle, ForNextParagraphs) can now end earlier: on real shaping the terminator has no glyph, so they used to fall back to the story's last placed page. Existing id_index_contract tests stayed green because their hand-built lines include the terminator",
+    "microtasks": {
+      "claimed": [],
+      "reason": "No acceptance row is met by this lane alone: each is broader than a lookup at a line boundary, and no row states this behaviour",
+      "touched_partly": {
+        "MT-30776 AC-001": "style-driven TOC: a mapped paragraph opening with a glyph-less marker is no longer left out",
+        "MT-30777 AC-001, AC-007": "a placed paragraph no longer reads as overset; hidden-layer check holds for it",
+        "MT-30778 AC-001": "page-range end and marks in the gap",
+        "MT-30779": "read; rows are contract and table rows, none proven here",
+        "MT-30780 AC-001": "footnotes, endnotes, sidenotes references in the gap",
+        "MT-30781": "read; rows are option contracts, none proven here",
+        "MT-30785 AC-002": "text-anchor destination in the gap resolves its page; across-documents part not touched"
+      }
+    },
+    "paths_outside_brief_list": "endnotes.rs, index.rs, index_contract.rs, running.rs, sentinels.rs: sites the sweep found, allowed by the brief's 'any other site'"
+  },
+  "pushed_sha": "ce644577"
 }
