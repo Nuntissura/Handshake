@@ -109,19 +109,34 @@
     ],
     "sha_map": {
       "note": "Logs name the shas they ran at. Local commits, then the rebase on 66c0e7c9.",
-      "audit": ["ce066f30", "92411146"],
-      "red": ["9f4eeb96", "a7d720d2"],
-      "red_2": ["ad69c10e", "a54a208d"],
-      "planner": ["31d12f42", "1246b8e2"],
-      "command": ["0a0b802b", "31de741d"]
+      "audit": [
+        "ce066f30",
+        "92411146"
+      ],
+      "red": [
+        "9f4eeb96",
+        "a7d720d2"
+      ],
+      "red_2": [
+        "ad69c10e",
+        "a54a208d"
+      ],
+      "planner": [
+        "31d12f42",
+        "1246b8e2"
+      ],
+      "command": [
+        "0a0b802b",
+        "31de741d"
+      ]
     }
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Paused by the Operator, nothing pushed. Resume in order: (1) in wt-studio-lanes/smb-pr-nudge-1/handshake-studio-assets, git fetch and git rebase origin/codex/handshake-studio-assets; (2) origin moved 66c0e7c9..1940292c and touched harness-view, not pulse, so under the brief's short path run the harness-view suite once: lane-check.sh --owner smb-pr-nudge-1 -- cargo nextest run -p hsk-studio-harness-view --features desktop,audio-batch --no-fail-fast; (3) lane-check.sh --owner smb-pr-nudge-1 --per-sha origin/codex/handshake-studio-assets; (4) cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-view --features hsk-studio-harness-view/viewer --no-fail-fast -E 'binary(track_nudge) | binary(viewer_timeline_nudge) | binary(edit_footprint)'; (5) on PER_SHA_RESULT OK with origin unmoved: SHA=$(git rev-parse HEAD) && [ -n \"$SHA\" ] && git push origin \"$SHA:refs/heads/codex/handshake-studio-assets\"; (6) set READY_FOR_VALIDATION with the pushed sha and the rebased runs. Lead: commit this lane file.",
-  "updated_at": "2026-11-05T18:15:11Z",
+  "next": "Paused by the Operator, nothing on the product branch. Resume in order: (1) in wt-studio-lanes/smb-pr-nudge-1/handshake-studio-assets, git fetch and git rebase origin/codex/handshake-studio-assets; (2) origin moved 66c0e7c9..1940292c and touched harness-view, not pulse, so under the brief's short path run the harness-view suite once: lane-check.sh --owner smb-pr-nudge-1 -- cargo nextest run -p hsk-studio-harness-view --features desktop,audio-batch --no-fail-fast; (3) lane-check.sh --owner smb-pr-nudge-1 --per-sha origin/codex/handshake-studio-assets; (4) cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-view --features hsk-studio-harness-view/viewer --no-fail-fast -E 'binary(track_nudge) | binary(viewer_timeline_nudge) | binary(edit_footprint)'; (5) on PER_SHA_RESULT OK with origin unmoved: SHA=$(git rev-parse HEAD) && [ -n \"$SHA\" ] && git push origin \"$SHA:refs/heads/codex/handshake-studio-assets\"; (6) set READY_FOR_VALIDATION with the pushed sha and the rebased runs. Lead: commit this lane file. GitHub backup branch lane/smb-pr-nudge-1 holds 31de741d. Push rebased or amended tips to the product branch only, never to this backup branch: that would need a force push, which is forbidden. The backup branch stays at this tip until the Operator approves its deletion.",
+  "updated_at": "2026-11-05T21:14:50Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -261,5 +276,11 @@
     ],
     "hostile_input": "Selection refused over MAX_MOVE_SELECTION before any work (test a_selection_over_the_bound_is_refused_first). Destinations are found once per track, so the walk is linear in the Folio-bounded document. The module denies clippy::arithmetic_side_effects and does no tick arithmetic: clips keep their time.",
     "vendor_parity": "UNVERIFIED (D5)."
+  },
+  "backup_branch": {
+    "ref": "lane/smb-pr-nudge-1",
+    "sha": "31de741dc6e9598f6fdb9d3c0ea47c88f7715acb",
+    "pushed_at": "2026-11-05T21:14:50Z",
+    "rule": "Push rebased or amended tips to the product branch only, never to this backup branch: that would need a force push, which is forbidden. The backup branch stays at this tip until the Operator approves its deletion."
   }
 }

@@ -131,8 +131,8 @@
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Resume steps, in order: (1) git fetch; git rebase origin/codex/handshake-studio-assets (origin 1940292c edits session; expect source.rs, session.rs and lib.rs conflicts). (2) If origin added a document entry token, classify it in tests/entry_references.rs NAMING or NOT_APPLICABLE, as a fixup into the commit that needs it. (3) Check whether the Folio DESCRIPTOR needs the inert rule (notes.not_inspected) and amend only if it claims otherwise. (4) Commits touch session, so one bundled run with the argv in tests.bundled, log named with the lane id and the new sha. (5) lane-check.sh --owner smb-pr-entry-references-1 --disk d --per-sha origin/codex/handshake-studio-assets. (6) On PER_SHA_RESULT OK, re-fetch, confirm the base is still origin, then SHA=$(git rev-parse HEAD) && [ -n \"$SHA\" ] && git push origin \"$SHA:refs/heads/codex/handshake-studio-assets\". (7) Update commits, tests, pushed_sha, set READY_FOR_VALIDATION, phase validation. Lead: rule on notes.for_the_lead.",
-  "updated_at": "2026-11-05T18:05:30Z",
+  "next": "Resume steps, in order: (1) git fetch; git rebase origin/codex/handshake-studio-assets (origin 1940292c edits session; expect source.rs, session.rs and lib.rs conflicts). (2) If origin added a document entry token, classify it in tests/entry_references.rs NAMING or NOT_APPLICABLE, as a fixup into the commit that needs it. (3) Check whether the Folio DESCRIPTOR needs the inert rule (notes.not_inspected) and amend only if it claims otherwise. (4) Commits touch session, so one bundled run with the argv in tests.bundled, log named with the lane id and the new sha. (5) lane-check.sh --owner smb-pr-entry-references-1 --disk d --per-sha origin/codex/handshake-studio-assets. (6) On PER_SHA_RESULT OK, re-fetch, confirm the base is still origin, then SHA=$(git rev-parse HEAD) && [ -n \"$SHA\" ] && git push origin \"$SHA:refs/heads/codex/handshake-studio-assets\". (7) Update commits, tests, pushed_sha, set READY_FOR_VALIDATION, phase validation. Lead: rule on notes.for_the_lead. GitHub backup branch lane/smb-pr-entry-references-1 holds 4529259c. Push rebased or amended tips to the product branch only, never to this backup branch: that would need a force push, which is forbidden. The backup branch stays at this tip until the Operator approves its deletion.",
+  "updated_at": "2026-11-05T21:14:50Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -329,5 +329,11 @@
     "new_module_edges": "none; no Cargo.toml changed",
     "cleanup_for_steward": "D: target Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/target and tmp (counts toward P3); list for Operator-approved deletion when the lane is PASS or abandoned. Nothing deleted. The log measure-base-c143625f.log is a copy of the red 1 run.",
     "vendor_parity": "UNVERIFIED (D5)"
+  },
+  "backup_branch": {
+    "ref": "lane/smb-pr-entry-references-1",
+    "sha": "4529259ca2d745e509020462ea4dd29096e4aa34",
+    "pushed_at": "2026-11-05T21:14:50Z",
+    "rule": "Push rebased or amended tips to the product branch only, never to this backup branch: that would need a force push, which is forbidden. The backup branch stays at this tip until the Operator approves its deletion."
   }
 }

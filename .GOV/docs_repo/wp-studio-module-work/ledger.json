@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-05T19:00:15Z",
+ "updated_at": "2026-11-05T21:14:50Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -18191,11 +18191,12 @@
    "base": "091c4d1b",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-05T18:17:54Z",
+   "updated_at": "2026-11-05T21:14:50Z",
    "closes": [
     "F-R56-1"
    ],
-   "local_tip": "286d9241"
+   "local_tip": "286d9241",
+   "backup_branch": "lane/smb-layout-composer-depth-1"
   },
   {
    "lane_id": "SMB-LAYOUT-BLANK-LINE-LOOKUPS-1",
@@ -18226,12 +18227,13 @@
    "base": "c143625f",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-05T18:17:54Z",
+   "updated_at": "2026-11-05T21:14:50Z",
    "closes": [
     "F-R56-3",
     "F-R56-7"
    ],
-   "local_tip": "4529259c"
+   "local_tip": "4529259c",
+   "backup_branch": "lane/smb-pr-entry-references-1"
   },
   {
    "lane_id": "SMB-TYPE-AUTHORED-TOKEN-1",
@@ -18263,13 +18265,14 @@
    "base": "41d0e0da",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-05T18:17:54Z",
+   "updated_at": "2026-11-05T21:14:50Z",
    "closes": [
     "F-R56-2",
     "MT-33730",
     "MT-33731"
    ],
-   "local_tip": "cff47aef"
+   "local_tip": "cff47aef",
+   "backup_branch": "lane/smb-pr-retime-output-1"
   },
   {
    "lane_id": "SMB-PR-MEDIA-MARKERS-1",
@@ -18282,11 +18285,12 @@
    "base": "41d0e0da",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-05T18:17:54Z",
+   "updated_at": "2026-11-05T21:14:50Z",
    "closes": [
     "MT-33736"
    ],
-   "local_tip": "3cfbbeed"
+   "local_tip": "3cfbbeed",
+   "backup_branch": "lane/smb-pr-media-markers-1"
   },
   {
    "lane_id": "SMB-PR-NUDGE-1",
@@ -18299,11 +18303,12 @@
    "base": "41d0e0da",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-05T18:17:54Z",
+   "updated_at": "2026-11-05T21:14:50Z",
    "closes": [
     "MT-33738"
    ],
-   "local_tip": "31de741d"
+   "local_tip": "31de741d",
+   "backup_branch": "lane/smb-pr-nudge-1"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -18823,7 +18828,7 @@
  "handoff": {
   "file": "HANDOFF.md",
   "previous": "handoff-archive/HANDOFF-20261101.md",
-  "at": "2026-11-05T19:00:15Z"
+  "at": "2026-11-05T21:14:50Z"
  },
  "round_R13": {
   "candidate": "4b76604",
@@ -20263,7 +20268,7 @@
   "pause_20261105": {
    "at": "2026-11-05T18:17:54Z",
    "operator_instruction": "find a good fitting place to pause work",
-   "state": "product origin 1940292c. No builder running. READY for STUDIO-R57: SMB-PR-TRACK-DISPLAY-1, SMB-PR-EDIT-FOOTPRINT-1, SMB-LAYOUT-BLANK-LINE-LOOKUPS-1, SMB-TYPE-AUTHORED-TOKEN-1. Paused local and unpushed, each with its resume steps in its lane file's next: SMB-PR-RETIME-OUTPUT-1 at cff47aef, SMB-PR-NUDGE-1 at 31de741d, SMB-PR-ENTRY-REFERENCES-1 at 4529259c, SMB-LAYOUT-COMPOSER-DEPTH-1 at 286d9241, SMB-PR-MEDIA-MARKERS-1 at 3cfbbeed. STUDIO-R57 not started; it must be FULL (CX-VAL-011).",
+   "state": "product origin 1940292c. No builder running. READY for STUDIO-R57: SMB-PR-TRACK-DISPLAY-1, SMB-PR-EDIT-FOOTPRINT-1, SMB-LAYOUT-BLANK-LINE-LOOKUPS-1, SMB-TYPE-AUTHORED-TOKEN-1. Paused, not on the product branch, on GitHub backup branches since the same day (direction.backup_20261105), each with its resume steps in its lane file's next: SMB-PR-RETIME-OUTPUT-1 at cff47aef, SMB-PR-NUDGE-1 at 31de741d, SMB-PR-ENTRY-REFERENCES-1 at 4529259c, SMB-LAYOUT-COMPOSER-DEPTH-1 at 286d9241, SMB-PR-MEDIA-MARKERS-1 at 3cfbbeed. STUDIO-R57 not started; it must be FULL (CX-VAL-011).",
    "resume_steps": [
     "Finish the paused lanes, one lane pushing at a time so a later push does not repeat an earlier per-sha. A new session dispatches a fresh builder per lane from its lane file's next (HANDOFF topic dispatch-prompts). Order, closest first: SMB-PR-RETIME-OUTPUT-1 and SMB-PR-NUDGE-1 (rebase, harness-view suite once, per-sha, new tests, push), SMB-PR-ENTRY-REFERENCES-1 (rebase, classify the composition_token entry in tests/entry_references.rs, one bundled run, per-sha, push), SMB-LAYOUT-COMPOSER-DEPTH-1 (bundled run first: clippy and whole suites have not run on the final code), SMB-PR-MEDIA-MARKERS-1 (git apply -R of its resume patch, pulse red, then its next).",
     "Then STUDIO-R57, FULL, with every READY lane, and only when no lane is building on C:."
@@ -20296,6 +20301,51 @@
     "research/truth-check-20261105-mt-shell-manual-foundation.json",
     "research/truth-check-20261105-mt-prefilter.json"
    ]
+  },
+  "backup_20261105": {
+   "at": "2026-11-05T21:14:50Z",
+   "operator_instruction": "Yes, back them up (answering the lead's question whether to back up the 23 local-only commits to GitHub branches)",
+   "branches": [
+    {
+     "lane": "SMB-PR-RETIME-OUTPUT-1",
+     "ref": "lane/smb-pr-retime-output-1",
+     "sha": "cff47aefa17a96fd1ee2d4b2ba1583ad4b338344",
+     "ahead_of_product": 5,
+     "behind_product": 8
+    },
+    {
+     "lane": "SMB-PR-NUDGE-1",
+     "ref": "lane/smb-pr-nudge-1",
+     "sha": "31de741dc6e9598f6fdb9d3c0ea47c88f7715acb",
+     "ahead_of_product": 5,
+     "behind_product": 8
+    },
+    {
+     "lane": "SMB-PR-ENTRY-REFERENCES-1",
+     "ref": "lane/smb-pr-entry-references-1",
+     "sha": "4529259ca2d745e509020462ea4dd29096e4aa34",
+     "ahead_of_product": 5,
+     "behind_product": 19
+    },
+    {
+     "lane": "SMB-LAYOUT-COMPOSER-DEPTH-1",
+     "ref": "lane/smb-layout-composer-depth-1",
+     "sha": "286d9241f529efb3849189864eb1d2b1682d923e",
+     "ahead_of_product": 3,
+     "behind_product": 31
+    },
+    {
+     "lane": "SMB-PR-MEDIA-MARKERS-1",
+     "ref": "lane/smb-pr-media-markers-1",
+     "sha": "3cfbbeed19a839db43ee860b5d9d4e1dfaf297df",
+     "ahead_of_product": 5,
+     "behind_product": 12
+    }
+   ],
+   "product_branch_at_check": "1940292c64d57a65cc753f3258374f8b57b97f36",
+   "proof": "Non-force pushes of the verified tips to names checked free first; then git ls-remote showed the five exact shas and the product branch unchanged, and the GitHub compare API gave the ahead and behind counts above (5+5+5+3+5 = 23 commits). No upstream set; worktrees untouched.",
+   "not_covered": "Three uncommitted files in the smb-pr-media-markers-1 worktree: hsk-studio-package/tests/externals.rs (+28), hsk-studio-pulse/src/annotate.rs (+43 -4), hsk-studio-pulse/src/lib.rs (+1 -1). resume/pulse-green.patch in the lane's Handshake_Artifacts folder copies the two pulse files on the same disk (git apply -R --check passed 2026-11-05); externals.rs has no second copy.",
+   "rule": "Push rebased or amended tips to the product branch only, never to this backup branch: that would need a force push, which is forbidden. The backup branch stays at this tip until the Operator approves its deletion."
   }
  },
  "round_R45": {

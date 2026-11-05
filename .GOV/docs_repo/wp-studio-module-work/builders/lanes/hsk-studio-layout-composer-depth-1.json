@@ -99,8 +99,8 @@
   ],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Resume in order, in wt-studio-lanes/smb-layout-composer-depth-1/handshake-studio-assets, branch tip 286d9241, all on C: (--disk ssd): (1) lane-check.sh --owner smb-layout-composer-depth-1 --disk ssd -- cargo nextest run -p hsk-studio-layout -p hsk-studio-interop-layout --no-fail-fast, log named with the lane and sha; (2) fix anything it finds in a new commit, one re-run, two failed bundled runs on the same failure stop the lane; (3) run the ignored test composer_depth timings in debug and release at the final budgets (test binary run directly: the largest rows pass the 120 s cap in debug) and record notes.measurements final rows; (4) git fetch, rebase on origin/codex/handshake-studio-assets, keeping the red commits; origin moved in layout (SMB-LAYOUT-BLANK-LINE-LOOKUPS-1 at least), so expect a DESCRIPTOR conflict and keep both lanes' text; that move touches layout, so run the layout suite once after the rebase; (5) lane-check.sh --owner smb-layout-composer-depth-1 --disk ssd --per-sha origin/codex/handshake-studio-assets; (6) on PER_SHA_RESULT OK: SHA=$(git rev-parse HEAD) && [ -n \"$SHA\" ] && git push origin \"$SHA:refs/heads/codex/handshake-studio-assets\"; (7) set status READY_FOR_VALIDATION on the pushed sha, update commits and tests with the rebased shas. Open decision for the lead: the 8 window dead-end rows (notes.open).",
-  "updated_at": "2026-11-05T17:57:00Z",
+  "next": "Resume in order, in wt-studio-lanes/smb-layout-composer-depth-1/handshake-studio-assets, branch tip 286d9241, all on C: (--disk ssd): (1) lane-check.sh --owner smb-layout-composer-depth-1 --disk ssd -- cargo nextest run -p hsk-studio-layout -p hsk-studio-interop-layout --no-fail-fast, log named with the lane and sha; (2) fix anything it finds in a new commit, one re-run, two failed bundled runs on the same failure stop the lane; (3) run the ignored test composer_depth timings in debug and release at the final budgets (test binary run directly: the largest rows pass the 120 s cap in debug) and record notes.measurements final rows; (4) git fetch, rebase on origin/codex/handshake-studio-assets, keeping the red commits; origin moved in layout (SMB-LAYOUT-BLANK-LINE-LOOKUPS-1 at least), so expect a DESCRIPTOR conflict and keep both lanes' text; that move touches layout, so run the layout suite once after the rebase; (5) lane-check.sh --owner smb-layout-composer-depth-1 --disk ssd --per-sha origin/codex/handshake-studio-assets; (6) on PER_SHA_RESULT OK: SHA=$(git rev-parse HEAD) && [ -n \"$SHA\" ] && git push origin \"$SHA:refs/heads/codex/handshake-studio-assets\"; (7) set status READY_FOR_VALIDATION on the pushed sha, update commits and tests with the rebased shas. Open decision for the lead: the 8 window dead-end rows (notes.open). GitHub backup branch lane/smb-layout-composer-depth-1 holds 286d9241. Push rebased or amended tips to the product branch only, never to this backup branch: that would need a force push, which is forbidden. The backup branch stays at this tip until the Operator approves its deletion.",
+  "updated_at": "2026-11-05T21:14:50Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -238,5 +238,11 @@
       "memory at the budgets (estimates only)",
       "lines 825+ of MT-30904.json beyond the sections relevant here"
     ]
+  },
+  "backup_branch": {
+    "ref": "lane/smb-layout-composer-depth-1",
+    "sha": "286d9241f529efb3849189864eb1d2b1682d923e",
+    "pushed_at": "2026-11-05T21:14:50Z",
+    "rule": "Push rebased or amended tips to the product branch only, never to this backup branch: that would need a force push, which is forbidden. The backup branch stays at this tip until the Operator approves its deletion."
   }
 }

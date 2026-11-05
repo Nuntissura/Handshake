@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-HANDOFF
 file_kind: handoff
-updated_at: 2026-11-05T19:00:15Z
+updated_at: 2026-11-05T21:14:50Z
 wp: WP-KERNEL-STUDIO
 authority: Handshake Codex, KERNEL_BUILDER_PROTOCOL, START_LOG.md, ledger.json, validation/*, builders/briefs/wave-parity-2-common.md, builders/studio-env.sh (this file is a projection; they win on conflict)
 previous_version: handoff-archive/HANDOFF-20261101.md
@@ -26,10 +26,10 @@ READ FIRST, in this order. The repo's authority wins over your preferences and o
 5. In the same folder: ledger.json key direction (pause_20261105 first), builders/briefs/wave-parity-2-common.md, builders/DISPATCH_TEMPLATES.md.
 Verify every claim against files, git and command output. Label what you cannot verify UNVERIFIED. Do not write agent-local memory.
 
-STATE: dev is paused. Nothing is running. Product origin 1940292c. Four lanes are READY for STUDIO-R57, five are paused on local branches only, and R57 must be a FULL round.
+STATE: dev is paused. Nothing is running. Product origin 1940292c. Four lanes are READY for STUDIO-R57, five are paused and not on the product branch (their commits are on GitHub backup branches), and R57 must be a FULL round.
 
 FIRST STEPS:
-1. Confirm: no cargo, rustc or nextest process running; product origin; the five local tips in the state topic.
+1. Confirm: no cargo, rustc or nextest process running; product origin; the five lane tips in the state topic, locally and on their backup branches.
 2. Report to the Operator in plain words where things stand, then put the open Vulkan decisions O1, O3 and O6 to them (vulkan-gui-pivot topic). They decide what the GUI restart looks like.
 3. Finish the paused lanes with fresh builders, one lane pushing at a time. Each lane file's `next` holds its exact steps. Prompt in the dispatch-prompts topic.
 4. Dispatch STUDIO-R57, FULL, when no lane is building on C:. Prompt shape: validation/dispatch-prompt-R56.txt.
@@ -107,11 +107,11 @@ Studio is the Handshake creative module that unifies raster imaging, vector illu
 |---|---|---|
 | Tests | Last FULL round R54: 4,545 distinct tests passed, 0 failed. R56 scoped: 5,578 rows passed, 0 failed. 0 failed rows and 0 timeouts in every union R46..R56 | `round-R54.json`, `round-R56.json` |
 | No verdict | 31 commits, +6,600 lines since R56, including 4 READY lanes | `git diff 091c4d1b 1940292c` (lead checked) |
-| Not on any remote | 23 commits, +9,753 lines on 5 local branches on one disk, including the only fix for HIGH F-R56-1 | `git branch -r --contains` (lead checked) |
+| Not on the product branch | 23 commits, +9,753 lines on 5 lane branches, including the only fix for HIGH F-R56-1. On GitHub backup branches since 2026-11-05, after this check; no tests run on them since | `git ls-remote origin 'refs/heads/lane/*'` (lead checked) |
 | Proof surface | Debug profile, one Windows machine, one RTX 3090. No CI (lead checked), no clippy gate, no fuzzing of parsers | `code-health` |
 | Vendor parity | 27 of 308 audited rows (8.8%) touch real vendor output, 7 (2.3%) match fully; row audit dated 2026-10-21, corpus unchanged since. One oracle session, 2026-10-16. Premiere, Audition, Affinity and Figma have no oracle. 302 code lines say UNVERIFIED (D5) | `code-health` q1 |
 | Crash risk | F-R56-1 (stack overflow from document data) is still on origin. Same-class candidate `interop-fig-native export.rs:384`, UNVERIFIED. 0 `todo!`, 0 `unimplemented!`, 7 `panic!` (test, const or worker only) | `code-health` q2 |
-| Silent wrong output | `frame_blending` and `optical_flow` show a floored frame (F-R56-2); EDL drops a hold (F-R56-10); removing a sequence invalidates all routing (F-R56-3). Fixes for F-R56-2 and F-R56-3 are local only | `round-R56.json` |
+| Silent wrong output | `frame_blending` and `optical_flow` show a floored frame (F-R56-2); EDL drops a hold (F-R56-10); removing a sequence invalidates all routing (F-R56-3). Fixes for F-R56-2 and F-R56-3 are not on the product branch (backup branches only) | `round-R56.json` |
 | Licences and graph | Clean: 549 crates, no GPL, LGPL or MPL obligation, no database linked, no forbidden edge broken | `code-health` q4, q5 |
 | Spec fidelity | 22 items SD-31..52 PROPOSED, and D7A-01..17; shipped behaviour rests on those lead readings | enrichment files |
 | Records lag code | `STUDIO_MODULES.json`: all 35 modules read PLANNED_NOT_IMPLEMENTED, 21 of 56 crates not in `modules`, and it still calls render-gpu a "wgpu backend" and controls an "egui" mechanic (lead checked). `_MT_INDEX.json` says 2257 shell-client MTs; the MT files say 2266 (lead recounted) | direct read |
@@ -264,7 +264,7 @@ These replaced D11 (eframe plus wgpu window) as a product path. Spec: v02.226..2
 | SMB-LAYOUT-BLANK-LINE-LOOKUPS-1 | c9648315..66c0e7c9 | F-R56-5, F-R56-9; SD-51 |
 | SMB-TYPE-AUTHORED-TOKEN-1 | 1894d7f7..1940292c | F-R56-4, F-R56-6; MT-30898 partly met; SD-52. Whole type, folio, session, package and harness-core suites last ran at 62f81467 |
 
-**Paused, local only, status null. Exact steps are in each lane file's `next`:**
+**Paused, not on the product branch, status null. Each tip is also on a GitHub backup branch, `lane/<lane name in lower case>` (`direction.backup_20261105`). Exact steps are in each lane file's `next`:**
 
 | Order | Lane | Local tip | Disk | Last result | Left |
 |---|---|---|---|---|---|
@@ -273,6 +273,10 @@ These replaced D11 (eframe plus wgpu window) as a product path. Spec: v02.226..2
 | 3 | SMB-PR-ENTRY-REFERENCES-1 | 4529259c | D: | Bundled 932 passed | Rebase (conflicts expected in session), classify `composition_token` in `tests/entry_references.rs`, one bundled run, per-sha, push |
 | 4 | SMB-LAYOUT-COMPOSER-DEPTH-1 | 286d9241 | C: | Focused green; 1549 rows byte-identical | First bundled run (no clippy or whole suite on final code), timings, rebase, per-sha, push. Closes HIGH F-R56-1 |
 | 5 | SMB-PR-MEDIA-MARKERS-1 | 3cfbbeed | C: | Folio 11, session 57 focused green | Furthest: the pulse read has never compiled. `git apply -R` of `resume/pulse-green.patch`, pulse red, then its `next` |
+
+Backup branches stay at these tips. Rebased or amended tips go to the product branch only, never to a backup branch: that would need a force push, which is forbidden. Deleting them needs Operator approval once each lane has landed.
+
+Not backed up: 3 uncommitted files in the `smb-pr-media-markers-1` worktree. `resume/pulse-green.patch` copies the two pulse files on the same disk (reverse dry run passed 2026-11-05). `hsk-studio-package/tests/externals.rs` (+28 lines) has no second copy.
 
 The composer fix has been waiting longest for a HIGH finding; if the C: queue allows, it may run beside the first two.
 
@@ -457,7 +461,7 @@ None of these block paused-lane completion or R57.
 
 **Vulkan pivot:** O1..O10 in the `vulkan-gui-pivot` topic. O1 (WP-012 and eframe) is the largest open decision in the WP and, by the records, has never been raised with its owner.
 
-**Durability:** approve pushing the 5 local lane branches to GitHub backup branches: 23 commits exist on one disk only.
+**Durability:** done 2026-11-05 on the Operator's approval: the 23 commits are on 5 GitHub backup branches. Still on one disk only: media markers' 3 uncommitted files (`state` topic).
 
 **Readings the lead took, overrulable:** listed in the `state` topic.
 
@@ -470,9 +474,9 @@ None of these block paused-lane completion or R57.
 - SMB-PR-EDIT-FOOTPRINT-1: harness-view `plan_move`, its helper and new test file.
 - SMB-LAYOUT-BLANK-LINE-LOOKUPS-1: layout `src/toc_contract.rs`, `src/endnotes.rs`, the `TocOmitted` export in `lib.rs`.
 - SMB-TYPE-AUTHORED-TOKEN-1: harness-core `harness.rs`, `import.rs`; harness-view `fig_import.rs`, `vector/interop.rs`, `vector.rs`, `vector/path_text.rs`; harness tests `import_psd.rs`, `viewer_mask_package.rs`; type `descriptor.rs`; session `sequence_records.rs`.
-- Local, not pushed: SMB-PR-ENTRY-REFERENCES-1: harness-view `tests/viewer_inert_routing.rs`, pulse `tests/inert_routing_mix.rs`, a doc line in session `src/source.rs`. SMB-PR-NUDGE-1: a comment in pulse `src/timeline_edit.rs`.
+- Not on the product branch yet: SMB-PR-ENTRY-REFERENCES-1: harness-view `tests/viewer_inert_routing.rs`, pulse `tests/inert_routing_mix.rs`, a doc line in session `src/source.rs`. SMB-PR-NUDGE-1: a comment in pulse `src/timeline_edit.rs`.
 
-**Cleanup list, for approval (nothing has been deleted):** registered scratch worktree `Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-sentinels-registry-1/rw`; probe trees `validator-r53-probe`, `validator-r54-probe`, `validator-r55-probe`, `validator-r56-probe`; C: target `lanes/smb-pr-sequence-presets-1-red` and owner folder; worktrees and targets of PASS lanes including SMB-R54-FOLLOWUPS-1, SMB-PR-SEQUENCE-SESSION-1, SMB-PR-RETIME-HOLD-1, SMB-PR-MERGE-SYNC-1, SMB-LAYOUT-ENTRY-TEXT-1; local ref `backup/smb-pr-track-display-1-pre-fold`.
+**Cleanup list, for approval (nothing has been deleted):** registered scratch worktree `Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-sentinels-registry-1/rw`; probe trees `validator-r53-probe`, `validator-r54-probe`, `validator-r55-probe`, `validator-r56-probe`; C: target `lanes/smb-pr-sequence-presets-1-red` and owner folder; worktrees and targets of PASS lanes including SMB-R54-FOLLOWUPS-1, SMB-PR-SEQUENCE-SESSION-1, SMB-PR-RETIME-HOLD-1, SMB-PR-MERGE-SYNC-1, SMB-LAYOUT-ENTRY-TEXT-1; local ref `backup/smb-pr-track-display-1-pre-fold`. Later, once each paused lane has landed on the product branch: its GitHub backup branch (`direction.backup_20261105`).
 
 **Spec owner:** SD-31..SD-52 and D7A-01..17 PROPOSED. MT proof commands name targets that do not exist (F-R55-3, F-R56-13).
 
