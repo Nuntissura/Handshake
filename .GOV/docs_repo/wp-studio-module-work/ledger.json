@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-05T11:43:28Z",
+ "updated_at": "2026-11-05T14:24:14Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -18177,6 +18177,39 @@
    "closes": [
     "MT-33739"
    ]
+  },
+  {
+   "lane_id": "SMB-LAYOUT-COMPOSER-DEPTH-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-layout (Adobe paragraph composer)",
+   "lane_file": "builders/lanes/hsk-studio-layout-composer-depth-1.json",
+   "brief": "builders/briefs/lane-smb-layout-composer-depth-1.md",
+   "worktree": "wt-studio-lanes/smb-layout-composer-depth-1",
+   "base": "091c4d1b",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-05T14:24:14Z",
+   "closes": [
+    "F-R56-1"
+   ]
+  },
+  {
+   "lane_id": "SMB-LAYOUT-BLANK-LINE-LOOKUPS-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-layout (TOC, index and cross-reference line lookup)",
+   "lane_file": "builders/lanes/hsk-studio-layout-blank-line-lookups-1.json",
+   "brief": "builders/briefs/lane-smb-layout-blank-line-lookups-1.md",
+   "worktree": "wt-studio-lanes/smb-layout-blank-line-lookups-1",
+   "base": "091c4d1b",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-05T14:24:14Z",
+   "closes": [
+    "F-R56-5",
+    "F-R56-9"
+   ]
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -20088,9 +20121,34 @@
     "owner": "a later GUI lane"
    },
    {
-    "added_at": "2026-11-05T11:43:28Z",
-    "item": "layout toc::line_of misses a blank line, so an index mark or cross-reference destination in an empty or marker-only paragraph reads as unplaced (read from code and a probe, no test); and with include_overset on, an empty heading is still listed with empty text. Found by SMB-LAYOUT-ENTRY-TEXT-1",
-    "owner": "a later layout lane"
+    "added_at": "2026-11-05T14:24:14Z",
+    "item": "F-R56-2 / MT-33730: frame_layers carries no interpolation choice and no estimation mark (a floor-rounded frame under frame_blending and optical_flow); build_timeline_mix does not read maintain_audio_pitch",
+    "owner": "next pulse lane, after SMB-PR-EDIT-FOOTPRINT-1 pushes"
+   },
+   {
+    "added_at": "2026-11-05T14:24:14Z",
+    "item": "F-R56-3: removing a sequence named by audio_routing commits and invalidates the whole routing set; composition, clip_finishing and waveform_edit also name sequences or clips, read by grep only",
+    "owner": "next session lane, after SMB-PR-TRACK-DISPLAY-1 pushes"
+   },
+   {
+    "added_at": "2026-11-05T14:24:14Z",
+    "item": "F-R56-7: Applied::sequence_records_inverse returns a step that can never apply after replacing a parsable invalid entry, and a combined step loses its whole undo; no history host drives this path yet",
+    "owner": "a later session lane"
+   },
+   {
+    "added_at": "2026-11-05T14:24:14Z",
+    "item": "F-R56-10: interop-media's EDL reads the clip window and ignores the retime record, so a held clip exports as its window with no refusal; other exporters NOT_INSPECTED",
+    "owner": "a later interop-media lane"
+   },
+   {
+    "added_at": "2026-11-05T14:24:14Z",
+    "item": "F-R56-12: a group move of both clips of a transition keeps it with a known source length and drops it with an unknown one, though the cut does not change",
+    "owner": "a later pulse lane"
+   },
+   {
+    "added_at": "2026-11-05T14:24:14Z",
+    "item": "F-R56-6: type DESCRIPTOR is stale after composition token @3; F-R56-8: Point branch of shaped_story unreachable from the public Viewer path",
+    "owner": "with the next type lane"
    }
   ],
   "pause_20261103": {
