@@ -1,19 +1,116 @@
 {
   "crate": "hsk-studio-layout (derived text of TOC, running text and cross-references; note hosts)",
   "lane": "SMB-LAYOUT-ENTRY-TEXT-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-layout-entry-text-1",
   "base": "ce644577",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "1aa6f9a6",
+      "subject": "layout (red): sentinels and terminators in derived text, stored note hosts",
+      "pushed": true
+    },
+    {
+      "sha": "babffb40",
+      "subject": "layout: one rule for text derived from a story; stored note hosts",
+      "pushed": true
+    },
+    {
+      "sha": "f34a3d9a",
+      "subject": "layout (red 2): capture_index_mark copies stream sentinels into an index topic",
+      "pushed": true
+    },
+    {
+      "sha": "62f61621",
+      "subject": "layout: capture_index_mark reads the selection through derived_text",
+      "pushed": true
+    }
+  ],
+  "capabilities_done": [
+    "F-R55-5: one helper, derived_text::derive_text, at every site that copies story text into generated or derived text: TOC entries in generate_toc and generate_table_of_contents (TocEntryOut.text, TocContractEntry.text, the generated story, TocBookmark.title), running text, cross-reference paragraph text (fullPara, paraText, partial paragraph), endnote text and captured index topics. clean, clean_keeping and entry_text are gone",
+    "A marker with no value at the source (index, footnote reference, endnote reference, anchored object) does not appear in derived text and spends no budget",
+    "A page-number or section marker appears as its value at its own source byte (a heading on page 2 reads 2, whatever page the generated text lands on; a paragraph crossing pages uses the page of the marker's own line), pinned equal to compose_with_sentinels through native Type",
+    "A value the call cannot read is a typed DerivedMarkerGap with no text, never a wrong value or a silent drop: marker_gaps on TocEntryOut, TocContractEntry, RunningInstance, XrefResolution and GeneratedEndnotes. capture_index_mark has nowhere to carry a gap, so it refuses with index_invalid_topic_entry; a selection of markers only ends in the same refusal",
+    "F-R55-9: entry, running, cross-reference, endnote and captured text trim all 12 terminators of ends_paragraph; a terminator inside the span becomes a space, so the generated story says as many paragraphs as its partition, and a heading ended by a break sentinel keeps its page label placed through native Type (n7d)",
+    "F-R55-11: NoteHost gains resolved_text; an endnote or sidenote host with StoryContent::Stored places a gap reference like an inline host; without the text it stays typed (position None, sidenote in overset); a text that does not fit its story is invalid_input. Tests added for layout_footnotes with stored content and generate_index hidden check index.rs:205",
+    "Hostile input: at most MAX_STORY_MARKERS markers with a value or gap per call, each value at most MAX_RESOLVED_MARKER_BYTES, typed budget error beyond it; running text also caps the gaps kept over all instances of a call"
+  ],
+  "tests": {
+    "red_proof": {
+      "argv": "cargo nextest run --offline -p hsk-studio-layout -p hsk-studio-interop-layout -E 'binary(derived_text) | binary(derived_text_native_type)' --no-fail-fast; owner smb-layout-entry-text-1, D:, committed tip, no source edit during the build",
+      "compiles": true,
+      "sha_map_before_rebases": {
+        "ecf9e737": "1aa6f9a6",
+        "fbd2fe6a": "f34a3d9a"
+      },
+      "runs": [
+        {
+          "sha": "ecf9e737",
+          "exit": 100,
+          "passed": 7,
+          "failed": 37,
+          "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-entry-text-1/red-proof-smb-layout-entry-text-1-ecf9e737.log"
+        },
+        {
+          "sha": "fbd2fe6a",
+          "exit": 100,
+          "passed": 44,
+          "failed": 6,
+          "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-entry-text-1/red-proof-smb-layout-entry-text-1-fbd2fe6a.log"
+        }
+      ],
+      "green_at_the_first_red_tip_not_red": {
+        "f_r55_9_line_feed, f_r55_9_carriage_return": "every site already trimmed these two; they are the controls of the 12",
+        "f_r55_11_layout_footnotes_with_stored_content_places_a_gap_reference, f_r55_11_generate_index_counts_a_mark_on_a_hidden_layer_as_hidden": "the coverage the brief asks for, over code that already worked; they prove behaviour but were never red",
+        "f_r55_5_a_format_without_paragraph_text_reports_no_gap_for_it, f_r55_9_a_forced_line_break_kept_on_request_stays_and_is_no_terminator, f_r55_9_the_tests_cover_every_terminator_of_type": "controls"
+      },
+      "test_corrected_after_red": "v4_02_running_gaps_are_bounded_over_the_instances_of_one_call was red at ecf9e737 on its first assertion (0 gaps), then failed at the first green attempt on its own fixture (Folio running_frame_shared: two running texts on one frame). Fixed in babffb40 with a second frame on page-2; it was not re-proven red in the fixed form",
+      "squashed": "none: every red commit compiles and fails its tests"
+    },
+    "bundled": {
+      "argv": "lane-check.sh --owner smb-layout-entry-text-1 --disk d -- cargo nextest run -p hsk-studio-layout -p hsk-studio-interop-layout --no-fail-fast (step 0; clippy layout, interop-layout and dependents harness, harness-view; whole suites)",
+      "exit": 0,
+      "sha": "62f61621",
+      "passed": 338,
+      "failed": 0,
+      "per_crate": {
+        "hsk-studio-layout": 271,
+        "hsk-studio-interop-layout": 67
+      },
+      "new_tests": {
+        "crates/hsk-studio-layout/tests/derived_text.rs": 43,
+        "crates/hsk-studio-interop-layout/tests/derived_text_native_type.rs": 7
+      },
+      "not_proven_lines": 0,
+      "clippy": "no warning located in layout or interop-layout",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-entry-text-1/bundled-smb-layout-entry-text-1-62f61621.log",
+      "log_sha256": "3a59c04625e06717c3422ffbf76d8319b912be4f3544c307a2db543bbf7cd508"
+    },
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-layout-entry-text-1 --disk d --per-sha origin/codex/handshake-studio-assets",
+      "result": "PER_SHA_RESULT OK shas=4 range=51eb8f20..62f61621 (exit 0)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-entry-text-1/persha-smb-layout-entry-text-1-62f61621.log",
+      "log_sha256": "0b8e26fae85ce355f63f21f0ec2158d128acae82f37467e36e77d469d9145fa1"
+    },
+    "superseded_runs": [
+      "focus-smb-layout-entry-text-1-g1.log: did not compile, toc_contract.rs missing imports (exit 101)",
+      "focus-smb-layout-entry-text-1-g2.log: 43 of 44, the v4_02 fixture named in red_proof (exit 100)",
+      "bundled-smb-layout-entry-text-1-5daea1b5.log: not a result. Stopped by this lane while queued for the disk lock, before any compile, once the capture_index_mark extension meant it could not back READY. Its three processes were this lane's own (owner and cwd checked); the queue ticket was left to the lock's dead-ticket removal, disk-build-lock.sh:149",
+      "bundled-smb-layout-entry-text-1-c2cb786c.log: 338/338, exit 0, then rebased over 51eb8f20 whose range changes hsk-studio-folio, a layout dependency, so the run was repeated at 62f61621"
+    ],
+    "rebases": "ab61c368 (session, pulse, folio) before the first bundled attempt; 51eb8f20 (SMB-PR-RETIME-HOLD-1: folio, harness, harness-core, harness-view, interop-media, package, pulse, session) before the bundled run cited here. Nothing rebased over since that run. SMB-R54-FOLLOWUPS-1 had not landed at push, so its paragraph.rs, cjk.rs, sentinels.rs and Type changes are not in this candidate: whichever lane pushes second reruns the layout suite",
+    "push": "git push origin 62f61621432eedb0a54f346ef02b77f2125406cc:refs/heads/codex/handshake-studio-assets exit 0 (51eb8f20..62f61621, fast-forward); re-fetch shows origin = 62f61621 at 2026-11-05T09:39:34Z",
+    "doctests": "none added or changed (4d)",
+    "round_features_4e": "tests/derived_text.rs and tests/derived_text_native_type.rs have no feature gate; the default unit ran both",
+    "step0": "lane-check step 0 clean"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, rebase, per-sha, push, READY",
-  "updated_at": "2026-11-05T07:43:42Z",
+  "next": "validator: judge 1aa6f9a6..62f61621",
+  "updated_at": "2026-11-05T09:42:42Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -39,6 +136,117 @@
       "F-R55-9",
       "F-R55-11"
     ],
-    "closes_candidates": []
-  }
+    "closes_candidates": [],
+    "spec_basis": "Master Spec v02.229 STU-TYP-207 (:9106-9160): 'A marker sentinel carries no text', 'composition shows the resolved value without rewriting the stream', 'an unresolved marker shows an explicit unresolved state, never a guessed value', 'Each break sentinel ends its paragraph exactly as U+2029 does'. The spec does not state what derived text does with a marker",
+    "path_extensions": [
+      {
+        "path": "crates/hsk-studio-interop-layout/tests/longdoc_pdf.rs:1121",
+        "change": "the one NoteHost field line, nothing else in the file",
+        "why": "NoteHost gains a public field, so this struct literal stops compiling; no form of the field avoids it",
+        "approval": "lead-approved path extension (coordinator reply: longdoc_pdf ok)"
+      },
+      {
+        "path": "crates/hsk-studio-layout/src/index_contract.rs",
+        "change": "capture_index_mark and its doc, the import, and the InvalidTopicEntry doc line",
+        "why": "V4-06 site of F-R55-5 found by the sweep; left unfixed it would block READY",
+        "approval": "lead-approved path extension, this site only (coordinator direction)"
+      }
+    ],
+    "v4_06": {
+      "class": "a site that copies story bytes into generated or derived text carries stream sentinels and terminators into text that no stream rule resolves",
+      "regex": "clean_keeping|entry_text|full_para|fullPara",
+      "regex_widened": "\\.text\\.get\\(|text\\.get\\(|\\.inline_text\\(\\)|text_utf8|story_text\\(",
+      "scope": "crates/hsk-studio-layout/src/*.rs at 5daea1b5, the anchors below at 62f61621; the callers of the fixed generators outside layout are tests only (interop-layout layout_flow_pdf.rs, longdoc_pdf.rs), read by git grep",
+      "brief_regex_at_base": [
+        "toc.rs:187 clean_keeping (and clean :182): FIXED, removed; site now toc.rs:326",
+        "toc_contract.rs:673 entry_text: FIXED, removed; site now toc_contract.rs:889",
+        "running.rs:117 through clean: FIXED; site now running.rs:125",
+        "xref.rs:377 full text for fullPara, paraText and partial paragraph: FIXED; site now xref.rs:391"
+      ],
+      "found_by_widening": [
+        "endnotes.rs:125 clean(body), note body into the generated endnote story: FIXED; site now endnotes.rs:148. No placement at this call, so a page or section marker in a note body is a typed gap",
+        "index_contract.rs:1105 capture_index_mark, selection into the index topic: FIXED under the lead-approved extension; site now index_contract.rs:1112"
+      ],
+      "reads_a_fixed_site": [
+        "toc_contract.rs:992 TocBookmark.title reads the entry text: FIXED through it, test f_r55_5_a_bookmark_title_and_a_partial_paragraph_read_the_derived_text",
+        "toc.rs:126 GeneratedStory::to_story and toc_contract.rs:644 RunWriter::into_story write already derived text: FIXED through it",
+        "xref.rs:465 write_cross_reference writes the caller-supplied text, resolve_cross_references gives it derived text: NOT_APPLICABLE as a copy"
+      ],
+      "not_applicable": [
+        "xref.rs:5, :12, :209: docs and the format tokenizer, no story text",
+        "toc.rs:324, toc_contract.rs:887, running.rs:124, xref.rs:383, endnotes.rs:147, index_contract.rs:1110: the raw slice each fixed site hands to derive_text",
+        "endnotes.rs:82, :89, :222, footnotes.rs:290: host text for locate, no copy",
+        "endnotes.rs:260, footnotes.rs:166, table.rs:511, running.rs:263, folio_input.rs:171: compose the story itself, no derived copy",
+        "folio_input.rs:126: the accessor",
+        "find.rs:79, find_change.rs:341, grep.rs:117, :126, :163, preflight.rs:148, :150, :221, :223, :264: search and read the stream, no generated text",
+        "find_change.rs:401, textflow.rs:49, :56, :142, :278, :357, grep.rs:189: edit or view the same stream, which keeps its sentinels by design and composes through the sentinel path",
+        "sentinels.rs:413, :619, :720, :728: the composition path that resolves them",
+        "styles.rs:181, threaded_reflow.rs:844, :858, hyphenate.rs:264, paragraph.rs:204, :383, :406, :474, cjk.rs:568, :577, :608: read text during composition"
+      ],
+      "count": "6 copying sites, all fixed (toc, toc_contract, running, xref, endnotes, capture); 3 groups reading a fixed site; the rest not applicable",
+      "read_depth": "not-applicable lines were read at the line or a short excerpt, and paragraph.rs and cjk.rs (held by SMB-R54-FOLLOWUPS-1) only at the matching lines. Other crates were not swept for copies of story text beyond the callers of these generators: NOT_INSPECTED"
+    },
+    "declared_readings": {
+      "groups_of_the_stu_typ_207_catalogs": {
+        "no_value_left_out": [
+          "index marker U+FDD7, footnote reference U+FDD4, endnote reference U+FDD5: derived_text.rs:194",
+          "anchored-object marker U+FFFC: derived_text.rs:186"
+        ],
+        "value_at_the_source": [
+          "current page number U+FDD0: derived_text.rs:141",
+          "next page number U+FDD1: derived_text.rs:142",
+          "previous page number U+FDD2: derived_text.rs:146",
+          "section marker U+FDD3: derived_text.rs:150; running text only, the one site whose call has sections"
+        ],
+        "value_not_available_typed": [
+          "cross-reference marker U+FDD6: derived_text.rs:155 (marker_record_missing): its value is a record no derived-text call is given",
+          "section marker where the call has no sections, TOC and cross-references: derived_text.rs:151 (derived_sections_unavailable)",
+          "reserved code point U+FDDE..U+FDEF, no catalog member: derived_text.rs:204 (derived_reserved_code_point)"
+        ],
+        "not_markers": [
+          "break characters: the five break sentinels U+FDD8..U+FDDC and paragraph return, with the other class B characters, 12 in all: trimmed at the end, derived_text.rs:178; a space inside, derived_text.rs:181",
+          "forced line break U+2028 is no terminator: a space in entry, running, endnote and captured text unless remove_forced_line_break is false; kept in cross-reference text, as before",
+          "flush space U+FDDD: a space, derived_text.rs:181",
+          "the other white-space and symbol members are real characters and copy unchanged"
+        ]
+      },
+      "readings_the_spec_does_not_state": [
+        "Footnote and endnote references count as no value, as the brief directs, although composition shows them a generated number through a record",
+        "A value resolves at the marker's own byte, not at the paragraph start: the rule of place_markers through toc::line_of",
+        "A gap writes no text and the entry stays listed; only capture_index_mark refuses, because a stored topic cannot carry a gap",
+        "Whitespace around a removed marker stays: \"Chapter <index marker>\" reads \"Chapter \"",
+        "A note body with several paragraphs stays one paragraph per note (module docs), its inner terminators spaces. Before, an inner newline stayed and the generated story disagreed with its partition",
+        "InDesign handling of markers in a TOC entry UNVERIFIED (D5): no oracle, raised, not asserted"
+      ]
+    },
+    "spec_proposals": [
+      "STU-TYP-207 / STU-LAY-044 / STU-LAY-047 / STU-LAY-015: state what text derived from a story does with each marker member (this lane declares the groups above)",
+      "STU-TYP-207: state whether a footnote or endnote reference shows its number in derived text; the brief reads no value",
+      "Carried from SMB-LAYOUT-MARKER-LOOKUPS-1: state the line of a glyph-less byte at a line boundary"
+    ],
+    "microtasks": {
+      "claimed": [
+        "MT-30780 AC-001 (Notes MUST include footnotes, endnotes and sidenotes): candidate for the validator. R55 judged it partly met for one stated reason, a stored endnote or sidenote host staying unplaced; f_r55_11_a_stored_endnote_host_places_a_gap_reference_like_an_inline_one, f_r55_11_a_stored_sidenote_host_places_a_gap_reference_like_an_inline_one and f_r55_11_layout_footnotes_with_stored_content_places_a_gap_reference remove that reason"
+      ],
+      "not_claimed": {
+        "MT-30785": "partly met stays: AC-001 preflight and editable formats, AC-002 across documents are not touched. Cross-reference paragraph text is cleaner, no row states it",
+        "MT-30776, MT-30777, MT-30778": "stay as carried PASS_V1; R55 puts F-R55-5 outside their rows. Read: MT-30776 AC-001, MT-30777 rows by keyword (AC-011 strip forced breaks still holds), MT-30778 no row on entry text; no row added or proven beyond the carried verdict",
+        "MT-174": "capture_index_mark is its capture; rows are about hierarchy and cross-reference forms, no row states the selection text. MT-174 was read only in part: NOT_INSPECTED beyond AC-001 and AC-002"
+      },
+      "files_edited": "none"
+    },
+    "open_gaps": [
+      "OPEN: a section marker in a TOC entry or a cross-reference has a typed gap, not its value, because generate_toc, TocGenerateRequest and XrefContext carry no sections. A heading holding one shows no section name there. Giving the value needs a sections input on those public calls: a lane decision",
+      "OPEN: the value rule exists twice, sentinels.rs resolve (private, outside the owned paths) and derived_text.rs value_at. derived_values_equal_the_values_composition_resolves pins them equal for page numbers and section marker with sections; TextOverBudget and TextNotInline are tested on the derived side only. Folding them needs resolve to be pub(crate)",
+      "OPEN: a heading of markers only gives an empty entry: the TOC lists it as separator plus label. Read from code, no test; capture_index_mark refuses this case, the TOC does not. A lane decision",
+      "NOT_PROVEN: U+FFFC in derived text is proven with toy shaping only. No fixture font maps it, so a source holding it does not compose natively (F-R55-13, out of scope)",
+      "NOT_PROVEN by a native test: endnote text and captured topics are proven with toy shaping; the native file covers TOC, running and cross-reference text",
+      "NOT RUN: the test suites of the dependents harness and harness-view (clippy only, through lane-check). They do not use the changed structs: git grep finds no non-layout caller outside interop-layout tests",
+      "NOT_INSPECTED: other crates for copies of story text beyond the callers of these generators; MT-174 rows beyond AC-002",
+      "UNVERIFIED (D5): InDesign handling of markers in a TOC entry, cross-reference or running header; flush space and inner terminators in an entry"
+    ],
+    "behaviour_change": "Cross-reference text now trims U+2029 and the other terminators, where it trimmed only U+000A and U+000D. An inner terminator in a character-style range, a note body or a captured selection is a space. U+FFFC leaves entry text. An index topic can no longer be captured from a selection holding a page-number, section or cross-reference marker or a reserved code point. New public fields: marker_gaps on five result structs, resolved_text on NoteHost",
+    "paths_outside_brief_list": "crates/hsk-studio-interop-layout/tests/longdoc_pdf.rs:1121 and crates/hsk-studio-layout/src/index_contract.rs: see path_extensions. tests/longdoc_running_notes.rs and tests/marker_lookups.rs are in the owned tests. sentinels.rs, paragraph.rs and cjk.rs untouched"
+  },
+  "pushed_sha": "62f61621"
 }
