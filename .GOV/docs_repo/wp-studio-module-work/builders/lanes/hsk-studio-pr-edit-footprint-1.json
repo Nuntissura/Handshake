@@ -1,19 +1,242 @@
 {
-  "crate": "hsk-studio-pulse (edit proposal change list and write footprint)",
+  "crate": "hsk-studio-pulse (edit proposal change list and write footprint), hsk-studio-harness-view (plan_move only, lead-approved extension)",
   "lane": "SMB-PR-EDIT-FOOTPRINT-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed",
   "worktree": "wt-studio-lanes/smb-pr-edit-footprint-1",
   "base": "27cba13b",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "56c3a5f3a632f218c209c97b87e67e9d3c0eb163",
+      "subject": "pulse (SMB-PR-EDIT-FOOTPRINT-1, red): table over every EditProposal planner, new change kinds not yet emitted",
+      "pushed": true,
+      "red": true
+    },
+    {
+      "sha": "afe2c7c3c2b1a15628cadf10e20b5f4105ca8013",
+      "subject": "pulse (SMB-PR-EDIT-FOOTPRINT-1): every edit reports what it writes, a new member cannot escape the diff",
+      "pushed": true
+    },
+    {
+      "sha": "4efb0981e519a046e40df380521ef25e95791dc0",
+      "subject": "pulse (SMB-PR-EDIT-FOOTPRINT-1, red 2): a transition that leaves with its outgoing clip is not listed as dropped",
+      "pushed": true,
+      "red": true
+    },
+    {
+      "sha": "c5975397cdca37e4f7c21843d4b38fafd449f85c",
+      "subject": "pulse (SMB-PR-EDIT-FOOTPRINT-1): dropped_transitions lists a transition gone with its removed clip",
+      "pushed": true
+    },
+    {
+      "sha": "66e85dadc3e197fe4eb9a6d8e857c66e80690c9f",
+      "subject": "harness-view (SMB-PR-EDIT-FOOTPRINT-1, red 3): a clip moved through the Viewer loses its retime record",
+      "pushed": true,
+      "red": true
+    },
+    {
+      "sha": "895510732841a83fc6aaf2b4e56618a62a32dffc",
+      "subject": "harness-view (SMB-PR-EDIT-FOOTPRINT-1): a moved clip keeps its retime record, a new member cannot be missed",
+      "pushed": true
+    },
+    {
+      "sha": "41d0e0dadcc3ec1173dcffd8ccc7b42738ed22c7",
+      "subject": "harness-view (SMB-PR-EDIT-FOOTPRINT-1): the Speed/Duration doc no longer says the record has no field",
+      "pushed": true,
+      "note": "Comment only."
+    }
+  ],
+  "capabilities_done": [
+    "diff destructures StudioSequence, StudioTrack, StudioClip and ClipTransitions with no `..`: a new member stops compiling (mutation proof below)",
+    "ClipChange::Speed: a reverse-only speed change, and any window change that also changes speed",
+    "ClipChange::ClipMarker and ClipChange::SequenceMarker: add, replace, remove, a marker handed over by a cut, a marker leaving with a removed clip",
+    "ClipChange::ClipTransition with TransitionSlot: set, replace, clear, pruned by the edit, leaving with a removed clip",
+    "ClipChange::WorkArea: set, move, clear",
+    "ClipChange::TrackMove, ClipField, TrackField, SequenceField: members no planner writes today, reported if they ever differ (lib tests diff_tests)",
+    "write_footprint: each changed clip, marker and transition, the clip or sequence holding a changed marker or transition, a track whose clip list changed, the sequence for its own members",
+    "ClipChange::kind(); clip_id() and track_id() answer Option because a sequence-level entry has no clip",
+    "The consumer example prints kind() instead of guessing the op from the windows",
+    "dropped_transitions lists a transition that leaves with its removed clip; one a cut handed to another piece is not listed; an undo drops nothing",
+    "harness-view plan_move keeps the retime record of a moved clip (frame hold, interpolation choice, Maintain audio pitch); carry_across_move destructures StudioClip with no `..`"
+  ],
+  "tests": {
+    "argv": "lane-check.sh --owner smb-pr-edit-footprint-1 --disk d -- cargo nextest run -p hsk-studio-pulse -p hsk-studio-session -p hsk-studio-harness-view --features hsk-studio-harness-view/viewer --no-fail-fast",
+    "exit": 0,
+    "sha": "3898a864bf4c49a6d71cc2a9f55de8d9751c5379",
+    "passed": 306,
+    "failed": 0,
+    "skipped": 0,
+    "by_crate": {
+      "hsk-studio-pulse": 129,
+      "hsk-studio-session": 73,
+      "hsk-studio-harness-view": 104
+    },
+    "new_tests": {
+      "hsk-studio-pulse::edit_footprint": 13,
+      "hsk-studio-pulse lib timeline_edit::diff_tests": 7
+    },
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/bundled-smb-pr-edit-footprint-1-3898a864.log",
+    "clippy": "pulse, session and harness-view [viewer], then dependents with --tests, same lock hold, exit 0; no warning located in a pulse source or test file",
+    "step0": "clean",
+    "red_proof": {
+      "argv": "cargo nextest run -p hsk-studio-pulse --test edit_footprint --lib --no-fail-fast",
+      "tree": "the tree committed as b901fd02, base 27cba13b",
+      "exit": 100,
+      "result": "18 run, 2 passed, 16 failed",
+      "passed_at_red": "an_edit_that_changes_nothing_reports_nothing and diff_tests::equal_sequences_report_nothing: propose already refused no_change, so the reverse direction was not defective and these two were never shown red",
+      "table_at_red": "43 rows and their undo gave 132 failure lines; the rows are listed in notes.base_state",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/red1-smb-pr-edit-footprint-1-27cba13b-dirty.log"
+    },
+    "focused_green": {
+      "argv": "cargo nextest run -p hsk-studio-pulse --test edit_footprint --lib --no-fail-fast",
+      "tree": "the tree committed as 4583d53b, folded into 4511639d",
+      "exit": 0,
+      "result": "18 run, 18 passed",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/focus-smb-pr-edit-footprint-1-b901fd02-dirty.log"
+    },
+    "mutation_new_member": {
+      "argv": "cargo check -p hsk-studio-pulse --message-format short",
+      "sha": "4583d53ba4e8aa7eb1ef30a3e0df77583f72d0f5",
+      "mutation": "a new field on StudioClip, StudioTrack, StudioSequence and ClipTransitions in folio src/timeline.rs; restored from a copy and touched (V4-11), git status clean",
+      "exit": 101,
+      "result": "four E0027 pattern errors at the four destructures in timeline_edit.rs, plus seven E0063 at existing literals in assemble, comp_audio, multicam and nest",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/mutation-new-member-smb-pr-edit-footprint-1-4583d53b.log",
+      "note": "Run at the old sha 4583d53b. The destructures have not changed since; not repeated at the tip."
+    },
+    "consumer": {
+      "argv": "cargo run -q -p hsk-studio-pulse --example pulse-timeline-consumer -- --op lift --clip 1; then --op slip --clip 1 --frames 1",
+      "sha": "74f75c91799a67603c35fa2b3abd03beda35f20b",
+      "exit": 0,
+      "result": "lift prints op remove with clip and track in write; slip prints op retime",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/consumer-smb-pr-edit-footprint-1-74f75c91.log",
+      "note": "Run at the old sha 74f75c91, same tree as 4511639d. Not repeated at the tip: the fix changes no signature the example uses, and the example was not built in the tip run."
+    },
+    "not_run": "Pulse and session whole suites after the rebases, on the lead's instruction. harness-view whole suite on c143625f (it ran on 091c4d1b). Full suites of harness, harness-core, interop-media, kernel-bindings: clippy or per-sha compile only; none reads dropped_transitions, changes() or write_footprint() of an EditProposal. hsk-studio-package: folio is unchanged by this lane. Doctests: none added or changed. The comment commit had no test run of its own, on the lead's instruction; per-sha compiled it.",
+    "why_harness_view": "harness-view view/timeline.rs:1086 noted and plan_move read dropped_transitions, and the fix changes what they say. Added to the brief's argv. No test in harness-view or harness pins the note text (git grep \"dropped transitions\": 0 hits in tests).",
+    "history": {
+      "first_bundled_run": {
+        "sha": "4583d53ba4e8aa7eb1ef30a3e0df77583f72d0f5",
+        "exit": 100,
+        "passed": 199,
+        "failed": 1,
+        "failing": "retime_hold set_and_clear_are_one_step_with_one_inverse at retime_hold.rs:538",
+        "cause": "The test pinned a change list and footprint without the marker that moves to the new piece: the defect this lane closes. Commit 74f75c91 corrects the pin; the second run is on a changed input.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/bundled-smb-pr-edit-footprint-1-4583d53b.log",
+        "note": "Old sha, kept as history. That commit is folded into 4511639d."
+      },
+      "second_bundled_run": {
+        "sha": "74f75c91799a67603c35fa2b3abd03beda35f20b",
+        "argv": "lane-check.sh --owner smb-pr-edit-footprint-1 --disk d -- cargo nextest run -p hsk-studio-pulse -p hsk-studio-session --no-fail-fast",
+        "exit": 0,
+        "passed": 200,
+        "failed": 0,
+        "by_crate": {
+          "hsk-studio-pulse": 127,
+          "hsk-studio-session": 73
+        },
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/bundled-smb-pr-edit-footprint-1-74f75c91.log",
+        "note": "Same tree as 4511639d (77948558). Superseded by the run at the tip."
+      },
+      "note": "4583d53b and 74f75c91 no longer exist on the branch; they are in the local reflog only. No backup branch was pushed, because this lane may not push before release."
+    },
+    "red_proof_2": {
+      "argv": "cargo nextest run -p hsk-studio-pulse --test edit_footprint --no-fail-fast",
+      "tree": "the tree committed as fade7261",
+      "exit": 100,
+      "result": "13 run, 11 passed, 2 failed: every_transition_an_edit_takes_out_is_listed_as_dropped (lift_clip_with_marker_and_transition: left the sequence {tr-1}, listed {}), a_transition_that_leaves_with_its_outgoing_clip_is_listed (left [], right [tr-1])",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/red2-smb-pr-edit-footprint-1-4511639d-dirty.log"
+    },
+    "focused_green_2": {
+      "argv": "cargo nextest run -p hsk-studio-pulse --no-fail-fast",
+      "tree": "the tree committed as 3898a864",
+      "exit": 0,
+      "result": "129 run, 129 passed",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/focus2-smb-pr-edit-footprint-1-fade7261-dirty.log"
+    },
+    "tip_sha": "68c41a313508aefbee79471c929e395991725a02",
+    "tip_run": {
+      "argv": "STUDIO_LANE_CHECK_NO_DEPENDENTS=1 lane-check.sh --owner smb-pr-edit-footprint-1 --disk d -- cargo nextest run -p hsk-studio-harness-view --features viewer --no-fail-fast",
+      "sha": "68c41a313508aefbee79471c929e395991725a02",
+      "exit": 0,
+      "passed": 107,
+      "failed": 0,
+      "skipped": 0,
+      "new_target": "crates/hsk-studio-harness-view/tests/viewer_timeline_move_keeps.rs: 3 tests",
+      "clippy": "harness-view [viewer] only, dependents skipped on the lead's instruction; no warning located in view/timeline.rs or the new test file",
+      "step0": "clean",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/bundled-viewer-smb-pr-edit-footprint-1-68c41a31.log",
+      "scope": "The lead's instruction: run only what this change touches. The pulse and session result at 3898a864 stands, because 03368c59 and 68c41a31 change only those two harness-view files."
+    },
+    "red_proof_3": {
+      "argv": "cargo nextest run -p hsk-studio-harness-view --features viewer --test viewer_timeline_move_keeps --no-fail-fast",
+      "tree": "the tree committed as 03368c59",
+      "exit": 100,
+      "result": "3 run, 1 passed, 2 failed: a_held_clip_moved_through_the_viewer_keeps_the_frame (shown frames (10, 25), expected (17, 17)), a_move_changes_only_the_position_of_a_clip (only retime differed on clip 1)",
+      "passed_at_red": "a_moved_clip_loses_its_transition_and_the_note_says_so: the note was already there, so this pins existing behaviour and was never shown red",
+      "stopped_early": "The member loop stopped at clip 1 at red, so the half-speed and reversed clips were first run green.",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/red3-move-smb-pr-edit-footprint-1-3898a864-dirty.log"
+    },
+    "focused_green_3": {
+      "argv": "cargo nextest run -p hsk-studio-harness-view --features viewer --test viewer_timeline_move_keeps --no-fail-fast",
+      "tree": "the tree committed as 68c41a31",
+      "exit": 0,
+      "result": "3 run, 3 passed",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/focus3-move-smb-pr-edit-footprint-1-03368c59-dirty.log"
+    },
+    "pushed": {
+      "tip": "41d0e0dadcc3ec1173dcffd8ccc7b42738ed22c7",
+      "base": "c143625f2e6f280e2eb1a519fec3495699182bc9",
+      "command": "SHA=$(git rev-parse HEAD) && [ -n \"$SHA\" ] && git push origin \"$SHA:refs/heads/codex/handshake-studio-assets\"",
+      "result": "c143625f..41d0e0da fast-forward",
+      "read_back": "git ls-remote gives 41d0e0da; fetched tree f3b87c33 equals the local tree",
+      "at": "2026-11-05T15:54:09Z",
+      "diff_stat": "9 files, only the lane paths and the lead-approved extension; git diff --name-only checked before the push"
+    },
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-pr-edit-footprint-1 --disk d --per-sha origin/codex/handshake-studio-assets",
+      "result": "PER_SHA_RESULT OK shas=7 range=c143625f..41d0e0da",
+      "exit": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/per-sha-run-smb-pr-edit-footprint-1-41d0e0da.log",
+      "proves": "each commit compiles in the round units. It does not rerun the red commits' failures on the rebased tree."
+    },
+    "after_release": {
+      "harness_view_suite": {
+        "argv": "lane-check.sh --owner smb-pr-edit-footprint-1 --disk d -- cargo nextest run -p hsk-studio-harness-view --features desktop,audio-batch --no-fail-fast",
+        "sha": "958545fb6870d074fc215fd65bbdeb946b612181",
+        "on_origin": "091c4d1b",
+        "exit": 0,
+        "passed": 164,
+        "failed": 0,
+        "skipped": 0,
+        "features": "desktop + audio-batch, the round unit that also activates viewer; the widest single run. clippy over harness-view and its dependent harness in the same lock hold.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/rebased-harness-view-smb-pr-edit-footprint-1-958545fb.log"
+      },
+      "new_tests_after_second_rebase": {
+        "argv": "cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-view --features hsk-studio-harness-view/viewer --no-fail-fast -E 'binary(edit_footprint) | test(diff_tests) | binary(viewer_timeline_move_keeps) | test(set_and_clear_are_one_step_with_one_inverse)'",
+        "sha": "41d0e0dadcc3ec1173dcffd8ccc7b42738ed22c7",
+        "on_origin": "c143625f",
+        "exit": 0,
+        "passed": 24,
+        "failed": 0,
+        "filtered_out": 214,
+        "by_target": {
+          "edit_footprint": 13,
+          "diff_tests": 7,
+          "viewer_timeline_move_keeps": 3,
+          "retime_hold pin": 1
+        },
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/new-tests-smb-pr-edit-footprint-1-41d0e0da.log",
+        "why": "Origin moved 091c4d1b..c143625f (SMB-PR-TRACK-DISPLAY-1: folio, session, package; no field added to the records the diff walks, since every destructure still compiled). The lead's rule: rebase, per-sha, new tests only."
+      }
+    },
+    "argv_note": "The top-level argv, sha, passed and log are the pulse, session and harness-view [viewer] run at 3898a864, which stands on the lead's instruction: pulse did not move and session has no pulse edge. The tip runs are under tests.after_release and tests.tip_run."
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push after STUDIO-R56 on the lead's release",
-  "updated_at": "2026-11-05T10:05:08Z",
+  "next": "Validator: judge c143625f..41d0e0da. Red commits 56c3a5f3, 4efb0981 and 66e85dad fail their own new tests by design. Lead: commit this lane file. No further pushes on this lane without a new dispatch.",
+  "updated_at": "2026-11-05T15:54:55Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -37,6 +260,482 @@
     "closes": [
       "next_lane_candidates: V4-06 failure class in pulse"
     ],
-    "closes_candidates": []
-  }
+    "closes_candidates": [],
+    "base_state": {
+      "rows": "43 table rows, each also run as its undo",
+      "empty_changes_and_footprint_at_base": [
+        "add_sequence_marker",
+        "add_clip_marker",
+        "replace_sequence_marker",
+        "replace_clip_marker",
+        "remove_sequence_marker",
+        "remove_clip_marker",
+        "set_transition",
+        "replace_transition_same_id",
+        "replace_transition_new_id",
+        "clear_transition",
+        "set_work_area",
+        "move_work_area",
+        "clear_work_area",
+        "speed_duration_reverse_only"
+      ],
+      "partly_wrong_at_base": {
+        "razor_hands_over_marker_and_transition": "changes() missed the marker and transition that moved; undo footprint missed them too",
+        "lift_clip_with_marker_and_transition": "neither list named the marker or transition that left with the clip",
+        "extract_clip": "the clip that lost its transition (pruned) was in neither list",
+        "insert_splits_a_clip": "changes() missed the marker and transition that moved",
+        "move_drops_the_transition_of_a_clip_that_stays": "the clip that lost its transition was in neither list",
+        "rate_stretch": "the speed change was not named",
+        "speed_duration_new_duration": "the speed change was not named"
+      },
+      "right_at_base": "the other 22 rows, plus plan_insert_frame_hold_segment on a clip with no marker",
+      "found_outside_the_table": "plan_insert_frame_hold_segment on a clip with a marker: retime_hold pinned the under-report"
+    },
+    "v4_06": {
+      "class": "a real edit whose EditProposal change list or write footprint misses a record it changed",
+      "regex": "git grep -nE \"fn plan_|EditProposal\" crates/hsk-studio-pulse/src",
+      "at_sha": "41d0e0dadcc3ec1173dcffd8ccc7b42738ed22c7",
+      "match_count": 61,
+      "listed_count": 61,
+      "sites": [
+        {
+          "site": "src/annotate.rs:12",
+          "verdict": "NOT APPLICABLE: doc comment"
+        },
+        {
+          "site": "src/annotate.rs:13",
+          "verdict": "NOT APPLICABLE: doc comment"
+        },
+        {
+          "site": "src/annotate.rs:18",
+          "verdict": "NOT APPLICABLE: import"
+        },
+        {
+          "site": "src/annotate.rs:200",
+          "fn": "plan_record_edit",
+          "verdict": "FIXED: every marker, transition and work-area row had empty changes() and write_footprint() at base; 13 table rows now exact"
+        },
+        {
+          "site": "src/annotate.rs:206",
+          "verdict": "NOT APPLICABLE: return type of the planner listed just above"
+        },
+        {
+          "site": "src/assemble.rs:18",
+          "verdict": "NOT APPLICABLE: import"
+        },
+        {
+          "site": "src/assemble.rs:178",
+          "fn": "plan_assembly_edit",
+          "verdict": "FIXED: table rows insert_after_the_end, insert_splits_a_clip, overwrite_splits_a_clip; a split that handed over a marker and transition did not name them at base"
+        },
+        {
+          "site": "src/assemble.rs:184",
+          "verdict": "NOT APPLICABLE: return type of the planner listed just above"
+        },
+        {
+          "site": "src/audio.rs:209",
+          "fn": "plan_clips",
+          "verdict": "NOT APPLICABLE: audio mix planning, returns no proposal"
+        },
+        {
+          "site": "src/lib.rs:85",
+          "verdict": "NOT APPLICABLE: DESCRIPTOR text; changes key added"
+        },
+        {
+          "site": "src/merge_sync.rs:2",
+          "verdict": "NOT APPLICABLE: doc comment"
+        },
+        {
+          "site": "src/merge_sync.rs:53",
+          "verdict": "NOT APPLICABLE: import"
+        },
+        {
+          "site": "src/merge_sync.rs:158",
+          "verdict": "NOT APPLICABLE: the type, its field or its impl"
+        },
+        {
+          "site": "src/merge_sync.rs:165",
+          "verdict": "NOT APPLICABLE: the type, its field or its impl"
+        },
+        {
+          "site": "src/merge_sync.rs:275",
+          "fn": "plan_timeline_edit_with_linked_selection",
+          "verdict": "FIXED through propose; row linked_selection_suspended_trim was already right at base"
+        },
+        {
+          "site": "src/merge_sync.rs:282",
+          "verdict": "NOT APPLICABLE: return type of the planner listed just above"
+        },
+        {
+          "site": "src/merge_sync.rs:307",
+          "fn": "plan_unlink",
+          "verdict": "FIXED through propose; row unlink was already right at base (Relink)"
+        },
+        {
+          "site": "src/merge_sync.rs:313",
+          "verdict": "NOT APPLICABLE: return type of the planner listed just above"
+        },
+        {
+          "site": "src/merge_sync.rs:409",
+          "fn": "plan_move_clips",
+          "verdict": "FIXED: move_drops_the_transition_of_a_clip_that_stays did not name the clip that lost its transition; row move_clips was right"
+        },
+        {
+          "site": "src/merge_sync.rs:415",
+          "verdict": "NOT APPLICABLE: return type of the planner listed just above"
+        },
+        {
+          "site": "src/merge_sync.rs:634",
+          "fn": "plan_unit",
+          "verdict": "NOT APPLICABLE: private helper of plan_merge_clips and plan_synchronize, reaches propose"
+        },
+        {
+          "site": "src/merge_sync.rs:676",
+          "fn": "plan_merge_clips",
+          "verdict": "FIXED through propose; rows merge_clips_in_place and merge_clips_aligned were already right at base"
+        },
+        {
+          "site": "src/merge_sync.rs:696",
+          "fn": "plan_synchronize",
+          "verdict": "FIXED through propose; row synchronize was already right at base"
+        },
+        {
+          "site": "src/multicam.rs:322",
+          "fn": "plan_multicam_revert",
+          "verdict": "NOT APPLICABLE: returns MulticamProposal; no changes() or write_footprint(); sequence_change() gives whole sequences. It has no write footprint at all"
+        },
+        {
+          "site": "src/multicam.rs:470",
+          "fn": "plan_multicam_switch",
+          "verdict": "NOT APPLICABLE: returns MulticamProposal; no changes() or write_footprint(); sequence_change() gives whole sequences. It has no write footprint at all"
+        },
+        {
+          "site": "src/multicam.rs:529",
+          "fn": "plan_multicam_toggle_audio_follows_video",
+          "verdict": "NOT APPLICABLE: returns MulticamProposal; no changes() or write_footprint(); sequence_change() gives whole sequences. It has no write footprint at all"
+        },
+        {
+          "site": "src/multicam.rs:546",
+          "fn": "plan_multicam_toggle_follows_nest",
+          "verdict": "NOT APPLICABLE: returns MulticamProposal; no changes() or write_footprint(); sequence_change() gives whole sequences. It has no write footprint at all"
+        },
+        {
+          "site": "src/multicam.rs:560",
+          "fn": "plan_multicam_toggle_enabled",
+          "verdict": "NOT APPLICABLE: returns MulticamProposal; no changes() or write_footprint(); sequence_change() gives whole sequences. It has no write footprint at all"
+        },
+        {
+          "site": "src/multicam.rs:603",
+          "fn": "plan_multicam_angle_numbering",
+          "verdict": "NOT APPLICABLE: returns MulticamProposal; no changes() or write_footprint(); sequence_change() gives whole sequences. It has no write footprint at all"
+        },
+        {
+          "site": "src/multicam.rs:697",
+          "fn": "plan_create_multicam_source",
+          "verdict": "NOT APPLICABLE: returns MulticamProposal; no changes() or write_footprint(); sequence_change() gives whole sequences. It has no write footprint at all"
+        },
+        {
+          "site": "src/multicam.rs:782",
+          "fn": "plan_multicam_record_pass",
+          "verdict": "NOT APPLICABLE: returns MulticamProposal; no changes() or write_footprint(); sequence_change() gives whole sequences. It has no write footprint at all"
+        },
+        {
+          "site": "src/multicam.rs:1086",
+          "fn": "plan_multicam_flatten",
+          "verdict": "NOT APPLICABLE: returns MulticamProposal; no changes() or write_footprint(); sequence_change() gives whole sequences. It has no write footprint at all"
+        },
+        {
+          "site": "src/nest.rs:499",
+          "fn": "plan_nest",
+          "verdict": "NOT APPLICABLE: returns NestProposal; its SequenceChange carries whole sequences, so a new member travels and the list is never empty. Not the same defect. It has no write footprint at all"
+        },
+        {
+          "site": "src/nest.rs:581",
+          "fn": "plan_make_subsequence",
+          "verdict": "NOT APPLICABLE: as plan_nest"
+        },
+        {
+          "site": "src/rate.rs:38",
+          "verdict": "NOT APPLICABLE: doc comment"
+        },
+        {
+          "site": "src/rate.rs:47",
+          "verdict": "NOT APPLICABLE: import"
+        },
+        {
+          "site": "src/rate.rs:235",
+          "fn": "plan_retime",
+          "verdict": "NOT APPLICABLE: private helper of the rate planners, reaches propose"
+        },
+        {
+          "site": "src/rate.rs:264",
+          "fn": "plan_rate_stretch",
+          "verdict": "FIXED: the speed was not named at base (window only); row rate_stretch"
+        },
+        {
+          "site": "src/rate.rs:280",
+          "fn": "plan_speed_duration",
+          "verdict": "FIXED: reverse-only had empty changes() and write_footprint() at base; a new duration did not name the speed; rows speed_duration_reverse_only, speed_duration_new_duration"
+        },
+        {
+          "site": "src/retime.rs:54",
+          "verdict": "NOT APPLICABLE: doc comment"
+        },
+        {
+          "site": "src/retime.rs:67",
+          "verdict": "NOT APPLICABLE: import"
+        },
+        {
+          "site": "src/retime.rs:390",
+          "fn": "plan_typed",
+          "verdict": "NOT APPLICABLE: private helper of the retime planners, reaches propose"
+        },
+        {
+          "site": "src/retime.rs:396",
+          "verdict": "NOT APPLICABLE: return type of the planner listed just above"
+        },
+        {
+          "site": "src/retime.rs:500",
+          "fn": "plan_set_frame_hold",
+          "verdict": "FIXED through propose; row set_frame_hold was already right at base (RetimeRecord)"
+        },
+        {
+          "site": "src/retime.rs:507",
+          "verdict": "NOT APPLICABLE: return type of the planner listed just above"
+        },
+        {
+          "site": "src/retime.rs:520",
+          "fn": "plan_clear_frame_hold",
+          "verdict": "FIXED through propose; row clear_frame_hold was already right at base"
+        },
+        {
+          "site": "src/retime.rs:526",
+          "verdict": "NOT APPLICABLE: return type of the planner listed just above"
+        },
+        {
+          "site": "src/retime.rs:640",
+          "fn": "plan_insert_frame_hold_segment",
+          "verdict": "FIXED: a marker handed to the new piece was not named at base; proven by tests/retime_hold.rs set_and_clear_are_one_step_with_one_inverse, whose pin the first bundled run failed; table row insert_frame_hold_segment has no marker and was right at base"
+        },
+        {
+          "site": "src/retime.rs:647",
+          "verdict": "NOT APPLICABLE: return type of the planner listed just above"
+        },
+        {
+          "site": "src/retime.rs:654",
+          "fn": "plan_set_retime_options",
+          "verdict": "FIXED through propose; row set_retime_options was already right at base"
+        },
+        {
+          "site": "src/retime.rs:660",
+          "verdict": "NOT APPLICABLE: return type of the planner listed just above"
+        },
+        {
+          "site": "src/timeline_edit.rs:211",
+          "verdict": "NOT APPLICABLE: doc comment"
+        },
+        {
+          "site": "src/timeline_edit.rs:383",
+          "verdict": "NOT APPLICABLE: the type, its field or its impl"
+        },
+        {
+          "site": "src/timeline_edit.rs:419",
+          "verdict": "NOT APPLICABLE: the type, its field or its impl"
+        },
+        {
+          "site": "src/timeline_edit.rs:1447",
+          "fn": "plan_timeline_edit",
+          "verdict": "FIXED: razor_hands_over_marker_and_transition, lift_clip_with_marker_and_transition, extract_clip were wrong at base; the other ten TimelineEdit rows were right"
+        },
+        {
+          "site": "src/timeline_edit.rs:1453",
+          "verdict": "NOT APPLICABLE: return type of the planner listed just above"
+        },
+        {
+          "site": "src/timeline_edit.rs:1467",
+          "verdict": "NOT APPLICABLE: doc comment"
+        },
+        {
+          "site": "src/timeline_edit.rs:1468",
+          "fn": "plan_timeline_revert",
+          "verdict": "FIXED: every row is also checked as its undo; 20 of the 21 rows wrong at base had a wrong undo too (the undo of a lift is an Insert carrying the whole clip, which was right)"
+        },
+        {
+          "site": "src/timeline_edit.rs:1474",
+          "verdict": "NOT APPLICABLE: return type of the planner listed just above"
+        },
+        {
+          "site": "src/timeline_edit.rs:1505",
+          "verdict": "NOT APPLICABLE: return type of the planner listed just above"
+        },
+        {
+          "site": "src/timeline_edit.rs:1560",
+          "verdict": "NOT APPLICABLE: the type, its field or its impl"
+        }
+      ]
+    },
+    "spec_basis": {
+      "clause": "Master Spec v02.229 14-studio-creative-suite.md STU-ARC-011",
+      "quote": "Target/object/property read/write footprints and expected revision vectors MUST admit disjoint changes according to current conflict semantics, including [STU-DS-163]; a blanket whole-document CAS MUST NOT replace them.",
+      "second": "Same module, proposal transport: \"Two proposals authored against the same old snapshot MUST both apply when their actual semantic read/write footprints are disjoint ... A second overlapping or dependent proposal MUST conflict.\" (grep line 22719)",
+      "change_list": "Grep of the module for footprint and change list found no clause on a timeline change list: STU-DS-019a is design-system publishing. changes() rests on the crate DESCRIPTOR, not on a Studio clause.",
+      "records": "STU-VID-034 markers, STU-VID-032/032a transitions, STU-VID-035 work area, STU-VID-031 speed"
+    },
+    "readers": {
+      "at_sha": "68c41a31 for the list; line numbers in view/timeline.rs moved by the helper",
+      "grep": "git grep -nE \"\\.write_footprint\\(\\)|\\.read_footprint\\(\\)|\\.changes\\(\\)|\\.change_for\\(|ClipChange\" -- crates, without pulse src, pulse tests and components (components has its own unrelated footprint type)",
+      "EditProposal_changes_and_write_footprint": [
+        "crates/hsk-studio-pulse/examples/pulse-timeline-consumer.rs:293 and :301: prints them. The only non-test reader."
+      ],
+      "separate_type": [
+        "crates/hsk-studio-harness-view/src/view/timeline/nest.rs:213 and :304: NestProposal::changes, SequenceChange, feeds session SequenceEdit. Not ClipChange."
+      ],
+      "reads_neither": [
+        "crates/hsk-studio-harness-view/src/view/timeline.rs:1086 noted reads dropped_transitions and removed_markers only",
+        "hsk-studio-session has no pulse dependency (grep of crates/hsk-studio-session found no pulse reference)"
+      ],
+      "cost_of_a_wrong_answer_today": "No write is lost. Session commits TimelineStep whole sequences with an expect precondition (session/src/timeline.rs:28, session.rs:807, value_conflict on mismatch), and SMB-PR-RETIME-HOLD-1 session test retime_commit showed that path carries a record-only difference. Today the wrong answer reaches only the consumer example, which prints an empty report for a real edit.",
+      "cost_for_a_host_following_STU_ARC_011": "Proven at footprint level: test proposals_that_write_one_record_share_a_footprint_entry was red at base at its first assert (edit_footprint.rs:714): a reverse-only speed change and a slip of the same clip had no footprint entry in common, so a host admitting disjoint proposals by footprint would admit both. Work area, marker and transition pairs have the same shape. What that host then loses depends on how it merges, and no such host exists in this tree: NOT_INSPECTED beyond that. Session's whole-sequence expect would still refuse the second commit unless the host rebased it."
+    },
+    "declared_readings": [
+      "A marker or transition names itself and the clip or sequence holding it, because it is stored inside that record. A clip does not name its track unless the track's clip list changed: retime_hold pins that.",
+      "The work area has no id. It is written as a member of its sequence, so the footprint names the sequence and changes() has the WorkArea entry. A work-area edit, a sequence-marker edit and a duration change therefore share an entry and conflict. That is the safe direction, a false conflict rather than a lost write.",
+      "The sequence duration is derived from the clips and Folio validates it, so it never changes alone. It has a footprint entry as before and no change entry; existing tests pin change counts on edits that move it.",
+      "What leaves with a removed clip is listed after its Remove as ClipMarker and ClipTransition entries with after None. A clip marker or transition on an inserted clip stays inside its Insert, which carries the whole clip, and the footprint names it.",
+      "A marker handed to another piece by a cut is one removal on the piece it left plus the new piece's Insert.",
+      "schema_id on the three records is one token per schema and cannot differ, so it is destructured as ignored. The key ids are what the pairs were found by.",
+      "Members no planner writes (enabled, source_ref, track settings, sequence name, frame rate, order-only differences) are reported by name without values; the values are in the snapshot and the inverse. A planner that starts writing one should give it a typed entry.",
+      "Footprint ids stay one flat list of strings. NOT_INSPECTED whether Folio refuses a marker id equal to a clip id; the only effect of such a collision is a false conflict."
+    ],
+    "spec_proposals": [
+      "STU-ARC-011 or STU-VID: state the footprint granularity of a timeline edit, and give the work area a property-level name so it need not conflict with sequence markers and duration.",
+      "STU-VID: state that a timeline edit reports a change list, since none of the module's clauses does.",
+      "nest and multicam commands: state whether their proposals carry a write footprint; today they carry none."
+    ],
+    "microtasks": {
+      "claimed": [],
+      "read": [
+        "MT-33726",
+        "MT-33730",
+        "MT-33093"
+      ],
+      "reading": "A correction lane. 173 MT files mention read/write footprint with a timeline or pulse term, and the rows read carry it as the shared revision_seed line and a stale-footprint negative path, not as this behaviour. MT-33093 is components. None is claimed. MT files not edited."
+    },
+    "hostile_input": "No new unbounded allocation: diff walks the Folio-validated document; a clip gives at most 10 fixed entries plus one per marker, a track at most 12, the sequence at most 5 plus one per marker, all within MAX_CLIPS_PER_SEQUENCE, MAX_TRACKS_PER_SEQUENCE and MAX_MARKERS_PER_SEQUENCE. Pairing uses BTreeMap, and marker pairing is skipped when the lists are equal. Marker clones are bounded by the document already validated.",
+    "open": [
+      "read_footprint is unchanged: a marker replace or removal does not read-name the marker or clip. Out of this brief.",
+      "NestProposal and MulticamProposal have no write footprint. Not the empty-diff defect; reported as a spec question.",
+      "SetTransition writes the tail slot only; the head slot is covered by the diff unit test, not by a planner.",
+      "plan_move still changes enabled, markers and retime after its proposals, so those writes appear in no proposal. It reads no footprint, so nothing is lost today; plan_move_clips would remove this for same-track moves."
+    ],
+    "not_proven": [
+      "An independent validation round has not judged this; nothing here is a PASS.",
+      "TrackMove, ClipField, TrackField and SequenceField are proven by lib tests through diff directly, because no planner reaches them.",
+      "A real host admitting by footprint: none exists; the cost is shown at footprint level only.",
+      "Full dependent suites other than harness-view [viewer]: not run, see tests.not_run.",
+      "The red commits were not rerun after the rebases: per-sha proves they compile; their failures were shown on the trees of b901fd02, fade7261 and 03368c59."
+    ],
+    "outside_owned_paths": "None beyond the lead-approved extension (notes.lead_approved_extension). src/rate.rs is doc text only, the module the table proved wrong. tests/retime_hold.rs: Option accessors and the corrected pin. The example changed because clip_id and track_id signatures changed.",
+    "vendor_parity": "Not involved.",
+    "dropped_transitions_finding": {
+      "defect": "Yes, proven by running it. Lift, extract, range lift, range extract and overwrite of a whole outgoing clip took its tail transition out of the sequence and dropped_transitions stayed empty, although the accessor documented \"never silently lost\". prune_transitions only walks the clips that stayed.",
+      "fix": "propose adds the transitions of removed clips after pruning, unless the id is still in the sequence or already listed. Runs only with carry, so plan_timeline_revert stays empty.",
+      "tests": [
+        "every_transition_an_edit_takes_out_is_listed_as_dropped: all table rows except the four set, replace and clear commands, gone equals listed",
+        "a_transition_that_leaves_with_its_outgoing_clip_is_listed: the five commands, the undo restores and drops nothing, an incoming clip lists once, a razor lists nothing"
+      ],
+      "reading": "A transition set, replaced or cleared by name is the caller's own choice and is not listed; it is in changes() and the footprint.",
+      "reaches": "harness-view noted and multicam.rs:465 (which collects dropped_transitions from plan_timeline_edit) now see these ids."
+    },
+    "lead_approved_extension": {
+      "path": "crates/hsk-studio-harness-view/src/view/timeline.rs, function plan_move",
+      "by": "lead message, after the finding in this lane's report",
+      "also_touched": [
+        "the new private helper carry_across_move directly above plan_move",
+        "the module doc lines that state what a move carries",
+        "new test file crates/hsk-studio-harness-view/tests/viewer_timeline_move_keeps.rs, which the lead asked for in the viewer unit"
+      ],
+      "no_new": "no egui, eframe, winit or wgpu line: the added lines hold none (grep of the diff), and the test drives timeline_command without a window"
+    },
+    "plan_move_fields": {
+      "basis": "pulse src/assemble.rs:266 incoming clip literal against folio StudioClip, plan_move, test a_move_changes_only_the_position_of_a_clip comparing the whole stored clip for a held, a half-speed and a reversed clip",
+      "schema_id": "same, one token",
+      "clip_id": "kept: SourcePatch::clip_id",
+      "source_ref": "kept: AssemblyEdit::source",
+      "source_in": "kept: AssemblyPoints",
+      "source_out": "kept: AssemblyPoints",
+      "timeline_start": "changed, the move itself",
+      "duration": "kept: derived by the assembly from the window and the speed",
+      "speed": "kept: AssemblyEdit::speed, proven at 1/2 and -1",
+      "enabled": "the assembly sets true; carried, as before",
+      "link_group": "the assembly sets None; a linked clip is refused before the move, so None was already the value",
+      "markers": "the assembly sets empty; carried, as before",
+      "transitions": "the assembly sets empty; LOST on the lead's decision, reported by the lift's dropped_transitions and the note (test a_moved_clip_loses_its_transition_and_the_note_says_so)",
+      "retime": "the assembly sets the default; was LOST with no report, now carried",
+      "new_member": "carry_across_move has no `..`, so a new StudioClip member stops compiling there. Not shown by mutation: a new member stops pulse first (assemble.rs and nest.rs literals), so harness-view is never reached without also fixing those. The same language rule the diff mutation proved."
+    },
+    "plan_move_clips_instead": {
+      "answer": "Better where it applies, not a drop-in. Read from merge_sync.rs:405-423, not run through the Viewer.",
+      "better": "It only changes timeline_start, so nothing can be lost; transitions that still play stay; one proposal with one inverse and a true change list and footprint, where plan_move is two proposals plus an edit neither reports (enabled, markers, retime).",
+      "not_a_drop_in": [
+        "It moves a clip on its own track only; plan_move also serves a drag onto another track",
+        "It refuses overlap; plan_move overwrites what is at the destination",
+        "With LinkedSelection::On link partners follow; plan_move refuses a linked clip"
+      ],
+      "decision_needed": "A lead or Operator question of behaviour: whether a drag onto a clip should overwrite or refuse. Vendor behaviour UNVERIFIED (D5)."
+    },
+    "sha_map": {
+      "note": "Logs and earlier notes name the shas they ran at. Local lane commits, then the rebase on 091c4d1b, then the rebase on c143625f, which is what was pushed.",
+      "red": [
+        "b901fd02",
+        "c728dc18",
+        "56c3a5f3"
+      ],
+      "every_edit_reports": [
+        "4511639d",
+        "1604d979",
+        "afe2c7c3"
+      ],
+      "red_2": [
+        "fade7261",
+        "9f90f670",
+        "4efb0981"
+      ],
+      "dropped_transitions": [
+        "3898a864",
+        "af84a01a",
+        "c5975397"
+      ],
+      "red_3": [
+        "03368c59",
+        "52148cb1",
+        "66e85dad"
+      ],
+      "moved_clip_keeps_retime": [
+        "68c41a31",
+        "958545fb",
+        "89551073"
+      ],
+      "comment": [
+        "committed once, rebased at once before any run",
+        "41d0e0da"
+      ],
+      "folded_earlier": "4583d53b and 74f75c91 became 4511639d"
+    },
+    "released_by_lead": "STUDIO-R56 recorded at 091c4d1b (326 PASS, 0 FAIL)",
+    "r56_facts": {
+      "F-R56-10": "Records the plan_move retime loss at 091c4d1b and the stale doc. Fixed by 89551073 and 41d0e0da.",
+      "F-R56-12": "A group move keeps or drops a transition depending on known source length. Not this lane."
+    },
+    "stale_comment": {
+      "path": "crates/hsk-studio-harness-view/src/view/timeline/rate.rs:28-30 (the lead's message says src/view/rate.rs; that file is under timeline/)",
+      "now_says": "the two options are shown as unavailable because the form is not wired to them; the record holds both in StudioClip.retime and pulse sets them with plan_set_retime_options",
+      "still_stale_not_touched": "The same false reason is in product text: view/timeline/rate.rs:89-90 state_json \"unavailable: no clip field (STU-VID-031 spec gap)\" and view/timeline_ui.rs:463 hover text \"No clip field stores this (STU-VID-031 spec gap)\". The instruction was comment-only, tests/viewer_timeline_rate.rs:336 pins the prefix \"unavailable\", and the form is a GUI lane's. Lead to scope."
+    },
+    "rebases": {
+      "onto_091c4d1b": "Clean. No path of this lane in the range.",
+      "onto_c143625f": "Clean, taken just before --per-sha, because SMB-PR-TRACK-DISPLAY-1 pushed first. Origin did not move again before the push."
+    }
+  },
+  "pushed_sha": "41d0e0dadcc3ec1173dcffd8ccc7b42738ed22c7"
 }

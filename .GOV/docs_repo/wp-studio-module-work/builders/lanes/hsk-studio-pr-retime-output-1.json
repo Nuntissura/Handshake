@@ -1,0 +1,45 @@
+{
+  "crate": "hsk-studio-pulse (frame layers and timeline mix), hsk-studio-harness-view (monitor frame output)",
+  "lane": "SMB-PR-RETIME-OUTPUT-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-pr-retime-output-1",
+  "base": "41d0e0da",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on C:, push when green",
+  "updated_at": "2026-11-05T15:58:35Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "report_for_host: pulse returns typed answers and the estimation mark, emission stays with the host; the monitor keeps its existing report",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "unchanged: pulse plans and commits nothing; the monitor reads",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-05T15:58:35Z",
+    "disk": "C",
+    "closes": [
+      "F-R56-2"
+    ],
+    "closes_candidates": [
+      "MT-33730",
+      "MT-33731"
+    ]
+  }
+}

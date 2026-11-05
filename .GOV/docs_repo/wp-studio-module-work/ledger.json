@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-05T15:17:11Z",
+ "updated_at": "2026-11-05T15:58:35Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -18148,8 +18148,8 @@
   },
   {
    "lane_id": "SMB-PR-EDIT-FOOTPRINT-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-pulse (edit proposal change list and write footprint)",
    "lane_file": "builders/lanes/hsk-studio-pr-edit-footprint-1.json",
    "brief": "builders/briefs/lane-smb-pr-edit-footprint-1.md",
@@ -18157,10 +18157,11 @@
    "base": "27cba13b",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-05T10:05:08Z",
+   "updated_at": "2026-11-05T15:58:35Z",
    "closes": [
     "next_lane_candidates: V4-06 failure class in pulse"
-   ]
+   ],
+   "claim": "56c3a5f3..41d0e0da"
   },
   {
    "lane_id": "SMB-PR-TRACK-DISPLAY-1",
@@ -18245,6 +18246,56 @@
     "F-R56-4",
     "F-R56-6",
     "MT-30898"
+   ]
+  },
+  {
+   "lane_id": "SMB-PR-RETIME-OUTPUT-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-pulse (frame layers and timeline mix), hsk-studio-harness-view (monitor frame output)",
+   "lane_file": "builders/lanes/hsk-studio-pr-retime-output-1.json",
+   "brief": "builders/briefs/lane-smb-pr-retime-output-1.md",
+   "worktree": "wt-studio-lanes/smb-pr-retime-output-1",
+   "base": "41d0e0da",
+   "disk_planned": "C",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-05T15:58:35Z",
+   "closes": [
+    "F-R56-2",
+    "MT-33730",
+    "MT-33731"
+   ]
+  },
+  {
+   "lane_id": "SMB-PR-MEDIA-MARKERS-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-folio (media item marker records), hsk-studio-session (document entry and commit), hsk-studio-pulse (resolved read)",
+   "lane_file": "builders/lanes/hsk-studio-pr-media-markers-1.json",
+   "brief": "builders/briefs/lane-smb-pr-media-markers-1.md",
+   "worktree": "wt-studio-lanes/smb-pr-media-markers-1",
+   "base": "41d0e0da",
+   "disk_planned": "C",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-05T15:58:35Z",
+   "closes": [
+    "MT-33736"
+   ]
+  },
+  {
+   "lane_id": "SMB-PR-NUDGE-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-pulse (track nudge planner), hsk-studio-harness-view (timeline command)",
+   "lane_file": "builders/lanes/hsk-studio-pr-nudge-1.json",
+   "brief": "builders/briefs/lane-smb-pr-nudge-1.md",
+   "worktree": "wt-studio-lanes/smb-pr-nudge-1",
+   "base": "41d0e0da",
+   "disk_planned": "C",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-05T15:58:35Z",
+   "closes": [
+    "MT-33738"
    ]
   }
  ],
@@ -20093,11 +20144,6 @@
   "next_lane_candidates": [
    {
     "added_at": "2026-11-05T04:36:56Z",
-    "item": "STU-VID-034 marker scopes, MT-33736, and STU-VID-035a nudge, MT-33738: audit against folio and pulse before scoping",
-    "owner": "a later pulse lane"
-   },
-   {
-    "added_at": "2026-11-05T04:36:56Z",
     "item": "STU-VID-031a time remapping on a clip (keyframed speed, STU-MOT-045): out of scope of SMB-PR-RETIME-HOLD-1",
     "owner": "a later pulse and motion lane"
    },
@@ -20110,11 +20156,6 @@
     "added_at": "2026-11-05T05:00:48Z",
     "item": "STU-VID-029a synchronize by audio waveform (MT-33727): needs a bounded, cancellable cross-correlator with a typed result (offset, confidence, provider identity); Score fits; pulse returns sync_waveform_unavailable until then",
     "owner": "a later score and pulse lane"
-   },
-   {
-    "added_at": "2026-11-05T05:13:00Z",
-    "item": "Retime output (MT-33730, MT-33731): SMB-PR-RETIME-HOLD-1 stores and resolves the choices, but the audio mix ignores maintain_audio_pitch, frame_layers carries no interpolation choice, and pulse has no edge to pigment's optical-flow estimator, so frame_blending and optical_flow do not change a rendered frame yet",
-    "owner": "a later pulse, reel and pigment lane (a new edge is steward-owned)"
    },
    {
     "added_at": "2026-11-05T05:59:00Z",
@@ -20150,11 +20191,6 @@
     "added_at": "2026-11-05T11:07:36Z",
     "item": "Viewer move, harness-view plan_move: two proposals plus unreported edits where pulse plan_move_clips gives one proposal with a true report, but plan_move_clips cannot change track, refuses overlap where plan_move overwrites, and moves link partners. Whether a drag onto a clip overwrites or refuses is UNVERIFIED (D5); left as is until GUI work resumes. Found by SMB-PR-EDIT-FOOTPRINT-1",
     "owner": "a later GUI lane"
-   },
-   {
-    "added_at": "2026-11-05T14:24:14Z",
-    "item": "F-R56-2 / MT-33730: frame_layers carries no interpolation choice and no estimation mark (a floor-rounded frame under frame_blending and optical_flow); build_timeline_mix does not read maintain_audio_pitch",
-    "owner": "next pulse lane, after SMB-PR-EDIT-FOOTPRINT-1 pushes"
    },
    {
     "added_at": "2026-11-05T14:24:14Z",
