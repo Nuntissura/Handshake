@@ -16,15 +16,15 @@
     "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "PASS_V1",
     "depends_on": [],
     "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING",
-    "phase": "blocked",
-    "updated_at_utc": "2026-10-09T19:13:15.152291+00:00",
-    "contract_preparation_only": true,
-    "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
+    "active": true,
+    "validator_verdict": "PASS_V1",
+    "phase": "validation",
+    "updated_at_utc": "2026-11-05T07:36:47Z",
+    "contract_preparation_only": false,
+    "blocked_on": null
   },
   "clause": "The constraint lists themselves are a declared gap, and Studio does not invent",
   "spec_anchor": [
@@ -1952,7 +1952,42 @@
     "current_dispatch_authorized": false
   },
   "submissions": [],
-  "verdicts": [],
+  "verdicts": [
+    {
+      "verdict_id": "MT-33699-STUDIO-R55-PASS-V1",
+      "mt_id": "MT-33699",
+      "verdict": "PASS_V1",
+      "decision": "passed",
+      "round": "STUDIO-R55",
+      "idempotency_key": "STUDIO-R55:MT-33699:ce644577:V1",
+      "scope": "asset_local_engine_half",
+      "candidate_commit": "ce64457749b9dce252647a3eea422d5e8340b034",
+      "candidate_tree": "1c983a4a05d4322c713c01fcb4984d921464c384",
+      "kernel_base_commit": "86bf380aa3635eba65f58ece8de6fefa11e81241",
+      "kernel_record": "the gov_kernel commit that records validation/round-R55.json (ledger round_R55)",
+      "validator_role": "wp_validator",
+      "validator_session": "wp_validator STUDIO-R55",
+      "lane": "SMB-PR-SEQUENCE-PRESETS-1",
+      "lane_verdict": "PASS_V1",
+      "lane_idempotency_key": "STUDIO-R55:SMB-PR-SEQUENCE-PRESETS-1:ce64457749b9:PASS_V1",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R55",
+      "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+      "round_ref": ".GOV/docs_repo/wp-studio-module-work/validation/round-R55.json",
+      "started_at": "2026-11-05T04:35:54Z",
+      "completed_at": "2026-11-05T07:36:46Z",
+      "ac_coverage": "AC-001..AC-002 (2 of 2 acceptance rows)",
+      "evidence_basis": "validator_statement_met",
+      "evidence_ref": {
+        "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R55.json",
+        "json_path": "/mt_judgments/claims/SMB-PR-SEQUENCE-PRESETS-1/MT-33699",
+        "quote": "met: AC-001: all 53 shipped modes constraints_known false with every allow-list empty, nothing enforced (editing_mode_violations returns none on every mode for any settings), no list inferred from presets (no mode carries a list; a list on a known=false mode is refused at <mode>/constraints; a record cannot carry constraints_known or lists at all, probe f3 forged member refused, because an entry s"
+      },
+      "prior_status": "PENDING",
+      "written_by": "wp_validator STUDIO-R55 (step 6)",
+      "written_at": "2026-11-05T07:36:47Z",
+      "note": "round validator status write from the validated lane verdict; engine/asset half only, later kernel/host acceptance stays PENDING"
+    }
+  ],
   "blockers": [],
   "preserved_original": {
     "schema_id": "hsk.preserved_microtask@1",
@@ -2430,9 +2465,15 @@
       "all_original_edges_explicitly_reconciled": true,
       "asset_vs_host_phase_separated": true,
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
+    },
+    "asset_validation": {
+      "status": "PASS_V1",
+      "scope": "asset_local_engine_half",
+      "verdict_ref": "MT-33699-STUDIO-R55-PASS-V1",
+      "round": "STUDIO-R55"
     }
   },
-  "updated_at_utc": "2026-10-09T23:52:25Z",
+  "updated_at_utc": "2026-11-05T07:36:47Z",
   "rule_refs": [
     "CX-MODULE-LIFECYCLE-001",
     "CX-MODULE-LIFECYCLE-002",
