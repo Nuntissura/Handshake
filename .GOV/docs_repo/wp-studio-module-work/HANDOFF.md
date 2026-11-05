@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-HANDOFF
 file_kind: handoff
-updated_at: 2026-11-05T21:14:50Z
+updated_at: 2026-11-05T22:59:01Z
 wp: WP-KERNEL-STUDIO
 authority: Handshake Codex, KERNEL_BUILDER_PROTOCOL, START_LOG.md, ledger.json, validation/*, builders/briefs/wave-parity-2-common.md, builders/studio-env.sh (this file is a projection; they win on conflict)
 previous_version: handoff-archive/HANDOFF-20261101.md
@@ -276,7 +276,7 @@ These replaced D11 (eframe plus wgpu window) as a product path. Spec: v02.226..2
 
 Backup branches stay at these tips. Rebased or amended tips go to the product branch only, never to a backup branch: that would need a force push, which is forbidden. Deleting them needs Operator approval once each lane has landed.
 
-Not backed up: 3 uncommitted files in the `smb-pr-media-markers-1` worktree. `resume/pulse-green.patch` copies the two pulse files on the same disk (reverse dry run passed 2026-11-05). `hsk-studio-package/tests/externals.rs` (+28 lines) has no second copy.
+Media markers also has 3 uncommitted files in its worktree. GitHub branch `lane/smb-pr-media-markers-1-uncommitted` holds them as one restore-only commit, `b1a299ed`, on top of `3cfbbeed`: never merge it, because its pulse read has never compiled. The files stay uncommitted in the worktree, so the lane's `next` runs as written. On one disk only: the `resume/` helpers that `next` uses (`pulse-green.patch`, `nx.sh`, `package_green.py`).
 
 The composer fix has been waiting longest for a HIGH finding; if the C: queue allows, it may run beside the first two.
 
@@ -461,7 +461,7 @@ None of these block paused-lane completion or R57.
 
 **Vulkan pivot:** O1..O10 in the `vulkan-gui-pivot` topic. O1 (WP-012 and eframe) is the largest open decision in the WP and, by the records, has never been raised with its owner.
 
-**Durability:** done 2026-11-05 on the Operator's approval: the 23 commits are on 5 GitHub backup branches. Still on one disk only: media markers' 3 uncommitted files (`state` topic).
+**Durability:** done 2026-11-05 on the Operator's approval: the 23 commits are on 5 GitHub backup branches, and media markers' 3 uncommitted files are on a sixth (`state` topic).
 
 **Readings the lead took, overrulable:** listed in the `state` topic.
 
@@ -476,7 +476,7 @@ None of these block paused-lane completion or R57.
 - SMB-TYPE-AUTHORED-TOKEN-1: harness-core `harness.rs`, `import.rs`; harness-view `fig_import.rs`, `vector/interop.rs`, `vector.rs`, `vector/path_text.rs`; harness tests `import_psd.rs`, `viewer_mask_package.rs`; type `descriptor.rs`; session `sequence_records.rs`.
 - Not on the product branch yet: SMB-PR-ENTRY-REFERENCES-1: harness-view `tests/viewer_inert_routing.rs`, pulse `tests/inert_routing_mix.rs`, a doc line in session `src/source.rs`. SMB-PR-NUDGE-1: a comment in pulse `src/timeline_edit.rs`.
 
-**Cleanup list, for approval (nothing has been deleted):** registered scratch worktree `Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-sentinels-registry-1/rw`; probe trees `validator-r53-probe`, `validator-r54-probe`, `validator-r55-probe`, `validator-r56-probe`; C: target `lanes/smb-pr-sequence-presets-1-red` and owner folder; worktrees and targets of PASS lanes including SMB-R54-FOLLOWUPS-1, SMB-PR-SEQUENCE-SESSION-1, SMB-PR-RETIME-HOLD-1, SMB-PR-MERGE-SYNC-1, SMB-LAYOUT-ENTRY-TEXT-1; local ref `backup/smb-pr-track-display-1-pre-fold`. Later, once each paused lane has landed on the product branch: its GitHub backup branch (`direction.backup_20261105`).
+**Cleanup list, for approval (nothing has been deleted):** registered scratch worktree `Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-sentinels-registry-1/rw`; probe trees `validator-r53-probe`, `validator-r54-probe`, `validator-r55-probe`, `validator-r56-probe`; C: target `lanes/smb-pr-sequence-presets-1-red` and owner folder; worktrees and targets of PASS lanes including SMB-R54-FOLLOWUPS-1, SMB-PR-SEQUENCE-SESSION-1, SMB-PR-RETIME-HOLD-1, SMB-PR-MERGE-SYNC-1, SMB-LAYOUT-ENTRY-TEXT-1; local ref `backup/smb-pr-track-display-1-pre-fold`. Later, once each paused lane has landed on the product branch: its GitHub backup branch, plus `lane/smb-pr-media-markers-1-uncommitted` for media markers (`direction.backup_20261105`).
 
 **Spec owner:** SD-31..SD-52 and D7A-01..17 PROPOSED. MT proof commands name targets that do not exist (F-R55-3, F-R56-13).
 

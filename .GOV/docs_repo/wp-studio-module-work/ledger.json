@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-05T21:14:50Z",
+ "updated_at": "2026-11-05T22:59:01Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -18828,7 +18828,7 @@
  "handoff": {
   "file": "HANDOFF.md",
   "previous": "handoff-archive/HANDOFF-20261101.md",
-  "at": "2026-11-05T21:14:50Z"
+  "at": "2026-11-05T22:59:01Z"
  },
  "round_R13": {
   "candidate": "4b76604",
@@ -20344,8 +20344,22 @@
    ],
    "product_branch_at_check": "1940292c64d57a65cc753f3258374f8b57b97f36",
    "proof": "Non-force pushes of the verified tips to names checked free first; then git ls-remote showed the five exact shas and the product branch unchanged, and the GitHub compare API gave the ahead and behind counts above (5+5+5+3+5 = 23 commits). No upstream set; worktrees untouched.",
-   "not_covered": "Three uncommitted files in the smb-pr-media-markers-1 worktree: hsk-studio-package/tests/externals.rs (+28), hsk-studio-pulse/src/annotate.rs (+43 -4), hsk-studio-pulse/src/lib.rs (+1 -1). resume/pulse-green.patch in the lane's Handshake_Artifacts folder copies the two pulse files on the same disk (git apply -R --check passed 2026-11-05); externals.rs has no second copy.",
-   "rule": "Push rebased or amended tips to the product branch only, never to this backup branch: that would need a force push, which is forbidden. The backup branch stays at this tip until the Operator approves its deletion."
+   "rule": "Push rebased or amended tips to the product branch only, never to this backup branch: that would need a force push, which is forbidden. The backup branch stays at this tip until the Operator approves its deletion.",
+   "uncommitted_backup": {
+    "at": "2026-11-05T22:59:01Z",
+    "operator_instruction": "Yes, back them up (answering the lead's question whether to back up the media markers lane's 3 uncommitted files)",
+    "ref": "lane/smb-pr-media-markers-1-uncommitted",
+    "sha": "b1a299ed6c45f111ba498a23b41b138ef47f1c57",
+    "parent": "3cfbbeed19a839db43ee860b5d9d4e1dfaf297df",
+    "files": {
+     "handshake-studio-assets/crates/hsk-studio-package/tests/externals.rs": "+28 -0",
+     "handshake-studio-assets/crates/hsk-studio-pulse/src/annotate.rs": "+43 -4",
+     "handshake-studio-assets/crates/hsk-studio-pulse/src/lib.rs": "+1 -1"
+    },
+    "purpose": "Restore-only, never merge; the pulse read in it has never compiled. Built with a temporary index, so the worktree and its real index are unchanged and the lane's next runs as written.",
+    "proof": "Blob hashes of the worktree files equal those GitHub's compare API reports for the branch; compare says ahead 1, behind 0 of the media markers backup branch; worktree HEAD 3cfbbeed with the same 3 dirty files and a clean real index afterwards; git apply -R --check of resume/pulse-green.patch still passes."
+   },
+   "not_covered": "The helpers in the lane's Handshake_Artifacts resume/ folder (pulse-green.patch, nx.sh, package_green.py), which the lane's next uses, are on one disk only. Not asked for and not copied."
   }
  },
  "round_R45": {
