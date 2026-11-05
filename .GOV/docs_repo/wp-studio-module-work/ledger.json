@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-05T05:00:48Z",
+ "updated_at": "2026-11-05T05:13:00Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19329,6 +19329,11 @@
     "added_at": "2026-11-05T05:00:48Z",
     "item": "STU-VID-029a synchronize by audio waveform (MT-33727): needs a bounded, cancellable cross-correlator with a typed result (offset, confidence, provider identity); Score fits; pulse returns sync_waveform_unavailable until then",
     "owner": "a later score and pulse lane"
+   },
+   {
+    "added_at": "2026-11-05T05:13:00Z",
+    "item": "Retime output (MT-33730, MT-33731): SMB-PR-RETIME-HOLD-1 stores and resolves the choices, but the audio mix ignores maintain_audio_pitch, frame_layers carries no interpolation choice, and pulse has no edge to pigment's optical-flow estimator, so frame_blending and optical_flow do not change a rendered frame yet",
+    "owner": "a later pulse, reel and pigment lane (a new edge is steward-owned)"
    }
   ],
   "pause_20261103": {
