@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-05T16:46:00Z",
+ "updated_at": "2026-11-05T17:54:37Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -18233,8 +18233,8 @@
   },
   {
    "lane_id": "SMB-TYPE-AUTHORED-TOKEN-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-session (authored composition token and upgrade), hsk-studio-harness-view (reads the stored token), hsk-studio-type (DESCRIPTOR)",
    "lane_file": "builders/lanes/hsk-studio-type-authored-token-1.json",
    "brief": "builders/briefs/lane-smb-type-authored-token-1.md",
@@ -18242,12 +18242,13 @@
    "base": "c143625f",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-05T15:17:11Z",
+   "updated_at": "2026-11-05T17:54:37Z",
    "closes": [
     "F-R56-4",
     "F-R56-6",
     "MT-30898"
-   ]
+   ],
+   "claim": "1894d7f7..1940292c"
   },
   {
    "lane_id": "SMB-PR-RETIME-OUTPUT-1",
@@ -20212,6 +20213,16 @@
     "added_at": "2026-11-05T16:46:00Z",
     "item": "layout anchors.rs:270 reads a glyph-less anchor as unplaced, and footnotes::locate on a blank paragraph is read, not run; same class as line_of. Per-scoped-mark and per-reference paragraph walks stay quadratic. Multi-column frames with these lookups assume a frame's lines stay in source order, not proven. Found by SMB-LAYOUT-BLANK-LINE-LOOKUPS-1",
     "owner": "a later layout lane"
+   },
+   {
+    "added_at": "2026-11-05T17:54:37Z",
+    "item": "No window command runs the composition token upgrade, so a Viewer user has no way to take it; animated_glyphs still composes under the current token (its only caller is a test); no glyph-level byte compare between tokens at Viewer level. Found by SMB-TYPE-AUTHORED-TOKEN-1",
+    "owner": "a later GUI or Viewer text lane"
+   },
+   {
+    "added_at": "2026-11-05T17:54:37Z",
+    "item": "read_package notes every session-owned studio/* entry as Opaque, so Opened.loss is not a usable loss signal for a host reading at the package layer; Session::loss() is the one that means it. Found by SMB-TYPE-AUTHORED-TOKEN-1",
+    "owner": "a later package lane, or a documented reading"
    }
   ],
   "pause_20261103": {

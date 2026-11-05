@@ -429,6 +429,14 @@
    "lead_reading": "2026-11-05: one reason each, in order hidden, overset, no_text; empty or White_Space-only headings give no entry and are counted. Vendor parity UNVERIFIED (D5)",
    "source": "lane SMB-LAYOUT-BLANK-LINE-LOOKUPS-1, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-52",
+   "gap": "STU-TYP-130 does not say which token a stored document with no recorded token composes under, whether the token is per document or per story, or what diffable means for an upgrade",
+   "needs": "the rule for an unrecorded token and the upgrade's diff content, or confirmation of Studio's reading",
+   "lead_reading": "2026-11-05: per document; no entry reads as @1 with a typed note and save writes no entry; an unknown token refuses, never the newest; the upgrade records from-token, to-token and affected stories, and refuses older or unknown targets. Vendor parity UNVERIFIED (D5)",
+   "source": "lane SMB-TYPE-AUTHORED-TOKEN-1, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [

@@ -1,19 +1,181 @@
 {
   "crate": "hsk-studio-session (authored composition token and upgrade), hsk-studio-harness-view (reads the stored token), hsk-studio-type (DESCRIPTOR)",
   "lane": "SMB-TYPE-AUTHORED-TOKEN-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-type-authored-token-1",
   "base": "c143625f",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "1894d7f7",
+      "subject": "folio, session, package (items 1-2, red): the authored composition token record",
+      "pushed": true
+    },
+    {
+      "sha": "8edf0269",
+      "subject": "folio, session (items 1-2): the authored composition token entry",
+      "pushed": true
+    },
+    {
+      "sha": "391a9f6e",
+      "subject": "session (items 4-5, red): the recorded composition token upgrade",
+      "pushed": true
+    },
+    {
+      "sha": "a9ed57da",
+      "subject": "session, folio (items 4-5): the recorded, undoable composition token upgrade",
+      "pushed": true
+    },
+    {
+      "sha": "8db11f2f",
+      "subject": "harness-core, harness-view (item 3, red): the Viewer under the stored token",
+      "pushed": true
+    },
+    {
+      "sha": "9bdfb0d9",
+      "subject": "type (item 6, red): the descriptor's token story (F-R56-6)",
+      "pushed": true
+    },
+    {
+      "sha": "a263b90e",
+      "subject": "harness-core, harness-view (item 3): the Viewer composes under the stored token",
+      "pushed": true
+    },
+    {
+      "sha": "1940292c",
+      "subject": "type (item 6): the descriptor names @3, @2, @1 and the forced line break (F-R56-6)",
+      "pushed": true
+    }
+  ],
+  "capabilities_done": [
+    "Item 1: Folio StudioCompositionTokenRecord (hsk.studio.composition_token@1, deny_unknown_fields) in the document entry studio/composition_token.<sha256>, added to DOCUMENT_ENTRY_TOKENS, one per document. Every path that creates a document records the current token (notes.v4_06).",
+    "Item 2: no entry reads as @1 with the typed note composition_token_absent on Session::authored_composition; no loss note; the package opens unchanged; a save never writes the entry (lead conditions 3).",
+    "Item 3: the Viewer composes under the stored token: text layers, live path and area text, the vector tool path text, conversions. @1, @2, @3 give the lines of their token. A token this build does not know: the file opens, the read refuses composition_token_unknown, one LossReason::Opaque note, save keeps the bytes, never the newest token.",
+    "Lead condition 2: VectorTextStatus.composition and state_json edit.vector.live_texts[].composition carry code composition_token_refused or composition_token_unknown, composed_under, current, upgrade_available: codes and counters only.",
+    "Item 4: Session::submit_composition_token, _keyed, _as: CompositionTokenStep, one revision, one receipt, undo and redo, one Observe frame, codes and counters only. Applied::composition_upgrade and the record hold from-token, to-token, story ids. An unknown target and an older one are refused typed, changing nothing.",
+    "Item 5: the token and the recorded upgrades survive export_checkpoint and reopen; an upgraded document recomposes under the new token after reopen (Viewer run); an inverse taken before the save still undoes on the reopened document; upgrading a file with no token creates the entry and undo removes it.",
+    "Item 6, F-R56-6: Type descriptor names COMPOSITION_VERSION (@3), COMPOSITION_VERSION_V2 (@2), COMPOSITION_VERSION_V1 (@1), the forced line break U+2028; the harfrust spike implements v1 only."
+  ],
+  "tests": {
+    "red_proof": {
+      "note": "Reds ran before the two rebases, so their logs name the sha they ran at; notes.sha_map gives the pushed sha. One test fix was folded into the red of items 4-5 after its run: a bad command id changed from \"not a command\" (which valid_command_id accepts) to the empty string; that test could not pass otherwise and failed in the run below for that reason, not on the behaviour.",
+      "items_1_2": {
+        "argv": "cargo nextest run --offline -p hsk-studio-folio -p hsk-studio-session -p hsk-studio-package --no-fail-fast --test composition_token --test externals",
+        "sha": "9a3d302d07ff16009c4f531b81aab053690df5d3",
+        "compiles": true,
+        "exit": 100,
+        "passed": 11,
+        "failed": 12,
+        "reading": "Folio validated nothing and the token was no document entry. The 11 that pass: the 8 externals tests (including the new round trip, a control: an opaque entry already travels), a_record_round_trips_with_its_upgrades and the_list_runs_oldest_first (types and constants exist), a_canceled_read_is_canceled (a stub checks cancel too).",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-authored-token-1/red-items-1-2-smb-type-authored-token-1-9a3d302d.log"
+      },
+      "items_4_5": {
+        "argv": "cargo nextest run --offline -p hsk-studio-folio -p hsk-studio-session --no-fail-fast --test composition_token --test composition_token_upgrade",
+        "sha": "517d37990bcb307a932167db0777d8d323e72fcb",
+        "compiles": true,
+        "exit": 100,
+        "passed": 16,
+        "failed": 9,
+        "reading": "The step check refused not_implemented, so 9 of the 10 upgrade tests fail. a_canceled_upgrade_changes_nothing passes in red too: the cancel stops the submit before the check. The same run shows items 1-2 green (15 of 15).",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-authored-token-1/red-items-4-5-smb-type-authored-token-1-517d3799.log"
+      },
+      "items_3_6": {
+        "argv": "cargo nextest run --offline -p hsk-studio-session -p hsk-studio-type -p hsk-studio-harness-view --features hsk-studio-harness-view/viewer --no-fail-fast -E 'binary(composition_token_upgrade) | test(r56_f6) | binary(viewer_composition_token)'",
+        "sha": "0eb7f517",
+        "compiles": true,
+        "exit": 100,
+        "passed": 10,
+        "failed": 6,
+        "reading": "Behaviour failures read in the log: 4 of 5 Viewer tests (no ink expected under @1 and ink drawn; the file read as @1 after an import; the unknown token drew under the newest), and the descriptor. The pin mt_30898_folios_token_list_is_types_constants_in_order passes here by design: the lists agree at this tree. The 6th failure is the session test with the bad command id above, not a red of these items; the other 9 session tests show items 4-5 green.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-authored-token-1/red-items-3-6-smb-type-authored-token-1-0eb7f517.log",
+        "void_run": "red-items-3-6-smb-type-authored-token-1-551f5cd1.log: exit 101, one compile error in the new Viewer test (render_error returns a RenderFail, not a str); fixed and rerun, red commit amended locally before any push."
+      }
+    },
+    "focused_first_green": {
+      "argv": "the items_3_6 argv",
+      "sha": "62f81467",
+      "exit": 0,
+      "passed": 16,
+      "failed": 0,
+      "reading": "Lead condition 1 ran here: the Viewer case ended in the typed report with no ink, as sent.",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-authored-token-1/focused-smb-type-authored-token-1-62f81467.log"
+    },
+    "bundled": {
+      "argv": "lane-check.sh --owner smb-type-authored-token-1 --disk d -- cargo nextest run -p hsk-studio-type -p hsk-studio-folio -p hsk-studio-session -p hsk-studio-package -p hsk-studio-harness-core -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness-view/viewer,hsk-studio-harness/viewer --no-fail-fast",
+      "exit": 100,
+      "sha": "62f81467",
+      "passed": 837,
+      "failed": 2,
+      "skipped": 20,
+      "per_crate_ran": {
+        "hsk-studio-type": 113,
+        "hsk-studio-folio": 217,
+        "hsk-studio-session": 114,
+        "hsk-studio-package": 41,
+        "hsk-studio-harness-core": 52,
+        "hsk-studio-harness-view": 111,
+        "hsk-studio-harness": 193
+      },
+      "failures": "hsk-studio-harness import_psd psd_converts_to_a_native_package..., viewer_mask_package a_session_saved_masked_document...: the two package-layer loss assertions, changed under the lead decision (notes.changed_assertions). Nothing else failed.",
+      "clippy": "lane-check clippy over the tested crates and their direct dependents: clean exit, no warning on a file this lane touched (grepped by path).",
+      "step0": "clean",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-authored-token-1/bundled-smb-type-authored-token-1-62f81467.log"
+    },
+    "after_the_test_edit_and_rebase": {
+      "why": "Lead decision: run the two changed test files, no other suite for a test-only change unless the rebase moves one of the lane crates. Origin brought SMB-PR-EDIT-FOOTPRINT-1 (56c3a5f3..41d0e0da: pulse and harness-view), so the brief short path also runs the whole harness-view suite, plus the new tests.",
+      "argv": "cargo nextest run --offline -p hsk-studio-type -p hsk-studio-folio -p hsk-studio-session -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness-view/viewer,hsk-studio-harness/viewer --no-fail-fast -E 'package(hsk-studio-harness-view) | binary(import_psd) | binary(viewer_mask_package) | binary(composition_token) | binary(composition_token_upgrade) | test(r56_f6)'",
+      "sha": "2bbbce84",
+      "exit": 0,
+      "passed": 148,
+      "failed": 0,
+      "skipped": 621,
+      "per_crate_ran": {
+        "hsk-studio-harness-view": 114,
+        "hsk-studio-harness": 8,
+        "hsk-studio-session": 19,
+        "hsk-studio-folio": 6,
+        "hsk-studio-type": 1
+      },
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-authored-token-1/after-rebase-smb-type-authored-token-1-2bbbce84.log"
+    },
+    "at_the_pushed_commit": {
+      "why": "Origin moved again during the first --per-sha: SMB-LAYOUT-BLANK-LINE-LOOKUPS-1 (c9648315..66c0e7c9), layout and interop-layout only, none of the lane crates. Brief short path: rebase, --per-sha, the new tests only.",
+      "argv": "cargo nextest run --offline -p hsk-studio-type -p hsk-studio-folio -p hsk-studio-session -p hsk-studio-package -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness-view/viewer,hsk-studio-harness/viewer --no-fail-fast -E 'binary(composition_token) | binary(composition_token_upgrade) | binary(viewer_composition_token) | binary(import_psd) | binary(viewer_mask_package) | test(r56_f6) | test(composition_token_record_round_trips) | test(every_folio_reference_property_is_classified)'",
+      "sha": "1940292c",
+      "exit": 0,
+      "passed": 41,
+      "failed": 0,
+      "skipped": 769,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-authored-token-1/new-tests-smb-type-authored-token-1-1940292c.log"
+    },
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-type-authored-token-1 --disk d --per-sha origin/codex/handshake-studio-assets",
+      "exit": 0,
+      "result": "PER_SHA_RESULT OK shas=8 range=66c0e7c9..1940292c",
+      "units_ok": "201",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-authored-token-1/per-sha-smb-type-authored-token-1-1940292c.log"
+    },
+    "lane_tests": {
+      "folio": "crates/hsk-studio-folio/tests/composition_token.rs (6)",
+      "session_entry": "crates/hsk-studio-session/tests/composition_token.rs (9)",
+      "session_upgrade": "crates/hsk-studio-session/tests/composition_token_upgrade.rs (10)",
+      "viewer": "crates/hsk-studio-harness-view/tests/viewer_composition_token.rs (5), #![cfg(feature = \"viewer\")], unit hsk-studio-harness-view [viewer] in .config/round-features.toml (rule 4e)",
+      "package": "crates/hsk-studio-package/tests/externals.rs composition_token_record_round_trips_through_the_package (1), the schema row and every_folio_reference_property_is_classified (rule 4b)",
+      "type": "crates/hsk-studio-type/src/descriptor.rs the_descriptor_names_the_current_token_and_the_forced_line_break_r56_f6 (1)"
+    },
+    "doctests": "not run: no doc examples added",
+    "not_run": [
+      "The whole suites of type, folio, session, package and harness-core and the rest of harness [viewer] were not rerun after 62f81467 (per the lead and the brief short path; the incoming commits touch pulse, harness-view, layout and interop-layout; harness-view rerun at 2bbbce84). The next full round proves the union.",
+      "The harness-view [desktop, audio-batch] unit and harness feature units other than viewer: compiled by --per-sha where declared, not executed.",
+      "Commit authority path for the upgrade (CommitPort outcomes, reconcile, diverged): shared submit_inner pipeline, no test of this step through it; keyed replay is tested without an authority."
+    ]
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-05T15:17:11Z",
+  "next": "validator: judge 1894d7f7..1940292c under notes.lead_decisions and notes.declared_readings",
+  "updated_at": "2026-11-05T17:54:05Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -40,6 +202,207 @@
     ],
     "closes_candidates": [
       "MT-30898"
-    ]
-  }
+    ],
+    "spec_basis": "Master Spec v02.229 14-studio-creative-suite.md STU-TYP-130 (:8096): every composed result carries a composition_version; a stored document reopened under a newer token recomposes under the token it was authored with unless the operator or model explicitly upgrades it; the upgrade is a recorded, undoable, diffable operation.",
+    "sha_map": {
+      "9a3d302d (red items 1-2 log)": "1894d7f7",
+      "517d3799 (red items 4-5 log)": "391a9f6e, with the bad command id fixed",
+      "0eb7f517 (red items 3, 6 log)": "8db11f2f and 9bdfb0d9",
+      "62f81467 (bundled log)": "1940292c, with the two assertion edits folded into a263b90e, rebased on 41d0e0da then 66c0e7c9",
+      "2bbbce84 (after-rebase log; first per-sha, OK shas=8 range=41d0e0da..2bbbce84, 201 units, origin moved before the push)": "1940292c"
+    },
+    "lead_decisions": [
+      {
+        "at": "2026-11-05",
+        "on": "a document with no stored token, after the case that the Viewer refuses U+2028 area text it shows today",
+        "decision": "Keep @1. Conditions: (1) the red test runs the case at Viewer level; (2) the report shows a host the token is the cause and an upgrade exists, in codes and counters; (3) saving never writes the entry on its own, upgrading such a file creates it, undo removes it, both tested.",
+        "done_at": "1940292c"
+      },
+      {
+        "at": "2026-11-05",
+        "on": "per document, entry token composition_token, absent note typed on the session read, no session-to-Type edge with the list copied into Folio and a pin",
+        "decision": "Accepted. The pin asserts the last element equals ty::COMPOSITION_VERSION and every older constant is at its position.",
+        "done_at": "1940292c"
+      },
+      {
+        "at": "2026-11-05",
+        "on": "the two harness assertions on Opened.loss",
+        "decision": "Approved: each allows only the one note named studio/composition_token.*. No special case in the package reader; the stamp stays in to_package.",
+        "done_at": "1940292c"
+      },
+      {
+        "at": "2026-11-05T17:54:37Z",
+        "on": "a document with no stored token, which makes the Viewer refuse area text holding U+2028 saved since 2fba5f61",
+        "decision": "Keep @1 with a typed note: no shipped documents exist, the refusal is typed, the bytes stay, the upgrade is the recorded way out, and @3 would claim semantics the file never recorded. Overrulable by the Operator; one constant."
+      },
+      {
+        "at": "2026-11-05T17:54:37Z",
+        "on": "two Opened.loss assertions in harness tests fail because read_package notes every session-owned studio/* entry as Opaque",
+        "decision": "Narrowed each to allow only the composition token note after reading package read.rs: true at that layer and not new. Stamp stays in to_package; the package reader learns no token."
+      },
+      {
+        "at": "2026-11-05T17:54:37Z",
+        "on": "paths beyond the brief: harness-core harness.rs and import.rs; harness-view fig_import.rs, vector/interop.rs, vector.rs, vector/path_text.rs; harness tests import_psd.rs and viewer_mask_package.rs; type descriptor.rs; session sequence_records.rs",
+        "decision": "Needed in substance, listed for the Operator's waiver. No Cargo.toml change, no new edge."
+      }
+    ],
+    "declared_readings": [
+      "Absent token: reads as @1 (lead). A Viewer file saved before this lane with U+2028 in area text shows no ink and a typed report until upgraded (mt_30898_area_text_saved_with_no_token...). Other @1 differences: no presentation-form ligature fallback and no line-end data.",
+      "Per document, not per story: the clause says \"a stored document\". All stories of a document compose under one token, new stories included. The MT expected_outputs say \"stored story\"; the spec wins.",
+      "Bounds, all Studio values: token 1024 bytes of printable ASCII, 64 upgrades per record, 4096 stories per upgrade, wire form 1 MiB. Over a bound: BudgetExceeded for counts and input, InvalidField for a token. An upgrade target past the limit answers composition_token_unknown, since it can be no known token.",
+      "Diffable (Studio reading, the clause and the session define no diff): from-token, to-token and the stories it affects, in Applied::composition_upgrade and in the record, so it survives a reopen. The session does not compose, so no glyph-level comparison is built. The undo diff is the upgrade reversed; only the upgrade is added to the record, undo removes it.",
+      "Stories it affects: Payload::Text story ids of the document plus stories[].story_id of the text entry, sorted, unique: every story could recompose differently, so this is the set at risk, not a computed set that did change. The session reads that one field of a host-owned entry through Folio. A text entry that does not read refuses the upgrade folio_rejected: no shorter diff is recorded.",
+      "Undo and redo are CompositionTokenChange::Restore, accepted only as the removal or re-adding of one recorded upgrade. A restore to an older token with no record of the move is composition_token_older, a newer one composition_token_unrecorded. Redo restores the recorded story list, not a fresh one.",
+      "The same token again is no change, no revision, no entry created. An upgrade over a repeated or unparsable entry is value_conflict, over a later build's token composition_token_unknown.",
+      "Direct set_composition_token_record / set_document_entry stays possible, as for the sequence entries: it validates, refuses an unknown token, is not a revision and can remove an entry or replace an unknown token. It is an explicit host action and can move a document to an older token unrecorded; the recorded operation is submit_composition_token. Flagged for the validator.",
+      "A commit authority receives the successor document and the step travels in the binding hash, as multicam and the sequence records.",
+      "Imports are new documents and record the current token, so an imported story with U+2028 composes under @3.",
+      "Code composition_token_refused is reported when the current token shapes a story the document token refuses; found by shaping again under the current token, on the report path only, for failed stories only. A failure under every token gets no composition cause.",
+      "Studio-minted, not in the spec: entry token composition_token, schema hsk.studio.composition_token@1, provider composition.token, the codes composition_token_absent, _unknown, _older, _unrecorded, _refused, Code::UnknownCompositionToken. Vendor parity UNVERIFIED (D5)."
+    ],
+    "composing_sites": {
+      "prepared_text, Viewer text layers": "reads the stored token",
+      "LiveTextAssets::shaped_story, live path and area text and their exports": "reads the stored token",
+      "point_layout, area_to_point in vector.rs": "reads the stored token",
+      "Viewer::path_text_layout in vector/path_text.rs": "reads the stored token",
+      "text::shaped_line in vector/interop.rs": "current token: decides whether a run stays text in the document being created, which records the current token",
+      "text::prepare (pub)": "current token; a test caller only, Viewer uses prepare_under",
+      "text::animated_glyphs (pub)": "current token; takes no document token; its only caller is hsk-studio-harness tests/motion_records_session.rs (grep over crates/*/src and tests). OPEN: a host that wires it must pass the stored token",
+      "other Type requests": "tests and examples only (interop-layout, interop-fig, composite test helpers, type-consumer); grep composition_version in src: text.rs only"
+    },
+    "spec_proposals": [
+      "STU-TYP-130: state that a stored document with no recorded token reads as the first token (lead decision on this lane), and that a save does not record one.",
+      "STU-TYP-130: define \"diffable\" for the upgrade. Studio: from-token, to-token, stories affected; no glyph-level diff.",
+      "STU-TYP-130: state the reach: per document (Studio) or per story.",
+      "STU-TYP-130: state the refusal for a token the build does not know."
+    ],
+    "microtasks": {
+      "MT-30898": {
+        "state": "partly_met",
+        "claim_added": "AC-002 for the Viewer host: reopen under the authored token, explicit upgrade, undo restoring the original token and the entry state, refusal of an unknown token without recomposition (tests in lane_tests).",
+        "still_open": [
+          "AC-001 not re-judged here: Type already carries the token; no host stores it on the composed result.",
+          "expected_outputs: \"input closure and diffable result\" on undo: the token and the record are restored; the input closure is not a recorded thing in this lane, the diff is the from, to and stories reading.",
+          "\"compare glyph output\" is shown by placed-glyph counts and ink at Viewer level, not by a byte compare against Type fixtures.",
+          "gui_obligation operator surface and Argus, user_manual_obligation: no GUI, no manual row in this lane; descriptors updated.",
+          "hbr_obligations: not claimed."
+        ],
+        "proof_commands": "The MT declares cargo test -p hsk-studio-type --test mt_30898, and allowed_write_paths names hsk-studio-type only. That target does not exist and cannot hold this proof: the work is in folio, session and harness-view, and Type has no edge to them. Those commands cannot prove AC-002. MT not edited. Proposal: repoint them to the lane_tests targets and widen the paths."
+      }
+    },
+    "gaps_outside_lane": [
+      "read_package notes every session-owned studio/* entry as Opaque (package src/read.rs:481), so Opened.loss is not a usable loss signal for a host reading at the package layer; Session::loss() is the one that means it.",
+      "No control, Registry or RUN_COMMANDS row and no Run or Viewer entry point runs the upgrade: only the session API does, the report says an upgrade exists but no window command performs it (brief: out of scope).",
+      "blank_layout_doc: the layout editor's new document is not saved with a package today (declared gap in shell.rs). When it is, that path must record the current token.",
+      "F-R56-1, F-R56-3, F-R56-5, F-R56-9: not touched.",
+      "The harfrust spike stays v1 only (brief)."
+    ],
+    "paths_beyond_brief": [
+      {
+        "path": "crates/hsk-studio-harness-core/src/harness.rs near :1810",
+        "why": "Run::authored_composition, one read delegating to the session: Run::document_entry takes the first of two entries, so a repeated token would be chosen silently. Lead approved."
+      },
+      {
+        "path": "crates/hsk-studio-harness-core/src/import.rs :298 to_package",
+        "why": "An import creates the document here, so it records the current token. Lead approved."
+      },
+      {
+        "path": "crates/hsk-studio-harness-view/src/view/design/fig_import.rs:515",
+        "why": "The fig import creates a document. Lead approved."
+      },
+      {
+        "path": "crates/hsk-studio-harness-view/src/view/vector/interop.rs:306",
+        "why": "The AI import creates a document. Lead approved."
+      },
+      {
+        "path": "crates/hsk-studio-harness-view/src/view/vector.rs, vector/path_text.rs",
+        "why": "They carry the token to Type and the report. Lead approved."
+      },
+      {
+        "path": "crates/hsk-studio-harness/tests/import_psd.rs:113, crates/hsk-studio-harness/tests/viewer_mask_package.rs:342",
+        "why": "Assertions on Opened.loss. Lead approved. hsk-studio-harness [viewer] was also added to the bundled run, by this builder, because its tests pin the Viewer; that is how these two surfaced."
+      },
+      {
+        "path": "crates/hsk-studio-type/src/descriptor.rs",
+        "why": "The brief says type lib.rs DESCRIPTOR; the descriptor is in this file (F-R56-6 names it). Unit test added in the same file."
+      },
+      {
+        "path": "crates/hsk-studio-session/src/sequence_records.rs, src/source.rs",
+        "why": "source.rs is named; sequence_records.rs holds the shared open, set and read check the entry joins."
+      },
+      {
+        "path": "crates/hsk-studio-folio/src/lib.rs: new Code::UnknownCompositionToken",
+        "why": "lib.rs is named for exports and DESCRIPTOR; a typed code needs the enum variant. No exhaustive match elsewhere needed a change (the suites compile)."
+      }
+    ],
+    "changed_assertions": [
+      {
+        "test": "hsk-studio-harness tests/import_psd.rs psd_converts_to_a_native_package_that_opens_in_a_session_with_receipt_and_original",
+        "from": "opened.loss.is_empty()",
+        "to": "every note is named studio/composition_token.*, and there is exactly one",
+        "why": "An import now records the token; the package layer notes every studio/* entry as Opaque. Import entries still add none. Lead approved."
+      },
+      {
+        "test": "hsk-studio-harness tests/viewer_mask_package.rs a_session_saved_masked_document_renders_like_a_direct_composite_render",
+        "from": "reopened.loss.is_empty()",
+        "to": "every note is named studio/composition_token.*, and there is exactly one",
+        "why": "The same. Lead approved. Rendering and asset assertions unchanged."
+      },
+      {
+        "test": "viewer fixtures composing under @1",
+        "from": "none changed",
+        "to": "none changed",
+        "why": "Every Viewer text fixture opens through an import, which records @3, so no fixture had to stamp; no expected output or parity row was re-blessed."
+      }
+    ],
+    "v4_06": {
+      "class": "a path that creates a new document and stores it without recording the composition token",
+      "regex": "DocumentCreated|write_package(_with)?\\(|save_atomic(_streaming)?\\(|write_package_streaming|Extras \\{|StreamSave \\{|StudioDocument \\{|hsk\\.studio\\.document@1",
+      "scope": "crates/*/src of every crate; crates/*/examples for the package writers; rg at 62f81467 for the read of each site",
+      "fixed": [
+        "harness-core src/import.rs to_package, reached by harness.rs:956 DocumentCreated (the one emit), psd_route, tiff, raw, pdf, raster, import_affinity_preview_as and interop-psd proposal.rs:2320, harness-core import/pdf.rs:36",
+        "harness-view view/design/fig_import.rs fig_to_package, reached with interop-fig-native native.rs:3584 through hsk-studio-interop-fig",
+        "harness-view view/vector/interop.rs ai_to_package, reached with interop-vector-core ai_import.rs:1058"
+      ],
+      "not_applicable": [
+        "session src/session.rs build_package and save_inner (:2441, :2545): save an open document, never create one; lead condition 3",
+        "package src/write.rs, stream.rs, save.rs: the writers; Package has no session edge and knows no token, and no product code calls them other than the sites above",
+        "harness-view view/shell.rs:1596 blank_layout_doc: in memory, layout edits stay in the editor; never written to a package today (notes.gaps_outside_lane)",
+        "harness-view view/text.rs shape_probe document: a probe, never stored",
+        "harness-view view/vector/interop.rs:584 out_doc: derived for SVG export, not stored as a document",
+        "harness-view view/design/auto_layout.rs:1089: test helper",
+        "layout src/book.rs:117 combine_book: an in-memory combined view of chapters; no host writes it to a package (grep over harness crates)",
+        "interop-vector-svg src/svg_adapter.rs:827: returns a proposal; no host in crates/*/src stores it (grep)",
+        "interop-layout src/proposal.rs:454, idml_longdoc.rs:1101, folio_export.rs:522: no crate outside it uses it in src (grep)",
+        "interop-media src/folio_map.rs:265, pulse, chronicle, session timeline and multicam steps, layout liquid and autosize, composite temporal: validate a successor or a derived frame of an existing document",
+        "harness-view view/audio_import.rs open_audio_bytes: opens a mixdown, no document or package",
+        "session examples/session-consumer.rs:101, package examples/package-consumer.rs:149: example consumers, no host, no text layer; NOT stamped",
+        "tests: fixtures; a fixture with no token composes under @1 by the reading"
+      ],
+      "count": {
+        "fixed": 3,
+        "not_applicable": 13
+      }
+    },
+    "hostile_input": "Crate-level V4-01 deny in session; Folio module deny. V4-02: MAX_COMPOSITION_TOKEN_INPUT_BYTES and the Folio preflight before any parse, then counts before walks. Tests: hostile_records_are_refused_typed (26 shapes), a_hostile_entry_opens_is_noted_refuses_on_read_and_survives_a_save (8), refusals_are_typed_and_change_nothing, the_stories_of_a_token_change... (over budget).",
+    "round_features_4e": "viewer_composition_token.rs is #![cfg(feature = \"viewer\")]; .config/round-features.toml has hsk-studio-harness-view [[\"viewer\"], ...]. The two harness tests run in the viewer and import-psd units already declared.",
+    "risks": [
+      {
+        "risk": "The Folio copy of the list can drift from Type when a token is added.",
+        "mitigation": "mt_30898_folios_token_list_is_types_constants_in_order fails on any disagreement, in a round unit."
+      },
+      {
+        "risk": "A window user sees the report but has no command to upgrade.",
+        "mitigation": "None in this lane (brief: no controls); the report names the cause, and notes.gaps_outside_lane lists the missing command."
+      }
+    ],
+    "not_inspected": [
+      "Glyph-level comparison between tokens through the Viewer beyond placed counts and ink: no byte compare with Type fixtures was made.",
+      "Stories held in entries other than text and in document text layers: none found composing in src; layout flow stories in the layout editor come from the text entry (shell.rs layout_doc) and do not reach Type in src."
+    ],
+    "new_module_edges": "none; no Cargo.toml changed",
+    "cleanup_for_steward": "D: target Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-authored-token-1/target (counts toward P3); list it for Operator-approved deletion when the lane is PASS or abandoned. Nothing deleted.",
+    "vendor_parity": "UNVERIFIED (D5)"
+  },
+  "pushed_sha": "1940292c64d57a65cc753f3258374f8b57b97f36"
 }
