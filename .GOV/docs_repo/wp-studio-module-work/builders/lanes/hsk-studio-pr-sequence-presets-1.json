@@ -1,19 +1,101 @@
 {
   "crate": "hsk-studio-folio (sequence settings, presets, editing modes, immersive and preview-render settings)",
   "lane": "SMB-PR-SEQUENCE-PRESETS-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-pr-sequence-presets-1",
   "base": "96ace3ca",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "3ebf63df",
+      "subject": "folio: sequence settings record, presets, editing modes (non-compiling red tests squashed in)",
+      "pushed": true
+    },
+    {
+      "sha": "a6f07fdf",
+      "subject": "package tests (rule 4b): classify and round-trip sequence records (non-compiling red squashed in)",
+      "pushed": true
+    },
+    {
+      "sha": "cc58a511",
+      "subject": "folio: shipped tables as statics (clippy large_const_arrays)",
+      "pushed": true
+    }
+  ],
+  "capabilities_done": [
+    "STU-VID-011: StudioSequenceSettings with all 17 table fields, in a per-sequence entry of the record set hsk.studio.sequence_settings@1 beside the document (see notes.deviations_from_brief)",
+    "STU-VID-012a: StudioTimeDisplay, 15 members with the normative codes; code 113 has no member",
+    "STU-VID-016/016a: StudioSequencePreset and StudioSequencePresetSet (hsk.studio.style_registry@1 section); shipped_sequence_presets = 391 of the 392 table rows",
+    "STU-VID-016a: typed command sequence.preset.save_from_sequence; sequence.preset.apply (Studio reading)",
+    "STU-VID-017/017a: StudioEditingMode; shipped_editing_modes = the 53 table rows with constraints_known=false and empty allow-lists; editing_mode_violations; sequence.editing_mode.set",
+    "STU-VID-018/019: immersive (reused StudioImmersiveSettings) and preview_render_format inside the settings record",
+    "Rule 4b: both schemas added to the package externals guard; package round trip of both records as studio/ entries"
+  ],
+  "tests": {
+    "red_proof": {
+      "argv": "cargo nextest run -p hsk-studio-folio --test sequence_settings_records -p hsk-studio-package --test externals",
+      "tree": "git archive of base 96ace3ca plus the lane test files; scratch copy, owner smb-pr-sequence-presets-1-red, C: SSD",
+      "sha": "96ace3ca",
+      "compiles": false,
+      "exit": 101,
+      "compile_error_lines": 189,
+      "reading": "red is a compile failure (the items did not exist at base), so it proves absence only, not that any assertion fails against wrong behaviour; run once for all items, not per item; red commits squashed into their green commits, never pushed",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-presets-1/red-proof-smb-pr-sequence-presets-1-base-96ace3ca.log"
+    },
+    "bundled": {
+      "argv": "lane-check.sh --owner smb-pr-sequence-presets-1 -- cargo nextest run -p hsk-studio-folio -p hsk-studio-package -p hsk-studio-pulse -p hsk-studio-session -p hsk-studio-interop-media -p hsk-studio-harness-core -p hsk-studio-harness -p hsk-studio-harness-view --no-fail-fast",
+      "exit": 0,
+      "sha": "cc58a51151324bdac9b48f406a1908dd4ce26ba1",
+      "passed": 402,
+      "failed": 0,
+      "skipped": 0,
+      "binaries": 204,
+      "per_crate": {
+        "hsk-studio-folio": 191,
+        "hsk-studio-package": 38,
+        "hsk-studio-pulse": 73,
+        "hsk-studio-session": 40,
+        "hsk-studio-harness-core": 42,
+        "hsk-studio-harness": 10,
+        "hsk-studio-interop-media": 8,
+        "hsk-studio-harness-view": 0
+      },
+      "clippy": "lane-check clippy over the tested crates and their direct dependents; no error lines and no mention of sequence_preset in the log",
+      "step0": "clean",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-presets-1/bundled-smb-pr-sequence-presets-1-cc58a511.log",
+      "earlier_run": {
+        "sha": "d93bc46a",
+        "passed": 402,
+        "failed": 0,
+        "note": "pre-rebase; its clippy large_const_arrays warning led to cc58a511",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-presets-1/bundled-smb-pr-sequence-presets-1-d93bc46a.log"
+      }
+    },
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-pr-sequence-presets-1 --per-sha origin/codex/handshake-studio-assets",
+      "exit": 0,
+      "result": "PER_SHA_RESULT OK shas=3 range=b7066f94..cc58a511",
+      "units_ok": 76,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-presets-1/per-sha-smb-pr-sequence-presets-1-cc58a511.log"
+    },
+    "lane_tests": {
+      "file": "crates/hsk-studio-folio/tests/sequence_settings_records.rs",
+      "count": 15,
+      "package_test": "crates/hsk-studio-package/tests/externals.rs::sequence_settings_and_presets_round_trip_through_the_package"
+    },
+    "doctests": "not run: no doc examples added (no code fences in the new source files)",
+    "not_run": [
+      "harness-view ran 0 tests in the default-feature bundled run: its tests are feature-gated, so [viewer] and [desktop, audio-batch] were compiled by --per-sha but not executed",
+      "harness ran only its 10 default-feature tests; its feature units were compiled by --per-sha but not executed",
+      "reel: not run, no StudioSequence reference in the crate (git grep at cc58a511)"
+    ]
+  },
   "verdicts": [],
   "blockers": [],
-  "lock_wait_s": 0,
+  "lock_wait_s": 1482,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on C:, push when green",
-  "updated_at": "2026-11-02T14:03:34Z",
+  "next": "lead: decide notes.deviations_from_brief[0] (settings placement), then validator: judge 3ebf63df..cc58a511",
+  "updated_at": "2026-11-05T03:58:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -34,7 +116,10 @@
   "notes": {
     "dispatched_at": "2026-11-02T14:03:34Z",
     "disk": "C",
-    "closes": [],
+    "closes": [
+      "MT-33699",
+      "MT-33700"
+    ],
     "closes_candidates": [
       "MT-33686",
       "MT-33695",
@@ -45,6 +130,229 @@
       "MT-33700",
       "MT-33701",
       "MT-33702"
-    ]
-  }
+    ],
+    "spec_basis": "Master Spec v02.229 14-studio-creative-suite.md STU-VID-010..019, STU-VID-080..082, STU-FX-137 (master configuration), STU-FX-039a, STU-FX-143",
+    "deviations_from_brief": [
+      {
+        "item": "Brief items 1 and 4 say settings, immersive and preview go on the sequence record; STU-VID-018/019 say the same. They are NOT fields of StudioSequence. They live in StudioSequenceSettingsRecords, one entry per sequence_id, beside the document (the multicam and audio-routing precedent).",
+        "why": "StudioSequence is built with exhaustive struct literals in 7 other crates (git grep 'StudioSequence {': 110 matches in 52 files outside folio, some of them function signatures), all outside this lane's owned paths.",
+        "consequence": "MT-33701 and MT-33702 are partly met; an earlier-shape sequence has no settings and no editing mode.",
+        "decision_needed": "lead: accept the record set, or authorise a lane that owns those literal sites to move the record onto StudioSequence."
+      },
+      {
+        "item": "crates/hsk-studio-folio/src/composition.rs is outside the brief's named paths: one word changed, validate_immersive made pub(crate), so immersive rules are reused rather than copied.",
+        "decision_needed": "lead: waiver for this one out-of-scope edit (GLOBAL-SCOPE-005)."
+      },
+      {
+        "item": "New module sequence_preset.rs with a sequence_preset/ directory of 3 files, where the brief names one new module. No single style-registry module exists: the registry is sections (StudioPaintStyle in paint.rs, audio_preset.rs, motion_preset.rs), so the preset section is in sequence_preset.rs and no registry file changed."
+      }
+    ],
+    "fields_added": {
+      "StudioSequence": "none (see deviations_from_brief)",
+      "StudioSequenceSettings": [
+        "frame_size",
+        "pixel_aspect_ratio",
+        "frame_rate",
+        "field_order",
+        "video_time_display",
+        "audio_time_display",
+        "audio_sample_rate_hz",
+        "audio_master_channel_type",
+        "working_color_space",
+        "auto_tone_map",
+        "use_maximum_bit_depth",
+        "use_maximum_render_quality",
+        "allow_linear_compositing",
+        "initial_video_track_count",
+        "initial_audio_track_count",
+        "preview_render_format",
+        "immersive"
+      ],
+      "StudioSequenceSettingsEntry": [
+        "sequence_id",
+        "editing_mode",
+        "settings"
+      ],
+      "StudioSequenceSettingsRecords": [
+        "schema_id",
+        "document_id",
+        "sequences"
+      ],
+      "StudioPreviewRenderFormat": [
+        "codec",
+        "frame_size"
+      ],
+      "SequenceWorkingColorSpace": [
+        "color_space",
+        "is_linearized"
+      ],
+      "StudioSequencePreset": [
+        "preset_id",
+        "name",
+        "category_path",
+        "settings",
+        "defaulted_fields",
+        "warnings"
+      ],
+      "StudioSequencePresetSet": [
+        "schema_id",
+        "presets"
+      ],
+      "StudioEditingMode": [
+        "mode_id",
+        "name",
+        "windows_guid",
+        "platforms",
+        "slots",
+        "constraints_known",
+        "constraints"
+      ],
+      "StudioEditingModeSlots": [
+        "frame_rate",
+        "frame_rect",
+        "pixel_aspect",
+        "field_type"
+      ],
+      "StudioEditingModeConstraints": [
+        "allowed_frame_rates",
+        "allowed_frame_sizes",
+        "allowed_pixel_aspect_ratios",
+        "allowed_field_orders",
+        "playback_devices",
+        "capture_devices"
+      ]
+    },
+    "changed_assertions": [
+      {
+        "test": "hsk-studio-package externals every_folio_reference_property_is_classified",
+        "old": "22 schemas; CLASSIFIED without sequence records",
+        "new": "24 schemas (sequence_settings, sequence_presets); CLASSIFIED +5: StudioSequencePreset.category_path, StudioSequenceSettings.audio_master_channel_type, .audio_sample_rate_hz, .audio_time_display, .initial_audio_track_count, all internal values"
+      },
+      {
+        "note": "No other existing assertion changed. working_color_space is not caught by the guard vocabulary and is a closed enumeration here, so it reports no external colour_profile."
+      }
+    ],
+    "microtasks": {
+      "MT-33686": {
+        "state": "partly_met",
+        "gaps": [
+          "AC-009: working_color_space is a closed two-member enumeration of the declared names plus is_linearized, not a StudioColorProfile reference",
+          "No Studio-default settings record: the table's Studio defaults exist only inside shipped-preset construction, except SequencePixelAspectRatio::SQUARE and SequenceWorkingColorSpace::STUDIO_DEFAULT",
+          "Flags are stored and required; nothing in this lane acts on them (rendering is out of scope)"
+        ],
+        "rows": {
+          "frame_size": "the_normative_sequence_settings_record_mt_33686: wire shape; frame-size bounds in settings_records_are_bound_to_document_sequences_and_hostile_input_is_refused",
+          "pixel_aspect_ratio": "the_normative_sequence_settings_record_mt_33686: wire shape, float refused; zero term refused and unreduced 1920:1920 kept in settings_records_are_bound_to_document_sequences_and_hostile_input_is_refused",
+          "frame_rate": "the_normative_sequence_settings_record_mt_33686: wire shape, float refused, non-canonical and mismatched rates refused",
+          "field_order": "the_normative_sequence_settings_record_mt_33686: token progressive only; upper and lower wire tokens not pinned by a test",
+          "video_time_display": "time_display_enumeration_is_the_normative_table_mt_33686; audio member in the video slot refused in the_normative_sequence_settings_record_mt_33686",
+          "audio_time_display": "the_normative_sequence_settings_record_mt_33686: audio_samples and milliseconds accepted, frames refused",
+          "audio_sample_rate_hz": "settings_records_are_bound_to_document_sequences_and_hostile_input_is_refused: 0 and over-bound refused",
+          "audio_master_channel_type": "the_normative_sequence_settings_record_mt_33686: stereo and 5.1 tokens only; mono, multichannel_adaptive and sixteen_channel wire tokens not pinned",
+          "working_color_space": "the_normative_sequence_settings_record_mt_33686: wire shape; see gap AC-009",
+          "auto_tone_map": "the_normative_sequence_settings_record_mt_33686: required (removal refused)",
+          "use_maximum_bit_depth": "the_normative_sequence_settings_record_mt_33686: required by schema",
+          "use_maximum_render_quality": "the_normative_sequence_settings_record_mt_33686: required by schema",
+          "allow_linear_compositing": "the_normative_sequence_settings_record_mt_33686: required by schema",
+          "initial_video_track_count": "the_normative_sequence_settings_record_mt_33686: required by schema",
+          "initial_audio_track_count": "the_normative_sequence_settings_record_mt_33686: required by schema",
+          "preview_render_format": "preview_render_settings_are_part_of_the_sequence_record_mt_33702",
+          "immersive": "immersive_video_settings_are_part_of_the_sequence_record_mt_33701"
+        }
+      },
+      "MT-33695": {
+        "state": "partly_met",
+        "test": "studiosequencepreset_is_a_named_complete_settings_record_mt_33695",
+        "gaps": [
+          "391 of 392 shipped configurations: DNX SQ 720p 29.97 (Legacy/DNxHD/720p 29.97) declares no fps in the table and is excluded rather than guessed; all 82 groups present"
+        ]
+      },
+      "MT-33696": {
+        "state": "partly_met",
+        "tests": [
+          "shipped_preset_rows_are_the_016a_table_mt_33696",
+          "preset_library_is_portable_data_mt_33696"
+        ],
+        "gaps": [
+          "Same 391 of 392",
+          "Rows are generated from the spec table; the test pins column distributions, 37 frame sizes and spot rows, not every row against the spec",
+          "Each preset carries fields the row does not declare (notes.declared_readings)"
+        ]
+      },
+      "MT-33697": {
+        "state": "partly_met",
+        "test": "preset_commands_are_typed_attributed_and_atomic_mt_33697",
+        "gaps": [
+          "The derivation calls this a command table, but the 016a table holds presets, with no command column; AC-001 is those rows, hence the same 391 of 392",
+          "The only command the clause states is create-from-sequence (met); sequence.preset.apply is a Studio reading from brief item 2"
+        ]
+      },
+      "MT-33698": {
+        "state": "partly_met",
+        "test": "studioeditingmode_is_a_named_constraint_set_mt_33698",
+        "gaps": [
+          "A sequence references exactly one mode only once it has a settings entry; an earlier-shape sequence references none",
+          "The 166 preset-to-mode bindings and 40 referenced modes are not carried: the 016a table has no mode column",
+          "Authored modes have no stored home: entries resolve shipped mode ids only, so a mode with known constraints can be validated and checked but not referenced"
+        ]
+      },
+      "MT-33699": {
+        "state": "met",
+        "test": "editing_mode_constraint_lists_are_a_declared_gap_mt_33699",
+        "evidence_limit": "AC-002 rows: count, four slot-column sums and spot rows by test, not every row"
+      },
+      "MT-33700": {
+        "state": "met",
+        "test": "editing_mode_table_rows_are_shipped_whole_mt_33700",
+        "evidence_limit": "Same as MT-33699; hostile lists in editing_mode_lists_are_budgeted"
+      },
+      "MT-33701": {
+        "state": "partly_met",
+        "test": "immersive_video_settings_are_part_of_the_sequence_record_mt_33701",
+        "gaps": [
+          "All nine fields present and validated, and not an effect, but held in the per-sequence entry rather than on StudioSequence",
+          "Enumeration members are the composition's authored ones (gap STU-VID-082)"
+        ]
+      },
+      "MT-33702": {
+        "state": "partly_met",
+        "test": "preview_render_settings_are_part_of_the_sequence_record_mt_33702",
+        "gaps": [
+          "Per sequence, separate from any export recipe, frame size may differ, but held in the per-sequence entry rather than on StudioSequence"
+        ]
+      },
+      "mt_proof_commands": "Every MT's declared proof names cargo test -p hsk-studio-pulse --test contracts -- <name>. That target does not exist at cc58a511, and this work is in folio, so those commands cannot prove these claims; the tests above are the proof. No MT was edited."
+    },
+    "declared_readings": [
+      "Studio-minted, not in the spec or Accord's canonical list (STU-CON-008 concern): schema id hsk.studio.sequence_settings@1 (precedent hsk.studio.multicam_records@1), command ids sequence.preset.save_from_sequence, sequence.preset.apply, sequence.editing_mode.set, preset ids and mode ids (slugs of the table names). Time-display wire tokens are also Studio's: Pulse has none, the codes are the spec's.",
+      "Time display: the same 15 members and codes as Pulse's TimeDisplay, by reading pulse/src/display.rs; no cross-crate test pins it, because folio may not depend on pulse.",
+      "Code 113 rows (5, all 48 fps): STU-VID-012b's fallback needs a frame-rate-matched timecode member and 48 fps has none, so frames plus warning time_display_code_113, as Pulse's TimeDisplay::matching. UNVERIFIED.",
+      "defaulted_fields on shipped presets: working colour space where the row has --, use_maximum_bit_depth, use_maximum_render_quality, allow_linear_compositing and initial_audio_track_count 4 are STU-VID-011 defaults. These are Studio readings with no declared default: auto_tone_map false outside BT.2100 rows, preview codec null with frame size equal to the sequence, immersive null. initial_audio_track_count 4 is also applied to the multichannel rows although the clause ties it to stereo.",
+      "The last HDR row is named 59.94 fps but declares 60 fps and 60 fps timecode; reproduced as declared.",
+      "apply: writes the frame rate onto the sequence even when it holds clips, and a sequence without an entry gains one with mode custom. Vendor parity UNVERIFIED (D5).",
+      "Bounds are Studio's: frame sides 4..=30000 (composition bounds), sample rate 1..=768000, 4096 presets, depth 8, 1024 modes, 1024 per allow-list; a mode with constraints_known false may not store list entries."
+    ],
+    "spec_proposals": [
+      "STU-VID-016a: declare the fps of DNX SQ 720p 29.97, or say how to ship a row without one.",
+      "STU-VID-012b: state the fallback when no timecode member matches the frame rate (48 fps).",
+      "STU-VID-016a: add the per-preset editing-mode binding (166 presets) and the undeclared fields, or state that defaults apply.",
+      "STU-VID-011/019: state whether the settings may live in a per-sequence record beside the sequence; declare the working-colour-space reference form.",
+      "MT-33686, 33695..33702: repoint the proof commands from pulse --test contracts to folio --test sequence_settings_records."
+    ],
+    "gaps_outside_lane": [
+      "Session: DOCUMENT_ENTRY_TOKENS has no sequence_settings or sequence_presets token and nothing produces these entries. The round trip is proven at package level only; a session save/open does not carry them yet.",
+      "Controls: no Registry or RUN_COMMANDS rows for the 3 command ids (host_integration control_descriptors none). No GUI and no Observe emission: Folio returns the report for the host.",
+      "Importers: no STU-VID-013a legacy normalisation or code-113 import path in this lane; the records refuse the legacy tick values."
+    ],
+    "known_doc_defects_at_cc58a511": [
+      "sequence_preset.rs:22 cites module `shipped_preset`, which does not exist; the docs are on ShippedPresetRow::preset.",
+      "sequence_preset.rs:53 says shipped paths are at most four deep; they are at most three (asserted in the MT-33695 test).",
+      "StudioSequencePreset.defaulted_fields docs say the fields hold the STU-VID-011 Studio default; three of them are Studio readings (declared_readings).",
+      "shipped.rs says regenerate by the lane generator, which is not in the repo; a copy is at Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-presets-1/spt_gen.py."
+    ],
+    "hostile_input": "V4-01 deny on the sequence_preset modules (generated shipped.rs is data); V4-02 lists counted before walking and charged to Budget, tests settings_records_are_bound_to_document_sequences_and_hostile_input_is_refused, preset_section_hostile_input_is_refused, editing_mode_lists_are_budgeted. No decoder of its own beyond the shared Folio preflight.",
+    "cleanup_for_steward": "Red-proof leftovers, nothing deleted: C: target lanes/smb-pr-sequence-presets-1-red (counts toward P3) and its Handshake_Artifacts owner folder; list them for Operator-approved deletion with this lane's target.",
+    "vendor_parity": "UNVERIFIED (D5)"
+  },
+  "pushed_sha": "cc58a51151324bdac9b48f406a1908dd4ce26ba1"
 }
