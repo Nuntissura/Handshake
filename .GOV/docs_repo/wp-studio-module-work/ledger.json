@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-05T11:07:36Z",
+ "updated_at": "2026-11-05T11:43:28Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -17796,7 +17796,7 @@
   {
    "lane_id": "SMB-LAYOUT-ENTRY-TEXT-1",
    "status": "READY_FOR_VALIDATION",
-   "phase": "validation, one follow-up commit owed",
+   "phase": "validation",
    "crate": "hsk-studio-layout (derived text of TOC, running text and cross-references; note hosts)",
    "lane_file": "builders/lanes/hsk-studio-layout-entry-text-1.json",
    "brief": "builders/briefs/lane-smb-layout-entry-text-1.md",
@@ -17804,13 +17804,13 @@
    "base": "ce644577",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-05T09:43:42Z",
+   "updated_at": "2026-11-05T11:43:28Z",
    "closes": [
     "F-R55-5",
     "F-R55-9",
     "F-R55-11"
    ],
-   "claim": "1aa6f9a6..62f61621 plus the follow-up"
+   "claim": "1aa6f9a6..091c4d1b (commits of this lane only)"
   },
   {
    "lane_id": "SMB-PR-EDIT-FOOTPRINT-1",
@@ -19752,6 +19752,11 @@
     "added_at": "2026-11-05T11:07:36Z",
     "item": "Viewer move, harness-view plan_move: two proposals plus unreported edits where pulse plan_move_clips gives one proposal with a true report, but plan_move_clips cannot change track, refuses overlap where plan_move overwrites, and moves link partners. Whether a drag onto a clip overwrites or refuses is UNVERIFIED (D5); left as is until GUI work resumes. Found by SMB-PR-EDIT-FOOTPRINT-1",
     "owner": "a later GUI lane"
+   },
+   {
+    "added_at": "2026-11-05T11:43:28Z",
+    "item": "layout toc::line_of misses a blank line, so an index mark or cross-reference destination in an empty or marker-only paragraph reads as unplaced (read from code and a probe, no test); and with include_overset on, an empty heading is still listed with empty text. Found by SMB-LAYOUT-ENTRY-TEXT-1",
+    "owner": "a later layout lane"
    }
   ],
   "pause_20261103": {

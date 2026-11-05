@@ -25,6 +25,31 @@
       "sha": "62f61621",
       "subject": "layout: capture_index_mark reads the selection through derived_text",
       "pushed": true
+    },
+    {
+      "sha": "795a7800",
+      "subject": "layout: table of every marker answer, composition and derived text",
+      "pushed": true
+    },
+    {
+      "sha": "1cb60ec3",
+      "subject": "layout: one marker value rule, sentinels::marker_value",
+      "pushed": true
+    },
+    {
+      "sha": "9f880ec0",
+      "subject": "layout (red 3): a heading holding only markers gives no TOC entry",
+      "pushed": true
+    },
+    {
+      "sha": "1fe0bdfa",
+      "subject": "layout (red 3 fixture): marker-only heading tests place through composition",
+      "pushed": true
+    },
+    {
+      "sha": "091c4d1b",
+      "subject": "layout: a heading holding only markers gives no TOC entry",
+      "pushed": true
     }
   ],
   "capabilities_done": [
@@ -34,7 +59,10 @@
     "A value the call cannot read is a typed DerivedMarkerGap with no text, never a wrong value or a silent drop: marker_gaps on TocEntryOut, TocContractEntry, RunningInstance, XrefResolution and GeneratedEndnotes. capture_index_mark has nowhere to carry a gap, so it refuses with index_invalid_topic_entry; a selection of markers only ends in the same refusal",
     "F-R55-9: entry, running, cross-reference, endnote and captured text trim all 12 terminators of ends_paragraph; a terminator inside the span becomes a space, so the generated story says as many paragraphs as its partition, and a heading ended by a break sentinel keeps its page label placed through native Type (n7d)",
     "F-R55-11: NoteHost gains resolved_text; an endnote or sidenote host with StoryContent::Stored places a gap reference like an inline host; without the text it stays typed (position None, sidenote in overset); a text that does not fit its story is invalid_input. Tests added for layout_footnotes with stored content and generate_index hidden check index.rs:205",
-    "Hostile input: at most MAX_STORY_MARKERS markers with a value or gap per call, each value at most MAX_RESOLVED_MARKER_BYTES, typed budget error beyond it; running text also caps the gaps kept over all instances of a call"
+    "Hostile input: at most MAX_STORY_MARKERS markers with a value or gap per call, each value at most MAX_RESOLVED_MARKER_BYTES, typed budget error beyond it; running text also caps the gaps kept over all instances of a call",
+    "One marker value rule: sentinels::marker_value (sentinels.rs:548), called by composition (resolve, sentinels.rs:596) and derived text (value_at, derived_text.rs:138). The second copy is gone; every answer of the table was the same on both sides of the fold",
+    "A heading holding only markers gives no entry in generate_toc and generate_table_of_contents. Its gaps are on the result (omitted_marker_gaps), the contract counts it in omitted_no_text, not as overset. A heading whose only marker has a value keeps its entry, because it has text",
+    "A gap of a placed marker-only paragraph says what composition says (NoPreviousPage, not NotPlaced), through toc::blank_line_of (toc.rs:222)"
   ],
   "tests": {
     "red_proof": {
@@ -58,6 +86,21 @@
           "passed": 44,
           "failed": 6,
           "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-entry-text-1/red-proof-smb-layout-entry-text-1-fbd2fe6a.log"
+        },
+        {
+          "sha": "9f880ec0",
+          "exit": 100,
+          "passed": 58,
+          "failed": 8,
+          "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-entry-text-1/red-proof-smb-layout-entry-text-1-9f880ec0.log",
+          "note": "first heading fixture, reflow without composition; replaced by the 1fe0bdfa run"
+        },
+        {
+          "sha": "1fe0bdfa",
+          "exit": 100,
+          "passed": 59,
+          "failed": 8,
+          "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-entry-text-1/red-proof-smb-layout-entry-text-1-1fe0bdfa.log"
         }
       ],
       "green_at_the_first_red_tip_not_red": {
@@ -66,51 +109,82 @@
         "f_r55_5_a_format_without_paragraph_text_reports_no_gap_for_it, f_r55_9_a_forced_line_break_kept_on_request_stays_and_is_no_terminator, f_r55_9_the_tests_cover_every_terminator_of_type": "controls"
       },
       "test_corrected_after_red": "v4_02_running_gaps_are_bounded_over_the_instances_of_one_call was red at ecf9e737 on its first assertion (0 gaps), then failed at the first green attempt on its own fixture (Folio running_frame_shared: two running texts on one frame). Fixed in babffb40 with a second frame on page-2; it was not re-proven red in the fixed form",
-      "squashed": "none: every red commit compiles and fails its tests"
+      "squashed": "none: every red commit compiles and fails its tests",
+      "green_at_the_heading_red_tip_not_red": {
+        "a_heading_whose_only_marker_has_a_value_keeps_its_entry": "composition shapes the value, so it already had a line and an entry; pins that the rule leaves it alone",
+        "an_empty_heading_gives_no_entry_as_the_marker_only_reading_says, white_space_with_no_marker_is_not_this_rule": "controls"
+      }
     },
     "bundled": {
-      "argv": "lane-check.sh --owner smb-layout-entry-text-1 --disk d -- cargo nextest run -p hsk-studio-layout -p hsk-studio-interop-layout --no-fail-fast (step 0; clippy layout, interop-layout and dependents harness, harness-view; whole suites)",
+      "argv": "lane-check.sh --owner smb-layout-entry-text-1 --disk d -- cargo nextest run -p hsk-studio-layout -p hsk-studio-interop-layout --no-fail-fast (step 0; clippy layout, interop-layout and dependents; whole suites)",
       "exit": 0,
-      "sha": "62f61621",
-      "passed": 338,
+      "sha": "091c4d1b",
+      "passed": 362,
       "failed": 0,
       "per_crate": {
-        "hsk-studio-layout": 271,
-        "hsk-studio-interop-layout": 67
+        "hsk-studio-layout": 290,
+        "hsk-studio-interop-layout": 72
       },
       "new_tests": {
-        "crates/hsk-studio-layout/tests/derived_text.rs": 43,
-        "crates/hsk-studio-interop-layout/tests/derived_text_native_type.rs": 7
+        "crates/hsk-studio-layout/tests/derived_text.rs": 59,
+        "crates/hsk-studio-interop-layout/tests/derived_text_native_type.rs": 8
       },
       "not_proven_lines": 0,
       "clippy": "no warning located in layout or interop-layout",
-      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-entry-text-1/bundled-smb-layout-entry-text-1-62f61621.log",
-      "log_sha256": "3a59c04625e06717c3422ffbf76d8319b912be4f3544c307a2db543bbf7cd508"
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-entry-text-1/bundled-smb-layout-entry-text-1-091c4d1b.log",
+      "log_sha256": "b2ff343294b55724495fe3a13cccd087f8ac0a7ebf2535cf6a88b0d3bf4a5c88",
+      "covers": "2fba5f61 and below, so SMB-R54-FOLLOWUPS-1 layout and Type changes are in this run"
     },
     "per_sha": {
       "argv": "lane-check.sh --owner smb-layout-entry-text-1 --disk d --per-sha origin/codex/handshake-studio-assets",
-      "result": "PER_SHA_RESULT OK shas=4 range=51eb8f20..62f61621 (exit 0)",
-      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-entry-text-1/persha-smb-layout-entry-text-1-62f61621.log",
-      "log_sha256": "0b8e26fae85ce355f63f21f0ec2158d128acae82f37467e36e77d469d9145fa1"
+      "result": "PER_SHA_RESULT OK shas=5 range=2fba5f61..091c4d1b (exit 0)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-entry-text-1/persha-smb-layout-entry-text-1-091c4d1b.log",
+      "log_sha256": "992b2a2f6f0afbe1654167bb04383034c143368efe7cdac370487e21b13093c2",
+      "first_slice": "PER_SHA_RESULT OK shas=4 range=51eb8f20..62f61621, persha-smb-layout-entry-text-1-62f61621.log"
     },
     "superseded_runs": [
       "focus-smb-layout-entry-text-1-g1.log: did not compile, toc_contract.rs missing imports (exit 101)",
       "focus-smb-layout-entry-text-1-g2.log: 43 of 44, the v4_02 fixture named in red_proof (exit 100)",
       "bundled-smb-layout-entry-text-1-5daea1b5.log: not a result. Stopped by this lane while queued for the disk lock, before any compile, once the capture_index_mark extension meant it could not back READY. Its three processes were this lane's own (owner and cwd checked); the queue ticket was left to the lock's dead-ticket removal, disk-build-lock.sh:149",
-      "bundled-smb-layout-entry-text-1-c2cb786c.log: 338/338, exit 0, then rebased over 51eb8f20 whose range changes hsk-studio-folio, a layout dependency, so the run was repeated at 62f61621"
+      "bundled-smb-layout-entry-text-1-c2cb786c.log: 338/338, exit 0, then rebased over 51eb8f20 whose range changes hsk-studio-folio, a layout dependency, so the run was repeated at 62f61621",
+      "bundled-smb-layout-entry-text-1-62f61621.log: 338/338, exit 0, the first READY; superseded by the run at 091c4d1b",
+      "focus-smb-layout-entry-text-1-table-before-fold.log: did not compile, a test parameter shadowed records() (exit 101)",
+      "focus-smb-layout-entry-text-1-table-before-fold-2.log: an identical rerun by mistake, after my edit of the failing table row failed to apply; 1 failed on the same fixture (Folio refuses a control character in a section marker before either side reads it). Not a value difference. The stop came after it had finished",
+      "probe-marker-only-lines.log: native probe, not proof; the probe test was appended, run and the file restored, never committed"
     ],
-    "rebases": "ab61c368 (session, pulse, folio) before the first bundled attempt; 51eb8f20 (SMB-PR-RETIME-HOLD-1: folio, harness, harness-core, harness-view, interop-media, package, pulse, session) before the bundled run cited here. Nothing rebased over since that run. SMB-R54-FOLLOWUPS-1 had not landed at push, so its paragraph.rs, cjk.rs, sentinels.rs and Type changes are not in this candidate: whichever lane pushes second reruns the layout suite",
-    "push": "git push origin 62f61621432eedb0a54f346ef02b77f2125406cc:refs/heads/codex/handshake-studio-assets exit 0 (51eb8f20..62f61621, fast-forward); re-fetch shows origin = 62f61621 at 2026-11-05T09:39:34Z",
+    "rebases": "To 2fba5f61 (fast-forward, 62f61621 was its ancestor) before all follow-up work: SMB-R54-FOLLOWUPS-1 and SMB-PR-MERGE-SYNC-1. Origin did not move again before the push, so nothing was rebased over since the bundled run",
+    "push": "git push origin 091c4d1b2a3629e5031feb06c0968298d47d3249:refs/heads/codex/handshake-studio-assets (2fba5f61..091c4d1b, fast-forward); re-fetch shows origin = 091c4d1b at 2026-11-05T11:36:21Z. First slice: 51eb8f20..62f61621",
     "doctests": "none added or changed (4d)",
     "round_features_4e": "tests/derived_text.rs and tests/derived_text_native_type.rs have no feature gate; the default unit ran both",
-    "step0": "lane-check step 0 clean"
+    "step0": "lane-check step 0 clean",
+    "fold_proof": {
+      "claim": "folding changed no answer",
+      "argv": "cargo nextest run --offline -p hsk-studio-layout -p hsk-studio-interop-layout -E 'binary(derived_text) | binary(derived_text_native_type)' --no-fail-fast",
+      "before_fold": {
+        "tree": "2fba5f61 plus the uncommitted table, committed unchanged as 795a7800",
+        "exit": 0,
+        "passed": 56,
+        "failed": 0,
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-entry-text-1/focus-smb-layout-entry-text-1-table-before-fold-3.log"
+      },
+      "after_fold": {
+        "tree": "795a7800 plus the fold, committed as 1cb60ec3",
+        "exit": 0,
+        "passed": 56,
+        "failed": 0,
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-entry-text-1/focus-smb-layout-entry-text-1-table-after-fold.log"
+      },
+      "tests": "one_value_rule_* in crates/hsk-studio-layout/tests/derived_text.rs (6 tests). They cover both sides through public calls, with hand-computed answers: page numbers, section marker, record markers, index marker, overset, labels that cannot be produced",
+      "test_kept": "derived_values_equal_the_values_composition_resolves stays: the value rule is one now, but composition (place_markers) and derived text (toc::line_of, blank_line_of) still find a marker's page separately, and this test holds those two locations equal through native Type",
+      "one_change_not_visible_to_callers": "composition now finds next and previous by PageNumber::ordinal, not by index. number_pages (numbering.rs:182) lists every document page with consecutive ordinals, so the page found is the same. An index outside the list would have answered differently, but ordinal() and number_pages walk the same pages, so it cannot occur"
+    }
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "validator: judge 1aa6f9a6..62f61621",
-  "updated_at": "2026-11-05T09:42:42Z",
+  "next": "validator: judge 1aa6f9a6..091c4d1b",
+  "updated_at": "2026-11-05T11:37:30Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -150,6 +224,12 @@
         "change": "capture_index_mark and its doc, the import, and the InvalidTopicEntry doc line",
         "why": "V4-06 site of F-R55-5 found by the sweep; left unfixed it would block READY",
         "approval": "lead-approved path extension, this site only (coordinator direction)"
+      },
+      {
+        "path": "crates/hsk-studio-layout/src/sentinels.rs and crates/hsk-studio-layout/src/index.rs",
+        "change": "sentinels.rs: resolve folded into marker_value. index.rs: the one new GeneratedStory field in its literal",
+        "why": "lead decision one value rule; the new field stops that literal compiling",
+        "approval": "sentinels.rs by lead direction after SMB-R54-FOLLOWUPS-1 landed; index.rs was already an owned path"
       }
     ],
     "v4_06": {
@@ -158,8 +238,8 @@
       "regex_widened": "\\.text\\.get\\(|text\\.get\\(|\\.inline_text\\(\\)|text_utf8|story_text\\(",
       "scope": "crates/hsk-studio-layout/src/*.rs at 5daea1b5, the anchors below at 62f61621; the callers of the fixed generators outside layout are tests only (interop-layout layout_flow_pdf.rs, longdoc_pdf.rs), read by git grep",
       "brief_regex_at_base": [
-        "toc.rs:187 clean_keeping (and clean :182): FIXED, removed; site now toc.rs:326",
-        "toc_contract.rs:673 entry_text: FIXED, removed; site now toc_contract.rs:889",
+        "toc.rs:187 clean_keeping (and clean :182): FIXED, removed; site now toc.rs:341",
+        "toc_contract.rs:673 entry_text: FIXED, removed; site now toc_contract.rs:895",
         "running.rs:117 through clean: FIXED; site now running.rs:125",
         "xref.rs:377 full text for fullPara, paraText and partial paragraph: FIXED; site now xref.rs:391"
       ],
@@ -184,29 +264,30 @@
         "styles.rs:181, threaded_reflow.rs:844, :858, hyphenate.rs:264, paragraph.rs:204, :383, :406, :474, cjk.rs:568, :577, :608: read text during composition"
       ],
       "count": "6 copying sites, all fixed (toc, toc_contract, running, xref, endnotes, capture); 3 groups reading a fixed site; the rest not applicable",
-      "read_depth": "not-applicable lines were read at the line or a short excerpt, and paragraph.rs and cjk.rs (held by SMB-R54-FOLLOWUPS-1) only at the matching lines. Other crates were not swept for copies of story text beyond the callers of these generators: NOT_INSPECTED"
+      "read_depth": "not-applicable lines were read at the line or a short excerpt, and paragraph.rs and cjk.rs (held by SMB-R54-FOLLOWUPS-1) only at the matching lines. Other crates were not swept for copies of story text beyond the callers of these generators: NOT_INSPECTED",
+      "fold_note": "The six copying sites are unchanged by the follow-up. Anchors that moved at 091c4d1b: toc.rs:341, toc_contract.rs:895; running.rs:125, xref.rs:391, endnotes.rs:148, index_contract.rs:1112 are as listed"
     },
     "declared_readings": {
       "groups_of_the_stu_typ_207_catalogs": {
         "no_value_left_out": [
-          "index marker U+FDD7, footnote reference U+FDD4, endnote reference U+FDD5: derived_text.rs:194",
-          "anchored-object marker U+FFFC: derived_text.rs:186"
+          "index marker U+FDD7, footnote reference U+FDD4, endnote reference U+FDD5: derived_text.rs:187",
+          "anchored-object marker U+FFFC: derived_text.rs:177"
         ],
         "value_at_the_source": [
-          "current page number U+FDD0: derived_text.rs:141",
-          "next page number U+FDD1: derived_text.rs:142",
-          "previous page number U+FDD2: derived_text.rs:146",
-          "section marker U+FDD3: derived_text.rs:150; running text only, the one site whose call has sections"
+          "current page number U+FDD0: sentinels.rs:569",
+          "next page number U+FDD1: sentinels.rs:570",
+          "previous page number U+FDD2: sentinels.rs:575",
+          "section marker U+FDD3: sentinels.rs:580; running text only, the one derived-text call that has sections"
         ],
         "value_not_available_typed": [
-          "cross-reference marker U+FDD6: derived_text.rs:155 (marker_record_missing): its value is a record no derived-text call is given",
-          "section marker where the call has no sections, TOC and cross-references: derived_text.rs:151 (derived_sections_unavailable)",
-          "reserved code point U+FDDE..U+FDEF, no catalog member: derived_text.rs:204 (derived_reserved_code_point)"
+          "cross-reference marker U+FDD6: sentinels.rs:563 with no record (marker_record_missing): no derived-text call is given a record",
+          "section marker where the call has no sections, TOC and cross-references: derived_text.rs:138 value_at (derived_sections_unavailable); not placed comes first",
+          "reserved code point U+FDDE..U+FDEF, no catalog member: derived_text.rs:197 (derived_reserved_code_point)"
         ],
         "not_markers": [
-          "break characters: the five break sentinels U+FDD8..U+FDDC and paragraph return, with the other class B characters, 12 in all: trimmed at the end, derived_text.rs:178; a space inside, derived_text.rs:181",
+          "break characters: the five break sentinels U+FDD8..U+FDDC and paragraph return, with the other class B characters, 12 in all: trimmed at the end, derived_text.rs:169; a space inside, derived_text.rs:172",
           "forced line break U+2028 is no terminator: a space in entry, running, endnote and captured text unless remove_forced_line_break is false; kept in cross-reference text, as before",
-          "flush space U+FDDD: a space, derived_text.rs:181",
+          "flush space U+FDDD: a space, derived_text.rs:172",
           "the other white-space and symbol members are real characters and copy unchanged"
         ]
       },
@@ -216,7 +297,11 @@
         "A gap writes no text and the entry stays listed; only capture_index_mark refuses, because a stored topic cannot carry a gap",
         "Whitespace around a removed marker stays: \"Chapter <index marker>\" reads \"Chapter \"",
         "A note body with several paragraphs stays one paragraph per note (module docs), its inner terminators spaces. Before, an inner newline stayed and the generated story disagreed with its partition",
-        "InDesign handling of markers in a TOC entry UNVERIFIED (D5): no oracle, raised, not asserted"
+        "InDesign handling of markers in a TOC entry UNVERIFIED (D5): no oracle, raised, not asserted",
+        "A heading holding only markers (it held a marker and leaves no text but white space, derived_text.rs:130) has no TOC entry, as an empty heading has none. Lead decision. InDesign behaviour UNVERIFIED (D5)",
+        "A section marker alone in a heading at a TOC call has no readable value, so it is this case, with its gap; in running text the same heading would show the section name",
+        "A marker-only heading that is overset and overset is not included stays counted as overset, its text unread and no gap reported, like any overset heading. With overset included it has no entry and its gap is reported",
+        "A marker-only heading on a hidden layer with include_hidden off is counted omitted_no_text, not omitted_hidden, because line_of does not find its line: read from code, no test"
       ]
     },
     "spec_proposals": [
@@ -230,23 +315,23 @@
       ],
       "not_claimed": {
         "MT-30785": "partly met stays: AC-001 preflight and editable formats, AC-002 across documents are not touched. Cross-reference paragraph text is cleaner, no row states it",
-        "MT-30776, MT-30777, MT-30778": "stay as carried PASS_V1; R55 puts F-R55-5 outside their rows. Read: MT-30776 AC-001, MT-30777 rows by keyword (AC-011 strip forced breaks still holds), MT-30778 no row on entry text; no row added or proven beyond the carried verdict",
+        "MT-30776, MT-30777, MT-30778": "stay as carried PASS_V1; R55 puts F-R55-5 outside their rows. Read: MT-30776 AC-001, MT-30777 rows by keyword (AC-011 strip forced breaks still holds; AC-001 overset flag: a marker-only heading is no longer counted as overset, it is counted in omitted_no_text), MT-30778 no row on entry text; no row added or proven beyond the carried verdict",
         "MT-174": "capture_index_mark is its capture; rows are about hierarchy and cross-reference forms, no row states the selection text. MT-174 was read only in part: NOT_INSPECTED beyond AC-001 and AC-002"
       },
       "files_edited": "none"
     },
     "open_gaps": [
+      "FINDING, not changed, needs a lead decision: toc::line_of does not find a placed blank line of a paragraph with no glyph, because composition gives it an empty source span at the paragraph's END (native probe-marker-only-lines.log: \"Intro\\n<index>\\nBody\\n\" lines (0,5), (10,10), (10,14), paragraph (6,10)). So the premise that an empty heading has no placed line does not hold natively: it has one, and has no entry only because line_of misses it and it counts as overset. The same miss applies to every line_of caller on such a paragraph: an index mark there reads unplaced although place_markers puts the marker on its page, and a cross-reference destination there reads Unplaced. Read from code and the probe; no test of those two. Fixing line_of itself would change those answers and would make a blank paragraph with a mapped style a running-text occurrence, so it was left alone. blank_line_of is read only for the TOC decision and for gap reasons",
+      "OPEN: with include_overset on, a placed empty heading (no marker) is still listed with empty text, as before this lane. The marker-only rule does not cover it; the reading \"as an empty heading\" holds only with include_overset off",
       "OPEN: a section marker in a TOC entry or a cross-reference has a typed gap, not its value, because generate_toc, TocGenerateRequest and XrefContext carry no sections. A heading holding one shows no section name there. Giving the value needs a sections input on those public calls: a lane decision",
-      "OPEN: the value rule exists twice, sentinels.rs resolve (private, outside the owned paths) and derived_text.rs value_at. derived_values_equal_the_values_composition_resolves pins them equal for page numbers and section marker with sections; TextOverBudget and TextNotInline are tested on the derived side only. Folding them needs resolve to be pub(crate)",
-      "OPEN: a heading of markers only gives an empty entry: the TOC lists it as separator plus label. Read from code, no test; capture_index_mark refuses this case, the TOC does not. A lane decision",
       "NOT_PROVEN: U+FFFC in derived text is proven with toy shaping only. No fixture font maps it, so a source holding it does not compose natively (F-R55-13, out of scope)",
       "NOT_PROVEN by a native test: endnote text and captured topics are proven with toy shaping; the native file covers TOC, running and cross-reference text",
       "NOT RUN: the test suites of the dependents harness and harness-view (clippy only, through lane-check). They do not use the changed structs: git grep finds no non-layout caller outside interop-layout tests",
       "NOT_INSPECTED: other crates for copies of story text beyond the callers of these generators; MT-174 rows beyond AC-002",
       "UNVERIFIED (D5): InDesign handling of markers in a TOC entry, cross-reference or running header; flush space and inner terminators in an entry"
     ],
-    "behaviour_change": "Cross-reference text now trims U+2029 and the other terminators, where it trimmed only U+000A and U+000D. An inner terminator in a character-style range, a note body or a captured selection is a space. U+FFFC leaves entry text. An index topic can no longer be captured from a selection holding a page-number, section or cross-reference marker or a reserved code point. New public fields: marker_gaps on five result structs, resolved_text on NoteHost",
-    "paths_outside_brief_list": "crates/hsk-studio-interop-layout/tests/longdoc_pdf.rs:1121 and crates/hsk-studio-layout/src/index_contract.rs: see path_extensions. tests/longdoc_running_notes.rs and tests/marker_lookups.rs are in the owned tests. sentinels.rs, paragraph.rs and cjk.rs untouched",
+    "behaviour_change": "Cross-reference text now trims U+2029 and the other terminators, where it trimmed only U+000A and U+000D. An inner terminator in a character-style range, a note body or a captured selection is a space. U+FFFC leaves entry text. An index topic can no longer be captured from a selection holding a page-number, section or cross-reference marker or a reserved code point. New public fields: marker_gaps on five result structs, resolved_text on NoteHost. Follow-up: a marker-only heading moves from omitted_overset to omitted_no_text in generate_table_of_contents, and a gap of a placed marker-only paragraph now names composition's state, where it read NotPlaced. New public fields: omitted_marker_gaps on GeneratedStory and TocGenerated, omitted_no_text on TocGenerated. No answer of composition changed (fold_proof)",
+    "paths_outside_brief_list": "crates/hsk-studio-interop-layout/tests/longdoc_pdf.rs:1121, crates/hsk-studio-layout/src/index_contract.rs and crates/hsk-studio-layout/src/sentinels.rs: see path_extensions. tests/longdoc_running_notes.rs and tests/marker_lookups.rs are in the owned tests. paragraph.rs and cjk.rs untouched",
     "lead_decisions": [
       {
         "at": "2026-11-05T09:43:42Z",
@@ -262,8 +347,15 @@
         "at": "2026-11-05T09:43:42Z",
         "on": "TOC and cross-reference calls have no sections, so a section marker there is a typed gap",
         "decision": "Accepted for now: typed and honest. Recorded as a candidate to give those calls the sections."
+      },
+      {
+        "at": "2026-11-05T11:43:28Z",
+        "on": "toc::line_of misses a blank line, whose source span sits at the paragraph's end; the builder left it and added toc::blank_line_of for the TOC decision and gap reasons only",
+        "decision": "Accepted for this lane: fixing line_of changes index and cross-reference answers and would make a blank styled paragraph a running-text occurrence, which needs its own proof. Recorded as a candidate; the validator is asked to probe it."
       }
-    ]
+    ],
+    "claim_range_v4_14": "1aa6f9a6..091c4d1b: the first READY slice 1aa6f9a6..62f61621 and the follow-up 795a7800..091c4d1b the lead directed (notes.lead_decisions). The SMB-R54-FOLLOWUPS-1 and SMB-PR-MERGE-SYNC-1 commits between them are not this lane's",
+    "kernel_commit": "Lead commits this lane file (coordinator direction); this builder left it uncommitted"
   },
-  "pushed_sha": "62f61621"
+  "pushed_sha": "091c4d1b"
 }
