@@ -441,7 +441,7 @@ FINAL MESSAGE, 12 lines or fewer: shas, exact test counts and exit codes, what i
 - Status is not progress. 62 of 6,220 MTs read PASS while most engines exist, and some PASS rows cannot reach a document. Measure progress by reading code against contracts, not from status, lane PASS counts or anchor counts. Rounds never gated the HBR pillars; a green round says nothing about manual, diagnostics or the model surface.
 - Read the code before you put a claim in a brief or a ruling. This period's lead errors, all caught by builders: U+2028 "composes in both providers" (the harfrust spike is v1 only); `--disk c` (not valid); `ClipChange` "flows through session" (it does not); a blanket removal refusal for view state, and then for `audio_routing` (Run commits the sequence before the entry, so a refusal would have blocked the Viewer's own undo). When a builder shows your reading is wrong, withdraw it on the record.
 - Tell builders plainly that red commits stay. "No commit you push fails its own tests" contradicted the red rule and cost a question.
-- Per-sha holds are long: 12 commits on folio and session held the D: lock for about 55 minutes, 7 commits took about 25. A HIGH-finding lane sat over an hour queued behind them. Keep commit counts modest, split lanes across C: and D: when no round runs, and have builders take red and focused runs in one hold, because each cargo call queues separately.
+- Per-sha holds are long: 12 commits on folio and session held the D: lock for about 55 minutes. A HIGH-finding lane sat over an hour queued behind them. Keep commit counts modest, split lanes across C: and D: when no round runs, and have builders take red and focused runs in one hold, because each cargo call queues separately.
 - Pausing: "finish the job that is compiling, stop what is only queued, no new holds, write `next`" gave five clean stops. Do not kill a job holding a build lock. `TaskStop` can leave an agent's child processes alive, so the agent must stop its own by PID.
 - A lane paused on a rebased base wastes its per-sha: nudge's check ran against a base origin had already passed. Check the base before you let a long hold start.
 - Keep dispatch prompts and helpers in the repo, not only in a session scratchpad or transcript. A new session cannot resume another session's agents: the next lead dispatches fresh builders from the lane file's `next`.
@@ -462,7 +462,7 @@ None of these block paused-lane completion or R57.
 **Readings the lead took, overrulable:** listed in the `state` topic.
 
 **Waiver of paths outside briefs (GLOBAL-SCOPE-005):**
-- SMB-FOLIO lanes: folio `composition.rs`.
+- SMB-PR-SEQUENCE-PRESETS-1: folio `composition.rs`.
 - SMB-PR-RETIME-HOLD-1: pulse `src/transition.rs`, `src/multicam.rs`, `src/timeline_edit.rs`, `tests/multicam_flatten.rs`; session `tests/retime_commit.rs`; `rate.rs`.
 - SMB-PR-MERGE-SYNC-1: pulse `src/timeline_edit.rs`, `src/annotate.rs`.
 - SMB-R54-FOLLOWUPS-1: harness-view `src/view/vector.rs`; layout `src/threaded_reflow.rs`, `tests/cjk_kinsoku.rs`, `tests/marker_lookups.rs`.
