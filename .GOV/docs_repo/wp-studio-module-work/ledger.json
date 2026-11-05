@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-05T10:03:00Z",
+ "updated_at": "2026-11-05T10:05:08Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -17810,6 +17810,38 @@
     "F-R55-11"
    ],
    "claim": "1aa6f9a6..62f61621 plus the follow-up"
+  },
+  {
+   "lane_id": "SMB-PR-EDIT-FOOTPRINT-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-pulse (edit proposal change list and write footprint)",
+   "lane_file": "builders/lanes/hsk-studio-pr-edit-footprint-1.json",
+   "brief": "builders/briefs/lane-smb-pr-edit-footprint-1.md",
+   "worktree": "wt-studio-lanes/smb-pr-edit-footprint-1",
+   "base": "27cba13b",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-05T10:05:08Z",
+   "closes": [
+    "next_lane_candidates: V4-06 failure class in pulse"
+   ]
+  },
+  {
+   "lane_id": "SMB-PR-TRACK-DISPLAY-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-folio (track display records), hsk-studio-session (document entry and commit)",
+   "lane_file": "builders/lanes/hsk-studio-pr-track-display-1.json",
+   "brief": "builders/briefs/lane-smb-pr-track-display-1.md",
+   "worktree": "wt-studio-lanes/smb-pr-track-display-1",
+   "base": "27cba13b",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-05T10:05:08Z",
+   "closes": [
+    "MT-33739"
+   ]
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -19657,11 +19689,6 @@
   "next_lane_candidates": [
    {
     "added_at": "2026-11-05T04:36:56Z",
-    "item": "STU-VID-036 track display state, MT-33739: no code at ce644577 (git grep TrackDisplay, track_height, show_waveform: none); same record-set and session-entry shape as SMB-PR-SEQUENCE-SESSION-1, after that lane",
-    "owner": "a later folio and session lane"
-   },
-   {
-    "added_at": "2026-11-05T04:36:56Z",
     "item": "STU-VID-034 marker scopes, MT-33736, and STU-VID-035a nudge, MT-33738: audit against folio and pulse before scoping",
     "owner": "a later pulse lane"
    },
@@ -19684,11 +19711,6 @@
     "added_at": "2026-11-05T05:13:00Z",
     "item": "Retime output (MT-33730, MT-33731): SMB-PR-RETIME-HOLD-1 stores and resolves the choices, but the audio mix ignores maintain_audio_pitch, frame_layers carries no interpolation choice, and pulse has no edge to pigment's optical-flow estimator, so frame_blending and optical_flow do not change a rendered frame yet",
     "owner": "a later pulse, reel and pigment lane (a new edge is steward-owned)"
-   },
-   {
-    "added_at": "2026-11-05T05:59:00Z",
-    "item": "V4-06 failure class in pulse: EditProposal changes() and write_footprint() empty for a real edit. Found and fixed for link-only (SMB-PR-MERGE-SYNC-1, ClipChange::Relink) and retime (SMB-PR-RETIME-HOLD-1, ClipChange::RetimeRecord). Read from diff, not run: reverse-only speed change, marker, transition and work-area record edits. Sweep after both lanes push; first establish what reads the footprint and what a wrong empty one costs",
-    "owner": "a later pulse lane"
    },
    {
     "added_at": "2026-11-05T05:59:00Z",

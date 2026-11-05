@@ -1,0 +1,42 @@
+{
+  "crate": "hsk-studio-pulse (edit proposal change list and write footprint)",
+  "lane": "SMB-PR-EDIT-FOOTPRINT-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-pr-edit-footprint-1",
+  "base": "27cba13b",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push after STUDIO-R56 on the lead's release",
+  "updated_at": "2026-11-05T10:05:08Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "report_for_host: pulse plans return typed proposals and refusal codes, emission stays with the host",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "unchanged: pulse plans and commits nothing",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-05T10:05:08Z",
+    "disk": "D",
+    "closes": [
+      "next_lane_candidates: V4-06 failure class in pulse"
+    ],
+    "closes_candidates": []
+  }
+}
