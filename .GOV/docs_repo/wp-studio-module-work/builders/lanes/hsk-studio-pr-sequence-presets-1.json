@@ -94,8 +94,8 @@
   "blockers": [],
   "lock_wait_s": 1482,
   "bg_pids": [],
-  "next": "lead: decide notes.deviations_from_brief[0] (settings placement), then validator: judge 3ebf63df..cc58a511",
-  "updated_at": "2026-11-05T03:58:53Z",
+  "next": "validator: judge 3ebf63df..cc58a511 under notes.lead_decisions",
+  "updated_at": "2026-11-05T04:03:12Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -352,7 +352,22 @@
     ],
     "hostile_input": "V4-01 deny on the sequence_preset modules (generated shipped.rs is data); V4-02 lists counted before walking and charged to Budget, tests settings_records_are_bound_to_document_sequences_and_hostile_input_is_refused, preset_section_hostile_input_is_refused, editing_mode_lists_are_budgeted. No decoder of its own beyond the shared Folio preflight.",
     "cleanup_for_steward": "Red-proof leftovers, nothing deleted: C: target lanes/smb-pr-sequence-presets-1-red (counts toward P3) and its Handshake_Artifacts owner folder; list them for Operator-approved deletion with this lane's target.",
-    "vendor_parity": "UNVERIFIED (D5)"
+    "vendor_parity": "UNVERIFIED (D5)",
+    "lead_decisions": [
+      {
+        "at": "2026-11-05T04:03:12Z",
+        "on": "deviations_from_brief[0] settings placement",
+        "decision": "ACCEPTED: StudioSequenceSettingsRecords beside the document, one entry per sequence_id",
+        "why": "same shape as StudioMulticamRecords (folio multicam.rs, session multicam.rs document entry), so it is an existing product pattern; moving the record onto StudioSequence rewrites struct literals at 110 sites in 52 files in 7 crates for no behaviour gain",
+        "conditions": "MT-33701 and MT-33702 stay partly met; whether the spec's 'part of the sequence record' allows this is spec-owner item SD-47; the session gap (no document entry, no commit path) is closed by SMB-PR-SEQUENCE-SESSION-1",
+        "validator_note": "judge the placement against this decision and SD-47, and judge MT rows with folio --test sequence_settings_records (the MTs' proof commands name a pulse test that does not exist)"
+      },
+      {
+        "at": "2026-11-05T04:03:12Z",
+        "on": "deviations_from_brief[1] composition.rs one-word edit",
+        "decision": "reported to the Operator for the GLOBAL-SCOPE-005 waiver"
+      }
+    ]
   },
   "pushed_sha": "cc58a51151324bdac9b48f406a1908dd4ce26ba1"
 }

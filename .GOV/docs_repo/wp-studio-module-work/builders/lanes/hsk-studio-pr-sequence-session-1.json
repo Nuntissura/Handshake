@@ -1,0 +1,47 @@
+{
+  "crate": "hsk-studio-session (sequence records entry and commit step), hsk-studio-folio (docs), hsk-studio-pulse (agreement test)",
+  "lane": "SMB-PR-SEQUENCE-SESSION-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-pr-sequence-session-1",
+  "base": "cc58a511",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push after STUDIO-R55 on the lead's release",
+  "updated_at": "2026-11-05T04:03:12Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe: one terminal session frame per operation, codes and counters only",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: the commit step takes the caller's context (CommandContext / ActorContext); never default_actor()",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-05T04:03:12Z",
+    "disk": "D",
+    "closes": [
+      "SMB-PR-SEQUENCE-PRESETS-1 gaps_outside_lane (session)",
+      "known_doc_defects_at_cc58a511",
+      "time-display agreement test"
+    ],
+    "closes_candidates": [
+      "MT-33701",
+      "MT-33702"
+    ]
+  }
+}
