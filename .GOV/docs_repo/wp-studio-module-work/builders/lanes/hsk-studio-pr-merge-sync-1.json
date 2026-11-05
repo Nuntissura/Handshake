@@ -1,19 +1,74 @@
 {
   "crate": "hsk-studio-pulse (merge clips, synchronize, link operations)",
   "lane": "SMB-PR-MERGE-SYNC-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed",
   "worktree": "wt-studio-lanes/smb-pr-merge-sync-1",
-  "base": "ce644577",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "base": "62f61621",
+  "pushed_sha": "27cba13be89580933242717822774472a8e2debd",
+  "commits": [
+    {
+      "sha": "bb2ccf2ebf20d599dd318542db1d1626d64fe1f7",
+      "subject": "pulse (SMB-PR-MERGE-SYNC-1, red): link operations, merge clips and synchronize"
+    },
+    {
+      "sha": "309da2a34388313e14dc026ea4377fa3c51458a1",
+      "subject": "pulse (SMB-PR-MERGE-SYNC-1): merge clips, synchronize, unlink, linked-selection toggle, group move"
+    },
+    {
+      "sha": "9d8c5937cd3fed7e58a7112b6466f06bfb6f28fe",
+      "subject": "pulse (SMB-PR-MERGE-SYNC-1, red 2): a held clip through link, move and alignment"
+    },
+    {
+      "sha": "27cba13be89580933242717822774472a8e2debd",
+      "subject": "pulse (SMB-PR-MERGE-SYNC-1): timecode and marker refuse a held clip"
+    }
+  ],
+  "capabilities_done": [
+    "plan_merge_clips: one video clip and at least one audio clip into an ordinary link_group, in place or aligned to the video clip",
+    "plan_synchronize: one clip per track aligned to a named anchor by in point, out point, timecode (SourceTimecodes port) or clip marker, then linked",
+    "MergeSyncProposal: the one EditProposal with its TimelineInverse plus link group, basis and per-clip offsets",
+    "plan_unlink: dissolves the whole link group, writes only link_group",
+    "plan_timeline_edit_with_linked_selection: planner side of the linked-selection master toggle",
+    "plan_move_clips: arbitrary caller-supplied set moved by one delta with no shift elsewhere",
+    "ClipChange::Relink beside ClipChange::RetimeRecord: a link-only change appears in changes() and the write footprint",
+    "Held clip: link, move, unlink, the toggle and in or out point keep the hold; timecode and marker refuse sync_hold_unsupported"
+  ],
+  "tests": {
+    "argv": "lane-check.sh --owner smb-pr-merge-sync-1 --disk d -- cargo nextest run -p hsk-studio-pulse -p hsk-studio-session",
+    "exit": 0,
+    "sha": "27cba13be89580933242717822774472a8e2debd",
+    "passed": 182,
+    "failed": 0,
+    "skipped": 0,
+    "by_crate": {
+      "hsk-studio-pulse": 109,
+      "hsk-studio-session": 73
+    },
+    "new_target": "crates/hsk-studio-pulse/tests/merge_sync.rs: 15 tests",
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-merge-sync-1/bundled-smb-pr-merge-sync-1-27cba13b.log",
+    "clippy": "pulse and session, then dependents harness, harness-core, harness-view, interop-media, kernel-bindings with --tests, in the same lock hold, exit 0",
+    "step0": "clean",
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-pr-merge-sync-1 --disk d --per-sha origin/codex/handshake-studio-assets",
+      "result": "PER_SHA_RESULT OK shas=4 range=62f61621..27cba13b",
+      "exit": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-merge-sync-1/per-sha-smb-pr-merge-sync-1-27cba13b.log"
+    },
+    "red_proof": [
+      "red2-smb-pr-merge-sync-1-ce644577-dirty.log: 14 run, 0 passed, 14 failed, exit 100, on the tree later committed as the first red commit, before the rebase",
+      "red3-hold-smb-pr-merge-sync-1-dc21539e-dirty.log: 15 run, 14 passed, 1 failed, exit 100: a_held_clip_links_and_moves_but_cannot_align_by_a_source_position fails at the first expected sync_hold_unsupported, so its link and move assertions already held",
+      "The red commits were not rerun after the final rebase: --per-sha proves they compile, nothing reruns their failure on the rebased tree"
+    ],
+    "superseded": "bundled-smb-pr-merge-sync-1-dab8c4ba.log (87 of 87) was on the pre-rebase tree and does not stand",
+    "not_run": "hsk-studio-package: folio is unchanged in this range. Doctests: none added."
+  },
   "verdicts": [],
   "blockers": [],
-  "lock_wait_s": 0,
+  "lock_wait_s": 1031,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push after STUDIO-R55 on the lead's release",
-  "updated_at": "2026-11-05T04:36:56Z",
+  "next": "Validator: judge 27cba13b. Lead: commit this lane file. No further pushes on this lane without a new dispatch.",
+  "updated_at": "2026-11-05T10:01:04Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -33,11 +88,124 @@
   },
   "notes": {
     "dispatched_at": "2026-11-05T04:36:56Z",
+    "released_by_lead": "STUDIO-R55 recorded, SMB-PR-RETIME-HOLD-1 pushed",
     "disk": "D",
     "closes": [],
     "closes_candidates": [
       "MT-33726",
       "MT-33727"
-    ]
+    ],
+    "mt_state": {
+      "MT-33726": "partly met, not claimed: stored group identity and the typed relationship map in its expected output are not built; selection and the toggle state are host work",
+      "MT-33727": "partly met, not claimed: the audio waveform basis is a typed refusal"
+    },
+    "waiver_list_outside_owned_paths": [
+      "src/timeline_edit.rs",
+      "src/annotate.rs"
+    ],
+    "waiver_reasons": {
+      "src/timeline_edit.rs": "ClipChange::Relink and its diff() entry, because a link-only change otherwise had an empty change list and write footprint; apply_edit made pub(crate) for the toggle planner",
+      "src/annotate.rs": "source_to_timeline made pub(crate), to reuse the source-to-timeline mapping instead of copying it"
+    },
+    "rebases": {
+      "onto_retime_lane": "51eb8f20 (SMB-PR-RETIME-HOLD-1). Conflict as named: ClipChange::RetimeRecord beside ClipChange::Relink at the enum tail and in the accessors and diff(); both kept, neither changed. The write-footprint arm had already become Insert or Remove on origin, identical to mine. The retime lane's descriptor key kept; the merge_sync key added after it. The retime field went into the clip() literal in the first red commit so that commit compiles; it is the only StudioClip literal this range adds.",
+      "onto_layout_lane": "62f61621: 1aa6f9a6, babffb40, f34a3d9a, 62f61621, all SMB-LAYOUT-ENTRY-TEXT-1, layout crate only. This rebase came before the bundled run, so the run and the push are on the same sha. Origin did not move again before the push: the no-rerun allowance was not needed.",
+      "last_green_log": "bundled-smb-pr-merge-sync-1-27cba13b.log at 27cba13b"
+    },
+    "held_clip_reading": {
+      "basis": "crates/hsk-studio-pulse/src/retime.rs module docs: a held clip answers one frame at every timeline tick, clip_source_at reads it; a hold applies to the named clip, not its link group; a linked audio partner keeps playing its own window",
+      "kept": "Link in place, group move, unlink, the toggle (trim and razor; the right half keeps the hold and has no link) and alignment by in or out point read and write timeline positions only. The hold record does not change, no RetimeRecord is emitted, and clip_source_at shows the held frame at the new position. A moved held clip's undo is exact.",
+      "refused": "Timecode and marker read a source position, and a held clip plays none, so no tick of it can carry that position. sync_hold_unsupported names the clip, as the anchor or a member, before its timecode or marker is looked at. plan_clear_frame_hold is the way out, and the test proves the marker basis then works.",
+      "test": "tests/merge_sync.rs:866 a_held_clip_links_and_moves_but_cannot_align_by_a_source_position"
+    },
+    "session_correction": "The release message says ClipChange flows through session. It does not at this tip: session has no pulse dependency and no reference to ClipChange (tests/retime_commit.rs header states the same); it commits whole sequences. Its suite ran as requested. It holds no test of a link-only commit; retime_commit proves the same whole-sequence path for a record-only difference.",
+    "stu_vid_029_audit_at_27cba13b": [
+      {
+        "statement": "link: a video clip and its audio clips form one link_group",
+        "state": "present at base",
+        "where": "folio src/timeline.rs:393 and :751; pulse src/assemble.rs:231",
+        "test": "pulse tests/editing.rs:303-344; folio tests/timeline_contract.rs:217"
+      },
+      {
+        "statement": "link: selecting one selects all",
+        "state": "host concern, nothing added",
+        "where": "pulse expands a group only at edit time, src/timeline_edit.rs:349"
+      },
+      {
+        "statement": "link: trimming one trims all",
+        "state": "present at base",
+        "where": "pulse src/timeline_edit.rs:512 through selection() :349",
+        "test": "tests/timeline_edit.rs:245 ripple_trim_out_links_and_sync_lock"
+      },
+      {
+        "statement": "link: unlink dissolves the group",
+        "state": "missing at base, added",
+        "where": "pulse src/merge_sync.rs:307 plan_unlink",
+        "test": "tests/merge_sync.rs:240 unlink_dissolves_the_group_and_only_the_link"
+      },
+      {
+        "statement": "link: linked-selection master toggle suspends without dissolving",
+        "state": "planner side missing at base, added; the toggle state is host work",
+        "where": "pulse src/merge_sync.rs:275 plan_timeline_edit_with_linked_selection",
+        "test": "tests/merge_sync.rs:281 linked_selection_off_suspends_the_behaviour_without_dissolving",
+        "limit": "covers plan_timeline_edit and plan_move_clips; plan_rate_stretch and plan_assembly_edit do not take it"
+      },
+      {
+        "statement": "group: arbitrary set moved together",
+        "state": "move missing at base, added; stored group identity still missing",
+        "where": "pulse src/merge_sync.rs:409 plan_move_clips. At base the only move is host code, single clip, refusing linked clips: harness-view src/view/timeline.rs:1095-1100",
+        "test": "tests/merge_sync.rs:324 group_move_takes_an_arbitrary_set_with_no_sync_implication",
+        "gap": "Folio has no group field. A stored group needs a new StudioClip record field, outside this lane's owned paths: lead decision, and the 4b package suite when it lands"
+      },
+      {
+        "statement": "group: no sync implication",
+        "state": "added with the move",
+        "test": "tests/merge_sync.rs:324 and :387"
+      },
+      {
+        "statement": "sync lock: per-track flag deciding participation in the shift of an insert, extract or ripple trim",
+        "state": "present at base",
+        "where": "folio src/timeline.rs:432; pulse src/timeline_edit.rs:476-491, src/assemble.rs:315",
+        "test": "tests/timeline_edit.rs:245, :310-328, :709; tests/editing.rs:632"
+      },
+      {
+        "statement": "sync lock: not a selection relationship, not merged with link or group",
+        "state": "present at base, now pinned",
+        "where": "selection() does not read sync_locked; merge, unlink and move do not write it",
+        "test": "tests/merge_sync.rs:387 link_group_and_sync_lock_stay_three_relations"
+      },
+      {
+        "statement": "folio validation rule",
+        "state": "none missing, folio unchanged",
+        "where": "one clip per track is enforced at edit time as linked_edit_unsupported; STU-VID-029 states no document rule"
+      }
+    ],
+    "declared_readings": [
+      "In point = timeline start, out point = timeline end; a clip moves on its own track, later clips do not ripple, sync-locked tracks do not shift.",
+      "Merge anchors on its one video clip, so a merge needs exactly one video clip and at least one audio clip (STU-VID-029 'a video clip and the audio clips'). Two video clips refuse merge_no_av_pair. Synchronize takes any kinds and a named anchor.",
+      "Timecode needs unit speed, the same rate and drop-frame mode as the anchor, and a shared timecode span. Cross-rate label comparison is refused, not guessed.",
+      "Marker = the clip marker of the requested name inside the playing window, through the clip speed. A position between ticks rounds down, as marker_span does.",
+      "A link written in place leaves transitions alone; an aligning unit lists the ones it ends in dropped_transitions, even when no clip ends up moving.",
+      "A razor under Suspended leaves the right half unlinked; plan_unlink also works on a group that breaks the one-clip-per-track reading, as the way out of it."
+    ],
+    "waveform": {
+      "search": "git grep -iE 'correlat|waveform' at the lane base",
+      "found": "no audio alignment correlator in pulse's dependencies (accord, folio, observe, score). Score src/restore.rs has autocorrelation for an AR fit. Pigment src/track_math.rs has image-window cross-correlation and is not a pulse dependency. Harness-view src/view/waveform.rs is display. Repeated at 27cba13b with git grep -ilE 'cross.?correl|normalized.?correl|xcorr|autocorrel': hits only develop tests, pigment track_math.rs and score restore.rs; score's waveform-named modules are editing and display.",
+      "result": "SyncPoint::AudioWaveform refuses sync_waveform_unavailable",
+      "needs": "a bounded, cancellable cross-correlator between two sample streams in a crate pulse may depend on (Score fits; another crate is a steward-owned edge), plus a typed result carrying offset, confidence and provider identity, because MT-33727 asks that the match retain provider provenance. Tie and no-match need typed refusals."
+    },
+    "deviations": [
+      "plan_merge_clips and plan_synchronize return MergeSyncProposal, a wrapper around the one EditProposal, because MT-33727 expects alignment offset and provenance.",
+      "Added refusal sync_timecode_no_overlap for MT-33727's 'nonmatching timecode' negative.",
+      "Added refusal sync_hold_unsupported on the lead's instruction to state and test the held-clip case."
+    ],
+    "unproven": [
+      "A link-only or moved unit through the real session commit path: no test here; session has no edge to pulse.",
+      "No host drive: selection, toggle state, operator surface, Argus and manual adoption are not built or run here.",
+      "Vendor parity of merge, synchronize, sync reference, cross-rate timecode and alignment of a held clip is UNVERIFIED (D5).",
+      "An independent validation round has not judged this; nothing here is a PASS.",
+      "The full harness, harness-core, harness-view, interop-media and kernel-bindings test suites were not run; those crates had clippy and the --per-sha compile units only."
+    ],
+    "mt_proof_command_problem": "MT-33726 and MT-33727 plan a tests/contracts.rs selector that does not exist in pulse; the proof here is tests/merge_sync.rs. MT files were not edited."
   }
 }

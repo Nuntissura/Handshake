@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-05T09:43:42Z",
+ "updated_at": "2026-11-05T10:03:00Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -17776,8 +17776,8 @@
   },
   {
    "lane_id": "SMB-PR-MERGE-SYNC-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-pulse (merge clips, synchronize, link operations)",
    "lane_file": "builders/lanes/hsk-studio-pr-merge-sync-1.json",
    "brief": "builders/briefs/lane-smb-pr-merge-sync-1.md",
@@ -17785,11 +17785,12 @@
    "base": "ce644577",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-05T04:36:56Z",
+   "updated_at": "2026-11-05T10:03:00Z",
    "closes": [
     "MT-33726",
     "MT-33727"
-   ]
+   ],
+   "claim": "27cba13b tip, range 62f61621..27cba13b"
   },
   {
    "lane_id": "SMB-LAYOUT-ENTRY-TEXT-1",
@@ -19708,6 +19709,11 @@
     "added_at": "2026-11-05T09:43:42Z",
     "item": "TOC and cross-reference calls take no sections, so a section marker in a heading is a typed SectionsUnavailable gap there (SMB-LAYOUT-ENTRY-TEXT-1). Give those calls the sections",
     "owner": "a later layout lane"
+   },
+   {
+    "added_at": "2026-11-05T10:03:00Z",
+    "item": "STU-VID-029 linked-selection toggle does not reach plan_rate_stretch or plan_assembly_edit, and no test takes a link-only or moved unit through the real session commit path (session has no pulse edge) (SMB-PR-MERGE-SYNC-1 notes)",
+    "owner": "a later pulse lane"
    }
   ],
   "pause_20261103": {
