@@ -2,7 +2,7 @@
   "crate": "hsk-studio-type (U+2028 forced line break; terminator fast path), hsk-studio-layout (marker attribution before overset)",
   "lane": "SMB-R54-FOLLOWUPS-1",
   "status": "READY_FOR_VALIDATION",
-  "phase": "build (STUDIO-R55 FAIL_V1 @ce644577: remediation)",
+  "phase": "remediation of STUDIO-R55 FAIL_V1 pushed at 2fba5f61",
   "worktree": "wt-studio-lanes/smb-r54-followups-1",
   "base": "96ace3ca",
   "commits": [
@@ -40,12 +40,45 @@
       "sha": "b7066f94",
       "subject": "layout (item 2): overset marker state in the new test",
       "pushed": true
+    },
+    {
+      "sha": "5c189873",
+      "subject": "layout, interop-layout (SMB-R54-FOLLOWUPS-1 R55, red): one line per forced line break",
+      "pushed": true
+    },
+    {
+      "sha": "982bf942",
+      "subject": "type (SMB-R54-FOLLOWUPS-1 F-R55-1, red): composition token @3; U+2028 still ungated",
+      "pushed": true
+    },
+    {
+      "sha": "368d8481",
+      "subject": "harness-view (SMB-R54-FOLLOWUPS-1 F-R55-2, red): a forced line break in the Viewer text paths",
+      "pushed": true
+    },
+    {
+      "sha": "aa6ee7d9",
+      "subject": "layout (SMB-R54-FOLLOWUPS-1 R55): one line per forced line break in a glyph gap and before the first glyph",
+      "pushed": true
+    },
+    {
+      "sha": "a135530b",
+      "subject": "type (SMB-R54-FOLLOWUPS-1 F-R55-1): U+2028 outside shaping under composition @3 only",
+      "pushed": true
+    },
+    {
+      "sha": "2fba5f61",
+      "subject": "harness-view (SMB-R54-FOLLOWUPS-1 F-R55-2): class a forced line break in area text, refuse it on one-line paths",
+      "pushed": true
     }
   ],
   "capabilities_done": [
     "F-R54-3: Type keeps the forced line break U+2028 outside the shaping buffer (one glyph-less NonrenderingControl coverage entry, paragraph not split, stored code point kept), vendored and harfrust; layout breaks the line there through native Type",
     "F-R54-6: a glyph-less marker at a line start (at or after the UAX #14 break taken in the gap) belongs to the next line: its page, or overset (NotPlaced)",
-    "F-R54-4: measured; hsk_studio_type::ends_paragraph is a constant-time match kept equal to the metered rule for every scalar"
+    "F-R54-4: measured; hsk_studio_type::ends_paragraph is a constant-time match kept equal to the metered rule for every scalar",
+    "R55 failure: one line per mandatory break inside a glyph gap and one before the first glyph, all four composers and the CJK builder; a blank line takes the line metrics of an empty paragraph",
+    "F-R55-1: composition token @3 (COMPOSITION_VERSION), old token COMPOSITION_VERSION_V2, Semantics::V3; U+2028 outside shaping under @3 only, @1 and @2 shape it (Inter refuses MissingGlyph)",
+    "F-R55-2: Viewer area and point text class a U+2028 coverage entry as a forced break; text layers, text on a path, the text tool and area-to-point conversion refuse it typed"
   ],
   "tests": {
     "red_proof": {
@@ -108,7 +141,142 @@
     "push": "git push origin b7066f94:refs/heads/codex/handshake-studio-assets exit 0 (96ace3ca..b7066f94, fast-forward); re-fetch shows origin/codex/handshake-studio-assets = b7066f94 at 2026-11-02T14:46:54Z",
     "doctests": "none added or changed (4d)",
     "round_features_4e": "the harfrust twin is cfg(feature = harfrust) in type tests/stream_sentinels.rs; .config/round-features.toml has hsk-studio-type [[harfrust]], so rounds run it",
-    "step0": "lane-check step 0 clean in every call (no machine path)"
+    "step0": "lane-check step 0 clean in every call (no machine path)",
+    "remediation_r55": {
+      "red_proof": {
+        "argv": "cargo nextest run -p hsk-studio-layout -p hsk-studio-interop-layout -p hsk-studio-type --no-fail-fast -E 'test(mt_31008_each_forced_line_break) | test(mt_31008_a_blank_line) | test(mt_31008_a_trailing) | test(mt_31007_a_marker_on_a_blank_line) | test(mt_31008_blank_lines_through) | test(mt_31008_a_story_of_forced) | test(mt_31008_composition_3) | test(mt_31008_forced_line_break_is_a_line_break)'; cargo nextest run -p hsk-studio-type --features harfrust --no-fail-fast -E 'test(mt_31008_harfrust) | test(mt_31008_composition_3)'; cargo nextest run -p hsk-studio-harness-view --features viewer --no-fail-fast -E 'test(mt_31008_area_text_breaks) | test(mt_31008_paths_of_one_line)'; lane worktree, owner smb-r54-followups-1, C: SSD",
+        "sha": "6e5a1888 (before the rebases; the same three red commits are now 5c189873, 982bf942, 368d8481)",
+        "compiles": true,
+        "default": {
+          "exit": 100,
+          "passed": 3,
+          "failed": 7
+        },
+        "harfrust": {
+          "exit": 100,
+          "passed": 1,
+          "failed": 2
+        },
+        "viewer": {
+          "exit": 100,
+          "passed": 0,
+          "failed": 2
+        },
+        "failing": {
+          "layout, interop-layout": "H LS LS I gave [(0,1,10),(7,8,22)], expected a blank line and I on 34; layout marker_lookups, cjk_kinsoku and sentinels_native_type all red the same way",
+          "type": "'ab LS cd' composed under @1 and @2, expected MissingGlyph, default and harfrust",
+          "viewer": "one break: ink rows 4..=11 as the control (no break); path text inked instead of refusing"
+        },
+        "passing_controls": "mt_31008_a_trailing_forced_line_break_keeps_todays_reading (the declared reading), mt_31008_composition_3_keeps_every_other_v2_behaviour, mt_31008_forced_line_break_is_a_line_break_outside_shaping",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r54-followups-1/red-smb-r54-followups-1-6e5a1888.log"
+      },
+      "focused_first_green": {
+        "note": "the same script at the first green tip, so this log is GREEN despite its file name",
+        "sha": "42c11ae9",
+        "default": {
+          "exit": 0,
+          "passed": 10,
+          "failed": 0
+        },
+        "harfrust": {
+          "exit": 0,
+          "passed": 3,
+          "failed": 0
+        },
+        "viewer": {
+          "exit": 0,
+          "passed": 2,
+          "failed": 0
+        },
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r54-followups-1/red-smb-r54-followups-1-42c11ae9.log"
+      },
+      "last_green_bundled": {
+        "argv": "lane-check.sh --owner smb-r54-followups-1 -- cargo nextest run ... --no-fail-fast, three calls: -p hsk-studio-type -p hsk-studio-layout -p hsk-studio-interop-layout; -p hsk-studio-type --features harfrust; -p hsk-studio-harness-view --features viewer (step 0; clippy over those crates and direct dependents; whole suites). The dispatch said --disk c; the script takes only ssd|d, so the default ssd, the C: target, was used",
+        "sha": "150a9025",
+        "default": {
+          "exit": 0,
+          "passed": 407,
+          "failed": 0,
+          "per_crate": {
+            "hsk-studio-type": 112,
+            "hsk-studio-layout": 231,
+            "hsk-studio-interop-layout": 64
+          },
+          "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r54-followups-1/bundled-smb-r54-followups-1-150a9025-default.log",
+          "log_sha256": "f23508c669d103d2033ec7c49ca6a32b56957ce8b99970148731402f1fa89c91"
+        },
+        "harfrust": {
+          "exit": 0,
+          "passed": 114,
+          "failed": 0,
+          "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r54-followups-1/bundled-smb-r54-followups-1-150a9025-harfrust.log",
+          "log_sha256": "49436eb0f1b30c917ae3fb8cf7894984ca6cea2e33829092c772b32a5f99b10a"
+        },
+        "viewer": {
+          "exit": 0,
+          "passed": 106,
+          "failed": 0,
+          "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r54-followups-1/bundled-smb-r54-followups-1-150a9025-viewer.log",
+          "log_sha256": "f97400e29f40c781eb96fd45229dd2afc722effaf9053d11722e1e8b983abce2"
+        },
+        "earlier_green_same_change": "42c11ae9 and 19729387 (407, 114, 106 passed, exit 0; logs bundled-smb-r54-followups-1-<sha>-<unit>.log): reruns forced by origin moving, not by a failure"
+      },
+      "after_rebase_over_layout_entry_text": {
+        "why": "origin brought SMB-LAYOUT-ENTRY-TEXT-1 (1aa6f9a6, babffb40, f34a3d9a, 62f61621) in layout and interop-layout before this push, so those two suites were rerun (lead decision 2026-11-05)",
+        "argv": "lane-check.sh --owner smb-r54-followups-1 -- cargo nextest run -p hsk-studio-layout -p hsk-studio-interop-layout --no-fail-fast",
+        "sha": "dfc6fc8c",
+        "exit": 0,
+        "passed": 345,
+        "failed": 0,
+        "per_crate": {
+          "hsk-studio-layout": 274,
+          "hsk-studio-interop-layout": 71
+        },
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r54-followups-1/bundled-smb-r54-followups-1-dfc6fc8c-layout.log",
+        "log_sha256": "d0912eaa2785269b5a6680b0322269eb2b3ef64928b7f4e76dfa3242abcbf886"
+      },
+      "at_the_pushed_commit": {
+        "why": "lead decision 2026-11-05: incoming commits outside type, layout, interop-layout and the Viewer text path need per-sha plus the new tests only; R56 proves the union",
+        "rebased_over_since_dfc6fc8c": [
+          "bb2ccf2e pulse (SMB-PR-MERGE-SYNC-1, red)",
+          "309da2a3 pulse (SMB-PR-MERGE-SYNC-1)",
+          "9d8c5937 pulse (SMB-PR-MERGE-SYNC-1, red 2)",
+          "27cba13b pulse (SMB-PR-MERGE-SYNC-1)"
+        ],
+        "rebased_over_since_150a9025": "the four SMB-LAYOUT-ENTRY-TEXT-1 commits above and these four pulse commits",
+        "focused": {
+          "argv": "the red_proof argv",
+          "sha": "2fba5f61",
+          "default": {
+            "exit": 0,
+            "passed": 10,
+            "failed": 0
+          },
+          "harfrust": {
+            "exit": 0,
+            "passed": 3,
+            "failed": 0
+          },
+          "viewer": {
+            "exit": 0,
+            "passed": 2,
+            "failed": 0
+          },
+          "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r54-followups-1/focused-smb-r54-followups-1-2fba5f61.log"
+        },
+        "per_sha": {
+          "argv": "lane-check.sh --owner smb-r54-followups-1 --per-sha origin/codex/handshake-studio-assets",
+          "result": "PER_SHA_RESULT OK shas=6 range=27cba13b..2fba5f61 (exit 0)",
+          "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r54-followups-1/persha-smb-r54-followups-1-2fba5f61.log"
+        },
+        "push": "git push origin 2fba5f61...:refs/heads/codex/handshake-studio-assets exit 0 (27cba13b..2fba5f61, fast-forward); git ls-remote reads 2fba5f612517d0b8ffc21d4577948335f810ae5c after it",
+        "not_run_at_this_commit": "the whole suites of type (both units) and harness-view [viewer]: last green at 150a9025 (their incoming commits since are layout, interop-layout and pulse)"
+      },
+      "not_run": "suites of the other dependents of Type and layout (composite, interop-fig, harness, render-cpu, render-gpu) and the harness-view [desktop, audio-batch] unit: compiled by clippy or per-sha only, left to R56",
+      "doctests": "none added or changed (4d)",
+      "round_features_4e": "the new harness-view tests are in tests/viewer_vector_text.rs, #![cfg(feature = \"viewer\")], and .config/round-features.toml has hsk-studio-harness-view [[\"viewer\"], ...]; the harfrust test is cfg(feature = \"harfrust\"), unit hsk-studio-type [[\"harfrust\"]]",
+      "step0": "lane-check step 0 clean in every call (no machine path added)"
+    }
   },
   "verdicts": [
     {
@@ -201,8 +369,8 @@
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: brief topic remediation-r55: blank lines for LS LS and leading LS, @3 token for F-R55-1, Viewer classing for F-R55-2; rebase, per-sha, push, READY",
-  "updated_at": "2026-11-05T07:43:42Z",
+  "next": "validator: STUDIO-R56 judges 2fba5f61; lead: read notes.lead_attention (harfrust, no recorded upgrade)",
+  "updated_at": "2026-11-05T11:06:11Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -243,9 +411,11 @@
     "changed_assertions": [
       "interop-layout tests/sentinels_native_type.rs mt_31008_a_forced_line_break_through_native_type: NOT_PROVEN print and early return on a Type refusal -> assert no refusal, one paragraph, no glyph on U+2028, lines 0..1 and 4..5, 'I' on the next baseline, page-1, no overset, stored text unchanged",
       "type src/lib.rs public_ends_paragraph_answers_a_long_story_without_the_metered_lookup (new in e07011c6): counter terminator::METERED_CALLS (in the removed terminator::metered) -> validate::METERED_CALLS (the metered rule itself); assertion calls == 0 unchanged",
-      "layout tests/stream_sentinels.rs mt_31007_a_glyphless_marker_at_a_line_start_belongs_to_that_line (new in eb1dbfae): overset index marker state RuleUnstated -> NotPlaced (as every overset marker); page_id None unchanged"
+      "layout tests/stream_sentinels.rs mt_31007_a_glyphless_marker_at_a_line_start_belongs_to_that_line (new in eb1dbfae): overset index marker state RuleUnstated -> NotPlaced (as every overset marker); page_id None unchanged",
+      "type tests/stream_sentinels.rs mt_31008_forced_line_break_is_a_line_break_outside_shaping: request token V1 (the support default) -> COMPOSITION_VERSION (@3); assertions unchanged",
+      "type tests/stream_sentinels.rs mt_31008_forced_line_break_is_a_line_break_outside_shaping_harfrust REMOVED, replaced by mt_31008_harfrust_refuses_u2028_under_composition_1_and_every_later_token: it composed U+2028 under V1 through harfrust, which F-R55-1 ends"
     ],
-    "behaviour_change_type": "Type no longer shapes U+2028 under either composition token (v1, v2): before, a font without a U+2028 glyph refused MissingGlyph and a font with one shaped it as content; now it is a glyph-less coverage entry. The token was not bumped (proposal below)",
+    "behaviour_change_type": "Superseded by F-R55-1: Type keeps U+2028 out of shaping under composition @3 only; under @1 and @2 it behaves as before this lane (a font without the glyph refuses MissingGlyph, a font with it shapes it)",
     "v4_06": {
       "class": "story-byte-to-line attribution by glyph extent misplaces a glyph-less item at a line boundary",
       "regex": "partition_point\\(\\|l\\| ?l\\.(1|source\\.start) <=|source\\.start <= (at|byte|story_byte|anchor)",
@@ -260,17 +430,20 @@
     },
     "declared_readings": [
       "F-R54-6: in a gap between a line's last glyph and the next line's first glyph, the break taken is the first mandatory UAX #14 opportunity of the stored story in the gap, else the first allowed one; a marker at or after it belongs to the next line. InDesign placement UNVERIFIED (D5)",
-      "F-R54-3: U+2028 ends the shaping context (no run crosses it). Vendor parity UNVERIFIED (D5)"
+      "F-R54-3: U+2028 ends the shaping context (no run crosses it). Vendor parity UNVERIFIED (D5)",
+      "R55: a blank line made by a forced line break spans the story bytes from the break before it to the break that ends it, so a glyph-less marker on it belongs to it; its glyph range is empty. A line with glyphs keeps a source span of its glyphs only",
+      "R55: a CJK paragraph opening with a forced line break gives its first-line indent to the blank first line, so the first glyph line has none. InDesign UNVERIFIED (D5)"
     ],
     "spec_proposals": [
       "SENT-SD-14 (carried, NATIVE-2): state in STU-TYP-207 that the forced line break U+2028 is a mandatory line break outside glyph shaping (UAX #14 BK), not a paragraph terminator (UAX #9 WS), never a glyph",
-      "STU-TYP-130: state whether keeping U+2028 out of shaping needs a composition-token bump (a font mapping U+2028 composed it as a glyph under the v1/v2 tokens); Studio applied it under both tokens",
-      "STU-TYP-207 marker placement: state the line of a glyph-less marker at a line boundary (Studio: the line after the break opportunity taken)"
+      "STU-TYP-130: RESOLVED by lead decision 2026-11-05 (token @3, no exception); still open: the spec requires a recorded, undoable upgrade and no host stores an authored token",
+      "STU-TYP-207 marker placement: state the line of a glyph-less marker at a line boundary (Studio: the line after the break opportunity taken)",
+      "STU-TYP-207: state whether a forced line break after a paragraph's last glyph makes an empty line (validator probe n3; Studio keeps none, open for the D5 oracle)"
     ],
     "microtasks": {
-      "MT-31008": "partly met: forced line break row met through native Type (type mt_31008_forced_line_break_is_a_line_break_outside_shaping and _harfrust; interop-layout mt_31008_a_forced_line_break_through_native_type, no NOT_PROVEN line); other break rows as SMB-SENTINELS-NATIVE-1; AC-003 operator surface open (gui_host none)",
-      "MT-31005": "partly met: the forced line break composes through native Type (the NOT_PROVEN of SMB-SENTINELS-NATIVE-1 closed); fixed / flexible non-breaking-space rules and AC-003 open",
-      "MT-31007": "partly met: marker placement at a line boundary corrected (layout mt_31007_a_glyphless_marker_at_a_line_start_belongs_to_that_line); anchored-object marker and AC-003 operator surface open"
+      "MT-31008": "partly met: forced line break row now met at layout too (one line per break, blank lines, leading break; four composers and CJK, native Type default provider); other break rows as SMB-SENTINELS-NATIVE-1; AC-003 operator surface open; trailing break open for D5",
+      "MT-31005": "partly met: forced line break composes through native Type under @3; fixed / flexible non-breaking-space rules and AC-003 open",
+      "MT-31007": "partly met: marker on a blank line resolves for that line (mt_31007_a_marker_on_a_blank_line_resolves_for_that_line); anchored-object marker and AC-003 operator surface open"
     },
     "lead_decisions": [
       {
@@ -283,7 +456,218 @@
         "on": "owner of paragraph.rs and cjk.rs (round-R55 remediation note, V4-15)",
         "decision": "This lane owns them for the remediation."
       }
-    ]
+    ],
+    "v4_06_r55": {
+      "class": "forced-line-break-without-glyph-before-collapsed: a glyph gap's mandatory breaks folded into one line end, and none before the first glyph",
+      "regex": "opp_after|BreakKind::Mandatory|break_opportunities\\(|penalty\\(FORCED|forced\\(&|finish\\(&mut items|finish_blank\\(&mut",
+      "scope": "git grep over crates/*/src at 2fba5f61; every match is in hsk-studio-layout, no other crate reads these",
+      "count": 44,
+      "count_fixed": 14,
+      "count_not_applicable": 30,
+      "sites": [
+        {
+          "site": "layout/src/adobe_composer.rs:133",
+          "verdict": "NOT_APPLICABLE: consumes forced penalties one at a time; a fill plus a forced penalty with no box is a legal zero-width line (mt_31008_each_forced_line_break_makes_one_line_in_every_composer)"
+        },
+        {
+          "site": "layout/src/adobe_composer.rs:551",
+          "verdict": "NOT_APPLICABLE: consumes forced penalties one at a time; a fill plus a forced penalty with no box is a legal zero-width line (mt_31008_each_forced_line_break_makes_one_line_in_every_composer)"
+        },
+        {
+          "site": "layout/src/breaker.rs:161",
+          "verdict": "NOT_APPLICABLE: consumes forced penalties one at a time; a fill plus a forced penalty with no box is a legal zero-width line (mt_31008_each_forced_line_break_makes_one_line_in_every_composer)"
+        },
+        {
+          "site": "layout/src/breaker.rs:195",
+          "verdict": "NOT_APPLICABLE: consumes forced penalties one at a time; a fill plus a forced penalty with no box is a legal zero-width line (mt_31008_each_forced_line_break_makes_one_line_in_every_composer)"
+        },
+        {
+          "site": "layout/src/breaker.rs:295",
+          "verdict": "NOT_APPLICABLE: consumes forced penalties one at a time; a fill plus a forced penalty with no box is a legal zero-width line (mt_31008_each_forced_line_break_makes_one_line_in_every_composer)"
+        },
+        {
+          "site": "layout/src/cjk.rs:593",
+          "verdict": "NOT_APPLICABLE: the opportunity list itself, already one entry per break"
+        },
+        {
+          "site": "layout/src/cjk.rs:594",
+          "verdict": "NOT_APPLICABLE: opp_after still folds a gap into one kind, which only decides where a glyph run ends; the count comes from blank_lines"
+        },
+        {
+          "site": "layout/src/cjk.rs:600",
+          "verdict": "NOT_APPLICABLE: opp_after still folds a gap into one kind, which only decides where a glyph run ends; the count comes from blank_lines"
+        },
+        {
+          "site": "layout/src/cjk.rs:601",
+          "verdict": "NOT_APPLICABLE: opp_after still folds a gap into one kind, which only decides where a glyph run ends; the count comes from blank_lines"
+        },
+        {
+          "site": "layout/src/cjk.rs:645",
+          "verdict": "NOT_APPLICABLE: the finish closure; called once per line"
+        },
+        {
+          "site": "layout/src/cjk.rs:650",
+          "verdict": "FIXED: emits one forced penalty per further mandatory break (blank_lines)"
+        },
+        {
+          "site": "layout/src/cjk.rs:653",
+          "verdict": "FIXED: emits one forced penalty per further mandatory break (blank_lines)"
+        },
+        {
+          "site": "layout/src/cjk.rs:658",
+          "verdict": "NOT_APPLICABLE: run grouping, reads whether a gap has a break, not how many"
+        },
+        {
+          "site": "layout/src/cjk.rs:662",
+          "verdict": "NOT_APPLICABLE: run grouping, reads whether a gap has a break, not how many"
+        },
+        {
+          "site": "layout/src/cjk.rs:664",
+          "verdict": "FIXED: the first break of the gap ends the line; finish_blank on the next line adds the rest"
+        },
+        {
+          "site": "layout/src/cjk.rs:665",
+          "verdict": "FIXED: the first break of the gap ends the line; finish_blank on the next line adds the rest"
+        },
+        {
+          "site": "layout/src/cjk.rs:666",
+          "verdict": "FIXED: emits one forced penalty per further mandatory break (blank_lines)"
+        },
+        {
+          "site": "layout/src/cjk.rs:674",
+          "verdict": "NOT_APPLICABLE: run grouping, reads whether a gap has a break, not how many"
+        },
+        {
+          "site": "layout/src/cjk.rs:675",
+          "verdict": "FIXED: the first break of the gap ends the line; finish_blank on the next line adds the rest"
+        },
+        {
+          "site": "layout/src/cjk.rs:676",
+          "verdict": "FIXED: the first break of the gap ends the line; finish_blank on the next line adds the rest"
+        },
+        {
+          "site": "layout/src/cjk.rs:677",
+          "verdict": "FIXED: emits one forced penalty per further mandatory break (blank_lines)"
+        },
+        {
+          "site": "layout/src/cjk.rs:739",
+          "verdict": "NOT_APPLICABLE by decision: the paragraph end; breaks after the last glyph stay as they were, open for the D5 oracle (mt_31008_a_trailing_forced_line_break_keeps_todays_reading)"
+        },
+        {
+          "site": "layout/src/cjk.rs:799",
+          "verdict": "NOT_APPLICABLE: CJK single-line breaker and line setter read forced penalties one at a time (mt_31008_each_forced_line_break_makes_one_cjk_line)"
+        },
+        {
+          "site": "layout/src/cjk.rs:810",
+          "verdict": "NOT_APPLICABLE: CJK single-line breaker and line setter read forced penalties one at a time (mt_31008_each_forced_line_break_makes_one_cjk_line)"
+        },
+        {
+          "site": "layout/src/cjk.rs:840",
+          "verdict": "NOT_APPLICABLE: CJK single-line breaker and line setter read forced penalties one at a time (mt_31008_each_forced_line_break_makes_one_cjk_line)"
+        },
+        {
+          "site": "layout/src/cjk.rs:896",
+          "verdict": "NOT_APPLICABLE: CJK single-line breaker and line setter read forced penalties one at a time (mt_31008_each_forced_line_break_makes_one_cjk_line)"
+        },
+        {
+          "site": "layout/src/paragraph.rs:231",
+          "verdict": "NOT_APPLICABLE: the opportunity list itself, already one entry per break"
+        },
+        {
+          "site": "layout/src/paragraph.rs:236",
+          "verdict": "NOT_APPLICABLE: the opportunity list itself, already one entry per break"
+        },
+        {
+          "site": "layout/src/paragraph.rs:362",
+          "verdict": "FIXED: emits one forced penalty per further mandatory break (blank_lines)"
+        },
+        {
+          "site": "layout/src/paragraph.rs:409",
+          "verdict": "NOT_APPLICABLE: the opportunity list itself, already one entry per break"
+        },
+        {
+          "site": "layout/src/paragraph.rs:435",
+          "verdict": "NOT_APPLICABLE: opp_after still folds a gap into one kind, which only decides where a glyph run ends; the count comes from blank_lines"
+        },
+        {
+          "site": "layout/src/paragraph.rs:441",
+          "verdict": "NOT_APPLICABLE: opp_after still folds a gap into one kind, which only decides where a glyph run ends; the count comes from blank_lines"
+        },
+        {
+          "site": "layout/src/paragraph.rs:442",
+          "verdict": "NOT_APPLICABLE: opp_after still folds a gap into one kind, which only decides where a glyph run ends; the count comes from blank_lines"
+        },
+        {
+          "site": "layout/src/paragraph.rs:459",
+          "verdict": "NOT_APPLICABLE: the finish closure; called once per line"
+        },
+        {
+          "site": "layout/src/paragraph.rs:464",
+          "verdict": "FIXED: emits one forced penalty per further mandatory break (blank_lines)"
+        },
+        {
+          "site": "layout/src/paragraph.rs:468",
+          "verdict": "FIXED: emits one forced penalty per further mandatory break (blank_lines)"
+        },
+        {
+          "site": "layout/src/paragraph.rs:477",
+          "verdict": "NOT_APPLICABLE: run grouping, reads whether a gap has a break, not how many"
+        },
+        {
+          "site": "layout/src/paragraph.rs:480",
+          "verdict": "NOT_APPLICABLE: run grouping, reads whether a gap has a break, not how many"
+        },
+        {
+          "site": "layout/src/paragraph.rs:594",
+          "verdict": "FIXED: the first break of the gap ends the line; finish_blank on the next line adds the rest"
+        },
+        {
+          "site": "layout/src/paragraph.rs:595",
+          "verdict": "FIXED: the first break of the gap ends the line; finish_blank on the next line adds the rest"
+        },
+        {
+          "site": "layout/src/paragraph.rs:596",
+          "verdict": "FIXED: emits one forced penalty per further mandatory break (blank_lines)"
+        },
+        {
+          "site": "layout/src/paragraph.rs:606",
+          "verdict": "NOT_APPLICABLE by decision: the paragraph end; breaks after the last glyph stay as they were, open for the D5 oracle (mt_31008_a_trailing_forced_line_break_keeps_todays_reading)"
+        },
+        {
+          "site": "layout/src/sentinels.rs:621",
+          "verdict": "NOT_APPLICABLE, re-checked: line_holding needs no change; a blank line spans its bytes and its end is a mandatory break (mt_31007_a_marker_on_a_blank_line_resolves_for_that_line, mt_31008_blank_lines_through_the_toy_shaper_and_the_byte_to_line_rule)"
+        },
+        {
+          "site": "layout/src/sentinels.rs:629",
+          "verdict": "NOT_APPLICABLE, re-checked: line_holding needs no change; a blank line spans its bytes and its end is a mandatory break (mt_31007_a_marker_on_a_blank_line_resolves_for_that_line, mt_31008_blank_lines_through_the_toy_shaper_and_the_byte_to_line_rule)"
+        }
+      ]
+    },
+    "lead_attention": [
+      "HARFRUST, brief not met as written: the brief asks for U+2028 to compose under @3 in both providers AND for provider/harfrust.rs's gate to keep its V2 behaviour under V3. The gate is `!= V1 -> UnknownComposition`, so both cannot hold. The explicit gate instruction was followed: through harfrust a run under @2 or @3 refuses UnknownComposition and under @1 U+2028 refuses MissingGlyph; only a paragraph with no run composes under @3. Pinned by mt_31008_harfrust_refuses_u2028_under_composition_1_and_every_later_token. This reverses the R55 harfrust half: no token now composes a run next to U+2028 through harfrust. Blank-line layout has no harfrust route for the same reason. Decide if the spike provider should change.",
+      "STU-TYP-130 UPGRADE (read, not built): no recorded, undoable upgrade from @2 to @3 exists, nor for any token. Outside Type, composition_version appears only at harness-view src/view/text.rs:598 and interop test helpers, always the current constant; no record stores an authored token (grep composition_version|composition_token|upgrade over crates/*/src). So Type can recompose under an old token, but no host asks it to: a Viewer document recomposes under @3 today. Open.",
+      "SMB-LAYOUT-ENTRY-TEXT-1 landed before this push, against the requested order; this lane rebased over it and reran layout and interop-layout (345 passed)."
+    ],
+    "f_r55_1": {
+      "decision": "lead_decisions[0]: new token @3",
+      "gates": "engine.rs presentation ligatures and serialize.rs line-end data run for V2 and V3 through Semantics::line_end_data; harfrust gate unchanged; outside_shaping takes the semantics",
+      "second_gate_for_blank_lines": "none needed, by reading (not by a run): under @1 and @2 outside_shaping keeps only paragraph terminators out of the buffer, and they end the paragraph, so every other character, the BK class U+000B and U+000C and U+2028 included, gets a glyph or a refusal; a gap therefore holds at most one mandatory break at a glyph boundary. Only @3 leaves U+2028 glyph-less. A non-Type caller of layout can still build such a gap (the toy shapers do)",
+      "not_proven": "a font that maps U+2028 under @1 and @2 (shapes it as content): no fixture maps it. fontTools cmap read at this lane: epaint Ubuntu-Light, Hack-Regular, NotoEmoji-Regular, emoji-icon-font do not; R55 read the Type fixtures. No font added",
+      "pins": "no test pinned the @2 string or a digest of a current-token result; no pin updated, no V1 or V2 output re-blessed"
+    },
+    "f_r55_2": {
+      "classed": "text::shaped_story: Point and Area stories get a zero-advance, outline-less GlyphBreak::Paragraph glyph at each U+2028 coverage entry",
+      "refused": "FORCED_LINE_BREAK_UNSUPPORTED (text_forced_line_break_unsupported: <id>): text layers (prepare, animated_glyphs), shaped_line, shaped_glyphs (vector tool path text), Path stories in shaped_story, a story whose glyphs are not in logical order (bidi), convert_text_kind area to point. place_text refuses U+2028 as text_content",
+      "not_proven": "Point stories through shaped_story and the bidi refusal have no test of their own (layout_point_text with a Paragraph glyph is the existing Type path); animated_glyphs under feature media and shaped_line were not run with U+2028",
+      "host_integration_note": "refusals are typed strings through the existing vector_text_reports and state_json route; no new observe emission, no new control or command; new public names only COMPOSITION_VERSION_V2 (type) and FORCED_LINE_BREAK_UNSUPPORTED (harness-view); no new egui, eframe, winit or wgpu line"
+    },
+    "open_r55": [
+      "Trailing forced line break before a paragraph end (probe n3), also several, also a paragraph of only U+2028: today's behaviour kept, one line, declared; open for the D5 oracle",
+      "NOT_INSPECTED by running: harness-view layout_ui.rs:698 (quarantined egui test host) paints text[line.source] and layout_ui/threads.rs:172 lists it, so a blank line shows its U+2028 or marker bytes there; not changed (no new egui line). pdf_export reads glyph_range only, an empty range is fine there",
+      "UNVERIFIED, not new with this lane: adobe_composer paragraph best() recurses once per line with a whole-paragraph window on ragged text; only 2000 forced breaks through first-fit were tested. A story of up to 64 MiB of forced breaks through that composer was not tested; repeated \"a U+2028\" already reached it before this lane",
+      "InDesign, Illustrator and vendor parity of blank lines UNVERIFIED (D5)"
+    ],
+    "touched_beyond_brief": "crates/hsk-studio-type/src/{engine.rs,serialize.rs,lib.rs,provider/harfrust.rs (comment only)} (named gates of the brief); harness-view src/view/vector.rs (convert_text_kind refusal; the brief named only text.rs); layout tests/cjk_kinsoku.rs, tests/marker_lookups.rs (new tests in layout); layout src/threaded_reflow.rs (blank line source span)"
   },
-  "pushed_sha": "b7066f94"
+  "pushed_sha": "2fba5f61"
 }
