@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-03T20:29:24Z",
+ "updated_at": "2026-11-05T03:55:32Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19265,6 +19265,11 @@
     "resume SMB-LAYOUT-MARKER-LOOKUPS-1 builder (sweep in progress, uncommitted edits)",
     "then STUDIO-R55 (scoped) over SMB-R54-FOLLOWUPS-1, SMB-PR-SEQUENCE-PRESETS-1, SMB-LAYOUT-MARKER-LOOKUPS-1"
    ]
+  },
+  "resume_20261105": {
+   "at": "2026-11-05T03:55:32Z",
+   "operator_instruction": "ok proceed",
+   "state": "product origin cc58a511; SMB-PR-SEQUENCE-PRESETS-1 and SMB-LAYOUT-MARKER-LOOKUPS-1 builders resumed by message; next STUDIO-R55 (scoped) per pause_20261103.resume_steps"
   }
  },
  "round_R45": {
