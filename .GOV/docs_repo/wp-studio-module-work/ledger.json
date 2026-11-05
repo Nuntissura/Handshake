@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-05T09:17:21Z",
+ "updated_at": "2026-11-05T09:43:42Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -17793,8 +17793,8 @@
   },
   {
    "lane_id": "SMB-LAYOUT-ENTRY-TEXT-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation, one follow-up commit owed",
    "crate": "hsk-studio-layout (derived text of TOC, running text and cross-references; note hosts)",
    "lane_file": "builders/lanes/hsk-studio-layout-entry-text-1.json",
    "brief": "builders/briefs/lane-smb-layout-entry-text-1.md",
@@ -17802,12 +17802,13 @@
    "base": "ce644577",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-05T07:43:42Z",
+   "updated_at": "2026-11-05T09:43:42Z",
    "closes": [
     "F-R55-5",
     "F-R55-9",
     "F-R55-11"
-   ]
+   ],
+   "claim": "1aa6f9a6..62f61621 plus the follow-up"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -19702,6 +19703,11 @@
     "added_at": "2026-11-05T07:43:42Z",
     "item": "F-R55-3: the proof commands of MT-33686 and MT-33695..MT-33702 name cargo test -p hsk-studio-pulse --test contracts, which does not exist, and the MTs name STUDIO-MODULE-PULSE as owner though the work is in folio and session. Repoint to folio --test sequence_settings_records and session --test sequence_records_round_trip; MT files are the contract owner's",
     "owner": "contract owner (lead has not edited MT files)"
+   },
+   {
+    "added_at": "2026-11-05T09:43:42Z",
+    "item": "TOC and cross-reference calls take no sections, so a section marker in a heading is a typed SectionsUnavailable gap there (SMB-LAYOUT-ENTRY-TEXT-1). Give those calls the sections",
+    "owner": "a later layout lane"
    }
   ],
   "pause_20261103": {

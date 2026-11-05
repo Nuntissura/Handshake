@@ -246,7 +246,24 @@
       "UNVERIFIED (D5): InDesign handling of markers in a TOC entry, cross-reference or running header; flush space and inner terminators in an entry"
     ],
     "behaviour_change": "Cross-reference text now trims U+2029 and the other terminators, where it trimmed only U+000A and U+000D. An inner terminator in a character-style range, a note body or a captured selection is a space. U+FFFC leaves entry text. An index topic can no longer be captured from a selection holding a page-number, section or cross-reference marker or a reserved code point. New public fields: marker_gaps on five result structs, resolved_text on NoteHost",
-    "paths_outside_brief_list": "crates/hsk-studio-interop-layout/tests/longdoc_pdf.rs:1121 and crates/hsk-studio-layout/src/index_contract.rs: see path_extensions. tests/longdoc_running_notes.rs and tests/marker_lookups.rs are in the owned tests. sentinels.rs, paragraph.rs and cjk.rs untouched"
+    "paths_outside_brief_list": "crates/hsk-studio-interop-layout/tests/longdoc_pdf.rs:1121 and crates/hsk-studio-layout/src/index_contract.rs: see path_extensions. tests/longdoc_running_notes.rs and tests/marker_lookups.rs are in the owned tests. sentinels.rs, paragraph.rs and cjk.rs untouched",
+    "lead_decisions": [
+      {
+        "at": "2026-11-05T09:43:42Z",
+        "on": "the marker value rule exists twice, sentinels.rs resolve and derived_text value_at, pinned equal by a test",
+        "decision": "Not accepted as the end state: one rule. Fold into one after SMB-R54-FOLLOWUPS-1 lands, because that lane holds sentinels.rs. Later commits are listed in this lane's claim (V4-14)."
+      },
+      {
+        "at": "2026-11-05T09:43:42Z",
+        "on": "a heading holding only markers gives an empty TOC entry",
+        "decision": "Treat it like an empty heading, which has no placed line and no entry: no TOC entry, any marker gap still reported. Declared reading; InDesign behaviour UNVERIFIED (D5). Same follow-up commit."
+      },
+      {
+        "at": "2026-11-05T09:43:42Z",
+        "on": "TOC and cross-reference calls have no sections, so a section marker there is a typed gap",
+        "decision": "Accepted for now: typed and honest. Recorded as a candidate to give those calls the sections."
+      }
+    ]
   },
   "pushed_sha": "62f61621"
 }
