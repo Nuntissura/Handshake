@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-05T10:05:08Z",
+ "updated_at": "2026-11-05T11:07:36Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -17663,8 +17663,8 @@
   },
   {
    "lane_id": "SMB-R54-FOLLOWUPS-1",
-   "status": "FAIL_V1",
-   "phase": "build (STUDIO-R55 FAIL_V1 @ce644577: remediation)",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation (remediation of STUDIO-R55 FAIL_V1)",
    "crate": "hsk-studio-type (U+2028 forced line break; terminator fast path), hsk-studio-layout (marker attribution before overset)",
    "lane_file": "builders/lanes/hsk-studio-r54-followups-1.json",
    "brief": "builders/briefs/lane-smb-r54-followups-1.md",
@@ -17672,7 +17672,7 @@
    "base": "96ace3ca",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-02T14:47:56Z",
+   "updated_at": "2026-11-05T11:07:36Z",
    "closes": [
     "F-R54-3 (INFO)",
     "F-R54-6 (INFO)",
@@ -17683,7 +17683,8 @@
    "pushed": "96ace3ca..b7066f94",
    "verdicts": [
     "STUDIO-R55 FAIL_V1 @ce644577 (a second forced line break and a leading one make no line; one line per mandatory break in a glyph gap and before the first glyph; test LS LS, leading LS; V4-06; NOT_PROVEN lines: 9, see round-R55.json)"
-   ]
+   ],
+   "claim": "5c189873..2fba5f61"
   },
   {
    "lane_id": "SMB-PR-SEQUENCE-PRESETS-1",
@@ -19736,6 +19737,21 @@
     "added_at": "2026-11-05T10:03:00Z",
     "item": "STU-VID-029 linked-selection toggle does not reach plan_rate_stretch or plan_assembly_edit, and no test takes a link-only or moved unit through the real session commit path (session has no pulse edge) (SMB-PR-MERGE-SYNC-1 notes)",
     "owner": "a later pulse lane"
+   },
+   {
+    "added_at": "2026-11-05T11:07:36Z",
+    "item": "STU-TYP-130, MT-30898: no recorded, undoable upgrade between composition tokens exists, and no host stores a document's authored token, so Viewer documents recompose under the newest token (@3). The spec requires recomposing under the authored token unless explicitly upgraded. Store the token with the story or document and add the upgrade as a recorded, undoable, diffable operation. Found by SMB-R54-FOLLOWUPS-1",
+    "owner": "a later type, folio and session lane"
+   },
+   {
+    "added_at": "2026-11-05T11:07:36Z",
+    "item": "The harfrust spike provider implements composition v1 only, so @2 and @3 are UnknownComposition there. Decide whether it follows later tokens or stays a v1 spike",
+    "owner": "lead, with the Type owner"
+   },
+   {
+    "added_at": "2026-11-05T11:07:36Z",
+    "item": "Viewer move, harness-view plan_move: two proposals plus unreported edits where pulse plan_move_clips gives one proposal with a true report, but plan_move_clips cannot change track, refuses overlap where plan_move overwrites, and moves link partners. Whether a drag onto a clip overwrites or refuses is UNVERIFIED (D5); left as is until GUI work resumes. Found by SMB-PR-EDIT-FOOTPRINT-1",
+    "owner": "a later GUI lane"
    }
   ],
   "pause_20261103": {

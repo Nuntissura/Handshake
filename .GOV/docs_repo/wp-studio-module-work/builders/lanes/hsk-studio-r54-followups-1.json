@@ -455,6 +455,16 @@
         "at": "2026-11-05T07:43:42Z",
         "on": "owner of paragraph.rs and cjk.rs (round-R55 remediation note, V4-15)",
         "decision": "This lane owns them for the remediation."
+      },
+      {
+        "at": "2026-11-05T11:07:36Z",
+        "on": "the brief said U+2028 composes under @3 in both providers, but the harfrust spike provider refuses every non-V1 token",
+        "decision": "The brief was wrong; keep the gate. The spike implements composition v1 only and says so at provider/harfrust.rs. Through harfrust U+2028 keeps v1 behaviour (MissingGlyph on a font without the glyph). Whether the spike follows later tokens is a separate question, recorded as a candidate."
+      },
+      {
+        "at": "2026-11-05T11:07:36Z",
+        "on": "paths beyond the brief: harness-view src/view/vector.rs, layout src/threaded_reflow.rs, layout tests cjk_kinsoku.rs and marker_lookups.rs",
+        "decision": "In scope of the remediation in substance; taken to the Operator on the GLOBAL-SCOPE-005 list."
       }
     ],
     "v4_06_r55": {

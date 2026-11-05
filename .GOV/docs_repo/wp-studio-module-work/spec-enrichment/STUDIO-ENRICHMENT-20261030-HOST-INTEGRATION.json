@@ -405,6 +405,14 @@
    "lead_reading": "2026-11-05: apply writes the rate with no re-timing or frame-grid check, declared, vendor parity UNVERIFIED (D5); ids stand under the multicam precedent until decided",
    "source": "STUDIO-R55 F-R55-7, F-R55-10, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-49",
+   "gap": "STU-VID-036 says track display state is persisted per sequence and is silent on what happens to it when the sequence is removed",
+   "needs": "whether a view preference may outlive its sequence and return with an undo",
+   "lead_reading": "2026-11-05: a display entry never blocks a document edit or an undo; an entry naming an absent sequence is inert, listed read-only, removed only explicitly. Settings and multicam keep their refusal. Vendor parity UNVERIFIED (D5)",
+   "source": "lane SMB-PR-TRACK-DISPLAY-1, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [
