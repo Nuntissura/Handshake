@@ -1,0 +1,831 @@
+{
+ "area": "WP-KERNEL-STUDIO truth check: product usability against HBR INT, VIS, MAN, QUIET, SWARM and the Operator's global app requirements (manual, debug suite, parallel models, quiet operation)",
+ "tree": {
+  "path": "wt-studio-lanes/smb-type-authored-token-1/handshake-studio-assets",
+  "head": "1940292c64d57a65cc753f3258374f8b57b97f36",
+  "build_rules": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json v1.18.0",
+  "validation": "S/validation/round-R56.json candidate 091c4d1b (older than the tree inspected)"
+ },
+ "method": "Read every rule row (trigger, applicability, required_action, evidence_kind, not_applicable_when). git grep across the tree, then opened the cited code. No cargo, no builds, no tests, no process control, so runtime behaviour is read from code, not observed. Verdicts judge the asset tree; where a rule depends on a host primitive, the host's state is NOT_INSPECTED. S = .GOV/docs_repo/wp-studio-module-work. Line ranges are those opened. Flag drift computed by comparing quoted --flags in cli.rs with manual.rs text.",
+ "direction_context": "D1 egui dropped, existing egui code is test host only; D7 pure Vulkan, no wgpu; D8 Kumihimo non-egui renderer; GUI lanes paused. blocked_by_gui_pause true means the gap cannot close honestly until that layer exists.",
+ "verdict_counts": {
+  "PARTIAL": 37,
+  "NOT_APPLICABLE_YET": 6,
+  "MISSING": 13,
+  "MET": 4
+ },
+ "rules": [
+  {
+   "id": "HBR-INT-001",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness-core/src/harness.rs:488-534",
+    "crates/hsk-studio-harness-core/src/context.rs:24",
+    "crates/hsk-studio-kernel-bindings/src/business_event.rs:1-18",
+    "crates/hsk-studio-kernel-bindings/src/business_event.rs:60-79",
+    "crates/hsk-studio-kernel-bindings/src/host.rs:550-589",
+    "crates/hsk-studio-harness/src/cli.rs:1029",
+    "crates/hsk-studio-harness-view/src/view/mod.rs:297-305",
+    "crates/hsk-studio-harness-core/tests/business_events_run.rs:132-162"
+   ],
+   "gap": "Run emits typed events for 9 ids after accepted commits; 13 catalog ids have no producer, including ExportRendered and every proposal or promotion id. CLI and desktop binary use asset_local_test_context with no sink, so in every shipped path delivery is no_sink and nothing is emitted. The only sink is the memory-only TransientBusinessEvents used in tests. Envelopes carry ids and digests only, so no ledger replay can reconstruct behaviour, and no replay-from-events test exists. Host delivery is MT-36230.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "HBR-INT-002",
+   "verdict": "NOT_APPLICABLE_YET",
+   "evidence": [
+    "crates/hsk-studio-develop/src/retouch.rs:9",
+    "crates/hsk-studio-develop/src/retouch.rs:246-247"
+   ],
+   "gap": "No model invocation path in the tree: generative fill exists only as a retained record, never rendered. Cargo.lock has no reqwest, hyper, ureq or tokio. No ContextBundle, ModelAdapter or ToolGate code (0 hits for the rule's names except that comment).",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "HBR-INT-003",
+   "verdict": "MISSING",
+   "evidence": [
+    "crates/hsk-studio-kernel-bindings/src/lib.rs:94",
+    "crates/hsk-studio-kernel-bindings/src/business_event.rs:63-68",
+    "crates/hsk-studio-session/src/session.rs:4",
+    "crates/hsk-studio-session/src/session.rs:2530-2557"
+   ],
+   "gap": "No PromotionGate in the tree: the kernel-bindings DESCRIPTOR lists it NOT_IMPLEMENTED_HOST_ONLY and proposal/promotion events carry reason no_promotion_or_proposal_flow. A session without an injected commit authority saves directly to the path it is given. There is a commit-authority port with grant, epoch and revision fences (real and tested), but no promotion event and no negative test that direct mutation fails closed.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "HBR-INT-004",
+   "verdict": "NOT_APPLICABLE_YET",
+   "evidence": [
+    "crates/hsk-studio-session/src/session.rs:4"
+   ],
+   "gap": "No CRDT, 0 hits for crdt across crates. Documents are single-writer sessions serialized by &mut self. Any live collaboration requirement has no code at all.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "HBR-INT-005",
+   "verdict": "NOT_APPLICABLE_YET",
+   "evidence": [
+    "crates/hsk-studio-develop/src/retouch.rs:246-247"
+   ],
+   "gap": "No model lane adapter exists in the tree; nothing normalizes into SessionRun.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "HBR-INT-006",
+   "verdict": "NOT_APPLICABLE_YET",
+   "evidence": [
+    "crates/hsk-studio-observe/src/lib.rs:1"
+   ],
+   "gap": "No role or agent decision surface and 0 FEMS hits. NA clause (FEMS not in this tree) applies at asset level; no typed FEMS port exists for a host to bind. Host FEMS state NOT_INSPECTED.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "HBR-INT-007",
+   "verdict": "MISSING",
+   "evidence": [
+    "crates/hsk-studio-harness-core/src/harness.rs:976",
+    "crates/hsk-studio-harness-core/src/harness.rs:1851-1858",
+    "crates/hsk-studio-harness-core/src/harness.rs:125-136",
+    "crates/hsk-studio-harness-view/src/view/mod.rs:231",
+    "crates/hsk-studio-harness-view/src/view/mod.rs:492-502"
+   ],
+   "gap": "0 TraceProjection hits. Op records, undo history and status log live in memory and die with the process (CLI prints ops to stdout once). Harness FrameSink keeps only class and byte length of each observe frame. After a run only the package and explicit receipts survive; what ran cannot be reconstructed from durable state. NA clause depends on the host's TraceProjection: NOT_INSPECTED.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "HBR-INT-008",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness-core/src/import.rs:864-887",
+    "crates/hsk-studio-harness-view/src/layout_ui.rs:882-884",
+    "crates/hsk-studio-harness-view/src/layout_ui/pages.rs:138-148"
+   ],
+   "gap": "Zero Uuid::, new_v4 or now_v7 sites and no direct uuid dependency (Cargo.lock uuid comes through zbus only). But product ids are hand-formatted to look like v7 ('-7000-8000-') with a seed from the source SHA-256 or a fixed 019a5a10 prefix, so they are not time-ordered. Deterministic on purpose for imports; the rule's a <= b assertion cannot hold and no rule carve-out covers it. Needs a recorded decision.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "HBR-INT-009",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-observe/src/ring.rs:1-8",
+    "crates/hsk-studio-observe/src/lib.rs:27-31",
+    "crates/hsk-studio-harness-view/src/view/shell.rs:402-411",
+    "crates/hsk-studio-harness/src/bin/studio-harness.rs:56",
+    "crates/hsk-studio-harness-view/src/view/job_admission.rs:187-192",
+    "crates/hsk-studio-harness-view/src/view/brush_mix.rs:33-39"
+   ],
+   "gap": "Tier 1 Flight Recorder: envelope only, no bound sink, Help > Flight Recorder greyed. Tier 2 internal_diagnostics: 0 hits by name; observe ring record and RingProducerPort exist but ring.rs says Observe::emit* is not wired to it, and no crate outside observe references it; no UI heartbeat, frame-time, CPU/RSS or panic hook in the host binary (set_hook only inside workers, where it just exits). Tier 3 Palmistry: declared as Handshake's (MT-36233). Viewer drops engine frames through Quiet sinks. Per-lane posture lives in governance lane files, not in product code or manual.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "HBR-SWARM-001",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-session/tests/session_contract.rs:472-510",
+    "crates/hsk-studio-session/src/session.rs:4",
+    "crates/hsk-studio-session/src/session.rs:2530-2557",
+    "crates/hsk-studio-kernel-bindings/tests/bridge_contract.rs:349-400",
+    "crates/hsk-studio-harness/src/cli.rs:1067-1080",
+    "crates/hsk-studio-harness-view/src/view/export.rs:140-148"
+   ],
+   "gap": "Revision rejection, epoch fence and idempotency are real but proven sequentially: thread::spawn in those tests is only the bounded_case timeout wrapper, and stale state is simulated by reseeding. No test runs two concurrent sessions plus operator edits. At the file boundary save has no on-disk revision or hash compare, so two models running edit --save PKG --overwrite (--expect-revision optional and checked against the in-memory session only) is silent last-writer-wins. write_atomic uses a fixed temp name '.NAME.export-tmp', so parallel writers to one path collide.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "HBR-SWARM-002",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-session/src/jobs.rs:1-36",
+    "crates/hsk-studio-session/src/jobs.rs:260-272",
+    "crates/hsk-studio-session/tests/job_lifecycle.rs:87-174",
+    "crates/hsk-studio-worker/src/supervisor.rs:1-25",
+    "crates/hsk-studio-worker/src/supervisor.rs:112",
+    "crates/hsk-studio-worker/tests/supervision.rs:46-115",
+    "crates/hsk-studio-kernel-bindings/src/host.rs:196"
+   ],
+   "gap": "Strong: job admission, exactly-once release, cancel, deadline, overload, respawn gate, worker kill on deadline and cancel, epoch fence. Missing: lease expiry (no expire, renew or lease duration anywhere in session or kernel-bindings), so a stale holder is only fenced by a host bump, not recovered; no backpressure test under real concurrent load.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "HBR-SWARM-003",
+   "verdict": "MISSING",
+   "evidence": [
+    "crates/hsk-studio-harness-view/src/view/mod.rs:837-880"
+   ],
+   "gap": "No presence or conflict state in any UI (presence hits are develop's slider and framing comments), no CRDT, no parallel operator+agent UI test. Viewer is one &mut owner. NA clause (Operator Surface MVP) not verified for the host: NOT_INSPECTED.",
+   "blocked_by_gui_pause": true
+  },
+  {
+   "id": "HBR-SWARM-004",
+   "verdict": "NOT_APPLICABLE_YET",
+   "evidence": [
+    "crates/hsk-studio-kernel-bindings/src/wire.rs:341"
+   ],
+   "gap": "No cross-agent message or routing surface. 0 hits for target_session or requires_ack. Bridge envelope has correlation and command context only, which is host request routing, not agent routing.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "HBR-SWARM-005",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "tools/run-round.sh:99",
+    "tools/run-round.sh:566",
+    ".cargo/config.toml:1-7",
+    "S/builders/studio-env.sh:4-48"
+   ],
+   "gap": "Rounds and builders set per-owner targets through run-round.sh and studio-env.sh, and run-round's header states it refuses targets outside granted roots (refusal code not read). No fail-safe in the product tree: .cargo/config.toml deliberately has no target-dir, so a bare cargo call falls to a repo-local target. Actual shape is C:/HandshakeBuild under an Operator grant (CX-984-014), not the rule's handshake-cargo-target path: rule text and practice differ.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "HBR-SWARM-006",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "S/validation/round-R56.json:observations_for_next_round[0]",
+    "tools/run-round.sh:99"
+   ],
+   "gap": "Rule requires cleaning own scoped dir as soon as a build finishes. Practice is warm targets (R56: C: Studio tree 213.355 GiB at freeze) with batched Operator-approved deletion. Kernel HSK-ART-003 retention conflicts with the rule text. No cleanup record inspected per owner: NOT_INSPECTED.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "HBR-VIS-001",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness/tests/viewer_panels.rs:60-104",
+    "crates/hsk-studio-harness-view/tests/viewer_develop_spot.rs:308-320",
+    "crates/hsk-studio-harness-view/tests/viewer_view_polish.rs:1-45",
+    "crates/hsk-studio-harness-view/src/view/shell.rs:1470",
+    "crates/hsk-studio-kernel-bindings/src/lib.rs:1-3"
+   ],
+   "gap": "AccessKit-action clicks and egui paint-list checks run on a bare headless egui::Context, which the rule accepts only with stable author_id targeting and inspected render. Missing: no Argus code (comments only, adapters declared later in host), no argus.inspect/click/set_value/screenshot, 0 agent_label, no egui_kittest, set_author_id 0 hits so tests find AccessKit nodes by visible label, no pixel capture of the UI at all.",
+   "blocked_by_gui_pause": true
+  },
+  {
+   "id": "HBR-VIS-002",
+   "verdict": "MISSING",
+   "evidence": [
+    "crates/hsk-studio-render-gpu/src/device.rs:317-321",
+    "crates/hsk-studio-harness-view/src/view/mod.rs:837-850"
+   ],
+   "gap": "No captured frame exists, so no per-frame error scan. Inputs exist: render-gpu device-lost and uncaptured latches, Viewer render_error in state_json. Nothing asserts them over a test window as a gate.",
+   "blocked_by_gui_pause": true
+  },
+  {
+   "id": "HBR-VIS-003",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness-view/tests/viewer_view_polish.rs:1-3",
+    "crates/hsk-studio-harness-view/tests/viewer_timeline.rs:553"
+   ],
+   "gap": "Tests use many viewport sizes (1000x200 to 1600x4000) one surface at a time, and some edge states. No capture matrix: no image per viewport and state, and no surface runs normal + constrained + edge as one check. Layout checks read egui paint lists, not pixels.",
+   "blocked_by_gui_pause": true
+  },
+  {
+   "id": "HBR-VIS-004",
+   "verdict": "NOT_APPLICABLE_YET",
+   "evidence": [
+    "crates/hsk-studio-harness-core/src/harness.rs:976"
+   ],
+   "gap": "0 TraceProjection hits; NA clause applies at asset level (host NOT_INSPECTED). Engine runs have only op-record JSON, which answers what command, revision and outcome, not context, tool calls, validation or promotion.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "HBR-VIS-005",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness-view/src/view/shell.rs:402-413",
+    "crates/hsk-studio-harness-core/src/harness.rs:37-41"
+   ],
+   "gap": "Gaps are named honestly in product: greyed NOT_IMPLEMENTED_YET reasons and NOT_PROVEN list. Not remediated, and no blocking HBR-VIS record names the missing Argus capability per surface. R56 mentions HBR-VIS 0 times.",
+   "blocked_by_gui_pause": true
+  },
+  {
+   "id": "HBR-QUIET-001",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness/tests/viewer_panels.rs:68-90",
+    "crates/hsk-studio-harness/src/bin/studio-harness.rs:9",
+    "crates/hsk-studio-worker/src/supervisor.rs:6-7",
+    "crates/hsk-studio-reel/tests/av1_encode.rs:172-182",
+    "crates/hsk-studio-develop/tests/real_dng.rs:183"
+   ],
+   "gap": "Tests never open a window: UI runs on a bare egui::Context and run_native appears only in the binary. No focus or Z-order audit exists: quiet() checks egui ViewportCommands and egui focus in one test file only, not OS events. supervisor.rs itself says the absence of a window is NOT_PROVEN by any test. Tests spawn ffmpeg, ffprobe and exiftool with no CREATE_NO_WINDOW (reel av1_encode, mux_roundtrip, vc3_encode; develop real_dng), which can flash a console under a windowless parent (UNVERIFIED by a run).",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "HBR-QUIET-002",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness/src/cli.rs:1-3",
+    "crates/hsk-studio-harness/tests/harness_headless.rs:305-321",
+    "crates/hsk-studio-harness/src/bin/studio-harness.rs:53-78",
+    "crates/hsk-studio-harness-view/src/view/shell.rs:1079",
+    "crates/hsk-studio-harness/examples/studio-harness.rs:1"
+   ],
+   "gap": "Clean: 0 hits for SendInput, SetForegroundWindow, SetCursorPos or similar; ViewportCommand appears only in a test; CLI and Viewer API need no OS input. Gaps: no negative test for global input hijacking; and a trap: the manual says `studio-harness help`, but example and binary share the name, and in the desktop binary any unknown argument including `help` or `develop` is taken as a file (:53) and a foreground window opens (:78).",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "HBR-QUIET-003",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-worker/src/lib.rs:1-16",
+    "crates/hsk-studio-worker/src/supervisor.rs:50-75",
+    "crates/hsk-studio-worker/src/supervisor.rs:407",
+    "crates/hsk-studio-worker/tests/supervision.rs:46-115",
+    "crates/hsk-studio-reel-native/src/host.rs:121",
+    "crates/hsk-studio-motion-js/Cargo.toml:9"
+   ],
+   "gap": "One supervisor: empty env, CREATE_NO_WINDOW, ledger, kill and reap on every path. Ledger holds owner_session (a static module tag such as 'reel-native-av1'), started_unix_ms, pid; no owner_wp or owner_role and no real session identity. ledger() is read only by score-plugin and tests, never surfaced by CLI or Viewer. job-caps kill-on-close is enabled only by motion-js quickjs in the manifests inspected (not reel-native or score-plugin), and no test kills the parent and checks for orphans. No test proves no blank window.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "HBR-QUIET-004",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness/RUN-UI.md:3",
+    "crates/hsk-studio-harness/src/bin/studio-harness.rs:9",
+    "crates/hsk-studio-harness/src/bin/studio-harness.rs:74-78"
+   ],
+   "gap": "Window launch is declared a manual Operator step in docs. The binary prints no warning, has no hidden or bounded mode, and nothing stops a model from launching it. Foreground exception in WP contract: NOT_INSPECTED.",
+   "blocked_by_gui_pause": true
+  },
+  {
+   "id": "HBR-MAN-001",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness-core/src/manual.rs:1-3",
+    "crates/hsk-studio-harness-core/src/manual.rs:26",
+    "crates/hsk-studio-harness/src/cli.rs:154-155",
+    "crates/hsk-studio-harness/src/cli.rs:179-193",
+    "crates/hsk-studio-harness/RUN-UI.md:375-397"
+   ],
+   "gap": "A manual exists, but the same-commit rule is not holding: 16 CLI flags parsed by cli.rs are absent from manual.rs (--tiff, --dng and options, --export-set, --long-edge, --sharpen, --watermark), and develop's usage still says --png | --jpeg only. Viewer model API and state_json contract are only in RUN-UI.md, a repo file not embedded in the product. MANUAL_VERSION 0 hits (not declared, so not required). Engine-only entries (R52-R56: no Registry row) have no manual presence.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "HBR-MAN-002",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness-core/src/manual.rs:56-70",
+    "crates/hsk-studio-harness-view/src/view/shell.rs:1016-1037"
+   ],
+   "gap": "manual_json keys: purpose, commands, flags, providers, output, panel_controls, automation, descriptors, not_proven. No startup, navigation, safety, failure-mode or recovery section. No no-context model operation test anywhere.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "HBR-MAN-003",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness-core/tests/action_records.rs:321-355",
+    "crates/hsk-studio-harness/tests/harness_headless.rs:125-134",
+    "crates/hsk-studio-harness/tests/harness_batch_cli.rs:166-178",
+    "crates/hsk-studio-controls/src/menu.rs:432",
+    "crates/hsk-studio-harness/tests/cli_export_sequence.rs:422"
+   ],
+   "gap": "Real for RUN_COMMANDS (scans pub fns of Run) and menu audit. CLI test is tautological: manual JSON is compared to the COMMANDS const it is generated from, never to the parser. So no test catches the 16-flag drift: by the rule, a build-rule fail today.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "HBR-MAN-004",
+   "verdict": "MISSING",
+   "evidence": [
+    "crates/hsk-studio-harness-core/src/manual.rs:56-70",
+    "crates/hsk-studio-harness-view/src/view/job_admission.rs:4-20"
+   ],
+   "gap": "No manual entry links behaviour to Flight Recorder or EventLedger evidence, or records WIRED, NOT_APPLICABLE or DEFERRED for Flight Recorder, internal_diagnostics and Palmistry. Module doc comments such as job_admission's '# Manual' are source only. No failure-mode, recovery or verification field per feature.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-MANUAL-PURPOSE",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness-core/src/manual.rs:60",
+    "crates/hsk-studio-harness/Cargo.toml:21-22",
+    "crates/hsk-studio-harness/RUN-UI.md:24"
+   ],
+   "gap": "States the harness's purpose, not Studio Kit's. 'No window, no network, no process spawn' is false for builds with media-native or os-encode, which start workers beside the executable.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-MANUAL-WORKFLOWS",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness-core/src/manual.rs:17-32",
+    "crates/hsk-studio-harness/RUN-UI.md:233-317"
+   ],
+   "gap": "Per-command summaries only; no task workflow (import, edit, save, verify; develop, export). Window workflows are in RUN-UI.md only. Engine crates' workflows (layout, type, pulse) are not reachable from help.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-MANUAL-STARTUP",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness/RUN-UI.md:14-18",
+    "crates/hsk-studio-harness/examples/studio-harness.rs:1"
+   ],
+   "gap": "Window launch in RUN-UI.md, which requires sourcing studio-env.sh from a kernel .GOV path. In-product help has no build or run line. `cargo run --example studio-harness` for the CLI appears nowhere; a grep finds only the --bin line. Feature flags needed per command are scattered.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-MANUAL-IO",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness-core/src/manual.rs:56-70",
+    "crates/hsk-studio-harness/src/cli.rs:154-193"
+   ],
+   "gap": "Output schema, verdicts and exit codes are documented well. Inputs are incomplete (16 flags). Engine-crate DESCRIPTORs document their I/O, but `descriptors` returns only crate, owner, version and byte count for 5 crates, never the content.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-MANUAL-NAVIGATION",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness-view/src/view/shell.rs:1039-1060",
+    "crates/hsk-studio-harness/RUN-UI.md:358-373",
+    "crates/hsk-studio-controls/src/menu.rs:483-502"
+   ],
+   "gap": "Command Index, shortcut page and menu agent_json are real. Viewer API navigation only in RUN-UI.md. No map from a task or crate to the right surface.",
+   "blocked_by_gui_pause": true
+  },
+  {
+   "id": "GLOBAL-MANUAL-SAFETY",
+   "verdict": "MISSING",
+   "evidence": [
+    "crates/hsk-studio-harness-core/src/manual.rs:56-70",
+    "crates/hsk-studio-harness/RUN-UI.md:3"
+   ],
+   "gap": "No safety section. Constraints are scattered in flag text (--overwrite, --cancel). The rule that models must not open the window is only line 3 of RUN-UI.md and is absent from help.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-MANUAL-FAILURE-MODES",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness-core/src/manual.rs:27",
+    "crates/hsk-studio-harness-core/src/manual.rs:73-103"
+   ],
+   "gap": "Export-sequence lists its refusal codes and automation lists validators. No general catalogue; other commands name few codes. RUN-UI.md known limits are repo-only.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-MANUAL-RECOVERY",
+   "verdict": "MISSING",
+   "evidence": [
+    "crates/hsk-studio-harness-core/src/manual.rs:56-70",
+    "crates/hsk-studio-harness-core/src/harness.rs:187-207",
+    "crates/hsk-studio-observe/src/lib.rs:1228",
+    "crates/hsk-studio-kernel-bindings/src/lib.rs:94"
+   ],
+   "gap": "No recovery steps in help. Some crate DESCRIPTORs have a recovery field, but they are not reachable through help or descriptors.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-MANUAL-NO-CONTEXT-OPERATION",
+   "verdict": "MISSING",
+   "evidence": [
+    "crates/hsk-studio-harness/tests/harness_headless.rs:125-134"
+   ],
+   "gap": "Nothing proves a no-context model can operate the product; tests check manual string presence. 21 of 56 crates hold no `pub const DESCRIPTOR` (hsk-studio-type, nib, ps, worker, harness-view among them have no DESCRIPTOR token at all; web uses one through a sibling, and split sub-crates such as press-read may rely on a parent: not checked one by one).",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-DEBUG-STRUCTURED-STATE",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness-view/src/view/mod.rs:837-880",
+    "crates/hsk-studio-harness/src/cli.rs:1032-1045"
+   ],
+   "gap": "state_json is rich and is the best diagnostic in the product, but in-process Rust only. No CLI command prints it. CLI `open` and `panel` give a document summary only.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-DEBUG-LOGS",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness-view/src/view/mod.rs:231",
+    "crates/hsk-studio-harness-view/src/view/mod.rs:289",
+    "crates/hsk-studio-harness-view/src/view/mod.rs:492-502",
+    "crates/hsk-studio-harness-core/src/harness.rs:976",
+    "crates/hsk-studio-harness-view/src/view/brush_mix.rs:33-39"
+   ],
+   "gap": "Status log is free text capped at 200 lines in memory. Op records are structured but memory or stdout only. No log file, no level or filter. Engine frames in Viewer paths are dropped by Quiet sinks.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-DEBUG-TRACES",
+   "verdict": "MISSING",
+   "evidence": [
+    "crates/hsk-studio-harness-core/src/context.rs:56-68",
+    "crates/hsk-studio-harness-view/src/view/shell.rs:402-408"
+   ],
+   "gap": "No spans or trace timeline (0 tracing:: uses in crates). Correlation and causation ids exist on commands and could seed one. Render Harness report greyed.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-DEBUG-HEALTH-CHECKS",
+   "verdict": "MISSING",
+   "evidence": [
+    "crates/hsk-studio-worker/src/lib.rs:11",
+    "crates/hsk-studio-harness/src/cli.rs:257-270"
+   ],
+   "gap": "No health command in CLI or Viewer. Worker-level liveness (Session::heartbeat) and GPU latches exist but nothing aggregates or exposes them. GPU report greyed (shell.rs:410).",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-DEBUG-ERROR-REPORTS",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness/src/cli.rs:252-254",
+    "crates/hsk-studio-harness-view/src/view/mod.rs:837-850",
+    "crates/hsk-studio-harness-view/src/view/shell.rs:408-409"
+   ],
+   "gap": "Typed refusal codes are consistent and good. No crash report: host binary has no panic hook, and F-R56-1 (R56, on an older candidate) shows a composer that aborts the process with no typed refusal. Validation Report greyed.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-DEBUG-VISUAL-SNAPSHOTS",
+   "verdict": "MISSING",
+   "evidence": [
+    "crates/hsk-studio-harness-view/src/view/shell.rs:411",
+    "crates/hsk-studio-harness-core/src/harness.rs:38-40",
+    "crates/hsk-studio-harness/src/cli.rs:308-322"
+   ],
+   "gap": "0 screenshot hits and no egui tessellate call: the UI is never rasterized by anything. CLI `export` gives the document composite only. Accessibility snapshot greyed. visual_render_proof and desktop_window_visual_check are in NOT_PROVEN.",
+   "blocked_by_gui_pause": true
+  },
+  {
+   "id": "GLOBAL-DEBUG-REPRODUCTION-STEPS",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness-core/src/harness.rs:689-725",
+    "crates/hsk-studio-harness/src/cli.rs:410-425"
+   ],
+   "gap": "Run has record and play; batch can apply an action; CLI invocations are deterministic. CLI cannot record, `action` only checks a set, Viewer sessions have no recorder (GUI actions panel NOT_PROVEN), and no repro bundle is written on failure.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-DEBUG-VISUAL-SUITE",
+   "verdict": "MISSING",
+   "evidence": [
+    "crates/hsk-studio-harness-view/src/view/shell.rs:407"
+   ],
+   "gap": "Product's own text: 'the viewer has no visual debugger surface yet'. Help > Diagnostics: only System Report works, and it lists 5 descriptors by name.",
+   "blocked_by_gui_pause": true
+  },
+  {
+   "id": "GLOBAL-DEBUG-GUI-CHECKS",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness-view/tests/viewer_view_polish.rs:1-45",
+    "crates/hsk-studio-harness-core/src/harness.rs:40",
+    "crates/hsk-studio-controls/src/menu.rs:432"
+   ],
+   "gap": "Paint-list rows, menu audit and drawn-name tests cover some discoverability and text width. Readability, overlap and layout response on real pixels are unproven; a human-attended window check is the declared route.",
+   "blocked_by_gui_pause": true
+  },
+  {
+   "id": "GLOBAL-PARALLEL-BACKEND-PATHS",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-kernel-bindings/src/lib.rs:1-7",
+    "crates/hsk-studio-kernel-bindings/src/host.rs:1-10",
+    "crates/hsk-studio-session/src/session.rs:797"
+   ],
+   "gap": "Byte-level host bridge with grants, fences, idempotency and jobs is a real contract, but its only host is a memory-only process-local stand-in. No server, socket or pipe (0 hits for TcpListener, NamedPipe, etc.). Parallel models today can only each run a CLI process against files.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-PARALLEL-FRONTEND-PATHS",
+   "verdict": "MISSING",
+   "evidence": [
+    "crates/hsk-studio-harness-view/src/view/mod.rs:837",
+    "crates/hsk-studio-harness/RUN-UI.md:375"
+   ],
+   "gap": "'Every window action is a Viewer method' means Rust in-process only. No way for a second model, or any model without writing a Rust test, to attach to or drive a Viewer. One Viewer has one &mut owner and one actor.",
+   "blocked_by_gui_pause": true
+  },
+  {
+   "id": "GLOBAL-PARALLEL-OBSERVABLE",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness-core/src/harness.rs:976",
+    "crates/hsk-studio-harness-view/src/view/mod.rs:837"
+   ],
+   "gap": "Observable only by the process doing the work. Nothing another model can read while it runs.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-PARALLEL-ATTRIBUTABLE",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness-core/src/context.rs:1-8",
+    "crates/hsk-studio-harness-core/src/context.rs:80-88",
+    "crates/hsk-studio-harness-view/tests/viewer_attribution.rs:27-56",
+    "crates/hsk-studio-harness/src/cli.rs:446",
+    "crates/hsk-studio-harness/src/cli.rs:679",
+    "crates/hsk-studio-harness/src/cli.rs:1029",
+    "crates/hsk-studio-harness-view/src/view/mod.rs:297-305"
+   ],
+   "gap": "API-level attribution is real (RunContext, Viewer::with_context, per-command context). Not exposed: every CLI call and the desktop binary use one fixed actor (account/principal/session), no --actor or --session flag, and no save writes attribution outside the process. 0 agent_label hits.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-PARALLEL-RECOVERABLE",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-package/src/save.rs:1-10",
+    "crates/hsk-studio-package/src/save.rs:329",
+    "crates/hsk-studio-kernel-bindings/src/host.rs:491",
+    "crates/hsk-studio-session/src/session.rs:797",
+    "crates/hsk-studio-harness-core/src/harness.rs:1851"
+   ],
+   "gap": "Crash-safe save with temp sweep, keyed retry, lookup after unknown outcome, undo stack. Keyed retry and lookup are unreachable from CLI; undo stack is in memory per process, so a second process cannot recover another's step.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-PARALLEL-SAFE",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-session/src/session.rs:2543",
+    "crates/hsk-studio-harness-view/src/view/export.rs:142",
+    "crates/hsk-studio-harness/src/cli.rs:1067-1080"
+   ],
+   "gap": "Same gap as HBR-SWARM-001: on-disk last-writer-wins between processes and a fixed temp name in write_atomic. Batch concurrency is limited to 1 per manual.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-PARALLEL-STABLE-IDS",
+   "verdict": "MET",
+   "evidence": [
+    "crates/hsk-studio-harness-view/src/view/mod.rs:119-135",
+    "crates/hsk-studio-harness-view/src/view/mod.rs:179-182",
+    "crates/hsk-studio-controls/src/menu.rs:305-316",
+    "crates/hsk-studio-controls/src/egui_adapter.rs:17-20",
+    "crates/hsk-studio-harness-view/src/view/mod.rs:828"
+   ],
+   "gap": "Stable names exist and drawn() reports them. Limit: they reach AccessKit only as hashed egui ids, without author_id or rects, and tests still search by label (see HBR-VIS-001).",
+   "blocked_by_gui_pause": true
+  },
+  {
+   "id": "GLOBAL-PARALLEL-DETERMINISTIC-COMMANDS",
+   "verdict": "MET",
+   "evidence": [
+    "crates/hsk-studio-harness/src/cli.rs:1-3",
+    "crates/hsk-studio-harness/src/cli.rs:257-270",
+    "crates/hsk-studio-harness-core/src/manual.rs:56-70"
+   ],
+   "gap": "CLI is a pure function with JSON output, verdicts and exit codes 0, 1, 2. Limit: covers 13 commands, not Viewer actions or most engine features.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-PARALLEL-STRUCTURED-LOGS",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness-core/src/harness.rs:976"
+   ],
+   "gap": "Structured op records, printed once to stdout or held in memory; no durable per-actor log.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-PARALLEL-RECEIPTS",
+   "verdict": "MET",
+   "evidence": [
+    "crates/hsk-studio-harness-core/src/batch.rs:494-512",
+    "crates/hsk-studio-session/src/session.rs:316",
+    "crates/hsk-studio-kernel-bindings/src/wire.rs:341",
+    "crates/hsk-studio-session/src/ports.rs:83",
+    "crates/hsk-studio-package/src/write.rs:261"
+   ],
+   "gap": "Typed receipts on save, commit, write and batch input (struct definitions located by grep; bodies not read line by line). Limit: receipts go to the caller; product code persists none except the import receipt inside a package. Batch receipts are not bound to EventLedger (NOT_PROVEN).",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-PARALLEL-STATE-FILES",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness/src/bin/studio-harness.rs:36-46",
+    "crates/hsk-studio-harness/RUN-UI.md:31-33"
+   ],
+   "gap": "Durable state is the package and the optional recent list. No run, session or lane state file a parallel model could read.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-QUIET-NO-POPUPS",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-worker/src/supervisor.rs:6-7",
+    "crates/hsk-studio-worker/src/supervisor.rs:55-60",
+    "crates/hsk-studio-harness/src/bin/studio-harness.rs:53-78"
+   ],
+   "gap": "Workers carry CREATE_NO_WINDOW (no-window itself NOT_PROVEN). Binary trap can open a window from a manual-suggested command. Test-spawned console tools lack the flag.",
+   "blocked_by_gui_pause": false
+  },
+  {
+   "id": "GLOBAL-QUIET-NO-FOCUS-THEFT",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness/tests/viewer_panels.rs:68-90"
+   ],
+   "gap": "egui-level assertion only, in one test file. No OS foreground or Z-order audit on any run.",
+   "blocked_by_gui_pause": true
+  },
+  {
+   "id": "GLOBAL-QUIET-NO-KEYBOARD-CAPTURE",
+   "verdict": "MET",
+   "evidence": [
+    "crates/hsk-studio-harness/RUN-UI.md:76-77",
+    "crates/hsk-studio-harness/tests/harness_headless.rs:317"
+   ],
+   "gap": "By code audit only: 0 hits for global input or hook APIs (SendInput, keybd_event, rdev, enigo, global_hotkey), and shortcuts exist only inside the window's egui context. arboard arrives transitively in Cargo.lock (eframe path UNVERIFIED) for clipboard; not opened. No runtime negative test.",
+   "blocked_by_gui_pause": false
+  }
+ ],
+ "top_gaps": [
+  {
+   "rank": 1,
+   "what": "Process-level drive and state protocol: `studio-harness` commands (state, command, undo, stdin JSONL loop) over Run and Viewer's non-UI methods, printing state_json and taking --actor, --session and --diag-dir. Today a model without a Rust test cannot observe or drive anything beyond 13 document commands.",
+   "gaps": [
+    "GLOBAL-PARALLEL-FRONTEND-PATHS",
+    "GLOBAL-DEBUG-STRUCTURED-STATE",
+    "GLOBAL-PARALLEL-ATTRIBUTABLE",
+    "HBR-VIS-001"
+   ],
+   "owner_crate": "hsk-studio-harness (cli.rs), engine calls in hsk-studio-harness-core; keep it free of egui so it survives D1",
+   "evidence": [
+    "crates/hsk-studio-harness/RUN-UI.md:375",
+    "crates/hsk-studio-harness/src/cli.rs:1029",
+    "crates/hsk-studio-harness-view/src/view/mod.rs:837"
+   ],
+   "blocked_by_gui_pause": false
+  },
+  {
+   "rank": 2,
+   "what": "Durable diagnostics: bind a default JSONL sink for business events and observe frames in CLI and binary, wire Observe::emit* to the ring port, stop dropping frames in Quiet sinks, add a panic hook and health command, and record HBR-INT-009 posture per surface. Today every shipped path reports no_sink.",
+   "gaps": [
+    "HBR-INT-001",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "GLOBAL-DEBUG-LOGS",
+    "GLOBAL-DEBUG-TRACES",
+    "GLOBAL-DEBUG-HEALTH-CHECKS"
+   ],
+   "owner_crate": "hsk-studio-observe (ring wiring), hsk-studio-kernel-bindings (file sink), hsk-studio-harness (hook, flags)",
+   "evidence": [
+    "crates/hsk-studio-harness-core/src/harness.rs:532-534",
+    "crates/hsk-studio-observe/src/ring.rs:6-7",
+    "crates/hsk-studio-harness-view/src/view/brush_mix.rs:33-39"
+   ],
+   "blocked_by_gui_pause": false
+  },
+  {
+   "rank": 3,
+   "what": "Real UserManual: add startup, workflows, navigation, safety, failure-mode, recovery and diagnostic-posture sections, embed RUN-UI.md's model API, print descriptor contents, add DESCRIPTORs to the crates without one (21 lack the const; see row), test the parser's flags against the manual (fixes the 16-flag drift), add a no-context operation test.",
+   "gaps": [
+    "HBR-MAN-001",
+    "HBR-MAN-002",
+    "HBR-MAN-003",
+    "HBR-MAN-004",
+    "GLOBAL-MANUAL-STARTUP",
+    "GLOBAL-MANUAL-SAFETY",
+    "GLOBAL-MANUAL-RECOVERY",
+    "GLOBAL-MANUAL-NO-CONTEXT-OPERATION"
+   ],
+   "owner_crate": "hsk-studio-harness-core (manual.rs), hsk-studio-harness (cli.rs flag table as single source)",
+   "evidence": [
+    "crates/hsk-studio-harness-core/src/manual.rs:26",
+    "crates/hsk-studio-harness-core/src/manual.rs:56-70",
+    "crates/hsk-studio-harness/src/cli.rs:154-155",
+    "crates/hsk-studio-harness-core/src/harness.rs:187-207"
+   ],
+   "blocked_by_gui_pause": false
+  },
+  {
+   "rank": 4,
+   "what": "Multi-process write safety: save compares an expected on-disk revision or hash and refuses on mismatch; unique temp names in write_atomic; CLI edit requires --expect-revision for in-place saves; a test with two concurrent sessions plus simulated operator edits; lease expiry on the bridge.",
+   "gaps": [
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "GLOBAL-PARALLEL-SAFE"
+   ],
+   "owner_crate": "hsk-studio-session and hsk-studio-package (save), hsk-studio-harness-view (export.rs), hsk-studio-kernel-bindings (lease)",
+   "evidence": [
+    "crates/hsk-studio-session/src/session.rs:2543",
+    "crates/hsk-studio-harness-view/src/view/export.rs:142",
+    "crates/hsk-studio-harness/src/cli.rs:1067-1080"
+   ],
+   "blocked_by_gui_pause": false
+  },
+  {
+   "rank": 5,
+   "what": "Close the foreground trap and prove quiet: rename the CLI or binary target so they cannot be confused, make the desktop binary refuse unknown subcommands and require an explicit flag to open a window, add CREATE_NO_WINDOW to test-spawned tools, add a focus/Z-order audit and a no-window proof, carry real owner metadata in the process ledger and surface it, enable job-caps for reel-native and score-plugin workers with a parent-kill orphan test.",
+   "gaps": [
+    "HBR-QUIET-001",
+    "HBR-QUIET-002",
+    "HBR-QUIET-003",
+    "HBR-QUIET-004",
+    "GLOBAL-QUIET-NO-POPUPS"
+   ],
+   "owner_crate": "hsk-studio-harness (bin, targets), hsk-studio-worker (ledger, caps), hsk-studio-reel and hsk-studio-develop (tests)",
+   "evidence": [
+    "crates/hsk-studio-harness/src/bin/studio-harness.rs:53-78",
+    "crates/hsk-studio-harness-view/src/view/shell.rs:1079",
+    "crates/hsk-studio-worker/src/supervisor.rs:6-7",
+    "crates/hsk-studio-worker/src/supervisor.rs:66-75"
+   ],
+   "blocked_by_gui_pause": false
+  },
+  {
+   "rank": 6,
+   "what": "Visual debug suite, blocked by the pause: UI pixel capture, capture matrix with error scan, Argus operations with author_id and agent_label, AccessKit snapshot. No new egui code is allowed (D1), so this waits for the D7/D8 layer; carry author_id and snapshot requirements into that layer's contract now so it is not rebuilt.",
+   "gaps": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "GLOBAL-DEBUG-VISUAL-SNAPSHOTS",
+    "GLOBAL-DEBUG-VISUAL-SUITE"
+   ],
+   "owner_crate": "Handshake shell UI layer and Kumihimo renderer (D7/D8); hsk-studio-controls for descriptor-level author_id",
+   "evidence": [
+    "crates/hsk-studio-harness-view/src/view/shell.rs:407-411",
+    "crates/hsk-studio-harness-view/src/view/shell.rs:1470"
+   ],
+   "blocked_by_gui_pause": true
+  },
+  {
+   "rank": 7,
+   "what": "Proposal and promotion flow: a staged edit path with promotion event and negative direct-mutation test, so the 4 no_promotion_or_proposal_flow event ids get producers.",
+   "gaps": [
+    "HBR-INT-003"
+   ],
+   "owner_crate": "hsk-studio-session, hsk-studio-kernel-bindings; gate itself is host",
+   "evidence": [
+    "crates/hsk-studio-kernel-bindings/src/business_event.rs:63-68"
+   ],
+   "blocked_by_gui_pause": false
+  },
+  {
+   "rank": 8,
+   "what": "Validation does not judge these pillars: round-R56.json mentions HBR-INT, HBR-VIS, HBR-MAN, HBR-QUIET, HBR-SWARM and Argus 0 times and its rule_refs omit them; only HBR-HOST is graded. Add them to the round's checks, or record an explicit Operator decision that they wait for host integration.",
+   "gaps": [
+    "all HBR rows above"
+   ],
+   "owner_crate": "governance (round validator), not a product crate",
+   "evidence": [
+    "S/validation/round-R56.json:rule_refs",
+    "S/validation/round-R56.json:host_integration"
+   ],
+   "blocked_by_gui_pause": false
+  }
+ ],
+ "not_inspected": [
+  "Handshake host product (EventLedger, Flight Recorder, TraceProjection, FEMS, Argus, Palmistry, Operator Surface, CRDT): not in this tree, so NA clauses that rest on them are unverified",
+  "WP contract foreground declaration and per-owner cleanup records (governance)",
+  "MT files and lane files beyond R56 summaries",
+  "Whether egui Id hashes are stable across runs, and whether an unflagged console tool actually flashes a window: UNVERIFIED, no runs allowed",
+  "Workers' behaviour when the parent dies without job-caps: NOT_INSPECTED",
+  "Bodies of most viewer_* tests; used as a prefilter, opened only where cited",
+  "hsk-studio-ps, type, web internals: only DESCRIPTOR presence checked"
+ ]
+}

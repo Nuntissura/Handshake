@@ -1,0 +1,675 @@
+{
+ "area": "HBR pillars PRIV, COMPART (including MODULE-LIFECYCLE), COMPONENT, HOST, STOP; host integration; module lifecycle",
+ "tree": {
+  "product": "wt-studio-lanes/smb-type-authored-token-1/handshake-studio-assets",
+  "commit": "1940292c64d57a65cc753f3258374f8b57b97f36",
+  "remote_check": "git ls-remote: origin codex/handshake-studio-assets at 1940292c",
+  "rules_source": "K/.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json version 1.18.0",
+  "spec": "K/.GOV/spec/master-spec-v02.229 section 15, GUI-DESKTOP and NATIVE-RENDER clauses as they bear on Studio",
+  "paths_note": "crate paths are relative to the product tree; 'view/' means crates/hsk-studio-harness-view/src/view/"
+ },
+ "method": {
+  "summary": "Read-only. Rule text read, then product code found with git grep and opened with Read or sed. No cargo, build, test or process control. No file in the product tree or kernel changed except this output.",
+  "verdict_meaning": {
+   "MET": "the required action holds on the evidence opened",
+   "PARTIAL": "at least one operative part works in code, at least one is missing",
+   "MISSING": "the operative requirement is not true on any meaningful path; types or schemas with no surface do not count",
+   "NOT_APPLICABLE_YET": "the rule's own text or trigger defers it; judged only when the text says so",
+   "NOT_INSPECTED": "not opened enough to judge"
+  },
+  "limits": [
+   "Grep absence is reported as what the grep covered, not as proof over all feature combinations.",
+   "Doc comments and DESCRIPTOR text were treated as claims, cited as such where no code was opened.",
+   "Tests were read by name unless stated; none were run.",
+   "Rounds other than R56 and session transcripts were not read.",
+   "Handshake product code and WP-KERNEL-012 files were not opened; GPL, LGPL and MPL source was not read."
+  ],
+  "note_rule_set": "MODULE-LIFECYCLE rules sit under pillar COMPART in the rule file (10 COMPART rows = 2 COMPART + 8 MODULE-LIFECYCLE). K/.GOV/task_packets/WP-KERNEL-STUDIO/packet.json hbr.tags_declared omits HOST, although each MT has a host_integration block.",
+  "prefilter_input": "One recursive grep over K/.GOV was started by mistake early on and ran in the background until it ended; it changed nothing and its result was not used."
+ },
+ "summary": {
+  "verdict_counts": {
+   "PARTIAL": 18,
+   "MISSING": 10,
+   "MET": 2,
+   "NOT_INSPECTED": 2,
+   "NOT_APPLICABLE_YET": 1
+  },
+  "refactor_item_counts": {
+   "not started": 5,
+   "partial": 7
+  }
+ },
+ "rules": [
+  {
+   "id": "HBR-PRIV-001",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-accord/src/lib.rs:457-466 ActorContext carries account, principal, owner account, owner principal, AccessSpace, session; doc says 'NOT proof of a host grant'",
+    "crates/hsk-studio-accord/src/lib.rs:518-529 ValidatedEnvelope resource_id + revision + actor",
+    "crates/hsk-studio-package/src/manifest.rs:1-40 manifest head; git grep owner|account|principal|actor over crates/hsk-studio-package/src: only temp-file owner markers (save.rs) and descriptor text",
+    "git grep owner|account_id|principal in crates/hsk-studio-folio/src/lib.rs: no document owner field"
+   ],
+   "gap": "Stable resource ids exist and the acting identity travels at runtime, but no resource persists an owner or AccessSpace. The saved package, the Folio document and exported files carry none, so the linkage cannot survive save, reopen, copy, export or restore. No test proves that round trip, because there is nothing to round-trip."
+  },
+  {
+   "id": "HBR-PRIV-002",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-session/src/session.rs:147 'None: standalone use, everything is allowed'",
+    "crates/hsk-studio-session/src/session.rs:1152-1155 check_grant: None => Ok(GrantToken(0))",
+    "crates/hsk-studio-session/src/session.rs:163 SessionPorts::new sets grants: None",
+    "crates/hsk-studio-session/src/session.rs:1139-1142 actor_mismatch; :2480, :2536, :2611 Save/Export grant checks",
+    "crates/hsk-studio-session/src/ports.rs:39 GrantPort::check(actor, resource, action)",
+    "crates/hsk-studio-kernel-bindings/tests/bridge_contract.rs:305 fail_closed_on_absent_or_revoked_grant (name read; body NOT_INSPECTED)"
+   ],
+   "gap": "The default is allow. A Session with no GrantPort permits everything, and SessionPorts::new is that default; default deny exists only when a host binds a port. ActorContext has no project, tenant or delegation field, so those mismatches cannot be denied. Session::open_path and open_bytes (:605, :628) show no check_grant in the grep (body NOT_INSPECTED)."
+  },
+  {
+   "id": "HBR-PRIV-003",
+   "verdict": "MISSING",
+   "evidence": [
+    "crates/hsk-studio-kernel-bindings/tests/bridge_contract.rs:630-660 job_tickets_are_released_only_by_their_owner: two principals plus a second account, job ticket release only",
+    "crates/hsk-studio-accord/src/lib.rs:459-466 no project field"
+   ],
+   "gap": "No concurrent suite with two accounts in one project plus an unrelated account. Nothing proves that names, counts, thumbnails, search hits, activity, logs and traces are invisible without a grant. The only multi-actor proof found covers job ticket ownership. CKC test double authorization was seen only as a DESCRIPTOR claim (NOT_INSPECTED)."
+  },
+  {
+   "id": "HBR-PRIV-004",
+   "verdict": "MISSING",
+   "evidence": [
+    "crates/hsk-studio-harness-view/src/view/render.rs:64-78 Frame: pixels, backend, revision, no scope",
+    "crates/hsk-studio-package/src/manifest.rs:16 PREVIEW_PREFIX: previews stored in the package with no scope field",
+    "git grep access_scope|scope_of|inherit*scope|visibility_scope over crates/*/src: no hit"
+   ],
+   "gap": "No derived object (frame, preview, thumbnail, export, proof overlay, log frame) carries an access scope, and no non-widening rule or mixed-scope negative test exists."
+  },
+  {
+   "id": "HBR-PRIV-005",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-observe/src/lib.rs:1038-1040 frames carry owner account, owner principal, AccessSpace",
+    "crates/hsk-studio-observe/src/lib.rs:28 'The caller enforces fresh grants and destination visibility before this callback'",
+    "crates/hsk-studio-harness-core/src/harness.rs:118-136 FrameSink stores class and size in memory, no visibility check",
+    "crates/hsk-studio-harness-core/src/harness.rs:2403-2404 actor_json in op records and Run::history",
+    "crates/hsk-studio-harness-view/src/view/brush_mix.rs:34-39, composite/src/temporal/composition/effects.rs:209-214 sinks that discard frames"
+   ],
+   "gap": "Actor, owner, AccessSpace and session are attributed. Project/workspace context and a parent or delegated client are absent. The diagnostic and history projections are not scope-enforced: Run::history prints the full actor to any caller, and no caller-side visibility check exists on any sink opened. Discard sinks drop engine frames."
+  },
+  {
+   "id": "HBR-PRIV-006",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-session/src/ports.rs:38 'Fresh grant check; the session calls it on every submit, replay, save and export'",
+    "crates/hsk-studio-render-gpu/src/client.rs:791-799 GrantLedger::revoke; :677-690 authorize refuses revoked grants",
+    "crates/hsk-studio-session/tests/session_contract.rs:968 set_revoked helper (name read)"
+   ],
+   "gap": "Revocation is handled at each commit and GPU submission when a port exists. Logout, disablement, role change, AccessSpace switch, project removal, pass expiry, token rotation and disconnect have no Studio path. Open snapshots, frames and previews are not invalidated on revocation (no code found). No concurrent revocation test was found for the viewer path."
+  },
+  {
+   "id": "HBR-PRIV-007",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness-core/src/import.rs:644, :745 source sha256; :752-755 import provenance in the receipt",
+    "crates/hsk-studio-harness-core/src/import.rs:428-434 convert_to_native_as takes the actor",
+    "git grep reqwest|ureq|hyper|TcpStream|std::net over crates/*/src: only URL text in comments and XML namespaces"
+   ],
+   "gap": "No network path exists, but import and export do cross this rule's boundary. Content hash and provenance exist on import. Missing: the resulting local owner and AccessSpace, an authorization receipt, expiry or revocation state, and any equivalent on export. No remote identity or audience-bound delegation contract exists for later use."
+  },
+  {
+   "id": "HBR-PRIV-008",
+   "verdict": "MISSING",
+   "evidence": [
+    "git grep '\"actor\"|\"account\"|\"access_space\"|\"denied\"|grant' in view/mod.rs and view/shell.rs: no hit (Viewer::state_json at view/mod.rs:837 shows no identity)",
+    "crates/hsk-studio-controls/src/menu.rs:111 ReasonCode::CapabilityNotGranted; crates/hsk-studio-harness-view/src/view/shell.rs:826 the one view use"
+   ],
+   "gap": "No operator or model surface shows the active account, AccessSpace or sharing state. A capability reason code exists on one menu path, but no denial reason tied to identity. No sharing preview exists, because sharing does not exist."
+  },
+  {
+   "id": "HBR-STOP-001",
+   "verdict": "MET",
+   "evidence": [
+    "python scan of all 367 S/builders/lanes/*.json for token, capacity and session reasoning phrases: capacity 13, throughput 2, 'session limit' 1; only the session-limit hit was opened",
+    "S/builders/lanes/hsk-studio-interop-vector.json: 'the session limit cut the run after the push' reports a harness cut, not an estimate"
+   ],
+   "gap": "Limit: lane records only. Session transcripts NOT_INSPECTED. The 13 capacity and 2 throughput hits were not read one by one (UNVERIFIED that all are domain words such as job capacity)."
+  },
+  {
+   "id": "HBR-STOP-002",
+   "verdict": "MET",
+   "evidence": [
+    "same scan as HBR-STOP-001; no stop reason naming tokens or capacity found among the phrases opened"
+   ],
+   "gap": "Same limit as HBR-STOP-001."
+  },
+  {
+   "id": "HBR-STOP-003",
+   "verdict": "NOT_INSPECTED",
+   "evidence": [
+    "S/validation/round-R56.json verdict_counts PASS 326; mt_judgments scope asset_local_engine_half; not_proven list present"
+   ],
+   "gap": "Implementer behaviour, not product code. R56 alone shows scoped claims and a recorded not_proven list. The other rounds and the lanes' stop events were not read."
+  },
+  {
+   "id": "HBR-STOP-004",
+   "verdict": "NOT_INSPECTED",
+   "evidence": [
+    "not opened beyond the R56 counters block (CX-EXEC-015 counters)"
+   ],
+   "gap": "Implementer behaviour. No sample of dependency work and return was read."
+  },
+  {
+   "id": "HBR-STOP-005",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "S/builders/lanes: python scan for HBR-STOP-005 finds 6 mentions in 4 lanes, for example hsk-studio-ai-area-type-4.json waiver_HBR_STOP_005 'Lead waiver (disclosed): no re-run after rebasing onto origin'"
+   ],
+   "gap": "The rule says the Operator is asked and told why and what was touched. The six mentions opened record lead waivers, and none names the Operator. Whether the Operator delegated this to the lead is UNVERIFIED. The other 'waiver' hits (55 total) were not read."
+  },
+  {
+   "id": "HBR-COMPART-001",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "K/.GOV/task_packets/WP-KERNEL-STUDIO/*.json: 6220 of 6220 MTs have execution.module_ref",
+    "K/.GOV/task_packets/WP-KERNEL-STUDIO/packet.json /architecture_binding/boundary_change = extract",
+    "K/.GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json crate_count 35, all 35 status PLANNED_NOT_IMPLEMENTED, updated 2026-10-30",
+    "crates/ has 56 hsk-studio-* crates; Cargo.toml comparison by script"
+   ],
+   "gap": "21 crates have no module record: harness-core, harness-view, interop-affinity, interop-fig-base, interop-fig-native, interop-raster, interop-tiff, interop-vector-core, interop-vector-svg, press-read, press-write, ps, ps-core, ps-engine, ps-fonts, ps-graphics, ps-ops, ps-pdf, web-assets, web-core, worker. The 35 listed still say PLANNED_NOT_IMPLEMENTED. 35 actual crate edges among catalogued crates are not in depends_on, 21 of them from hsk-studio-harness. tools/registry-sync.py pins dependencies but its header shows no direction check; other gates NOT_INSPECTED."
+  },
+  {
+   "id": "HBR-COMPART-002",
+   "verdict": "MISSING",
+   "evidence": [
+    "S/validation/round-R56.json: text search finds relink 0, build_budget 0, rebuild 1 (an unrelated finding about plan_move)",
+    "S/validation/round-R56.json unit_growth: bytes created per unit, not rebuild time",
+    "K/.GOV/task_packets/WP-KERNEL-STUDIO/packet.json: build_budget 0 occurrences"
+   ],
+   "gap": "Build units exist (56 crates), so the rule's deferral has ended. R56 records no warm incremental rebuild time and no relinked test-binary count, and no build budget exists to compare against. Other rounds NOT_INSPECTED."
+  },
+  {
+   "id": "HBR-COMPONENT-001",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "K/.GOV/task_packets/WP-KERNEL-STUDIO/packet.json /reuse/consumed_capability_refs: 3 (PromotionGate, MexRegistry, SurfaceDescriptor); Kumihimo 0 and Handpick 0 occurrences",
+    "K/.GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json shared_owners.controls 'Controls single mechanic owner'",
+    "crates/hsk-studio-harness-view/src/view/settings_catalog.rs:24 Handpick named as phase 1 only; no code reference to Kumihimo or Handpick found",
+    "crates/hsk-studio-harness-view/src/view/file_dialog.rs:387 own file dialog on egui"
+   ],
+   "gap": "The packet names three consumed capabilities and none for controls or search, although Operator decision D8 makes Kumihimo the shared-controls owner. Studio's controls crate and its egui surfaces are a parallel implementation until adoption. Sibling assets on the default branch (dropdownmenu, handshake_context_menu, handshake_text_mechanics, handshake_rich_formatting) are not consumed; whether each overlaps a Studio mechanic is UNVERIFIED."
+  },
+  {
+   "id": "HBR-COMPONENT-002",
+   "verdict": "MISSING",
+   "evidence": [
+    "K/.GOV/task_packets/WP-KERNEL-STUDIO/packet.json /reuse/new_capability_refs = []",
+    "K/.GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json shared_owners declares controls, jobs, telemetry and manual owners"
+   ],
+   "gap": "The list is empty, yet the module file declares Studio owners and the code implements them, so no owner search or spec primitive binding is recorded. The rule's not_applicable clause fits only the empty list, not the code."
+  },
+  {
+   "id": "HBR-MODULE-LIFECYCLE-001",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "Cargo.toml workspace with per-crate path deps pinned =0.1.0; crates/hsk-studio-observe/Cargo.toml sample",
+    "crates/hsk-studio-harness-core/src/manual.rs:17-45 CLI manual; crates/hsk-studio-harness/RUN-UI.md 436 lines of prose",
+    "pub const DESCRIPTOR found in 35 crates",
+    "STUDIO_MODULES.json modules[].maintenance owner_ref for 35 + workspace"
+   ],
+   "gap": "22 of 56 crates have no consumer example, and 21 have no DESCRIPTOR. 21 crates have no module owner record. Controls cannot be selected without egui, which also enters harness-core's closure (controls Cargo.toml:13, harness-core Cargo.toml:26)."
+  },
+  {
+   "id": "HBR-MODULE-LIFECYCLE-002",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-session/src/jobs.rs:75-163 typed refusals and outcomes",
+    "crates/hsk-studio-render-gpu/src/client.rs:286-351 typed GPU refusals",
+    "crates/hsk-studio-worker/src/supervisor.rs:487 unbounded jobs channel; :488-497 reply_buffer None gives an unbounded reply channel, used by motion-js quickjs_worker.rs:253 and score-plugin host.rs:381",
+    "crates/hsk-studio-controls/src/lib.rs:32 DESCRIPTOR \"accesskit\":false; :14 pub mod egui_adapter"
+   ],
+   "gap": "Engine contracts are strong where opened, but worker queues are not uniformly bounded. The controls asset declares no accessibility contract and its renderer is egui. No drain or shutdown contract was seen at viewer level (NOT_INSPECTED beyond those files)."
+  },
+  {
+   "id": "HBR-MODULE-LIFECYCLE-003",
+   "verdict": "MISSING",
+   "evidence": [
+    "git ls-remote --tags origin: 0 tags; git tag: 0",
+    "Cargo.toml:63 workspace version 0.1.0 for all crates",
+    "STUDIO_MODULES.json workspace_owner release.provenance 'no release identity exists yet'"
+   ],
+   "gap": "No immutable release exists: no tag, artifact digest, compatibility or deprecation policy in effect, and no release a host could pin. Only the branch tip exists. Host-side pins NOT_INSPECTED."
+  },
+  {
+   "id": "HBR-MODULE-LIFECYCLE-004",
+   "verdict": "NOT_APPLICABLE_YET",
+   "evidence": [
+    "crates/hsk-studio-kernel-bindings/src/lib.rs:94 DESCRIPTOR later_host_adapters: all NOT_IMPLEMENTED_HOST_ONLY",
+    "STUDIO_MODULES.json embedding status PENDING_DISTINCT_HOST_ADOPTION_MT_AUTHORING, adapter_contract_refs []"
+   ],
+   "gap": "The rule's trigger is embedding, and no embedding exists on the Studio side. When it fires, nothing exact is ready: no versioned adapter or conformance proof, only the host-neutral bridge."
+  },
+  {
+   "id": "HBR-MODULE-LIFECYCLE-005",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "STUDIO_MODULES.json workspace_owner release.publication_allowlist (4 paths), private_data_exclusion, evolution.portable_roots, upgrade, migration, rollback (prose)",
+    "STUDIO_MODULES.json mirror.status NOT_MATERIALIZED_NO_PRODUCT_CODE_YET, stale against 1940292c",
+    "origin/codex/handshake-studio-assets:.gitignore: .local/, .gameplan-active, **/target/",
+    "git grep publication allowlist over .config, tools and Cargo.toml: no hit"
+   ],
+   "gap": "The contract is written, but nothing enforces it: no allowlist check in the product tree, and the workspace allowlist names only 4 paths. Rollback and migration are prose with no proof."
+  },
+  {
+   "id": "HBR-MODULE-LIFECYCLE-006",
+   "verdict": "MISSING",
+   "evidence": [
+    "git ls-remote --symref origin HEAD: refs/heads/codex/handpick",
+    "origin/codex/handpick assets-index.yaml repository.branch codex/handpick; HANDSHAKE-STUDIO-ASSETS-ASSET-001 source_url tree/codex/handpick/handshake-studio-assets",
+    "subtree handshake-studio-assets differs: 3df0185c on codex/handpick, b73ee59d on codex/handshake-studio-assets",
+    "since merge-base a1057668 (2026-10-21): 3 commits touch the subtree on handpick, 504 on the Studio branch; handpick copy has 45 crates, Studio 56",
+    "absent on handpick: observe/src/ring.rs, render-gpu/src/client.rs, session/src/jobs.rs, accord/src/command.rs, accord/src/settings.rs"
+   ],
+   "gap": "Two diverged copies of the source exist in one repository, and the catalog points readers at the stale one. Both sides changed it, so this is live drift. The catalog lacks 11 crates (interop-fig-base, interop-fig-native, ps, ps-core, ps-engine, ps-fonts, ps-graphics, ps-ops, ps-pdf, web-assets, web-core), and the Studio branch has no assets-index.yaml. No base/source/target digest check at publication was found in the product tree. Related Operator rule, not an HBR clause: GLOBAL-ASSETS-012 asks for an assets/ parent folder and treats permanent asset branches as no asset location; the default branch has no assets/ folder (commit 3b70ad89 moved projects to root, asset_root null)."
+  },
+  {
+   "id": "HBR-MODULE-LIFECYCLE-007",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "git ls-remote: refs/heads/codex/handshake-studio-assets = 1940292c, equal to this tree",
+    "STUDIO_MODULES.json canonical_product_branch codex/handshake-studio-assets",
+    "S/validation/round-R56.json candidate, tree and diffs read by the validator through git objects",
+    "MT module_refs naming host modules: handshake_native::studio 40, handshake_core::studio 10, handshake_core::mex 1, handshake_core::flight_recorder 1"
+   ],
+   "gap": "Changes do land on GitHub first and are independently reread by rounds, and host adoption is split into distinct MTs. The declared canonical location disagrees with the catalog (see HBR-MODULE-LIFECYCLE-006), and no immutable revision exists for adoption beyond a commit sha. Adoption MT contents NOT_INSPECTED."
+  },
+  {
+   "id": "HBR-MODULE-LIFECYCLE-008",
+   "verdict": "MISSING",
+   "evidence": [
+    "git ls-tree origin/codex/handpick Kumihimo/product: kumihimo-content, core, egui, external-apps, layout-json, render-bridge, web, third-party; no non-egui renderer crate",
+    "S/research/integration-refactor-inventory-20261030.json decisions_for_operator D8"
+   ],
+   "gap": "D8 identified the missing shared capability (a pure-Vulkan Kumihimo renderer). It is not on the Kumihimo canonical branch at e75e34ff. This is Kumihimo asset work, not Studio code. No host-local workaround was found in Studio, but Studio's GUI lanes wait on this."
+  },
+  {
+   "id": "HBR-HOST-001",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-harness-view/src/view/mod.rs:879 pub fn ui(ctx: &egui::Context); view/render.rs:76 pub texture: Option<egui::TextureId>; view/shell.rs:181,217; view/hosted.rs:151,157; view/timeline.rs 9 public items",
+    "script count: 32 public items in 14 harness-view files name egui:: directly (lower bound: aliased types not counted); 37 files reference egui",
+    "crates/hsk-studio-harness-view/Cargo.toml viewer feature requires dep:egui",
+    "crates/hsk-studio-controls/src/lib.rs:14 pub mod egui_adapter, no feature gate; controls Cargo.toml:13 egui not optional; harness-core Cargo.toml:26 depends on controls",
+    "crates/hsk-studio-harness/src/bin/studio-harness.rs:73-78 own eframe window, asset-local test host",
+    "S/validation/round-R56.json host_integration.wave_scan: 0 new egui, eframe, winit or wgpu lines in the R56 wave"
+   ],
+   "gap": "Mounting is deferred by the rule's own text (the owning MT family was not opened: WP-KERNEL-012 not touched). The half that stays binding, toolkit-free public contracts, fails for controls and harness-view. 52 of 56 crates have no direct toolkit dependency and new code is clean, but the Viewer cannot compile without egui, and harness-core pulls egui through controls. The common brief freezes only NEW signatures, so this debt does not shrink on its own."
+  },
+  {
+   "id": "HBR-HOST-002",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-controls/src/registry.rs:202 audit; src/menu.rs; src/projection.rs agent_json, manual_topics",
+    "crates/hsk-studio-harness-view/src/view/shell.rs:526 ShellCommand; :559 'studio.document.save'",
+    "crates/hsk-studio-harness-core/src/action.rs:843 RUN_COMMANDS; :868 'document.save'; :873 'history.undo'",
+    "crates/hsk-studio-harness-view/src/view/hosted.rs:217 PanelAction, no string id",
+    "crates/hsk-studio-harness-core/src/manual.rs:17 COMMANDS and :33 FLAGS, hand-kept",
+    "19 'pub mod widget' modules and 380 'pub const X: &str' in harness-view; view/mod.rs:180 id -> egui::Id",
+    "crates/hsk-studio-harness/RUN-UI.md 436 lines of prose",
+    "view/shell.rs:980 shell_command and view/hosted.rs:1348 hosted_action act on the one Viewer; grep for operator or model views: no hit"
+   ],
+   "gap": "Menus and panels use the typed source. Everything else is still a second vocabulary: the same save action has two ids (studio.document.save and document.save), and PanelAction has no id. No separate operator and model views or selections exist, so a model acting through Viewer shares the operator's state. No git log entry names RF-05."
+  },
+  {
+   "id": "HBR-HOST-003",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-render-gpu/src/client.rs:426-448 GpuClientPort admit, authorize, settle, rebind; :170-180 grant not Clone; :691-721 settle once; :220-226 ByteQuantity",
+    "crates/hsk-studio-render-gpu/src/client/transient.rs:1-5, :41-46 asset-local adapter, Windows Vulkan then DX12",
+    "crates/hsk-studio-render-gpu/tests/client_port.rs:173-608 test names (bodies NOT_INSPECTED beyond names)",
+    "crates/hsk-studio-render-gpu/src/device.rs:277, :284, :304 only instance and device creation; crate-private",
+    "crates/hsk-studio-render-gpu/src/plan_sink.rs:1378 public GpuBackend::new, no feature gate; view/mod.rs:766 caller",
+    "crates/hsk-studio-render-gpu/src/plan_sink/shared.rs:51, :411-425 wgpu types public under feature shared-device; lib.rs:48-49",
+    "crates/hsk-studio-harness-view/src/view/render.rs:335 gpu_not_created, :345 gpu_fallback: both fall to render-cpu with a string note",
+    "crates/hsk-studio-render-gpu/Cargo.toml:22 wgpu =27.0.1 not optional"
+   ],
+   "gap": "The owner is deferred by the rule's own text and the client port with transient adapter exists, as the rule asks. Still failing: the viewer drops to CPU with a text note, not a typed outcome. The stand-in ships in default builds through GpuBackend::new. Windows may land on DX12. Budgets are studio_declared per grant, not global. wgpu remains the API against Operator decision D7."
+  },
+  {
+   "id": "HBR-HOST-004",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-session/src/jobs.rs:1-36, :75-140 admission and settlement with overload, cancel, deadline, stale revision, release",
+    "crates/hsk-studio-harness-view/src/view/job_admission.rs:1-44, :226 AdmittedExportQueue; view/audio_batch.rs:366-395; view/timeline/export_media.rs:507",
+    "crates/hsk-studio-harness-view/src/view/preview_gate.rs:1-12 typed Superseded, doc states today's synchronous renderer cannot produce one except by constructed test",
+    "crates/hsk-studio-score-device/src/callback.rs:1-20 callback copies from ring; grep finds no Observe, Mutex, lock, Vec or println in the file",
+    "crates/hsk-studio-harness-core/src/harness.rs:223, :401 undo_stack Vec; grep finds no history cap in that file",
+    "crates/hsk-studio-worker/src/supervisor.rs:487 unbounded; git grep JobPort|JobLifecycle in worker, motion-js, score-plugin, reel-native, interop-vector-core, press-write: no hit"
+   ],
+   "gap": "The export, reel and audio batch queues are admitted through a typed lifecycle, but against the asset-local AdmissionJobPort: nothing accounts to a host owner, and Handshake's port is unbound. Undo history shows no bound. Worker-based jobs do not use JobPort inside their crates (whether every caller admits them is UNVERIFIED). Job cost is a bytes number with no estimate versus measured distinction outside GPU. The AE render queue has no product runner."
+  },
+  {
+   "id": "HBR-HOST-005",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-observe/src/ring.rs:1-7 'Observe::emit* is not wired to this port in phase 0'; :698 RingProducerPort",
+    "git grep RingProducerPort|observe::ring|RingRecord::terminal over other crates' src and tests: no hit",
+    "ring.rs:60-66 Gpu* codes declared, no emitter; git grep RingCode::Gpu outside ring.rs: no hit",
+    "crates/hsk-studio-render-gpu/src/report.rs:29, :79 report and report_port; git grep over crates/*/src: no caller outside the definition (tests/client_port.rs only)",
+    "crates/hsk-studio-harness-view/src/view/shell.rs:342, :408 Help > Flight Recorder 'no flight recorder binding yet'",
+    "crates/hsk-studio-observe/src/lib.rs:772 private_project_text field, never read elsewhere in lib.rs",
+    "git grep heartbeat|set_hook: worker processes only (reel-native, score-plugin, eps_worker, worker supervisor)"
+   ],
+   "gap": "Studio built the port and text-free record but connected nothing to it. No Studio code path produces a RingRecord. GPU outcomes reach no diagnostic port on any src path. There is no per-frame heartbeat, in-process panic capture or GUI action event. PID and process birth are absent until a host fills them. Handshake's event block is a proposal only (ring.rs:38-44): host state NOT_INSPECTED."
+  },
+  {
+   "id": "HBR-HOST-006",
+   "verdict": "MISSING",
+   "evidence": [
+    "git grep -i palmistry over crates/*/src and tests: hits in accord, folio, kernel-bindings, observe (ring.rs) and observe lib.rs; those opened are descriptor or doc text only",
+    "crates/hsk-studio-kernel-bindings/src/lib.rs:94 'Argus, Flight Recorder, internal diagnostics and Palmistry sinks' NOT_IMPLEMENTED_HOST_ONLY"
+   ],
+   "gap": "The rule's text has no wait clause, and asset-local hosts do not substitute. No survivor record, controlled freeze or crash on Studio, or watcher attachment exists. It needs the mount (RF-01) and the ring wiring first. R56 judged MTs at scope asset_local_engine_half, so it makes no host acceptance claim."
+  },
+  {
+   "id": "HBR-HOST-007",
+   "verdict": "PARTIAL",
+   "evidence": [
+    "crates/hsk-studio-accord/src/command.rs:130-184 CommandContext",
+    "crates/hsk-studio-harness-core/src/context.rs:83-88 fixed actor only under feature asset-local-test-host; git grep default_actor over crates/*/src: no hit",
+    "crates/hsk-studio-harness-core/src/harness.rs:346-362 HistoryStep ctx and revision; :461-468 op record; :532-536 event sink",
+    "crates/hsk-studio-session/src/session.rs:764 submit (no context), :779 submit_as; same pairs at :819/:840, :890/:904, :943/:958, :1094/:1109",
+    "crates/hsk-studio-kernel-bindings/src/context.rs:17-26 optional wire field; lib.rs:94 'absent it is not encoded'",
+    "crates/hsk-studio-kernel-bindings/src/business_event.rs:63-77 13 of 22 not produced",
+    "git grep BridgePorts|TransientHost outside kernel-bindings/src: no hit; harness crates' Cargo.toml has no kernel-bindings line",
+    "git grep agent_label|client_session_id over crates/*/src: no hit; git grep argus|VisualReceipt: descriptor text only"
+   ],
+   "gap": "Run's path is attributed end to end and hard-coded actors are gone from product paths, which is real progress. Still missing: Session keeps public submit forms with no command context. The wire attribution is optional. The harness never uses the bridge or the business-event envelope. No agent-label adapter exists. No Argus visual receipt binds revision, renderer, frame, color profile and grant. 13 of 22 events have no producer. Delivery is memory only."
+  },
+  {
+   "id": "HBR-HOST-008",
+   "verdict": "MISSING",
+   "evidence": [
+    "git grep egui_tiles|DockArea|show_viewport|ImeOutput|native_pixels_per_point in harness-view and harness: only ViewportBuilder at studio-harness.rs:74",
+    "SidePanel or TopBottomPanel in 9 harness-view files; egui::Window in 6",
+    "crates/hsk-studio-harness-view/src/view/settings_catalog.rs:1-26, :37-41 three groups; accord/src/settings.rs:1-37 typed schema, no persistence",
+    "git grep EngineProfile|engine_profile|Handpick: settings_catalog comment only"
+   ],
+   "gap": "No docking, shared edges, multiwindow, IME or DPI handling. Settings is a typed schema of 3 groups with no surface; FillSettings (fill_tools.rs:115), PsSettings (select_liquify.rs:48), Prefer and DeviceOptions are outside it. No Engine Profiles and no Handpick. Truthful loading, empty, denied and error state matrix NOT_INSPECTED beyond these greps."
+  }
+ ],
+ "refactor_items": [
+  {
+   "id": "RF-01",
+   "surface": "GUI host",
+   "status": "not started",
+   "evidence": "view/mod.rs:879, view/render.rs:76; 14 files with public egui items by script, 37 files reference egui, same 37 as the inventory; no git log entry names RF-01",
+   "note": "New code is egui-free by rule (job_admission.rs, preview_gate.rs, settings_catalog.rs), but no existing signature was removed and Viewer still needs dep:egui."
+  },
+  {
+   "id": "RF-02",
+   "surface": "docking, multiwindow, IME, DPI, AccessKit, states",
+   "status": "not started",
+   "evidence": "greps above: no egui_tiles, no extra viewport, no IME or DPI code; view/shell.rs:1470 AccessKit descriptions only",
+   "note": "Phase 1."
+  },
+  {
+   "id": "RF-03",
+   "surface": "GPU ownership",
+   "status": "partial",
+   "evidence": "render-gpu/src/client.rs:426-448, client/transient.rs:41-46, lib.rs:36-37 BackendChoice feature-gated, device.rs:277-304 crate-private; commit 921e8483",
+   "note": "Phase 0 done. Eframe's device still used through SharedDevice in the desktop test host; owner adoption not started (MT-203 NOT_INSPECTED)."
+  },
+  {
+   "id": "RF-04",
+   "surface": "diagnostics",
+   "status": "partial",
+   "evidence": "observe/src/ring.rs:1-7, :698; no user outside observe; view/shell.rs:408 unbound; Quiet sinks at view/brush_mix.rs:34, vector/swatch.rs:65, vector/separations.rs:62 plus composite effects.rs:209",
+   "note": "Port only. Nothing is produced into it."
+  },
+  {
+   "id": "RF-05",
+   "surface": "control descriptors",
+   "status": "not started",
+   "evidence": "view/shell.rs:526, view/hosted.rs:217, action.rs:843, manual.rs:17, 380 str id constants; no git log entry names RF-05",
+   "note": "Menus and two panels use the typed source, as at the inventory date."
+  },
+  {
+   "id": "RF-06",
+   "surface": "attribution",
+   "status": "partial",
+   "evidence": "accord/src/command.rs:130, harness-core/src/context.rs:83-88, harness.rs:346-362, kernel-bindings/src/context.rs; commits 57c0858b, 1893b965; default_actor absent from src",
+   "note": "Studio side largely done. Missing: PID and process birth, Argus receipts, agent-label adapter, Session forms without context."
+  },
+  {
+   "id": "RF-07",
+   "surface": "business events",
+   "status": "partial",
+   "evidence": "accord/src/business_event.rs, kernel-bindings/src/business_event.rs:63-77, harness.rs:493-536",
+   "note": "9 of 22 have a producer. Sink optional and memory only in the asset. Help > Flight Recorder unbound. Host ingestion NOT_INSPECTED."
+  },
+  {
+   "id": "RF-08",
+   "surface": "jobs, queues, allocations",
+   "status": "partial",
+   "evidence": "session/src/jobs.rs, view/job_admission.rs, view/audio_batch.rs:366-395, view/timeline/export_media.rs:507, view/preview_gate.rs",
+   "note": "Three queues admitted, AE queue has no runner, worker crates have no JobPort, host binding absent."
+  },
+  {
+   "id": "RF-09",
+   "surface": "settings and engine profiles",
+   "status": "partial",
+   "evidence": "accord/src/settings.rs, view/settings_catalog.rs:37-41, view/edit.rs:248, pigment/src/settings.rs:67, develop/src/settings.rs:116",
+   "note": "Schema exists for 3 groups. FillSettings, PsSettings, Prefer and DeviceOptions not in it. No host tab, no Engine Profiles."
+  },
+  {
+   "id": "RF-10",
+   "surface": "revision identity",
+   "status": "partial",
+   "evidence": "session/src/jobs.rs:82 StaleRevision, view/render.rs:78 Frame.revision, view/preview_gate.rs, accord/src/command.rs:135 base_revision",
+   "note": "Typed stale outcomes for jobs and previews. No binding to an EventLedger revision (phase 1; bridge is memory only)."
+  },
+  {
+   "id": "RF-11",
+   "surface": "tests and acceptance",
+   "status": "not started",
+   "evidence": "no watcher-survival test found by grep; S/validation/round-R56.json scope asset_local_engine_half",
+   "note": "Phase 2; R56 Vulkan rows are wgpu's Vulkan backend in headless tests (gpu_backend_summary)."
+  },
+  {
+   "id": "RF-12",
+   "surface": "GPU API, pure Vulkan",
+   "status": "not started",
+   "evidence": "render-gpu/Cargo.toml:22 wgpu =27.0.1 not optional; wgpu:: in 9 render-gpu src files; WGSL kernels in src; no direct ash dependency in any crate manifest",
+   "note": "Waits on a named binding crate per the inventory; the R56 wave added no wgpu code."
+  }
+ ],
+ "handshake_prerequisites": [
+  {
+   "item": "Vulkan backend in handshake_native and Kumihimo/Handpick host adoption",
+   "status": "NOT_INSPECTED",
+   "note": "Handshake product code and WP-KERNEL-012 files were out of bounds for this audit; Studio side only: no Studio code references Kumihimo or Handpick"
+  },
+  {
+   "item": "The single GPU owner (MT-203)",
+   "status": "NOT_INSPECTED",
+   "note": "Handshake product code and WP-KERNEL-012 files were out of bounds for this audit; Studio side only: client port ready, RF-03"
+  },
+  {
+   "item": "internal_diagnostics RT-safe handoff, GUI codes, module and correlation fields",
+   "status": "NOT_INSPECTED",
+   "note": "Handshake product code and WP-KERNEL-012 files were out of bounds for this audit; Studio side only: record shape proposed in observe/src/ring.rs:9-36, not allocated"
+  },
+  {
+   "item": "Business-event identity registration and Palmistry-to-FR ingestion",
+   "status": "NOT_INSPECTED",
+   "note": "Handshake product code and WP-KERNEL-012 files were out of bounds for this audit; Studio side only: envelope ready, kernel-bindings/src/business_event.rs"
+  },
+  {
+   "item": "Module settings registration, Settings tree, Engine Profiles in the host",
+   "status": "NOT_INSPECTED",
+   "note": "Handshake product code and WP-KERNEL-012 files were out of bounds for this audit; Studio side only: projection ready, accord/src/settings.rs to_preference_json"
+  },
+  {
+   "item": "Cross-module document-revision type and GUI/GPU job semantics",
+   "status": "NOT_INSPECTED",
+   "note": "Handshake product code and WP-KERNEL-012 files were out of bounds for this audit; Studio side only: u64 revisions only"
+  },
+  {
+   "item": "Host-side adapters for observe and kernel-bindings; live Studio pane consumer",
+   "status": "NOT_INSPECTED",
+   "note": "Handshake product code and WP-KERNEL-012 files were out of bounds for this audit; Studio side only: kernel-bindings/src/lib.rs:94 later_host_adapters NOT_IMPLEMENTED_HOST_ONLY"
+  },
+  {
+   "item": "Non-egui native Vulkan UI and control layer",
+   "status": "NOT_INSPECTED",
+   "note": "Handshake product code and WP-KERNEL-012 files were out of bounds for this audit; Studio side only: Kumihimo default branch has no non-egui renderer crate at e75e34ff (this one was inspected)"
+  }
+ ],
+ "top_gaps": [
+  {
+   "rank": 1,
+   "gap": "Resources have no persisted owner or scope, and a Session with no port allows everything.",
+   "build": "Session fail-closed by default (standalone needs an explicit grant port); owner and AccessSpace in the document or package manifest; a scope on previews, frames and exports with a non-widening rule; a typed identity and denial state in state_json.",
+   "owner_crates": [
+    "hsk-studio-session",
+    "hsk-studio-package",
+    "hsk-studio-folio",
+    "hsk-studio-accord",
+    "hsk-studio-harness-view"
+   ],
+   "rules": [
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-003",
+    "HBR-PRIV-004",
+    "HBR-PRIV-008"
+   ],
+   "evidence": "session/src/session.rs:147, :1155; package/src/manifest.rs:16"
+  },
+  {
+   "rank": 2,
+   "gap": "egui sits in public contracts; the Viewer and harness-core cannot build without it.",
+   "build": "Move egui_adapter behind a feature or out of controls; split egui-free Viewer state and commands from an asset-local egui leaf crate; replace egui::Rect, Key, Modifiers and Id in public items with Studio types.",
+   "owner_crates": [
+    "hsk-studio-controls",
+    "hsk-studio-harness-view",
+    "hsk-studio-harness-core"
+   ],
+   "rules": [
+    "HBR-HOST-001"
+   ],
+   "evidence": "controls/src/lib.rs:14, controls/Cargo.toml:13, view/mod.rs:879, view/timeline.rs:299-408"
+  },
+  {
+   "rank": 3,
+   "gap": "Commands and controls are described in several unconnected vocabularies, with no operator and model separation.",
+   "build": "One Registry declaration per control and command, with stable ids, generating RUN_COMMANDS, the CLI manual, menus, state_json and AccessKit; ids for every PanelAction; retire widget constants and RUN-UI.md prose; per-client selection state.",
+   "owner_crates": [
+    "hsk-studio-controls",
+    "hsk-studio-harness-core",
+    "hsk-studio-harness-view"
+   ],
+   "rules": [
+    "HBR-HOST-002"
+   ],
+   "evidence": "view/shell.rs:559 against action.rs:868; view/hosted.rs:217"
+  },
+  {
+   "rank": 4,
+   "gap": "Diagnostics stop at a port nobody calls; GPU failures reach no port.",
+   "build": "Route Observe terminal outcomes to RingProducerPort; call report and report_port from the render path and emit Gpu* codes; replace the viewer's CPU fallback note with a typed outcome; add a frame heartbeat and bind Help > Flight Recorder through the port.",
+   "owner_crates": [
+    "hsk-studio-observe",
+    "hsk-studio-render-gpu",
+    "hsk-studio-harness-view"
+   ],
+   "rules": [
+    "HBR-HOST-005",
+    "HBR-HOST-003"
+   ],
+   "evidence": "observe/src/ring.rs:6-7, render-gpu/src/report.rs:79, view/render.rs:335, :345, view/shell.rs:408"
+  },
+  {
+   "rank": 5,
+   "gap": "Publication: two diverged source copies, a stale catalog and no release.",
+   "build": "Settle one canonical location and reconcile the 3 handpick-side commits; update assets-index.yaml and STUDIO_MODULES.json to 56 crates with true status; tagged immutable releases with digests; an enforced publication allowlist check.",
+   "owner_crates": [
+    "STUDIO-WORKSPACE"
+   ],
+   "rules": [
+    "HBR-MODULE-LIFECYCLE-003",
+    "HBR-MODULE-LIFECYCLE-005",
+    "HBR-MODULE-LIFECYCLE-006",
+    "HBR-COMPART-001"
+   ],
+   "evidence": "assets-index.yaml source_url; subtree 3df0185c against b73ee59d; ls-remote tags 0"
+  },
+  {
+   "rank": 6,
+   "gap": "Attribution holes remain outside Run.",
+   "build": "Remove or restrict Session submit forms without context; make wire command context required on commits; wire harness Run to the bridge and envelope; agent-label adapter; Argus visual receipt fields; producers for the 13 unproduced events.",
+   "owner_crates": [
+    "hsk-studio-session",
+    "hsk-studio-kernel-bindings",
+    "hsk-studio-harness-core"
+   ],
+   "rules": [
+    "HBR-HOST-007"
+   ],
+   "evidence": "session/src/session.rs:764; kernel-bindings/src/business_event.rs:63-77"
+  },
+  {
+   "rank": 7,
+   "gap": "Unbounded memory and unadmitted workers.",
+   "build": "Bound undo history in bytes and steps; bound worker job and reply channels; admit worker jobs through JobPort; keep estimates apart from measurements in Cost.",
+   "owner_crates": [
+    "hsk-studio-harness-core",
+    "hsk-studio-worker",
+    "hsk-studio-session"
+   ],
+   "rules": [
+    "HBR-HOST-004",
+    "HBR-MODULE-LIFECYCLE-002"
+   ],
+   "evidence": "harness-core/src/harness.rs:401; worker/src/supervisor.rs:487"
+  },
+  {
+   "rank": 8,
+   "gap": "No rebuild measurement or build budget.",
+   "build": "Record warm rebuild time and relinked test-binary count per round in run-round.sh against a declared budget.",
+   "owner_crates": [
+    "STUDIO-WORKSPACE (tools/run-round.sh)"
+   ],
+   "rules": [
+    "HBR-COMPART-002"
+   ],
+   "evidence": "S/validation/round-R56.json relink 0, build_budget 0"
+  },
+  {
+   "rank": 9,
+   "gap": "Blocked on outside work: pure Vulkan client (RF-12), Kumihimo non-egui renderer, workbench, Engine Profiles, Handpick, watcher proof.",
+   "build": "render-gpu without wgpu once the binding crate is named; Kumihimo renderer in its own asset; the rest after mount.",
+   "owner_crates": [
+    "hsk-studio-render-gpu",
+    "Kumihimo asset",
+    "hsk-studio-harness-view"
+   ],
+   "rules": [
+    "HBR-HOST-003",
+    "HBR-MODULE-LIFECYCLE-008",
+    "HBR-HOST-006",
+    "HBR-HOST-008"
+   ],
+   "evidence": "render-gpu/Cargo.toml:22; Kumihimo/product listing at e75e34ff"
+  }
+ ],
+ "not_inspected": [
+  "HBR-STOP-003 and HBR-STOP-004 beyond R56 counters",
+  "Handshake side: GPU owner, ring, Palmistry, FR, shell state, adoption pins",
+  "Adoption MT contents",
+  "Session open_path and open_bytes bodies for grant checks",
+  "Test bodies other than bridge_contract.rs:630-660",
+  "Rounds other than R56; session transcripts",
+  "The 13 capacity and 2 throughput lane hits, and most of the 55 waiver hits"
+ ]
+}

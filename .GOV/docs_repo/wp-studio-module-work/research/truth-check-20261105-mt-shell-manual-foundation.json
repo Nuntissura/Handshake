@@ -1,0 +1,3076 @@
+{
+ "area": "operator shell, model surface, tooltips and manual, cross-cutting, architecture, val, par, quiet, pw, his, null-domain foundation and legacy",
+ "tree": {
+  "product": "wt-studio-lanes/smb-type-authored-token-1/handshake-studio-assets",
+  "commit": "1940292c64d57a65cc753f3258374f8b57b97f36",
+  "host_checked": "handshake_main 4fe1e9a92 (2026-09-24), grep only"
+ },
+ "date": "2026-11-05",
+ "method": {
+  "summary": "Read prefilter, grouped by clause, anchor number and unit_kind. Opened MT contracts (clause, scope, acceptance) and the code by git grep and reads. Classified per sampled MT. No cargo, no build, no test run: BUILT means a test exists and reads as proving it, not that it passed today.",
+  "verdict_rules": {
+   "BUILT": "behaviour exists and a test covers it, asset-local",
+   "PARTIAL": "part of the clause exists; evidence says which",
+   "MISSING": "nothing implements it",
+   "GUI_ONLY_GAP": "engine plus test exist; only registry, GUI, manual or host obligation is unmet",
+   "NOT_CODE": "extra class: spec bookkeeping, declared debt or policy with no code acceptance"
+  },
+  "prefilter_warning": "Anchor flags are unreliable for this area: all 362 tool rows and 90 panel rows are flagged anchored on one comment each. Sampled rows were judged on the code.",
+  "sampling": "Shell, panel and tool samples are purposive, stratified by clause range and family, not random. Legacy and companion samples are seeded random, split by anchored and unanchored. Domains under 28 rows were opened in full. Every estimate carries that limit.",
+  "grep_noise": "Some zero-hit claims rest on term greps with synonyms tried. A capability under an unguessed name would be missed: treat single MISSING rows as UNVERIFIED until a lane scopes them.",
+  "scratchpad_note": "Sibling auditors share the session scratchpad; this audit wrote only under scratchpad/shell_audit plus a stray load.py at the scratchpad root."
+ },
+ "domains": {
+  "operator_shell": {
+   "mts": 689,
+   "status_pass": 0,
+   "status_counts": {
+    "PENDING": 689
+   },
+   "families": [
+    {
+     "name": "tool_catalogue_rows",
+     "mts": 363,
+     "sampled": 70,
+     "built": 0,
+     "partial": 10,
+     "missing": 28,
+     "gui_only_gap": 32,
+     "not_code": 0,
+     "what_exists": [
+      "harness-view/src/view/edit.rs:37 Tool enum, 33 test-host tools; layout_ui.rs:250 and view/timeline/trim.rs:79 are separate tool enums",
+      "Many engines exist under other names in pigment, nib, composite, develop, pulse (see samples)"
+     ],
+     "what_is_missing": [
+      "Tool registry of 362 tools in 22 families: zero studio.tool. ids, zero family ids (select_object etc.) in code",
+      "Whole engine gaps: tone_brush (12 rows), data_graph (10), symbol_instance (8), camera_3d (4), generative_ml (7, parked), measure, count, note, puppet pins, callouts and 3-point shapes, image trace, panorama, frequency separation"
+     ],
+     "samples": {
+      "MT-34685": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "harness-view/src/view/edit.rs Tool::DirectSelect; harness/tests/viewer_vector.rs"
+      },
+      "MT-34686": {
+       "verdict": "MISSING",
+       "evidence": "no symbol; only hit is an OpenType feature group in type/src/features.rs"
+      },
+      "MT-34687": {
+       "verdict": "PARTIAL",
+       "evidence": "pigment/src/select_tools/quick.rs:403 rectangle form only; tests/select_quick.rs; no subject detection"
+      },
+      "MT-34704": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "pigment/src/select_tools/wand.rs; pigment/tests/select_wand.rs; harness/tests/viewer_select_liquify.rs"
+      },
+      "MT-34707": {
+       "verdict": "PARTIAL",
+       "evidence": "edit.rs:498 freehand and polygonal share one route; no test names polygonal"
+      },
+      "MT-34710": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "edit.rs Tool::RectSelect, select_rect; harness/tests/viewer_edit.rs"
+      },
+      "MT-34711": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "edit.rs Tool::RefineBrush; harness/tests/viewer_refine_brush.rs; pigment/tests/select_liquify_2.rs"
+      },
+      "MT-34714": {
+       "verdict": "MISSING",
+       "evidence": "no symbol"
+      },
+      "MT-34718": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "edit.rs:156 Tool::View labelled Hand; pan driven in viewer tests"
+      },
+      "MT-34720": {
+       "verdict": "MISSING",
+       "evidence": "only PDF page rotation in interop-layout/src/pdf_place.rs"
+      },
+      "MT-34721": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "view/shell.rs ZoomIn/ZoomOut leaves; viewer_shell tests"
+      },
+      "MT-34723": {
+       "verdict": "MISSING",
+       "evidence": "no orbit control; composite three_d has a camera model, no tool"
+      },
+      "MT-34727": {
+       "verdict": "MISSING",
+       "evidence": "view/brush_mix.rs is the masked_replace tile mix, not a wet mixer brush"
+      },
+      "MT-34731": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "edit.rs Tool::Brush; pigment/src/brush.rs; harness/tests/viewer_edit.rs"
+      },
+      "MT-34733": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "pigment/src/brush.rs:498 erase_replacement; pigment/tests/brush.rs; no host tool"
+      },
+      "MT-34735": {
+       "verdict": "MISSING",
+       "evidence": "no erase in nib/src"
+      },
+      "MT-34740": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "pigment/src/retouch.rs:459 clone_stamp; pigment/tests/retouch.rs; no host tool"
+      },
+      "MT-34746": {
+       "verdict": "MISSING",
+       "evidence": "no symbol"
+      },
+      "MT-34747": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "pigment/src/retouch.rs:597 heal; pigment/tests/retouch.rs; no host tool"
+      },
+      "MT-34751": {
+       "verdict": "MISSING",
+       "evidence": "no symbol"
+      },
+      "MT-34754": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "develop/src/recipe.rs:31 enable_red_eye; develop/tests/develop_retouch.rs"
+      },
+      "MT-34761": {
+       "verdict": "MISSING",
+       "evidence": "Dodge exists only as blend modes (view/fill_tools.rs:83)"
+      },
+      "MT-34765": {
+       "verdict": "MISSING",
+       "evidence": "no symbol"
+      },
+      "MT-34767": {
+       "verdict": "MISSING",
+       "evidence": "no symbol"
+      },
+      "MT-34769": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "nib/src/anchor_path.rs; nib/tests/anchor_path.rs"
+      },
+      "MT-34778": {
+       "verdict": "MISSING",
+       "evidence": "no tracer; grep hits are unrelated (develop pipeline, score block)"
+      },
+      "MT-34779": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "nib/src/freeform.rs; nib/tests/freeform.rs; harness/tests/viewer_vector_2.rs"
+      },
+      "MT-34781": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "edit.rs Tool::Pen; harness/tests/viewer_vector.rs"
+      },
+      "MT-34792": {
+       "verdict": "MISSING",
+       "evidence": "no symbol"
+      },
+      "MT-34796": {
+       "verdict": "MISSING",
+       "evidence": "token hits are noise (cognate words); no shape"
+      },
+      "MT-34818": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "nib/src/shape.rs:342; Tool::Star"
+      },
+      "MT-34820": {
+       "verdict": "MISSING",
+       "evidence": "no symbol"
+      },
+      "MT-34831": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "folio/src/layout_grids.rs; layout/src/grids.rs; layout/tests/id_prepress_grids.rs"
+      },
+      "MT-34833": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "folio/src/vector_path_text.rs; folio/tests/ai_path_text_records.rs; harness-view/tests/viewer_vector_text.rs"
+      },
+      "MT-34837": {
+       "verdict": "MISSING",
+       "evidence": "no symbol"
+      },
+      "MT-34843": {
+       "verdict": "PARTIAL",
+       "evidence": "type/src/features.rs:340 VerticalWriting features, layout/src/cjk.rs:3; no vertical type tool or layout proof opened"
+      },
+      "MT-34845": {
+       "verdict": "PARTIAL",
+       "evidence": "view/info.rs:5 eyedropper only; no picker tool"
+      },
+      "MT-34849": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "pigment/src/fill_tools.rs:294; harness/tests/viewer_fill_tools.rs"
+      },
+      "MT-34852": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "nib/src/mesh.rs; nib/tests/ai_mesh.rs; view/vector/mesh.rs"
+      },
+      "MT-34856": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "folio artboard records; interop-fig-native; no artboard tool"
+      },
+      "MT-34860": {
+       "verdict": "PARTIAL",
+       "evidence": "develop crop in recipe only; no raster crop tool opened"
+      },
+      "MT-34866": {
+       "verdict": "MISSING",
+       "evidence": "no symbol"
+      },
+      "MT-34871": {
+       "verdict": "PARTIAL",
+       "evidence": "interop-layout/src/data_merge.rs:22 says QR placement is not implemented; field type only"
+      },
+      "MT-34882": {
+       "verdict": "PARTIAL",
+       "evidence": "nib/src/arrange.rs object transforms; no free transform tool"
+      },
+      "MT-34883": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "pigment/src/liquify.rs:102; harness/tests/viewer_select_liquify.rs"
+      },
+      "MT-34890": {
+       "verdict": "PARTIAL",
+       "evidence": "interop-psd/src/placed.rs:186 reads mesh points; nib/src/warp.rs; no mesh warp tool"
+      },
+      "MT-34902": {
+       "verdict": "MISSING",
+       "evidence": "no puppet code anywhere"
+      },
+      "MT-34913": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "composite/src/composition/effect_stack.rs:227; composite/tests/composition_effects.rs"
+      },
+      "MT-34919": {
+       "verdict": "MISSING",
+       "evidence": "no count tool"
+      },
+      "MT-34921": {
+       "verdict": "MISSING",
+       "evidence": "no measure tool"
+      },
+      "MT-34922": {
+       "verdict": "MISSING",
+       "evidence": "annotation hits are PDF reading only"
+      },
+      "MT-34924": {
+       "verdict": "MISSING",
+       "evidence": "no symbol"
+      },
+      "MT-34928": {
+       "verdict": "PARTIAL",
+       "evidence": "hosted Masks panel, harness/tests/viewer_mask_package.rs; no paint-on-mask tool opened"
+      },
+      "MT-34940": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "develop/src/curves.rs; pigment adjustments; develop tests"
+      },
+      "MT-34945": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "develop/src/detail.rs dehaze; develop/tests/develop_detail.rs"
+      },
+      "MT-34948": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "develop/src/optics.rs; develop/tests/develop_lens.rs; harness/tests/viewer_develop_lens.rs"
+      },
+      "MT-34951": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "pigment levels; interop-psd adjustment import"
+      },
+      "MT-34970": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "composite/src/lower_extensions.rs; composite/tests/layer_style_records.rs"
+      },
+      "MT-34981": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "pigment/src/blur_math.rs; composite effect stack; composite tests"
+      },
+      "MT-34983": {
+       "verdict": "MISSING",
+       "evidence": "only a name in composite/src/three_d/immersive.rs:52"
+      },
+      "MT-34990": {
+       "verdict": "PARTIAL",
+       "evidence": "folio record and composite descriptor name; no render proof opened"
+      },
+      "MT-35010": {
+       "verdict": "MISSING",
+       "evidence": "no symbol"
+      },
+      "MT-35016": {
+       "verdict": "MISSING",
+       "evidence": "parked AI scope; only a patch-variation comment in develop/src/retouch.rs:239"
+      },
+      "MT-35017": {
+       "verdict": "MISSING",
+       "evidence": "parked AI scope; no symbol"
+      },
+      "MT-35021": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "pulse/src/timeline_edit.rs:744; harness-view/tests/viewer_timeline.rs"
+      },
+      "MT-35023": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "pulse/src/range.rs:210; pulse/tests/editing.rs; viewer_timeline_trim.rs"
+      },
+      "MT-35024": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "pulse/src/range.rs:464 roll_edit; pulse/tests/schedule_and_display.rs"
+      },
+      "MT-35026": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "pulse/src/timeline_edit.rs:1076; viewer_timeline_trim.rs"
+      },
+      "MT-35034": {
+       "verdict": "MISSING",
+       "evidence": "no symbol tools"
+      },
+      "MT-35038": {
+       "verdict": "MISSING",
+       "evidence": "no graph tools"
+      }
+     },
+     "note": "Prefilter marks all 362 rows anchored because STU-SHL-155 appears once in edit.rs:76, fill_tools.rs:2 and viewer_fill_tools.rs:228: a false positive. No row can be BUILT: AC-001..006 need tool_id, family, menu path, provenance and vendor variants in a registry that does not exist. 70 sampled across all 22 families, chosen to mix known engines and likely gaps, so the estimate is rough.",
+     "estimate": "ESTIMATE from 70 sampled of 363: BUILT ~0, PARTIAL ~52, MISSING ~145, GUI_ONLY_GAP ~166, NOT_CODE ~0"
+    },
+    {
+     "name": "panel_catalogue_rows",
+     "mts": 91,
+     "sampled": 24,
+     "built": 0,
+     "partial": 7,
+     "missing": 8,
+     "gui_only_gap": 9,
+     "not_code": 0,
+     "what_exists": [
+      "view/shell.rs:113 Panel::ALL 25 surfaces; 12 carry a catalogue name (Layers, Properties, Info, Timeline, Appearance, Stroke, Swatches, Graphic Styles, Align & Distribute, Transform, Masks, Brushes), a few more match by function (Mixer)"
+     ],
+     "what_is_missing": [
+      "Panel registry with panel_id, class, default region, profiles: zero hits for task_episodic, Browse Dock",
+      "Roughly 75 catalogue panels have no surface (count by name and function, UNVERIFIED)"
+     ],
+     "samples": {
+      "MT-34518": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "harness-core/src/action.rs, harness/tests/harness_batch_cli.rs; no panel"
+      },
+      "MT-34522": {
+       "verdict": "PARTIAL",
+       "evidence": "view/hosted.rs Appearance in egui; no class/region/profile record"
+      },
+      "MT-34524": {
+       "verdict": "PARTIAL",
+       "evidence": "Panel::Mixer in egui; harness/tests/audio_mixer.rs"
+      },
+      "MT-34529": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "folio/src/channel.rs; no panel"
+      },
+      "MT-34530": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "type engine; no panel"
+      },
+      "MT-34534": {
+       "verdict": "MISSING",
+       "evidence": "no flowchart code"
+      },
+      "MT-34535": {
+       "verdict": "MISSING",
+       "evidence": "zero hits Context Bar"
+      },
+      "MT-34536": {
+       "verdict": "MISSING",
+       "evidence": "web-assets css url handling only"
+      },
+      "MT-34537": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "interop-layout/src/data_merge.rs; interop-layout/tests/id_prepress_merge_place.rs; no panel"
+      },
+      "MT-34543": {
+       "verdict": "PARTIAL",
+       "evidence": "Hosted VectorExport and develop export dialog; not the catalogue panel"
+      },
+      "MT-34546": {
+       "verdict": "PARTIAL",
+       "evidence": "layout_ui/find.rs; harness/tests/viewer_layout_tables_find.rs"
+      },
+      "MT-34548": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "type engine features; no panel (UNVERIFIED glyph listing)"
+      },
+      "MT-34554": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "harness-core harness.rs:1851 history; no panel"
+      },
+      "MT-34560": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "motion/src/property.rs keyframes; no panel, waits on D7/D8 per ledger"
+      },
+      "MT-34562": {
+       "verdict": "PARTIAL",
+       "evidence": "view/layers.rs egui panel; harness/tests/viewer_layers.rs"
+      },
+      "MT-34570": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-34571": {
+       "verdict": "MISSING",
+       "evidence": "zero hits navigator"
+      },
+      "MT-34580": {
+       "verdict": "PARTIAL",
+       "evidence": "layout_ui/preflight.rs; harness/tests/viewer_layout_preflight.rs"
+      },
+      "MT-34587": {
+       "verdict": "PARTIAL",
+       "evidence": "view/info.rs histogram; pigment/src/diagnostics.rs; no vectorscope or parade opened"
+      },
+      "MT-34592": {
+       "verdict": "MISSING",
+       "evidence": "no spell checker found"
+      },
+      "MT-34601": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "composite/src/three_d.rs; composite/tests/three_d_adapter.rs; no panel"
+      },
+      "MT-34603": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-34605": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "composite/src/tracker.rs; composite/tests/tracker_commands.rs; no panel"
+      },
+      "MT-34607": {
+       "verdict": "MISSING",
+       "evidence": "no tracer"
+      }
+     },
+     "note": "Prefilter anchored all rows on STU-SHL-113 in a hosted.rs:29 comment: false positive.",
+     "estimate": "ESTIMATE from 24 sampled of 91: BUILT ~0, PARTIAL ~27, MISSING ~30, GUI_ONLY_GAP ~34, NOT_CODE ~0"
+    },
+    {
+     "name": "menu_tree_and_expansion_nodes",
+     "mts": 54,
+     "sampled": 25,
+     "built": 3,
+     "partial": 14,
+     "missing": 8,
+     "gui_only_gap": 0,
+     "not_code": 0,
+     "what_exists": [
+      "controls/src/menu.rs descriptors, audit, three states, twelve reason codes; 21 controls tests",
+      "view/shell.rs:843 menu_bar FILE, EDIT, VIEW, TYPE, COLOR, WORKSPACE, HELP; viewer_shell tests"
+     ],
+     "what_is_missing": [
+      "DOCUMENT, SELECT, OBJECT, EFFECTS, MOTION, INSERT, CODE, AUTOMATE titles",
+      "Contribution into the shell menu; one registry; exhaustive index; expansion nodes"
+     ],
+     "samples": {
+      "MT-34422": {
+       "verdict": "PARTIAL",
+       "evidence": "vendor-name audit only; canonical region and panel vocabulary unused"
+      },
+      "MT-34425": {
+       "verdict": "MISSING",
+       "evidence": "test host owns its own bar (view/shell.rs:843); shell contribution path absent"
+      },
+      "MT-34426": {
+       "verdict": "MISSING",
+       "evidence": "no StudioViewport pane kind"
+      },
+      "MT-34428": {
+       "verdict": "MISSING",
+       "evidence": "only a recent-files list persists (shell.rs:46)"
+      },
+      "MT-34429": {
+       "verdict": "PARTIAL",
+       "evidence": "controls/src/menu.rs vendor audit; tests/menu_descriptors.rs:53; covers menus and windows only"
+      },
+      "MT-34430": {
+       "verdict": "PARTIAL",
+       "evidence": "AccessKit in test host, harness/tests/viewer_panels.rs:69; author_id grammar absent"
+      },
+      "MT-34431": {
+       "verdict": "PARTIAL",
+       "evidence": "7 of 15 Studio titles: FILE EDIT VIEW TYPE COLOR WORKSPACE HELP (shell.rs:843-960)"
+      },
+      "MT-34432": {
+       "verdict": "PARTIAL",
+       "evidence": "subset in order; 12 of 19 titles absent"
+      },
+      "MT-34434": {
+       "verdict": "MISSING",
+       "evidence": "no exhaustive index; Viewer has 829 pub fns, menu a few dozen leaves"
+      },
+      "MT-34436": {
+       "verdict": "MISSING",
+       "evidence": "no UiDescriptor; MenuNode, ShellCommand and RUN_COMMANDS are separate"
+      },
+      "MT-34437": {
+       "verdict": "MISSING",
+       "evidence": "three command lists exist today"
+      },
+      "MT-34438": {
+       "verdict": "PARTIAL",
+       "evidence": "audit covers MENU-INV-2, 4, 5 (menu.rs); 1, 3, 6, 7 not checked"
+      },
+      "MT-34439": {
+       "verdict": "BUILT",
+       "evidence": "controls/tests/menu_descriptors.rs:216 menu_bar_ui_never_hides_a_node"
+      },
+      "MT-34440": {
+       "verdict": "BUILT",
+       "evidence": "tests/menu_descriptors.rs:167 every_projection_reads_the_one_availability_record; shell_command refuses with the same line; test host only"
+      },
+      "MT-34441": {
+       "verdict": "PARTIAL",
+       "evidence": "remedy mechanic tested menu_descriptors.rs:145; spec worked examples absent"
+      },
+      "MT-34442": {
+       "verdict": "BUILT",
+       "evidence": "menu.rs:35 MAX_MENU_DEPTH 4; menu_depth_exceeded audit"
+      },
+      "MT-34444": {
+       "verdict": "PARTIAL",
+       "evidence": "7 FILE leaves"
+      },
+      "MT-34445": {
+       "verdict": "PARTIAL",
+       "evidence": "Undo and Redo only"
+      },
+      "MT-34447": {
+       "verdict": "MISSING",
+       "evidence": "no DOCUMENT title"
+      },
+      "MT-34450": {
+       "verdict": "PARTIAL",
+       "evidence": "Convert > Create Outlines only (shell.rs:575)"
+      },
+      "MT-34451": {
+       "verdict": "PARTIAL",
+       "evidence": "Proof submenu only"
+      },
+      "MT-34458": {
+       "verdict": "PARTIAL",
+       "evidence": "6 of 16 HELP leaves live, 10 greyed NOT_IMPLEMENTED_YET (shell.rs:387-414)"
+      },
+      "MT-34460": {
+       "verdict": "MISSING",
+       "evidence": "WORKSPACE > Tools absent; zero studio.tool. ids"
+      },
+      "MT-34461": {
+       "verdict": "PARTIAL",
+       "evidence": "25 test-host panels (shell.rs:113) against 90"
+      },
+      "MT-34467": {
+       "verdict": "PARTIAL",
+       "evidence": "Export PNG and JPEG leaves; hosted import and export panels"
+      }
+     },
+     "estimate": "ESTIMATE from 25 sampled of 54: BUILT ~6, PARTIAL ~30, MISSING ~17, GUI_ONLY_GAP ~0, NOT_CODE ~0"
+    },
+    {
+     "name": "availability_predicate_and_slot_resolver",
+     "mts": 18,
+     "sampled": 15,
+     "built": 2,
+     "partial": 2,
+     "missing": 11,
+     "gui_only_gap": 0,
+     "not_code": 0,
+     "what_exists": [
+      "Availability record and reason codes in controls/src/menu.rs"
+     ],
+     "what_is_missing": [
+      "Document profile, requires predicate, profile signature, slot resolver, binding records, anti-thrash: all zero hits. This is pure logic and could be built headless now"
+     ],
+     "samples": {
+      "MT-34480": {
+       "verdict": "PARTIAL",
+       "evidence": "one evaluation per node in test host (shell.rs:838); no requires predicate"
+      },
+      "MT-34481": {
+       "verdict": "MISSING",
+       "evidence": "no document profile; zero hits"
+      },
+      "MT-34482": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-34484": {
+       "verdict": "BUILT",
+       "evidence": "menu.rs AvailabilityState; menu_descriptors tests"
+      },
+      "MT-34486": {
+       "verdict": "BUILT",
+       "evidence": "menu.rs ReasonCode::ALL twelve members; test"
+      },
+      "MT-34487": {
+       "verdict": "PARTIAL",
+       "evidence": "menu surface only"
+      },
+      "MT-34488": {
+       "verdict": "MISSING",
+       "evidence": "no palette; help search only"
+      },
+      "MT-34489": {
+       "verdict": "MISSING",
+       "evidence": "zero hits profile signature"
+      },
+      "MT-34491": {
+       "verdict": "MISSING",
+       "evidence": "zero hits slot resolver"
+      },
+      "MT-34492": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-34493": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-34494": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-34495": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-34496": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-34497": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      }
+     },
+     "estimate": "ESTIMATE from 15 sampled of 18: BUILT ~2, PARTIAL ~2, MISSING ~13, GUI_ONLY_GAP ~0, NOT_CODE ~0"
+    },
+    {
+     "name": "dock_regions_panel_model_layouts_tabs",
+     "mts": 42,
+     "sampled": 23,
+     "built": 0,
+     "partial": 3,
+     "missing": 20,
+     "gui_only_gap": 0,
+     "not_code": 0,
+     "what_exists": [
+      "egui SidePanel, TopBottomPanel and Window placement in view/mod.rs:886-1025; panels are toggled windows"
+     ],
+     "what_is_missing": [
+      "Regions, editor group tree, panel states, StudioPanelRegistry, layout cascade L0-L3, seven default layouts, Layout Presets, multi-document tabs, cross-module handoff"
+     ],
+     "samples": {
+      "MT-34498": {
+       "verdict": "MISSING",
+       "evidence": "egui SidePanel and Window, no region model (view/mod.rs:965)"
+      },
+      "MT-34499": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-34500": {
+       "verdict": "MISSING",
+       "evidence": "no editor groups; zero hits"
+      },
+      "MT-34501": {
+       "verdict": "MISSING",
+       "evidence": "no viewer kinds"
+      },
+      "MT-34502": {
+       "verdict": "MISSING",
+       "evidence": "no dock"
+      },
+      "MT-34503": {
+       "verdict": "MISSING",
+       "evidence": "open and visible flags only (shell.rs:1441)"
+      },
+      "MT-34504": {
+       "verdict": "MISSING",
+       "evidence": "no dock"
+      },
+      "MT-34505": {
+       "verdict": "MISSING",
+       "evidence": "no StudioPanelRegistry"
+      },
+      "MT-34506": {
+       "verdict": "MISSING",
+       "evidence": "no StudioPanelRegistry"
+      },
+      "MT-34507": {
+       "verdict": "MISSING",
+       "evidence": "no density model"
+      },
+      "MT-34509": {
+       "verdict": "MISSING",
+       "evidence": "no compact form"
+      },
+      "MT-34511": {
+       "verdict": "PARTIAL",
+       "evidence": "25 panels in Panel::ALL; 90 required"
+      },
+      "MT-34514": {
+       "verdict": "PARTIAL",
+       "evidence": "layers, properties, info, swatches exist in egui; context-bar, tools, colour, history panel not"
+      },
+      "MT-34608": {
+       "verdict": "MISSING",
+       "evidence": "no cascade"
+      },
+      "MT-34613": {
+       "verdict": "MISSING",
+       "evidence": "no layout persistence"
+      },
+      "MT-34614": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-34616": {
+       "verdict": "MISSING",
+       "evidence": "no default layouts"
+      },
+      "MT-34620": {
+       "verdict": "MISSING",
+       "evidence": "no default layouts"
+      },
+      "MT-34622": {
+       "verdict": "PARTIAL",
+       "evidence": "Timeline panel only; no keyframe-timeline panel"
+      },
+      "MT-34624": {
+       "verdict": "MISSING",
+       "evidence": "zero hits Layout Preset"
+      },
+      "MT-34626": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-34628": {
+       "verdict": "MISSING",
+       "evidence": "single open document in Viewer; no tabs"
+      },
+      "MT-34630": {
+       "verdict": "MISSING",
+       "evidence": "no handoff"
+      }
+     },
+     "estimate": "ESTIMATE from 23 sampled of 42: BUILT ~0, PARTIAL ~5, MISSING ~37, GUI_ONLY_GAP ~0, NOT_CODE ~0"
+    },
+    {
+     "name": "gesture_arbitration_and_scrub_widget",
+     "mts": 22,
+     "sampled": 21,
+     "built": 4,
+     "partial": 8,
+     "missing": 9,
+     "gui_only_gap": 0,
+     "not_code": 0,
+     "what_exists": [
+      "controls/src/descriptor.rs ScrubGesture, GestureRoles; egui_adapter.rs; tests/gesture_panel_report.rs, step_effect.rs"
+     ],
+     "what_is_missing": [
+      "Wheel gesture, resistance zone, double and secondary click, studio.gesture.active, arbitration acceptance tests. The non-egui renderer (D8) must re-implement the egui_adapter half"
+     ],
+     "samples": {
+      "MT-34632": {
+       "verdict": "PARTIAL",
+       "evidence": "label scrub claims at press (controls/src/egui_adapter.rs); no chrome to arbitrate against"
+      },
+      "MT-34633": {
+       "verdict": "MISSING",
+       "evidence": "no panel drag"
+      },
+      "MT-34634": {
+       "verdict": "MISSING",
+       "evidence": "no splitters model; scrub cursor is ResizeHorizontal (egui_adapter.rs:173), not a column cursor"
+      },
+      "MT-34635": {
+       "verdict": "MISSING",
+       "evidence": "not implemented or tested"
+      },
+      "MT-34636": {
+       "verdict": "MISSING",
+       "evidence": "DESCRIPTOR not_in_slice wheel_gesture_400ms"
+      },
+      "MT-34637": {
+       "verdict": "BUILT",
+       "evidence": "descriptor.rs GestureRoles; tests/gesture_panel_report.rs:49"
+      },
+      "MT-34638": {
+       "verdict": "PARTIAL",
+       "evidence": "one event per drag tested; wheel coalescing absent"
+      },
+      "MT-34639": {
+       "verdict": "MISSING",
+       "evidence": "zero hits studio.gesture.active"
+      },
+      "MT-34640": {
+       "verdict": "MISSING",
+       "evidence": "depends on studio.dock.state, zero hits"
+      },
+      "MT-35063": {
+       "verdict": "PARTIAL",
+       "evidence": "one renderer from ControlSpec; no generated id, no ScrubValue"
+      },
+      "MT-35064": {
+       "verdict": "PARTIAL",
+       "evidence": "resize cursor only; no gutter tint"
+      },
+      "MT-35065": {
+       "verdict": "PARTIAL",
+       "evidence": "separate text field commit and Escape tested; no 3px press rule"
+      },
+      "MT-35066": {
+       "verdict": "BUILT",
+       "evidence": "dx - dy; tests/gesture_panel_report.rs:177"
+      },
+      "MT-35067": {
+       "verdict": "MISSING",
+       "evidence": "no wheel gesture"
+      },
+      "MT-35068": {
+       "verdict": "BUILT",
+       "evidence": "GestureRoles; tests"
+      },
+      "MT-35069": {
+       "verdict": "BUILT",
+       "evidence": "descriptor.rs:223 step_per_pixel; tests/step_effect.rs"
+      },
+      "MT-35070": {
+       "verdict": "PARTIAL",
+       "evidence": "hard clamp only; pointer_resistance_zone not_in_slice"
+      },
+      "MT-35071": {
+       "verdict": "PARTIAL",
+       "evidence": "descriptor.rs:613 format_value; no PERCENT flag or MDL-113 agreement test"
+      },
+      "MT-35072": {
+       "verdict": "PARTIAL",
+       "evidence": "Escape abort and one commit; no host approval route"
+      },
+      "MT-35073": {
+       "verdict": "MISSING",
+       "evidence": "no double or secondary click in egui_adapter.rs"
+      },
+      "MT-35074": {
+       "verdict": "MISSING",
+       "evidence": "no geometry contract"
+      }
+     },
+     "estimate": "ESTIMATE from 21 sampled of 22: BUILT ~4, PARTIAL ~8, MISSING ~9, GUI_ONLY_GAP ~0, NOT_CODE ~0"
+    },
+    {
+     "name": "context_bar_paramspec_temporalstate_write_path",
+     "mts": 28,
+     "sampled": 19,
+     "built": 1,
+     "partial": 5,
+     "missing": 13,
+     "gui_only_gap": 0,
+     "not_code": 0,
+     "what_exists": [
+      "controls/src/descriptor.rs NumberSpec; store.rs ValueStore; sections in registry.rs"
+     ],
+     "what_is_missing": [
+      "Context Bar, generated ParamSpec, TemporalState, set_param_clamped, keyframe commands: zero hits"
+     ],
+     "samples": {
+      "MT-35048": {
+       "verdict": "MISSING",
+       "evidence": "zero hits Context Bar"
+      },
+      "MT-35049": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-35051": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-35054": {
+       "verdict": "PARTIAL",
+       "evidence": "sections and collapsed_by_default tested (gesture_panel_report.rs:229); search and non-default filter not_in_slice"
+      },
+      "MT-35055": {
+       "verdict": "MISSING",
+       "evidence": "no generator; ParamSpec hits are other crates own records"
+      },
+      "MT-35056": {
+       "verdict": "PARTIAL",
+       "evidence": "NumberSpec hard and soft bounds, precision, unit; no bound_provenance, keyframable"
+      },
+      "MT-35057": {
+       "verdict": "BUILT",
+       "evidence": "descriptor.rs:64 NumberSpec; foundation_controls fixture_numeric_legality_store_and_undo"
+      },
+      "MT-35058": {
+       "verdict": "MISSING",
+       "evidence": "zero hits bound_provenance"
+      },
+      "MT-35059": {
+       "verdict": "MISSING",
+       "evidence": "no bounds_unknown handling"
+      },
+      "MT-35062": {
+       "verdict": "MISSING",
+       "evidence": "no keyframable field"
+      },
+      "MT-35075": {
+       "verdict": "MISSING",
+       "evidence": "zero hits TemporalState"
+      },
+      "MT-35076": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-35078": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-35080": {
+       "verdict": "MISSING",
+       "evidence": "reason code exists; no refusal at press"
+      },
+      "MT-35082": {
+       "verdict": "MISSING",
+       "evidence": "no keyframe commands in the menu"
+      },
+      "MT-35084": {
+       "verdict": "MISSING",
+       "evidence": "zero hits set_param_clamped"
+      },
+      "MT-35085": {
+       "verdict": "PARTIAL",
+       "evidence": "ValueStore routes typed, pointer, keyboard, model, reset, undo through one apply (store.rs:181); not document writes"
+      },
+      "MT-35086": {
+       "verdict": "PARTIAL",
+       "evidence": "store emits one ChangeEvent; no document mutation or time"
+      },
+      "MT-35087": {
+       "verdict": "PARTIAL",
+       "evidence": "typed ControlError; no remedy_command_id"
+      }
+     },
+     "estimate": "ESTIMATE from 19 sampled of 28: BUILT ~1, PARTIAL ~7, MISSING ~19, GUI_ONLY_GAP ~0, NOT_CODE ~0"
+    },
+    {
+     "name": "tooltip_levels_and_descriptor_contract",
+     "mts": 15,
+     "sampled": 15,
+     "built": 0,
+     "partial": 1,
+     "missing": 14,
+     "gui_only_gap": 0,
+     "not_code": 0,
+     "what_exists": [
+      "Menu node help reaches AccessKit description; hover text in 17 files"
+     ],
+     "what_is_missing": [
+      "L0-L3 and L-status levels, UiDescriptor, generated id enum, descriptor-driven helper, aliases, localisation"
+     ],
+     "samples": {
+      "MT-35100": {
+       "verdict": "MISSING",
+       "evidence": "five levels absent; 52 direct on_hover_text calls"
+      },
+      "MT-35101": {
+       "verdict": "MISSING",
+       "evidence": "zero descriptor"
+      },
+      "MT-35102": {
+       "verdict": "MISSING",
+       "evidence": "zero descriptor"
+      },
+      "MT-35103": {
+       "verdict": "MISSING",
+       "evidence": "help window exists; no anchor resolution"
+      },
+      "MT-35104": {
+       "verdict": "MISSING",
+       "evidence": "no demos"
+      },
+      "MT-35105": {
+       "verdict": "MISSING",
+       "evidence": "no hintline"
+      },
+      "MT-35106": {
+       "verdict": "MISSING",
+       "evidence": "no suppression rules"
+      },
+      "MT-35107": {
+       "verdict": "MISSING",
+       "evidence": "zero hits UiDescriptor"
+      },
+      "MT-35108": {
+       "verdict": "MISSING",
+       "evidence": "zero hits extraction_method"
+      },
+      "MT-35109": {
+       "verdict": "MISSING",
+       "evidence": "no shortcut_id; with_shortcut takes text"
+      },
+      "MT-35110": {
+       "verdict": "MISSING",
+       "evidence": "no aliases"
+      },
+      "MT-35111": {
+       "verdict": "PARTIAL",
+       "evidence": "menu nodes put help into AccessKit description (shell.rs:1458); other widgets not"
+      },
+      "MT-35112": {
+       "verdict": "MISSING",
+       "evidence": "helper absent; on_hover_text takes strings"
+      },
+      "MT-35113": {
+       "verdict": "MISSING",
+       "evidence": "no descriptor sets"
+      },
+      "MT-35114": {
+       "verdict": "MISSING",
+       "evidence": "same pattern still present in the test host"
+      }
+     },
+     "estimate": "ESTIMATE from 15 sampled of 15: BUILT ~0, PARTIAL ~1, MISSING ~14, GUI_ONLY_GAP ~0, NOT_CODE ~0"
+    },
+    {
+     "name": "shortcuts_and_palette",
+     "mts": 6,
+     "sampled": 6,
+     "built": 0,
+     "partial": 0,
+     "missing": 4,
+     "gui_only_gap": 0,
+     "not_code": 2,
+     "what_exists": [
+      "Fixed function keys and shortcut text per panel (shell.rs:199)"
+     ],
+     "what_is_missing": [
+      "Resolution rules, contexts, shipped sets, conflict report, command palette"
+     ],
+     "samples": {
+      "MT-34475": {
+       "verdict": "MISSING",
+       "evidence": "zero hits palette"
+      },
+      "MT-34476": {
+       "verdict": "MISSING",
+       "evidence": "no contexts or arbitration"
+      },
+      "MT-34477": {
+       "verdict": "MISSING",
+       "evidence": "no sets"
+      },
+      "MT-34478": {
+       "verdict": "MISSING",
+       "evidence": "no conflict report"
+      },
+      "MT-34479": {
+       "verdict": "NOT_CODE",
+       "evidence": "declared debt: chord sets frozen-blocked"
+      },
+      "MT-34659": {
+       "verdict": "NOT_CODE",
+       "evidence": "declared debt SD-2"
+      }
+     },
+     "note": "Family has only 6 MTs; all clause rows sampled.",
+     "estimate": "ESTIMATE from 6 sampled of 6: BUILT ~0, PARTIAL ~0, MISSING ~4, GUI_ONLY_GAP ~0, NOT_CODE ~2"
+    },
+    {
+     "name": "tool_model_rail_task_scope",
+     "mts": 17,
+     "sampled": 15,
+     "built": 0,
+     "partial": 1,
+     "missing": 14,
+     "gui_only_gap": 0,
+     "not_code": 0,
+     "what_exists": [
+      "Toolbar of 33 test-host tools"
+     ],
+     "what_is_missing": [
+      "Tool record, four projections, groups, rail, adaptive face, Task Scope"
+     ],
+     "samples": {
+      "MT-34665": {
+       "verdict": "MISSING",
+       "evidence": "no typed command API"
+      },
+      "MT-34666": {
+       "verdict": "PARTIAL",
+       "evidence": "menu audit codes cover two named checks; StudioValidationDescriptor zero hits"
+      },
+      "MT-34667": {
+       "verdict": "MISSING",
+       "evidence": "no entries"
+      },
+      "MT-34668": {
+       "verdict": "MISSING",
+       "evidence": "Tool::ALL has 33 entries (edit.rs:81)"
+      },
+      "MT-34669": {
+       "verdict": "MISSING",
+       "evidence": "zero family ids"
+      },
+      "MT-34672": {
+       "verdict": "MISSING",
+       "evidence": "zero tool records"
+      },
+      "MT-34673": {
+       "verdict": "MISSING",
+       "evidence": "one of four projections, test host only"
+      },
+      "MT-34675": {
+       "verdict": "MISSING",
+       "evidence": "no groups"
+      },
+      "MT-34676": {
+       "verdict": "MISSING",
+       "evidence": "no rail"
+      },
+      "MT-34679": {
+       "verdict": "MISSING",
+       "evidence": "no rail"
+      },
+      "MT-34680": {
+       "verdict": "MISSING",
+       "evidence": "no rail"
+      },
+      "MT-34681": {
+       "verdict": "MISSING",
+       "evidence": "zero hits Task Scope"
+      },
+      "MT-34682": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-34683": {
+       "verdict": "MISSING",
+       "evidence": "no exclusion list found"
+      },
+      "MT-35047": {
+       "verdict": "MISSING",
+       "evidence": "no catalogue to count"
+      }
+     },
+     "estimate": "ESTIMATE from 15 sampled of 17: BUILT ~0, PARTIAL ~1, MISSING ~16, GUI_ONLY_GAP ~0, NOT_CODE ~0"
+    },
+    {
+     "name": "contract_debt_and_derivation_clauses",
+     "mts": 33,
+     "sampled": 21,
+     "built": 0,
+     "partial": 4,
+     "missing": 5,
+     "gui_only_gap": 0,
+     "not_code": 12,
+     "what_exists": [
+      "Vendor-name audit; document-level expected revision"
+     ],
+     "what_is_missing": [
+      "Command contract, validation descriptors, manual obligation. 13 rows are NON_EXECUTABLE_RETAINED_AUTHORITY_REFERENCE per _MT_INDEX"
+     ],
+     "samples": {
+      "MT-34654": {
+       "verdict": "NOT_CODE",
+       "evidence": "prerequisite chain, SHL-P steps not started per MT state"
+      },
+      "MT-34655": {
+       "verdict": "MISSING",
+       "evidence": "defects sit in the shell; host not inspected for fix"
+      },
+      "MT-34656": {
+       "verdict": "NOT_CODE",
+       "evidence": "scope note"
+      },
+      "MT-34657": {
+       "verdict": "NOT_CODE",
+       "evidence": "debt header"
+      },
+      "MT-34658": {
+       "verdict": "NOT_CODE",
+       "evidence": "decided in ledger direction.stu_shl_130"
+      },
+      "MT-34660": {
+       "verdict": "NOT_CODE",
+       "evidence": "capture debt"
+      },
+      "MT-34661": {
+       "verdict": "NOT_CODE",
+       "evidence": "closed-debt note"
+      },
+      "MT-34662": {
+       "verdict": "MISSING",
+       "evidence": "no L0 record"
+      },
+      "MT-34663": {
+       "verdict": "NOT_CODE",
+       "evidence": "count note; vendor_variants not in code"
+      },
+      "MT-34664": {
+       "verdict": "NOT_CODE",
+       "evidence": "operator decisions; state UNVERIFIED"
+      },
+      "MT-35096": {
+       "verdict": "MISSING",
+       "evidence": "no CRDT, no typed API"
+      },
+      "MT-35097": {
+       "verdict": "PARTIAL",
+       "evidence": "expected revision per document (session/src/session.rs); not per property"
+      },
+      "MT-35098": {
+       "verdict": "MISSING",
+       "evidence": "zero hits StudioValidationDescriptor"
+      },
+      "MT-35099": {
+       "verdict": "MISSING",
+       "evidence": "no entries"
+      },
+      "MT-35138": {
+       "verdict": "PARTIAL",
+       "evidence": "help is a command in test host; not on a typed API"
+      },
+      "MT-35139": {
+       "verdict": "PARTIAL",
+       "evidence": "descriptor_display_name_empty and vendor audit exist; rest absent"
+      },
+      "MT-35140": {
+       "verdict": "PARTIAL",
+       "evidence": "vendor audit on menu labels; viewer_shell.rs:586"
+      },
+      "MT-35412": {
+       "verdict": "NOT_CODE",
+       "evidence": "retained derivation rule"
+      },
+      "MT-35413": {
+       "verdict": "NOT_CODE",
+       "evidence": "retained"
+      },
+      "MT-35416": {
+       "verdict": "NOT_CODE",
+       "evidence": "retained"
+      },
+      "MT-35421": {
+       "verdict": "NOT_CODE",
+       "evidence": "retained"
+      }
+     },
+     "note": "Many rows are declared debt or spec bookkeeping with no code acceptance: NOT_CODE.",
+     "estimate": "ESTIMATE from 21 sampled of 33: BUILT ~0, PARTIAL ~6, MISSING ~8, GUI_ONLY_GAP ~0, NOT_CODE ~19"
+    }
+   ],
+   "estimate": "ESTIMATE, family-weighted, 254 sampled of 689: BUILT ~15, PARTIAL ~141, MISSING ~313, GUI_ONLY_GAP ~200, NOT_CODE ~21",
+   "sample_totals": {
+    "sampled": 254,
+    "built": 10,
+    "partial": 55,
+    "missing": 134,
+    "gui_only_gap": 41,
+    "not_code": 14
+   }
+  },
+  "model_facing_surface": {
+   "mts": 27,
+   "status_pass": 0,
+   "status_counts": {
+    "PENDING": 27
+   },
+   "families": [
+    {
+     "name": "STU-MDL clauses and id law",
+     "mts": 27,
+     "sampled": 27,
+     "built": 0,
+     "partial": 8,
+     "missing": 19,
+     "gui_only_gap": 0,
+     "not_code": 0,
+     "what_exists": [
+      "Viewer::state_json, studio-harness CLI, menu.<id> AccessKit names, 829 Viewer pub fns"
+     ],
+     "what_is_missing": [
+      "Unified typed command API, studio.<domain>.<command>.vN ids, schemas per command, dry_run, SimulationReceipt, author_id grammar, observability nodes"
+     ],
+     "samples": {
+      "MT-33634": {
+       "verdict": "PARTIAL",
+       "evidence": "Viewer::state_json view/mod.rs:837, studio-harness CLI, JsonSchema on folio records; no unified typed API, no semantic diff surface opened"
+      },
+      "MT-33635": {
+       "verdict": "PARTIAL",
+       "evidence": "menu.<id> AccessKit names and state_json in the test host; grammar and full coverage absent"
+      },
+      "MT-33636": {
+       "verdict": "MISSING",
+       "evidence": "zero studio.*.vN ids, zero SimulationReceipt; schemars on records only"
+      },
+      "MT-33637": {
+       "verdict": "PARTIAL",
+       "evidence": "Viewer API and AccessKit action tests (viewer_shell); Argus not wired"
+      },
+      "MT-33638": {
+       "verdict": "PARTIAL",
+       "evidence": "test host only; Viewer methods exceed menu and CLI"
+      },
+      "MT-33639": {
+       "verdict": "MISSING",
+       "evidence": "no general model path: 13 CLI commands plus the RUN_COMMANDS table (action.rs:843)"
+      },
+      "MT-34641": {
+       "verdict": "MISSING",
+       "evidence": "author_id is menu.<id> (menu.rs:311), not studio.<surface>.<group>.<element>"
+      },
+      "MT-34642": {
+       "verdict": "PARTIAL",
+       "evidence": "no position in ids today; no id law or check beyond valid_id"
+      },
+      "MT-34643": {
+       "verdict": "MISSING",
+       "evidence": "no owner-based field address"
+      },
+      "MT-34644": {
+       "verdict": "MISSING",
+       "evidence": "no hs- stable_id"
+      },
+      "MT-34645": {
+       "verdict": "MISSING",
+       "evidence": "no hashed prefix; shell not touched"
+      },
+      "MT-34646": {
+       "verdict": "MISSING",
+       "evidence": "no numeric or temporal node metadata"
+      },
+      "MT-34647": {
+       "verdict": "MISSING",
+       "evidence": "zero hits studio.dock.state"
+      },
+      "MT-34648": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-34649": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-34650": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-34651": {
+       "verdict": "PARTIAL",
+       "evidence": "availability text in AccessKit description, menu nodes only (shell.rs:1458)"
+      },
+      "MT-34652": {
+       "verdict": "MISSING",
+       "evidence": "no snapshot; HELP leaf greyed (shell.rs:411)"
+      },
+      "MT-34653": {
+       "verdict": "PARTIAL",
+       "evidence": "no OS injection found; typed API absent"
+      },
+      "MT-35088": {
+       "verdict": "MISSING",
+       "evidence": "egui default roles; no rule"
+      },
+      "MT-35089": {
+       "verdict": "MISSING",
+       "evidence": "not exposed by controls"
+      },
+      "MT-35090": {
+       "verdict": "MISSING",
+       "evidence": "not exposed"
+      },
+      "MT-35091": {
+       "verdict": "MISSING",
+       "evidence": "not exposed"
+      },
+      "MT-35092": {
+       "verdict": "MISSING",
+       "evidence": "tests absent"
+      },
+      "MT-35093": {
+       "verdict": "MISSING",
+       "evidence": "not exposed"
+      },
+      "MT-35094": {
+       "verdict": "PARTIAL",
+       "evidence": "one legality path in ControlSpec and ValueStore; reason_code parity absent"
+      },
+      "MT-35095": {
+       "verdict": "MISSING",
+       "evidence": "state_json only; not in the AccessKit tree"
+      }
+     },
+     "note": "All 27 opened.",
+     "estimate": "ESTIMATE from 27 sampled of 27: BUILT ~0, PARTIAL ~8, MISSING ~19, GUI_ONLY_GAP ~0, NOT_CODE ~0"
+    }
+   ],
+   "estimate": "ESTIMATE, family-weighted, 27 sampled of 27: BUILT ~0, PARTIAL ~8, MISSING ~19, GUI_ONLY_GAP ~0, NOT_CODE ~0",
+   "sample_totals": {
+    "sampled": 27,
+    "built": 0,
+    "partial": 8,
+    "missing": 19,
+    "gui_only_gap": 0,
+    "not_code": 0
+   }
+  },
+  "tooltips_and_manual": {
+   "mts": 27,
+   "status_pass": 0,
+   "status_counts": {
+    "PENDING": 27
+   },
+   "families": [
+    {
+     "name": "STU-MAN clauses and generator",
+     "mts": 27,
+     "sampled": 27,
+     "built": 0,
+     "partial": 3,
+     "missing": 21,
+     "gui_only_gap": 0,
+     "not_code": 3,
+     "what_exists": [
+      "Hand-typed CLI manual plus generated menu and panel topics, see manual_state"
+     ],
+     "what_is_missing": [
+      "Descriptor generator, canonical store, gap ledger, ten CI gates, coverage report, four-axis search"
+     ],
+     "samples": {
+      "MT-33663": {
+       "verdict": "MISSING",
+       "evidence": "no entry with operator and model layers"
+      },
+      "MT-33664": {
+       "verdict": "PARTIAL",
+       "evidence": "harness_headless.rs:98 manual from descriptors, CLI only; no full surface coverage check"
+      },
+      "MT-33665": {
+       "verdict": "MISSING",
+       "evidence": "no same-change guard; lanes edit COMMANDS by hand"
+      },
+      "MT-33666": {
+       "verdict": "PARTIAL",
+       "evidence": "view/shell.rs:1016 substring search over topics; intent and reverse author_id axes absent"
+      },
+      "MT-35115": {
+       "verdict": "MISSING",
+       "evidence": "no generator"
+      },
+      "MT-35116": {
+       "verdict": "MISSING",
+       "evidence": "no SurrealDB user_manual_*; zero hits"
+      },
+      "MT-35117": {
+       "verdict": "MISSING",
+       "evidence": "no generated record"
+      },
+      "MT-35118": {
+       "verdict": "MISSING",
+       "evidence": "no generator"
+      },
+      "MT-35119": {
+       "verdict": "MISSING",
+       "evidence": "no captured text path"
+      },
+      "MT-35120": {
+       "verdict": "MISSING",
+       "evidence": "no null summary path"
+      },
+      "MT-35121": {
+       "verdict": "MISSING",
+       "evidence": "no sources read"
+      },
+      "MT-35122": {
+       "verdict": "MISSING",
+       "evidence": "no anchors"
+      },
+      "MT-35123": {
+       "verdict": "MISSING",
+       "evidence": "no entry shape"
+      },
+      "MT-35124": {
+       "verdict": "MISSING",
+       "evidence": "no measurement"
+      },
+      "MT-35125": {
+       "verdict": "MISSING",
+       "evidence": "zero hits tooltip-gaps"
+      },
+      "MT-35126": {
+       "verdict": "MISSING",
+       "evidence": "no gap ledger"
+      },
+      "MT-35127": {
+       "verdict": "MISSING",
+       "evidence": "zero of ten gates; two label checks in the menu audit only"
+      },
+      "MT-35128": {
+       "verdict": "MISSING",
+       "evidence": "no coverage report"
+      },
+      "MT-35129": {
+       "verdict": "MISSING",
+       "evidence": "no index"
+      },
+      "MT-35130": {
+       "verdict": "MISSING",
+       "evidence": "no detection"
+      },
+      "MT-35131": {
+       "verdict": "PARTIAL",
+       "evidence": "HELP > Full Command Index lists the small test-host menu only (shell.rs:1039)"
+      },
+      "MT-35132": {
+       "verdict": "MISSING",
+       "evidence": "no layers"
+      },
+      "MT-35133": {
+       "verdict": "MISSING",
+       "evidence": "no posture linkage"
+      },
+      "MT-35134": {
+       "verdict": "NOT_CODE",
+       "evidence": "SD-9 undecided, blocks SHL-P-06"
+      },
+      "MT-35135": {
+       "verdict": "NOT_CODE",
+       "evidence": "SD-10 undecided"
+      },
+      "MT-35136": {
+       "verdict": "NOT_CODE",
+       "evidence": "SD-11 undecided"
+      },
+      "MT-35137": {
+       "verdict": "MISSING",
+       "evidence": "no descriptors to apply it to"
+      }
+     },
+     "note": "All 27 opened.",
+     "estimate": "ESTIMATE from 27 sampled of 27: BUILT ~0, PARTIAL ~3, MISSING ~21, GUI_ONLY_GAP ~0, NOT_CODE ~3"
+    }
+   ],
+   "estimate": "ESTIMATE, family-weighted, 27 sampled of 27: BUILT ~0, PARTIAL ~3, MISSING ~21, GUI_ONLY_GAP ~0, NOT_CODE ~3",
+   "sample_totals": {
+    "sampled": 27,
+    "built": 0,
+    "partial": 3,
+    "missing": 21,
+    "gui_only_gap": 0,
+    "not_code": 3
+   }
+  },
+  "cross_cutting": {
+   "mts": 22,
+   "status_pass": 0,
+   "status_counts": {
+    "PENDING": 22
+   },
+   "families": [
+    {
+     "name": "STU-OVR, UNI, CON, SECTION",
+     "mts": 22,
+     "sampled": 22,
+     "built": 5,
+     "partial": 6,
+     "missing": 6,
+     "gui_only_gap": 0,
+     "not_code": 5,
+     "what_exists": [
+      "Workspace, schema ids, event variants"
+     ],
+     "what_is_missing": [
+      "Unified surface, task modes, tables, universal contract"
+     ],
+     "samples": {
+      "MT-30008": {
+       "verdict": "NOT_CODE",
+       "evidence": "spec authority rule"
+      },
+      "MT-30009": {
+       "verdict": "PARTIAL",
+       "evidence": "vendor audit on menus; collapse not audited"
+      },
+      "MT-30010": {
+       "verdict": "BUILT",
+       "evidence": "Cargo.toml 56 members; tools/workspace-probe.rs; MT-35528 PASS_V7"
+      },
+      "MT-30011": {
+       "verdict": "BUILT",
+       "evidence": "static: no such runtime dep; interop crates parse files (no cargo metadata run)"
+      },
+      "MT-30012": {
+       "verdict": "BUILT",
+       "evidence": "pulse crate clip editing; pulse/tests/editing.rs"
+      },
+      "MT-30013": {
+       "verdict": "PARTIAL",
+       "evidence": "interop-lrcat bounded file reader (lib.rs:100 no SQL engine); no no_sqlite tripwire code found"
+      },
+      "MT-33658": {
+       "verdict": "MISSING",
+       "evidence": "three tool enums in the test host; no unified surface"
+      },
+      "MT-33659": {
+       "verdict": "MISSING",
+       "evidence": "zero hits task modes"
+      },
+      "MT-33660": {
+       "verdict": "PARTIAL",
+       "evidence": "one undo in Run; selection raster-side; zero hits Loom"
+      },
+      "MT-33661": {
+       "verdict": "MISSING",
+       "evidence": "no CRDT or presence"
+      },
+      "MT-33662": {
+       "verdict": "MISSING",
+       "evidence": "no control-room surface"
+      },
+      "MT-33667": {
+       "verdict": "PARTIAL",
+       "evidence": "folio and accord primitives; several names absent"
+      },
+      "MT-33668": {
+       "verdict": "BUILT",
+       "evidence": "accord SCHEMA_STUDIO_*; accord/tests/foundation_contract.rs"
+      },
+      "MT-33669": {
+       "verdict": "BUILT",
+       "evidence": "accord/src/business_event.rs:72; tests/business_event_catalog.rs (asset side)"
+      },
+      "MT-33670": {
+       "verdict": "MISSING",
+       "evidence": "zero hits studio_documents; host work"
+      },
+      "MT-33671": {
+       "verdict": "PARTIAL",
+       "evidence": "Ticks and receipts; tolerance comparator not opened"
+      },
+      "MT-33672": {
+       "verdict": "PARTIAL",
+       "evidence": "bookkeeping; items partly implemented"
+      },
+      "MT-33673": {
+       "verdict": "MISSING",
+       "evidence": "no universal contract gate"
+      },
+      "MT-35927": {
+       "verdict": "NOT_CODE",
+       "evidence": "retired by STU-OVR-015 text"
+      },
+      "MT-35938": {
+       "verdict": "NOT_CODE",
+       "evidence": "superseded open points"
+      },
+      "MT-35939": {
+       "verdict": "NOT_CODE",
+       "evidence": "superseded"
+      },
+      "MT-35940": {
+       "verdict": "NOT_CODE",
+       "evidence": "superseded"
+      }
+     },
+     "note": "All 22 opened.",
+     "estimate": "ESTIMATE from 22 sampled of 22: BUILT ~5, PARTIAL ~6, MISSING ~6, GUI_ONLY_GAP ~0, NOT_CODE ~5"
+    }
+   ],
+   "estimate": "ESTIMATE, family-weighted, 22 sampled of 22: BUILT ~5, PARTIAL ~6, MISSING ~6, GUI_ONLY_GAP ~0, NOT_CODE ~5",
+   "sample_totals": {
+    "sampled": 22,
+    "built": 5,
+    "partial": 6,
+    "missing": 6,
+    "gui_only_gap": 0,
+    "not_code": 5
+   }
+  },
+  "architecture": {
+   "mts": 17,
+   "status_pass": 0,
+   "status_counts": {
+    "PENDING": 6,
+    "None": 11
+   },
+   "families": [
+    {
+     "name": "STU-ARC",
+     "mts": 17,
+     "sampled": 17,
+     "built": 1,
+     "partial": 9,
+     "missing": 7,
+     "gui_only_gap": 0,
+     "not_code": 0,
+     "what_exists": [
+      "Observe ring producer, GPU client port, settings schema, commit port"
+     ],
+     "what_is_missing": [
+      "Kernel binding, sandbox and promotion, Kumihimo, non-egui UI, Palmistry"
+     ],
+     "samples": {
+      "MT-30014": {
+       "verdict": "MISSING",
+       "evidence": "handshake_main 4fe1e9a92 has no handshake_core::studio"
+      },
+      "MT-30015": {
+       "verdict": "PARTIAL",
+       "evidence": "render-gpu is a selectable crate; RasterEngine etc. names absent"
+      },
+      "MT-30016": {
+       "verdict": "PARTIAL",
+       "evidence": "catalogue in accord and kernel-bindings; kernel/mod.rs untouched"
+      },
+      "MT-30017": {
+       "verdict": "PARTIAL",
+       "evidence": "SDOC- ids in fixtures; no tables"
+      },
+      "MT-30018": {
+       "verdict": "MISSING",
+       "evidence": "zero SandboxAdapter; PromotionGate only in a comment"
+      },
+      "MT-30019": {
+       "verdict": "PARTIAL",
+       "evidence": "all 36 foundations have crates; 27 still PENDING in MT state"
+      },
+      "MT-36252": {
+       "verdict": "MISSING",
+       "evidence": "zero hits kumihimo; controls still owns the mechanic"
+      },
+      "MT-36253": {
+       "verdict": "PARTIAL",
+       "evidence": "render-gpu/src/client.rs port and transient adapter; still wgpu 27.0.1 (Cargo.toml:22), 401 wgpu:: refs"
+      },
+      "MT-36254": {
+       "verdict": "MISSING",
+       "evidence": "hsk-studio-controls has egui in default deps and pub mod egui_adapter"
+      },
+      "MT-36255": {
+       "verdict": "BUILT",
+       "evidence": "observe/src/ring.rs; observe/tests/ring_port.rs"
+      },
+      "MT-36256": {
+       "verdict": "MISSING",
+       "evidence": "declared gap; comment only"
+      },
+      "MT-36257": {
+       "verdict": "MISSING",
+       "evidence": "declared gap; no wait-free frame path opened (UNVERIFIED)"
+      },
+      "MT-36258": {
+       "verdict": "PARTIAL",
+       "evidence": "accord/src/settings.rs; view/settings_catalog.rs; harness-view/tests/settings_catalog.rs; no host tab"
+      },
+      "MT-36259": {
+       "verdict": "PARTIAL",
+       "evidence": "accord/src/command.rs ClientSessionId; kernel-bindings context.rs; author_id bridge absent"
+      },
+      "MT-36260": {
+       "verdict": "MISSING",
+       "evidence": "host rule; host absent"
+      },
+      "MT-36261": {
+       "verdict": "PARTIAL",
+       "evidence": "client.rs:10 states evidence not acceptance; policy text"
+      },
+      "MT-36262": {
+       "verdict": "PARTIAL",
+       "evidence": "u64 revision through CommitPort (session/src/ports.rs:111); EventLedger binding is a declared gap"
+      }
+     },
+     "note": "All 17 opened. 11 of these have null status in _MT_INDEX (new STU-ARC-023..033 rows).",
+     "estimate": "ESTIMATE from 17 sampled of 17: BUILT ~1, PARTIAL ~9, MISSING ~7, GUI_ONLY_GAP ~0, NOT_CODE ~0"
+    }
+   ],
+   "estimate": "ESTIMATE, family-weighted, 17 sampled of 17: BUILT ~1, PARTIAL ~9, MISSING ~7, GUI_ONLY_GAP ~0, NOT_CODE ~0",
+   "sample_totals": {
+    "sampled": 17,
+    "built": 1,
+    "partial": 9,
+    "missing": 7,
+    "gui_only_gap": 0,
+    "not_code": 0
+   }
+  },
+  "val": {
+   "mts": 6,
+   "status_pass": 0,
+   "status_counts": {
+    "PENDING": 6
+   },
+   "families": [
+    {
+     "name": "STU-VAL",
+     "mts": 6,
+     "sampled": 6,
+     "built": 0,
+     "partial": 2,
+     "missing": 3,
+     "gui_only_gap": 0,
+     "not_code": 1,
+     "what_exists": [
+      "Observe ring, pixel tests"
+     ],
+     "what_is_missing": [
+      "Validation catalogue, Argus proof, SurrealDB and CRDT duty"
+     ],
+     "samples": {
+      "MT-33674": {
+       "verdict": "MISSING",
+       "evidence": "zero StudioValidationDescriptor"
+      },
+      "MT-33675": {
+       "verdict": "PARTIAL",
+       "evidence": "observe ring plus business events; Palmistry comment only"
+      },
+      "MT-33676": {
+       "verdict": "MISSING",
+       "evidence": "Argus names in comments and strings only"
+      },
+      "MT-33677": {
+       "verdict": "PARTIAL",
+       "evidence": "pixel tests exist; zero StudioRenderHarness"
+      },
+      "MT-33678": {
+       "verdict": "MISSING",
+       "evidence": "no SurrealDB, no CRDT"
+      },
+      "MT-33679": {
+       "verdict": "NOT_CODE",
+       "evidence": "process rule"
+      }
+     },
+     "note": "All rows opened.",
+     "estimate": "ESTIMATE from 6 sampled of 6: BUILT ~0, PARTIAL ~2, MISSING ~3, GUI_ONLY_GAP ~0, NOT_CODE ~1"
+    }
+   ],
+   "estimate": "ESTIMATE, family-weighted, 6 sampled of 6: BUILT ~0, PARTIAL ~2, MISSING ~3, GUI_ONLY_GAP ~0, NOT_CODE ~1",
+   "sample_totals": {
+    "sampled": 6,
+    "built": 0,
+    "partial": 2,
+    "missing": 3,
+    "gui_only_gap": 0,
+    "not_code": 1
+   }
+  },
+  "par": {
+   "mts": 5,
+   "status_pass": 0,
+   "status_counts": {
+    "PENDING": 5
+   },
+   "families": [
+    {
+     "name": "STU-PAR",
+     "mts": 5,
+     "sampled": 5,
+     "built": 0,
+     "partial": 2,
+     "missing": 3,
+     "gui_only_gap": 0,
+     "not_code": 0,
+     "what_exists": [
+      "Admission, worker supervisor"
+     ],
+     "what_is_missing": [
+      "CRDT, scheduler, scopes"
+     ],
+     "samples": {
+      "MT-33640": {
+       "verdict": "PARTIAL",
+       "evidence": "per-document Session, session/src/admission.rs, jobs.rs; no CRDT"
+      },
+      "MT-33641": {
+       "verdict": "MISSING",
+       "evidence": "no CRDT, zero agent_label"
+      },
+      "MT-33642": {
+       "verdict": "MISSING",
+       "evidence": "no scheduler"
+      },
+      "MT-33643": {
+       "verdict": "MISSING",
+       "evidence": "no scopes"
+      },
+      "MT-33644": {
+       "verdict": "PARTIAL",
+       "evidence": "worker/src/supervisor.rs:65 ledger shape, tests/supervision.rs; real ledger host-side"
+      }
+     },
+     "note": "All rows opened.",
+     "estimate": "ESTIMATE from 5 sampled of 5: BUILT ~0, PARTIAL ~2, MISSING ~3, GUI_ONLY_GAP ~0, NOT_CODE ~0"
+    }
+   ],
+   "estimate": "ESTIMATE, family-weighted, 5 sampled of 5: BUILT ~0, PARTIAL ~2, MISSING ~3, GUI_ONLY_GAP ~0, NOT_CODE ~0",
+   "sample_totals": {
+    "sampled": 5,
+    "built": 0,
+    "partial": 2,
+    "missing": 3,
+    "gui_only_gap": 0,
+    "not_code": 0
+   }
+  },
+  "quiet": {
+   "mts": 5,
+   "status_pass": 0,
+   "status_counts": {
+    "PENDING": 5
+   },
+   "families": [
+    {
+     "name": "STU-QUIET",
+     "mts": 5,
+     "sampled": 5,
+     "built": 1,
+     "partial": 3,
+     "missing": 1,
+     "gui_only_gap": 0,
+     "not_code": 0,
+     "what_exists": [
+      "Headless viewer"
+     ],
+     "what_is_missing": [
+      "Negative harness, non-intrusive co-work"
+     ],
+     "samples": {
+      "MT-33653": {
+       "verdict": "BUILT",
+       "evidence": "headless Viewer, RUN-UI.md window never opened by tests; viewer_headless.rs"
+      },
+      "MT-33654": {
+       "verdict": "PARTIAL",
+       "evidence": "no injection code found; no negative harness"
+      },
+      "MT-33655": {
+       "verdict": "MISSING",
+       "evidence": "no co-work"
+      },
+      "MT-33656": {
+       "verdict": "PARTIAL",
+       "evidence": "worker supervisor; host reclaim absent"
+      },
+      "MT-33657": {
+       "verdict": "PARTIAL",
+       "evidence": "viewer_panels.rs AccessKit fallback; zero StudioRenderHarness"
+      }
+     },
+     "note": "All rows opened.",
+     "estimate": "ESTIMATE from 5 sampled of 5: BUILT ~1, PARTIAL ~3, MISSING ~1, GUI_ONLY_GAP ~0, NOT_CODE ~0"
+    }
+   ],
+   "estimate": "ESTIMATE, family-weighted, 5 sampled of 5: BUILT ~1, PARTIAL ~3, MISSING ~1, GUI_ONLY_GAP ~0, NOT_CODE ~0",
+   "sample_totals": {
+    "sampled": 5,
+    "built": 1,
+    "partial": 3,
+    "missing": 1,
+    "gui_only_gap": 0,
+    "not_code": 0
+   }
+  },
+  "pw": {
+   "mts": 4,
+   "status_pass": 0,
+   "status_counts": {
+    "PENDING": 4
+   },
+   "families": [
+    {
+     "name": "STU-PW",
+     "mts": 4,
+     "sampled": 4,
+     "built": 0,
+     "partial": 0,
+     "missing": 4,
+     "gui_only_gap": 0,
+     "not_code": 0,
+     "what_exists": [],
+     "what_is_missing": [
+      "Whole proposal workflow"
+     ],
+     "samples": {
+      "MT-33645": {
+       "verdict": "MISSING",
+       "evidence": "StudioEditProposal one comment hit; schema const only"
+      },
+      "MT-33646": {
+       "verdict": "MISSING",
+       "evidence": "no validator"
+      },
+      "MT-33647": {
+       "verdict": "MISSING",
+       "evidence": "no PromotionGate"
+      },
+      "MT-33648": {
+       "verdict": "MISSING",
+       "evidence": "no replay from ledger"
+      }
+     },
+     "note": "All rows opened.",
+     "estimate": "ESTIMATE from 4 sampled of 4: BUILT ~0, PARTIAL ~0, MISSING ~4, GUI_ONLY_GAP ~0, NOT_CODE ~0"
+    }
+   ],
+   "estimate": "ESTIMATE, family-weighted, 4 sampled of 4: BUILT ~0, PARTIAL ~0, MISSING ~4, GUI_ONLY_GAP ~0, NOT_CODE ~0",
+   "sample_totals": {
+    "sampled": 4,
+    "built": 0,
+    "partial": 0,
+    "missing": 4,
+    "gui_only_gap": 0,
+    "not_code": 0
+   }
+  },
+  "his": {
+   "mts": 4,
+   "status_pass": 0,
+   "status_counts": {
+    "PENDING": 4
+   },
+   "families": [
+    {
+     "name": "STU-HIS",
+     "mts": 4,
+     "sampled": 4,
+     "built": 0,
+     "partial": 4,
+     "missing": 0,
+     "gui_only_gap": 0,
+     "not_code": 0,
+     "what_exists": [
+      "In-memory history with business events"
+     ],
+     "what_is_missing": [
+      "Ledger backing"
+     ],
+     "samples": {
+      "MT-33649": {
+       "verdict": "PARTIAL",
+       "evidence": "harness-core/src/harness.rs:1851 Run history, in memory"
+      },
+      "MT-33650": {
+       "verdict": "PARTIAL",
+       "evidence": "undo harness.rs:1837; STUDIO_HISTORY_UNDONE tested in harness-core/tests/business_events_run.rs; not ledger-recorded"
+      },
+      "MT-33651": {
+       "verdict": "PARTIAL",
+       "evidence": "redo harness.rs:1843; retained depth not proven durable"
+      },
+      "MT-33652": {
+       "verdict": "PARTIAL",
+       "evidence": "chronicle Snapshot; not content-addressed artifact storage"
+      }
+     },
+     "note": "All rows opened.",
+     "estimate": "ESTIMATE from 4 sampled of 4: BUILT ~0, PARTIAL ~4, MISSING ~0, GUI_ONLY_GAP ~0, NOT_CODE ~0"
+    }
+   ],
+   "estimate": "ESTIMATE, family-weighted, 4 sampled of 4: BUILT ~0, PARTIAL ~4, MISSING ~0, GUI_ONLY_GAP ~0, NOT_CODE ~0",
+   "sample_totals": {
+    "sampled": 4,
+    "built": 0,
+    "partial": 4,
+    "missing": 0,
+    "gui_only_gap": 0,
+    "not_code": 0
+   }
+  },
+  "null_domain": {
+   "mts": 1219,
+   "status_pass": 10,
+   "status_counts": {
+    "PENDING": 1209,
+    "PASS_V1": 4,
+    "PASS_V7": 1,
+    "PASS_V4": 1,
+    "PASS_V2": 2,
+    "PASS_V3": 1,
+    "PASS_V5": 1
+   },
+   "families": [
+    {
+     "name": "legacy_patched (mixed engine MTs)",
+     "mts": 509,
+     "sampled": 32,
+     "built": 7,
+     "partial": 14,
+     "missing": 11,
+     "gui_only_gap": 0,
+     "not_code": 0,
+     "what_exists": [
+      "Engine depth is real where a lane ran: nib, develop, components, type"
+     ],
+     "what_is_missing": [
+      "Whiteboard objects, global edit, asset browser, tonal brushes, web slices, MSO, conformance gates"
+     ],
+     "samples": {
+      "MT-35": {
+       "verdict": "PARTIAL",
+       "evidence": "quick.rs rectangle object select; Select Subject and Sky absent"
+      },
+      "MT-45": {
+       "verdict": "MISSING",
+       "evidence": "zero sponge, smudge, burn brush"
+      },
+      "MT-50": {
+       "verdict": "PARTIAL",
+       "evidence": "folio/src/channel.rs; apply image and calculations absent"
+      },
+      "MT-63": {
+       "verdict": "MISSING",
+       "evidence": "zero web slice, export marker"
+      },
+      "MT-64": {
+       "verdict": "PARTIAL",
+       "evidence": "interop-psd tests; loss typed; full matrix not proven"
+      },
+      "MT-82": {
+       "verdict": "BUILT",
+       "evidence": "nib/src/anchor_path.rs; nib/tests/anchor_path.rs"
+      },
+      "MT-120": {
+       "verdict": "PARTIAL",
+       "evidence": "nib/src/arrange.rs; no isolation mode"
+      },
+      "MT-132": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-164": {
+       "verdict": "MISSING",
+       "evidence": "no MSO or layout object-effect targeting"
+      },
+      "MT-167": {
+       "verdict": "PARTIAL",
+       "evidence": "layout/src/table.rs; diagonal only in folio/src/longdoc.rs"
+      },
+      "MT-230": {
+       "verdict": "MISSING",
+       "evidence": "no text warp"
+      },
+      "MT-234": {
+       "verdict": "PARTIAL",
+       "evidence": "prism conversion; mismatch policy absent"
+      },
+      "MT-242": {
+       "verdict": "PARTIAL",
+       "evidence": "folio/src/colour_book.rs; press-write inks"
+      },
+      "MT-243": {
+       "verdict": "PARTIAL",
+       "evidence": "press-write/src/inks.rs; no swatch kind tracking"
+      },
+      "MT-297": {
+       "verdict": "MISSING",
+       "evidence": "no dedup validator"
+      },
+      "MT-321": {
+       "verdict": "PARTIAL",
+       "evidence": "components crate; studio.design_system only in the event catalogue"
+      },
+      "MT-330": {
+       "verdict": "PARTIAL",
+       "evidence": "variant sets read; no combine or extract fn"
+      },
+      "MT-332": {
+       "verdict": "BUILT",
+       "evidence": "components/tests/instance_resolution.rs; view/design/instance.rs"
+      },
+      "MT-359": {
+       "verdict": "BUILT",
+       "evidence": "components/src/auto_layout.rs; components/tests/auto_layout.rs"
+      },
+      "MT-363": {
+       "verdict": "PARTIAL",
+       "evidence": "folio/src/layout_grids.rs, layout/src/grids.rs; save-as-grid-style not opened"
+      },
+      "MT-380": {
+       "verdict": "PARTIAL",
+       "evidence": "components/src/player.rs:366; SET_VARIABLE_MODE inert (line 370)"
+      },
+      "MT-383": {
+       "verdict": "BUILT",
+       "evidence": "components/src/transition.rs:99; components/tests/transition.rs"
+      },
+      "MT-419": {
+       "verdict": "BUILT",
+       "evidence": "develop/src/optics.rs; develop/tests/develop_lens.rs; viewer_develop_lens.rs"
+      },
+      "MT-454": {
+       "verdict": "BUILT",
+       "evidence": "develop/src/nef.rs, raf.rs, arw.rs, raw_cr; develop/tests/develop_nef.rs"
+      },
+      "MT-457": {
+       "verdict": "BUILT",
+       "evidence": "interop-vector-svg/src/gzip.rs; interop-vector/tests/paint_stroke_svgz.rs"
+      },
+      "MT-468": {
+       "verdict": "PARTIAL",
+       "evidence": "refused with typed code; preview only, harness/tests/import_affinity.rs"
+      },
+      "MT-475": {
+       "verdict": "PARTIAL",
+       "evidence": "web crates; no slices"
+      },
+      "MT-518": {
+       "verdict": "MISSING",
+       "evidence": "batch only"
+      },
+      "MT-529": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-530": {
+       "verdict": "MISSING",
+       "evidence": "no board section"
+      },
+      "MT-533": {
+       "verdict": "MISSING",
+       "evidence": "fig marker import only"
+      },
+      "MT-560": {
+       "verdict": "MISSING",
+       "evidence": "no gate"
+      }
+     },
+     "note": "Anchored 16 and unanchored 16 drawn at random seed 20261105. These overlap the domain auditors engines; read with their reports.",
+     "estimate": "ESTIMATE from 32 sampled of 509: BUILT ~111, PARTIAL ~223, MISSING ~175, GUI_ONLY_GAP ~0, NOT_CODE ~0"
+    },
+    {
+     "name": "source_companion",
+     "mts": 556,
+     "sampled": 32,
+     "built": 4,
+     "partial": 15,
+     "missing": 11,
+     "gui_only_gap": 2,
+     "not_code": 0,
+     "what_exists": [
+      "Asset ports and records; many rows are foundation-module side contributions"
+     ],
+     "what_is_missing": [
+      "Plugin platform rows, gesture batches, presence, validation catalogue, conformance gates"
+     ],
+     "samples": {
+      "MT-35634": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-35643": {
+       "verdict": "PARTIAL",
+       "evidence": "Run history in memory; no ledger"
+      },
+      "MT-35647": {
+       "verdict": "BUILT",
+       "evidence": "nib crate and tests; VectorEngine name absent"
+      },
+      "MT-35675": {
+       "verdict": "MISSING",
+       "evidence": "hits are PDF paint modes"
+      },
+      "MT-35688": {
+       "verdict": "PARTIAL",
+       "evidence": "layout/src/table.rs; folio longdoc"
+      },
+      "MT-35709": {
+       "verdict": "BUILT",
+       "evidence": "type crate rustybuzz port; type/tests/foundation_contract.rs"
+      },
+      "MT-35724": {
+       "verdict": "BUILT",
+       "evidence": "folio StudioSwatch; folio/tests/swatch_group_undo.rs"
+      },
+      "MT-35730": {
+       "verdict": "PARTIAL",
+       "evidence": "prism/src/recolor.rs; viewer_ai_type_path_recolor"
+      },
+      "MT-35745": {
+       "verdict": "PARTIAL",
+       "evidence": "render tests; ROI determinism not fully opened"
+      },
+      "MT-35793": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "develop adjustments; egui sliders only"
+      },
+      "MT-35797": {
+       "verdict": "PARTIAL",
+       "evidence": "develop/src/preset.rs; no browser"
+      },
+      "MT-35819": {
+       "verdict": "PARTIAL",
+       "evidence": "import receipts and loss, harness/tests/import_tiff.rs"
+      },
+      "MT-35843": {
+       "verdict": "PARTIAL",
+       "evidence": "import loss proposals; descriptor port partial"
+      },
+      "MT-35867": {
+       "verdict": "MISSING",
+       "evidence": "audio plugin host only"
+      },
+      "MT-35879": {
+       "verdict": "MISSING",
+       "evidence": "no presence"
+      },
+      "MT-35888": {
+       "verdict": "MISSING",
+       "evidence": "zero hits"
+      },
+      "MT-35890": {
+       "verdict": "PARTIAL",
+       "evidence": "components propose_overrides; no diagram proposal"
+      },
+      "MT-35896": {
+       "verdict": "GUI_ONLY_GAP",
+       "evidence": "accord catalogue, kernel-bindings/tests/business_events.rs; host recorder absent"
+      },
+      "MT-35909": {
+       "verdict": "MISSING",
+       "evidence": "no gate"
+      },
+      "MT-35944": {
+       "verdict": "BUILT",
+       "evidence": "pulse/src/nest.rs; pulse/tests/nest.rs"
+      },
+      "MT-35999": {
+       "verdict": "PARTIAL",
+       "evidence": "separate crate; closure not checked (no cargo)"
+      },
+      "MT-36109": {
+       "verdict": "PARTIAL",
+       "evidence": "kernel-bindings/src/host.rs, tests/bridge_contract.rs; transient host"
+      },
+      "MT-36121": {
+       "verdict": "MISSING",
+       "evidence": "zero gesture batch"
+      },
+      "MT-36123": {
+       "verdict": "MISSING",
+       "evidence": "zero gesture batch"
+      },
+      "MT-36130": {
+       "verdict": "PARTIAL",
+       "evidence": "TileRef in folio; observe row absent"
+      },
+      "MT-36136": {
+       "verdict": "PARTIAL",
+       "evidence": "interop-fig-native, fig tests; oracle status not opened"
+      },
+      "MT-36144": {
+       "verdict": "PARTIAL",
+       "evidence": "session reopen tests; host resolve absent"
+      },
+      "MT-36156": {
+       "verdict": "PARTIAL",
+       "evidence": "motion/src/date.rs; no accord side or test found"
+      },
+      "MT-36158": {
+       "verdict": "PARTIAL",
+       "evidence": "motion-js worker isolation; session row UNVERIFIED"
+      },
+      "MT-36167": {
+       "verdict": "MISSING",
+       "evidence": "no plugin authority"
+      },
+      "MT-36171": {
+       "verdict": "MISSING",
+       "evidence": "no plugin state"
+      },
+      "MT-36183": {
+       "verdict": "MISSING",
+       "evidence": "no plugin dispatch"
+      }
+     },
+     "estimate": "ESTIMATE from 32 sampled of 556: BUILT ~70, PARTIAL ~261, MISSING ~191, GUI_ONLY_GAP ~35, NOT_CODE ~0"
+    },
+    {
+     "name": "spec207_amendment",
+     "mts": 55,
+     "sampled": 18,
+     "built": 4,
+     "partial": 9,
+     "missing": 3,
+     "gui_only_gap": 0,
+     "not_code": 2,
+     "what_exists": [
+      "Bounded admission, MotionJS, business event catalogue"
+     ],
+     "what_is_missing": [
+      "Plugin platform HSK-PLG-*, visual receipts, mirror provenance"
+     ],
+     "samples": {
+      "MT-35565": {
+       "verdict": "BUILT",
+       "evidence": "session/src/admission.rs; session/tests/job_lifecycle.rs; viewer_job_admission"
+      },
+      "MT-35566": {
+       "verdict": "MISSING",
+       "evidence": "no provenance manifest in the tree"
+      },
+      "MT-35572": {
+       "verdict": "MISSING",
+       "evidence": "zero visual receipt"
+      },
+      "MT-35576": {
+       "verdict": "NOT_CODE",
+       "evidence": "activation rule"
+      },
+      "MT-35578": {
+       "verdict": "PARTIAL",
+       "evidence": "score-plugin/src/types.rs; snapshots not proven"
+      },
+      "MT-35579": {
+       "verdict": "NOT_CODE",
+       "evidence": "derivation paperwork"
+      },
+      "MT-35586": {
+       "verdict": "BUILT",
+       "evidence": "accord/tests/business_event_catalog.rs; kernel-bindings/tests/business_events.rs"
+      },
+      "MT-35590": {
+       "verdict": "PARTIAL",
+       "evidence": "interop-media/src/native.rs sesx; lrcat extract"
+      },
+      "MT-35591": {
+       "verdict": "PARTIAL",
+       "evidence": "package plus reopen; host resolve absent"
+      },
+      "MT-35593": {
+       "verdict": "PARTIAL",
+       "evidence": "press-write inks, separations; reading order not proven"
+      },
+      "MT-35596": {
+       "verdict": "PARTIAL",
+       "evidence": "motion/src/date.rs; forms not all opened"
+      },
+      "MT-35597": {
+       "verdict": "BUILT",
+       "evidence": "motion-js/src/quickjs_worker.rs; tests/quickjs_contract.rs"
+      },
+      "MT-35598": {
+       "verdict": "BUILT",
+       "evidence": "motion/src/expression.rs; motion-js/tests/foundation_contract.rs"
+      },
+      "MT-35599": {
+       "verdict": "MISSING",
+       "evidence": "no platform"
+      },
+      "MT-35600": {
+       "verdict": "PARTIAL",
+       "evidence": "trait ports; dynamic boundary not opened"
+      },
+      "MT-35603": {
+       "verdict": "PARTIAL",
+       "evidence": "transient host rechecks grants; real authority absent"
+      },
+      "MT-35606": {
+       "verdict": "PARTIAL",
+       "evidence": "session/src/ports.rs, kernel-bindings HostBridge; UI and manual ports absent"
+      },
+      "MT-35609": {
+       "verdict": "PARTIAL",
+       "evidence": "score-plugin host; callback rules not opened"
+      }
+     },
+     "estimate": "ESTIMATE from 18 sampled of 55: BUILT ~12, PARTIAL ~28, MISSING ~9, GUI_ONLY_GAP ~0, NOT_CODE ~6"
+    },
+    {
+     "name": "host_adoption",
+     "mts": 49,
+     "sampled": 15,
+     "built": 0,
+     "partial": 1,
+     "missing": 14,
+     "gui_only_gap": 0,
+     "not_code": 0,
+     "what_exists": [
+      "Asset half only: render-gpu GPU client port"
+     ],
+     "what_is_missing": [
+      "Everything host-side: handshake_main 4fe1e9a92 (2026-09-24) has no hsk_studio dep, no studio source, no test_studio_* target. Kernel lane worktrees NOT_INSPECTED"
+     ],
+     "samples": {
+      "MT-36191": {
+       "verdict": "MISSING",
+       "evidence": "same"
+      },
+      "MT-36193": {
+       "verdict": "MISSING",
+       "evidence": "same"
+      },
+      "MT-36194": {
+       "verdict": "MISSING",
+       "evidence": "no Studio in handshake_native"
+      },
+      "MT-36198": {
+       "verdict": "MISSING",
+       "evidence": "same"
+      },
+      "MT-36204": {
+       "verdict": "MISSING",
+       "evidence": "same"
+      },
+      "MT-36205": {
+       "verdict": "MISSING",
+       "evidence": "same"
+      },
+      "MT-36216": {
+       "verdict": "MISSING",
+       "evidence": "no handshake_core::studio"
+      },
+      "MT-36218": {
+       "verdict": "MISSING",
+       "evidence": "same"
+      },
+      "MT-36226": {
+       "verdict": "MISSING",
+       "evidence": "same"
+      },
+      "MT-36232": {
+       "verdict": "MISSING",
+       "evidence": "no Studio in the host at handshake_main"
+      },
+      "MT-36233": {
+       "verdict": "MISSING",
+       "evidence": "no Studio in the host at handshake_main"
+      },
+      "MT-36248": {
+       "verdict": "PARTIAL",
+       "evidence": "asset half in render-gpu/src/client.rs; owner absent"
+      },
+      "MT-36249": {
+       "verdict": "MISSING",
+       "evidence": "host absent"
+      },
+      "MT-36250": {
+       "verdict": "MISSING",
+       "evidence": "host absent"
+      },
+      "MT-36251": {
+       "verdict": "MISSING",
+       "evidence": "host absent"
+      }
+     },
+     "note": "63 null-domain rows carry activation_disposition PREPARATION_NOT_READY_NONEXECUTION; missing by design at this stage.",
+     "estimate": "ESTIMATE from 15 sampled of 49: BUILT ~0, PARTIAL ~3, MISSING ~46, GUI_ONLY_GAP ~0, NOT_CODE ~0"
+    },
+    {
+     "name": "asset_foundation",
+     "mts": 36,
+     "sampled": 16,
+     "built": 13,
+     "partial": 3,
+     "missing": 0,
+     "gui_only_gap": 0,
+     "not_code": 0,
+     "what_exists": [
+      "56 workspace crates; 17 foundation_contract style tests; 9 of 36 foundations PASS"
+     ],
+     "what_is_missing": [
+      "AC-HOST-INT rows on Controls, Harness, Render-GPU"
+     ],
+     "samples": {
+      "MT-35528": {
+       "verdict": "BUILT",
+       "evidence": "PASS_V7; workspace probe"
+      },
+      "MT-35529": {
+       "verdict": "BUILT",
+       "evidence": "PASS_V1; accord/tests/foundation_contract.rs"
+      },
+      "MT-35530": {
+       "verdict": "BUILT",
+       "evidence": "PASS_V4; observe tests"
+      },
+      "MT-35531": {
+       "verdict": "BUILT",
+       "evidence": "PASS_V1; folio tests"
+      },
+      "MT-35532": {
+       "verdict": "BUILT",
+       "evidence": "PASS_V2; chronicle tests"
+      },
+      "MT-35533": {
+       "verdict": "BUILT",
+       "evidence": "PASS_V3; prism tests"
+      },
+      "MT-35534": {
+       "verdict": "BUILT",
+       "evidence": "PASS_V2; pigment tests"
+      },
+      "MT-35535": {
+       "verdict": "BUILT",
+       "evidence": "PASS_V1; nib tests"
+      },
+      "MT-35536": {
+       "verdict": "BUILT",
+       "evidence": "PASS_V5; type tests"
+      },
+      "MT-35537": {
+       "verdict": "BUILT",
+       "evidence": "status PENDING; layout tests exist"
+      },
+      "MT-35544": {
+       "verdict": "BUILT",
+       "evidence": "status PENDING; composite/tests/document_root.rs lowers real plans"
+      },
+      "MT-35545": {
+       "verdict": "BUILT",
+       "evidence": "status PENDING; render-cpu tests"
+      },
+      "MT-35546": {
+       "verdict": "PARTIAL",
+       "evidence": "status PENDING; wgpu quarantined under D7; AC-HOST-INT rows open"
+      },
+      "MT-35553": {
+       "verdict": "PARTIAL",
+       "evidence": "status PENDING; shared descriptor works; AC-HOST-INT-001 fails: pub mod egui_adapter, egui dep"
+      },
+      "MT-35555": {
+       "verdict": "PARTIAL",
+       "evidence": "status PENDING; headless consumer real; eframe and wgpu in the desktop feature"
+      },
+      "MT-35556": {
+       "verdict": "BUILT",
+       "evidence": "status PENDING; kernel-bindings/tests/bridge_contract.rs, transient host"
+      }
+     },
+     "note": "27 foundations show PENDING in MT state while their crates and tests exist: state undercounts. Tests were read, not run.",
+     "estimate": "ESTIMATE from 16 sampled of 36: BUILT ~29, PARTIAL ~7, MISSING ~0, GUI_ONLY_GAP ~0, NOT_CODE ~0"
+    },
+    {
+     "name": "clause (slide roles STU-PRO-167..174)",
+     "mts": 8,
+     "sampled": 8,
+     "built": 0,
+     "partial": 0,
+     "missing": 8,
+     "gui_only_gap": 0,
+     "not_code": 0,
+     "what_exists": [],
+     "what_is_missing": [
+      "All slide roles"
+     ],
+     "samples": {
+      "MT-36234": {
+       "verdict": "MISSING",
+       "evidence": "zero hits SlideNode, SlideRow, SlideGrid, InteractiveSlide, SlideTransition"
+      },
+      "MT-36235": {
+       "verdict": "MISSING",
+       "evidence": "zero hits SlideNode, SlideRow, SlideGrid, InteractiveSlide, SlideTransition"
+      },
+      "MT-36236": {
+       "verdict": "MISSING",
+       "evidence": "zero hits SlideNode, SlideRow, SlideGrid, InteractiveSlide, SlideTransition"
+      },
+      "MT-36237": {
+       "verdict": "MISSING",
+       "evidence": "zero hits SlideNode, SlideRow, SlideGrid, InteractiveSlide, SlideTransition"
+      },
+      "MT-36238": {
+       "verdict": "MISSING",
+       "evidence": "zero hits SlideNode, SlideRow, SlideGrid, InteractiveSlide, SlideTransition"
+      },
+      "MT-36239": {
+       "verdict": "MISSING",
+       "evidence": "zero hits SlideNode, SlideRow, SlideGrid, InteractiveSlide, SlideTransition"
+      },
+      "MT-36240": {
+       "verdict": "MISSING",
+       "evidence": "zero hits SlideNode, SlideRow, SlideGrid, InteractiveSlide, SlideTransition"
+      },
+      "MT-36241": {
+       "verdict": "MISSING",
+       "evidence": "zero hits SlideNode, SlideRow, SlideGrid, InteractiveSlide, SlideTransition"
+      }
+     },
+     "estimate": "ESTIMATE from 8 sampled of 8: BUILT ~0, PARTIAL ~0, MISSING ~8, GUI_ONLY_GAP ~0, NOT_CODE ~0"
+    },
+    {
+     "name": "source_contribution (slide mapping)",
+     "mts": 6,
+     "sampled": 6,
+     "built": 0,
+     "partial": 0,
+     "missing": 6,
+     "gui_only_gap": 0,
+     "not_code": 0,
+     "what_exists": [],
+     "what_is_missing": [
+      "All six"
+     ],
+     "samples": {
+      "MT-36242": {
+       "verdict": "MISSING",
+       "evidence": "zero hits; slide source mapping absent"
+      },
+      "MT-36243": {
+       "verdict": "MISSING",
+       "evidence": "zero hits; slide source mapping absent"
+      },
+      "MT-36244": {
+       "verdict": "MISSING",
+       "evidence": "zero hits; slide source mapping absent"
+      },
+      "MT-36245": {
+       "verdict": "MISSING",
+       "evidence": "zero hits; slide source mapping absent"
+      },
+      "MT-36246": {
+       "verdict": "MISSING",
+       "evidence": "zero hits; slide source mapping absent"
+      },
+      "MT-36247": {
+       "verdict": "MISSING",
+       "evidence": "zero hits; slide source mapping absent"
+      }
+     },
+     "estimate": "ESTIMATE from 6 sampled of 6: BUILT ~0, PARTIAL ~0, MISSING ~6, GUI_ONLY_GAP ~0, NOT_CODE ~0"
+    }
+   ],
+   "estimate": "ESTIMATE, family-weighted, 127 sampled of 1219: BUILT ~222, PARTIAL ~521, MISSING ~435, GUI_ONLY_GAP ~35, NOT_CODE ~6",
+   "sample_totals": {
+    "sampled": 127,
+    "built": 28,
+    "partial": 42,
+    "missing": 53,
+    "gui_only_gap": 2,
+    "not_code": 2
+   }
+  }
+ },
+ "blocked_by_gui_pivot": {
+  "decisions": {
+   "D1": "drop egui",
+   "D7": "pure Vulkan, no wgpu",
+   "D8": "Kumihimo keeps shared-controls ownership, non-egui renderer beside kumihimo-egui",
+   "source": "ledger.json direction"
+  },
+  "count_note": "_MT_INDEX counts 2257 vulkan_shell_client (recorded 2026-10-30). MT files today say 2266: the index is stale by 9 rows.",
+  "all_mts": {
+   "none": 3897,
+   "vulkan_shell_client": 2266,
+   "asset_local_test_host_only": 57
+  },
+  "my_mts_vulkan_shell_client": 1203,
+  "my_mts_total": 2025,
+  "by_domain": {
+   "operator_shell": 689,
+   "model_facing_surface": 21,
+   "tooltips_and_manual": 23,
+   "cross_cutting": 7,
+   "architecture": 5,
+   "val": 0,
+   "par": 5,
+   "quiet": 5,
+   "pw": 0,
+   "his": 0,
+   "null": 448
+  },
+  "caveat": "vulkan_shell_client does not mean pure GUI: the 689 shell rows also hold headless logic (availability predicate, registry, descriptor generator, ParamSpec, write path) that can be built now without the UI layer.",
+  "headless_now": [
+   "controls registry and UiDescriptor",
+   "availability predicate and slot resolver",
+   "ParamSpec and set_param_clamped",
+   "descriptor generator and manual store seed",
+   "engine tool gaps"
+  ],
+  "egui_test_host_to_rehost": {
+   "size": "hsk-studio-harness-view 81 files, 44050 src lines, 30 test files, 10551 test lines; hsk-studio-harness tests 86 files, 20200 lines; about 417 #[test] across the two test dirs by grep",
+   "entry": "harness/src/bin/studio-harness.rs:34 eframe::run_native; eframe 0.33.3 with wgpu in harness and harness-view Cargo.toml",
+   "surfaces": [
+    "view/shell.rs menu bar, help window, file dialog, recent list",
+    "33 tools in view/edit.rs plus layout and trim tool enums",
+    "25 panels: Layers, Properties, Info, Develop, LayoutEditor, ProgramMonitor, SourceMonitor, Timeline, Mixer, WaveformEditor, SpectralDisplay, PrototypePlayer, plus Hosted Appearance, Stroke, Swatches, GraphicStyles, AlignDistribute, Transform, PathOperations, Masks, EnvelopeDistort, Brushes, VectorExport, VectorImport, AudioBatch",
+    "layout_ui: pages, styles, tables, threads, find, preflight",
+    "design: fig import, auto layout, instance",
+    "develop, proof, fill tools, select and liquify, vector tools, timeline trim, rate, nest, export"
+   ],
+   "shared_control_coupling": "hsk-studio-controls has a hard egui 0.33.3 dep and pub mod egui_adapter (347 lines) plus egui menu_bar_ui in menu.rs. Must move out for MT-36254 and AC-HOST-INT-001 on MT-35553.",
+   "gpu": "render-gpu: wgpu =27.0.1, 15 files with wgpu::, 401 refs, 9 WGSL files; view/display.rs shares the egui-wgpu device",
+   "keep": "Viewer methods and state_json are headless and hold real logic; 73 ui functions in 31 files are the egui-facing part. 829 pub fns is the model and test API the re-host must not lose.",
+   "note": "Ledger says existing egui code is asset-local test-host only and no new egui code."
+  }
+ },
+ "manual_state": {
+  "exists": "Yes, but only a test-host manual. No product UserManual.",
+  "surfaces": [
+   "harness-core/src/manual.rs: studio-harness help and help --json (cli.rs:997)",
+   "view/shell.rs:1016 help_rows: in-window Manual, Command Index, Shortcuts, System Report, About",
+   "controls/src/projection.rs:153 and menu.rs:502 manual_topics"
+  ],
+  "generated_from_canonical_descriptors": "No, not as contracts require. Partly: menu and panel-control topics project from controls descriptors and availability, proven by harness_headless.rs:98 and menu_descriptors.rs:167. COMMANDS and FLAGS in manual.rs:17 are hand-typed Rust strings, with panel_controls drawn from a sample panel. No UiDescriptor, no build-time generator, no seed rows, no tooltip-gaps.json, no extraction_method, no CI gates, no coverage report, no canonical store (user_manual_* zero hits).",
+  "coverage": "CLI 13 commands; menu tree about 7 titles; 16 HELP leaves, 10 greyed NOT_IMPLEMENTED_YET including Help for This Command, Panel, Tool, Domain Guides, Flight Recorder, Visual Debugger, Accessibility Snapshot (shell.rs:387-414). No entry per tool, panel, workflow. Zero of 362 tool entries.",
+  "search": "Substring search over topic rows. Tool name partly; intent, command_id exact and author_id reverse axes absent.",
+  "docs_in_tree": "crates/hsk-studio-harness/RUN-UI.md only: launch steps, operator step.",
+  "blocked_decisions": "SD-9, SD-10, SD-11 (MT-35134..35136) are undecided and block SHL-P-06 per contract text; current state UNVERIFIED.",
+  "mt_obligation_gap": "user_manual_obligation.required is true on rows sampled; the same-change guard does not exist, so nothing enforces it."
+ },
+ "proof_command_counts": {
+  "total_mts": 6220,
+  "total_checks": 25034,
+  "definition": "Counted over proof.checks[].command_or_method for all 6220 MT files. Target exists means crates/<pkg>/tests/<name>.rs, tests/<name>/main.rs or a [[test]] entry in the tree 1940292c. Nothing was run.",
+  "mts_any_check_literal_NOT_IMPLEMENTED_status": 990,
+  "checks_literal_status": {
+   "NOT_IMPLEMENTED": 5103,
+   "NOT_IMPLEMENTED_PLANNED": 179,
+   "NOT_EXECUTED": 74
+  },
+  "mts_any_command_names_a_test_target_that_does_not_exist": 4519,
+  "checks_target_missing": 17291,
+  "checks_target_present": 228,
+  "mts_host_manifest_target_absent": 45,
+  "mts_string_says_not_run_or_not_created": 49,
+  "mts_named_case_missing_in_present_target": 9,
+  "mts_package_missing": 0,
+  "mts_no_checks": 39,
+  "mts_cannot_run_union": 5519,
+  "mts_not_flagged": 662,
+  "mts_not_flagged_with_a_real_existing_test_target": 14,
+  "mts_not_flagged_examples_with_target": [
+   "MT-147",
+   "MT-35529",
+   "MT-35530",
+   "MT-35531",
+   "MT-35532",
+   "MT-35533",
+   "MT-35534",
+   "MT-35535",
+   "MT-35536",
+   "MT-35539",
+   "MT-35545",
+   "MT-35547",
+   "MT-35549",
+   "MT-35562"
+  ],
+  "not_flagged_note": "The 662 not flagged use cargo check, --lib, inspection or independent review methods only. Runnable does not mean behaviour proof. The test targets MTs name are almost all planned mt_NNNNN names; lanes built other targets, so missing target does not mean missing behaviour.",
+  "pass_mts": 62,
+  "pass_mts_whose_own_proof_cannot_run": 53,
+  "pass_note": "PASS came from lane verdicts via the status sync (ledger direction.mt_status_sync), not from the MT proof command.",
+  "string_opens_planned_mts": 2622,
+  "by_my_domains": {
+   "operator_shell": 676,
+   "model_facing_surface": 27,
+   "tooltips_and_manual": 27,
+   "cross_cutting": 16,
+   "architecture": 6,
+   "val": 6,
+   "par": 5,
+   "quiet": 5,
+   "pw": 4,
+   "his": 4,
+   "null": 845
+  }
+ },
+ "state_drift": {
+  "status_counts": {
+   "PENDING": 6146,
+   "PASS_V1": 44,
+   "PASS_V2": 3,
+   "PASS_V3": 12,
+   "PASS_V7": 1,
+   "PASS_V4": 1,
+   "PASS_V5": 1,
+   "None": 12
+  },
+  "points": [
+   "Only 62 of 6220 MTs PASS, while many capabilities exist: status undercounts engine work.",
+   "27 of 36 foundations PENDING though crates and tests exist.",
+   "lifecycle.blocked_on SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION still on sampled rows such as MT-001 and MT-35553.",
+   "11 STU-ARC-023..033 rows have null status in _MT_INDEX.",
+   "Prefilter has 1219 null domains, _MT_INDEX 1079: index gives foundations and host adoption domain values."
+  ]
+ },
+ "top_missing": [
+  {
+   "rank": 1,
+   "gap": "One command and control registry: UiDescriptor, build-time descriptor generator, generated id enum",
+   "owner": "hsk-studio-controls, with Kumihimo per D8",
+   "mts": [
+    "MT-35107..35114",
+    "MT-35115..35133",
+    "MT-34436",
+    "MT-34437"
+   ],
+   "anchors": [
+    "STU-SHL-240..247",
+    "STU-MAN-100..118",
+    "STU-SHL-015"
+   ],
+   "why": "Tools, panels, tooltips, manual, ParamSpec and AccessKit all read it; headless, not blocked by the GUI pause. SD-9..11 need a decision first."
+  },
+  {
+   "rank": 2,
+   "gap": "Typed command API: studio.<domain>.<command>.vN, schemas per command, dry_run, SimulationReceipt, universal contract gates",
+   "owner": "hsk-studio-session, harness-core, kernel-bindings, accord",
+   "mts": [
+    "MT-33634..33639",
+    "MT-34665",
+    "MT-33673",
+    "MT-560",
+    "MT-35909"
+   ],
+   "anchors": [
+    "STU-MDL-001..006",
+    "STU-CON-007"
+   ],
+   "why": "Today 13 CLI commands and the RUN_COMMANDS table (action.rs:843); the 829 Viewer fns live in the test host due for re-hosting."
+  },
+  {
+   "rank": 3,
+   "gap": "Engine tools with nothing behind them",
+   "owner": "hsk-studio-pigment, nib, composite, type, layout",
+   "mts": [
+    "MT-045",
+    "MT-34778",
+    "tone_brush, data_graph, symbol_instance, camera_3d rows of STU-SHL-155 (MT-34685..35046)",
+    "MT-132",
+    "MT-164"
+   ],
+   "anchors": [
+    "STU-RAS-027",
+    "STU-SHL-155"
+   ],
+   "why": "Not blocked by the pause; ready lanes. Tool row ESTIMATE in shell domain."
+  },
+  {
+   "rank": 4,
+   "gap": "Availability predicate over document profile, plus slot resolver",
+   "owner": "hsk-studio-controls, folio for the profile",
+   "mts": [
+    "MT-34480..34497"
+   ],
+   "anchors": [
+    "STU-SHL-046..062"
+   ],
+   "why": "Pure logic, headless, cheap; only the record types exist."
+  },
+  {
+   "rank": 5,
+   "gap": "ParamSpec, TemporalState, set_param_clamped, property-level revision",
+   "owner": "hsk-studio-controls, motion, session",
+   "mts": [
+    "MT-35055..35062",
+    "MT-35075..35087",
+    "MT-35097"
+   ],
+   "anchors": [
+    "STU-SHL-170..177",
+    "STU-SHL-200..213"
+   ],
+   "why": "The single write path for every value; expensive to add after panels."
+  },
+  {
+   "rank": 6,
+   "gap": "Proposal, validation, promotion: StudioEditProposal, StudioValidationDescriptor, sandbox and gate binding",
+   "owner": "hsk-studio-chronicle, session, kernel-bindings; host",
+   "mts": [
+    "MT-33645..33648",
+    "MT-33674",
+    "MT-35634",
+    "MT-30018",
+    "MT-36226"
+   ],
+   "anchors": [
+    "STU-PW-001..004",
+    "STU-VAL-001",
+    "STU-ARC-005"
+   ],
+   "why": "Model-authored edits have no governed path."
+  },
+  {
+   "rank": 7,
+   "gap": "Non-egui Vulkan shell UI layer, Kumihimo renderer, dock and panel registry, re-host of 25 panels",
+   "owner": "kernel shell and Kumihimo, then hsk-studio-harness-view",
+   "mts": [
+    "MT-36252",
+    "MT-36254",
+    "MT-34498..34506",
+    "MT-34608..34630"
+   ],
+   "anchors": [
+    "STU-ARC-023",
+    "STU-ARC-025",
+    "STU-SHL-063..099"
+   ],
+   "why": "Gate for 1203 of my MTs. Remove egui from controls first."
+  },
+  {
+   "rank": 8,
+   "gap": "Multi-model operation: per-file CRDT, presence, leases, attribution",
+   "owner": "hsk-studio-session, kernel-bindings; host",
+   "mts": [
+    "MT-33640..33643",
+    "MT-33661",
+    "MT-35879"
+   ],
+   "anchors": [
+    "STU-PAR-001..004",
+    "STU-UNI-004"
+   ],
+   "why": "Zero CRDT library or code."
+  },
+  {
+   "rank": 9,
+   "gap": "Canonical manual: dual-audience entries, four-axis search, gap ledger, CI gates, coverage report",
+   "owner": "hsk-studio-harness, controls",
+   "mts": [
+    "MT-33663..33666",
+    "MT-35125..35133"
+   ],
+   "anchors": [
+    "STU-MAN-001..004",
+    "STU-MAN-110..117"
+   ],
+   "why": "Follows rank 1."
+  },
+  {
+   "rank": 10,
+   "gap": "Proof contract resync: map MT proof commands to the real test targets",
+   "owner": "governance tooling, not product",
+   "mts": [
+    "4519 MTs name a target that does not exist"
+   ],
+   "anchors": [],
+   "why": "PASS cannot be derived from MT proof today; lanes verdicts carry it."
+  },
+  {
+   "rank": 11,
+   "gap": "Plugin platform, whiteboard objects, slide roles, asset browser",
+   "owner": "kernel-bindings, nib, layout and components, interop-fig",
+   "mts": [
+    "MT-35599..35609",
+    "MT-529",
+    "MT-530",
+    "MT-533",
+    "MT-36234..36247",
+    "MT-518",
+    "MT-35867"
+   ],
+   "anchors": [
+    "HSK-PLG-*",
+    "STU-WB-004",
+    "STU-PRO-167..174",
+    "STU-AUT-025"
+   ],
+   "why": "Self-contained lanes with zero existing code."
+  }
+ ],
+ "not_inspected": [
+  "Most of 1219 null-domain rows beyond the samples; engine depth in those rows belongs to other domain auditors",
+  "Kernel lane worktrees and any host branch other than handshake_main",
+  "Test bodies were read only for a minority of BUILT verdicts; many rest on file and test names. Nothing was run",
+  "Other lane worktrees and unpushed work",
+  "GPL, LGPL and MPL source, per limits",
+  "Spec module text beyond what MT scope and acceptance quote; open operator decision states",
+  "parity-20261023 estimates: not used"
+ ]
+}

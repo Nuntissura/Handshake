@@ -1,0 +1,5307 @@
+{
+ "area": "WP-KERNEL-STUDIO truth check: vector, typography, layout, interop, storage, document_model; Illustrator and InDesign territory plus native format import and export",
+ "tree": "wt-studio-lanes/smb-type-authored-token-1/handshake-studio-assets, read only, clean, at origin 1940292c. Spec read: v02.229 matrix for the format rows.",
+ "updated_at": "2026-11-05",
+ "local_only_not_counted": {
+  "lane/smb-layout-composer-depth-1": "286d9241 (3 commits past merge base, not an ancestor of 1940292c): composer stack overflow and panic on document data; ladder dead end; paragraph composer on its own stack. Counted LOCAL only. On origin the bug stands."
+ },
+ "method": {
+  "steps": [
+   "Families from derivation.spec_heading and unit_kind of the MT files.",
+   "Stratified sample per family: at least 15, or all when the family is smaller; anchored and unanchored rows both taken, evenly spaced in MT order.",
+   "For every sampled MT read clause and scope summary; acceptance_criteria, gui_obligation, user_manual_obligation, hbr_obligations and proof were read in full for a subset only.",
+   "Code: read public items and module headers of the owning crates; git grep for the capability names; test names per file; bodies opened where a verdict turned on them, notably declared-gap comments in folio."
+  ],
+  "class_rules": {
+   "built": "engine behaviour exists and a named test covers it. Tests were NOT run (no cargo by brief). Named-field clauses checked against record fields on a spot check only.",
+   "partial": "part of the clause exists; the note says which.",
+   "missing": "no code found by name search and record inspection.",
+   "gui_only_gap": "engine and test exist, but nothing outside the owning crate reaches it."
+  },
+  "rigor_limits": [
+   "Verdicts are one auditor reading of symbols, headers and test names; AC-by-AC proof was not walked for each of the 593 samples. Treat built as an upper bound.",
+   "A spot check of 9 built contract clusters against record fields kept 3 (book sync booleans, named grid, PDF place) and downgraded 6, covering 10 MTs, to partial (table structure, footnote options, export tags, still-image booleans, still-image numerics, marks). The counts here are after that check, but other built verdicts on many-field contracts may fall the same way.",
+   "missing rests on name search: a differently named implementation could be missed; UNVERIFIED notes mark the doubtful ones.",
+   "Every MT in these domains carries operator surface YES and Argus YES, plus manual and HBR obligations. The only GUI in this tree is the harness viewer. Host integration, canonical UserManual and Argus are NOT_INSPECTED, so built does not mean those obligations are met; gui_only_gap is used only where even the viewer and document records cannot reach the engine.",
+   "Oracle findings quoted from research/d5-ai-id-ae-compare-20261016.json are dated 2026-10-16."
+  ],
+  "prefilter_calibration_on_sample": {
+   "anchored_in_src_but_missing": 14,
+   "anchored_in_src_but_partial": 103,
+   "anchored_in_src_and_built": 154,
+   "unanchored_but_built": 32,
+   "unanchored_but_partial": 99,
+   "unanchored_and_missing": 184
+  }
+ },
+ "domains": {
+  "vector": {
+   "mts": 276,
+   "status_pass": 7,
+   "families": [
+    {
+     "name": "V01 geometry model",
+     "mts": 28,
+     "sampled": 15,
+     "built": 8,
+     "partial": 5,
+     "missing": 2,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "anchor model crates/hsk-studio-nib/src/anchor_path.rs:100, network crates/hsk-studio-nib/src/network.rs:114, folio crates/hsk-studio-folio/src/vector_network.rs:111; tests crates/hsk-studio-nib/tests/anchor_path.rs, network.rs, vector_simplify.rs"
+     ],
+     "what_is_missing": [
+      "polarity enum; stored path direction; object dimension and opacity hard bounds; area readout"
+     ],
+     "samples": {
+      "MT-30382": {
+       "class": "built",
+       "note": "AnchorPath/OwnedPath + VectorNetwork + folio records; nib/tests/network.rs, anchor_path.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30384": {
+       "class": "built",
+       "note": "EditAnchor position, relative handles, mirroring; nib/tests/anchor_path.rs",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30385": {
+       "class": "built",
+       "note": "Mirroring NONE/ANGLE/ANGLE_AND_LENGTH wire tokens, path_contract.rs:48",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30388": {
+       "class": "built",
+       "note": "AnchorSelection five values 1..=5, anchor_path.rs:90",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30390": {
+       "class": "built",
+       "note": "fill rule + per-region fill, paint_bucket; nib/tests/network.rs junction_regions_paint_bucket",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30393": {
+       "class": "missing",
+       "note": "no polarity enum in nib or folio (grep polarity only hits roto); orientation is only a derived shoelace sign",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30394": {
+       "class": "missing",
+       "note": "no polarity enum in nib or folio (grep polarity only hits roto); orientation is only a derived shoelace sign",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30395": {
+       "class": "partial",
+       "note": "reverse command exists (anchor_path.rs:752); no stored per-contour direction field",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30398": {
+       "class": "built",
+       "note": "six corner kinds, nib shape.rs:111, folio live_shape.rs:53; tests/shape.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30400": {
+       "class": "built",
+       "note": "offset, simplify, outline stroke, join, average: edit.rs, simplify.rs, stroke.rs; tests vector_edit.rs, pathfinder.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30403": {
+       "class": "built",
+       "note": "SimplifyParams four parameters; nib/tests/vector_simplify.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30406": {
+       "class": "partial",
+       "note": "f64 document coordinates with no device rounding by construction; no test states the zoom independence",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30407": {
+       "class": "partial",
+       "note": "only shape rect max 16348 (shape.rs:28); no general object dimension or opacity hard-bound error",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30408": {
+       "class": "partial",
+       "note": "only shape rect max 16348 (shape.rs:28); no general object dimension or opacity hard-bound error",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30409": {
+       "class": "partial",
+       "note": "path_length at shape_ops.rs:371; no public area readout, no typed query on records",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "V02 drawing and editing tools",
+     "mts": 40,
+     "sampled": 15,
+     "built": 4,
+     "partial": 5,
+     "missing": 6,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "pen, curvature, pencil, knife, shape builder, reshape, width, blob: crates/hsk-studio-nib/src/freeform.rs:109-607, viewer tools crates/hsk-studio-harness-view/src/view/edit.rs:46-67; tests nib/tests/freeform.rs, pen3.rs, harness viewer_vector*.rs"
+     ],
+     "what_is_missing": [
+      "vector eraser, sculpt, point transform, crop tool; drawing modes; persisted tool options; selection by attribute; document cleanup; shape-builder gap handling"
+     ],
+     "samples": {
+      "MT-30410": {
+       "class": "partial",
+       "note": "13 of 17 tool rows have an engine; vector eraser, sculpt, point transform and vector crop tool absent (Tool enum edit.rs:39-78)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30413": {
+       "class": "built",
+       "note": "convert_anchor anchor_path.rs:587; viewer DirectSelect",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30416": {
+       "class": "built",
+       "note": "freeform.rs:542 reshape; tests/pen3.rs reshape_keeps_continuity; Tool::Reshape",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30419": {
+       "class": "built",
+       "note": "freeform.rs:300 knife; tests/freeform.rs knife_cuts; Tool::Knife",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30422": {
+       "class": "built",
+       "note": "freeform.rs:607 blob_brush; tests/pen3.rs; Tool::BlobBrush",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30425": {
+       "class": "partial",
+       "note": "pathfinder Crop op exists, tests/pathfinder.rs trim_merge_crop; no crop tool",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30428": {
+       "class": "partial",
+       "note": "VectorNetwork::pen for pen (tests/network_pen.rs); freehand and blob produce paths only, UNVERIFIED for joins",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30430": {
+       "class": "missing",
+       "note": "no draw_normal/behind/inside anywhere",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30432": {
+       "class": "missing",
+       "note": "no anchor_edit_mode or auto-add options; no persisted tool state",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30435": {
+       "class": "partial",
+       "note": "fidelity and close_within through fit_freehand and vector.pencil.fidelity widget; rest of option contract absent",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30436": {
+       "class": "partial",
+       "note": "diameter only (BLOB_DIAMETER widget); no fidelity/smoothness/angle option record",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30438": {
+       "class": "missing",
+       "note": "no vector eraser (grep eraser zero hits in nib and view/vector)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30442": {
+       "class": "missing",
+       "note": "shape_builder has no gap_detection or gap_length",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30444": {
+       "class": "missing",
+       "note": "no sculpt or push-pull",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30447": {
+       "class": "missing",
+       "note": "no attribute-selection predicate set",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "V03 parametric shapes",
+     "mts": 17,
+     "sampled": 15,
+     "built": 11,
+     "partial": 1,
+     "missing": 3,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "nine shapes crates/hsk-studio-nib/src/shape.rs:157-479, live records crates/hsk-studio-folio/src/live_shape.rs:78, viewer crates/hsk-studio-harness-view/src/view/vector.rs:2637; tests nib/tests/shape.rs, freeform.rs, folio live_shapes_contract.rs"
+     ],
+     "what_is_missing": [
+      "extended primitives; shape registration; path to live shape; transform keeps shape live (view/vector.rs:34 expands instead)"
+     ],
+     "samples": {
+      "MT-30450": {
+       "class": "built",
+       "note": "catalog in nib shape.rs and folio StudioShapeParameters; tests/live_shapes_contract.rs, nib/tests/shape.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30451": {
+       "class": "built",
+       "note": "catalog in nib shape.rs and folio StudioShapeParameters; tests/live_shapes_contract.rs, nib/tests/shape.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30452": {
+       "class": "built",
+       "note": "catalog in nib shape.rs and folio StudioShapeParameters; tests/live_shapes_contract.rs, nib/tests/shape.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30453": {
+       "class": "missing",
+       "note": "StudioShapeParameters is a closed enum; no registration path",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30454": {
+       "class": "missing",
+       "note": "no cog, crescent, heart, tear, cloud, callout etc",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30455": {
+       "class": "partial",
+       "note": "numeric widgets exist; a direct edit or transform expands the live shape (view/vector.rs:34, 2546), which the clause forbids for scale",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30456": {
+       "class": "built",
+       "note": "RectSpec per-corner with deterministic clamp; tests/shape.rs rectangles_plain_rounded_clamped",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30457": {
+       "class": "missing",
+       "note": "no path-to-live-shape command; the convert_to_shape effect refuses evaluation (live_effect.rs:593)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-35141": {
+       "class": "built",
+       "note": "nib shape fn + Tool + live record; tests/shape.rs, freeform.rs arc_segment_grids_and_spiral",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-35142": {
+       "class": "built",
+       "note": "nib shape fn + Tool + live record; tests/shape.rs, freeform.rs arc_segment_grids_and_spiral",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-35144": {
+       "class": "built",
+       "note": "nib shape fn + Tool + live record; tests/shape.rs, freeform.rs arc_segment_grids_and_spiral",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-35145": {
+       "class": "built",
+       "note": "nib shape fn + Tool + live record; tests/shape.rs, freeform.rs arc_segment_grids_and_spiral",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-35146": {
+       "class": "built",
+       "note": "nib shape fn + Tool + live record; tests/shape.rs, freeform.rs arc_segment_grids_and_spiral",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-35147": {
+       "class": "built",
+       "note": "nib shape fn + Tool + live record; tests/shape.rs, freeform.rs arc_segment_grids_and_spiral",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-35148": {
+       "class": "built",
+       "note": "nib shape fn + Tool + live record; tests/shape.rs, freeform.rs arc_segment_grids_and_spiral",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "V04 boolean and geometry ops",
+     "mts": 24,
+     "sampled": 15,
+     "built": 7,
+     "partial": 4,
+     "missing": 4,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "union, intersect, exclude, subtract, divide, trim, merge, crop crates/hsk-studio-nib/src/pathfinder.rs:41-278, live booleans crates/hsk-studio-composite/tests/boolean_lowering.rs; determinism nib/tests/vector_boolean.rs:113"
+     ],
+     "what_is_missing": [
+      "outline, hard_mix, soft_mix, trap refuse at crates/hsk-studio-nib/src/pathfinder.rs:284; persisted precision and remove-redundant options; document flatten; compound make/release"
+     ],
+     "samples": {
+      "MT-30458": {
+       "class": "partial",
+       "note": "13 tokens exist; outline, hard_mix, soft_mix, trap refuse UnsupportedOperation (pathfinder.rs:284)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30460": {
+       "class": "built",
+       "note": "pathfinder.rs + tests/pathfinder.rs, vector_boolean.rs, hand areas",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30462": {
+       "class": "built",
+       "note": "pathfinder.rs + tests/pathfinder.rs, vector_boolean.rs, hand areas",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30464": {
+       "class": "built",
+       "note": "pathfinder.rs + tests/pathfinder.rs, vector_boolean.rs, hand areas",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30466": {
+       "class": "built",
+       "note": "pathfinder.rs + tests/pathfinder.rs, vector_boolean.rs, hand areas",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30468": {
+       "class": "built",
+       "note": "pathfinder.rs + tests/pathfinder.rs, vector_boolean.rs, hand areas",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30470": {
+       "class": "missing",
+       "note": "token only; refused UnsupportedOperation pathfinder.rs:284",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30472": {
+       "class": "missing",
+       "note": "token only; refused UnsupportedOperation pathfinder.rs:284",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30473": {
+       "class": "partial",
+       "note": "descriptor names precision, remove_redundant_points:false, divide_and_outline_remove_unpainted:false as fixed; BooleanOptions has no such persisted options (boolean.rs:69)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30474": {
+       "class": "partial",
+       "note": "descriptor names precision, remove_redundant_points:false, divide_and_outline_remove_unpainted:false as fixed; BooleanOptions has no such persisted options (boolean.rs:69)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30475": {
+       "class": "missing",
+       "note": "no traps_with_process_colour or reverse_traps; geom.trap refused",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30477": {
+       "class": "missing",
+       "note": "no document flatten command; nib flatten is curve flattening",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30478": {
+       "class": "partial",
+       "note": "merge_paths Merge concatenates to compound; no make/release construct",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30479": {
+       "class": "built",
+       "note": "tests/vector_boolean.rs:113,192 repeat run bit-identical",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30480": {
+       "class": "built",
+       "note": "freeform.rs:369 shape_builder over boolean core; tests/freeform.rs shape_builder_merges_and_deletes",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "V05 fills, gradients, patterns, colour entry",
+     "mts": 27,
+     "sampled": 15,
+     "built": 3,
+     "partial": 9,
+     "missing": 3,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "appearance rows crates/hsk-studio-folio/src/paint.rs:204, pattern and image records crates/hsk-studio-folio/src/vector.rs:203,409, composite render tests composite/tests/vector_styles.rs, vector_lowering.rs, swatches crates/hsk-studio-folio/src/vector_tools.rs:110, palettes swatch_library.rs, recolour crates/hsk-studio-prism/src/recolor.rs"
+     ],
+     "what_is_missing": [
+      "angular, diamond, elliptical, freeform gradients (crates/hsk-studio-folio/src/paint.rs:81 is linear and radial); image render-time adjustments and rotation; pattern edit mode; colour picker contract; shipped swatch inventory"
+     ],
+     "samples": {
+      "MT-30482": {
+       "class": "built",
+       "note": "StudioAppearanceRow Fill opacity/blend/visible paint.rs:204; composite/tests/vector_styles.rs; viewer_vector_styles.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30484": {
+       "class": "partial",
+       "note": "solid/gradient in StudioPaint, image and pattern as sidecars; no integer colour-kind preserved set",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30486": {
+       "class": "partial",
+       "note": "folio geometry is Linear and Radial only (paint.rs:81); mesh separate; angular, diamond, elliptical, freeform absent",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30488": {
+       "class": "built",
+       "note": "StudioGradientStop paint.rs:66 + MAX_GRADIENT_STOPS; folio design_records_contract.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30490": {
+       "class": "partial",
+       "note": "classic/perceptual + dither flag stored; D5 mismatch on midpoint (research/d5-ai-id-ae-compare); dither render UNVERIFIED",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30493": {
+       "class": "built",
+       "note": "StudioPattern records vector.rs:203, render through composite; interop-vector/tests/masking_patterns.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30495": {
+       "class": "partial",
+       "note": "StudioPatternSource::LiveSource stored; live re-render of tile source UNVERIFIED",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30496": {
+       "class": "missing",
+       "note": "no pattern edit mode",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30497": {
+       "class": "partial",
+       "note": "scale modes only; no exposure/contrast render-time adjustments in StudioImagePaint vector.rs:409",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30499": {
+       "class": "partial",
+       "note": "fields stored, but composite refuses non-identity transform and rotation (composite/src/vector.rs:82)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30501": {
+       "class": "partial",
+       "note": "StudioColorModel swatches CMYK/gray/Lab/RGB; viewer vector fill entry is 8-bit sRGB (view/vector.rs header)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30502": {
+       "class": "missing",
+       "note": "no active_channel or colour picker contract",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30503": {
+       "class": "missing",
+       "note": "no active_channel or colour picker contract",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30504": {
+       "class": "partial",
+       "note": "palette scopes and colour book parser exist (swatch_library.rs, colour_book.rs); shipped 118-library inventory absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30506": {
+       "class": "partial",
+       "note": "prism recolor + view/vector/recolor.rs; attribute query half absent",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "V06 strokes",
+     "mts": 16,
+     "sampled": 15,
+     "built": 9,
+     "partial": 2,
+     "missing": 4,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "caps, joins, dashes, align crates/hsk-studio-nib/src/stroke.rs:39-192, arrowheads crates/hsk-studio-folio/src/vector_markers.rs:89 and nib/src/markers.rs:143, width profiles crates/hsk-studio-nib/src/width.rs; tests nib/tests/vector_stroke.rs, markers.rs, pen3.rs; D5 AI-01/02 oracle crates/hsk-studio-render-cpu/tests/d5_ai_oracle.rs:464"
+     ],
+     "what_is_missing": [
+      "gradient and pattern strokes refused crates/hsk-studio-composite/src/lower_extensions.rs:70; stroke offset; on-canvas annotator; directional transparency; dynamic stroke; named profile library"
+     ],
+     "samples": {
+      "MT-30509": {
+       "class": "partial",
+       "note": "stroke rows stack; gradient/pattern stroke fill is a typed refusal (composite lower_extensions.rs:70)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30510": {
+       "class": "built",
+       "note": "cap/join/align wires paint.rs:123-175, nib stroke.rs; tests/vector_stroke.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30511": {
+       "class": "built",
+       "note": "cap/join/align wires paint.rs:123-175, nib stroke.rs; tests/vector_stroke.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30512": {
+       "class": "built",
+       "note": "StudioStrokeStyle; vector_stroke.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30513": {
+       "class": "built",
+       "note": "StudioStrokeStyle; vector_stroke.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30514": {
+       "class": "built",
+       "note": "DashPattern; tests/vector_stroke.rs; D5 AI-02 dash MATCH",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30515": {
+       "class": "built",
+       "note": "26 tokens vector_markers.rs:89; composite/tests/vector_markers.rs, harness viewer_vector_markers.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30516": {
+       "class": "built",
+       "note": "26 tokens vector_markers.rs:89; composite/tests/vector_markers.rs, harness viewer_vector_markers.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30517": {
+       "class": "built",
+       "note": "26 tokens vector_markers.rs:89; composite/tests/vector_markers.rs, harness viewer_vector_markers.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30518": {
+       "class": "built",
+       "note": "nib width.rs, folio width_profile.rs; tests/width_profile.rs, pen3.rs variable_width_outlines",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30519": {
+       "class": "partial",
+       "note": "outline_variable exists; no named reusable profile library",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30520": {
+       "class": "missing",
+       "note": "no stroke_offset",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30522": {
+       "class": "missing",
+       "note": "no on-canvas stroke or gradient annotator",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30523": {
+       "class": "missing",
+       "note": "no directional-transparency surface",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30524": {
+       "class": "missing",
+       "note": "no dynamic hand-drawn stroke construct",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "V07 appearance, styles, live effects",
+     "mts": 40,
+     "sampled": 15,
+     "built": 2,
+     "partial": 9,
+     "missing": 2,
+     "gui_only_gap": 2,
+     "what_exists_evidence": [
+      "9 live effects crates/hsk-studio-nib/src/live_effect.rs:510 with tests nib/tests/vector_live_effects.rs; blend set; graphic styles crates/hsk-studio-harness-view/src/view/vector/style.rs:443; layer styles on raster side crates/hsk-studio-folio/src/raster.rs:675"
+     ],
+     "what_is_missing": [
+      "live_effect is referenced nowhere outside nib (git grep), so 7 PASS_V1 effect MTs cannot be used from a document; no effect row in StudioAppearanceRow; stylize contract; scribble; raster-effect settings; expand appearance; convert_to_shape and object_mosaic refuse evaluation crates/hsk-studio-nib/src/live_effect.rs:593"
+     ],
+     "samples": {
+      "MT-30525": {
+       "class": "partial",
+       "note": "rows are Fill and Stroke only (paint.rs:204); no effect row; layer effects are raster-side sidecars",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30527": {
+       "class": "built",
+       "note": "pigment blend_math set, folio appearance.rs:26-34; D5 AI-04 16 blend modes",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30529": {
+       "class": "built",
+       "note": "layer appearance + row blend/opacity, appearance.rs:59, paint.rs:204",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30531": {
+       "class": "partial",
+       "note": "StudioVectorMaskParameters density, feather; knockout only in raster records; full typed control set partial",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30535": {
+       "class": "partial",
+       "note": "nib EffectKind has 9 ids (live_effect.rs:510); nine-group registry not complete; record never attached to a document",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30538": {
+       "class": "partial",
+       "note": "object_mosaic and step_repeat typed; object_mosaic refused, law not recovered",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30541": {
+       "class": "partial",
+       "note": "offset/outline/round corner are nib ops but not registered effects",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30544": {
+       "class": "partial",
+       "note": "warp.rs engine; no warp live-effect record",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30547": {
+       "class": "gui_only_gap",
+       "note": "engine PASS_V1 with tests vector_live_effects.rs; live_effect appears only in nib: no folio row, no composite, no viewer",
+       "anchor_in_src": true,
+       "status": "PASS_V1"
+      },
+      "MT-30550": {
+       "class": "gui_only_gap",
+       "note": "engine PASS_V1 with tests vector_live_effects.rs; live_effect appears only in nib: no folio row, no composite, no viewer",
+       "anchor_in_src": true,
+       "status": "PASS_V1"
+      },
+      "MT-30551": {
+       "class": "partial",
+       "note": "DropShadow/glow exist as raster layer style (folio raster.rs:675, composite lower_extensions.rs:873); no STU-VEC-156 parameter map or vector row",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30553": {
+       "class": "partial",
+       "note": "DropShadow/glow exist as raster layer style (folio raster.rs:675, composite lower_extensions.rs:873); no STU-VEC-156 parameter map or vector row",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30555": {
+       "class": "partial",
+       "note": "DropShadow/glow exist as raster layer style (folio raster.rs:675, composite lower_extensions.rs:873); no STU-VEC-156 parameter map or vector row",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30560": {
+       "class": "missing",
+       "note": "no scribble",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30562": {
+       "class": "missing",
+       "note": "no raster-effect resolution settings block",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "V08 brushes",
+     "mts": 19,
+     "sampled": 15,
+     "built": 10,
+     "partial": 4,
+     "missing": 1,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "five kinds crates/hsk-studio-nib/src/brush.rs:186-574, records crates/hsk-studio-folio/src/vector_tools.rs:271, viewer crates/hsk-studio-harness-view/src/view/vector/brushes.rs; tests nib/tests/brush.rs, composite/tests/vector_tools.rs"
+     ],
+     "what_is_missing": [
+      "shipped brush library; stylus dynamics evaluation UNVERIFIED; per-path override set"
+     ],
+     "samples": {
+      "MT-30565": {
+       "class": "built",
+       "note": "nib brush.rs + folio StudioBrushKind + composite; nib/tests/brush.rs, harness viewer_illustrator_tools.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30566": {
+       "class": "built",
+       "note": "nib brush.rs + folio StudioBrushKind + composite; nib/tests/brush.rs, harness viewer_illustrator_tools.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30567": {
+       "class": "built",
+       "note": "nib brush.rs + folio StudioBrushKind + composite; nib/tests/brush.rs, harness viewer_illustrator_tools.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30568": {
+       "class": "built",
+       "note": "nib brush.rs + folio StudioBrushKind + composite; nib/tests/brush.rs, harness viewer_illustrator_tools.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30570": {
+       "class": "built",
+       "note": "nib brush.rs + folio StudioBrushKind + composite; nib/tests/brush.rs, harness viewer_illustrator_tools.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30571": {
+       "class": "built",
+       "note": "nib brush.rs + folio StudioBrushKind + composite; nib/tests/brush.rs, harness viewer_illustrator_tools.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30572": {
+       "class": "partial",
+       "note": "StudioBrushDynamics record exists; nib Dyn evaluates fixed/random; stylus pressure input UNVERIFIED",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30574": {
+       "class": "partial",
+       "note": "colorization enum stored; composite application only partly proved",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30575": {
+       "class": "partial",
+       "note": "colorization enum stored; composite application only partly proved",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30576": {
+       "class": "partial",
+       "note": "StudioBrushStroke per-row; override set partial; library storage absent",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30577": {
+       "class": "built",
+       "note": "nib brush.rs + folio StudioBrushKind + composite; nib/tests/brush.rs, harness viewer_illustrator_tools.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30579": {
+       "class": "built",
+       "note": "nib brush.rs + folio StudioBrushKind + composite; nib/tests/brush.rs, harness viewer_illustrator_tools.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30580": {
+       "class": "built",
+       "note": "nib brush.rs + folio StudioBrushKind + composite; nib/tests/brush.rs, harness viewer_illustrator_tools.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30581": {
+       "class": "built",
+       "note": "nib brush.rs + folio StudioBrushKind + composite; nib/tests/brush.rs, harness viewer_illustrator_tools.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30583": {
+       "class": "missing",
+       "note": "no shipped brush library",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "V09 artboards, align, measure, symbols",
+     "mts": 10,
+     "sampled": 10,
+     "built": 2,
+     "partial": 5,
+     "missing": 3,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "StudioArtboard crates/hsk-studio-folio/src/lib.rs:215; align crates/hsk-studio-nib/src/arrange.rs:292-359, viewer crates/hsk-studio-harness-view/src/view/vector/arrange.rs:89; tests nib/tests/arrange.rs"
+     ],
+     "what_is_missing": [
+      "artboard contract fields (only name, parent, bounds); ruler origin; measure and inventory; object-guide conversion; symbol source fields"
+     ],
+     "samples": {
+      "MT-30584": {
+       "class": "partial",
+       "note": "many artboards in StudioDocument; no per-artboard ruler origin",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30585": {
+       "class": "partial",
+       "note": "StudioArtboard has only name, parent, bounds (folio lib.rs:215)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30586": {
+       "class": "partial",
+       "note": "StudioArtboard has only name, parent, bounds (folio lib.rs:215)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30587": {
+       "class": "partial",
+       "note": "align/distribute built; object-to-guide conversion absent",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30588": {
+       "class": "built",
+       "note": "AlignTo, distribute; nib/tests/arrange.rs; view/vector/arrange.rs:89",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30589": {
+       "class": "built",
+       "note": "AlignTo, distribute; nib/tests/arrange.rs; view/vector/arrange.rs:89",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30590": {
+       "class": "missing",
+       "note": "no measure surface or vector inventory",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30591": {
+       "class": "partial",
+       "note": "folio StudioComponent exists (components.rs:164); vector symbol source binding absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30592": {
+       "class": "missing",
+       "note": "no symbol source fields",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30593": {
+       "class": "missing",
+       "note": "no symbol source fields",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "V10 transforms and distortions",
+     "mts": 23,
+     "sampled": 15,
+     "built": 6,
+     "partial": 2,
+     "missing": 6,
+     "gui_only_gap": 1,
+     "what_exists_evidence": [
+      "transforms crates/hsk-studio-nib/src/arrange.rs:153-173, 15 warps and envelopes crates/hsk-studio-nib/src/warp.rs:43-328, viewer crates/hsk-studio-harness-view/src/view/vector/envelope.rs:63-140; tests nib/tests/warp.rs"
+     ],
+     "what_is_missing": [
+      "free transform; perspective; puppet; vector liquify; edit-contents mode; repeat construct radial/grid/mirror; free distort reach"
+     ],
+     "samples": {
+      "MT-30594": {
+       "class": "partial",
+       "note": "move/rotate/scale/reflect/shear and envelope and warp exist; free transform, perspective, puppet, liquify on vectors absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30595": {
+       "class": "built",
+       "note": "arrange.rs:153-173; view/vector/arrange.rs:110",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30597": {
+       "class": "gui_only_gap",
+       "note": "FreeDistort engine and test only in nib; no viewer or document reach",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30599": {
+       "class": "built",
+       "note": "envelope make/release/expand view/vector/envelope.rs:63-140; nib/tests/warp.rs",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30601": {
+       "class": "missing",
+       "note": "no puppet warp (grep puppet zero hits)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30603": {
+       "class": "built",
+       "note": "15 styles warp.rs:62; tests/warp.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30604": {
+       "class": "built",
+       "note": "15 styles warp.rs:62; tests/warp.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30605": {
+       "class": "built",
+       "note": "StudioEnvelope with fidelity; folio tests + warp.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30606": {
+       "class": "built",
+       "note": "StudioEnvelope with fidelity; folio tests + warp.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30607": {
+       "class": "partial",
+       "note": "release and expand exist; no edit-contents mode (grep zero)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30608": {
+       "class": "missing",
+       "note": "liquify exists for raster only (pigment/liquify.rs)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30609": {
+       "class": "missing",
+       "note": "liquify exists for raster only (pigment/liquify.rs)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30611": {
+       "class": "missing",
+       "note": "no radial/grid/mirror construct; nib repeater and step_repeat are not it",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30613": {
+       "class": "missing",
+       "note": "no radial/grid/mirror construct; nib repeater and step_repeat are not it",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30615": {
+       "class": "missing",
+       "note": "no radial/grid/mirror construct; nib repeater and step_repeat are not it",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "V11 procedural constructs",
+     "mts": 17,
+     "sampled": 15,
+     "built": 1,
+     "partial": 2,
+     "missing": 12,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "gradient mesh only: crates/hsk-studio-nib/src/mesh.rs:81, crates/hsk-studio-folio/src/vector_mesh.rs:41, viewer crates/hsk-studio-harness-view/src/view/vector/mesh.rs:84; tests nib/tests/ai_mesh.rs, folio ai_gradient_mesh_records.rs"
+     ],
+     "what_is_missing": [
+      "blend, live paint, image trace, intertwine, global edit, symmetry, decorative generators: git grep finds no code"
+     ],
+     "samples": {
+      "MT-30617": {
+       "class": "missing",
+       "note": "nothing implements it (grep zero hits in code)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30618": {
+       "class": "missing",
+       "note": "nothing implements it (grep zero hits in code)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30619": {
+       "class": "missing",
+       "note": "nothing implements it (grep zero hits in code)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30620": {
+       "class": "missing",
+       "note": "nothing implements it (grep zero hits in code)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30621": {
+       "class": "missing",
+       "note": "nothing implements it (grep zero hits in code)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30622": {
+       "class": "missing",
+       "note": "nothing implements it (grep zero hits in code)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30623": {
+       "class": "built",
+       "note": "nib mesh.rs, folio vector_mesh.rs, render; tests/ai_mesh.rs, ai_gradient_mesh_records.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30624": {
+       "class": "partial",
+       "note": "GradientMesh::from_path exists; three-member appearance selector absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30626": {
+       "class": "missing",
+       "note": "nothing implements it (grep zero hits in code)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30627": {
+       "class": "missing",
+       "note": "nothing implements it (grep zero hits in code)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30628": {
+       "class": "missing",
+       "note": "nothing implements it (grep zero hits in code)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30629": {
+       "class": "missing",
+       "note": "nothing implements it (grep zero hits in code)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30630": {
+       "class": "missing",
+       "note": "nothing implements it (grep zero hits in code)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30631": {
+       "class": "missing",
+       "note": "nothing implements it (grep zero hits in code)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30632": {
+       "class": "partial",
+       "note": "only mesh persists live; other constructs do not exist",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "V12 text-on-path touchpoint",
+     "mts": 4,
+     "sampled": 4,
+     "built": 1,
+     "partial": 2,
+     "missing": 1,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "path and area text crates/hsk-studio-type/src/path_text.rs:550, area_text.rs:758, outlines create_outlines.rs; tests type/tests/ai_*"
+     ],
+     "what_is_missing": [
+      "three typed create-outlines failures; interchange beyond SVG"
+     ],
+     "samples": {
+      "MT-30634": {
+       "class": "built",
+       "note": "type path_text.rs, area_text.rs, folio vector_path_text.rs; tests ai_path_text.rs, ai_area_text.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30635": {
+       "class": "partial",
+       "note": "layout recomputes from path each call (view/vector/path_text.rs:88); bound-path delete rule UNVERIFIED",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30636": {
+       "class": "missing",
+       "note": "CreateOutlinesError has only InvalidInput and OverLimit (create_outlines.rs:52), not the three named failures",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30637": {
+       "class": "partial",
+       "note": "SVG round trip tests exist (interop-vector/tests/vector_edit_roundtrip.rs); source-suite formats one way",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "V13 provider AI lane",
+     "mts": 5,
+     "sampled": 5,
+     "built": 0,
+     "partial": 1,
+     "missing": 4,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [],
+     "what_is_missing": [
+      "entire adapter lane absent; optional per spec"
+     ],
+     "samples": {
+      "MT-30638": {
+       "class": "missing",
+       "note": "no generative adapter lane anywhere",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30639": {
+       "class": "missing",
+       "note": "no generative adapter lane anywhere",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30640": {
+       "class": "missing",
+       "note": "no generative adapter lane anywhere",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30641": {
+       "class": "partial",
+       "note": "crate builds with no adapter by absence; no distinguished command surface",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30642": {
+       "class": "missing",
+       "note": "no generative adapter lane anywhere",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "V14 cross-cutting vector",
+     "mts": 6,
+     "sampled": 6,
+     "built": 0,
+     "partial": 2,
+     "missing": 4,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "pure engine crate with descriptor crates/hsk-studio-nib/src/descriptor.rs"
+     ],
+     "what_is_missing": [
+      "VectorEngine trait; validation descriptors; StudioHistoryEntry; SurrealDB and ledger persistence; shipped content"
+     ],
+     "samples": {
+      "MT-30644": {
+       "class": "partial",
+       "note": "pure-function crate, no VectorEngine trait",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30645": {
+       "class": "missing",
+       "note": "no validation descriptor catalog (grep StudioValidationDescriptor zero hits)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30646": {
+       "class": "partial",
+       "note": "chronicle transaction per edit in viewer; no StudioHistoryEntry surface",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30647": {
+       "class": "missing",
+       "note": "host side: no SurrealDB or studio.vector ledger in this tree",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30648": {
+       "class": "missing",
+       "note": "no shipped first-run vector content",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30649": {
+       "class": "missing",
+       "note": "no shipped first-run vector content",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    }
+   ],
+   "sampled_total": 175,
+   "sample_totals": {
+    "built": 64,
+    "gui_only_gap": 3,
+    "partial": 53,
+    "missing": 55
+   },
+   "estimate": {
+    "label": "ESTIMATE, family-weighted extrapolation from a stratified, non-random sample of 175 of 276 MTs; a clause and its table row often share a verdict, so the effective sample is smaller than the count",
+    "built": 96,
+    "gui_only_gap": 7,
+    "partial": 93,
+    "missing": 81,
+    "built_pct": 34.6,
+    "gui_only_gap_pct": 2.5,
+    "partial_pct": 33.7,
+    "missing_pct": 29.2
+   }
+  },
+  "typography": {
+   "mts": 268,
+   "status_pass": 5,
+   "families": [
+    {
+     "name": "T01 parameter contract and story model",
+     "mts": 12,
+     "sampled": 12,
+     "built": 1,
+     "partial": 6,
+     "missing": 5,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "StudioTextStory crates/hsk-studio-folio/src/story.rs:107, direction story.rs:46"
+     ],
+     "what_is_missing": [
+      "seven-field parameter records; unknown-bound rule; character attribute record on ranges (story.rs:92 has only style_ref and applied_language); range addressing; segment API; events"
+     ],
+     "samples": {
+      "MT-30868": {
+       "class": "missing",
+       "note": "no seven-field record for typography parameters",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30869": {
+       "class": "missing",
+       "note": "no seven-field record for typography parameters",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30870": {
+       "class": "missing",
+       "note": "no seven-field record for typography parameters",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30871": {
+       "class": "partial",
+       "note": "Length with units, story uses points; no normative unit table enforcement",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30872": {
+       "class": "partial",
+       "note": "controls crate carries step data generally; typography not bound",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30873": {
+       "class": "partial",
+       "note": "controls crate carries step data generally; typography not bound",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30874": {
+       "class": "partial",
+       "note": "StudioTextStory has paragraphs, ranges with only style_ref and applied_language (story.rs:92); no character attribute record",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30875": {
+       "class": "missing",
+       "note": "no addressable unit API",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30876": {
+       "class": "missing",
+       "note": "no styled-segment projection",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30877": {
+       "class": "built",
+       "note": "StoryDirection story.rs:46 + type contract.rs; tests foundation_contract.rs mixed_script_bidi",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30878": {
+       "class": "partial",
+       "note": "enum has FrameGrid (story.rs:36); point/area/path composed, frame_grid through layout reflow_grid only",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30879": {
+       "class": "partial",
+       "note": "composition emits no authority event by construction; no studio.typography event on mutation",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "T02 autosize, frame fit, text on path, threading, warp",
+     "mts": 15,
+     "sampled": 15,
+     "built": 8,
+     "partial": 2,
+     "missing": 5,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "area and path layout crates/hsk-studio-type/src/area_text.rs:758, path_text.rs:550; threading crates/hsk-studio-layout/src/threaded_reflow.rs:404; autosize crates/hsk-studio-layout/src/autosize.rs:82; linked stories crates/hsk-studio-layout/src/alternate.rs:416; tests layout/tests/threaded_reflow.rs, frame_autosize.rs"
+     ],
+     "what_is_missing": [
+      "truncation; flow modes; smart reflow; minimum size flags; live text warp"
+     ],
+     "samples": {
+      "MT-30880": {
+       "class": "built",
+       "note": "layout autosize.rs + type area_text; tests/frame_autosize.rs, ai_area_text.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30881": {
+       "class": "built",
+       "note": "layout autosize.rs + type area_text; tests/frame_autosize.rs, ai_area_text.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30882": {
+       "class": "built",
+       "note": "layout autosize.rs + type area_text; tests/frame_autosize.rs, ai_area_text.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30883": {
+       "class": "partial",
+       "note": "autosize runs; separate minimum flags not found (grep use_minimum empty)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30884": {
+       "class": "partial",
+       "note": "autosize runs; separate minimum flags not found (grep use_minimum empty)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30885": {
+       "class": "missing",
+       "note": "no truncation mode or max_lines in type or folio",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30886": {
+       "class": "missing",
+       "note": "no truncation mode or max_lines in type or folio",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30887": {
+       "class": "built",
+       "note": "path_text.rs:125 + folio StudioPathText; tests/ai_path_text.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30888": {
+       "class": "built",
+       "note": "path_text.rs:125 + folio StudioPathText; tests/ai_path_text.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30889": {
+       "class": "built",
+       "note": "path_text.rs:125 + folio StudioPathText; tests/ai_path_text.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30890": {
+       "class": "built",
+       "note": "layout threaded_reflow.rs:404; tests/threaded_reflow.rs",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30891": {
+       "class": "missing",
+       "note": "no flow_mode",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30892": {
+       "class": "missing",
+       "note": "no smart reflow fields (grep add_page and limit_to_primary empty)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30893": {
+       "class": "built",
+       "note": "alternate.rs:416 update_linked_stories; folio layout_rules.rs:196; tests/alternate_layout.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-31160": {
+       "class": "missing",
+       "note": "no live text warp; envelope acts on paths only",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "T03 shaping engine",
+     "mts": 26,
+     "sampled": 15,
+     "built": 5,
+     "partial": 7,
+     "missing": 3,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "native shaping and bidi crates/hsk-studio-type/src/engine.rs:16-26, composition token crates/hsk-studio-folio/src/composition_token.rs; tests type/tests/foundation_contract.rs:320; composers crates/hsk-studio-layout/src/breaker.rs:40"
+     ],
+     "what_is_missing": [
+      "Unicode normalisation (Normalization::Unsupported in contract.rs); fallback chain; Arabic and Hebrew controls; proof beyond Latin, Arabic, Hebrew, Devanagari, Han; balance ragged; text import; filler text"
+     ],
+     "samples": {
+      "MT-30894": {
+       "class": "built",
+       "note": "vendored Rust shaping provider, TextEngine; type/tests/harfrust_spike.rs, foundation_contract.rs",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30895": {
+       "class": "partial",
+       "note": "Normalization enum is Preserve or Unsupported (contract.rs); no normalisation; fallback caller-driven",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30897": {
+       "class": "partial",
+       "note": "caller-granted font set hashed; no fallback-chain resolution",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30898": {
+       "class": "built",
+       "note": "COMPOSITION_VERSION; composition_token.rs on origin at this tip",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30900": {
+       "class": "partial",
+       "note": "fixtures are Latin, Arabic, Hebrew, Devanagari, Han only (type/tests/fixtures/fonts)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30902": {
+       "class": "missing",
+       "note": "no kashida or diacritic controls in type crates (hits only in PDF encoding data)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31107": {
+       "class": "partial",
+       "note": "story primitive with partial attribute storage",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31108": {
+       "class": "built",
+       "note": "point, area, path composed; tests ai_area_text.rs, ai_path_text.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-31110": {
+       "class": "built",
+       "note": "point, area, path composed; tests ai_area_text.rs, ai_path_text.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-31111": {
+       "class": "partial",
+       "note": "thread + overset built; flow modes absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31113": {
+       "class": "missing",
+       "note": "no filler text or TXT/RTF/DOC/DOCX placement",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31115": {
+       "class": "partial",
+       "note": "points in records; percent and dip decode partial",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31117": {
+       "class": "partial",
+       "note": "fixtures are Latin, Arabic, Hebrew, Devanagari, Han only (type/tests/fixtures/fonts)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31119": {
+       "class": "missing",
+       "note": "no balance implementation",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-35932": {
+       "class": "built",
+       "note": "FirstFit, KnuthPlass, AdobeSingleLine, AdobeParagraph, breaker.rs:40; tests/composer_wiring.rs. Local lane fixes composer stack overflow, not on origin",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "T04 composers and H&J",
+     "mts": 15,
+     "sampled": 15,
+     "built": 11,
+     "partial": 1,
+     "missing": 3,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "two-axis composers, named composers, kinsoku, mojikumi, H&J block, auto-leading: crates/hsk-studio-folio/src/typestyle.rs:152-258, crates/hsk-studio-folio/src/cjk_composition.rs:218-253, crates/hsk-studio-layout/src/cjk.rs, adobe_composer.rs; tests layout/tests/composer_wiring.rs, cjk_kinsoku.rs, cjk_mojikumi.rs; InDesign oracle crates/hsk-studio-interop-layout/tests/d5_id_oracle.rs"
+     ],
+     "what_is_missing": [
+      "nine-value justification; leading model; balance ragged. Oracle: paragraph composer 4/40 identical at 2026-10-16 (research/d5-ai-id-ae-compare-20261016.json, dated); panic and stack overflow fix only on local lane/smb-layout-composer-depth-1 (286d9241), NOT on origin"
+     ],
+     "samples": {
+      "MT-30904": {
+       "class": "built",
+       "note": "StudioCompositionScope/Engine typestyle.rs:152-162; tests/composer_wiring.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30905": {
+       "class": "built",
+       "note": "StudioNamedComposer cjk_composition.rs:253; resolve_cjk_paragraph; folio cjk_composition_records.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30906": {
+       "class": "built",
+       "note": "cjk.rs KinsokuSet; tests/cjk_kinsoku.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30907": {
+       "class": "built",
+       "note": "MojikumiRules, 17 base sets; tests/cjk_mojikumi.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30908": {
+       "class": "missing",
+       "note": "no leading_model (grep aki_below empty)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30909": {
+       "class": "built",
+       "note": "tests adobe_paragraph_is_deterministic, kinsoku both scopes. Panic and stack overflow on document data fixed only on local lane",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30910": {
+       "class": "missing",
+       "note": "field absent; typestyle comment only",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30911": {
+       "class": "missing",
+       "note": "field absent; typestyle comment only",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30912": {
+       "class": "partial",
+       "note": "Alignment has five members (styles.rs:29), clause wants nine",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30913": {
+       "class": "built",
+       "note": "StudioSingleWordJustification; tests/composer_wiring.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30914": {
+       "class": "built",
+       "note": "nine stored fields typestyle.rs; tests composer_wiring.rs paragraph_params_map_every_setting",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30915": {
+       "class": "built",
+       "note": "nine stored fields typestyle.rs; tests composer_wiring.rs paragraph_params_map_every_setting",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30916": {
+       "class": "built",
+       "note": "auto_leading_amount; composer_wiring.rs single_word_justification_and_auto_leading",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30917": {
+       "class": "built",
+       "note": "auto_leading_amount; composer_wiring.rs single_word_justification_and_auto_leading",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30918": {
+       "class": "built",
+       "note": "deterministic; D5 oracle mismatches remain on justified paragraph composer (d5_id_expected_mismatch.txt)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "T05 hyphenation, language, proofing",
+     "mts": 16,
+     "sampled": 15,
+     "built": 4,
+     "partial": 5,
+     "missing": 6,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "hyphenation crates/hsk-studio-layout/src/hyphenate.rs:31-312 en-US Liang; find/change crates/hsk-studio-layout/src/find_change.rs:113-556; tests hyphenation.rs, id_prepress_find_change.rs"
+     ],
+     "what_is_missing": [
+      "language records; spelling and user dictionaries; provider styles; attribute criteria in find/change; other hyphenation languages"
+     ],
+     "samples": {
+      "MT-30919": {
+       "class": "built",
+       "note": "HyphenationParams; tests/hyphenation.rs, composer_wiring.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30920": {
+       "class": "built",
+       "note": "HyphenationParams; tests/hyphenation.rs, composer_wiring.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30921": {
+       "class": "partial",
+       "note": "three of four toggles stored; allow_arbitrary_hyphenation absent",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30922": {
+       "class": "missing",
+       "note": "no preference scale",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30923": {
+       "class": "missing",
+       "note": "no preference scale",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30924": {
+       "class": "missing",
+       "note": "no provider style",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30925": {
+       "class": "partial",
+       "note": "Hyphenator exceptions; no named add/remove list",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31023": {
+       "class": "missing",
+       "note": "no language resource record",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31024": {
+       "class": "partial",
+       "note": "applied_language stored; only en-US Liang patterns selected (hyphenate.rs:122)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-31025": {
+       "class": "missing",
+       "note": "no dictionary or spell check (hits are unrelated)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31026": {
+       "class": "built",
+       "note": "text, grep, glyph, transliterate modes find_change.rs:113; tests/id_prepress_find_change.rs",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31027": {
+       "class": "partial",
+       "note": "FindScope has document, story, to-end, selection, selected object; all_documents and inclusion toggles absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31028": {
+       "class": "missing",
+       "note": "criteria are string-based; no full attribute record criteria",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31029": {
+       "class": "built",
+       "note": "SavedQueries find_change.rs:514; test id_prepress_find_change.rs",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31030": {
+       "class": "partial",
+       "note": "CharType five members vs eight required",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "T06 character attributes",
+     "mts": 26,
+     "sampled": 15,
+     "built": 0,
+     "partial": 8,
+     "missing": 7,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "style-carried font, size, fill, line height, tracking crates/hsk-studio-folio/src/typestyle.rs:97; OpenType tag projections"
+     ],
+     "what_is_missing": [
+      "per-range character attribute record; kerning mode; position; underline and strikethrough; baseline shift; anti-alias; hyperlink range; colour profile on text. Declared gap: crates/hsk-studio-folio/src/typestyle.rs:30"
+     ],
+     "samples": {
+      "MT-30926": {
+       "class": "partial",
+       "note": "no per-range record on StoryRange; font, size, tracking only through style (typestyle.rs:97); gap declared typestyle.rs:30",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30927": {
+       "class": "partial",
+       "note": "no per-range record on StoryRange; font, size, tracking only through style (typestyle.rs:97); gap declared typestyle.rs:30",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30929": {
+       "class": "missing",
+       "note": "no enum; no stored field",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30931": {
+       "class": "missing",
+       "note": "no enum; no stored field",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30932": {
+       "class": "missing",
+       "note": "no enum; no stored field",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30934": {
+       "class": "missing",
+       "note": "no enum; no stored field",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30936": {
+       "class": "partial",
+       "note": "alternate glyph forms reachable only as OpenType tags",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30938": {
+       "class": "missing",
+       "note": "no enum; no stored field",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30939": {
+       "class": "partial",
+       "note": "feature booleans project to tags (type features); faux and no_break absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30941": {
+       "class": "partial",
+       "note": "smcp as feature; caps render transforms only in clip titles (composite/clip_finishing.rs)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30943": {
+       "class": "missing",
+       "note": "no underline/strikethrough record for type (layoutflow underline is a condition indicator)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30945": {
+       "class": "missing",
+       "note": "no per-range hyperlink attribute",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31120": {
+       "class": "partial",
+       "note": "no per-range record on StoryRange; font, size, tracking only through style (typestyle.rs:97); gap declared typestyle.rs:30",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31122": {
+       "class": "partial",
+       "note": "StudioRgba fill, no StudioColorProfile on text",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31124": {
+       "class": "partial",
+       "note": "smcp as feature; caps render transforms only in clip titles (composite/clip_finishing.rs)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "T07 vertical and CJK",
+     "mts": 9,
+     "sampled": 9,
+     "built": 0,
+     "partial": 1,
+     "missing": 8,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "frame grid records and reflow_grid crates/hsk-studio-folio/src/layout_grids.rs, crates/hsk-studio-layout/src/threaded_reflow.rs:459"
+     ],
+     "what_is_missing": [
+      "vertical text; ruby; kenten; warichu; tatechuyoko; shatai; jidori. Stated in crates/hsk-studio-layout/src/cjk.rs:3-4"
+     ],
+     "samples": {
+      "MT-30946": {
+       "class": "partial",
+       "note": "folio layout_grids frame grid + layout reflow_grid (tests/id_prepress_grids.rs); no glyph-quantised view modes",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30947": {
+       "class": "missing",
+       "note": "no jidori or gyoudori",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30948": {
+       "class": "missing",
+       "note": "no jidori or gyoudori",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30949": {
+       "class": "missing",
+       "note": "cjk.rs:3-4 states ruby, kenten, warichu, vertical and tate-chu-yoko are not composed; IDML decode only names them as losses",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30950": {
+       "class": "missing",
+       "note": "cjk.rs:3-4 states ruby, kenten, warichu, vertical and tate-chu-yoko are not composed; IDML decode only names them as losses",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30951": {
+       "class": "missing",
+       "note": "cjk.rs:3-4 states ruby, kenten, warichu, vertical and tate-chu-yoko are not composed; IDML decode only names them as losses",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30952": {
+       "class": "missing",
+       "note": "cjk.rs:3-4 states ruby, kenten, warichu, vertical and tate-chu-yoko are not composed; IDML decode only names them as losses",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30953": {
+       "class": "missing",
+       "note": "cjk.rs:3-4 states ruby, kenten, warichu, vertical and tate-chu-yoko are not composed; IDML decode only names them as losses",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30954": {
+       "class": "missing",
+       "note": "cjk.rs:3-4 states ruby, kenten, warichu, vertical and tate-chu-yoko are not composed; IDML decode only names them as losses",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "T08 OpenType features",
+     "mts": 10,
+     "sampled": 10,
+     "built": 2,
+     "partial": 3,
+     "missing": 1,
+     "gui_only_gap": 4,
+     "what_exists_evidence": [
+      "registry, groups, availability, legacy booleans, figure style crates/hsk-studio-type/src/features.rs:153-794; tests type/tests/opentype_features.rs"
+     ],
+     "what_is_missing": [
+      "persistence and reach: FeatureMap referenced by no folio, layout, composite or viewer file, so PASS_V1 MTs 30955-30957 and 31140/31141 lack the required storage on the range; colour fonts"
+     ],
+     "samples": {
+      "MT-30955": {
+       "class": "partial",
+       "note": "PASS_V1, but FeatureMap is referenced by no folio, layout, composite or viewer code; StoryRange cannot store it. Registry and shaping built",
+       "anchor_in_src": true,
+       "status": "PASS_V1"
+      },
+      "MT-30956": {
+       "class": "gui_only_gap",
+       "note": "engine and tests opentype_features.rs; projection not reached by any UI",
+       "anchor_in_src": true,
+       "status": "PASS_V1"
+      },
+      "MT-30957": {
+       "class": "built",
+       "note": "tests mt_30957 inert_feature_round_trips_and_text_bytes_unchanged",
+       "anchor_in_src": true,
+       "status": "PASS_V1"
+      },
+      "MT-30958": {
+       "class": "gui_only_gap",
+       "note": "engine query, no UI binding",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30959": {
+       "class": "gui_only_gap",
+       "note": "engine, tests mt_30959; no document field or UI",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30960": {
+       "class": "gui_only_gap",
+       "note": "engine, tests mt_30959; no document field or UI",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-31140": {
+       "class": "partial",
+       "note": "PASS_V1, but FeatureMap is referenced by no folio, layout, composite or viewer code; StoryRange cannot store it. Registry and shaping built",
+       "anchor_in_src": true,
+       "status": "PASS_V1"
+      },
+      "MT-31141": {
+       "class": "partial",
+       "note": "PASS_V1, but FeatureMap is referenced by no folio, layout, composite or viewer code; StoryRange cannot store it. Registry and shaping built",
+       "anchor_in_src": true,
+       "status": "PASS_V1"
+      },
+      "MT-31142": {
+       "class": "built",
+       "note": "tests mt_30957 inert_feature_round_trips_and_text_bytes_unchanged",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31143": {
+       "class": "missing",
+       "note": "no colour font rendering path; only provider parsing internals",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "T09 fonts, variable fonts, management",
+     "mts": 16,
+     "sampled": 15,
+     "built": 0,
+     "partial": 8,
+     "missing": 7,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "variable axes applied crates/hsk-studio-type/src/fonts.rs:70; typed MissingFont crates/hsk-studio-type/src/engine.rs:866; caller-granted bytes"
+     ],
+     "what_is_missing": [
+      "font resource, type and status records; font library and OS resolver; picker; composite fonts; bulk missing-font replace"
+     ],
+     "samples": {
+      "MT-30961": {
+       "class": "missing",
+       "note": "no font resource, type or status record; fonts are caller-granted bytes",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30962": {
+       "class": "missing",
+       "note": "no font resource, type or status record; fonts are caller-granted bytes",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30963": {
+       "class": "missing",
+       "note": "no font resource, type or status record; fonts are caller-granted bytes",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30964": {
+       "class": "partial",
+       "note": "axes applied in type/fonts.rs:70; foundation_contract font_axis test; no per-range persisted axes or UI",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30965": {
+       "class": "partial",
+       "note": "axes applied in type/fonts.rs:70; foundation_contract font_axis test; no per-range persisted axes or UI",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30966": {
+       "class": "partial",
+       "note": "typed MissingFont and substitution map engine.rs:866; no bulk replace or recorded mapping",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30967": {
+       "class": "missing",
+       "note": "no picker; subsetting only in PDF export",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30968": {
+       "class": "missing",
+       "note": "no composite fonts",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30969": {
+       "class": "missing",
+       "note": "no composite fonts",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30970": {
+       "class": "partial",
+       "note": "host grants fonts, no managed library or OS resolver",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31144": {
+       "class": "partial",
+       "note": "axes applied in type/fonts.rs:70; foundation_contract font_axis test; no per-range persisted axes or UI",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31155": {
+       "class": "partial",
+       "note": "host grants fonts, no managed library or OS resolver",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31156": {
+       "class": "missing",
+       "note": "no picker; subsetting only in PDF export",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31157": {
+       "class": "partial",
+       "note": "typed MissingFont and substitution map engine.rs:866; no bulk replace or recorded mapping",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31158": {
+       "class": "partial",
+       "note": "per-range language tag only; no Hunspell stack",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "T10 paragraph geometry, decoration, lists, tabs",
+     "mts": 41,
+     "sampled": 15,
+     "built": 4,
+     "partial": 2,
+     "missing": 9,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "vertical justification, first baseline crates/hsk-studio-folio/src/layout.rs:256-268; grid align crates/hsk-studio-folio/src/layout_grids.rs:162; GREP styles crates/hsk-studio-layout/src/grep.rs"
+     ],
+     "what_is_missing": [
+      "indents and spacing; keep and flow; widow and orphan; rules; borders; shading; drop caps; lists; tabs; nested and line styles. git grep empty on these names outside tables and IDML"
+     ],
+     "samples": {
+      "MT-30971": {
+       "class": "missing",
+       "note": "typestyle.rs:30 declares indents, spacing not stored",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30974": {
+       "class": "missing",
+       "note": "typestyle.rs:30 declares indents, spacing not stored",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30977": {
+       "class": "built",
+       "note": "StudioGridAlignment + reflow_grid; tests/id_prepress_grids.rs",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30980": {
+       "class": "built",
+       "note": "VerticalJustification layout.rs:268; tests/id_prepress_vjust.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30981": {
+       "class": "built",
+       "note": "VerticalJustification layout.rs:268; tests/id_prepress_vjust.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30982": {
+       "class": "built",
+       "note": "FirstBaseline layout.rs:256 + type; tests/typeset, ai_area_text",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30985": {
+       "class": "missing",
+       "note": "no paragraph rule, border or shading record",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30988": {
+       "class": "missing",
+       "note": "no paragraph rule, border or shading record",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30991": {
+       "class": "missing",
+       "note": "no drop cap",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30994": {
+       "class": "missing",
+       "note": "no list_type or numbering lists",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30997": {
+       "class": "partial",
+       "note": "GREP styles built (layout grep.rs, tests/layout_styles_grep.rs); nested and line styles absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31128": {
+       "class": "partial",
+       "note": "horizontal alignment and vertical justification; vertical text absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31131": {
+       "class": "missing",
+       "note": "typestyle.rs:30 declares indents, spacing not stored",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31134": {
+       "class": "missing",
+       "note": "no paragraph rule, border or shading record",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31137": {
+       "class": "missing",
+       "note": "no tab stops",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "T11 type-style binding",
+     "mts": 8,
+     "sampled": 8,
+     "built": 3,
+     "partial": 2,
+     "missing": 3,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "scope, based-on chain, resolver crates/hsk-studio-folio/src/typestyle.rs:97-398, crates/hsk-studio-layout/src/styles.rs:80; tests composer_wiring.rs, type_style_composition.rs"
+     ],
+     "what_is_missing": [
+      "override reporting; variable binding (declared gap typestyle.rs:32); next-style cascade"
+     ],
+     "samples": {
+      "MT-30998": {
+       "class": "built",
+       "note": "TypeStyleScope; validate_type_style_records; tests/type_style_composition.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30999": {
+       "class": "built",
+       "note": "TypeStyleResolver; composer_wiring inheritance_and_local_override_resolve_in_order",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-31000": {
+       "class": "missing",
+       "note": "typestyle.rs:32 declares override reporting a gap",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-31001": {
+       "class": "partial",
+       "note": "next_style stored and editable (layout_ui/styles.rs:35); multi-paragraph cascade not found",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-31002": {
+       "class": "missing",
+       "note": "typestyle.rs:32 declares variable-bound fields a gap",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-31152": {
+       "class": "built",
+       "note": "TypeStyleScope; validate_type_style_records; tests/type_style_composition.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-31153": {
+       "class": "partial",
+       "note": "based-on, next, GREP; override and redefine absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31154": {
+       "class": "missing",
+       "note": "no StudioVariable binding on typography",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "T12 glyphs, special characters, text variables",
+     "mts": 27,
+     "sampled": 15,
+     "built": 13,
+     "partial": 0,
+     "missing": 2,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "four catalogs crates/hsk-studio-type/src/catalog.rs:38, twelve variable kinds crates/hsk-studio-folio/src/longdoc.rs:1169 resolved by crates/hsk-studio-layout/src/running.rs; tests character_catalogs.rs, derived_text.rs, sentinels_native_type.rs"
+     ],
+     "what_is_missing": [
+      "glyph browser"
+     ],
+     "samples": {
+      "MT-31003": {
+       "class": "missing",
+       "note": "no glyph browser",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31005": {
+       "class": "built",
+       "note": "type catalog.rs; tests character_catalogs.rs mt_31005..31009",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-31006": {
+       "class": "built",
+       "note": "type catalog.rs; tests character_catalogs.rs mt_31005..31009",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-31007": {
+       "class": "built",
+       "note": "type catalog.rs; tests character_catalogs.rs mt_31005..31009",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-31008": {
+       "class": "built",
+       "note": "type catalog.rs; tests character_catalogs.rs mt_31005..31009",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-31009": {
+       "class": "built",
+       "note": "type catalog.rs; tests character_catalogs.rs mt_31005..31009",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-31010": {
+       "class": "built",
+       "note": "twelve kinds folio longdoc.rs:1169; layout running.rs; tests/derived_text.rs",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31012": {
+       "class": "built",
+       "note": "twelve kinds folio longdoc.rs:1169; layout running.rs; tests/derived_text.rs",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31014": {
+       "class": "built",
+       "note": "twelve kinds folio longdoc.rs:1169; layout running.rs; tests/derived_text.rs",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31016": {
+       "class": "built",
+       "note": "twelve kinds folio longdoc.rs:1169; layout running.rs; tests/derived_text.rs",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31019": {
+       "class": "built",
+       "note": "twelve kinds folio longdoc.rs:1169; layout running.rs; tests/derived_text.rs",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31021": {
+       "class": "built",
+       "note": "twelve kinds folio longdoc.rs:1169; layout running.rs; tests/derived_text.rs",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31145": {
+       "class": "missing",
+       "note": "no glyph browser",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31147": {
+       "class": "built",
+       "note": "type catalog.rs; tests character_catalogs.rs mt_31005..31009",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31149": {
+       "class": "built",
+       "note": "twelve kinds folio longdoc.rs:1169; layout running.rs; tests/derived_text.rs",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "T13 steerability and validation descriptors",
+     "mts": 47,
+     "sampled": 15,
+     "built": 0,
+     "partial": 5,
+     "missing": 10,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "indirect test evidence only"
+     ],
+     "what_is_missing": [
+      "parameter introspection; nine typ.* descriptors; thirty named goldens; ResourceBroker binding"
+     ],
+     "samples": {
+      "MT-31032": {
+       "class": "missing",
+       "note": "no parameter introspection for typography",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31035": {
+       "class": "partial",
+       "note": "caller-granted fonts by design; no ResourceBroker binding",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31047": {
+       "class": "missing",
+       "note": "no descriptor catalog",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31050": {
+       "class": "missing",
+       "note": "no descriptor catalog",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31053": {
+       "class": "missing",
+       "note": "no descriptor catalog",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31056": {
+       "class": "missing",
+       "note": "no named golden corpus",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31078": {
+       "class": "missing",
+       "note": "no named golden corpus",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31081": {
+       "class": "partial",
+       "note": "evidence exists under other names, not as a golden entry",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31085": {
+       "class": "missing",
+       "note": "no named golden corpus",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31088": {
+       "class": "partial",
+       "note": "evidence exists under other names, not as a golden entry",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31091": {
+       "class": "missing",
+       "note": "no named golden corpus",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31094": {
+       "class": "partial",
+       "note": "evidence exists under other names, not as a golden entry",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31097": {
+       "class": "missing",
+       "note": "no named golden corpus",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31100": {
+       "class": "missing",
+       "note": "no named golden corpus",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-31103": {
+       "class": "partial",
+       "note": "evidence exists under other names, not as a golden entry",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    }
+   ],
+   "sampled_total": 174,
+   "sample_totals": {
+    "built": 51,
+    "gui_only_gap": 4,
+    "partial": 50,
+    "missing": 69
+   },
+   "estimate": {
+    "label": "ESTIMATE, family-weighted extrapolation from a stratified, non-random sample of 174 of 268 MTs; a clause and its table row often share a verdict, so the effective sample is smaller than the count",
+    "built": 72,
+    "gui_only_gap": 4,
+    "partial": 76,
+    "missing": 116,
+    "built_pct": 27.0,
+    "gui_only_gap_pct": 1.5,
+    "partial_pct": 28.4,
+    "missing_pct": 43.2
+   }
+  },
+  "layout": {
+   "mts": 217,
+   "status_pass": 18,
+   "families": [
+    {
+     "name": "L01 pages, parents, liquid, alternate",
+     "mts": 24,
+     "sampled": 15,
+     "built": 6,
+     "partial": 4,
+     "missing": 5,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "spreads and pages crates/hsk-studio-folio/src/layout.rs:86, parents crates/hsk-studio-folio/src/parentpages.rs, crates/hsk-studio-layout/src/parents.rs:230, liquid crates/hsk-studio-layout/src/liquid.rs:475, adjust crates/hsk-studio-layout/src/adjust_layout.rs:349, alternate crates/hsk-studio-layout/src/alternate.rs:140; tests adjust_layout.rs, alternate_layout.rs, liquid_layout.rs, parent_adapter.rs; viewer crates/hsk-studio-harness-view/src/layout_ui/pages.rs"
+     ],
+     "what_is_missing": [
+      "island spreads and shuffle flags, binding location, facing flag, slug (declared crates/hsk-studio-folio/src/layout.rs:24-29); document layer model; view rotation; primary text frame; gridify"
+     ],
+     "samples": {
+      "MT-30656": {
+       "class": "built",
+       "note": "StudioPageSpread with pages; folio tests/layout_contract.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30657": {
+       "class": "partial",
+       "note": "layout.rs:24-29 declares many fields not stored: slug, grid, facing_pages flag",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30659": {
+       "class": "partial",
+       "note": "layout.rs:24-29 declares many fields not stored: slug, grid, facing_pages flag",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30661": {
+       "class": "missing",
+       "note": "layout.rs:28 declares spread page_count, binding_location, shuffle flags not stored",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30662": {
+       "class": "built",
+       "note": "StudioPage own size, side, margins, bleed layout.rs:86; layout_contract.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30664": {
+       "class": "missing",
+       "note": "no view-only spread rotation",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30665": {
+       "class": "missing",
+       "note": "no document-wide layer model with the captured fields; layers are per tree",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30666": {
+       "class": "missing",
+       "note": "no document-wide layer model with the captured fields; layers are per tree",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30668": {
+       "class": "partial",
+       "note": "StudioPageParentBinding parentpages.rs:93; layout.rs:26 says page parent fields live elsewhere; override storage partly",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30669": {
+       "class": "built",
+       "note": "StudioItemOverride parentpages.rs:70, layout/parents.rs; tests/parent_adapter.rs, parent_pages_contract.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30670": {
+       "class": "missing",
+       "note": "no primary text frame",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30672": {
+       "class": "built",
+       "note": "StudioLiquidRule seven members layout_rules.rs:49; layout/liquid.rs; tests/liquid_layout.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30674": {
+       "class": "built",
+       "note": "adjust_layout.rs property bag; tests/adjust_layout.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30676": {
+       "class": "built",
+       "note": "alternate.rs:140; tests/alternate_layout.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30677": {
+       "class": "partial",
+       "note": "nib align/distribute for vector layers; margins/page targets and gridify absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "L02 sections, numbering, running headers",
+     "mts": 5,
+     "sampled": 5,
+     "built": 5,
+     "partial": 0,
+     "missing": 0,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "sections, number styles, running text crates/hsk-studio-folio/src/longdoc.rs:409-467, crates/hsk-studio-layout/src/numbering.rs:182, running.rs:134; tests longdoc_numbering_toc.rs, longdoc_running_notes.rs"
+     ],
+     "what_is_missing": [],
+     "samples": {
+      "MT-30680": {
+       "class": "built",
+       "note": "StudioSection longdoc.rs:467, layout/numbering.rs; tests/longdoc_numbering_toc.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30681": {
+       "class": "built",
+       "note": "StudioSection longdoc.rs:467, layout/numbering.rs; tests/longdoc_numbering_toc.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30682": {
+       "class": "built",
+       "note": "StudioSection longdoc.rs:467, layout/numbering.rs; tests/longdoc_numbering_toc.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30683": {
+       "class": "built",
+       "note": "StudioSection longdoc.rs:467, layout/numbering.rs; tests/longdoc_numbering_toc.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30684": {
+       "class": "built",
+       "note": "layout/running.rs:134; tests/longdoc_running_notes.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "L03 text frames and threading",
+     "mts": 35,
+     "sampled": 15,
+     "built": 9,
+     "partial": 2,
+     "missing": 4,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "threads, autosize, first baseline, columns, span/split, anchored objects, find/change: crates/hsk-studio-folio/src/layout.rs:256-319, layoutflow.rs:99-469, crates/hsk-studio-layout/src/threaded_reflow.rs, anchors.rs:242; tests threaded_reflow.rs, layout_columns.rs, layout_anchors_xrefs.rs; viewer crates/hsk-studio-harness-view/src/layout_ui/threads.rs"
+     ],
+     "what_is_missing": [
+      "autoflow and smart reflow; Folio text wrap record (declared crates/hsk-studio-folio/src/layoutflow.rs:689; IDML wrap is a loss crates/hsk-studio-interop-layout/src/idml_decode.rs:476); spreadsheet import"
+     ],
+     "samples": {
+      "MT-30685": {
+       "class": "built",
+       "note": "threaded_reflow; tests/threaded_reflow.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30688": {
+       "class": "built",
+       "note": "AutoSizing layout.rs:278; tests/frame_autosize.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30691": {
+       "class": "built",
+       "note": "FirstBaseline layout.rs:256; tests/typeset.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30694": {
+       "class": "built",
+       "note": "TextThread layout.rs:319 start/end/previous/next; tests/threaded_reflow.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30696": {
+       "class": "missing",
+       "note": "no autoflow or smart reflow in engine or records",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30697": {
+       "class": "missing",
+       "note": "no autoflow or smart reflow in engine or records",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30698": {
+       "class": "missing",
+       "note": "no autoflow or smart reflow in engine or records",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30700": {
+       "class": "built",
+       "note": "StudioParagraphFlow, StudioSpanColumn layoutflow.rs:99-116; tests/layout_columns.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30703": {
+       "class": "built",
+       "note": "StudioParagraphFlow, StudioSpanColumn layoutflow.rs:99-116; tests/layout_columns.rs",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30706": {
+       "class": "partial",
+       "note": "reflow takes wrap obstacles (threaded_reflow.rs:7); layoutflow.rs:689 declares no Folio wrap record; IDML wrap is a loss idml_decode.rs:476",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30709": {
+       "class": "built",
+       "note": "StudioAnchoredObject layoutflow.rs:469, layout/anchors.rs; tests/layout_anchors_xrefs.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30710": {
+       "class": "partial",
+       "note": "reflow takes wrap obstacles (threaded_reflow.rs:7); layoutflow.rs:689 declares no Folio wrap record; IDML wrap is a loss idml_decode.rs:476",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30713": {
+       "class": "missing",
+       "note": "no spreadsheet import (only data merge delimited)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30714": {
+       "class": "built",
+       "note": "find_change.rs; tests/layout_find.rs, id_prepress_find_change.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30717": {
+       "class": "built",
+       "note": "find_change.rs; tests/layout_find.rs, id_prepress_find_change.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "L04 frames and placed graphics",
+     "mts": 29,
+     "sampled": 15,
+     "built": 2,
+     "partial": 5,
+     "missing": 8,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "graphic frames and fit crates/hsk-studio-folio/src/longdoc.rs:311-380, crates/hsk-studio-layout/src/fitting.rs:81-198; PDF place crates/hsk-studio-interop-layout/src/pdf_place.rs:152; link keys crates/hsk-studio-package/src/externals.rs:159; tests longdoc_graphics.rs, id_prepress_merge_place.rs"
+     ],
+     "what_is_missing": [
+      "movie and sound; clipping path and detect edges; object effect four-target model; multi-state; QR generator; 38-field link record, edit-original"
+     ],
+     "samples": {
+      "MT-30721": {
+       "class": "partial",
+       "note": "StudioGraphicFrame longdoc.rs:380, place_graphic fitting.rs:198; movie/sound absent",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30723": {
+       "class": "built",
+       "note": "pdf_place.rs:152; tests/id_prepress_merge_place.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30725": {
+       "class": "partial",
+       "note": "vector placed through import, frame placement UNVERIFIED",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30727": {
+       "class": "missing",
+       "note": "no movie or sound placement in layout",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30729": {
+       "class": "built",
+       "note": "PdfCrop pdf_place.rs; tests/id_prepress_merge_place.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30731": {
+       "class": "partial",
+       "note": "StudioFit has six members incl. ContentAware longdoc.rs:311; clause says seven",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30733": {
+       "class": "partial",
+       "note": "hsk-studio-package externals.rs relink_key:159; no 38-field link record or edit-original",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30735": {
+       "class": "partial",
+       "note": "hsk-studio-package externals.rs relink_key:159; no 38-field link record or edit-original",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30736": {
+       "class": "missing",
+       "note": "no clipping path type, detect edges (grep empty)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30737": {
+       "class": "missing",
+       "note": "no clipping path type, detect edges (grep empty)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30739": {
+       "class": "missing",
+       "note": "no object-effect four-target model",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30741": {
+       "class": "missing",
+       "note": "no object-effect four-target model",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30744": {
+       "class": "missing",
+       "note": "no object-effect four-target model",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30746": {
+       "class": "missing",
+       "note": "no multi-state object",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30748": {
+       "class": "missing",
+       "note": "data merge carries a QR placeholder only; no QR generator",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "L05 tables",
+     "mts": 6,
+     "sampled": 6,
+     "built": 0,
+     "partial": 6,
+     "missing": 0,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "table layout crates/hsk-studio-layout/src/table.rs:472, story_tables.rs:83, records crates/hsk-studio-folio/src/longdoc.rs:172-279, viewer crates/hsk-studio-harness-view/src/layout_ui/tables.rs; tests longdoc_tables.rs"
+     ],
+     "what_is_missing": [
+      "graphic cells, nested tables, diagonals, gradient fills, alternating patterns, rotation (declared crates/hsk-studio-folio/src/longdoc.rs:17)"
+     ],
+     "samples": {
+      "MT-30750": {
+       "class": "partial",
+       "note": "layout table.rs; longdoc.rs:17 declares graphic cells, nested tables absent",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30751": {
+       "class": "partial",
+       "note": "StudioTable has 13 fields against a 181-property capture; longdoc.rs:17 declares gaps",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30752": {
+       "class": "partial",
+       "note": "StudioTable has 13 fields against a 181-property capture; longdoc.rs:17 declares gaps",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30753": {
+       "class": "partial",
+       "note": "strokes and priorities built; longdoc.rs:17 declares gradient fills and alternating patterns absent",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30754": {
+       "class": "partial",
+       "note": "layout table.rs; longdoc.rs:17 declares graphic cells, nested tables absent",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30755": {
+       "class": "partial",
+       "note": "layout table.rs; longdoc.rs:17 declares graphic cells, nested tables absent",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "L06 style system",
+     "mts": 15,
+     "sampled": 15,
+     "built": 3,
+     "partial": 8,
+     "missing": 4,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "paragraph and character styles, object styles, TOC styles, export tags crates/hsk-studio-folio/src/typestyle.rs:97, layoutflow.rs:681-694, longdoc.rs:568; crates/hsk-studio-layout/src/objstyle.rs:101; viewer crates/hsk-studio-harness-view/src/layout_ui/styles.rs"
+     ],
+     "what_is_missing": [
+      "table and cell styles; nested styles; override indicator; cross-document style load; word-processor mapping"
+     ],
+     "samples": {
+      "MT-30756": {
+       "class": "partial",
+       "note": "StudioStyleRegistry only PAINT entries (typestyle.rs:33); type and object styles sit in separate sets",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30757": {
+       "class": "partial",
+       "note": "payload subsets only",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30758": {
+       "class": "partial",
+       "note": "payload subsets only",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30759": {
+       "class": "partial",
+       "note": "payload subsets only",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30760": {
+       "class": "built",
+       "note": "StudioObjectStyle layoutflow.rs:694; apply_object_style; tests/layout_styles_grep.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30761": {
+       "class": "missing",
+       "note": "longdoc.rs:18 declares table and cell styles absent",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30762": {
+       "class": "missing",
+       "note": "longdoc.rs:18 declares table and cell styles absent",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30763": {
+       "class": "built",
+       "note": "StudioTocStyle longdoc.rs:568; id_toc_contract.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30764": {
+       "class": "partial",
+       "note": "based-on, next; override indicator absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30765": {
+       "class": "partial",
+       "note": "some typed errors in folio validators; closed vocabulary UNVERIFIED",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30766": {
+       "class": "partial",
+       "note": "GREP built; nested styles absent",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30767": {
+       "class": "built",
+       "note": "StudioObjectStyle layoutflow.rs:694; apply_object_style; tests/layout_styles_grep.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30768": {
+       "class": "missing",
+       "note": "no cross-document style load or word-processor mapping",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30769": {
+       "class": "missing",
+       "note": "no cross-document style load or word-processor mapping",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30770": {
+       "class": "partial",
+       "note": "export-tag map exists; tagged-PDF role cannot reach output, no StructTree writer",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "L07 long documents",
+     "mts": 20,
+     "sampled": 15,
+     "built": 10,
+     "partial": 4,
+     "missing": 1,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "books, TOC, index, notes, xrefs, text variables, conditions: crates/hsk-studio-folio/src/book.rs:31-103 (17 sync booleans confirmed), crates/hsk-studio-layout/src/book.rs:88, toc.rs:317, toc_contract.rs, index.rs:164, index_contract.rs, footnotes.rs:276, endnotes.rs:95-187, xref.rs:324; tests layout_book.rs, id_toc_contract.rs, id_index_contract.rs, longdoc_notes_index.rs"
+     ],
+     "what_is_missing": [
+      "list styles; seven hyperlink types; footnote options 12 of 42 fields"
+     ],
+     "samples": {
+      "MT-30771": {
+       "class": "built",
+       "note": "StudioBook, combine_book; tests/layout_book.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30772": {
+       "class": "built",
+       "note": "StudioBook, combine_book; tests/layout_book.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30773": {
+       "class": "built",
+       "note": "StudioBook, combine_book; tests/layout_book.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30775": {
+       "class": "missing",
+       "note": "no list style record (grep empty)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30776": {
+       "class": "built",
+       "note": "PASS_V1; toc_contract.rs, id_toc_contract.rs",
+       "anchor_in_src": true,
+       "status": "PASS_V1"
+      },
+      "MT-30777": {
+       "class": "built",
+       "note": "PASS_V1; toc_contract.rs, id_toc_contract.rs",
+       "anchor_in_src": true,
+       "status": "PASS_V1"
+      },
+      "MT-30778": {
+       "class": "built",
+       "note": "PASS_V1; index_contract.rs, id_index_contract.rs",
+       "anchor_in_src": true,
+       "status": "PASS_V1"
+      },
+      "MT-30780": {
+       "class": "built",
+       "note": "footnotes.rs, endnotes.rs incl sidenotes; tests/longdoc_notes_index.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30781": {
+       "class": "partial",
+       "note": "StudioFootnoteOptions has 12 fields against 42 captured; per-row bounds not walked",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30782": {
+       "class": "partial",
+       "note": "StudioFootnoteOptions has 12 fields against 42 captured; per-row bounds not walked",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30784": {
+       "class": "partial",
+       "note": "StudioFootnoteOptions has 12 fields against 42 captured; per-row bounds not walked",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30785": {
+       "class": "built",
+       "note": "xref.rs; tests/layout_anchors_xrefs.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30786": {
+       "class": "partial",
+       "note": "anchors, xrefs, PDF links; seven hyperlink object types absent",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30788": {
+       "class": "built",
+       "note": "twelve kinds longdoc.rs:1169; tests/derived_text.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30789": {
+       "class": "built",
+       "note": "StudioCondition layoutflow.rs:552, conditional_view textflow.rs:273; tests in derived_text and marker_lookups",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "L08 grids, guides, measurement",
+     "mts": 11,
+     "sampled": 11,
+     "built": 8,
+     "partial": 2,
+     "missing": 1,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "grids and guides crates/hsk-studio-folio/src/layout_grids.rs:45-172, crates/hsk-studio-layout/src/grids.rs:70-271; tests id_prepress_grids.rs"
+     ],
+     "what_is_missing": [
+      "smart guides; view precision preferences"
+     ],
+     "samples": {
+      "MT-30791": {
+       "class": "built",
+       "note": "layout_grids.rs + layout/grids.rs; tests/id_prepress_grids.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30792": {
+       "class": "built",
+       "note": "layout_grids.rs + layout/grids.rs; tests/id_prepress_grids.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30793": {
+       "class": "built",
+       "note": "layout_grids.rs + layout/grids.rs; tests/id_prepress_grids.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30794": {
+       "class": "built",
+       "note": "layout_grids.rs + layout/grids.rs; tests/id_prepress_grids.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30795": {
+       "class": "built",
+       "note": "layout_grids.rs + layout/grids.rs; tests/id_prepress_grids.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30796": {
+       "class": "missing",
+       "note": "no smart guides (grep empty); snap_point only",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30797": {
+       "class": "partial",
+       "note": "snap_point grids.rs:159; view-precision preferences absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30798": {
+       "class": "partial",
+       "note": "snap_point grids.rs:159; view-precision preferences absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30799": {
+       "class": "built",
+       "note": "StudioNamedGrid layout_grids.rs:136; tests/id_prepress_grids.rs",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30800": {
+       "class": "built",
+       "note": "StudioNamedGrid layout_grids.rs:136; tests/id_prepress_grids.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30801": {
+       "class": "built",
+       "note": "parse_measure, MeasureSystem grids.rs:210-271; tests",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "L09 interactive, EPUB, constraints",
+     "mts": 9,
+     "sampled": 9,
+     "built": 0,
+     "partial": 6,
+     "missing": 3,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "EPUB 3 reflowable writer crates/hsk-studio-interop-layout/src/epub.rs:184; typed errors per module"
+     ],
+     "what_is_missing": [
+      "fixed-layout EPUB, images, cover, fonts, footnotes (crates/hsk-studio-interop-layout/src/epub.rs:23); buttons; review and comments; LayoutEngine trait; descriptors"
+     ],
+     "samples": {
+      "MT-30857": {
+       "class": "partial",
+       "note": "EPUB, bookmarks, links; buttons and multi-state absent",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30858": {
+       "class": "partial",
+       "note": "reflowable EPUB written; epub.rs:23 says fixed-layout, images, cover, fonts, footnotes absent",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30859": {
+       "class": "missing",
+       "note": "no native review surface",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30860": {
+       "class": "missing",
+       "note": "no native review surface",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30861": {
+       "class": "partial",
+       "note": "typed errors per module; 1,453-code vocabulary not implemented",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30862": {
+       "class": "partial",
+       "note": "typed errors per module; 1,453-code vocabulary not implemented",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30863": {
+       "class": "partial",
+       "note": "typed errors per module; 1,453-code vocabulary not implemented",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30864": {
+       "class": "partial",
+       "note": "engine crate exists; no LayoutEngine trait (grep empty)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30865": {
+       "class": "missing",
+       "note": "no descriptor catalog",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "L10 preflight and prepress",
+     "mts": 14,
+     "sampled": 14,
+     "built": 0,
+     "partial": 10,
+     "missing": 4,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "run_preflight with nine rules crates/hsk-studio-layout/src/preflight.rs:51-156, viewer crates/hsk-studio-harness-view/src/layout_ui/preflight.rs:48; tests layout_preflight.rs"
+     ],
+     "what_is_missing": [
+      "live engine; profile import, export, embedding; link, colour, ink and image rules; recipe dispatch"
+     ],
+     "samples": {
+      "MT-30802": {
+       "class": "partial",
+       "note": "quiet by construction in engine; no StudioExportRecipe dispatch",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30803": {
+       "class": "partial",
+       "note": "PDF, IDML, EPUB, harness output; most of the eighteen export members absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30804": {
+       "class": "partial",
+       "note": "run_preflight is called on demand (preflight.rs:156); not live",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30805": {
+       "class": "partial",
+       "note": "PreflightProfile with severity; add/duplicate/export commands absent",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30806": {
+       "class": "partial",
+       "note": "PreflightProfile with severity; add/duplicate/export commands absent",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30807": {
+       "class": "missing",
+       "note": "no export, import or embedding of profiles",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30808": {
+       "class": "partial",
+       "note": "nine rules registered (preflight.rs:51); table has seven categories with far more rules",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30809": {
+       "class": "missing",
+       "note": "no link rule among the nine",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30810": {
+       "class": "missing",
+       "note": "no colour rule among the nine",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30811": {
+       "class": "missing",
+       "note": "no ink rule among the nine (press-write coverage is a separate contract)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30812": {
+       "class": "partial",
+       "note": "objects.outside_page only",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30813": {
+       "class": "partial",
+       "note": "overset, missing style, double space, composition refusal",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30814": {
+       "class": "partial",
+       "note": "blank page, parent records",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30815": {
+       "class": "partial",
+       "note": "xref stale and broken only",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "L11 package and print",
+     "mts": 16,
+     "sampled": 15,
+     "built": 3,
+     "partial": 10,
+     "missing": 2,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "typed print options and bounds crates/hsk-studio-layout/src/print.rs:382-712, booklet imposition crates/hsk-studio-layout/src/booklet.rs:389-472; tests print_booklet.rs"
+     ],
+     "what_is_missing": [
+      "package for output (collect links, fonts, report; book form); an actual print output path"
+     ],
+     "samples": {
+      "MT-30816": {
+       "class": "missing",
+       "note": "native package exists; no collect-for-output (document, links, fonts, report) and no book form",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30817": {
+       "class": "missing",
+       "note": "native package exists; no collect-for-output (document, links, fonts, report) and no book form",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30818": {
+       "class": "partial",
+       "note": "print.rs typed option surface; no print pipeline output (no spool or render path)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30819": {
+       "class": "partial",
+       "note": "print.rs typed option surface; no print pipeline output (no spool or render path)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30820": {
+       "class": "built",
+       "note": "PASS_V1 printer preset parameter bounds, print.rs:712; tests/print_booklet.rs",
+       "anchor_in_src": true,
+       "status": "PASS_V1"
+      },
+      "MT-30821": {
+       "class": "partial",
+       "note": "print.rs typed option surface; no print pipeline output (no spool or render path)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30822": {
+       "class": "partial",
+       "note": "print.rs typed option surface; no print pipeline output (no spool or render path)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30823": {
+       "class": "partial",
+       "note": "print.rs typed option surface; no print pipeline output (no spool or render path)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30824": {
+       "class": "partial",
+       "note": "print.rs typed option surface; no print pipeline output (no spool or render path)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30825": {
+       "class": "partial",
+       "note": "print.rs typed option surface; no print pipeline output (no spool or render path)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30826": {
+       "class": "partial",
+       "note": "print.rs typed option surface; no print pipeline output (no spool or render path)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30827": {
+       "class": "partial",
+       "note": "print.rs typed option surface; no print pipeline output (no spool or render path)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30828": {
+       "class": "partial",
+       "note": "print.rs typed option surface; no print pipeline output (no spool or render path)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30829": {
+       "class": "built",
+       "note": "PASS_V1 booklet.rs impose; tests/print_booklet.rs",
+       "anchor_in_src": true,
+       "status": "PASS_V1"
+      },
+      "MT-30830": {
+       "class": "built",
+       "note": "PASS_V1 booklet.rs impose; tests/print_booklet.rs",
+       "anchor_in_src": true,
+       "status": "PASS_V1"
+      }
+     }
+    },
+    {
+     "name": "L12 PDF and ink output",
+     "mts": 31,
+     "sampled": 15,
+     "built": 8,
+     "partial": 5,
+     "missing": 2,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "PDF prefs and stock presets crates/hsk-studio-layout/src/pdf_export_prefs.rs, crates/hsk-studio-press/src/preset/stock.rs; writer crates/hsk-studio-press-write/src/export.rs, pdfx.rs; ink crates/hsk-studio-press-write/src/inks.rs, separations.rs, coverage.rs; flattener and trap preset records; tests press/tests/pdf_presets.rs, press-write/tests/ink_coverage_contract.rs, layout id_flattener_preset.rs, id_trap_preset.rs"
+     ],
+     "what_is_missing": [
+      "encryption in writer; tagged structure in writer (git grep StructTree empty in press-write and interop-layout); printer marks; layout page raster export; XLS, XLSX and XML merge sources; trap engine"
+     ],
+     "samples": {
+      "MT-30832": {
+       "class": "partial",
+       "note": "prefs surface built; writer lacks security and tagged structure",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30833": {
+       "class": "built",
+       "note": "pdf_export_prefs.rs; tests/pdf_export_prefs.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30835": {
+       "class": "built",
+       "note": "pdf_export_prefs.rs; tests/pdf_export_prefs.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30837": {
+       "class": "partial",
+       "note": "print.rs carries marks options; no crop or registration marks in the PDF writers (grep empty)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30840": {
+       "class": "partial",
+       "note": "PdfPassword prefs (pdf_export_prefs.rs:551); no /Encrypt in press-write (grep empty)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30842": {
+       "class": "built",
+       "note": "press/preset/stock.rs; tests pdf_stock_six_preset_defaults.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30843": {
+       "class": "partial",
+       "note": "separations preview and ink manager built; surface partly reachable",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30846": {
+       "class": "built",
+       "note": "PASS_V1 record and bounds (print.rs); no trap engine, nib geom.trap refused",
+       "anchor_in_src": true,
+       "status": "PASS_V1"
+      },
+      "MT-30848": {
+       "class": "built",
+       "note": "flattener preset print.rs; tests/id_flattener_preset.rs; flatten in press-read",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30851": {
+       "class": "missing",
+       "note": "no layout page PNG or JPEG export route (grep empty in layout crates)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30852": {
+       "class": "missing",
+       "note": "no layout page PNG or JPEG export route (grep empty in layout crates)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30853": {
+       "class": "partial",
+       "note": "csv and JSON sources, QR and image placeholders typed; no XLS, XLSX or XML",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-35425": {
+       "class": "built",
+       "note": "PASS_V1 press-write coverage.rs; tests/ink_coverage_contract.rs",
+       "anchor_in_src": true,
+       "status": "PASS_V1"
+      },
+      "MT-35428": {
+       "class": "built",
+       "note": "PASS_V1 press-write coverage.rs; tests/ink_coverage_contract.rs",
+       "anchor_in_src": true,
+       "status": "PASS_V1"
+      },
+      "MT-35430": {
+       "class": "built",
+       "note": "PASS_V1 press-write coverage.rs; tests/ink_coverage_contract.rs",
+       "anchor_in_src": true,
+       "status": "PASS_V1"
+      }
+     }
+    },
+    {
+     "name": "L13 structured interchange",
+     "mts": 2,
+     "sampled": 2,
+     "built": 0,
+     "partial": 1,
+     "missing": 1,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "IDML round trip crates/hsk-studio-interop-layout/src/idml_decode.rs, idml_encode.rs; tests layout_edit_roundtrip.rs:446"
+     ],
+     "what_is_missing": [
+      "tagged text; structured XML tagging"
+     ],
+     "samples": {
+      "MT-30855": {
+       "class": "partial",
+       "note": "IDML round trip built; tagged text and XML structure absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30856": {
+       "class": "missing",
+       "note": "no structured-XML tagging (structure_tree hits are PDF read only)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    }
+   ],
+   "sampled_total": 152,
+   "sample_totals": {
+    "built": 54,
+    "gui_only_gap": 0,
+    "partial": 63,
+    "missing": 35
+   },
+   "estimate": {
+    "label": "ESTIMATE, family-weighted extrapolation from a stratified, non-random sample of 152 of 217 MTs; a clause and its table row often share a verdict, so the effective sample is smaller than the count",
+    "built": 84,
+    "gui_only_gap": 0,
+    "partial": 80,
+    "missing": 53,
+    "built_pct": 38.5,
+    "gui_only_gap_pct": 0.0,
+    "partial_pct": 36.9,
+    "missing_pct": 24.6
+   }
+  },
+  "interop": {
+   "mts": 91,
+   "status_pass": 11,
+   "families": [
+    {
+     "name": "I01 export parameter and node-render model",
+     "mts": 17,
+     "sampled": 15,
+     "built": 0,
+     "partial": 7,
+     "missing": 8,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "video ExportRecipe crates/hsk-studio-reel/src/export.rs:106; fig frame export plan crates/hsk-studio-interop-fig-native/src/export.rs:138; hard and soft bounds in print and pdf prefs"
+     ],
+     "what_is_missing": [
+      "StudioExportRecipe parameter model; parameter record, type codes, facets, group path; codec identity; GIF animated setting"
+     ],
+     "samples": {
+      "MT-33368": {
+       "class": "partial",
+       "note": "reel ExportRecipe export.rs:106 is a typed struct for video; no StudioExportRecipe parameter map",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33369": {
+       "class": "missing",
+       "note": "no export parameter record, type codes, facets, labels or exporter-local codec identity",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33370": {
+       "class": "partial",
+       "note": "hard and soft bounds separate in layout print and pdf prefs; not a shared export model",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-33371": {
+       "class": "missing",
+       "note": "no export parameter record, type codes, facets, labels or exporter-local codec identity",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33372": {
+       "class": "missing",
+       "note": "no export parameter record, type codes, facets, labels or exporter-local codec identity",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33373": {
+       "class": "missing",
+       "note": "no export parameter record, type codes, facets, labels or exporter-local codec identity",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33374": {
+       "class": "missing",
+       "note": "no export parameter record, type codes, facets, labels or exporter-local codec identity",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33375": {
+       "class": "missing",
+       "note": "no export parameter record, type codes, facets, labels or exporter-local codec identity",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33376": {
+       "class": "missing",
+       "note": "no export parameter record, type codes, facets, labels or exporter-local codec identity",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-33378": {
+       "class": "partial",
+       "note": "fig export settings planned for frames (fig-native export.rs:138); no node-render record set",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33379": {
+       "class": "partial",
+       "note": "fig export settings planned for frames (fig-native export.rs:138); no node-render record set",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33380": {
+       "class": "partial",
+       "note": "fig export settings planned for frames (fig-native export.rs:138); no node-render record set",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33381": {
+       "class": "partial",
+       "note": "fig export settings planned for frames (fig-native export.rs:138); no node-render record set",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33382": {
+       "class": "missing",
+       "note": "no GIF writer",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33383": {
+       "class": "partial",
+       "note": "reel can write video; node-level video setting absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "I02 document PDF export",
+     "mts": 11,
+     "sampled": 11,
+     "built": 11,
+     "partial": 0,
+     "missing": 0,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "PDF preset contract crates/hsk-studio-press/src/preset.rs, codec.rs, stock.rs; tests pdf_presets.rs, pdf_stock_preset_matrix_roundtrip.rs, pdf_stock_six_preset_defaults.rs"
+     ],
+     "what_is_missing": [
+      "claim limited to preset contract; see L12 for writer gaps. Independent re-reading of PASS_V3 not performed; test bodies not walked row by row"
+     ],
+     "samples": {
+      "MT-33385": {
+       "class": "built",
+       "note": "PASS_V3; press preset.rs, stock.rs; tests pdf_presets.rs, pdf_stock_preset_matrix_roundtrip.rs",
+       "anchor_in_src": true,
+       "status": "PASS_V3"
+      },
+      "MT-33386": {
+       "class": "built",
+       "note": "PASS_V3; press preset.rs, stock.rs; tests pdf_presets.rs, pdf_stock_preset_matrix_roundtrip.rs",
+       "anchor_in_src": true,
+       "status": "PASS_V3"
+      },
+      "MT-33387": {
+       "class": "built",
+       "note": "PASS_V3; press preset.rs, stock.rs; tests pdf_presets.rs, pdf_stock_preset_matrix_roundtrip.rs",
+       "anchor_in_src": true,
+       "status": "PASS_V3"
+      },
+      "MT-33388": {
+       "class": "built",
+       "note": "PASS_V3; press preset.rs, stock.rs; tests pdf_presets.rs, pdf_stock_preset_matrix_roundtrip.rs",
+       "anchor_in_src": true,
+       "status": "PASS_V3"
+      },
+      "MT-33389": {
+       "class": "built",
+       "note": "PASS_V3; press preset.rs, stock.rs; tests pdf_presets.rs, pdf_stock_preset_matrix_roundtrip.rs",
+       "anchor_in_src": true,
+       "status": "PASS_V3"
+      },
+      "MT-33390": {
+       "class": "built",
+       "note": "PASS_V3; press preset.rs, stock.rs; tests pdf_presets.rs, pdf_stock_preset_matrix_roundtrip.rs",
+       "anchor_in_src": true,
+       "status": "PASS_V3"
+      },
+      "MT-33391": {
+       "class": "built",
+       "note": "PASS_V3; press preset.rs, stock.rs; tests pdf_presets.rs, pdf_stock_preset_matrix_roundtrip.rs",
+       "anchor_in_src": true,
+       "status": "PASS_V3"
+      },
+      "MT-33392": {
+       "class": "built",
+       "note": "PASS_V3; press preset.rs, stock.rs; tests pdf_presets.rs, pdf_stock_preset_matrix_roundtrip.rs",
+       "anchor_in_src": true,
+       "status": "PASS_V3"
+      },
+      "MT-33393": {
+       "class": "built",
+       "note": "PASS_V3; press preset.rs, stock.rs; tests pdf_presets.rs, pdf_stock_preset_matrix_roundtrip.rs",
+       "anchor_in_src": true,
+       "status": "PASS_V3"
+      },
+      "MT-33394": {
+       "class": "built",
+       "note": "PASS_V3; press preset.rs, stock.rs; tests pdf_presets.rs, pdf_stock_preset_matrix_roundtrip.rs",
+       "anchor_in_src": true,
+       "status": "PASS_V3"
+      },
+      "MT-33395": {
+       "class": "built",
+       "note": "PASS_V3; press preset.rs, stock.rs; tests pdf_presets.rs, pdf_stock_preset_matrix_roundtrip.rs",
+       "anchor_in_src": true,
+       "status": "PASS_V3"
+      }
+     }
+    },
+    {
+     "name": "I03 still-image export",
+     "mts": 8,
+     "sampled": 8,
+     "built": 0,
+     "partial": 7,
+     "missing": 1,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "develop export crates/hsk-studio-develop/src/export.rs, export_stage.rs; dialog crates/hsk-studio-harness-view/src/view/develop/export_dialog.rs; tests develop_export_stage.rs"
+     ],
+     "what_is_missing": [
+      "AVIF, JPEG_XL; filename token template; 13-group surface; collision handling, UNVERIFIED in the dialog"
+     ],
+     "samples": {
+      "MT-33396": {
+       "class": "partial",
+       "note": "develop export_stage.rs covers sizing, sharpening, watermark groups, not the 13 groups",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-33397": {
+       "class": "partial",
+       "note": "develop export_stage.rs covers sizing, sharpening, watermark groups, not the 13 groups",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-33398": {
+       "class": "partial",
+       "note": "develop export JPEG, PNG, TIFF, DNG; AVIF and JPEG_XL absent",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-33399": {
+       "class": "partial",
+       "note": "develop export JPEG, PNG, TIFF, DNG; AVIF and JPEG_XL absent",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-33400": {
+       "class": "partial",
+       "note": "sizing and sharpening bounds in export_stage; sequence number and file-size limit not found",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-33401": {
+       "class": "partial",
+       "note": "sizing and sharpening bounds in export_stage; sequence number and file-size limit not found",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-33402": {
+       "class": "partial",
+       "note": "constrain_size, do_not_enlarge, use_watermark handled; reimport, stack, subfolder and renaming tokens not found",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-33403": {
+       "class": "missing",
+       "note": "no filename token template in develop export (grep empty)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "I04 video export",
+     "mts": 9,
+     "sampled": 9,
+     "built": 1,
+     "partial": 3,
+     "missing": 5,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "tick base crates/hsk-studio-accord/src/lib.rs:89; reel export and presets crates/hsk-studio-reel/src/presets.rs"
+     ],
+     "what_is_missing": [
+      "parameter registry; declared bounds; hidden and slider flags; destinations; image sequence export; full bitrate family"
+     ],
+     "samples": {
+      "MT-33404": {
+       "class": "missing",
+       "note": "no parameter registry at this scale",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33405": {
+       "class": "partial",
+       "note": "reel containers and presets (presets.rs); no exporter pair record",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33406": {
+       "class": "built",
+       "note": "TICKS_PER_SECOND accord lib.rs:89, broadcast table; tests/timescale_contract.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-33407": {
+       "class": "partial",
+       "note": "bitrate in AV1 settings (av1_encode.rs:33); family incomplete",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-33408": {
+       "class": "missing",
+       "note": "no parameter registry at this scale",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33409": {
+       "class": "missing",
+       "note": "no parameter registry at this scale",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33410": {
+       "class": "partial",
+       "note": "colour handled in reel export; HDR mastering set UNVERIFIED",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33411": {
+       "class": "missing",
+       "note": "no parameter registry at this scale",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33412": {
+       "class": "missing",
+       "note": "no image-sequence export recipe (grep empty)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "I05 import profiles, compatibility, native round trip, recovery",
+     "mts": 15,
+     "sampled": 15,
+     "built": 3,
+     "partial": 11,
+     "missing": 1,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "native package crates/hsk-studio-package/src/read.rs, write.rs, save.rs; typed loss in every importer; route crates/hsk-studio-harness-core/src/import.rs"
+     ],
+     "what_is_missing": [
+      "StudioImportProfile primitive; unified recipe; promotion gate; see interop_formats"
+     ],
+     "samples": {
+      "MT-33439": {
+       "class": "built",
+       "note": "hsk-studio-package read, write, save; tests/foundation_contract.rs, streaming_save.rs",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-33440": {
+       "class": "partial",
+       "note": "importers exist per format; no StudioImportProfile primitive (grep empty)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33441": {
+       "class": "partial",
+       "note": "unit-explicit Length, colour routes in harness-core/import/colour.rs; not universal",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33442": {
+       "class": "partial",
+       "note": "descriptors and typed losses, no enforced five-artifact gate",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-33443": {
+       "class": "partial",
+       "note": "preservation blobs for PSD, IDML, FIG, AI, INDD; Affinity reader only",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-33444": {
+       "class": "partial",
+       "note": "see interop_formats: 51 rows; most rows partial or absent",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-33445": {
+       "class": "partial",
+       "note": "see interop_formats: 51 rows; most rows partial or absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33446": {
+       "class": "partial",
+       "note": "see interop_formats: 51 rows; most rows partial or absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33447": {
+       "class": "partial",
+       "note": "typed missing-font errors; OT-SVG and link diagnostics incomplete",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33448": {
+       "class": "missing",
+       "note": "no unified recipe",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33449": {
+       "class": "partial",
+       "note": "fixtures for PSD, TIFF, PNG, JPEG, IDML, FIG, LRCAT; many rows none",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33450": {
+       "class": "built",
+       "note": "typed refusals with tests in every interop crate (hostile_* tests)",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-33451": {
+       "class": "built",
+       "note": "no network or provider dependency in interop, nib, type, layout Cargo.toml (grep reqwest, hyper, ureq, http empty)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33452": {
+       "class": "partial",
+       "note": "typed entry points, no Argus or headless surface in this tree",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-35343": {
+       "class": "partial",
+       "note": "baseline preserved in spec; code partial as above",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "I06 preset and library import",
+     "mts": 5,
+     "sampled": 5,
+     "built": 0,
+     "partial": 0,
+     "missing": 5,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "none found"
+     ],
+     "what_is_missing": [
+      "24 preset container families, library files, parse status (git grep Aco, Ase, parse_cube empty)"
+     ],
+     "samples": {
+      "MT-33413": {
+       "class": "missing",
+       "note": "no preset container reader for the 24 families; colour_book.rs is a Studio data parser, not .acb (grep Aco, Ase empty)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33414": {
+       "class": "missing",
+       "note": "no preset container reader for the 24 families; colour_book.rs is a Studio data parser, not .acb (grep Aco, Ase empty)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33415": {
+       "class": "missing",
+       "note": "no preset container reader for the 24 families; colour_book.rs is a Studio data parser, not .acb (grep Aco, Ase empty)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33416": {
+       "class": "missing",
+       "note": "no preset container reader for the 24 families; colour_book.rs is a Studio data parser, not .acb (grep Aco, Ase empty)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33417": {
+       "class": "missing",
+       "note": "paper clause; no reporter exists to carry the rule",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    },
+    {
+     "name": "I07 obligations and validation descriptors",
+     "mts": 26,
+     "sampled": 15,
+     "built": 0,
+     "partial": 2,
+     "missing": 13,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "determinism tests in press and IDML"
+     ],
+     "what_is_missing": [
+      "13 export_* validation descriptors; CKC asset binding; SurrealDB tables"
+     ],
+     "samples": {
+      "MT-33418": {
+       "class": "partial",
+       "note": "carried in layout print and pdf; not at every boundary",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33419": {
+       "class": "missing",
+       "note": "host CKC binding absent from this tree",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33421": {
+       "class": "partial",
+       "note": "press export_is_deterministic and IDML determinism tests; not across all exports",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33423": {
+       "class": "missing",
+       "note": "no descriptor set; rejection validators absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33424": {
+       "class": "missing",
+       "note": "host side: no SurrealDB",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33426": {
+       "class": "missing",
+       "note": "no descriptor set; rejection validators absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33428": {
+       "class": "missing",
+       "note": "no descriptor set; rejection validators absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33430": {
+       "class": "missing",
+       "note": "no descriptor set; rejection validators absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33431": {
+       "class": "missing",
+       "note": "no descriptor set; rejection validators absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33433": {
+       "class": "missing",
+       "note": "no descriptor set; rejection validators absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33435": {
+       "class": "missing",
+       "note": "no descriptor set; rejection validators absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33437": {
+       "class": "missing",
+       "note": "no descriptor set; rejection validators absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-33438": {
+       "class": "missing",
+       "note": "no descriptor set; rejection validators absent",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-35345": {
+       "class": "missing",
+       "note": "paper clause; no code surface",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-35347": {
+       "class": "missing",
+       "note": "paper clause; no code surface",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    }
+   ],
+   "sampled_total": 78,
+   "sample_totals": {
+    "built": 15,
+    "gui_only_gap": 0,
+    "partial": 30,
+    "missing": 33
+   },
+   "estimate": {
+    "label": "ESTIMATE, family-weighted extrapolation from a stratified, non-random sample of 78 of 91 MTs; a clause and its table row often share a verdict, so the effective sample is smaller than the count",
+    "built": 15,
+    "gui_only_gap": 0,
+    "partial": 32,
+    "missing": 44,
+    "built_pct": 16.5,
+    "gui_only_gap_pct": 0.0,
+    "partial_pct": 35.6,
+    "missing_pct": 47.9
+   }
+  },
+  "storage": {
+   "mts": 8,
+   "status_pass": 0,
+   "families": [
+    {
+     "name": "S01 SurrealDB authority",
+     "mts": 8,
+     "sampled": 8,
+     "built": 0,
+     "partial": 2,
+     "missing": 6,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "negative half: no sqlx, pgpool, postgres in any Cargo.toml (git grep)"
+     ],
+     "what_is_missing": [
+      "SurrealDB is absent from every Cargo.toml; crates/hsk-studio-kernel-bindings/src/lib.rs:2 assigns it to later product integration. This is host work, not asset work"
+     ],
+     "samples": {
+      "MT-30000": {
+       "class": "partial",
+       "note": "negative half holds: no sqlx, pgpool, postgres in any Cargo.toml; positive SDK half absent (no surrealdb dependency)",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30001": {
+       "class": "missing",
+       "note": "host side: no SurrealDB in this tree; kernel-bindings lib.rs:2 defers it",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30002": {
+       "class": "missing",
+       "note": "host side: no SurrealDB in this tree; kernel-bindings lib.rs:2 defers it",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-30003": {
+       "class": "missing",
+       "note": "host side: no SurrealDB in this tree; kernel-bindings lib.rs:2 defers it",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30004": {
+       "class": "missing",
+       "note": "host side: no SurrealDB in this tree; kernel-bindings lib.rs:2 defers it",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30005": {
+       "class": "missing",
+       "note": "host side: no SurrealDB in this tree; kernel-bindings lib.rs:2 defers it",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30006": {
+       "class": "missing",
+       "note": "host side: no SurrealDB in this tree; kernel-bindings lib.rs:2 defers it",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30007": {
+       "class": "partial",
+       "note": "names kept as locators; no code to judge",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    }
+   ],
+   "sampled_total": 8,
+   "sample_totals": {
+    "built": 0,
+    "gui_only_gap": 0,
+    "partial": 2,
+    "missing": 6
+   },
+   "estimate": {
+    "label": "ESTIMATE, family-weighted extrapolation from a stratified, non-random sample of 8 of 8 MTs; a clause and its table row often share a verdict, so the effective sample is smaller than the count",
+    "built": 0,
+    "gui_only_gap": 0,
+    "partial": 2,
+    "missing": 6,
+    "built_pct": 0.0,
+    "gui_only_gap_pct": 0.0,
+    "partial_pct": 25.0,
+    "missing_pct": 75.0
+   }
+  },
+  "document_model": {
+   "mts": 6,
+   "status_pass": 0,
+   "families": [
+    {
+     "name": "D01 unified document model",
+     "mts": 6,
+     "sampled": 6,
+     "built": 2,
+     "partial": 4,
+     "missing": 0,
+     "gui_only_gap": 0,
+     "what_exists_evidence": [
+      "StudioDocument crates/hsk-studio-folio/src/lib.rs:205-239; tests folio/tests/foundation_contract.rs; JsonSchema derives"
+     ],
+     "what_is_missing": [
+      "StudioSelectionSet in folio; uniform shared-primitive command contract; MCP schema publication UNVERIFIED"
+     ],
+     "samples": {
+      "MT-30020": {
+       "class": "built",
+       "note": "StudioDocument folio lib.rs, schema; tests/foundation_contract.rs",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30021": {
+       "class": "partial",
+       "note": "many primitives exist; StudioLayerGraph partial, StudioSelectionSet absent in folio",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30022": {
+       "class": "partial",
+       "note": "Length and GeometryUnit; not every surface",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-30023": {
+       "class": "partial",
+       "note": "gradient, mask shared; live effect, styles and history not uniformly shared",
+       "anchor_in_src": true,
+       "status": "PENDING"
+      },
+      "MT-35928": {
+       "class": "built",
+       "note": "accord slice: JsonSchema derive on folio, accord lib; tests foundation_contract.rs",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      },
+      "MT-35929": {
+       "class": "partial",
+       "note": "kernel-bindings crate exists; MCP inputSchema publication UNVERIFIED",
+       "anchor_in_src": false,
+       "status": "PENDING"
+      }
+     }
+    }
+   ],
+   "sampled_total": 6,
+   "sample_totals": {
+    "built": 2,
+    "gui_only_gap": 0,
+    "partial": 4,
+    "missing": 0
+   },
+   "estimate": {
+    "label": "ESTIMATE, family-weighted extrapolation from a stratified, non-random sample of 6 of 6 MTs; a clause and its table row often share a verdict, so the effective sample is smaller than the count",
+    "built": 2,
+    "gui_only_gap": 0,
+    "partial": 4,
+    "missing": 0,
+    "built_pct": 33.3,
+    "gui_only_gap_pct": 0.0,
+    "partial_pct": 66.7,
+    "missing_pct": 0.0
+   }
+  }
+ },
+ "interop_formats": [
+  {
+   "format": "PSD (.psd), row 1",
+   "matrix_direction": "I EP X RT",
+   "read": "yes, own parser",
+   "write": "yes, write_psd and export_psd",
+   "round_trips": "unknown blocks byte-exact; supported Folio edits round trip",
+   "refused_or_lost": "typed loss: adjustment_layer_not_applied, blend_if_not_applied, fill_layer_vector_mask_not_applied, icc_profile_not_applied",
+   "vendor_oracle": "D5 Photoshop oracle for engine output (crates/hsk-studio-harness/tests/d5_ps_compare); a Studio-written PSD opened in Photoshop: NOT_INSPECTED",
+   "evidence": "crates/hsk-studio-interop-psd/src/writer.rs:99, export.rs:287; tests foundation_contract.rs:698, precision_color_export.rs:368"
+  },
+  {
+   "format": "PSB (.psb), row 2",
+   "matrix_direction": "I EP X RT",
+   "read": "yes, header flag",
+   "write": "yes, writer branch",
+   "round_trips": "as PSD; tests name PSB in foundation_contract.rs",
+   "refused_or_lost": "as PSD",
+   "vendor_oracle": "none specific; UNVERIFIED",
+   "evidence": "crates/hsk-studio-interop-psd/src/header.rs:75, writer.rs:69"
+  },
+  {
+   "format": "TIFF, row 3",
+   "matrix_direction": "I EP X RT",
+   "read": "yes, classic and BigTIFF",
+   "write": "yes, little and big endian",
+   "round_trips": "yes: compression, predictor, depth, ICC, extra samples",
+   "refused_or_lost": "layer records parsed by interop-psd; limits typed",
+   "vendor_oracle": "external corpus test, ignored by default (crates/hsk-studio-interop-tiff/tests/real_tiff.rs); no Photoshop write check seen",
+   "evidence": "crates/hsk-studio-interop-tiff/tests/tiff_codec.rs:57,97, tiff_write_order.rs:37"
+  },
+  {
+   "format": "PNG, row 4",
+   "matrix_direction": "I X",
+   "read": "yes, all types, Adam7",
+   "write": "yes",
+   "round_trips": "encode then decode tests",
+   "refused_or_lost": "APNG default image plus loss",
+   "vendor_oracle": "Pillow corpus, ignored by default (crates/hsk-studio-interop-raster/tests/real_raster.rs:2)",
+   "evidence": "crates/hsk-studio-interop-raster/src/png.rs, tests/png_codec.rs"
+  },
+  {
+   "format": "JPEG, row 5",
+   "matrix_direction": "I X",
+   "read": "yes, baseline, sequential, progressive",
+   "write": "yes, baseline clean-room encoder",
+   "round_trips": "no",
+   "refused_or_lost": "no colour management",
+   "vendor_oracle": "Pillow corpus, ignored by default",
+   "evidence": "crates/hsk-studio-interop-raster/src/jpeg.rs, jpeg_encode.rs"
+  },
+  {
+   "format": "GIF, row 6",
+   "matrix_direction": "I X",
+   "read": "no",
+   "write": "no",
+   "round_trips": "no",
+   "refused_or_lost": "no typed refusal found; crate lib note says later",
+   "vendor_oracle": "none",
+   "evidence": "crates/hsk-studio-interop-raster/src/lib.rs header"
+  },
+  {
+   "format": "WebP, row 7",
+   "matrix_direction": "I X",
+   "read": "no, sniff only",
+   "write": "no",
+   "round_trips": "no",
+   "refused_or_lost": "refused webp_decoder_unavailable",
+   "vendor_oracle": "none",
+   "evidence": "crates/hsk-studio-interop-raster/src/lib.rs:52"
+  },
+  {
+   "format": "HEIC/HEIF, JPEG XL, AVIF, FITS, BMP, TGA and long tail, rows 8, 10-12",
+   "matrix_direction": "I X",
+   "read": "no",
+   "write": "no",
+   "round_trips": "no",
+   "refused_or_lost": "no code; not even a sniff for these",
+   "vendor_oracle": "none",
+   "evidence": "git grep empty on these names, excluding encoding tables"
+  },
+  {
+   "format": "OpenEXR/Radiance, row 9",
+   "matrix_direction": "I EP X RT",
+   "read": "EXR in 3D pass reading path only, UNVERIFIED as general import",
+   "write": "encode_exr_f32 for render output",
+   "round_trips": "no document round trip",
+   "refused_or_lost": "HDR no code",
+   "vendor_oracle": "none",
+   "evidence": "crates/hsk-studio-composite/src/three_d/exr.rs:53"
+  },
+  {
+   "format": "Camera raw, row 13",
+   "matrix_direction": "I EP",
+   "read": "yes, CR2, CR3, NEF, ARW, ORF, RW2, RAF decoders",
+   "write": "no",
+   "round_trips": "no",
+   "refused_or_lost": "unsupported containers typed",
+   "vendor_oracle": "develop oracle tests exist (23 files mention oracle); vendor match NOT_INSPECTED here",
+   "evidence": "crates/hsk-studio-develop/src/raw_cr/, crates/hsk-studio-harness-core/src/import.rs:28-45"
+  },
+  {
+   "format": "DNG, row 14",
+   "matrix_direction": "I EP X",
+   "read": "yes",
+   "write": "yes, dng_write",
+   "round_trips": "NOT_INSPECTED",
+   "refused_or_lost": "NOT_INSPECTED",
+   "vendor_oracle": "NOT_INSPECTED",
+   "evidence": "crates/hsk-studio-develop/src/lib.rs (dng_write)"
+  },
+  {
+   "format": "Illustrator .ai, row 15",
+   "matrix_direction": "I EP X via PDF",
+   "read": "PDF-compatible stream only, through a drawing provider; private data not decoded",
+   "write": "no .ai writer; viewer writes SVG and PDF",
+   "round_trips": "no",
+   "refused_or_lost": "import_ai always NativeEditabilityBlocked; losses ai_native_editability_not_imported, ai_private_data_not_imported, ai_text_as_outlines; legacy PostScript AI not decoded",
+   "vendor_oracle": "engine oracle only, Illustrator 30.8.2 AI-01..05 (crates/hsk-studio-render-cpu/tests/d5_ai_oracle.rs); import test uses a hand-built provider; real file case is attended D5 session AI-NS2, UNVERIFIED",
+   "evidence": "crates/hsk-studio-interop-vector-core/src/ai_adapter.rs:49, ai_import.rs, crates/hsk-studio-harness-view/src/view/vector/interop.rs:405,605, pdf_export.rs:364"
+  },
+  {
+   "format": "Illustrator template .ait, row 16",
+   "matrix_direction": "I X RT",
+   "read": "no",
+   "write": "no",
+   "round_trips": "no",
+   "refused_or_lost": "no code",
+   "vendor_oracle": "none",
+   "evidence": "git grep empty"
+  },
+  {
+   "format": "SVG, SVGZ, row 17",
+   "matrix_direction": "I EP X RT",
+   "read": "yes, bounded parser with defs, masks, patterns, CSS",
+   "write": "yes, deterministic",
+   "round_trips": "yes for paths, paints, clips, masks, patterns, markers; typed export loss",
+   "refused_or_lost": "typed LossEntry",
+   "vendor_oracle": "none, no vendor; browser or Inkscape check NOT_INSPECTED",
+   "evidence": "crates/hsk-studio-interop-vector-svg/src/svg_adapter.rs, svg_export.rs; crates/hsk-studio-interop-vector/tests/vector_edit_roundtrip.rs, vector_records_roundtrip.rs"
+  },
+  {
+   "format": "EPS, row 18",
+   "matrix_direction": "I X",
+   "read": "DSC and EPSI preview in process; vector content only through isolated worker, features eps and eps-worker",
+   "write": "yes, EPSF export",
+   "round_trips": "no",
+   "refused_or_lost": "typed refusal without worker naming the route",
+   "vendor_oracle": "none",
+   "evidence": "crates/hsk-studio-interop-vector-core/src/eps.rs, eps_worker.rs, eps_export.rs; tests eps_import.rs, eps_worker.rs"
+  },
+  {
+   "format": "PostScript, row 19",
+   "matrix_direction": "I X",
+   "read": "NOT_INSPECTED: interpreter crates hsk-studio-ps* were not opened; no standalone .ps route seen",
+   "write": "no",
+   "round_trips": "no",
+   "refused_or_lost": "UNVERIFIED",
+   "vendor_oracle": "none",
+   "evidence": "crates list only"
+  },
+  {
+   "format": "PDF, row 20",
+   "matrix_direction": "I EP X",
+   "read": "yes: syntax, content, fonts, vector_read, raster, object edit, redaction, sanitized save. Open-as-document route carries, does not import",
+   "write": "yes: fonts subset TrueType and CFF, images, ICC, gradients, soft masks, outlines, per interop-layout pdf_export",
+   "round_trips": "bounded object edit; read-back tests",
+   "refused_or_lost": "encryption and tagged structure not written; conversion to editable layout is not a route",
+   "vendor_oracle": "veraPDF as external validator: conformance stays not_proven until a passing report is fed in (crates/hsk-studio-press/tests/verapdf_corpus.rs:130,152); run state NOT_INSPECTED",
+   "evidence": "crates/hsk-studio-press-read/src/, press-write/src/export.rs, crates/hsk-studio-harness-core/src/import/pdf.rs"
+  },
+  {
+   "format": "DWG, row 21",
+   "matrix_direction": "I X",
+   "read": "no",
+   "write": "no",
+   "round_trips": "no",
+   "refused_or_lost": "typed refusal naming DXF route",
+   "vendor_oracle": "none",
+   "evidence": "crates/hsk-studio-interop-vector-core/src/cad.rs:12; tests dxf_import.rs dwg_is_refused_naming_the_dxf_route"
+  },
+  {
+   "format": "DXF, row 22",
+   "matrix_direction": "I X",
+   "read": "yes, own reader",
+   "write": "no export found (git grep export_dxf only matches the refusal route string)",
+   "round_trips": "no",
+   "refused_or_lost": "typed losses",
+   "vendor_oracle": "none",
+   "evidence": "crates/hsk-studio-interop-vector-core/src/dxf_reader.rs, dxf_import.rs"
+  },
+  {
+   "format": "Freehand legacy, row 23",
+   "matrix_direction": "I",
+   "read": "no",
+   "write": "n/a",
+   "round_trips": "no",
+   "refused_or_lost": "no code",
+   "vendor_oracle": "none",
+   "evidence": "git grep hits are the pencil tool"
+  },
+  {
+   "format": "IDML, row 24",
+   "matrix_direction": "I EP X RT",
+   "read": "yes, every part kept with sha256",
+   "write": "yes, write_idml, export_idml, export_folio",
+   "round_trips": "yes: replace_content and export deterministic; 48 typed loss entries per InDesign file at 2026-10-16 (dated); text wrap and others not interpreted",
+   "refused_or_lost": "typed losses, zip bomb refusals",
+   "vendor_oracle": "YES: InDesign 21.6 ID-01..04 pinned corpus (crates/hsk-studio-interop-layout/tests/d5_id_oracle.rs); expected-mismatch file 12 lines; Arial stays outside the repo",
+   "evidence": "crates/hsk-studio-interop-layout/src/idml_decode.rs, idml_encode.rs, folio_export.rs; tests layout_edit_roundtrip.rs:446"
+  },
+  {
+   "format": "INDD, row 25",
+   "matrix_direction": "I EP",
+   "read": "header sniff only (document, book, library)",
+   "write": "no",
+   "round_trips": "no",
+   "refused_or_lost": "import_indd always errs with preserved blob: native_indd_decoder_missing_idml_does_not_satisfy_indd",
+   "vendor_oracle": "none; module note says no .indd fixture exists on this machine",
+   "evidence": "crates/hsk-studio-interop-layout/src/indd_adapter.rs:72"
+  },
+  {
+   "format": "PDF/X, row 26",
+   "matrix_direction": "X",
+   "read": "n/a",
+   "write": "yes, pdfx.rs builder and own check",
+   "round_trips": "n/a",
+   "refused_or_lost": "conformance not_proven without veraPDF report",
+   "vendor_oracle": "veraPDF external only; no Adobe preflight seen",
+   "evidence": "crates/hsk-studio-press-write/src/export/pdfx.rs; crates/hsk-studio-press/tests/verapdf_corpus.rs"
+  },
+  {
+   "format": "Tagged PDF, row 27",
+   "matrix_direction": "X",
+   "read": "n/a",
+   "write": "NO: git grep StructTree, StructElem, MarkInfo empty in press-write and interop-layout; reader only handles them on purge",
+   "round_trips": "n/a",
+   "refused_or_lost": "press-write/src/export.rs:20 lists tagged structure as not in slice",
+   "vendor_oracle": "none",
+   "evidence": "crates/hsk-studio-press-read/src/flatten_purge.rs"
+  },
+  {
+   "format": "EPUB, row 28",
+   "matrix_direction": "X",
+   "read": "bounded re-read inspect_epub only",
+   "write": "reflowable EPUB 3 yes",
+   "round_trips": "no",
+   "refused_or_lost": "fixed layout, images, cover, fonts, footnotes not written",
+   "vendor_oracle": "no vendor; epubcheck NOT_INSPECTED",
+   "evidence": "crates/hsk-studio-interop-layout/src/epub.rs:23,184,397; tests id_prepress_epub.rs"
+  },
+  {
+   "format": "Package folder, row 29",
+   "matrix_direction": "X",
+   "read": "n/a",
+   "write": "NO collect-for-output; hsk-studio-package is the native Studio container, a different thing",
+   "round_trips": "n/a",
+   "refused_or_lost": "no code",
+   "vendor_oracle": "none",
+   "evidence": "crates/hsk-studio-package/src/write.rs for native only"
+  },
+  {
+   "format": "Affinity .af, .afphoto, .afdesign, .afpub, .aftemplate, rows 30-34",
+   "matrix_direction": "I EP X RT",
+   "read": "container, streams, thumbnail and resource blobs only; doc.dat object graph not decoded",
+   "write": "no; decision waits on verified Affinity written file",
+   "round_trips": "no",
+   "refused_or_lost": "harness refuses affinity_native_use_export naming PSD, PDF, SVG routes; LOSS_LAYERS_NOT_DECODED",
+   "vendor_oracle": "9 AFDesignLoad MIT V1 designs from corpus; real Affinity-written behaviour UNVERIFIED until Operator session SMB-AFFINITY-ORACLE-OPERATOR",
+   "evidence": "crates/hsk-studio-interop-affinity/src/lib.rs, crates/hsk-studio-harness-core/src/import.rs:133"
+  },
+  {
+   "format": "Figma .fig, row 35",
+   "matrix_direction": "I EP X RT",
+   "read": "yes: Kiwi container, typed node tree, to_native proposal; descriptor status editable NOT_PROVEN",
+   "write": "no .fig writer (git grep write_fig, encode_fig empty); frames export to PDF and raster",
+   "round_trips": "through native package with source ids, not back to .fig",
+   "refused_or_lost": "geometry, effects, image paints etc as typed losses per descriptor; fig-diff opaque only",
+   "vendor_oracle": "Figma desktop 126.10.7 Operator files and PNG references, tests fig_export.rs compare at tolerance",
+   "evidence": "crates/hsk-studio-interop-fig-base/src/container.rs:49, nodes.rs, crates/hsk-studio-interop-fig-native/src/native.rs, export.rs:753; crates/hsk-studio-interop-fig/tests/"
+  },
+  {
+   "format": ".jam, .deck, .buzz, .site, .make, rows 36-40",
+   "matrix_direction": "I EP X RT",
+   "read": "jam is a recognised kind only; deck, buzz, site, make: no code seen",
+   "write": "no",
+   "round_trips": "no",
+   "refused_or_lost": "UnsupportedKind opaque path",
+   "vendor_oracle": "none",
+   "evidence": "crates/hsk-studio-interop-fig-base/src/container.rs:45-75"
+  },
+  {
+   "format": "Sketch, row 41",
+   "matrix_direction": "I",
+   "read": "no",
+   "write": "n/a",
+   "round_trips": "no",
+   "refused_or_lost": "no code",
+   "vendor_oracle": "none",
+   "evidence": "git grep empty"
+  },
+  {
+   "format": "Fonts, row 42",
+   "matrix_direction": "I embed",
+   "read": "TTF, OTF, variable axes; TTC UNVERIFIED; OpenType-SVG and COLR not rendered",
+   "write": "subset embedding in PDF only",
+   "round_trips": "n/a",
+   "refused_or_lost": "typed MissingFont",
+   "vendor_oracle": "Unicode bidi goldens and exact-oracle recipes in type/tests/fixtures/evidence",
+   "evidence": "crates/hsk-studio-type/src/fonts.rs:70, crates/hsk-studio-press-write/src/export/subset.rs, cff.rs"
+  },
+  {
+   "format": "ICC, row 43",
+   "matrix_direction": "I embed X",
+   "read": "yes in prism and import routes",
+   "write": "embed yes",
+   "round_trips": "NOT_INSPECTED",
+   "refused_or_lost": "missing profile typed loss",
+   "vendor_oracle": "prism/tests/oracle exists; not my domain, NOT_INSPECTED",
+   "evidence": "crates/hsk-studio-prism/src/, crates/hsk-studio-harness-core/src/import/colour.rs"
+  },
+  {
+   "format": "Linked assets, row 44",
+   "matrix_direction": "I link, X package",
+   "read": "external references and relink keys",
+   "write": "embed in native package; no output collect",
+   "round_trips": "through native package",
+   "refused_or_lost": "no 38-field link record",
+   "vendor_oracle": "none",
+   "evidence": "crates/hsk-studio-package/src/externals.rs:159,490; tests externals.rs, linked_files.rs"
+  },
+  {
+   "format": "Data merge sources, row 45",
+   "matrix_direction": "I",
+   "read": "CSV, delimited, JSON; XLS, XLSX, XML no",
+   "write": "n/a",
+   "round_trips": "n/a",
+   "refused_or_lost": "typed merge errors",
+   "vendor_oracle": "none",
+   "evidence": "crates/hsk-studio-interop-layout/src/data_merge.rs:137,210"
+  },
+  {
+   "format": "HTML, CSS, row 46",
+   "matrix_direction": "I X",
+   "read": "NOT_INSPECTED: hsk-studio-web crates outside this audit",
+   "write": "NOT_INSPECTED",
+   "round_trips": "NOT_INSPECTED",
+   "refused_or_lost": "NOT_INSPECTED",
+   "vendor_oracle": "NOT_INSPECTED",
+   "evidence": "web domain is another auditor scope"
+  },
+  {
+   "format": "PPTX, row 47",
+   "matrix_direction": "I X",
+   "read": "no",
+   "write": "no",
+   "round_trips": "no",
+   "refused_or_lost": "no code",
+   "vendor_oracle": "none",
+   "evidence": "git grep empty"
+  },
+  {
+   "format": "PRPROJ, AEP, SESX, rows 48-50",
+   "matrix_direction": "I",
+   "read": "sniff only",
+   "write": "no",
+   "round_trips": "no",
+   "refused_or_lost": "native_decoder_missing; editable import blocked, loud",
+   "vendor_oracle": "none; detection strings are candidates, UNVERIFIED",
+   "evidence": "crates/hsk-studio-interop-media/src/native.rs:1-4"
+  },
+  {
+   "format": "Lightroom .lrcat, row 51",
+   "matrix_direction": "I",
+   "read": "yes, read-only fixed extraction with WAL grant",
+   "write": "no, by design",
+   "round_trips": "n/a",
+   "refused_or_lost": "typed limits and losses; develop settings opaque and hashed",
+   "vendor_oracle": "fixtures with PROVENANCE; real catalogue vendor oracle NOT_INSPECTED",
+   "evidence": "crates/hsk-studio-interop-lrcat/src/lib.rs, tests catalog_decode.rs"
+  },
+  {
+   "format": "Non-matrix extras: CMX3600 EDL, SRT, WebVTT",
+   "matrix_direction": "n/a",
+   "read": "yes",
+   "write": "yes",
+   "round_trips": "yes per tests",
+   "refused_or_lost": "typed",
+   "vendor_oracle": "none",
+   "evidence": "crates/hsk-studio-interop-media/src/edl.rs, captions.rs; tests foundation_contract.rs, captions.rs"
+  }
+ ],
+ "interop_summary": "Of the 51 matrix rows: real read and write with round-trip evidence only for PSD, PSB, TIFF, SVG and IDML. A vendor oracle on file behaviour exists for IDML (InDesign) and FIG (Figma PNGs); Photoshop and Illustrator oracles cover engine output, not Studio-written native files. INDD, native AI, Affinity object graph, PRPROJ, AEP, SESX are detected and refused or carried. No code at all for several rows.",
+ "pass_status_findings": [
+  "V07: 7 PASS_V1 distortion and shape-conversion MTs (30545-30550, 30559) are pure nib functions with no reach outside nib; 30559 covers effects whose evaluation is refused for lack of a recovered law (live_effect.rs:593).",
+  "T08: PASS_V1 MTs 30955-30957, 31140, 31141 require features stored on the character range; StoryRange has no such field and FeatureMap is not referenced outside hsk-studio-type.",
+  "L11 and L12 PASS_V1: trap preset is a record with no trap engine, and print parameter bounds exist without a print path."
+ ],
+ "top_missing": [
+  {
+   "rank": 1,
+   "gap": "Character and paragraph attribute model. StoryRange holds only style_ref and applied_language; no per-range font, size, tracking, kerning, baseline shift, underline, OpenType features, and no indents, spacing, tabs, lists, drop caps, rules, borders, keep options. Most of what InDesign users touch on a text selection cannot be stored or composed.",
+   "owning_crates": "hsk-studio-folio (story.rs, typestyle.rs), hsk-studio-layout (typeset, threaded_reflow, styles), hsk-studio-type",
+   "mts": [
+    "MT-30926",
+    "MT-30929",
+    "MT-30932",
+    "MT-30943",
+    "MT-30955",
+    "MT-30971",
+    "MT-30974",
+    "MT-30985",
+    "MT-30988",
+    "MT-30991",
+    "MT-30994",
+    "MT-31137",
+    "MT-30945"
+   ],
+   "anchors": [
+    "STU-TYP-155",
+    "STU-TYP-156",
+    "STU-TYP-159",
+    "STU-TYP-170",
+    "STU-TYP-185",
+    "STU-TYP-186",
+    "STU-TYP-193",
+    "STU-TYP-195",
+    "STU-TYP-196",
+    "STU-TYP-198"
+   ],
+   "contract_owner_modules": [
+    "STUDIO-MODULE-TYPE"
+   ]
+  },
+  {
+   "rank": 2,
+   "gap": "Live effects on vector objects. nib::live_effect is unreachable from any document: StudioAppearanceRow has only Fill and Stroke; 7 PASS_V1 MTs prove pure functions nobody calls. Stylize contract, scribble, raster-effect settings and expand appearance are absent.",
+   "owning_crates": "hsk-studio-folio (paint.rs), hsk-studio-composite (vector.rs), hsk-studio-nib (live_effect.rs), hsk-studio-harness-view",
+   "mts": [
+    "MT-30525",
+    "MT-30535",
+    "MT-30547",
+    "MT-30551",
+    "MT-30560",
+    "MT-30562",
+    "MT-30564"
+   ],
+   "anchors": [
+    "STU-VEC-022",
+    "STU-VEC-023",
+    "STU-VEC-054",
+    "STU-VEC-154",
+    "STU-VEC-155",
+    "STU-VEC-156",
+    "STU-VEC-159",
+    "STU-VEC-160"
+   ],
+   "contract_owner_modules": [
+    "STUDIO-MODULE-NIB"
+   ]
+  },
+  {
+   "rank": 3,
+   "gap": "Vector procedural constructs: blend, live paint, image trace, repeat (radial, grid, mirror), symmetry, intertwine, global edit. No code at all, and these are Illustrator staples.",
+   "owning_crates": "hsk-studio-nib, hsk-studio-folio (records), hsk-studio-composite",
+   "mts": [
+    "MT-30617",
+    "MT-30618",
+    "MT-30620",
+    "MT-30621",
+    "MT-30626",
+    "MT-30627",
+    "MT-30611",
+    "MT-30616",
+    "MT-30630",
+    "MT-30631"
+   ],
+   "anchors": [
+    "STU-VEC-031",
+    "STU-VEC-032",
+    "STU-VEC-033",
+    "STU-VEC-035",
+    "STU-VEC-036",
+    "STU-VEC-037",
+    "STU-VEC-056"
+   ],
+   "contract_owner_modules": [
+    "STUDIO-MODULE-NIB"
+   ]
+  },
+  {
+   "rank": 4,
+   "gap": "Native format decoders: INDD (always refused), AI native data (PDF stream only), Affinity doc.dat (container only), and no .fig writer. Every NRT row of the matrix misses its native round trip.",
+   "owning_crates": "hsk-studio-interop-layout (indd_adapter), hsk-studio-interop-vector-core (ai_adapter), hsk-studio-interop-affinity, hsk-studio-interop-fig-native",
+   "mts": [
+    "MT-33444",
+    "MT-33446",
+    "MT-33443"
+   ],
+   "anchors": [
+    "STU-IO-005",
+    "STU-IO-006",
+    "STU-IO-008",
+    "STU-IO-186"
+   ],
+   "contract_owner_modules": [
+    "STUDIO-MODULE-PACKAGE"
+   ]
+  },
+  {
+   "rank": 5,
+   "gap": "Font system: font resource and status records, fallback chain, library, composite fonts, colour fonts, Unicode normalisation (Normalization::Unsupported today), missing-font bulk replace.",
+   "owning_crates": "hsk-studio-type, hsk-studio-folio",
+   "mts": [
+    "MT-30961",
+    "MT-30963",
+    "MT-30897",
+    "MT-30895",
+    "MT-30968",
+    "MT-31143",
+    "MT-30966",
+    "MT-30967"
+   ],
+   "anchors": [
+    "STU-TYP-127",
+    "STU-TYP-129",
+    "STU-TYP-176",
+    "STU-TYP-178",
+    "STU-TYP-180",
+    "STU-TYP-182",
+    "STU-TYP-018"
+   ],
+   "contract_owner_modules": [
+    "STUDIO-MODULE-TYPE"
+   ]
+  },
+  {
+   "rank": 6,
+   "gap": "Vertical text and CJK annotation: vertical composition, ruby, kenten, warichu, tatechuyoko, shatai, jidori, plus Arabic and Hebrew shaping controls. Kinsoku and mojikumi exist; these do not (layout/src/cjk.rs:3-4).",
+   "owning_crates": "hsk-studio-layout (cjk.rs), hsk-studio-type, hsk-studio-folio",
+   "mts": [
+    "MT-30949",
+    "MT-30951",
+    "MT-30953",
+    "MT-30947",
+    "MT-30902"
+   ],
+   "anchors": [
+    "STU-TYP-134",
+    "STU-TYP-166",
+    "STU-TYP-167",
+    "STU-TYP-168",
+    "STU-TYP-169"
+   ],
+   "contract_owner_modules": [
+    "STUDIO-MODULE-TYPE"
+   ]
+  },
+  {
+   "rank": 7,
+   "gap": "Text flow around objects and pagination: Folio text wrap record, autoflow modes, smart reflow, primary text frame, truncation, island spreads and document layers.",
+   "owning_crates": "hsk-studio-folio (layout.rs, layoutflow.rs), hsk-studio-layout (threaded_reflow.rs)",
+   "mts": [
+    "MT-30706",
+    "MT-30710",
+    "MT-30696",
+    "MT-30697",
+    "MT-30891",
+    "MT-30892",
+    "MT-30670",
+    "MT-30885",
+    "MT-30661",
+    "MT-30665"
+   ],
+   "anchors": [
+    "STU-LAY-002",
+    "STU-LAY-005",
+    "STU-LAY-008",
+    "STU-LAY-020",
+    "STU-LAY-123",
+    "STU-LAY-126",
+    "STU-TYP-119",
+    "STU-TYP-123",
+    "STU-TYP-124"
+   ],
+   "contract_owner_modules": [
+    "STUDIO-MODULE-LAYOUT",
+    "STUDIO-MODULE-TYPE"
+   ]
+  },
+  {
+   "rank": 8,
+   "gap": "PDF writer gaps and output: tagged structure, encryption, printer marks, layout page raster export, collect-for-output package, real print path, table and cell styles, preflight rule catalogue (9 rules today).",
+   "owning_crates": "hsk-studio-press-write, hsk-studio-interop-layout, hsk-studio-layout (print.rs, preflight.rs), hsk-studio-folio (longdoc.rs)",
+   "mts": [
+    "MT-30840",
+    "MT-30837",
+    "MT-30851",
+    "MT-30816",
+    "MT-30818",
+    "MT-30761",
+    "MT-30762",
+    "MT-30808",
+    "MT-30809",
+    "MT-30810",
+    "MT-30811"
+   ],
+   "anchors": [
+    "STU-LAY-058",
+    "STU-LAY-155",
+    "STU-LAY-156",
+    "STU-LAY-154",
+    "STU-LAY-057",
+    "STU-LAY-142",
+    "STU-LAY-158",
+    "STU-LAY-162"
+   ],
+   "contract_owner_modules": [
+    "STUDIO-MODULE-LAYOUT"
+   ]
+  },
+  {
+   "rank": 9,
+   "gap": "Geometry and gradient holes: outline, hard_mix, soft_mix, trap refused; vector eraser, sculpt, point transform; document flatten; compound make/release; polarity; angular, diamond, elliptical, freeform gradients; gradient and pattern stroke; path to live shape; extended primitives.",
+   "owning_crates": "hsk-studio-nib (pathfinder.rs, freeform.rs), hsk-studio-folio (paint.rs), hsk-studio-composite",
+   "mts": [
+    "MT-30469",
+    "MT-30470",
+    "MT-30471",
+    "MT-30472",
+    "MT-30438",
+    "MT-30444",
+    "MT-30477",
+    "MT-30478",
+    "MT-30393",
+    "MT-30486",
+    "MT-30509",
+    "MT-30457",
+    "MT-30454"
+   ],
+   "anchors": [
+    "STU-VEC-111",
+    "STU-VEC-121",
+    "STU-VEC-124",
+    "STU-VEC-130",
+    "STU-VEC-132",
+    "STU-VEC-135",
+    "STU-VEC-070",
+    "STU-VEC-014",
+    "STU-VEC-128",
+    "STU-VEC-129"
+   ],
+   "contract_owner_modules": [
+    "STUDIO-MODULE-NIB"
+   ]
+  },
+  {
+   "rank": 10,
+   "gap": "Export and import model: StudioExportRecipe parameter map, parameter records with type codes and facets, StudioImportProfile, preset container readers (24 families), image sequence export, still-image AVIF and JPEG XL, filename tokens.",
+   "owning_crates": "hsk-studio-accord or a shared interop owner, hsk-studio-reel, hsk-studio-develop, hsk-studio-interop-psd",
+   "mts": [
+    "MT-33368",
+    "MT-33369",
+    "MT-33371",
+    "MT-33440",
+    "MT-33448",
+    "MT-33413",
+    "MT-33414",
+    "MT-33412",
+    "MT-33398",
+    "MT-33403"
+   ],
+   "anchors": [
+    "STU-IO-002",
+    "STU-IO-010",
+    "STU-IO-101",
+    "STU-IO-102",
+    "STU-IO-104",
+    "STU-IO-136",
+    "STU-IO-139",
+    "STU-IO-148",
+    "STU-IO-150",
+    "STU-IO-151"
+   ],
+   "contract_owner_modules": [
+    "STUDIO-MODULE-PACKAGE"
+   ]
+  },
+  {
+   "rank": 11,
+   "gap": "Raster formats in the matrix with no decoder: GIF, WebP (sniff and refuse), HEIC, JXL, BMP, TGA, FITS; general EXR and HDR import.",
+   "owning_crates": "hsk-studio-interop-raster",
+   "mts": [
+    "MT-33444"
+   ],
+   "anchors": [
+    "STU-IO-006 rows 6-12"
+   ],
+   "contract_owner_modules": [
+    "STUDIO-MODULE-PACKAGE"
+   ]
+  },
+  {
+   "rank": 12,
+   "gap": "Proofing and text tooling: language records, spelling, user dictionaries, non-English hyphenation, attribute criteria in find/change, glyph browser, parameter introspection and typ.* descriptors.",
+   "owning_crates": "hsk-studio-layout, hsk-studio-type, hsk-studio-controls",
+   "mts": [
+    "MT-31023",
+    "MT-31025",
+    "MT-31028",
+    "MT-31003",
+    "MT-31032",
+    "MT-31047"
+   ],
+   "anchors": [
+    "STU-TYP-205",
+    "STU-TYP-209",
+    "STU-TYP-211",
+    "STU-TYP-214",
+    "STU-TYP-221",
+    "STU-TYP-230"
+   ],
+   "contract_owner_modules": [
+    "STUDIO-MODULE-TYPE"
+   ]
+  }
+ ],
+ "not_inspected": [
+  "Unsampled MTs, listed by count per family: mts minus sampled.",
+  "Test execution of any kind.",
+  "Crates hsk-studio-ps*, not opened (vendored interpreter; licence not checked, avoided per brief).",
+  "hsk-studio-type/src/provider and third-party, not opened.",
+  "hsk-studio-web* and HTML, CSS row.",
+  "Oracle corpus files; only the checked-in tests and dated research summaries.",
+  "Handshake host, Argus, canonical UserManual.",
+  "Row-by-row bound values of parameter tables."
+ ]
+}

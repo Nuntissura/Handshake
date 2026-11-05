@@ -1,0 +1,1093 @@
+{
+ "schema": "hsk.studio_truth_check_vulkan_pivot@1",
+ "file_id": "TRUTH-CHECK-20261105-VULKAN-PIVOT",
+ "lane": "Handshake (Product): Studio Kit GUI and GPU direction. Repo Governance: NONE changed (this file only).",
+ "generated_at": "2026-11-05",
+ "by": "read-only auditor for the WP-KERNEL-STUDIO truth check",
+ "path_legend": {
+  "K": "wt-gov-kernel",
+  "S": "K/.GOV/docs_repo/wp-studio-module-work",
+  "P": "wt-studio-lanes/smb-type-authored-token-1/handshake-studio-assets at 1940292c (clean, equals origin/codex/handshake-studio-assets per git ls-remote)",
+  "H": "git object cbce875e (remote tip of feat/WP-KERNEL-012 per git ls-remote; read with git show from K's object store, no fetch)",
+  "A": "origin/codex/handpick e75e34ff of Nuntissura/assets (read with git show; holds Kumihimo/ and assets-index.yaml)"
+ },
+ "method_limits": "No cargo, build, test, fetch, process control or web research. Counts are git grep and git diff over crates/, tools/, .config, Cargo.toml. UI-bound function split is a line heuristic, not a compiler result. Word match for ash, naga, eframe uses word boundaries to drop hash::, Devanagari, keyframe, wireframe.",
+ "q1_pivot": {
+  "plain_words": "The Operator decided the Studio GUI must be native Vulkan inside Handshake's kernel-owned shell, with Handshake as the memory and GPU manager of every module. Then, in order: drop egui (D1), keep building engine-only (D6), and one day later use the Vulkan API directly with no wgpu (D7), with Kumihimo staying the shared-controls owner and getting a non-egui pure-Vulkan renderer (D8). No such UI layer, renderer or GPU owner exists yet, so GUI lanes stay paused while engine lanes continue.",
+  "decided_by": "Operator in chat; the lead recorded the decisions. D1's lead reading (keep egui behind a Vulkan-backed wgpu device) was overruled.",
+  "timeline": [
+   {
+    "at": "2026-10-14",
+    "what": "D11: standalone harness may use eframe 0.33.3 with its wgpu backend, only in hsk-studio-harness. This is what the pivot replaces for the product GUI.",
+    "evidence": "S/START_LOG.md:413"
+   },
+   {
+    "at": "2026-10-24",
+    "what": "Module 15 (GUI-DESKTOP-*, MT-197..203) specified from the Operator's desktop UI request: Vulkan-backed GUI, central GPU owner; a pinned toolkit was still allowed then.",
+    "evidence": "K commit 8aec6517; K/.GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md:66,82"
+   },
+   {
+    "at": "2026-10-30T21:40:46Z",
+    "what": "Operator: 'the GUI must be vulkan (so this is a refactor)', connect internal_diagnostics, Flight Recorder, Palmistry; Handshake is memory and GPU manager; paperwork only that night.",
+    "evidence": "S/START_LOG.md:627"
+   },
+   {
+    "at": "2026-10-30T22:45Z..23:34Z",
+    "what": "Per-MT host_integration block on all 6204 MTs, HBR-HOST-001..008, host amendments, MT-36248..36251, lane blocks.",
+    "evidence": "S/START_LOG.md:628-632"
+   },
+   {
+    "at": "2026-10-30T23:53:27Z",
+    "what": "D1 'Drop egui'. Existing egui code quarantined as asset-local test host; no new egui code.",
+    "evidence": "S/START_LOG.md:633; S/research/integration-refactor-inventory-20261030.json:412; S/ledger.json:20103"
+   },
+   {
+    "at": "2026-10-30T23:55:17Z",
+    "what": "D6 'Yes, engine lanes'. Engine-only lanes resume; GUI lanes (harness-view surfaces, controls renderer) paused.",
+    "evidence": "S/START_LOG.md:634; S/research/integration-refactor-inventory-20261030.json:444; S/ledger.json:20104"
+   },
+   {
+    "at": "2026-10-31T23:54:56Z",
+    "what": "D7 'i want pure vulkan, no wgpu, i think this is also the direction we are going for wp kernel'; RF-12 added; binding crate left open for the GPU owner; conflict with WP-KERNEL-012's eframe/egui-wgpu path flagged, not resolved.",
+    "evidence": "S/START_LOG.md:656; S/research/integration-refactor-inventory-20261030.json:457; S/ledger.json:20105; S/research/integration-refactor-inventory-20261030.json:344"
+   },
+   {
+    "at": "2026-10-31T23:54:56Z",
+    "what": "D8 'kumihimo as owner, ok': non-egui pure-Vulkan renderer crate beside kumihimo-egui, Kumihimo asset work. STU-SHL-130 'layer based': SHL-P-14 engine work unblocked, keyframe-timeline panel still waits for the GUI layer.",
+    "evidence": "S/research/integration-refactor-inventory-20261030.json:472; S/ledger.json:20106; S/ledger.json:20107; S/research/integration-refactor-inventory-20261030.json:489"
+   },
+   {
+    "at": "2026-11-01T00:10Z..04:34Z",
+    "what": "Master Spec v02.226 (STU-ARC-023..033), v02.227 (D7/D1 alignment: 228 real lines, TECH-WGPU and TECH-WGSL retired to TECH-VULKAN, 17 open items D7A-01..17), v02.228, v02.229 current. MT-36252..36263 added, all contract-preparation only.",
+    "evidence": "S/START_LOG.md:657,660; K/.GOV/spec/SPEC_CURRENT.md:4-9; S/spec-enrichment/STUDIO-ENRICHMENT-20261101-D7-VULKAN-ALIGNMENT.json:353"
+   }
+  ],
+  "what_it_replaced": [
+   "D11 (eframe plus wgpu window) as a product path; the binary stays an asset-local test host only (STU-ARC-025, 14-studio-creative-suite.md:261)",
+   "The lead reading 'native Vulkan binds the device and shell, not the widget toolkit' (D1 lead_reading)",
+   "D2 pin freeze: egui pin retired for product; wgpu 27.0.1 holds only for quarantined code until RF-12",
+   "GUI-DESKTOP-003's permission for a pinned toolkit: since v02.227 a toolkit or backend built on wgpu, egui or eframe does not fulfil it (15-*.md:26)",
+   "STU-FX-036's wgpu/WGSL wording (now a typed client of the central GPU owner, 14-*.md:19865)"
+  ],
+  "mt_marking": {
+   "records_said": "2257 MTs vulkan_shell_client",
+   "verified": "2257 is the dated snapshot over 6204 MTs (2026-10-30T22:40:37Z). A fresh count over the 6220 MT files today gives vulkan_shell_client 2266, none 3897, asset_local_test_host_only 57; the 9 extra come from MTs added after the snapshot.",
+   "evidence": "K/.GOV/task_packets/WP-KERNEL-STUDIO/_MT_INDEX.json:1; fresh python count of K/.GOV/task_packets/WP-KERNEL-STUDIO/MT-*.json host_integration.gui_host"
+  },
+  "record_drift_found_do_not_repeat": [
+   {
+    "claim": "HANDOFF.md still lists D7, D8 and D6 as open and never states pure Vulkan or RF-12; its updated_at is 2026-10-30T03:10:00Z.",
+    "evidence": "S/HANDOFF.md:4,154",
+    "correct": "D6, D7, D8 decided (dates above)."
+   },
+   {
+    "claim": "HANDOFF and inventory say Handshake's native GUI is 'DX12-only' and Kumihimo is 'not referenced by Handshake'.",
+    "evidence": "S/HANDOFF.md:119; S/research/integration-refactor-inventory-20261030.json:36; S/research/integration-refactor-inventory-20261030.json:41; S/research/integration-refactor-inventory-20261030.json:363",
+    "correct": "True at 292d7a1c only. The remote tip H (cbce875e) pins Kumihimo and selects Vulkan through eframe: H:src/frontend/handshake_native/Cargo.toml:115-119,150,375; H:src/frontend/handshake_native/src/main.rs:562-566. K's tracking ref origin/feat/WP-KERNEL-012 is stale at 292d7a1c (last reflog update 2026-10-09)."
+   },
+   {
+    "claim": "RF-02 target says panes share edges 'via the host's egui_tiles'.",
+    "evidence": "S/research/integration-refactor-inventory-20261030.json:173",
+    "correct": "Contradicts D1 and D7; RF-02's target needs rewording."
+   },
+   {
+    "claim": "The rounds' 'GPU: Vulkan (vulkan:discrete:NVIDIA GeForce RTX 3090)' can be read as direct Vulkan.",
+    "evidence": "S/START_LOG.md:637; S/validation/round-R56.json",
+    "correct": "It is wgpu's Vulkan backend (see q3)."
+   },
+   {
+    "claim": "The pause's operator_decisions_open omits the WP-KERNEL-012 conflict and every D7 follow-up.",
+    "evidence": "S/ledger.json:20276",
+    "correct": "They are open; see open_operator_decisions."
+   },
+   {
+    "claim": "DISPATCH_TEMPLATES HOST INTEGRATION line names only D1; WORKSPACE_RULES says 'wgpu only render-gpu' while the probe allows wgpu in three crates.",
+    "evidence": "S/builders/DISPATCH_TEMPLATES.md:39; S/builders/WORKSPACE_RULES.md:44; P:tools/workspace-probe.rs:555",
+    "correct": "The full D7 rule is only in S/builders/briefs/wave-parity-2-common.md:17."
+   }
+  ]
+ },
+ "q2_code_inventory": {
+  "summary": "All toolkit code sits in harness-view, harness and controls; all wgpu API code sits in render-gpu, plus harness-view's view/display.rs and one harness test. winit, ash, vulkano, raw Vulkan and Kumihimo have no code line in any crate.",
+  "terms_lines_by_crate_at_head": {
+   "egui": {
+    "Cargo.toml|manifest": [
+     1,
+     6
+    ],
+    "hsk-studio-controls|manifest": [
+     1,
+     1
+    ],
+    "hsk-studio-controls|src": [
+     4,
+     26
+    ],
+    "hsk-studio-controls|tests": [
+     4,
+     31
+    ],
+    "hsk-studio-harness-core|src": [
+     1,
+     1
+    ],
+    "hsk-studio-harness-view|manifest": [
+     1,
+     3
+    ],
+    "hsk-studio-harness-view|src": [
+     37,
+     631
+    ],
+    "hsk-studio-harness-view|tests": [
+     16,
+     287
+    ],
+    "hsk-studio-harness|manifest": [
+     1,
+     3
+    ],
+    "hsk-studio-harness|src": [
+     3,
+     6
+    ],
+    "hsk-studio-harness|tests": [
+     31,
+     183
+    ],
+    "hsk-studio-ps-graphics|src": [
+     1,
+     2
+    ],
+    "hsk-studio-render-gpu|src": [
+     2,
+     5
+    ],
+    "hsk-studio-render-gpu|tests": [
+     1,
+     2
+    ],
+    "tools|src": [
+     1,
+     9
+    ]
+   },
+   "eframe": {
+    "Cargo.toml|manifest": [
+     1,
+     4
+    ],
+    "hsk-studio-controls|src": [
+     2,
+     2
+    ],
+    "hsk-studio-harness-view|manifest": [
+     1,
+     2
+    ],
+    "hsk-studio-harness-view|src": [
+     3,
+     5
+    ],
+    "hsk-studio-harness|manifest": [
+     1,
+     2
+    ],
+    "hsk-studio-harness|src": [
+     3,
+     11
+    ],
+    "hsk-studio-harness|tests": [
+     1,
+     3
+    ],
+    "hsk-studio-render-gpu|src": [
+     3,
+     3
+    ],
+    "tools|src": [
+     1,
+     10
+    ]
+   },
+   "winit": {
+    "Cargo.toml|manifest": [
+     1,
+     2
+    ],
+    "tools|src": [
+     1,
+     5
+    ]
+   },
+   "wgpu": {
+    "Cargo.toml|manifest": [
+     1,
+     6
+    ],
+    "hsk-studio-harness-view|manifest": [
+     1,
+     1
+    ],
+    "hsk-studio-harness-view|src": [
+     3,
+     17
+    ],
+    "hsk-studio-harness|manifest": [
+     1,
+     1
+    ],
+    "hsk-studio-harness|src": [
+     3,
+     7
+    ],
+    "hsk-studio-harness|tests": [
+     1,
+     21
+    ],
+    "hsk-studio-render-gpu|manifest": [
+     1,
+     2
+    ],
+    "hsk-studio-render-gpu|src": [
+     14,
+     451
+    ],
+    "hsk-studio-render-gpu|tests": [
+     9,
+     111
+    ],
+    "tools|src": [
+     1,
+     9
+    ]
+   },
+   "naga": {
+    "Cargo.toml|manifest": [
+     1,
+     3
+    ],
+    "hsk-studio-render-gpu|src": [
+     4,
+     4
+    ],
+    "hsk-studio-render-gpu|tests": [
+     1,
+     6
+    ]
+   },
+   "WGSL": {
+    "Cargo.toml|manifest": [
+     1,
+     1
+    ],
+    "hsk-studio-pigment|src": [
+     6,
+     6
+    ],
+    "hsk-studio-prism|src": [
+     1,
+     3
+    ],
+    "hsk-studio-render-gpu|manifest": [
+     1,
+     1
+    ],
+    "hsk-studio-render-gpu|src": [
+     16,
+     92
+    ],
+    "hsk-studio-render-gpu|tests": [
+     12,
+     22
+    ]
+   },
+   "ash": {
+    "Cargo.toml|manifest": [
+     1,
+     3
+    ],
+    "hsk-studio-render-gpu|src": [
+     1,
+     1
+    ],
+    "tools|src": [
+     1,
+     1
+    ]
+   },
+   "vulkano": {},
+   "vulkan": {
+    "Cargo.toml|manifest": [
+     1,
+     1
+    ],
+    "hsk-studio-render-gpu|manifest": [
+     1,
+     1
+    ],
+    "hsk-studio-render-gpu|src": [
+     7,
+     33
+    ],
+    "hsk-studio-render-gpu|tests": [
+     4,
+     32
+    ]
+   },
+   "kumihimo": {},
+   "gpu-allocator": {
+    "Cargo.toml|manifest": [
+     1,
+     3
+    ]
+   },
+   "spirv": {
+    "Cargo.toml|manifest": [
+     1,
+     3
+    ],
+    "tools|src": [
+     1,
+     1
+    ]
+   }
+  },
+  "term_key": "crate|src-or-tests-or-manifest: [files, lines]. Includes comments and descriptor text.",
+  "per_crate": {
+   "hsk-studio-harness-view": {
+    "egui": "optional, features viewer, layout-ui; 37 of 78 src files, 631 lines; 16 of 30 test files, 287 lines",
+    "eframe": "optional, feature desktop, 5 src lines",
+    "wgpu": "only through eframe::egui_wgpu in view/display.rs (feature desktop)",
+    "evidence": "P:crates/hsk-studio-harness-view/Cargo.toml:16,18,19,65,66; P:crates/hsk-studio-harness-view/src/view/display.rs:9",
+    "test_host_only": "by feature gate for eframe; egui is required by the whole view module, which is every GUI-side line of logic too (q4)"
+   },
+   "hsk-studio-harness": {
+    "egui": "optional; 6 src lines; 31 of 83 test files, 183 lines",
+    "eframe": "binary only: run_native, Renderer::Wgpu",
+    "wgpu": "21 lines in tests/viewer_shared_display.rs",
+    "evidence": "P:crates/hsk-studio-harness/Cargo.toml:71,72; P:crates/hsk-studio-harness/src/bin/studio-harness.rs:19,73-78,82-83",
+    "test_host_only": "yes, the binary requires feature desktop"
+   },
+   "hsk-studio-controls": {
+    "egui": "NON-OPTIONAL dependency; egui_adapter public and unconditional; menu_bar_ui and MenuUi name egui types in menu.rs",
+    "evidence": "P:crates/hsk-studio-controls/Cargo.toml:13; P:crates/hsk-studio-controls/src/lib.rs:14; P:crates/hsk-studio-controls/src/menu.rs:609-610,634",
+    "test_host_only": "NO in the manifest; 'quarantined' only by rule"
+   },
+   "hsk-studio-harness-core": {
+    "egui": "1 comment line, but non-optional dependency on controls puts egui in its build closure",
+    "evidence": "P:crates/hsk-studio-harness-core/Cargo.toml:26; P:crates/hsk-studio-harness-core/src/panel.rs:2",
+    "test_host_only": "NO: any host adopting harness-core links egui today"
+   },
+   "hsk-studio-render-gpu": {
+    "wgpu": "non-optional =27.0.1, features std, wgsl, vulkan, dx12, metal; 14 src files, 451 lines; 9 test files, 111 lines",
+    "naga": "4 src and 6 test lines, all naming the validator's rejection class, no direct dependency",
+    "ash": "1 comment, client.rs:13",
+    "egui_eframe": "documentation and descriptor text only",
+    "evidence": "P:crates/hsk-studio-render-gpu/Cargo.toml:22; P:crates/hsk-studio-render-gpu/src/client.rs:13",
+    "test_host_only": "NO: wgpu is its only device path; quarantine is by rule"
+   },
+   "hsk-studio-pigment_and_prism": {
+    "wgsl": "pigment 6 doc lines; prism VIEW_WGSL const in code",
+    "evidence": "P:crates/hsk-studio-prism/src/view_transform.rs:731; P:crates/hsk-studio-pigment/src/blend_math.rs:3"
+   },
+   "hsk-studio-ps-graphics": {
+    "egui": "2 comment lines in vendored stet code",
+    "evidence": "P:crates/hsk-studio-ps-graphics/src/display_list.rs:38,282"
+   },
+   "root_and_tools": {
+    "root": "workspace.metadata pins for render-gpu, controls, harness, harness-view",
+    "probe": "DESIGNATED owners still allow wgpu, egui, eframe, winit, egui-winit, egui-wgpu",
+    "evidence": "P:Cargo.toml:367,399,407,415; P:tools/workspace-probe.rs:498,508,510,555-561"
+   },
+   "lockfile": {
+    "facts": "ash 0.38.0 is depended on only by wgpu-hal; naga 27.0.3 only by wgpu-core and wgpu-hal; spirv only by naga; winit only by eframe, egui-wgpu, egui-winit, accesskit_winit; wgpu directly by eframe, egui-wgpu, hsk-studio-render-gpu",
+    "evidence": "P:Cargo.lock:284,3067,4602,5272,5846 and dependency lists"
+   },
+   "absent": {
+    "vulkano": 0,
+    "kumihimo_or_Kumihimo": 0,
+    "vk_or_ash_api_calls": 0,
+    "winit_code_in_crates": 0
+   }
+  },
+  "quarantine_check": {
+   "verdict": "HELD. No toolkit or GPU-API line was added after each decision, by word match, by UI-call match, and by manifest. Hold is by rules and per-round validator word checks, not mechanical: the probe still allows these owners.",
+   "baselines": {
+    "D1": "3cf0f149, the origin tip D1 and the rebase note name (S/START_LOG.md:634)",
+    "D7": "63ecf5a6, origin tip when D7 was recorded (S/ledger.json:20558, origin_at_fetch)"
+   },
+   "commits": {
+    "3cf0f149..1940292c": 237,
+    "63ecf5a6..1940292c": 157,
+    "merges": 0
+   },
+   "whole_tree_lines_excluding_tools_and_root": {
+    "at_3cf0f149": {
+     "egui": 1181,
+     "eframe": 25,
+     "winit": 0,
+     "wgpu": 577,
+     "naga": 9,
+     "WGSL": 118,
+     "ash": 0,
+     "vulkano": 0,
+     "vulkan": 15,
+     "kumihimo": 0,
+     "gpu-allocator": 0,
+     "spirv": 0
+    },
+    "at_63ecf5a6": {
+     "egui": 1181,
+     "eframe": 28,
+     "winit": 0,
+     "wgpu": 611,
+     "naga": 10,
+     "WGSL": 124,
+     "ash": 1,
+     "vulkano": 0,
+     "vulkan": 66,
+     "kumihimo": 0,
+     "gpu-allocator": 0,
+     "spirv": 0
+    },
+    "at_1940292c": {
+     "egui": 1181,
+     "eframe": 28,
+     "winit": 0,
+     "wgpu": 611,
+     "naga": 10,
+     "WGSL": 124,
+     "ash": 1,
+     "vulkano": 0,
+     "vulkan": 66,
+     "kumihimo": 0,
+     "gpu-allocator": 0,
+     "spirv": 0
+    }
+   },
+   "diff_added_removed_lines": {
+    "since_D1_3cf0f149": {
+     "egui": "+2 -2 (render-gpu doc and descriptor rewording)",
+     "eframe": "+3 -0 (render-gpu doc and descriptor text: client/external.rs:2, lib.rs:131, plan_sink/shared.rs:54)",
+     "winit": "0",
+     "wgpu": "+64 -30, all render-gpu, before D7 (SMB-GPU-CLIENT-PORT-1, SMB-R46 and R47 followups); allowed then",
+     "naga": "+2 -1",
+     "WGSL": "+10 -4",
+     "ash": "0"
+    },
+    "since_D7_63ecf5a6": {
+     "egui": 0,
+     "eframe": 0,
+     "winit": 0,
+     "wgpu": 0,
+     "naga": 0,
+     "WGSL": 0,
+     "vulkan_word": 0,
+     "ash": 0
+    }
+   },
+   "crate_churn": {
+    "hsk-studio-render-gpu": "0 lines since 63ecf5a6; last commit 847bde99 2026-10-31T13:38Z, ten hours before D7",
+    "hsk-studio-controls": "0 lines since 3cf0f149; last commit fdb4f81c 2026-10-23",
+    "hsk-studio-harness-view": "+3767 -269 since D1, +904 -45 since D7, 0 toolkit words in them"
+   },
+   "date_precision": "Read literally, wgpu lines grew on 2026-10-31 (438 to 451 src, 90 to 111 tests in render-gpu), all before D7 at 23:54:56Z that day. Nothing grew after D7.",
+   "harness_view_ui_shape": {
+    "3cf0f149": {
+     "src_lines": 42824,
+     "ui_bound_fn_lines": 5816,
+     "pub_fn_with_egui_in_signature": 18,
+     "src_files_with_toolkit_word": 37
+    },
+    "63ecf5a6": {
+     "src_lines": 43877,
+     "ui_bound_fn_lines": 5818,
+     "pub_fn_with_egui_in_signature": 18,
+     "src_files_with_toolkit_word": 37
+    },
+    "1940292c": {
+     "src_lines": 44050,
+     "ui_bound_fn_lines": 5816,
+     "pub_fn_with_egui_in_signature": 18,
+     "src_files_with_toolkit_word": 37
+    }
+   },
+   "manifests": "No egui, eframe, winit, wgpu or naga dependency line changed. Cargo.toml +1 edge press-write to observe; features added: render-gpu asset-local-backends, harness-view asset-local-test-host (git diff 3cf0f149..HEAD).",
+   "independent_records": "S/START_LOG.md:647,651,673,677 and S/validation/round-R56.json ('0 added egui / eframe / winit / wgpu lines').",
+   "enforcement_gap": "P:tools/workspace-probe.rs:555-561 would accept new use by these owners; a new line in harness-view passes every tool until a validator reads it."
+  }
+ },
+ "q3_gpu": {
+  "render_gpu_today": "wgpu. hsk-studio-render-gpu is a wgpu 27.0.1 compute backend behind a wgpu-free public port. Lib doc line 1 still says 'wgpu backend/device lifecycle'. Zero direct Vulkan code. #![forbid(unsafe_code)].",
+  "evidence": "P:crates/hsk-studio-render-gpu/src/lib.rs:1,16; P:crates/hsk-studio-render-gpu/Cargo.toml:22; P:crates/hsk-studio-render-gpu/src/device.rs:246,277",
+  "what_vulkan_discrete_rtx_3090_means": {
+   "answer": "wgpu's Vulkan backend, not direct Vulkan. The string is DeviceInfo.text(): backend key from wgpu::Backend::Vulkan, adapter kind, adapter name. The chain is render-gpu -> wgpu -> wgpu-core -> wgpu-hal -> ash, with WGSL compiled to SPIR-V inside wgpu-hal by naga (wgpu-hal feature vulkan enables naga/spv-out).",
+   "status_of_proof": "Asset-local evidence only, never host acceptance (STU-ARC-032, MT-36248 AC-HOST-005). It proves the pixels on that driver path, not the D7 path.",
+   "evidence": "P:crates/hsk-studio-render-gpu/src/device.rs:150-158,163-171; S/START_LOG.md:637; S/validation/round-R56.json; P:Cargo.lock:284,3067; ~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wgpu-hal-27.0.4/Cargo.toml:131-135; K/.GOV/spec/master-spec-v02.229/spec-modules/14-studio-creative-suite.md:275"
+  },
+  "client_port_from_SMB_GPU_CLIENT_PORT_1": {
+   "provides": [
+    "GpuClientPort trait: admit, authorize before each submission, settle once, rebind after loss, counters (client.rs:426)",
+    "AdmissionRequest with operation, module, client, device, requested_bytes; GpuGrant not Clone; GrantInfo attribution; issuer and budget source (client.rs:72,154,170)",
+    "GrantLedger settle-once rules and closed PortEvent codes, usable by a host port (client.rs:356,551)",
+    "TransientAdapter: asset-local stand-in, one headless device per grant, Windows order Vulkan then DX12 (client/transient.rs:20,39-48)",
+    "UnavailablePort kill switch; BackendChoice and DeviceOptions.backend only under feature asset-local-backends (client.rs:461; Cargo.toml:15; device.rs:39-51)",
+    "No public item opens a device, by compile_fail doctests (lib.rs:83-95)"
+   ],
+   "does_not_provide": [
+    "Any way for a real owner to hand a device to render-gpu. GrantLedger::issue_host issues a grant with lease None (client.rs:604-623); a grant without a lease makes the backend Unavailable(no_device) (plan_sink.rs:1329-1332 'a host grant before the device hand-off exists').",
+    "A Vulkan handle type. DeviceLease holds wgpu::Device and wgpu::Queue (device.rs:245-252). STU-ARC-024 lists handle type, admission, budget fields and compute-only use as a DECLARED GAP to settle with the owner (14-*.md:259).",
+    "Wgpu-free execution: every submission still goes through wgpu error scopes, map_async and pipelines."
+   ],
+   "still_public_wgpu": "SharedDevice under feature shared-device names wgpu types; used by the eframe test host only (lib.rs:46-49; plan_sink/shared.rs).",
+   "state": "SMB-GPU-CLIENT-PORT-1 PASS_V11; MT-36248 PENDING (asset side done, host side open)."
+  },
+  "rf_12_needs": {
+   "records": "S/research/integration-refactor-inventory-20261030.json:344; phase 1, after the GPU owner and binding crate exist; no new wgpu code until then.",
+   "handshake_first": [
+    "GPU owner MT-203 implemented, naming the Vulkan binding crate (D7A-01) and shader path (D7A-02)",
+    "The WP-KERNEL-012 direction conflict resolved"
+   ],
+   "studio_work_measured": {
+    "wgpu_api_lines_src": {
+     "kernel.rs": 138,
+     "plan_sink/shared.rs": 71,
+     "plan_sink.rs": 64,
+     "plan_sink/key.rs": 38,
+     "device.rs": 38,
+     "plan_sink/grade.rs": 23,
+     "pipeline.rs": 16,
+     "plan_sink/knockout.rs": 12,
+     "plan_sink/smart_mask.rs": 1
+    },
+    "api_surface": "6 create_compute_pipeline, 4 create_bind_group_layout, 7 create_buffer, 4 dispatch_workgroups, 5 push_error_scope, 4 map_async, device-lost callback and uncaptured-error handler. No render pipeline.",
+    "must_be_rebuilt_on_vulkan": [
+     "Implicit barriers become explicit (spec note D7A-10)",
+     "wgpu error scopes behind PipelineFault and submit fault codes (D7A-07)",
+     "Device-lost and uncaptured-error latches (device.rs:317-323)",
+     "Buffer map and read-back (plan_sink)",
+     "Pipeline guard: shader_validation, pipeline_create, pipeline_panic codes in pipeline.rs"
+    ],
+    "forbid_unsafe": "lib.rs:16 forbids unsafe. Raw Vulkan bindings are unsafe; a safe wrapper or lifting the forbid is part of the binding-crate choice. UNVERIFIED which crate's safety model the owner picks.",
+    "harness_view": "view/display.rs (12 wgpu:: lines) and GpuDisplay::present returning egui::TextureId (view/render.rs:58-59,76) go with the test host."
+   },
+   "keeps": "pigment RenderBackend trait (RF-12 'API unchanged'), GpuBackend public API, GpuClientPort, residency, plan compile logic."
+  },
+  "wgsl_shaders": {
+   "files_2942_lines": {
+    "kernel.wgsl": 879,
+    "grade.wgsl": 478,
+    "key.wgsl": 345,
+    "filter.wgsl": 344,
+    "fx.wgsl": 309,
+    "kernel_pixel.wgsl": 165,
+    "kernel_knockout.wgsl": 158,
+    "blur.wgsl": 138,
+    "resample.wgsl": 126
+   },
+   "inside_rust": [
+    "FORMULAS, FORMULAS_RGB and adjust bodies: WGSL text in kernel.rs:40-230, assembled at runtime by shader_source (kernel.rs:243,314-331) from pigment MODES facts",
+    "SHADER inline in plan_sink/shared.rs:68-94, concatenated with prism VIEW_WGSL (plan_sink/shared.rs:147-150; prism view_transform.rs:731)",
+    "Test literals: gpu_pipeline_fault.rs:32-55,306; gpu_plan.rs:1356"
+   ],
+   "loaded_through": "wgpu::ShaderSource::Wgsl at kernel.rs:600, pipeline.rs:332, plan_sink/grade.rs:274, plan_sink/key.rs:304, plan_sink/shared.rs:147",
+   "what_must_happen": "They must become Vulkan shader modules, which means SPIR-V (spec D7A-02: 'Vulkan consumes SPIR-V shader modules but the source language and tool are a design choice'). The spec names no language or tool; TECH-WGSL is retired (D7A-02). Not decided by anyone.",
+   "spirv_path_options": {
+    "label": "UNVERIFIED, no research done here; GLOBAL-RESEARCH applies before choosing",
+    "a": "Keep WGSL as source and compile with naga alone. Lowest rewrite: today's Vulkan rows already go through naga spv-out. Whether D7 'no wgpu' reaches naga and WGSL is not decided; the v02.227 alignment treated Naga and WGSL as class-a terms to remove.",
+    "b": "Port to another shading language with its own SPIR-V compiler. Touches all 2942 lines and the generated bodies; every parity row re-proves.",
+    "either": "shader_source builds text at runtime; a Vulkan path needs a decision between a runtime compiler in product and a build step reading pigment facts."
+   }
+  },
+  "tests_that_would_break": {
+   "direct_wgpu_api": {
+    "shared_device.rs": 25,
+    "gpu_view_transform.rs": 20,
+    "client_port.rs": 16,
+    "gpu_extended_envelope.rs": 10,
+    "gpu_submit_fault.rs": 6,
+    "gpu_plan.rs": 3,
+    "harness tests/viewer_shared_display.rs": 17
+   },
+   "wgsl_literals_or_naga_fxc_classes": [
+    "gpu_pipeline_fault.rs (VALID, NAGA_REJECTED, FXC_REJECTED; lines 32-55,194-224,297-335)",
+    "gpu_plan.rs:1356 BROKEN_WGSL and hook audit :5231-5264"
+   ],
+   "dx12_rows_retire_with_BackendChoice": [
+    "gpu_pipeline_fault.rs",
+    "gpu_plan.rs (threshold tie rows)",
+    "gpu_submit_fault.rs",
+    "text_render.rs",
+    "client_port.rs"
+   ],
+   "counts": "35 render-gpu test files, 108 #[test]. 8 files with 52 tests contain wgpu API lines, WGSL literals or DX12 rows and must change in part (most of gpu_plan's 28 tests go through the backend only). 27 files with 56 tests go through GpuBackend and pigment; they stay as written and must re-pass on the new path.",
+   "numeric_risk": "Tolerances and bit-tie rows may move with a new shader compiler: F-R46-1 shows the Vulkan threshold tie differed from pigment until SMB-R46-FOLLOWUPS-1 (S/START_LOG.md:638,640).",
+   "other_crates": "harness and harness-view GPU paths through SharedDevice; composite tests with render-gpu as dev dependency stay backend-neutral. NOT_INSPECTED one by one."
+  }
+ },
+ "q4_controls_and_gui": {
+  "controls": {
+   "build": "Typed descriptors (descriptor.rs ControlSpec, ControlKind: number, integer, toggle, choice, color, text), Registry audit, ValueStore, projection (agent JSON and manual), Availability and MenuBar in menu.rs. egui_adapter.rs is the one renderer; menu_bar_ui draws the menu.",
+   "src_share": "2715 src lines. Fully egui-free files: store, registry, projection, value, report (881 lines). descriptor.rs has egui only in comments. egui_adapter.rs 347 lines is egui-bound. menu.rs: renderer at lines 609-690, the rest free.",
+   "not_ready": [
+    "egui is not optional, so the free part cannot build without it",
+    "Gesture semantics STU-SHL-188..194 (scrub, Escape abort, one undo step) are coded inside egui_adapter.rs (lines 5-8,37)",
+    "All 4 test files use egui (21 tests)"
+   ],
+   "evidence": "P:crates/hsk-studio-controls/src/descriptor.rs:1,180; P:crates/hsk-studio-controls/src/egui_adapter.rs:1-8,37,228,311,336; P:crates/hsk-studio-controls/src/menu.rs:609-690"
+  },
+  "harness_view": {
+   "build": "lib.rs gates layout_ui on layout-ui and view on viewer; both features require dep:egui. Viewer is the whole application state: Viewer::ui(ctx) draws one egui frame, Viewer::state_json projects state, Viewer::hosted_action runs any panel action headlessly.",
+   "share": {
+    "total_src": {
+     "files": 78,
+     "lines": 44050
+    },
+    "by_file": {
+     "no_toolkit_word": {
+      "files": 41,
+      "lines": 14425,
+      "share": "32.7%"
+     },
+     "with_toolkit_word": {
+      "files": 37,
+      "lines": 29625,
+      "share": "67.3%"
+     }
+    },
+    "by_function_heuristic": {
+     "ui_bound_fn_lines": 5816,
+     "ui_bound_share": "13.2%",
+     "other_fn_lines": 25586,
+     "other_fn_share": "58.1%",
+     "outside_fn_lines": 12648,
+     "outside_share": "28.7% (types, constants, docs, tests)"
+    },
+    "reading": "About 87% is logic and data whose content survives, about 13% is draw code to rewrite (not compile-checked). The heuristic marks a function bound when its body names Ui, egui::, Painter, Color32 or calls ui./ctx.; it undercounts functions using imported egui geometry.",
+    "not_yet_separated": "None of it builds without egui: the module gate needs the feature and Viewer holds egui::TextureHandle and egui::Vec2 fields (view/mod.rs:215,233,285)."
+   },
+   "largest_draw_files": {
+    "view/mod.rs": {
+     "lines": 1507,
+     "ui_fn": 785,
+     "other_fn": 346,
+     "non_fn": 376
+    },
+    "view/hosted.rs": {
+     "lines": 1550,
+     "ui_fn": 667,
+     "other_fn": 493,
+     "non_fn": 390
+    },
+    "view/timeline_ui.rs": {
+     "lines": 652,
+     "ui_fn": 539,
+     "other_fn": 24,
+     "non_fn": 89
+    },
+    "layout_ui.rs": {
+     "lines": 1111,
+     "ui_fn": 280,
+     "other_fn": 528,
+     "non_fn": 303
+    },
+    "view/timeline.rs": {
+     "lines": 1585,
+     "ui_fn": 263,
+     "other_fn": 710,
+     "non_fn": 612
+    },
+    "view/shell.rs": {
+     "lines": 1622,
+     "ui_fn": 261,
+     "other_fn": 914,
+     "non_fn": 447
+    },
+    "view/vector.rs": {
+     "lines": 3028,
+     "ui_fn": 236,
+     "other_fn": 2058,
+     "non_fn": 734
+    },
+    "view/source_monitor.rs": {
+     "lines": 771,
+     "ui_fn": 220,
+     "other_fn": 353,
+     "non_fn": 198
+    },
+    "view/mixer.rs": {
+     "lines": 874,
+     "ui_fn": 200,
+     "other_fn": 510,
+     "non_fn": 164
+    },
+    "view/monitor.rs": {
+     "lines": 626,
+     "ui_fn": 184,
+     "other_fn": 263,
+     "non_fn": 179
+    },
+    "view/waveform.rs": {
+     "lines": 1033,
+     "ui_fn": 184,
+     "other_fn": 551,
+     "non_fn": 298
+    },
+    "view/info.rs": {
+     "lines": 880,
+     "ui_fn": 181,
+     "other_fn": 451,
+     "non_fn": 248
+    }
+   },
+   "public_egui_signatures": "18 pub fns: view/mod.rs:180,879; view/hosted.rs:151,157; view/shell.rs:181,217; view/timeline.rs:395,401,408,898; view/timeline/audio_ui.rs:27,34; view/monitor.rs:99,542; view/source_monitor.rs:465; view/file_dialog.rs:387; view/prototype.rs:899; layout_ui.rs:555. Plus GpuDisplay::present and Frame.texture (view/render.rs:58-59,76). RF-01 phase 0 target of zero is unmet, unchanged since D1."
+  },
+  "harness": {
+   "build": "cli.rs headless CLI 1149 lines, no toolkit; lib.rs facade; bin/studio-harness.rs 97 lines hosts Viewer in eframe. 83 test files, 254 tests, 31 files name egui.",
+   "evidence": "P:crates/hsk-studio-harness/src/cli.rs; P:crates/hsk-studio-harness/src/bin/studio-harness.rs:19-23,73-78"
+  },
+  "gui_surfaces_to_rehost": {
+   "workspace_panels_25": [
+    "Layers",
+    "Properties",
+    "Info",
+    "Develop",
+    "Layout Editor",
+    "Program Monitor",
+    "Source Monitor",
+    "Timeline",
+    "Mixer",
+    "Waveform Editor",
+    "Spectral Display",
+    "Prototype Player",
+    "Appearance",
+    "Stroke",
+    "Swatches",
+    "Graphic Styles",
+    "Align & Distribute",
+    "Transform",
+    "Path Operations",
+    "Masks",
+    "Envelope Distort",
+    "Brushes",
+    "Vector Export",
+    "Vector Import",
+    "Audio Batch"
+   ],
+   "shell_and_always_on": [
+    "Menu bar per STU-SHL-011 and WORKSPACE > Panels per STU-SHL-036 (shell.rs:841,945)",
+    "Toolbar, path field, save and export controls, zoom",
+    "Canvas with pan, zoom, gesture overlay, checker (view/mod.rs:1178-1380,1489)",
+    "Tool rail with 33 tools (view/edit.rs:37; view/mod.rs:1382)",
+    "Status panel; receipt and loss panel (view/mod.rs:1145)",
+    "Keyboard shortcuts (view/mod.rs:1473; shell.rs:183-212)"
+   ],
+   "windows_and_dialogs": [
+    "Help pages: Studio Manual, Full Command Index, Keyboard Shortcut Reference, System Report, About Studio (shell.rs)",
+    "Own file dialog with recent files (view/file_dialog.rs)",
+    "Develop export dialog, spot tool (view/develop/export_dialog.rs, spot.rs)",
+    "Proof setup window, proof preview, gamut overlay (view/proof.rs)"
+   ],
+   "embedded_tool_ui": [
+    "Timeline tracks and audio lanes (view/timeline_ui.rs, timeline/audio_ui.rs)",
+    "Audio import panel (view/audio_import.rs)",
+    "Layout pages, tables, styles, threads, find, preflight (layout_ui/*)",
+    "Auto layout and component instance controls (view/design/*)",
+    "Select and liquify, fill tools, text tool, brush mix",
+    "Vector tool options and panels (view/vector.rs, vector/*)",
+    "Monitors' transport controls"
+   ],
+   "egui_constructors": "At least 20 direct egui::Window, SidePanel or TopBottomPanel constructors across 14 files.",
+   "evidence": "P:crates/hsk-studio-harness-view/src/view/shell.rs:91,183-212; P:crates/hsk-studio-harness-view/src/view/hosted.rs:71; P:crates/hsk-studio-harness/RUN-UI.md (436 lines)",
+   "absent_today_and_required_at_host": "Docking, multiwindow, IME, DPI code (RF-02); Flight Recorder, GPU report, accessibility snapshot Help leaves are greyed (shell.rs missing()). RF-02 inventory; shell.rs reasons verified."
+  },
+  "ready_for_renderer_swap": [
+   "Backend-neutral render path: render.rs Frame with rgba8 and backend gpu or cpu; read-back fallback through render-cpu (view/render.rs:44-75)",
+   "Headless action path: Viewer::hosted_action, state_json, stable widget id strings (view/hosted.rs:1348; view/mod.rs:119,837)",
+   "Controls Registry, projection, Availability with reason codes: one evaluation feeding menu, agent JSON, manual (menu.rs:8)",
+   "Engine crates: no toolkit dependency in any crate outside those listed in q2",
+   "Asset-local test host behind features; RF-06, RF-07, RF-08, RF-09 phase-0 lanes PASS (SMB-ATTRIBUTION-1, SMB-BUSINESS-EVENTS-1, SMB-JOB-ADMISSION-1, SMB-SETTINGS-SCHEMA-1)"
+  ],
+  "not_ready_for_renderer_swap": [
+   "RF-01 phase 0 egui-free public API: no lane exists (ledger search by RF id)",
+   "RF-05 one descriptor source: no lane exists; five id vocabularies as inventoried at 3cf0f149 (shell.rs, hosted.rs, action.rs, manual.rs, panel.rs and 19 widget modules)",
+   "egui types in logic signatures: timeline layout takes egui::Rect, key handling takes egui::Key",
+   "Viewer fields and display texture ids are egui types",
+   "Controls non-optional egui reaches harness-core",
+   "Tests: 43 of 74 Viewer test files name egui; pointer tests aim by egui layout (S/START_LOG.md:574)",
+   "controls and harness-view have zero non-egui draw abstraction"
+  ],
+  "test_count_correction": "Inventory says 47/83 harness + 16/21 harness-view + 4/4 controls drive egui. By name at tip: 31/83, 16/30, 4/4; the 47 likely counts indirect frame-drivers (50/83 by a wider match). UNVERIFIED which definition the inventory used."
+ },
+ "q5_handshake_side": {
+  "branch_state": {
+   "local": "feat/WP-KERNEL-012 and origin tracking ref in K: 292d7a1c, last reflog update 2026-10-09. wtc-native-editors-v1 is on it, clean.",
+   "remote": "git ls-remote: cbce875e (2026-10-29, 150 commits ahead, fast-forward of 292d7a1c). Object is in K's store; read with git show. Not fetched (read-only). Push date NOT known.",
+   "records": "WP files in K last changed 2026-10-28 (git log). packet lifecycle status In Progress. No D7 as a word, 'pure Vulkan' or 'no wgpu' in packet.json or MT-197/198/199/203/212."
+  },
+  "shell_ui_layer_at_cbce875e": {
+   "fact": "eframe 0.33.3 with Renderer::Wgpu, wgpu 27.0.1 feature vulkan, egui 0.33.3, egui_tiles 0.14, kumihimo-egui native-eframe at 8a97b9ae, patched eframe, egui-wgpu, accesskit_windows from that same asset revision. Strict Vulkan via NativeBackend::Vulkan.validate_actual.",
+   "own_warning": "main.rs:610 logs 'trusted GPU ownership/accounting not bound; no authoritative GPU budget'.",
+   "non_egui_layer": "None. No ash::, vulkano or vk:: in src/frontend or src/backend at cbce875e (git grep -l, zero files).",
+   "evidence": "H:src/frontend/handshake_native/Cargo.toml:115-119,149-151,373-375,519-522; H:src/frontend/handshake_native/src/main.rs:562-566,610; H:src/frontend/handshake_native/src/app.rs:8242,8246; commit 91b403f2 2026-10-25 'Mount Kumihimo with Vulkan native window layouts'"
+  },
+  "mt_state_in_K": {
+   "MT-197": "PENDING; design_result.status NOT_STARTED; title includes 'grounded renderer decision'; blocks 198..203",
+   "MT-198": "PENDING; renderer_capability VERIFIED_SCOPED_CANONICAL_SOURCE naming kumihimo-egui 0.2.0 at 8a97b9ae with API NativeBackend::Vulkan and EframeNativeCoordinator",
+   "MT-199": "BLOCKED, claimed; 'Central GPU lifecycle, correlated persistence/crash survival and independent final runtime verdict remain open'",
+   "MT-200_201_212": "PENDING, active, claimed by one owner",
+   "MT-202": "PENDING",
+   "MT-203_gpu_owner": "PENDING, not claimed; gpu_contract_result.status NOT_STARTED, canonical_owner null, typed_clients empty. AC203-6 says 'Integrate the actual Vulkan GUI as a client of that owner'. Depends on MT-197.",
+   "evidence": "K/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-197.json:615; K/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-198.json:563; K/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-203.json:597; K/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/operator_gui_rollup_20261026"
+  },
+  "conflict": {
+   "open": "YES. The spec (v02.229) says a toolkit or backend built on wgpu, egui or eframe does not fulfil GUI-DESKTOP-003, while WP-KERNEL-012's code, MT-198 verified capability and handoff v8 are exactly that. WP-012 pins are preserved by rule, so the two authorities diverge in the open.",
+   "operator_quote": "'i think this is also the direction we are going for wp kernel' is contradicted by every WP-012 record inspected; UNVERIFIED that anyone told the WP-012 owner.",
+   "owner_of_resolving": "Recorded: 'a decision for WP-KERNEL-012's owner and the Operator'; 'the WP-KERNEL-012 owner confirms or the direction is raised there'. Studio cannot resolve it. No record shows it was raised after 2026-11-01.",
+   "evidence": "K/.GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md:26; S/research/integration-refactor-inventory-20261030.json:457; S/spec-enrichment/STUDIO-ENRICHMENT-20261101-D7-VULKAN-ALIGNMENT.json:96; S/spec-enrichment/STUDIO-ENRICHMENT-20261101-D7-VULKAN-ALIGNMENT.json:353; K/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase02-successor-handoff-v8.json (adoption text 'including eframe/egui-wgpu/accesskit patches')"
+  },
+  "kumihimo": {
+   "non_egui_renderer": "NOT STARTED anywhere inspected. Crates at A: kumihimo-content, -core, -egui, -external-apps, -layout-json, -render-bridge, -web. Vulkan appears only through NativeBackend in kumihimo-egui/src/native.rs. Last Kumihimo commit d490d020 2026-10-25, before D8. Remote has no other branch for it (git ls-remote lists codex/handpick, codex/handshake-studio-assets and lanes).",
+   "catalog": "KUMIHIMO-ASSET-001: 'workspace window and frame mechanics'; capabilities include egui, render bridge, 'Vulkan backend selection'; no controls capability. A:assets-index.yaml:97-119",
+   "d8_basis": "VERIFIED: kumihimo-core depends only on optional serde; kumihimo-content only on kumihimo-core (A:Kumihimo/product/kumihimo-core/Cargo.toml, kumihimo-content/Cargo.toml).",
+   "gap_against_STU_ARC_023": "kumihimo-core and kumihimo-content show no control kind of STU-ARC-014 (text field, slider, swatch, gizmo, timeline value): grep finds ControlProfile { Standard, Comfortable } (navigation.rs:81) and one word hit each in drop.rs and decimal.rs (those two not opened). ControlRecord lives in kumihimo-egui/src/lib.rs:293. The slider-class semantics exist only in hsk-studio-controls. STU-ARC-023 (14-*.md:257) calls Kumihimo 'the single owner', and RF-05 targets the Studio controls Registry as the descriptor source: these two records point at different owners.",
+   "render_bridge": "kumihimo-render-bridge desktop feature depends on egui, wgpu, egui-wgpu (local manifest at D:/Projects/LLM projects/.assets/assets, 3b70ad89; A's copy NOT_INSPECTED line by line).",
+   "other_local_trees": "wt-ilja, handshake_main and other wtc-* worktrees NOT_INSPECTED for this question. Kumihimo local checkout .assets/assets has no modified Kumihimo file (git status).",
+   "patched_toolkit": "A:Kumihimo/product/Cargo.toml carries [patch.crates-io] for eframe, egui-wgpu, accesskit_windows in third-party/, so Kumihimo itself has invested in the eframe path."
+  }
+ },
+ "q6_restart": {
+  "see": "restart_prerequisites (ordered) and open_operator_decisions at file root",
+  "what_studio_can_build_now": [
+   {
+    "item": "RF-01 phase 0: move egui types out of 18 public signatures and Viewer fields; plain geometry and key types; keep the egui draw code as a gated leaf",
+    "why_now": "Phase 0 per inventory, no lane yet, every Viewer lane adds rebase surface",
+    "reuse": "state_json, hosted_action, GpuDisplay seam",
+    "check": "Build harness-view view logic with no egui in its closure; 0 pub egui signatures; existing suites green",
+    "status_rule": "Adds no toolkit code, moves it. Whether it counts as a paused 'GUI lane' needs a lead ruling: ledger direction.dispatch pauses 'harness-view surfaces, controls renderer'; phasing lists RF-01 under phase 0."
+   },
+   {
+    "item": "Make egui optional in hsk-studio-controls; gate egui_adapter and menu_bar_ui",
+    "why_now": "One manifest line and two gates; removes egui from harness-core's closure",
+    "reuse": "feature pattern from harness-view",
+    "check": "cargo tree of harness-core default build has no egui (needs a round; not run here)"
+   },
+   {
+    "item": "RF-05 Studio-side unification of the five id vocabularies",
+    "why_now": "Phase 0; feeds any renderer and AccessKit",
+    "risk": "Hold until open_operator_decisions O5 says where the mechanic lives, or it is built twice"
+   },
+   {
+    "item": "Move gesture semantics out of egui_adapter.rs into renderer-free code in controls",
+    "why_now": "STU-SHL-188..194 logic is the costliest part to lose in a re-host",
+    "check": "Tests drive gestures with no egui context"
+   },
+   {
+    "item": "Rewrite tests to the headless Viewer path where they do not assert drawing",
+    "why_now": "43 of 74 Viewer test files name egui; they would all fall with the toolkit",
+    "reuse": "tests/support_context, hosted_action"
+   },
+   {
+    "item": "Mechanical quarantine gate: fail a lane on added egui, eframe, winit, wgpu, naga, WGSL lines outside a named list",
+    "why_now": "Hold is by reading only; workspace-probe DESIGNATED still allows them",
+    "reuse": "S/tools/lane-check.sh, P:tools/workspace-probe.rs (steward surfaces; extend, no new public script)"
+   },
+   {
+    "item": "Studio input to MT-203: send MT-36248's port and the lease gap (client.rs:604, plan_sink.rs:1329) as the client requirements",
+    "why_now": "STU-ARC-024 gap is settled only with the owner; costs no code",
+    "owner_note": "Must go through the WP-KERNEL-012 owner; no WP-012 file edited by Studio"
+   },
+   {
+    "item": "GPU parity baseline: record the current wgpu-Vulkan numbers per kernel (reuse rounds' printed max deltas) as the RF-12 acceptance table",
+    "why_now": "Needs no render-gpu code; catches shader compiler drift",
+    "reuse": "tests/gpu_*.rs output in round records"
+   },
+   {
+    "item": "Fix records: HANDOFF D6, D7, D8, DX12 lines; RF-02 target; operator_decisions_open; fetch feat/WP-KERNEL-012 and re-inventory Handshake at cbce875e",
+    "why_now": "The next lead reads these first (see q1 record_drift_found_do_not_repeat)"
+   }
+  ]
+ },
+ "q7_risks_engine_redo": [
+  {
+   "risk": "All 2942 WGSL lines plus generated bodies and every render-gpu PASS row get re-proved when RF-12 lands.",
+   "exposure": "render-gpu 29k lines incl. tests; every lane re-opened by a render-gpu change (CX-VAL-009).",
+   "mitigation": "No render-gpu change now (0 lines since 63ecf5a6); parity table first; decide naga or a port early; keep pigment as the oracle."
+  },
+  {
+   "risk": "GPU parity debt: engine lanes keep adding composite, prism and pulse behaviour while GPU kernels are frozen (common brief rule 1).",
+   "exposure": "composite +1074, prism +2877 since 63ecf5a6, pigment 0, render-gpu 0. How much of it needs a GPU body is NOT_INSPECTED.",
+   "mitigation": "List CPU-only operators as typed refusals in a ledger so RF-12 knows its backlog."
+  },
+  {
+   "risk": "A pure-Vulkan Studio client inside an eframe/wgpu shell means two device owners or handle interop, violating GUI-DESKTOP-025.",
+   "exposure": "RF-12, MT-36231, MT-36250 if WP-012 does not move.",
+   "mitigation": "Resolve the conflict before any RF-12 lane. UNVERIFIED whether interop is possible at those pins."
+  },
+  {
+   "risk": "RF-05 built on hsk-studio-controls, then STU-ARC-023 moves the mechanic to Kumihimo.",
+   "exposure": "774 CONTROLS MTs high exposure; 19 widget modules.",
+   "mitigation": "Decide O5 first; keep the descriptor type movable (no toolkit types, serde only)."
+  },
+  {
+   "risk": "Viewer logic added now lands in egui-compiled files and collides with RF-01.",
+   "exposure": "harness-view +3767 lines since D1 across 59 files; view/text.rs, vector.rs, timeline.rs active.",
+   "mitigation": "Run RF-01 before the next Viewer wave; one lane at a time in shell.rs and mod.rs."
+  },
+  {
+   "risk": "Egui-driven tests and pointer tests are lost, including layout-dependent ones (F-TL-2).",
+   "exposure": "31 + 16 + 4 test files by name.",
+   "mitigation": "Headless path conversion now; RF-11 keeps asset-local proof host-independent."
+  },
+  {
+   "risk": "Proof read as host acceptance: 'vulkan:discrete' rows are wgpu and asset-local.",
+   "exposure": "Every round record since R46.",
+   "mitigation": "Say 'wgpu Vulkan backend, asset-local' in round records; STU-ARC-032."
+  },
+  {
+   "risk": "Float behaviour shifts with a new shader compiler or explicit-barrier path; threshold tie precedent F-R46-1.",
+   "exposure": "gpu_plan tie rows, exactness classes.",
+   "mitigation": "Re-run ties first; binary32 reference stays in pigment."
+  },
+  {
+   "risk": "Render plan and receipts mention backend keys dx12, metal; D7 removes them; macOS undecided.",
+   "exposure": "BackendChoice, Metal candidates, DeviceInfo.backend.",
+   "mitigation": "D7A-04 decision; keep 'backend' key as data."
+  },
+  {
+   "risk": "Removing wgpu rebuilds every dependent test binary under new identities.",
+   "exposure": "F-R46-8: a harness dev-dependency change made 146.3 GiB of new artifacts (S/START_LOG.md:638).",
+   "mitigation": "Cargo batch and C: check before the RF-12 round."
+  },
+  {
+   "risk": "Low risk, for the record: engine crates are not exposed.",
+   "exposure": "folio, composite, layout, type, pulse, reel, press, ps* have no egui, wgpu or eframe dependency; pigment RenderBackend trait unchanged by RF-12.",
+   "mitigation": "Continue engine lanes under D6."
+  }
+ ],
+ "restart_prerequisites": [
+  {
+   "order": 1,
+   "item": "Decide and record whether WP-KERNEL-012's shell moves off eframe/egui-wgpu (MT-197 renderer decision, MT-198 re-grounded). Everything below assumes it does.",
+   "owner": "Operator, with the WP-KERNEL-012 owner",
+   "state": "Open; flagged 2026-10-31; not raised in any record since",
+   "proof": "WP-012 record states the path; spec divergence D7A-17 closed"
+  },
+  {
+   "order": 2,
+   "item": "Name the Vulkan binding crate and shader path (D7A-01, D7A-02), and settle STU-ARC-024's gaps: handle type, admission, budgets, compute without a surface, device hand-off.",
+   "owner": "Handshake (MT-203 owner), Operator may name them",
+   "state": "MT-197 and MT-203 NOT_STARTED, canonical_owner null",
+   "proof": "gpu_contract_result populated"
+  },
+  {
+   "order": 3,
+   "item": "Non-egui native Vulkan shell UI and control layer: window, input, focus, IME, DPI, AccessKit, text, docking, multiwindow, surface recovery (GUI-DESKTOP-022).",
+   "owner": "Handshake (MT-198, 199, 200, 212 family)",
+   "state": "Nothing exists",
+   "proof": "Genuine Vulkan frames on the real binary (GUI-DESKTOP-024)"
+  },
+  {
+   "order": 4,
+   "item": "Kumihimo non-egui pure-Vulkan renderer crate, published and pinned; control mechanic home decided; ControlRecord outside kumihimo-egui.",
+   "owner": "Kumihimo asset work (D8); boundary with item 3 is O4",
+   "state": "Not started; last Kumihimo commit 2026-10-25",
+   "proof": "Independent proof at the asset, exact pin (GUI-DESKTOP-004, CX-MODULE-LIFECYCLE)"
+  },
+  {
+   "order": 5,
+   "item": "RF-01 and RF-05 phase 0: egui-free public API, one descriptor source, controls without mandatory egui. Can start now (RF-05 after O5).",
+   "owner": "Studio",
+   "state": "No lane yet",
+   "proof": "0 pub egui signatures; closure without egui"
+  },
+  {
+   "order": 6,
+   "item": "Host mount: live Studio pane consumer in PaneRegistry/EditorSurface, host adapters for observe and kernel-bindings, module settings registration, document-revision type.",
+   "owner": "Handshake, with Studio host-adoption MTs (MT-36231, MT-36249)",
+   "state": "Absent (S/research/integration-refactor-inventory-20261030.json:363; re-check at cbce875e NOT_INSPECTED)",
+   "proof": "Studio pane mounted on the real Vulkan path"
+  },
+  {
+   "order": 7,
+   "item": "A test host GUI lanes can prove against while the mount matures. D1 forbids new egui, so the frozen harness window cannot host new surfaces.",
+   "owner": "Operator decision O6, then Studio",
+   "state": "Undecided",
+   "proof": "Asset-local surface proof without egui"
+  },
+  {
+   "order": 8,
+   "item": "Re-brief GUI lanes on the named layer: SMB-FIG-GRID-3, SMB-AE-KEYFRAME-TIMELINE-1, re-host of the 25 panels and shell surfaces (RF-02), Viewer candidates in ledger next_lane_candidates.",
+   "owner": "Studio",
+   "state": "PAUSED and BLOCKED in ledger",
+   "proof": "HOST INTEGRATION rows; MT-36250"
+  },
+  {
+   "order": 9,
+   "item": "RF-12 render-gpu pure-Vulkan client. Needed for GPU canvas and GPU rows; canvas may show render-cpu read-back before it, so it need not gate the first GUI lane. UNVERIFIED that read-back meets the host's display path.",
+   "owner": "Studio, after items 1-2",
+   "state": "Quarantined",
+   "proof": "Backend named on direct Vulkan; parity table; MT-36248 host side"
+  },
+  {
+   "order": 10,
+   "item": "Acceptance: genuine Vulkan workflows and watcher survival on the Studio pane (RF-11, MT-36251), Palmistry to FR ingestion (WP-KERNEL-016).",
+   "owner": "Handshake and Studio",
+   "state": "Later",
+   "proof": "GUI-DESKTOP-024, 054"
+  }
+ ],
+ "open_operator_decisions": [
+  {
+   "id": "O1",
+   "decision": "Does WP-KERNEL-012 leave eframe/egui-wgpu and kumihimo-egui for pure Vulkan, and when? In-flight pins and MT-198's verified capability point the other way.",
+   "evidence": "S/research/integration-refactor-inventory-20261030.json:457; K/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-198.json:563"
+  },
+  {
+   "id": "O2",
+   "decision": "Vulkan binding crate: name it, or delegate to the MT-203 owner as recorded. Affects unsafe policy in render-gpu.",
+   "evidence": "S/spec-enrichment/STUDIO-ENRICHMENT-20261101-D7-VULKAN-ALIGNMENT.json:99"
+  },
+  {
+   "id": "O3",
+   "decision": "Does D7 reach naga and WGSL as a source language, or only wgpu? Decides whether 2942 shader lines are compiled or rewritten.",
+   "evidence": "S/spec-enrichment/STUDIO-ENRICHMENT-20261101-D7-VULKAN-ALIGNMENT.json:113"
+  },
+  {
+   "id": "O4",
+   "decision": "Boundary between the shell's UI and control layer (Handshake prerequisite) and Kumihimo's renderer crate (D8): who owns text, IME, AccessKit and widget drawing.",
+   "evidence": "S/research/integration-refactor-inventory-20261030.json:363; S/research/integration-refactor-inventory-20261030.json:472"
+  },
+  {
+   "id": "O5",
+   "decision": "Where the control mechanic lives: STU-ARC-023 says Kumihimo is single owner, code and RF-05 have it in hsk-studio-controls, Kumihimo core has none.",
+   "evidence": "K/.GOV/spec/master-spec-v02.229/spec-modules/14-studio-creative-suite.md:223,257; S/research/integration-refactor-inventory-20261030.json:224"
+  },
+  {
+   "id": "O6",
+   "decision": "How GUI work proceeds until the layer exists: wait entirely, allow window-free Viewer logic lanes only (today's practice), or build a non-egui asset-local Vulkan test host.",
+   "evidence": "S/research/integration-refactor-inventory-20261030.json:328; S/ledger.json:20102"
+  },
+  {
+   "id": "O7",
+   "decision": "May render-gpu be refactored behind its port (separating plan logic from device calls) before the owner exists, or is that 'new wgpu code'?",
+   "evidence": "S/builders/briefs/wave-parity-2-common.md:17"
+  },
+  {
+   "id": "O8",
+   "decision": "Platform scope after D7: macOS without Metal, and Windows machines without a usable Vulkan driver once DX12 rows retire.",
+   "evidence": "S/spec-enrichment/STUDIO-ENRICHMENT-20261101-D7-VULKAN-ALIGNMENT.json:229"
+  },
+  {
+   "id": "O9",
+   "decision": "D3 was never answered by the Operator; the lead reading stands (Studio defines the client port, Handshake the owner).",
+   "evidence": "S/research/integration-refactor-inventory-20261030.json:423"
+  },
+  {
+   "id": "O10",
+   "decision": "Spec-owner items D7A-01..17 and SD-31..52 PROPOSED remain unreviewed.",
+   "evidence": "S/spec-enrichment/STUDIO-ENRICHMENT-20261101-D7-VULKAN-ALIGNMENT.json:353; S/ledger.json:20276"
+  }
+ ]
+}

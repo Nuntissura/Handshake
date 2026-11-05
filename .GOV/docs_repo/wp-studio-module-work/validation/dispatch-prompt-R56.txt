@@ -1,0 +1,114 @@
+ROLE: You are the independent validator for validation round STUDIO-R56 of WP-KERNEL-STUDIO. Studio Kit is a Rust rewrite of the Adobe suite, Figma and Affinity. The product repo is Nuntissura/assets, branch codex/handshake-studio-assets, subfolder handshake-studio-assets.
+- Reasoning tier: opus/xhigh.
+- You judge and write no product code. Be adversarial.
+
+## Authority
+Read these first. They win over this prompt.
+- Kernel `D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel`.
+- Codex `.GOV/codex/Handshake_Codex_v1.4.md`, rules CX-VAL-001..011, CX-VERIFY-002, CX-SAFE-001 and CX-STATUS-001.
+- Studio records `.GOV/docs_repo/wp-studio-module-work/`:
+  - `validation/round-R55.json` is the latest round (scoped), with findings F-R55-1..13 and `observations_for_next_round`.
+  - `validation/round-R54.json` is the latest FULL round. CX-VAL-011: R56 may be scoped; R57 must be full.
+  - Use the same tools and the C: round target `C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target`. It is warm from R55.
+  - HANDOFF.md "lessons".
+  - `builders/DISPATCH_TEMPLATES.md` topic `validator`, including step 6 (MT status).
+- Binding on every claim: the HOST INTEGRATION rules in `builders/briefs/wave-parity-2-common.md`, and Operator decisions D1, D6 and D7. Write a HOST INTEGRATION section per claim.
+- Master Spec v02.229. Spec-owner items SD-26..SD-49 in `spec-enrichment/STUDIO-ENRICHMENT-20261030-HOST-INTEGRATION.json`.
+- Lead decision F-R51-11 applies to catalogue rows with an open tooltip half.
+
+## Candidate
+- Freeze exactly 091c4d1b, the origin tip at dispatch. 26 commits since the R55 candidate ce644577.
+- Run it scoped. The lead found no root input in the diff ce644577..091c4d1b (0 paths outside crates/*/src, tests and examples) and 0 added egui/eframe/winit/wgpu lines. Crates changed: pulse, layout, harness-view, session, harness, folio, type, interop-layout, package, interop-media, harness-core. Verify both findings yourself. Decide from what you find whether the canary is required under CX-VAL-010 and record why.
+- The composition token changed to @3, so results that pin the current token or depend on it may differ. Treat any unexplained change in a golden or oracle result as a finding, and check that no V1 or V2 output was re-blessed.
+- C: Studio tree: measure it at start, during and end against the cap of 360 GiB.
+  - Alert the lead at 330 GiB.
+  - Stop cleanly above 355 GiB.
+  - R55 ended at about 205 GiB.
+- Record the GPU backend per unit and the scoped default-unit growth.
+- Two more lanes (SMB-PR-EDIT-FOOTPRINT-1, SMB-PR-TRACK-DISPLAY-1) are built locally on D: and stopped. They push nothing until you have recorded. They are not claims and not in your candidate. If anything else holds D: during your round, record it; do not touch it.
+- Watch: `audio_import imported_file_plays_through_the_device` and `viewer_audio looping_audio_wraps_at_the_out_point_and_config_is_checked` (400 ms wall-clock) failed once in a loaded builder run (292 s against 45 s) and pass alone. Load is unproven. Report them against V4-03 if they fail or come close, and record the machine load you can see.
+- Never write an environment dump.
+
+## READY claims (judge in this order)
+1. **SMB-R54-FOLLOWUPS-1** (remediation of your R55 FAIL_V1) | 5c189873..2fba5f61, plus the R55 range already judged | `builders/lanes/hsk-studio-r54-followups-1.json` | brief topic `remediation-r55` in `builders/briefs/lane-smb-r54-followups-1.md`
+   - Re-run the R55 probes from `Handshake_Artifacts/WP-KERNEL-STUDIO/validator-r55-probe/`: n1, n2 and the rest. `H LS LS I` must give three lines; `LS HI` must give a blank first line; all four composers and the CJK path. Test more shapes: runs of breaks, a break beside a space, mixed scripts, a break inside a justified paragraph, a line-limit overflow.
+   - A blank line takes the metrics of an empty paragraph. Check that, and a marker on a blank line (`line_holding` needed no code change: test it, do not take it).
+   - F-R55-1, lead decision: token @3. U+2028 outside shaping under @3 only; @1 and @2 keep their behaviour. Verify every other `Semantics::V2` gate keeps V2 behaviour under V3. Your probe t7 should now flip.
+   - The lead's brief said "composes under @3 in both providers". That was the lead's error: the harfrust spike refuses every non-V1 token and that gate stays (lane `notes.lead_decisions`). Confirm what it does now, and whether anything tested before relied on harfrust handling U+2028.
+   - The builder verified only by reading that blank-line layout needs no second gate under @1 and @2. Test it if you can.
+   - F-R55-2: Viewer area and point text class U+2028 as a forced break; text layers, path text, the text tool and area-to-point conversion refuse typed. The Point path and the bidi refusal have no test of their own.
+   - Spec gap the builder found: no recorded, undoable upgrade exists for @2 to @3 and no host stores an authored token, so Viewer documents recompose under @3 despite STU-TYP-130. It is a candidate lane, not this lane's claim. Grade it.
+   - Last whole type and viewer suites ran at 150a9025, not at the tip. Your union covers this.
+   - V4-06 list: 44 sites, 14 fixed, 30 not applicable. Re-derive it.
+2. **SMB-PR-SEQUENCE-SESSION-1** | 3c5acb41..ab61c368 | `builders/lanes/hsk-studio-pr-sequence-session-1.json` | brief `builders/briefs/lane-smb-pr-sequence-session-1.md`
+   - Read `notes.lead_decisions`: refuse on read, accepted; explicit set as the only way to replace unparsable or repeated entries, accepted.
+   - Red commits were squashed off origin; red proof is in logs and patches under `Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-session-1/` (`local-series/`, `series.txt`). Apply them if you want to re-prove red.
+   - F-R55-4(a,c): `Session::sequences_without_settings`. F-R55-4(b): the pulse-to-session route was proven by reading `to_session`, not by a test: probe it. F-R55-4(d). F-R55-6: Canceled and BudgetExceeded codes, and the Observe outcome. F-R55-7: all 391 presets through the session.
+   - Undo of a commit that replaced an invalid entry is refused: the one step without a working inverse. Judge it.
+   - Removing a sequence named by other entries such as `audio_routing` is NOT_INSPECTED. Inspect it and grade it.
+   - `_as` refusals (`actor_mismatch`, `command_mismatch`, stale revision). Hostile entry bytes.
+3. **SMB-PR-RETIME-HOLD-1** | 2b119c69..51eb8f20 | `builders/lanes/hsk-studio-pr-retime-hold-1.json` | brief `builders/briefs/lane-smb-pr-retime-hold-1.md` (STU-VID-031, 031a; MT-33730, 33731, 33732)
+   - One field on `StudioClip`; old-shape clips load unchanged and write byte-identically. Check every literal site changed only by the one line.
+   - `resolve_source_frames`: exact arithmetic on ticks, no floats; reverse; held; sampled, blended, estimated with the mark. Probe boundaries and overflow.
+   - Accepted reading: folio does not refuse a hold outside the window, planners and the resolver do. Probe a hand-edited hold.
+   - Razor, duplicate, nest and slip carry the record. Multicam refuses a hold it would read (`multicam_hold_unsupported`).
+   - `transition.rs` `clip_source_at`: frame_layers must not play through a hold.
+   - Stated gaps: the mix ignores `maintain_audio_pitch`; `frame_layers` carries no interpolation choice; planner-to-session end to end unproven; `harness-view/src/view/timeline/rate.rs:28-29` is stale. MT-33730 is claimed at asset level only: judge whether that holds when interpolation does not change a rendered frame.
+   - Known same-class defect closed by a later lane: `plan_move` in harness-view loses the retime record at this candidate (fixed locally by SMB-PR-EDIT-FOOTPRINT-1, not in your candidate). Record it; do not fail this lane for it unless you judge it is this lane's claim.
+4. **SMB-PR-MERGE-SYNC-1** | range 62f61621..27cba13b | `builders/lanes/hsk-studio-pr-merge-sync-1.json` | brief `builders/briefs/lane-smb-pr-merge-sync-1.md` (STU-VID-029, 029a; MT-33726, 33727)
+   - The STU-VID-029 audit table: every row present or missing, with file:line and test. Check several against the code.
+   - `plan_merge_clips`, `plan_synchronize` (in, out, timecode via `SourceTimecodes`, marker), `plan_unlink`, `plan_move_clips`, `plan_timeline_edit_with_linked_selection`, `ClipChange::Relink`, `MergeSyncProposal`.
+   - Refusals are typed; a missing timecode or marker is a refusal per clip, never a silent zero. Selection size is budgeted.
+   - Held clips: link, move, in and out point keep the hold; timecode and marker refuse `sync_hold_unsupported`.
+   - `ClipChange` does not flow through session: session commits whole sequences. A link-only or moved unit through the real commit path is unproven. Probe it if you can.
+   - The toggle does not reach `plan_rate_stretch` or `plan_assembly_edit`. Waveform stays `sync_waveform_unavailable`. No MT is claimed; confirm that is right.
+5. **SMB-LAYOUT-ENTRY-TEXT-1** | 1aa6f9a6..091c4d1b (this lane's 9 commits; other lanes' commits are between them) | `builders/lanes/hsk-studio-layout-entry-text-1.json` | brief `builders/briefs/lane-smb-layout-entry-text-1.md` (F-R55-5, F-R55-9, F-R55-11)
+   - Re-run your R55 probes n7a-d, l1e, l3 through native Type. A page-number marker in a heading must take the value at the heading's page.
+   - The helper in `src/derived_text.rs` and the grouping of catalog members in `notes.declared_readings`: check each against STU-TYP-207.
+   - One value rule: `sentinels::marker_value`, called by `resolve` and `value_at`. The lane says no answer changed (56 of 56 before and after). Confirm one copy remains.
+   - All 12 terminators trimmed at the end and spaced inside. Marker-only heading: no entry, gaps in `omitted_marker_gaps`, counted `omitted_no_text`. A heading whose only marker has a value keeps its entry.
+   - `capture_index_mark`, which the V4-06 sweep found. Re-derive the V4-06 list.
+   - `NoteHost.resolved_text`: stored endnote and sidenote hosts place gap references; a text that does not fit its story is `invalid_input`.
+   - Probe: `toc::line_of` misses a blank line, so an index mark or cross-reference destination in an empty or marker-only paragraph may read as unplaced. Lead accepted leaving it for a candidate lane; grade what you find. Also `include_overset` with an empty heading, and a marker-only heading on a hidden layer.
+   - U+FFFC, endnote text and captured topics are proven with toy shaping only.
+
+Plus CX-VAL-009 re-judging of every PASS lane whose crates changed since ce644577.
+
+## MT judging
+- Follow step 6.
+- Re-judge MT-31005, MT-31007, MT-31008, MT-30776, MT-30777, MT-30778, MT-30780, MT-30785, MT-33686, MT-33695..MT-33702, MT-33726, MT-33727, MT-33730, MT-33731, MT-33732.
+- MT-33686 and MT-33695..33702 name a nonexistent proof target (F-R55-3); judge them with folio `--test sequence_settings_records` and session `--test sequence_records_round_trip`, as R55 did. Do not edit MT proof commands.
+- Write status only for MTs judged met on a PASS_Vn lane.
+
+## Output
+Same as R52..R55:
+- `validation/round-R56.json`, with `mt_judgments` and `mts_passed`.
+- Ledger statuses and a `round_R56` entry (python json load-modify-dump, indent=1, ensure_ascii=False, newline '\n').
+- One START_LOG.md line.
+- Verdicts in the lane files.
+- MT files and `_MT_INDEX.json` per step 6. Write through a temp file plus os.replace, serialised exactly as HEAD: `json.dumps(obj)+'\n'`.
+
+To commit:
+- Commit only those paths with `git -c core.fscache=false commit -F - -- <paths>`. The message ends with "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>".
+- Fetch, and merge only if origin gov_kernel has new commits. Never rebase, never force.
+- Push with `SHA=$(git rev-parse HEAD) && [ -n "$SHA" ] && git push origin "$SHA:refs/heads/gov_kernel"`. Check the exit code, then verify against origin.
+- Leave `refund-claim-20261021.md` and other untracked files alone, and leave the uncommitted lane files of SMB-PR-EDIT-FOOTPRINT-1 and SMB-PR-TRACK-DISPLAY-1 alone.
+
+## Disk and process
+- Never stop processes you did not start.
+- Never touch locks by hand.
+- Never delete anything.
+- No runtime env overrides.
+- Run long commands in the background.
+
+## Final message
+At most 22 lines:
+- counts and the five claim verdicts;
+- HOST INTEGRATION per claim;
+- MTs written and the re-judged MTs;
+- findings by severity;
+- the canary decision and result;
+- union numbers;
+- GPU backends;
+- C: tree at start, peak and end;
+- the kernel commit sha.

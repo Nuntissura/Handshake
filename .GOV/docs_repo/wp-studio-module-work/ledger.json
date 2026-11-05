@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-05T18:17:54Z",
+ "updated_at": "2026-11-05T19:00:15Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -18822,8 +18822,8 @@
  },
  "handoff": {
   "file": "HANDOFF.md",
-  "snapshot": "snapshots/SNAPSHOT-20261012T112202Z.json",
-  "at": "2026-10-12T11:22:02Z"
+  "previous": "handoff-archive/HANDOFF-20261101.md",
+  "at": "2026-11-05T19:00:15Z"
  },
  "round_R13": {
   "candidate": "4b76604",
@@ -20265,7 +20265,7 @@
    "operator_instruction": "find a good fitting place to pause work",
    "state": "product origin 1940292c. No builder running. READY for STUDIO-R57: SMB-PR-TRACK-DISPLAY-1, SMB-PR-EDIT-FOOTPRINT-1, SMB-LAYOUT-BLANK-LINE-LOOKUPS-1, SMB-TYPE-AUTHORED-TOKEN-1. Paused local and unpushed, each with its resume steps in its lane file's next: SMB-PR-RETIME-OUTPUT-1 at cff47aef, SMB-PR-NUDGE-1 at 31de741d, SMB-PR-ENTRY-REFERENCES-1 at 4529259c, SMB-LAYOUT-COMPOSER-DEPTH-1 at 286d9241, SMB-PR-MEDIA-MARKERS-1 at 3cfbbeed. STUDIO-R57 not started; it must be FULL (CX-VAL-011).",
    "resume_steps": [
-    "Resume builders by message, one lane pushing at a time so a later push does not repeat an earlier per-sha. Order, closest first: SMB-PR-RETIME-OUTPUT-1 and SMB-PR-NUDGE-1 (rebase, harness-view suite once, per-sha, new tests, push), SMB-PR-ENTRY-REFERENCES-1 (rebase, classify the composition_token entry in tests/entry_references.rs, one bundled run, per-sha, push), SMB-LAYOUT-COMPOSER-DEPTH-1 (bundled run first: clippy and whole suites have not run on the final code), SMB-PR-MEDIA-MARKERS-1 (git apply -R of its resume patch, pulse red, then its next).",
+    "Finish the paused lanes, one lane pushing at a time so a later push does not repeat an earlier per-sha. A new session dispatches a fresh builder per lane from its lane file's next (HANDOFF topic dispatch-prompts). Order, closest first: SMB-PR-RETIME-OUTPUT-1 and SMB-PR-NUDGE-1 (rebase, harness-view suite once, per-sha, new tests, push), SMB-PR-ENTRY-REFERENCES-1 (rebase, classify the composition_token entry in tests/entry_references.rs, one bundled run, per-sha, push), SMB-LAYOUT-COMPOSER-DEPTH-1 (bundled run first: clippy and whole suites have not run on the final code), SMB-PR-MEDIA-MARKERS-1 (git apply -R of its resume patch, pulse red, then its next).",
     "Then STUDIO-R57, FULL, with every READY lane, and only when no lane is building on C:."
    ],
    "lead_decisions_due_on_resume": [
@@ -20278,6 +20278,23 @@
     "Cleanup list: PASS lanes' build targets and worktrees, probe trees, backup/smb-pr-track-display-1-pre-fold (direction.cleanup_pending_operator_approval and the lead's report)",
     "Overrulable lead readings: token @3 instead of a spec exception; display entries inert (SD-49); no stored token reads as @1 with a typed refusal for U+2028; audio_routing inert when its sequence, clip or track is gone",
     "Spec-owner items SD-31..SD-52 PROPOSED"
+   ]
+  },
+  "truth_check_20261105": {
+   "at": "2026-11-05T19:00:15Z",
+   "operator_instruction": "health and progress truth check; inspect product code against build rules and microtasks with sub agents; record in a handoff file for a new master dev leader; do not forget the Vulkan GUI pivot",
+   "tree": "1940292c",
+   "handoff": "HANDOFF.md",
+   "evidence": [
+    "research/truth-check-20261105-hbr-usage.json",
+    "research/truth-check-20261105-hbr-host.json",
+    "research/truth-check-20261105-vulkan-pivot.json",
+    "research/truth-check-20261105-code-health.json",
+    "research/truth-check-20261105-mt-raster-effects-motion.json",
+    "research/truth-check-20261105-mt-vector-type-layout-interop.json",
+    "research/truth-check-20261105-mt-video-audio-design-web.json",
+    "research/truth-check-20261105-mt-shell-manual-foundation.json",
+    "research/truth-check-20261105-mt-prefilter.json"
    ]
   }
  },

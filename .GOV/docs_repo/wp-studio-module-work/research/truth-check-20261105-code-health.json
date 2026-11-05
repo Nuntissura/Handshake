@@ -1,0 +1,3431 @@
+{
+ "file_kind": "truth_check_code_health",
+ "created_for": "lead truth check 2026-11-05",
+ "tree": "1940292c64d57a65cc753f3258374f8b57b97f36 (origin/codex/handshake-studio-assets, read in lane worktree smb-type-authored-token-1, clean)",
+ "method": "git grep and Read; python over round files and tests.json. No cargo, no build, no test run. Counts from comment-and-string-stripped source; #[cfg(test)] modules and #[test] fns excluded. src files named tests.rs or *_tests.rs, compiled under cfg(test) by a parent, still count as prod in the raw columns (28 of 280 unwraps, 6 of 121 expects). .expect( also catches parser methods named expect (dxf_reader, nib owned_path, accord). Recursion search is by name within one file: cross-file cycles and trait dispatch NOT_INSPECTED.",
+ "q1_validation_truth": {
+  "last_full": {
+   "round": "STUDIO-R54",
+   "sha": "96ace3ca01de1e91348ac774e742d6e57fc76224",
+   "completed_at": "2026-11-02T13:55:48Z",
+   "units": 160,
+   "rows": 8901,
+   "passed": 8399,
+   "failed": 0,
+   "skipped": 502,
+   "not_proven": 222,
+   "exit": 73,
+   "distinct_tests": 4551,
+   "distinct_passed": 4545,
+   "verdicts": {
+    "PASS": 391,
+    "FAIL": 0,
+    "INCONCLUSIVE": 0
+   },
+   "ref": "validation/round-R54.json union, results/R54/tests.json"
+  },
+  "last_round": {
+   "round": "STUDIO-R56",
+   "sha": "091c4d1b2a3629e5031feb06c0968298d47d3249",
+   "scope": "SCOPED 27 crates",
+   "completed_at": "2026-11-05T14:14:52Z",
+   "units": 94,
+   "rows": 6040,
+   "passed": 5578,
+   "failed": 0,
+   "skipped": 462,
+   "not_proven": 169,
+   "exit": 73,
+   "distinct_tests": 2642,
+   "verdicts": {
+    "PASS": 326,
+    "FAIL": 0,
+    "INCONCLUSIVE": 0
+   },
+   "reused_pass_lanes": 72
+  },
+  "what_a_row_is": "Rows repeat one test across feature units: 8399 passed rows are 4545 distinct tests; d5_ps_compare is 5 tests reported as 50 rows in R56. Quote distinct tests, not rows.",
+  "exit_code": "Every recent round exits 73 (otherwise green with NOT_PROVEN), never 0.",
+  "build_scope": "Debug profile only (tools/run-round.sh has no --release; CARGO_PROFILE_DEV_DEBUG line-tables-only); F-R56-1 records 'Release build not measured'. One host: Windows, RTX 3090. No CI directory at the repository root (.git, .gitattributes, .gitignore, handpick, handshake-studio-assets). No clippy gate in rounds. 0 fuzz or property-test files (git ls-files; git grep proptest, quickcheck, arbitrary).",
+  "skipped_462": {
+   "by_unit_kind": {
+    "features": 238,
+    "ignored": 204,
+    "default": 20
+   },
+   "by_crate": {
+    "harness": 270,
+    "develop": 190,
+    "kernel-bindings": 2
+   },
+   "distinct_names": 233,
+   "passed_in_another_unit": 232,
+   "never_ran_in_R56": [
+    "kernel-bindings bridge_contract::fault_scenarios_need_the_test_faults_feature"
+   ],
+   "cause": "An artefact of unit shape, not un-run work. Ignored units run --run-ignored only, so their ordinary tests list as skipped (204); default and feature units skip the #[ignore]d corpus tests that the ignored units run (258). The #[ignore] attributes opened name the external oracle corpus or a device.",
+   "never_ran_in_R54_full": [
+    "interop-affinity container::afdesignload_v1_designs_read_with_matching_crcs_and_thumbnails",
+    "kernel-bindings bridge_contract::fault_scenarios_need_the_test_faults_feature",
+    "prism wide_chunks::bench_literal_64_pixel_admitted_calls_against_internal_chunks",
+    "prism wide_job::bench_24mp_p3_to_srgb_by_thread_count",
+    "score streaming_src::five_minutes_at_44k_to_48k",
+    "score-device native_cpal::native_output_streams_silence_and_reconciles"
+   ],
+   "weak_point": "The native audio device stream row never runs in a round (needs STUDIO_NATIVE_AUDIO=1)."
+  },
+  "not_proven_169": {
+   "distinct_lines": 89,
+   "tests_carrying_them": 58,
+   "note": "Each NOT_PROVEN test still counts as passed: 123 passed rows in R56 and 169 in R54 carry one. The unproven part is never counted as PASS (V4-03), but the green total does not show it.",
+   "by_crate": {
+    "harness": 46,
+    "harness-core": 39,
+    "develop": 25,
+    "harness-view": 24,
+    "composite": 10,
+    "layout": 5,
+    "pulse": 5,
+    "type": 4,
+    "interop-fig": 3,
+    "pigment": 2,
+    "render-cpu": 2,
+    "render-gpu": 2,
+    "interop-fig-native": 1,
+    "interop-psd": 1
+   },
+   "by_unit_kind": {
+    "features": 97,
+    "default": 52,
+    "ignored": 20
+   },
+   "by_cause_lines": {
+    "no_vendor_oracle_case": 49,
+    "gui_or_runtime_path_not_built": 35,
+    "feature_is_a_declared_gap_not_implemented": 30,
+    "needs_another_feature_unit_or_host": 22,
+    "test_data_absent_or_synthetic": 19,
+    "adobe_dng_converter_not_installed": 9,
+    "fig_editable_import_partial": 3,
+    "gpu_path_not_run_by_lane": 2
+   },
+   "by_cause_examples": {
+    "no_vendor_oracle_case": "After Effects masks, Photoshop panels PS-30, InDesign CJK 17 mojikumi sets, Premiere trim feel and multicam, Illustrator Create Outlines",
+    "gui_or_runtime_path_not_built": "GUI actions panel, no frame decoder on document sequences so program-monitor, trim and retime pixels are unproven, shared-device display in a real window",
+    "feature_is_a_declared_gap_not_implemented": "STU-AUT-110/111/112/113/114/129/132/147, batch sources, concurrency, variable-width feather",
+    "needs_another_feature_unit_or_host": "AAC 5.1 downmix (studio-aac), cross-host raster identity STU-TYP-131 needs a second host, harness-core import route (F-R54-5)",
+    "test_data_absent_or_synthetic": "synthetic HDR brackets, synthetic CJK advances, no saturated region in five camera samples, CR2 absent, no GRID frame in .fig fixtures"
+   },
+   "classification_note": "Causes are my regex over the reason text; a line can read two ways."
+  },
+  "crates_outside_R56_selection": {
+   "count": 29,
+   "list": [
+    "accord",
+    "controls",
+    "interop-affinity",
+    "interop-raster",
+    "interop-tiff",
+    "motion",
+    "motion-js",
+    "nib",
+    "observe",
+    "press",
+    "press-read",
+    "press-write",
+    "prism",
+    "ps",
+    "ps-core",
+    "ps-engine",
+    "ps-fonts",
+    "ps-graphics",
+    "ps-ops",
+    "ps-pdf",
+    "reel",
+    "reel-native",
+    "score",
+    "score-device",
+    "score-plugin",
+    "web",
+    "web-assets",
+    "web-core",
+    "worker"
+   ],
+   "last_run": "R54 at 96ace3ca; the validator's diff 96ace3ca..091c4d1b touched none (round-R56 selection.base_note); 72 PASS lanes reused with no verdict line",
+   "weakness": "AE oracle suites (motion, motion-js) last ran in R54."
+  },
+  "landed_since_R56_no_verdict": {
+   "range": "091c4d1b..1940292c",
+   "commits": 31,
+   "files": 49,
+   "insertions": 6600,
+   "deletions": 214,
+   "files_by_crate": {
+    "session": 11,
+    "layout": 10,
+    "harness-view": 9,
+    "pulse": 6,
+    "folio": 5,
+    "interop-layout": 2,
+    "harness-core": 2,
+    "harness": 2,
+    "type": 1,
+    "package": 1
+   },
+   "lanes_READY_unjudged": [
+    "SMB-PR-TRACK-DISPLAY-1",
+    "SMB-PR-EDIT-FOOTPRINT-1",
+    "SMB-LAYOUT-BLANK-LINE-LOOKUPS-1",
+    "SMB-TYPE-AUTHORED-TOKEN-1"
+   ],
+   "next_round": "R57 must be FULL (CX-VAL-011); not started (ledger direction.pause_20261105)"
+  },
+  "mt_status": {
+   "mt_files": 6220,
+   "pending": 6146,
+   "pass_any_version": 62,
+   "null": 12,
+   "pct_pass": 1.0,
+   "source": "research/truth-check-20261105-mt-prefilter.json mts[].status",
+   "lanes": {
+    "total": 452,
+    "PASS": 398
+   },
+   "reading": "398 PASS lanes judge lane claims; only 62 of 6220 MT contracts carry a PASS. R56 mts_passed is empty, R54 passed one."
+  },
+  "oracle": {
+   "corpus": {
+    "files": 1503,
+    "manifest_sha_unchanged_R54_to_R56": "0646370efee7882b",
+    "adobe_session_files": {
+     "photoshop": 599,
+     "indesign": 103,
+     "illustrator": 76,
+     "aftereffects": 7
+    },
+    "session": "one Operator-attended run, 2026-10-16 (oracle-session/RUN.md, SESSION_PLAN.json); AE-02 tangents rerun still pending, PS-C28 inverted mask unscripted, 6 PS oracle outputs invalid",
+    "other_folders": "psd-tools 365, raster-common 186, tiff 33, raw-dng-oracle 30 (Adobe DNG Converter 18.7), score-plugin 30, raw-vendor-cleanroom 23, affinity 11, raw-vendor 11, icc 10, dng 6, reel-h264 5, host-fonts 2, smpte 3, tiff-layered 2, agl 1"
+   },
+   "verdict_lines_R54": {
+    "Photoshop": {
+     "total": 588,
+     "MATCH": 489,
+     "MISMATCH_accepted": 9,
+     "NOT_SUPPORTED_accepted": 83,
+     "ORACLE_INVALID": 6,
+     "ORACLE_ABSENT": 1
+    },
+    "Illustrator": {
+     "total": 75,
+     "MATCH": 68,
+     "MISMATCH_accepted": 6,
+     "NOT_SUPPORTED": 1
+    },
+    "InDesign": {
+     "total": 99,
+     "MATCH": 93,
+     "MISMATCH_accepted": 6
+    },
+    "AfterEffects": {
+     "total": "about 344",
+     "MATCH": "about 340, 333 of them AE-04 samples per the audit",
+     "MISMATCH_accepted": 1,
+     "NOT_SUPPORTED": 2,
+     "NOT_PROVEN": 1
+    },
+    "source": "junit.xml D5 and D5_VERDICT lines of results/R54, deduped by case and variant"
+   },
+   "test_functions_vs_vendor_output": {
+    "d5_ps_compare": 5,
+    "d5_id_oracle": 6,
+    "idml_frame_autosize": 4,
+    "d5_ai_oracle": 5,
+    "d5_ae_oracle": 5,
+    "d5_ae_expressions": 1,
+    "pigment_oracle_parity": 4,
+    "develop_dng_converter_clean_room": 2,
+    "total": 32,
+    "of_distinct_passed_R54": 4545,
+    "pct": 0.7
+   },
+   "third_party_not_vendor_app": "prism oracle_t0_analytic 41 and oracle_t1_lcms2 43 (LittleCMS), press verapdf_corpus 3, web html_parity 18, reel decoders: independent references, not the app being rewritten",
+   "vendor_written_files_read_only": "psd-tools PSDs, raw-vendor camera files, TIFFs, .fig fixtures: parse and round-trip proof, not behaviour parity",
+   "self_consistency": "Everything else, some 4400 of 4545 distinct tests: Studio against Studio readings, spec text or analytic values. 302 code lines say UNVERIFIED (D5) in 251 files; 842 say UNVERIFIED in 515 files.",
+   "parity_rows": {
+    "catalogue": "308 rows, 9 apps, auditor selection (research/audit-20261021/parity-*.json), not the 6220 MT catalogue; not recomputed since research/parity-20261023-rollup.json",
+    "vendor_output_touches": 27,
+    "of": 308,
+    "pct": 8.8,
+    "full_match": 7,
+    "full_match_pct": 2.3,
+    "partial": 18,
+    "mismatch": 1,
+    "decode_only": 1,
+    "figma_operator_fixture_no_oracle": 11,
+    "no_vendor_evidence": 270,
+    "by_app": {
+     "photoshop": {
+      "rows": 36,
+      "match": 1,
+      "partial": 9,
+      "mismatch": 1
+     },
+     "illustrator": {
+      "rows": 32,
+      "match": 3,
+      "partial": 3
+     },
+     "indesign": {
+      "rows": 31,
+      "match": 2,
+      "partial": 3
+     },
+     "after_effects": {
+      "rows": 24,
+      "match": 1,
+      "partial": 3
+     },
+     "lightroom_classic": {
+      "rows": 35,
+      "decode_only": 1
+     },
+     "figma": {
+      "rows": 23,
+      "operator_fixture": 11
+     },
+     "premiere_pro": {
+      "rows": 25
+     },
+     "audition": {
+      "rows": 22
+     },
+     "affinity": {
+      "rows": 80
+     }
+    },
+    "caveat": "Row map dated 2026-10-21; the verdict totals in R54 equal that audit, and the corpus hash has not changed, so no new vendor case exists since."
+   },
+   "answer": "About 9 percent of audited parity rows have any comparison with real vendor output, 2 percent match fully, 5 of 9 apps have none (Lightroom decode only), under 1 percent of distinct tests read vendor output.",
+   "fitted_oracle_weakness": "The oracle both shapes and scores the code. d5_ai_oracle.rs:13-21 fits sampler bias on AI-02 and AI-01 and keeps 31 variants as the independent check; pigment oracle_parity.rs and the PS rules are 'measured on the D5 oracle'; the rollup cites F-R36-4 'composer fitted to the oracle it is scored on'; the InDesign oracle is one ASCII paragraph in Arial (d5_id_oracle.rs:1-8). Accepted mismatches stay green through d5_*_expected_mismatch.txt and expectations.json (28 entries)."
+  }
+ },
+ "q2_code_risk": {
+  "totals": {
+   "lines": 933178,
+   "lines_prod": 600599,
+   "unimplemented": 0,
+   "todo": 0,
+   "panic": 7,
+   "unwrap": 280,
+   "expect": 121,
+   "unreachable": 45,
+   "unsafe": 94,
+   "unsafe_test": 145,
+   "ignore": 29,
+   "test_fns": 4722
+  },
+  "per_crate": [
+   {
+    "crate": "type",
+    "lines": 71497,
+    "lines_prod": 65095,
+    "test_fns": 115,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 1,
+    "unwrap": 48,
+    "expect": 0,
+    "unreachable": 4,
+    "unsafe": 18,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 1.61
+   },
+   {
+    "crate": "reel",
+    "lines": 61386,
+    "lines_prod": 43284,
+    "test_fns": 174,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 2,
+    "unwrap": 1,
+    "expect": 3,
+    "unreachable": 0,
+    "unsafe": 14,
+    "unsafe_test": 36,
+    "ignore": 0,
+    "tests_per_kloc": 2.83
+   },
+   {
+    "crate": "harness-view",
+    "lines": 54709,
+    "lines_prod": 43920,
+    "test_fns": 169,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 1,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 9,
+    "ignore": 0,
+    "tests_per_kloc": 3.09
+   },
+   {
+    "crate": "composite",
+    "lines": 52678,
+    "lines_prod": 30362,
+    "test_fns": 213,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 4.04
+   },
+   {
+    "crate": "pigment",
+    "lines": 49546,
+    "lines_prod": 30038,
+    "test_fns": 268,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 22,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 5.41
+   },
+   {
+    "crate": "folio",
+    "lines": 43949,
+    "lines_prod": 29033,
+    "test_fns": 217,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 4.94
+   },
+   {
+    "crate": "ps-ops",
+    "lines": 39726,
+    "lines_prod": 34193,
+    "test_fns": 306,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 36,
+    "expect": 3,
+    "unreachable": 12,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 7.7
+   },
+   {
+    "crate": "layout",
+    "lines": 36778,
+    "lines_prod": 22001,
+    "test_fns": 301,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 4,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 8.18
+   },
+   {
+    "crate": "develop",
+    "lines": 33555,
+    "lines_prod": 19366,
+    "test_fns": 186,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 6,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 9,
+    "ignore": 15,
+    "tests_per_kloc": 5.54
+   },
+   {
+    "crate": "render-gpu",
+    "lines": 26253,
+    "lines_prod": 11816,
+    "test_fns": 113,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 1,
+    "unwrap": 0,
+    "expect": 1,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 4.3
+   },
+   {
+    "crate": "press-read",
+    "lines": 26107,
+    "lines_prod": 24896,
+    "test_fns": 44,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 1,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 1.69
+   },
+   {
+    "crate": "ps-graphics",
+    "lines": 24642,
+    "lines_prod": 11418,
+    "test_fns": 123,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 8,
+    "expect": 0,
+    "unreachable": 6,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 4.99
+   },
+   {
+    "crate": "pulse",
+    "lines": 21963,
+    "lines_prod": 11180,
+    "test_fns": 129,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 5.87
+   },
+   {
+    "crate": "harness",
+    "lines": 21578,
+    "lines_prod": 1265,
+    "test_fns": 255,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 1,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 6,
+    "tests_per_kloc": 11.82
+   },
+   {
+    "crate": "score",
+    "lines": 21418,
+    "lines_prod": 13580,
+    "test_fns": 132,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 6,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 5,
+    "ignore": 1,
+    "tests_per_kloc": 6.16
+   },
+   {
+    "crate": "nib",
+    "lines": 21400,
+    "lines_prod": 15379,
+    "test_fns": 96,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 24,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 4.49
+   },
+   {
+    "crate": "interop-psd",
+    "lines": 20836,
+    "lines_prod": 10022,
+    "test_fns": 104,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 4.99
+   },
+   {
+    "crate": "prism",
+    "lines": 19833,
+    "lines_prod": 10920,
+    "test_fns": 145,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 9,
+    "expect": 12,
+    "unreachable": 2,
+    "unsafe": 0,
+    "unsafe_test": 27,
+    "ignore": 2,
+    "tests_per_kloc": 7.31
+   },
+   {
+    "crate": "render-cpu",
+    "lines": 18957,
+    "lines_prod": 6019,
+    "test_fns": 116,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 1,
+    "expect": 1,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 6.12
+   },
+   {
+    "crate": "interop-layout",
+    "lines": 18284,
+    "lines_prod": 9134,
+    "test_fns": 76,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 9,
+    "ignore": 0,
+    "tests_per_kloc": 4.16
+   },
+   {
+    "crate": "ps-core",
+    "lines": 15156,
+    "lines_prod": 12828,
+    "test_fns": 156,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 2,
+    "unreachable": 4,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 10.29
+   },
+   {
+    "crate": "session",
+    "lines": 14783,
+    "lines_prod": 6500,
+    "test_fns": 114,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 9,
+    "ignore": 0,
+    "tests_per_kloc": 7.71
+   },
+   {
+    "crate": "press",
+    "lines": 14418,
+    "lines_prod": 2697,
+    "test_fns": 191,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 9,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 13.25
+   },
+   {
+    "crate": "ps-fonts",
+    "lines": 14031,
+    "lines_prod": 11393,
+    "test_fns": 147,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 72,
+    "expect": 0,
+    "unreachable": 2,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 10.48
+   },
+   {
+    "crate": "ps-pdf",
+    "lines": 11992,
+    "lines_prod": 11756,
+    "test_fns": 15,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 1,
+    "unwrap": 81,
+    "expect": 0,
+    "unreachable": 3,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 1.25
+   },
+   {
+    "crate": "web",
+    "lines": 10362,
+    "lines_prod": 39,
+    "test_fns": 94,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 9.07
+   },
+   {
+    "crate": "harness-core",
+    "lines": 10157,
+    "lines_prod": 7397,
+    "test_fns": 54,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 2,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 5.32
+   },
+   {
+    "crate": "package",
+    "lines": 10150,
+    "lines_prod": 5242,
+    "test_fns": 41,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 9,
+    "ignore": 0,
+    "tests_per_kloc": 4.04
+   },
+   {
+    "crate": "press-write",
+    "lines": 9377,
+    "lines_prod": 7599,
+    "test_fns": 43,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 9,
+    "expect": 1,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 4.59
+   },
+   {
+    "crate": "interop-lrcat",
+    "lines": 8965,
+    "lines_prod": 6667,
+    "test_fns": 26,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 2,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 2.9
+   },
+   {
+    "crate": "components",
+    "lines": 8846,
+    "lines_prod": 4564,
+    "test_fns": 33,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 3.73
+   },
+   {
+    "crate": "reel-native",
+    "lines": 8746,
+    "lines_prod": 6097,
+    "test_fns": 39,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 1,
+    "unsafe": 45,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 4.46
+   },
+   {
+    "crate": "interop-vector-svg",
+    "lines": 7778,
+    "lines_prod": 7525,
+    "test_fns": 7,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 0.9
+   },
+   {
+    "crate": "web-core",
+    "lines": 7640,
+    "lines_prod": 7561,
+    "test_fns": 2,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 4,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 0.26
+   },
+   {
+    "crate": "motion",
+    "lines": 7435,
+    "lines_prod": 4700,
+    "test_fns": 42,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 5.65
+   },
+   {
+    "crate": "motion-js",
+    "lines": 7269,
+    "lines_prod": 4448,
+    "test_fns": 39,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 1,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 5.37
+   },
+   {
+    "crate": "score-plugin",
+    "lines": 6931,
+    "lines_prod": 3915,
+    "test_fns": 30,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 1,
+    "expect": 1,
+    "unreachable": 0,
+    "unsafe": 1,
+    "unsafe_test": 14,
+    "ignore": 0,
+    "tests_per_kloc": 4.33
+   },
+   {
+    "crate": "web-assets",
+    "lines": 6814,
+    "lines_prod": 5309,
+    "test_fns": 42,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 7,
+    "expect": 4,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 6.16
+   },
+   {
+    "crate": "interop-fig",
+    "lines": 6808,
+    "lines_prod": 63,
+    "test_fns": 55,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 8.08
+   },
+   {
+    "crate": "kernel-bindings",
+    "lines": 6489,
+    "lines_prod": 4544,
+    "test_fns": 27,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 3,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 1,
+    "tests_per_kloc": 4.16
+   },
+   {
+    "crate": "interop-fig-native",
+    "lines": 6121,
+    "lines_prod": 5483,
+    "test_fns": 11,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 1.8
+   },
+   {
+    "crate": "interop-vector-core",
+    "lines": 5662,
+    "lines_prod": 4898,
+    "test_fns": 18,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 14,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 3.18
+   },
+   {
+    "crate": "interop-fig-base",
+    "lines": 5056,
+    "lines_prod": 4668,
+    "test_fns": 6,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 1.19
+   },
+   {
+    "crate": "observe",
+    "lines": 4374,
+    "lines_prod": 1930,
+    "test_fns": 28,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 9,
+    "ignore": 0,
+    "tests_per_kloc": 6.4
+   },
+   {
+    "crate": "chronicle",
+    "lines": 4154,
+    "lines_prod": 1987,
+    "test_fns": 25,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 1,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 6.02
+   },
+   {
+    "crate": "interop-tiff",
+    "lines": 3982,
+    "lines_prod": 2448,
+    "test_fns": 25,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 1,
+    "tests_per_kloc": 6.28
+   },
+   {
+    "crate": "controls",
+    "lines": 3968,
+    "lines_prod": 2724,
+    "test_fns": 21,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 5.29
+   },
+   {
+    "crate": "accord",
+    "lines": 3298,
+    "lines_prod": 2345,
+    "test_fns": 26,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 5,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 7.88
+   },
+   {
+    "crate": "interop-media",
+    "lines": 3065,
+    "lines_prod": 2049,
+    "test_fns": 8,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 2.61
+   },
+   {
+    "crate": "interop-vector",
+    "lines": 2985,
+    "lines_prod": 71,
+    "test_fns": 26,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 8.71
+   },
+   {
+    "crate": "score-device",
+    "lines": 2948,
+    "lines_prod": 1943,
+    "test_fns": 11,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 9,
+    "ignore": 1,
+    "tests_per_kloc": 3.73
+   },
+   {
+    "crate": "interop-raster",
+    "lines": 2393,
+    "lines_prod": 1463,
+    "test_fns": 10,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 1,
+    "tests_per_kloc": 4.18
+   },
+   {
+    "crate": "ps",
+    "lines": 1664,
+    "lines_prod": 1376,
+    "test_fns": 6,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 1,
+    "unreachable": 1,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 3.61
+   },
+   {
+    "crate": "interop-affinity",
+    "lines": 1483,
+    "lines_prod": 1039,
+    "test_fns": 4,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 0,
+    "unsafe_test": 0,
+    "ignore": 1,
+    "tests_per_kloc": 2.7
+   },
+   {
+    "crate": "ps-engine",
+    "lines": 1411,
+    "lines_prod": 1232,
+    "test_fns": 11,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 4,
+    "expect": 0,
+    "unreachable": 1,
+    "unsafe": 2,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 7.8
+   },
+   {
+    "crate": "worker",
+    "lines": 1372,
+    "lines_prod": 1178,
+    "test_fns": 7,
+    "unimplemented": 0,
+    "todo": 0,
+    "panic": 0,
+    "unwrap": 0,
+    "expect": 0,
+    "unreachable": 0,
+    "unsafe": 14,
+    "unsafe_test": 0,
+    "ignore": 0,
+    "tests_per_kloc": 5.1
+   }
+  ],
+  "reading": "Raw markers look good and the sample holds. 0 todo!, 0 unimplemented!. 7 panic! sites: harness cli.rs:1121 test helper, reel delivery_tests.rs twice (test file), render-gpu plan_sink.rs:4339 injected fault, motion-js scripted.rs:148 scripted test engine, type catalog.rs:167 const, ps-pdf pdf_device.rs:2166 vendored, EPS worker only. 280 unwraps: 45 sampled; ps-fonts charstring.rs checks stack length first (:297), font_embedder.rs:133, halftone_ops.rs:310-320 and show_ops.rs:763-768 validate first, ps-pdf writeln! to a Vec; type finalization.rs:494, :527, :638 are local invariants; type shape_wasm.rs 19 are vendored. The unwrap count is not a finding.",
+  "unsafe": "94 in prod: reel-native mf/ffi.rs 45, reel av1/ffi.rs 14 (rav1d C ABI, confined), worker job.rs 14, type provider 18 (rustybuzz 14, storage.rs 4), ps-engine 2, score-plugin 1. None in folio, session, layout, pulse, composite, pigment.",
+  "ignore_attrs": 29,
+  "fixed_refusal_functions": {
+   "total": 35,
+   "by_crate": {
+    "folio": 2,
+    "harness-core": 5,
+    "harness-view": 2,
+    "interop-fig-base": 3,
+    "interop-media": 1,
+    "interop-psd": 2,
+    "interop-vector-core": 2,
+    "motion": 2,
+    "pigment": 4,
+    "ps-ops": 3,
+    "reel": 1,
+    "render-gpu": 1,
+    "score-plugin": 1,
+    "score": 1,
+    "type": 4,
+    "worker": 1
+   },
+   "mostly_feature_gates": "harness-core import.rs:440-516 five routes, harness-view shell.rs:1288, waveform.rs:150, interop-psd convert.rs:278-282: compiled-out features, typed",
+   "real_product_stubs": [
+    "pigment select_tools/quick.rs:447, :456, :461 object_select, subject_select, sky_select: ModelUnavailable",
+    "interop-fig-base semantic_decode.rs:20 decode_semantic: EditableDecoderBlocked NOT_PROVEN",
+    "reel model.rs:444 encode_segment: encode-not-implemented (trait default, whether a provider overrides NOT_INSPECTED)",
+    "motion expression.rs:149 evaluate: Unsupported default provider"
+   ],
+   "wider": "Refusal strings containing unsupported, unavailable or not_supported, per crate: interop-psd 55, interop-vector-svg 39, pigment 34, press 25, interop-tiff 24, develop 22, harness-view 20. The code refuses honestly, so an unbuilt feature can look like a passing refusal test."
+  },
+  "largest_20_files": [
+   {
+    "lines": 13348,
+    "file": "crates/hsk-studio-reel/src/vc3/tables.rs",
+    "note": "generated from SMPTE ST 2019-1 text"
+   },
+   {
+    "lines": 10444,
+    "file": "crates/hsk-studio-ps-graphics/tests/data/cmyk_intent/reference.rs",
+    "note": "test"
+   },
+   {
+    "lines": 6054,
+    "file": "crates/hsk-studio-ps-ops/src/show_ops.rs",
+    "note": "vendored stet"
+   },
+   {
+    "lines": 5273,
+    "file": "crates/hsk-studio-render-gpu/tests/gpu_plan.rs",
+    "note": "test"
+   },
+   {
+    "lines": 4593,
+    "file": "crates/hsk-studio-render-gpu/src/plan_sink.rs",
+    "note": "first-party"
+   },
+   {
+    "lines": 4321,
+    "file": "crates/hsk-studio-press/tests/pdf_delivery.rs",
+    "note": "test"
+   },
+   {
+    "lines": 4206,
+    "file": "crates/hsk-studio-press-read/src/encoding_data.rs",
+    "note": "data table"
+   },
+   {
+    "lines": 4054,
+    "file": "crates/hsk-studio-interop-fig-native/src/native.rs",
+    "note": "first-party"
+   },
+   {
+    "lines": 4002,
+    "file": "crates/hsk-studio-press/tests/flatten_r13.rs",
+    "note": "test"
+   },
+   {
+    "lines": 3386,
+    "file": "crates/hsk-studio-ps-core/src/file_store.rs",
+    "note": "vendored stet"
+   },
+   {
+    "lines": 3329,
+    "file": "crates/hsk-studio-session/tests/session_contract.rs",
+    "note": "test"
+   },
+   {
+    "lines": 3267,
+    "file": "crates/hsk-studio-composite/src/temporal/composition.rs",
+    "note": "first-party"
+   },
+   {
+    "lines": 3110,
+    "file": "crates/hsk-studio-session/src/session.rs",
+    "note": "first-party"
+   },
+   {
+    "lines": 3064,
+    "file": "crates/hsk-studio-type/src/provider/rustybuzz/hb/unicode_norm.rs",
+    "note": "vendored rustybuzz or ttf-parser"
+   },
+   {
+    "lines": 3029,
+    "file": "crates/hsk-studio-harness-view/src/view/vector.rs",
+    "note": "first-party"
+   },
+   {
+    "lines": 3000,
+    "file": "crates/hsk-studio-interop-vector-svg/src/svg_adapter.rs",
+    "note": "first-party"
+   },
+   {
+    "lines": 2949,
+    "file": "crates/hsk-studio-ps-graphics/src/icc/hand_rolled.rs",
+    "note": "vendored stet"
+   },
+   {
+    "lines": 2861,
+    "file": "crates/hsk-studio-type/src/provider/ttf/mod.rs",
+    "note": "vendored rustybuzz or ttf-parser"
+   },
+   {
+    "lines": 2814,
+    "file": "crates/hsk-studio-ps-ops/src/color_ops.rs",
+    "note": "vendored stet"
+   },
+   {
+    "lines": 2737,
+    "file": "crates/hsk-studio-interop-psd/src/proposal.rs",
+    "note": "first-party"
+   }
+  ],
+  "files_over_1000_lines": {
+   "all": 184,
+   "non_test": 149
+  },
+  "worst_first_party_files": [
+   "render-gpu plan_sink.rs 4592",
+   "interop-fig-native native.rs 4053",
+   "composite temporal/composition.rs 3267",
+   "session session.rs 3109",
+   "harness-view view/vector.rs 3029",
+   "interop-vector-svg svg_adapter.rs 3000",
+   "interop-psd proposal.rs 2737",
+   "press-write export.rs 2542"
+  ],
+  "low_test_density": {
+   "source": "by_crate test_fns of the prefilter",
+   "list": [
+    {
+     "crate": "press-read",
+     "lines": 26107,
+     "test_fns": 44,
+     "note": "PDF reader, hostile input surface; press holds 191 more"
+    },
+    {
+     "crate": "interop-fig-native",
+     "lines": 6121,
+     "test_fns": 11,
+     "note": "native.rs 4053 lines; interop-fig facade holds 55"
+    },
+    {
+     "crate": "interop-vector-svg",
+     "lines": 7778,
+     "test_fns": 7,
+     "note": "interop-vector facade holds 26 for about 16000 lines over three crates"
+    },
+    {
+     "crate": "web-core",
+     "lines": 7640,
+     "test_fns": 2,
+     "note": "web holds 94"
+    },
+    {
+     "crate": "interop-fig-base",
+     "lines": 5056,
+     "test_fns": 6
+    },
+    {
+     "crate": "ps-pdf",
+     "lines": 11992,
+     "test_fns": 15,
+     "note": "vendored"
+    },
+    {
+     "crate": "type",
+     "lines": 71497,
+     "test_fns": 115,
+     "note": "about 57000 lines vendored, so first-party density is fine"
+    },
+    {
+     "crate": "interop-media",
+     "lines": 3065,
+     "test_fns": 8,
+     "note": "EDL, native model; F-R56-10"
+    },
+    {
+     "crate": "interop-affinity",
+     "lines": 1483,
+     "test_fns": 4
+    },
+    {
+     "crate": "interop-lrcat",
+     "lines": 8965,
+     "test_fns": 26
+    }
+   ]
+  },
+  "vendored_share": "165615 of 931134 Rust lines (17.8 percent) are the stet fork (ps*) plus type provider rustybuzz, ttf-parser, bidi.",
+  "reachable_aborts": {
+   "method": "Self-recursion and same-file mutual recursion by call graph: 160 self-recursive fns (101 with no depth word), 35 mutual cycles; each document-fed one opened.",
+   "known": "F-R56-1 layout adobe_composer.rs:593 best(): stack overflow aborts on a long ragged paragraph, plus 31 s at 600 words. Open at this tree.",
+   "guarded_verified": [
+    "press-read: syntax.rs parse_object bounded, render_bounds.rs:1-20 bounds input before hayro and documents the abort class",
+    "interop-psd limits.rs:34 max_group_depth 128, document.rs:195",
+    "interop-lrcat lua_rules.rs:14 HARD_MAX_RULE_DEPTH 64",
+    "interop-fig-base kiwi and graph, fig-native native.rs walk (depth word, not traced)",
+    "composite composition.rs:79 max scene depth 16, temporal MAX_PRECOMP_DEPTH 16",
+    "folio preflight lib.rs:1301 JSON depth at most 64, motion_records MAX_SHAPE_DEPTH 32",
+    "components auto_layout max_depth 32",
+    "type GPOS chains meter.enter() (ot_layout_gpos_table.rs:274-281, cursive_pos.rs:179-186)",
+    "interop-layout pdf_export.rs:403 MAX_PARENT_DEPTH",
+    "ps-engine eval.rs:90 exec depth 100, ps-fonts charstring depth 10"
+   ],
+   "unguarded_candidates": [
+    {
+     "site": "interop-fig-native export.rs:384 children_of <-> :392 layer",
+     "data": "layer tree depth; folio cycle_check bounds cycles, not depth; Budget.nodes default 4096 (folio lib.rs:544); Budget.depth limits JSON nesting and layers are flat JSON",
+     "class": "same as F-R56-1 if frame size times 4096 passes the stack",
+     "status": "UNVERIFIED: frame size and thread stack not measured, no run allowed"
+    },
+    {
+     "site": "harness-view view/layers.rs:190 post_order, :135 copy_subtree, design/instance.rs:570 post_order",
+     "data": "layer tree depth; quadratic doc.layers.iter().any per node",
+     "class": "small frames, so cost before overflow",
+     "status": "UNVERIFIED"
+    },
+    {
+     "site": "layout toc.rs:300-315 and toc_contract.rs:690-705 sort_nodes, flatten",
+     "data": "TOC level tree",
+     "status": "NOT_INSPECTED how deep levels can go"
+    },
+    {
+     "site": "interop-layout idml_longdoc.rs:291 walk",
+     "data": "XML element nesting of a cell or note fragment",
+     "status": "bound would be roxmltree's own nesting limit; NOT_INSPECTED"
+    },
+    {
+     "site": "ps-pdf font_embedder.rs:689 extract_charstring_width",
+     "data": "Type 1 subr calling itself; no depth parameter, unlike ps-fonts",
+     "class": "real unbounded recursion",
+     "status": "read; abort is contained: only the worker process runs PostScript (interop-vector-core Cargo.toml:12-14; stet used only in eps_worker.rs)"
+    },
+    {
+     "site": "ps-ops file_ops.rs:1098 token_parse_procedure, :1136 token_parse_array",
+     "data": "{{{{ nesting via the PostScript token operator; ps-engine eval.rs:1145 caps the stream path, this path has no counter",
+     "status": "read; same worker containment"
+    }
+   ],
+   "not_audited": "Allocation aborts from header sizes (vec! or with_capacity on file-declared dimensions) and slice-index panics: NOT_INSPECTED crate by crate. Per-file deny of unwrap, indexing, panic or arithmetic exists in 45 crates; no [workspace.lints]; ps* none."
+  }
+ },
+ "q3_open_findings": {
+  "scope": "findings_not_failures of R46..R56: 114 findings (HIGH 2, MEDIUM 11, LOW 46, INFO 55) plus 19 direction.next_lane_candidates",
+  "status_counts": {
+   "HIGH CLOSED_INFRA": 1,
+   "HIGH OPEN": 1,
+   "INFO CLOSED": 6,
+   "INFO CLOSED_CLAIM": 3,
+   "INFO CONTEXT_NO_ACTION": 30,
+   "INFO OPEN": 8,
+   "INFO OPEN_INFO": 1,
+   "INFO STANDING": 7,
+   "LOW CLOSED": 25,
+   "LOW CLOSED_BY_SPEC": 2,
+   "LOW CLOSED_BY_SUCCESSOR": 1,
+   "LOW CLOSED_PERSISTENCE_PART": 1,
+   "LOW CLOSED_WITH_RESIDUAL": 1,
+   "LOW FIXED_IN_CODE_NO_VERDICT": 2,
+   "LOW OPEN": 8,
+   "LOW OPEN_PARTLY": 3,
+   "LOW OPEN_PROCESS": 1,
+   "LOW PROCESS_CLOSED": 2,
+   "MEDIUM CLOSED": 5,
+   "MEDIUM CLOSED_WITH_RESIDUAL": 1,
+   "MEDIUM FIXED_IN_CODE_NO_VERDICT": 2,
+   "MEDIUM OPEN": 3
+  },
+  "open_high": [
+   {
+    "id": "F-R56-1",
+    "severity": "HIGH",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": "adobe_composer.rs:593-627 best() still recurses once per line; fix only on local lane/smb-layout-composer-depth-1 286d9241, whose clippy and whole suites have not run on the final code (ledger pause_20261105)",
+    "lane": "no claim of this round (pre-existing composer, reached in SMB-R54-FOLLOWUPS-1's probes; ca",
+    "finding": "layout's Adobe paragraph composer aborts the process on depth, with no typed refusal. adobe_composer.rs paragraph() on ragged text sets the window to the whole paragraph (ragged_depth 0, depth = items + 1) and best() rec"
+   }
+  ],
+  "open_medium": [
+   {
+    "id": "F-R46-8",
+    "severity": "MEDIUM",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": "harness Cargo.toml:75 still carries the render-gpu dev-dependency with asset-local-backends; every list R47..R56 carries it",
+    "lane": "SMB-GPU-CLIENT-PORT-1 (harness dev-dependency line; round infrastructure cost, lead reques",
+    "finding": "The one dev-dependency line 921e8483 adds to hsk-studio-harness/Cargo.toml (hsk-studio-render-gpu, features [asset-local-backends]) changes the dependency and feature set of every harness test build (and of the --workspa"
+   },
+   {
+    "id": "F-R56-2",
+    "severity": "MEDIUM",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": "frame_interpolation read only in pulse retime.rs; playback does not read it; fix only on local lane/smb-pr-retime-output-1",
+    "lane": "SMB-PR-RETIME-HOLD-1 (stated gap; follow-up lane the lead scopes)",
+    "finding": "The interpolation choice changes no rendered frame and reports nothing. Outside retime.rs nothing in pulse reads frame_interpolation (grep over crates/*/src: folio record, pulse retime.rs and DESCRIPTOR, a stale comment "
+   },
+   {
+    "id": "F-R56-3",
+    "severity": "MEDIUM",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": "session multicam_step.rs, session.rs and sequence_records_step.rs contain no audio_routing; fix only on local lane/smb-pr-entry-references-1",
+    "lane": "SMB-PR-SEQUENCE-SESSION-1 (NOT_INSPECTED item; same class on the multicam path before it)",
+    "finding": "Graded as asked. Removing a sequence named by audio_routing commits with no refusal through submit_multicam and through the new records step (s7: Ok), and leaves the whole routing set invalid for every sequence: parse_au"
+   }
+  ],
+  "open_low": [
+   {
+    "id": "F-R51-2",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": "motion expr_catalogue.rs:263 canonical_spelling is still a lookup; no write-side normaliser in motion or motion-js src",
+    "lane": "SMB-AE-EXPR-LIBRARY-1 (MT-33912)",
+    "finding": "The lane claims MT-33912 closed, but STU-MOT-073a's 'emit camelCase canonical host identifiers on write ... Normalize only AST references resolved to host bindings' has no implementation: canonical_spelling is a lookup, "
+   },
+   {
+    "id": "F-R51-3",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN_PARTLY",
+    "closure_basis": "READ",
+    "evidence": "motion-js prelude.rs:8-12 still a thrown Unsupported with no span; no sub or div prelude entry found by grep",
+    "lane": "SMB-AE-EXPR-LIBRARY-1 (lead note b: typed unavailable honesty)",
+    "finding": "Per identifier the 283 refusals are honest refusals (never identity, undefined or no-op; catalogue_walk_matches_what_the_engine_answers walks all 333: 276 global accessors throw Unsupported at the user's span, 4 string m"
+   },
+   {
+    "id": "F-R51-5",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": "type features.rs:28 three booleans refuse legacy_projection_unmapped; needs spec owner",
+    "lane": "SMB-TYPE-OT-FEATURES-1 (MT-30959)",
+    "finding": "The lane claims MT-30959 closed, but STU-TYP-174 says the 14 legacy booleans MUST be representable as tag-map entries with a documented mapping; overlap_swash and stretched_alternate (no registered tag) and hv_kana (two "
+   },
+   {
+    "id": "F-R51-6",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN_PROCESS",
+    "closure_basis": "NONE",
+    "evidence": "lead decision on the red-first rule; no closure recorded",
+    "lane": "SMB-TYPE-OT-FEATURES-1, SMB-PS-MODE-CONVERT-1, SMB-AI-DISTORT-EFFECTS-1 (lead notes c, d, ",
+    "finding": "The briefs required 'one local commit each, red tests first'. Type: four slices in two commits, tests never run red; mode: slices committed with their tests green, no red run per slice (slice 3 re-created so it compiles "
+   },
+   {
+    "id": "F-R52-2",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN_PARTLY",
+    "closure_basis": "READ",
+    "evidence": "PSD and TIFF rows done; OpenEXR row open, SD-41 PROPOSED",
+    "lane": "SMB-R51-FOLLOWUPS-1 (MT-30095; lead note d)",
+    "finding": "PSD now carries a channel saved from a selection (export writes a new extra plane, re-import gives the same record at 8/16/32 bits), which closes the gap R51 named. MT-30095's row says 'preserved in round-trippable inter"
+   },
+   {
+    "id": "F-R55-13",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": "no U+FFFC handling in layout anchors.rs or type engine.rs; next_lane_candidates",
+    "lane": "MT-31007 (anchored-object marker; premise read while testing anchors.rs:270)",
+    "finding": "Type refuses U+FFFC MissingGlyph on Inter in both providers (probe t9), and none of the five fixture fonts maps it (fontTools cmap read). So a story holding the anchored-object marker cannot compose through native Type w"
+   },
+   {
+    "id": "F-R55-3",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": "MT-33730 proof names --test contracts, status NOT_IMPLEMENTED; pulse/tests has no contracts file; MT files not repointed",
+    "lane": "SMB-PR-SEQUENCE-PRESETS-1 (lead: record it)",
+    "finding": "The proof commands of MT-33686 and MT-33695..MT-33702 name cargo test -p hsk-studio-pulse --test contracts -- <name>. That target does not exist (crates/hsk-studio-pulse/tests has 18 files and no contracts.rs; the proof "
+   },
+   {
+    "id": "F-R56-10",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN_PARTLY",
+    "closure_basis": "READ",
+    "evidence": "plan_move fixed in timeline.rs:1112-1116 with no verdict; interop-media edl.rs has no retime read; rate.rs:90 still emits 'unavailable: no clip field'",
+    "lane": "SMB-PR-RETIME-HOLD-1",
+    "finding": "Recorded. harness-view plan_move (timeline.rs:1095) rebuilds the clip through plan_assembly_edit and restores markers and enabled, not the retime record: a moved held clip loses its hold at this candidate; the lead repor"
+   },
+   {
+    "id": "F-R56-12",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "NONE",
+    "evidence": "lane SMB-PR-EDIT-FOOTPRINT-1 notes 'not this lane'; no fix named in the 091c4d1b..HEAD log; code not traced",
+    "lane": "SMB-PR-MERGE-SYNC-1",
+    "finding": "A group move of both clips of a transition keeps it with a known source length and drops it, listed in dropped_transitions, with an unknown one, though the cut does not change and no source position moves. The toggle doe"
+   },
+   {
+    "id": "F-R56-13",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": "same class as F-R55-3; MT-33730 opened",
+    "lane": "SMB-PR-RETIME-HOLD-1, SMB-PR-MERGE-SYNC-1, SMB-PR-SEQUENCE-SESSION-1 (contract owner)",
+    "finding": "F-R55-3's class grows: MT-33726, 33727, 33730, 33731, 33732 and the two session MTs name hsk-studio-pulse --test contracts with status NOT_IMPLEMENTED; MT-30780 names a target note_kind_dispatch_and_anchors. Rows judged "
+   },
+   {
+    "id": "F-R56-7",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": "session.rs:232 inverse still returned; fix only on local lane/smb-pr-entry-references-1 4529259c",
+    "lane": "SMB-PR-SEQUENCE-SESSION-1 (declared reading judged)",
+    "finding": "The undo of a commit that replaced a parsable invalid entry is refused folio_rejected and the repair stands: acceptable, it would write invalid records back. Applied::sequence_records_inverse still returns a step that ca"
+   },
+   {
+    "id": "F-R56-8",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "NONE",
+    "evidence": "defensive; next_lane_candidates",
+    "lane": "SMB-R54-FOLLOWUPS-1",
+    "finding": "The Point branch of shaped_story and its bidi refusal are unreachable from the public Viewer path: composite vector_text takes Path and Area stories only, and shape_layers fixes script Latn and a left-to-right paragraph,"
+   }
+  ],
+  "open_info": [
+   {
+    "id": "F-R48-8",
+    "severity": "INFO",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": "tools/run-round.sh has no clippy step; rounds have no clippy gate",
+    "lane": "SMB-JOB-ADMISSION-1 (lead note e: clippy)",
+    "finding": "Two clippy::explicit_auto_deref warnings (audio_batch.rs:395, job_admission.rs:265: JobOutcome::Failed(*code) on a &&'static str) remain. Rounds have no clippy gate (tools/run-round.sh runs none; lane-check's clippy step"
+   },
+   {
+    "id": "F-R49-9",
+    "severity": "INFO",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "ROUND",
+    "evidence": "MT AC-003 tooltip half unproven, carried R53..R56 via F-R51-11",
+    "lane": "SMB-ID-BOOKLET-1 and SMB-AE-PARTICLES-2 (MT records)",
+    "finding": "The catalogue-row MTs the lanes 'close' (MT-30821..MT-30828, MT-34184, MT-34185, MT-34189, MT-34177) have an AC-003 whose operator-surface tooltip half is not proven (GUI deferred, D7); the lanes claim the headless half "
+   },
+   {
+    "id": "F-R51-11",
+    "severity": "INFO",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "ROUND",
+    "evidence": "R51..R56 apply the 'partly met' reading to tooltip MTs",
+    "lane": "MT records (MT-34181, MT-34183; step 6 consistency)",
+    "finding": "R50 wrote MT-34181 and MT-34183 PASS_V1 (MT-STATUS-SYNC from the R50 statement 'are met') although their AC-003 operator-surface tooltip half is unproven, while R49 (F-R49-9) and the sync plan treat the same row shape as"
+   },
+   {
+    "id": "F-R51-13",
+    "severity": "INFO",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "NONE",
+    "evidence": "foundation MT AC-003/004/005 not re-judged",
+    "lane": "foundation MTs MT-35537..MT-35563 (14 in the sync plan)",
+    "finding": "These carry AC-003 (independently selectable dependency closure), AC-004 (all 45 HBR triggers assessed) and AC-005 (Argus descriptors, Flight Recorder / internal diagnostics / Palmistry adapters). MT-35528..35536 were pa"
+   },
+   {
+    "id": "F-R51-14",
+    "severity": "INFO",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "NONE",
+    "evidence": "MT contract defects recorded, not acted on",
+    "lane": "MT contract defects reported by lanes",
+    "finding": "Recorded, not acted on (acceptance text never changed): MT-35299/35300 step 1 register an empty identifier list and MT-35301 step 1 lists one of six members (expr); MT-30960 step 2 needs Package outside type's write path"
+   },
+   {
+    "id": "F-R54-2",
+    "severity": "INFO",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "ROUND",
+    "evidence": "IDML break values UNVERIFIED; SD-43 PROPOSED",
+    "lane": "SMB-SENTINELS-NATIVE-1",
+    "finding": "IDML ParagraphBreakType values NextFrame / NextPage / NextOddPage / NextEvenPage are mapped as the SD-29 research record names them, whose only source is a practitioner sheet the record marks UNVERIFIED (direct fetch 404"
+   },
+   {
+    "id": "F-R54-5",
+    "severity": "INFO",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": ".config/round-features.toml:47 harness-core unit import-tiff only; R56 NOT_PROVEN an_import_creates_the_document_then_completes",
+    "lane": "SMB-ROUND-ENTRYPOINT (steward unit) / SMB-BUSINESS-EVENTS-1",
+    "finding": "Rule 4e audit of harness-core at 96ace3ca: the new [import-tiff] unit compiles every import-tiff / any-import gated test file (tiff_export_outcomes, named_colour_book) and run_and_entry_redo's #[cfg(feature = \"import\")] "
+   },
+   {
+    "id": "F-R55-10",
+    "severity": "INFO",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "ROUND",
+    "evidence": "declared readings, SD-47 and SD-48 PROPOSED",
+    "lane": "SMB-PR-SEQUENCE-PRESETS-1 (declared readings)",
+    "finding": "Declared readings checked. Studio-minted, in no spec table or Accord list (STU-CON-008 concern): schema id hsk.studio.sequence_settings@1, three command ids, 391 preset ids, 53 mode ids, time-display wire tokens; the mul"
+   },
+   {
+    "id": "F-R56-11",
+    "severity": "INFO",
+    "status_at_1940292c": "OPEN_INFO",
+    "closure_basis": "NONE",
+    "evidence": "justification of a U+2028 line differs from a last line",
+    "lane": "SMB-R54-FOLLOWUPS-1",
+    "finding": "In a justified paragraph a line ended by U+2028 is justified up to the word limit with a residual (word_scale 1.33) where a paragraph's last line is not, and a blank line carries Justification Some (word_scale 1, residua"
+   }
+  ],
+  "fixed_in_code_no_verdict": [
+   {
+    "id": "F-R56-4",
+    "severity": "MEDIUM",
+    "status_at_1940292c": "FIXED_IN_CODE_NO_VERDICT",
+    "closure_basis": "READ",
+    "evidence": "folio composition_token.rs, session composition_token.rs, harness-view text.rs:671-681 at 1940292c; no round judged it; no window command runs the upgrade; rests on SD-52 PROPOSED",
+    "lane": "SMB-R54-FOLLOWUPS-1 (spec gap the builder raised; not its claim; candidate lane, spec owne",
+    "finding": "Graded as asked. STU-TYP-130 requires a stored document to recompose under its authored token unless explicitly upgraded, and the upgrade to be recorded, undoable and diffable. No record stores an authored token (grep co"
+   },
+   {
+    "id": "F-R56-5",
+    "severity": "MEDIUM",
+    "status_at_1940292c": "FIXED_IN_CODE_NO_VERDICT",
+    "closure_basis": "READ",
+    "evidence": "layout toc.rs:261-265 line_of falls back to blank_line_of at 66c0e7c9; no round judged it; anchors.rs:270 and footnotes::locate same class still open per ledger",
+    "lane": "SMB-LAYOUT-ENTRY-TEXT-1 (lead: candidate lane)",
+    "finding": "Graded as asked. toc::line_of misses the blank line of a paragraph with no glyph (empty span at the paragraph's end). An index mark in a marker-only or empty paragraph counts unplaced and its entry is left out (generate_"
+   },
+   {
+    "id": "F-R56-6",
+    "severity": "LOW",
+    "status_at_1940292c": "FIXED_IN_CODE_NO_VERDICT",
+    "closure_basis": "READ",
+    "evidence": "type descriptor.rs composition_versions names @3, V2, U+2028 at 1940292c",
+    "lane": "SMB-R54-FOLLOWUPS-1",
+    "finding": "type DESCRIPTOR is stale after @3: 'COMPOSITION_VERSION (v2) adds ...; the harfrust spike refuses v2'. COMPOSITION_VERSION is v3, COMPOSITION_VERSION_V2 is unnamed, the forced line break and U+2028 appear nowhere in it. "
+   },
+   {
+    "id": "F-R56-9",
+    "severity": "LOW",
+    "status_at_1940292c": "FIXED_IN_CODE_NO_VERDICT",
+    "closure_basis": "READ",
+    "evidence": "toc_contract.rs:27, :901 omitted_no_text; rests on SD-51 PROPOSED",
+    "lane": "SMB-LAYOUT-ENTRY-TEXT-1",
+    "finding": "The stated readings confirmed by run. With include_overset on, a placed empty heading lists an empty entry ('', no label) while with it off it counts overset; a whitespace-only heading lists its spaces with a label. A ma"
+   }
+  ],
+  "all_findings": [
+   {
+    "id": "F-R53-9",
+    "severity": "HIGH",
+    "status_at_1940292c": "CLOSED_INFRA",
+    "closure_basis": "ROUND",
+    "evidence": "cold target attempt 2; not a product defect",
+    "lane": "round (lead dispatch R53 cap rule; CX-VAL-005 / CX-VAL-010)",
+    "finding": "ATTEMPT 1 (history): The canary was stopped by the validator's C: cap guard at 355.295 GiB (> 355) after 21 of 156 units, every finished unit build 0 / run 0; the guard alerted at 330 GiB first (2026-11-01T15:59:31Z ALER"
+   },
+   {
+    "id": "F-R56-1",
+    "severity": "HIGH",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": "adobe_composer.rs:593-627 best() still recurses once per line; fix only on local lane/smb-layout-composer-depth-1 286d9241, whose clippy and whole suites have not run on the final code (ledger pause_20261105)",
+    "lane": "no claim of this round (pre-existing composer, reached in SMB-R54-FOLLOWUPS-1's probes; ca",
+    "finding": "layout's Adobe paragraph composer aborts the process on depth, with no typed refusal. adobe_composer.rs paragraph() on ragged text sets the window to the whole paragraph (ragged_depth 0, depth = items + 1) and best() rec"
+   },
+   {
+    "id": "F-R46-1",
+    "severity": "MEDIUM",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "kernel.wgsl:361-368 (comment, runtime zero), R56 threshold rows pass on Vulkan and DX12; the Photoshop tie rule itself stays an Operator D5 item",
+    "lane": "SMB-GPU-CLIENT-PORT-1 (lead note c: threshold tie disposition; affects SMB-RENDER-GPU-ADJ ",
+    "finding": "66c62129 exempts 7 lattice pixels of the threshold-128 case from GPU-vs-pigment parity (they may be 0 or 1; a NOT_PROVEN line counts them) on the SD-12 premise that the CPU reference evaluates in binary64 and the GPU in "
+   },
+   {
+    "id": "F-R46-8",
+    "severity": "MEDIUM",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": "harness Cargo.toml:75 still carries the render-gpu dev-dependency with asset-local-backends; every list R47..R56 carries it",
+    "lane": "SMB-GPU-CLIENT-PORT-1 (harness dev-dependency line; round infrastructure cost, lead reques",
+    "finding": "The one dev-dependency line 921e8483 adds to hsk-studio-harness/Cargo.toml (hsk-studio-render-gpu, features [asset-local-backends]) changes the dependency and feature set of every harness test build (and of the --workspa"
+   },
+   {
+    "id": "F-R51-1",
+    "severity": "MEDIUM",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "wave_world.rs:121 WAVE_PRODUCER_MAPPINGS holds phase only; the units wait on SD-40 PROPOSED",
+    "lane": "SMB-R50-FOLLOWUPS-1 (lead note f: G2 mapping)",
+    "finding": "Wave world producer frequency (recovered row 54) and amplitude (row 52) now drive the engine with conversion none (k = 1: frequency read as Hz, amplitude as the height-field scale) and their engine scalars took the recov"
+   },
+   {
+    "id": "F-R55-1",
+    "severity": "MEDIUM",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "type validate.rs:325 gates U+2028 on Semantics::V3",
+    "lane": "SMB-R54-FOLLOWUPS-1",
+    "finding": "STU-TYP-130 says changing shaping semantics REQUIRES incrementing the composition token and a stored document recomposes under its authored token. validate::outside_shaping keeps U+2028 out of shaping under both COMPOSIT"
+   },
+   {
+    "id": "F-R55-4",
+    "severity": "MEDIUM",
+    "status_at_1940292c": "CLOSED_WITH_RESIDUAL",
+    "closure_basis": "READ",
+    "evidence": "session sequence_records.rs:155 sequences_without_settings (a read-only report); session.rs:1739 guard; settings.rs:359 rate check; nest and multicam sequences still created with no entry, by its doc",
+    "lane": "SMB-PR-SEQUENCE-PRESETS-1 (placement, lead decision ACCEPTED, SD-47)",
+    "finding": "Defects the placement causes, none of them an orphan accepted silently. (a) A sequence with no entry passes validate_sequence_settings_records with no report, though STU-VID-011 makes every field required and STU-VID-017"
+   },
+   {
+    "id": "F-R55-5",
+    "severity": "MEDIUM",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "layout derived_text.rs used by toc_contract.rs:62, xref.rs:22, running.rs:23",
+    "lane": "SMB-LAYOUT-MARKER-LOOKUPS-1 (behaviour b; the lane's own observation)",
+    "finding": "Real, not new. At ce644577 a heading opening with an index marker enters the TOC with U+FDD7 in its text, in generate_toc and generate_table_of_contents, in TocEntryOut.text and in the generated story; running text and <"
+   },
+   {
+    "id": "F-R55-9",
+    "severity": "MEDIUM",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "derived_text.rs:167 trim_end_matches(ends_paragraph)",
+    "lane": "SMB-LAYOUT-MARKER-LOOKUPS-1 (found by the validator, outside the claim)",
+    "finding": "The TOC trims only U+000A, U+000D and U+2029, not the 12 terminators of ends_paragraph. A heading ended by a break sentinel keeps it in the entry text (U+FDDA, n7d, l1e; same at base). The generated story then says one p"
+   },
+   {
+    "id": "F-R56-2",
+    "severity": "MEDIUM",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": "frame_interpolation read only in pulse retime.rs; playback does not read it; fix only on local lane/smb-pr-retime-output-1",
+    "lane": "SMB-PR-RETIME-HOLD-1 (stated gap; follow-up lane the lead scopes)",
+    "finding": "The interpolation choice changes no rendered frame and reports nothing. Outside retime.rs nothing in pulse reads frame_interpolation (grep over crates/*/src: folio record, pulse retime.rs and DESCRIPTOR, a stale comment "
+   },
+   {
+    "id": "F-R56-3",
+    "severity": "MEDIUM",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": "session multicam_step.rs, session.rs and sequence_records_step.rs contain no audio_routing; fix only on local lane/smb-pr-entry-references-1",
+    "lane": "SMB-PR-SEQUENCE-SESSION-1 (NOT_INSPECTED item; same class on the multicam path before it)",
+    "finding": "Graded as asked. Removing a sequence named by audio_routing commits with no refusal through submit_multicam and through the new records step (s7: Ok), and leaves the whole routing set invalid for every sequence: parse_au"
+   },
+   {
+    "id": "F-R56-4",
+    "severity": "MEDIUM",
+    "status_at_1940292c": "FIXED_IN_CODE_NO_VERDICT",
+    "closure_basis": "READ",
+    "evidence": "folio composition_token.rs, session composition_token.rs, harness-view text.rs:671-681 at 1940292c; no round judged it; no window command runs the upgrade; rests on SD-52 PROPOSED",
+    "lane": "SMB-R54-FOLLOWUPS-1 (spec gap the builder raised; not its claim; candidate lane, spec owne",
+    "finding": "Graded as asked. STU-TYP-130 requires a stored document to recompose under its authored token unless explicitly upgraded, and the upgrade to be recorded, undoable and diffable. No record stores an authored token (grep co"
+   },
+   {
+    "id": "F-R56-5",
+    "severity": "MEDIUM",
+    "status_at_1940292c": "FIXED_IN_CODE_NO_VERDICT",
+    "closure_basis": "READ",
+    "evidence": "layout toc.rs:261-265 line_of falls back to blank_line_of at 66c0e7c9; no round judged it; anchors.rs:270 and footnotes::locate same class still open per ledger",
+    "lane": "SMB-LAYOUT-ENTRY-TEXT-1 (lead: candidate lane)",
+    "finding": "Graded as asked. toc::line_of misses the blank line of a paragraph with no glyph (empty span at the paragraph's end). An index mark in a marker-only or empty paragraph counts unplaced and its entry is left out (generate_"
+   },
+   {
+    "id": "F-R46-2",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "ROUND",
+    "evidence": "R47 says FXC rows on DX12; rows not separately opened",
+    "lane": "SMB-GPU-CLIENT-PORT-1 (lead note c: FXC tests; affects SMB-RENDER-GPU-PIPELINE-FAULT)",
+    "finding": "9285bce3 keeps the DX12 expectations of fxc_rejected_kernel_is_a_typed_refusal_before_any_dispatch and probe_failure_leaves_the_device_usable unchanged (not a loosening of the DX12 claim) and adds a typed non-DX12 branch"
+   },
+   {
+    "id": "F-R46-3",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "ROUND",
+    "evidence": "R47 inject_grant_closure; plan_sink.rs authorize path opened only by grep",
+    "lane": "SMB-GPU-CLIENT-PORT-1 (authorize and report_port proof gaps)",
+    "finding": "The refusal branch of 'authorize before every submission' at the GpuBackend boundary has no test: GpuBackend::authorize (plan_sink.rs:1506-1517) runs only in the Ready state (execute_inner :1834-1836, execute_grade :2019"
+   },
+   {
+    "id": "F-R46-4",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "plan_sink/shared.rs:280-286 reset_flag; plan_sink.rs:1861 authorize, :1874 flag after it",
+    "lane": "SMB-GPU-CLIENT-PORT-1 (shared-device order)",
+    "finding": "SharedDevice::render_to_texture writes the 4-byte overflow flag on the caller's queue (shared.rs:500 queue.write_buffer) before execute_inner asks the port to authorize the grant (plan_sink.rs:1834). With a revoked or su"
+   },
+   {
+    "id": "F-R46-5",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "client.rs:174, :519, :533 tombstones, record dropped",
+    "lane": "SMB-GPU-CLIENT-PORT-1 (GrantLedger growth, HBR-HOST-004)",
+    "finding": "GrantLedger keeps one record per grant for ever: LedgerState.records (BTreeMap) is never pruned and counters() scans every record (LedgerState::open). The ledger is public and meant for host ports, so a long-lived owner "
+   },
+   {
+    "id": "F-R46-6",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "observe ring.rs:619 host_core_le_bytes",
+    "lane": "SMB-OBSERVE-RING-PORT-1 (lead note b: host projection)",
+    "finding": "The 56-byte core of RingRecord::to_le_bytes carries the Studio code (0x5300..0x5326) in bytes 0..2. The layout matches DiagEvent (validator-read schema.rs @292d7a1c: event_code u16 @0, phase_marker u8 @2, severity u8 @3,"
+   },
+   {
+    "id": "F-R46-7",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED_BY_SUCCESSOR",
+    "closure_basis": "ROUND",
+    "evidence": "residual became F-R47-1",
+    "lane": "SMB-R44-FOLLOWUPS-1 (F-R44-15 budget, HBR-HOST-004)",
+    "finding": "MAX_EXPORT_INPUT_BYTES (2 GiB) bounds the encoded bytes of all --media and --audio files, but each --audio file is then decoded up to ImportLimits::max_frames (48000 x 3600 x 3 = 518.4M frames, about 4 GiB of planar f32 "
+   },
+   {
+    "id": "F-R47-1",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "ROUND",
+    "evidence": "R49: reel decode_audio_file_within for the CLI; viewer residual F-R49-2",
+    "lane": "SMB-R46-FOLLOWUPS-1 (lead note e: F-R46-7 residual, HBR-HOST-004)",
+    "finding": "The one decoded budget bounds what the --audio decodes keep, not what one decode holds. cli_audio_within passes min(ImportLimits::max_frames, remainder / 4) mono frames as reel's frame limit and charges frames x channels"
+   },
+   {
+    "id": "F-R47-2",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "harness-core manual.rs:27 names audio_too_many, audio_too_large, media_too_large",
+    "lane": "SMB-R46-FOLLOWUPS-1 (manual entry, HBR-HOST-002)",
+    "finding": "harness-core manual.rs:27, the export-sequence CommandSpec (the manual the CLI help and models read), still lists the refusals of 66c62129: it names neither audio_too_many (more than 16 --audio files) nor audio_too_large"
+   },
+   {
+    "id": "F-R47-3",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "render-gpu tests/gpu_plan.rs:3361 and the 8-bit row *_on_dx12, 2 rows each passed in R56",
+    "lane": "SMB-R46-FOLLOWUPS-1 (lead note a: DX12 side of the threshold fix)",
+    "finding": "Rounds prove the threshold fix on Vulkan only: gpu_plan's shared_backend is the transient default (env selection exists only under asset-local-backends, which no round unit enables), so every round unit's THRESHOLD lines"
+   },
+   {
+    "id": "F-R47-4",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "fig-base nodes.rs:2104 resolve_variables has a HashMap index and a cancel poll",
+    "lane": "SMB-R46-FOLLOWUPS-1 (lane-reported V4-06 sibling of F-R45-1, not in the brief)",
+    "finding": "interop-fig-base resolve_variables walks each VARIABLE's alias chain up to 16 steps with a linear values.iter().find per step over the current variable's value list, which the decode does not bound (only the kiwi Limits,"
+   },
+   {
+    "id": "F-R48-1",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED_WITH_RESIDUAL",
+    "closure_basis": "ROUND",
+    "evidence": "accord business_event.rs:212 entry_event_sequence read; residual F-R49-10 INFO",
+    "lane": "SMB-BUSINESS-EVENTS-1 (lead note d: event ids document@revision#sequence)",
+    "finding": "The event id is collision-free only while every event has its own revision. Entry-only events make no revision: set_document_entry does not advance the document revision (session.rs:2318-2335), and the run emits RAW_DEVE"
+   },
+   {
+    "id": "F-R48-2",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "ROUND",
+    "evidence": "R49 statement",
+    "lane": "SMB-BUSINESS-EVENTS-1 (V4-07 claims cite tests)",
+    "finding": "TEXT_EDITED (entry token text) and the vector entry mapping are claimed produced (NOT_PRODUCED_ASSET_LOCALLY's complement, run_mapping) but no test exercises them: actions_and_entry_steps_emit_per_commit_with_their_causa"
+   },
+   {
+    "id": "F-R48-3",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "ROUND",
+    "evidence": "R49 test name two_export_media_jobs_carry_their_own_run_correlations; job_admission.rs:274 pending.len() is now only a count (grep)",
+    "lane": "SMB-JOB-ADMISSION-1 (HBR-HOST-004/005, host_integration jobs)",
+    "finding": "Job outcomes reach observe with ordinal correlations: AdmittedExportQueue::submit uses pending.len() (0 for every Export Media job), the audio batch item.handle.id and a superseded preview its frame revision as Observati"
+   },
+   {
+    "id": "F-R48-4",
+    "severity": "LOW",
+    "status_at_1940292c": "PROCESS_CLOSED",
+    "closure_basis": "ROUND",
+    "evidence": "per-sha check adopted",
+    "lane": "SMB-JOB-ADMISSION-1 and SMB-ATTRIBUTION-1 (lead note e: RED COMMITS)",
+    "finding": "Pushed commits that do not pass their own round units: 38fc0b5e and 31131f18 carry tests/viewer_job_admission.rs calling Viewer::new, which at those shas exists only under asset-local-test-host; harness-view's own units "
+   },
+   {
+    "id": "F-R48-6",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "session.rs:779 submit_as",
+    "lane": "SMB-ATTRIBUTION-1 (HBR-HOST-005/007; lane note session_frames_gap)",
+    "finding": "The commit frame of every mutating command is still session-owned and carries the session's operation counter as its correlation (Session::settle_with increments self.operations and passes it to emit_report, session.rs:2"
+   },
+   {
+    "id": "F-R49-1",
+    "severity": "LOW",
+    "status_at_1940292c": "PROCESS_CLOSED",
+    "closure_basis": "ROUND",
+    "evidence": "per-sha check; F-R50-7",
+    "lane": "SMB-R47-FOLLOWUPS-1 (lead note a: RED COMMITS / pushed-commit buildability)",
+    "finding": "Two pushed commits leave a dependent crate uncompilable in its own round units: 88added0 (session) adds JobAdmissionRefusal::DeadlineExceeded while harness-view's refusal_json (src/view/job_admission.rs:126-131 at 88adde"
+   },
+   {
+    "id": "F-R49-2",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "audio_import.rs:308 decode_audio_file_within_with, audio_too_large",
+    "lane": "SMB-R47-FOLLOWUPS-1 (F-R47-1 class; builder V4-06 sweep, lead note e)",
+    "finding": "The viewer's audio import still bounds a whole-file decode by frames only: import_audio_external calls reel::decode_audio_file_with(src, Limits::default(), limits.max_frames, ..) with ImportLimits::max_frames = 518,400,0"
+   },
+   {
+    "id": "F-R49-3",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "ROUND",
+    "evidence": "DESCRIPTOR text; session DESCRIPTOR grep hit submit_as",
+    "lane": "SMB-R47-FOLLOWUPS-1 (lead note e: DESCRIPTOR text)",
+    "finding": "The machine-readable manuals were not updated for the additive APIs: accord's DESCRIPTOR names neither entry_event_sequence nor ENTRY_EVENT_SEQUENCE_BIT, and session's DESCRIPTOR names none of submit_as / submit_timeline"
+   },
+   {
+    "id": "F-R49-4",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED_BY_SPEC",
+    "closure_basis": "READ",
+    "evidence": "SD-19 APPLIED v02.226; press preset.rs:567 refusal kept",
+    "lane": "SMB-PDF-PRESETS-1 (lead note d: third SD-13 refusal)",
+    "finding": "standard_compliance_not_provable (resolve refuses standard_compliant_only together with standard_check_1a or standard_check_3) is a builder-chosen rule: the brief names two refusals (level 1.3; a standards preset whose l"
+   },
+   {
+    "id": "F-R49-5",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED_BY_SPEC",
+    "closure_basis": "READ",
+    "evidence": "SD-20 APPLIED v02.226; preset.rs:1022-1024",
+    "lane": "SMB-PDF-PRESETS-1 (MT-33392 reading)",
+    "finding": "MT-33392 AC-001 says 'asserting compliance with no intent profile is a validation error'; the lane reads 'asserting' as standard_check_1a or standard_check_3 only (asserts_standard), so a preset with standard_compliant_o"
+   },
+   {
+    "id": "F-R50-1",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "ROUND",
+    "evidence": "R51: records stored; MT-32012/32013",
+    "lane": "SMB-AE-WATER-SIMS-1 (lead note d: brief error, not a builder deviation)",
+    "finding": "STU-CMP-075b: 3 of the 22 simulations have typed parameter records; Wave World (spec :15433, 48 params, MT-32013 / MT-31731) and Foam (:15367, 47 params, MT-32012 / MT-31728) are two of them. The lead's brief routed all "
+   },
+   {
+    "id": "F-R51-2",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": "motion expr_catalogue.rs:263 canonical_spelling is still a lookup; no write-side normaliser in motion or motion-js src",
+    "lane": "SMB-AE-EXPR-LIBRARY-1 (MT-33912)",
+    "finding": "The lane claims MT-33912 closed, but STU-MOT-073a's 'emit camelCase canonical host identifiers on write ... Normalize only AST references resolved to host bindings' has no implementation: canonical_spelling is a lookup, "
+   },
+   {
+    "id": "F-R51-3",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN_PARTLY",
+    "closure_basis": "READ",
+    "evidence": "motion-js prelude.rs:8-12 still a thrown Unsupported with no span; no sub or div prelude entry found by grep",
+    "lane": "SMB-AE-EXPR-LIBRARY-1 (lead note b: typed unavailable honesty)",
+    "finding": "Per identifier the 283 refusals are honest refusals (never identity, undefined or no-op; catalogue_walk_matches_what_the_engine_answers walks all 333: 276 global accessors throw Unsupported at the user's span, 4 string m"
+   },
+   {
+    "id": "F-R51-4",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "ROUND",
+    "evidence": "SMB-TYPE-SENTINELS-REGISTRY-1; MT-30955 first PASS in R52",
+    "lane": "SMB-TYPE-OT-FEATURES-1 (lead note c)",
+    "finding": "Built against spec v02.225. Against the current MT text: MT-30955 (v02.228 SD-30: the 245-tag registry table with name, registration status and observed flag, 243 registered + abrv/just) is not met (registry = 209 group-"
+   },
+   {
+    "id": "F-R51-5",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": "type features.rs:28 three booleans refuse legacy_projection_unmapped; needs spec owner",
+    "lane": "SMB-TYPE-OT-FEATURES-1 (MT-30959)",
+    "finding": "The lane claims MT-30959 closed, but STU-TYP-174 says the 14 legacy booleans MUST be representable as tag-map entries with a documented mapping; overlap_swash and stretched_alternate (no registered tag) and hv_kana (two "
+   },
+   {
+    "id": "F-R51-6",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN_PROCESS",
+    "closure_basis": "NONE",
+    "evidence": "lead decision on the red-first rule; no closure recorded",
+    "lane": "SMB-TYPE-OT-FEATURES-1, SMB-PS-MODE-CONVERT-1, SMB-AI-DISTORT-EFFECTS-1 (lead notes c, d, ",
+    "finding": "The briefs required 'one local commit each, red tests first'. Type: four slices in two commits, tests never run red; mode: slices committed with their tests green, no red run per slice (slice 3 re-created so it compiles "
+   },
+   {
+    "id": "F-R51-7",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "ROUND",
+    "evidence": "R53: SMB-PRESS-OBSERVE-1",
+    "lane": "SMB-PRESS-INK-COVERAGE-1 (lead note g: HOST rule 5)",
+    "finding": "HOST INTEGRATION rule 5 gap: evaluate_ink_coverage's terminal outcomes are not emitted through observe because press-write has no hsk-studio-observe edge; the lane set internal_diagnostics none and the steward ledger car"
+   },
+   {
+    "id": "F-R51-9",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED_PERSISTENCE_PART",
+    "closure_basis": "ROUND",
+    "evidence": "R52; two generators remain, toc.rs:300 and toc_contract.rs:690 each hold sort_nodes and flatten",
+    "lane": "SMB-ID-TOC-INDEX-1 (lead note h)",
+    "finding": "The new TOC/index/trap-preset contracts live beside the base's Folio-based toc.rs/index.rs (two generators; the lane tests them equal on lifted records) and none of the new fields is persisted: Folio StudioTocStyle/Studi"
+   },
+   {
+    "id": "F-R52-1",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "layout sentinels.rs compose_with_sentinels exists; it has no src caller outside layout (threaded_reflow.rs:519 is a doc line)",
+    "lane": "SMB-TYPE-SENTINELS-REGISTRY-1 (MT-31005; lead note b)",
+    "finding": "The sentinels are stored, inserted and partitioned correctly in hsk-studio-type, but nothing resolves them: no Studio crate outside type reads U+FDD0..U+FDDD (validator grep), the shaper refuses marker and flush sentinel"
+   },
+   {
+    "id": "F-R52-2",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN_PARTLY",
+    "closure_basis": "READ",
+    "evidence": "PSD and TIFF rows done; OpenEXR row open, SD-41 PROPOSED",
+    "lane": "SMB-R51-FOLLOWUPS-1 (MT-30095; lead note d)",
+    "finding": "PSD now carries a channel saved from a selection (export writes a new extra plane, re-import gives the same record at 8/16/32 bits), which closes the gap R51 named. MT-30095's row says 'preserved in round-trippable inter"
+   },
+   {
+    "id": "F-R52-3",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "interop-psd export.rs:624-629 channel_opacity_rounded",
+    "lane": "SMB-R51-FOLLOWUPS-1 (lead note d: typed losses)",
+    "finding": "added_channel_fits keeps channel_added_in_edit_not_exported for five conditions; two are tested (56-channel header limit, depth other than the file), three are code-read only (multichannel mode or depth not 8/16/32, no m"
+   },
+   {
+    "id": "F-R53-1",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "harness-core folio_report.rs:137, :150 *_observed",
+    "lane": "SMB-COL-SWATCH-GROUPS-1 (lead note d: rule 5 with folio -> accord only)",
+    "finding": "HOST rule 5 GAP: the new mutating folio entries (apply_swatch_group_command, undo_swatch_group_command, add_colour_book_swatches, StudioColourBookLibrary::load / mark_absent) return code-and-counter reports with the opaq"
+   },
+   {
+    "id": "F-R53-2",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "harness-core tests/tiff_export_outcomes.rs:92",
+    "lane": "SMB-TIFF-CHANNELS-1 (lead note g)",
+    "finding": "Typed outcomes without a test: export losses tiff_channel_solidity_not_exported and tiff_channel_visibility_not_exported, and the tile errors channel_tile_size, channel_tile_format and channel_tile_grid (channel_tile_mis"
+   },
+   {
+    "id": "F-R53-3",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "ROUND",
+    "evidence": "R54 SMB-SENTINELS-NATIVE-1; tests/sentinels_native_type.rs exists",
+    "lane": "SMB-LAYOUT-SENTINELS-1 (lead note h)",
+    "finding": "compose_with_sentinels has no product caller and is proven only with a closure SentinelShaper in layout's tests: no test composes through native Type, so Type's acceptance of layout's paragraph partition (the R52 Invalid"
+   },
+   {
+    "id": "F-R55-13",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": "no U+FFFC handling in layout anchors.rs or type engine.rs; next_lane_candidates",
+    "lane": "MT-31007 (anchored-object marker; premise read while testing anchors.rs:270)",
+    "finding": "Type refuses U+FFFC MissingGlyph on Inter in both providers (probe t9), and none of the five fixture fonts maps it (fontTools cmap read). So a story holding the anchored-object marker cannot compose through native Type w"
+   },
+   {
+    "id": "F-R55-2",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "harness-view text.rs:18-19, :48 typed text_forced_line_break_unsupported",
+    "lane": "SMB-R54-FOLLOWUPS-1",
+    "finding": "U+2028 now passes Type in every host, not only layout. harness-view view/text.rs classes area and point text from each glyph's source character (space, paragraph, none), and U+2028 has no glyph any more; before this lane"
+   },
+   {
+    "id": "F-R55-3",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": "MT-33730 proof names --test contracts, status NOT_IMPLEMENTED; pulse/tests has no contracts file; MT files not repointed",
+    "lane": "SMB-PR-SEQUENCE-PRESETS-1 (lead: record it)",
+    "finding": "The proof commands of MT-33686 and MT-33695..MT-33702 name cargo test -p hsk-studio-pulse --test contracts -- <name>. That target does not exist (crates/hsk-studio-pulse/tests has 18 files and no contracts.rs; the proof "
+   },
+   {
+    "id": "F-R55-6",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "folio sequence_preset.rs:386-402 Canceled and BudgetExceeded codes",
+    "lane": "SMB-PR-SEQUENCE-PRESETS-1",
+    "finding": "StudioSequenceSettingsError::InvalidInput(Code) folds cancellation and budget overruns from the validators into .code() = invalid_input: a cancelled command reports invalid_input (probe f4: Err(InvalidInput(Canceled))), "
+   },
+   {
+    "id": "F-R55-7",
+    "severity": "LOW",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "ROUND",
+    "evidence": "R56; session sequence_records_step.rs:108 ApplyPreset arm seen, revision bump not traced",
+    "lane": "SMB-PR-SEQUENCE-PRESETS-1",
+    "finding": "ApplyPreset returns a StudioDocument with a changed sequence frame rate at an unchanged revision, not validated into a Snapshot (probe f4: revision 7); pulse's sequence commands bump the revision and run validate_documen"
+   },
+   {
+    "id": "F-R56-10",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN_PARTLY",
+    "closure_basis": "READ",
+    "evidence": "plan_move fixed in timeline.rs:1112-1116 with no verdict; interop-media edl.rs has no retime read; rate.rs:90 still emits 'unavailable: no clip field'",
+    "lane": "SMB-PR-RETIME-HOLD-1",
+    "finding": "Recorded. harness-view plan_move (timeline.rs:1095) rebuilds the clip through plan_assembly_edit and restores markers and enabled, not the retime record: a moved held clip loses its hold at this candidate; the lead repor"
+   },
+   {
+    "id": "F-R56-12",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "NONE",
+    "evidence": "lane SMB-PR-EDIT-FOOTPRINT-1 notes 'not this lane'; no fix named in the 091c4d1b..HEAD log; code not traced",
+    "lane": "SMB-PR-MERGE-SYNC-1",
+    "finding": "A group move of both clips of a transition keeps it with a known source length and drops it, listed in dropped_transitions, with an unknown one, though the cut does not change and no source position moves. The toggle doe"
+   },
+   {
+    "id": "F-R56-13",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": "same class as F-R55-3; MT-33730 opened",
+    "lane": "SMB-PR-RETIME-HOLD-1, SMB-PR-MERGE-SYNC-1, SMB-PR-SEQUENCE-SESSION-1 (contract owner)",
+    "finding": "F-R55-3's class grows: MT-33726, 33727, 33730, 33731, 33732 and the two session MTs name hsk-studio-pulse --test contracts with status NOT_IMPLEMENTED; MT-30780 names a target note_kind_dispatch_and_anchors. Rows judged "
+   },
+   {
+    "id": "F-R56-6",
+    "severity": "LOW",
+    "status_at_1940292c": "FIXED_IN_CODE_NO_VERDICT",
+    "closure_basis": "READ",
+    "evidence": "type descriptor.rs composition_versions names @3, V2, U+2028 at 1940292c",
+    "lane": "SMB-R54-FOLLOWUPS-1",
+    "finding": "type DESCRIPTOR is stale after @3: 'COMPOSITION_VERSION (v2) adds ...; the harfrust spike refuses v2'. COMPOSITION_VERSION is v3, COMPOSITION_VERSION_V2 is unnamed, the forced line break and U+2028 appear nowhere in it. "
+   },
+   {
+    "id": "F-R56-7",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": "session.rs:232 inverse still returned; fix only on local lane/smb-pr-entry-references-1 4529259c",
+    "lane": "SMB-PR-SEQUENCE-SESSION-1 (declared reading judged)",
+    "finding": "The undo of a commit that replaced a parsable invalid entry is refused folio_rejected and the repair stands: acceptable, it would write invalid records back. Applied::sequence_records_inverse still returns a step that ca"
+   },
+   {
+    "id": "F-R56-8",
+    "severity": "LOW",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "NONE",
+    "evidence": "defensive; next_lane_candidates",
+    "lane": "SMB-R54-FOLLOWUPS-1",
+    "finding": "The Point branch of shaped_story and its bidi refusal are unreachable from the public Viewer path: composite vector_text takes Path and Area stories only, and shape_layers fixes script Latn and a left-to-right paragraph,"
+   },
+   {
+    "id": "F-R56-9",
+    "severity": "LOW",
+    "status_at_1940292c": "FIXED_IN_CODE_NO_VERDICT",
+    "closure_basis": "READ",
+    "evidence": "toc_contract.rs:27, :901 omitted_no_text; rests on SD-51 PROPOSED",
+    "lane": "SMB-LAYOUT-ENTRY-TEXT-1",
+    "finding": "The stated readings confirmed by run. With include_overset on, a placed empty heading lists an empty entry ('', no label) while with it off it counts overset; a whitespace-only heading lists its spaces with a label. A ma"
+   },
+   {
+    "id": "F-R46-10",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "SMB-R44-FOLLOWUPS-1 (lead note a: run1 failures)",
+    "finding": "The three run1 failures are feature-unification artifacts of that invocation, read from its log: viewer_panels.rs:475 runs the cfg(not(feature = \"audio-batch\")) branch of harness while harness-view was built with audio-b"
+   },
+   {
+    "id": "F-R46-11",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "SMB-R44-FOLLOWUPS-1 (Prism API)",
+    "finding": "Error::DecodeUnsupported is a new variant of Prism's public Error, which is not #[non_exhaustive]; the brief called the change additive. An exhaustive match on prism::Error outside prism would stop compiling; this full u"
+   },
+   {
+    "id": "F-R46-12",
+    "severity": "INFO",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "ring.rs:90, :95 compile_fail,E0277",
+    "lane": "SMB-OBSERVE-RING-PORT-1 (doctests)",
+    "finding": "The two no-text compile_fail doctests in ring.rs carry no error code, so any compile error passes them (the GPU lane pins E-codes). Their targets (From<&str> for RingRecord and ModuleId) do not exist, so they hold today;"
+   },
+   {
+    "id": "F-R46-13",
+    "severity": "INFO",
+    "status_at_1940292c": "STANDING",
+    "closure_basis": "READ",
+    "evidence": "vendor parity UNVERIFIED (D5): 302 code lines",
+    "lane": "all READY claims (lead note e)",
+    "finding": "No claim asserts vendor parity; SVG viewers, Figma, InDesign, Premiere/Audition and Photoshop behaviour stay UNVERIFIED (D5). MT-36248 HOST-CASES stay PLANNED: the GPU lane is asset-local evidence (AC-HOST-005), never ho"
+   },
+   {
+    "id": "F-R46-9",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "round (lead notes a and c: tests of other lanes changed by R46 claims)",
+    "finding": "The validator read every changed test owned by another lane. Apart from F-R46-1 (a bounded, declared loosening at 7 tie pixels) and F-R46-2 (FXC coverage moved to NOT_PROVEN off DX12), none is a loosening. (1) layout fra"
+   },
+   {
+    "id": "F-R47-5",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "round (lead note g: tests of other lanes changed by the claim)",
+    "finding": "None of the changed tests of other lanes is a loosening. (1) gpu_plan ext_adjustment_layer_parity 'threshold 128': the 2^-20 boundary exemption and its NOT_PROVEN line are gone; the 7 lattice ties are compared again at t"
+   },
+   {
+    "id": "F-R47-6",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "SMB-R46-FOLLOWUPS-1 (lead note h: RED COMMITS)",
+    "finding": "be66cc60 compiles, shown by composition rather than a separate build: its only change (127 added lines in tests/gpu_plan.rs) is byte-identical to the three items 2b42a0fe carries and this union compiled, on a file and sr"
+   },
+   {
+    "id": "F-R47-7",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "SMB-R46-FOLLOWUPS-1 (lead note i)",
+    "finding": "No vendor parity is claimed; Photoshop threshold tie behaviour and the driver stage that fuses on Vulkan / DX12 stay UNVERIFIED (D5); the GPU proofs are asset-local evidence (AC-HOST-005), never host acceptance."
+   },
+   {
+    "id": "F-R47-8",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "round infrastructure (lead note b: artifact-identity growth)",
+    "finding": "The claim caused no F-R46-8-class growth: no crate manifest changed, and every non-default unit created at most 0.18 GiB of new target files (render-gpu units 0.05 GiB or less). The scoped default unit created 11.0 GiB ("
+   },
+   {
+    "id": "F-R48-5",
+    "severity": "INFO",
+    "status_at_1940292c": "STANDING",
+    "closure_basis": "NONE",
+    "evidence": "harness-core tests have no unit without asset-local-test-host",
+    "lane": "SMB-ATTRIBUTION-1 (lead note a: rule 4e under resolver-2 unification)",
+    "finding": "No round unit builds harness-core's integration tests without asset-local-test-host: its only test unit is the default unit, which also contains harness, so resolver 2 enables the feature on harness-core for every target"
+   },
+   {
+    "id": "F-R48-7",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "round (ledger records)",
+    "finding": "The ledger's host_integration summaries drift from the lane files' binding blocks: SMB-ATTRIBUTION-1 flight_recorder business_event_ids (lane file: none), SMB-JOB-ADMISSION-1 refactor_exposure medium (lane file and brief"
+   },
+   {
+    "id": "F-R48-8",
+    "severity": "INFO",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": "tools/run-round.sh has no clippy step; rounds have no clippy gate",
+    "lane": "SMB-JOB-ADMISSION-1 (lead note e: clippy)",
+    "finding": "Two clippy::explicit_auto_deref warnings (audio_batch.rs:395, job_admission.rs:265: JobOutcome::Failed(*code) on a &&'static str) remain. Rounds have no clippy gate (tools/run-round.sh runs none; lane-check's clippy step"
+   },
+   {
+    "id": "F-R49-10",
+    "severity": "INFO",
+    "status_at_1940292c": "STANDING",
+    "closure_basis": "NONE",
+    "evidence": "disclosed replay id",
+    "lane": "SMB-R47-FOLLOWUPS-1 (F-R48-1 residual)",
+    "finding": "Two runs that make the IDENTICAL entry edit from the same saved state under the asset-local test context (correlations restart at 1 per run, fixed client session, static command id) mint the same entry-only id with an eq"
+   },
+   {
+    "id": "F-R49-6",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "SMB-PDF-PRESETS-1 (lead note d: subset_fonts)",
+    "finding": "ResolveReceipt marks subset_fonts Applied unconditionally; press-write subsets TrueType and CID-keyed CFF programs when subset_fonts is on and embeds name-keyed OpenType-CFF whole. Subsetting is not over-claimed (press D"
+   },
+   {
+    "id": "F-R49-7",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "SMB-SETTINGS-SCHEMA-1 (lead note f: Handshake observation)",
+    "finding": "The builder's Handshake observation is wrong: at wtc-native-editors-v1 292d7a1c, preferences/mod.rs:657-662 gives PREF_EDITOR_MINIMAP_ENABLED a Bool constraint with default json!(true), which validates; the json!({}) def"
+   },
+   {
+    "id": "F-R49-8",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "SMB-AE-PARTICLES-2 (lead note c: vendor-name mapping)",
+    "finding": "The Simulation effect table lists 'Rain (obsolete)' (CC Rain) and 'Rainfall' (CSRainfall), 'Snow (obsolete)' (CC Snow) and 'Snowfall' (CSSnowfall), and the two Particle Systems Classic rows as separate Studio effects; th"
+   },
+   {
+    "id": "F-R49-9",
+    "severity": "INFO",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "ROUND",
+    "evidence": "MT AC-003 tooltip half unproven, carried R53..R56 via F-R51-11",
+    "lane": "SMB-ID-BOOKLET-1 and SMB-AE-PARTICLES-2 (MT records)",
+    "finding": "The catalogue-row MTs the lanes 'close' (MT-30821..MT-30828, MT-34184, MT-34185, MT-34189, MT-34177) have an AC-003 whose operator-surface tooltip half is not proven (GUI deferred, D7); the lanes claim the headless half "
+   },
+   {
+    "id": "F-R50-2",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "round scope (lead dispatch: 'R50 is scoped by round-select')",
+    "finding": "round-select computed SELECTION --all for R50 (full_reasons: round entry script changed ['tools/run-round.sh']), as CX-VAL-011 requires when the test entrypoint changes (R37 / R40 precedent). The dispatch expected a scop"
+   },
+   {
+    "id": "F-R50-3",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "SMB-PDF-STOCK-PRESETS-1 (lead note c: possible loosening; SD-19 extension)",
+    "finding": "Not a loosening: tests/pdf_presets.rs pins stay exact equalities updated by exactly the three additive settings (77 settings, group counts [10, 7, 16, 16, 16, 6, 1, 4, 1, 0], the general and studio_declared lists extende"
+   },
+   {
+    "id": "F-R50-4",
+    "severity": "INFO",
+    "status_at_1940292c": "STANDING",
+    "closure_basis": "ROUND",
+    "evidence": "dual threshold unit recorded by SD-24",
+    "lane": "SMB-ID-PDF-EXPORT-PREFS-1 / SMB-PDF-STOCK-PRESETS-1 (lead note b: threshold unit)",
+    "finding": "The same STU-LAY-158/159 quantity has two stored units: layout stores threshold_to_compress_* in dpi (stored_unit dpi, declared_unit ratio kept, threshold_ratio() reports the multiple), press stores colour_images.downsam"
+   },
+   {
+    "id": "F-R50-5",
+    "severity": "INFO",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "export.rs:465 channel_name_transcoded",
+    "lane": "SMB-FOLIO-CHANNEL-RECORD (PSD channel name export)",
+    "finding": "A renamed channel's legacy 1006 Pascal name is written as Latin-1 with '?' for any other character and cut at 255 bytes, and the edit reports channel_name applied with no typed loss (layer names record layer_name_truncat"
+   },
+   {
+    "id": "F-R50-6",
+    "severity": "INFO",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "harness-core import.rs:813 has_records includes channels",
+    "lane": "SMB-FOLIO-CHANNEL-RECORD (carry-forward, builder report)",
+    "finding": "Confirmed: harness-core import.rs:787 writes proposal.raster_records into the package only when raster_records.layers is non-empty, so a PSD whose records hold channels but no layer records drops its channels on harness "
+   },
+   {
+    "id": "F-R50-7",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "process (lead note a: pushed-commit buildability, lane-check dependents)",
+    "finding": "All 14 per-sha lines of this wave's lane logs (prefs 1, water 4, folio 5, followups 4) list dependents equal to the direct reverse dependencies in cargo metadata at 63ecf5a6 (none empty); every intermediate commit compil"
+   },
+   {
+    "id": "F-R50-8",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "SMB-R49-FOLLOWUPS-1 (lead note f)",
+    "finding": "History squashed as disclosed: the red proof exists only as the local log of unpushed cc9b2c19 (object present in the lane worktree; its harness-view tests are byte-identical to 63ecf5a6's, 3 of 4 failed on the audio_too"
+   },
+   {
+    "id": "F-R51-10",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "SMB-R50-FOLLOWUPS-1 (lead note f: F-R50-5, red evidence, test changes)",
+    "finding": "No existing assertion was loosened: tests/simulations_water.rs changed its module doc only; its loops over authored rows cover fewer rows because the moved scalars left the authored set, and every moved scalar is asserte"
+   },
+   {
+    "id": "F-R51-11",
+    "severity": "INFO",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "ROUND",
+    "evidence": "R51..R56 apply the 'partly met' reading to tooltip MTs",
+    "lane": "MT records (MT-34181, MT-34183; step 6 consistency)",
+    "finding": "R50 wrote MT-34181 and MT-34183 PASS_V1 (MT-STATUS-SYNC from the R50 statement 'are met') although their AC-003 operator-surface tooltip half is unproven, while R49 (F-R49-9) and the sync plan treat the same row shape as"
+   },
+   {
+    "id": "F-R51-12",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "MT-STATUS-SYNC follow-up (dispatch 'Each belongs to an already-PASS lane')",
+    "finding": "53 of the 88 claimed_not_validator_judged MTs belong to this round's READY claims (distort 19, expr 15, type 13, mode 6), not to already-PASS lanes; they are judged with their claims. The other 35 plus MT-038/MT-30095 we"
+   },
+   {
+    "id": "F-R51-13",
+    "severity": "INFO",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "NONE",
+    "evidence": "foundation MT AC-003/004/005 not re-judged",
+    "lane": "foundation MTs MT-35537..MT-35563 (14 in the sync plan)",
+    "finding": "These carry AC-003 (independently selectable dependency closure), AC-004 (all 45 HBR triggers assessed) and AC-005 (Argus descriptors, Flight Recorder / internal diagnostics / Palmistry adapters). MT-35528..35536 were pa"
+   },
+   {
+    "id": "F-R51-14",
+    "severity": "INFO",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "NONE",
+    "evidence": "MT contract defects recorded, not acted on",
+    "lane": "MT contract defects reported by lanes",
+    "finding": "Recorded, not acted on (acceptance text never changed): MT-35299/35300 step 1 register an empty identifier list and MT-35301 step 1 lists one of six members (expr); MT-30960 step 2 needs Package outside type's write path"
+   },
+   {
+    "id": "F-R51-15",
+    "severity": "INFO",
+    "status_at_1940292c": "STANDING",
+    "closure_basis": "NONE",
+    "evidence": "vendor parity UNVERIFIED for those claims",
+    "lane": "all seven claims (lead note i)",
+    "finding": "Vendor parity is UNVERIFIED (D5) for every claim: After Effects beyond the AE-03 linear oracle, InDesign/Illustrator OpenType boolean mappings and catalog code points, Photoshop mode conversion numerics and the colour-ta"
+   },
+   {
+    "id": "F-R51-8",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "SMB-PRESS-INK-COVERAGE-1 (lead note g)",
+    "finding": "The opaque / opaque-ignore total rule (sum of obscuring tones + (1 - top obscuring tone) x sum of the others; obscuring inks taken to lie over the others for lack of a print sequence) is a Studio reading, UNVERIFIED (D5)"
+   },
+   {
+    "id": "F-R52-4",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "SMB-FOLIO-ANGLE-UNBOUNDED-1 (lead note c)",
+    "finding": "'Unbounded' is honest everywhere: all 78 ANGLE rows of spec module 14 carry -- bounds, folio builds every recovered ANGLE row through one angle() constructor (all four bounds None), composite's rec_angle stores the 9 Foa"
+   },
+   {
+    "id": "F-R52-5",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "SMB-ID-TOC-PERSIST-1 (lead note e)",
+    "finding": "Out-of-owned-path edits are as listed: one StudioPage literal field each in harness-view src/view/shell.rs, two harness tests, layout tests/example and interop-layout literals (src/idml_longdoc.rs sets the new TOC member"
+   },
+   {
+    "id": "F-R52-6",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "SMB-TYPE-SENTINELS-REGISTRY-1 (lead note b: vendored bidi, budget)",
+    "finding": "82957a8d edited the vendored derivative (src/provider/bidi/char_data/mod.rs) and its provenance hash; cb887ea5 reverted both: the net diff of crates/hsk-studio-type/src/provider and third-party between a7be22a1 and 99836"
+   },
+   {
+    "id": "F-R52-7",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "SMB-R51-FOLLOWUPS-1 (lead note a: per-sha; disks)",
+    "finding": "Per-sha buildability spot-checked in all four lanes: type persha-...-cb887ea5.log PER_SHA_RESULT OK shas=8 (208 unit lines ok); angle persha-8c7f257a-rebased.log OK shas=4 (108 ok); TOC persha-...-99836457-origin.log OK "
+   },
+   {
+    "id": "F-R53-10",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "SMB-TIFF-CHANNELS-1 (lead dispatch rule 4e)",
+    "finding": "Rule 4e result (no gap for this lane): SMB-TIFF-CHANNELS-1 adds no harness-core test (3c0d8ec9..d7127bf1: no file under crates/hsk-studio-harness-core/tests, no #[cfg(test)] in src/import/tiff.rs); its harness-core code "
+   },
+   {
+    "id": "F-R53-11",
+    "severity": "INFO",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "validate.rs:325; closed as F-R54-3",
+    "lane": "round (context, lead message 2026-11-02)",
+    "finding": "The builder of SMB-SENTINELS-NATIVE-1 (D:, not pushed, not in this round) reports that Type refuses U+2028 (forced line break) with MissingGlyph. Not verified by this validator and not judged here (context only, lead): a"
+   },
+   {
+    "id": "F-R53-4",
+    "severity": "INFO",
+    "status_at_1940292c": "STANDING",
+    "closure_basis": "ROUND",
+    "evidence": "wire reading of observe vocabulary",
+    "lane": "SMB-PRESS-OBSERVE-1 (lead note c)",
+    "finding": "Emission never changes a result (evaluate first, emit from a borrowed result; tested under every delivery error, a revision mismatch, a closed emitter and cancellation) and carries no text (address None, private_project_"
+   },
+   {
+    "id": "F-R53-5",
+    "severity": "INFO",
+    "status_at_1940292c": "STANDING",
+    "closure_basis": "ROUND",
+    "evidence": "PDF/X reading",
+    "lane": "SMB-PRESS-INK-MANAGER-1 (lead note b)",
+    "finding": "PDF/X: the standard is a typed getter / setter over ExportOptions::pdfx4, not a settings field, so the four non-X-4 members are refused when the settings are built (pdfx_standard_not_implemented), not at export; the read"
+   },
+   {
+    "id": "F-R53-6",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "SMB-COL-SWATCH-GROUPS-1 (lead note d)",
+    "finding": "No branded book data is committed: only .rs files changed; test books and profiles are synthetic (Glimmerbrook Test Inks, Quuxberry, Wobblefern, Zorblue, FAKE / fake markers); CAPTURED_BOOK_COVERAGE holds only the family"
+   },
+   {
+    "id": "F-R53-7",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "SMB-R52-FOLLOWUPS-1 (lead note e)",
+    "finding": "The red proof for the three fixtures is adequate as a counterfactual: they pass at base because the branches were already correct, and the uncommitted mutation that strips the conditions makes all three fail (counterfact"
+   },
+   {
+    "id": "F-R53-8",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "all READY claims (lead note a; steward note f)",
+    "finding": "Per-sha buildability: all six lanes report PER_SHA_RESULT OK after their final rebase (ink 99836457..c420f273 shas=2; observe c420f273..295c6029 shas=2; swatch 295c6029..174ebc56 shas=2; r52-followups 174ebc56..e3afbb62 "
+   },
+   {
+    "id": "F-R54-1",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "round scope (lead dispatch: 'Run it scoped. R53 was full, so CX-VAL-011 allows a scoped ro",
+    "finding": "round-select computed SELECTION --all for R54 (full_reasons: round entry script or its configuration changed ['.config/round-features.toml']): CX-VAL-011 requires a full round whenever the test entrypoint changes, and to"
+   },
+   {
+    "id": "F-R54-2",
+    "severity": "INFO",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "ROUND",
+    "evidence": "IDML break values UNVERIFIED; SD-43 PROPOSED",
+    "lane": "SMB-SENTINELS-NATIVE-1",
+    "finding": "IDML ParagraphBreakType values NextFrame / NextPage / NextOddPage / NextEvenPage are mapped as the SD-29 research record names them, whose only source is a practitioner sheet the record marks UNVERIFIED (direct fetch 404"
+   },
+   {
+    "id": "F-R54-3",
+    "severity": "INFO",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "validate.rs:315-325",
+    "lane": "SMB-SENTINELS-NATIVE-1 (F-R53-11 carried)",
+    "finding": "The forced line break (U+2028, a Break characters member of STU-TYP-207) still cannot compose through native Type: Type shapes U+2028 as content and refuses the paragraph with MissingGlyph on the Inter fixture; the host "
+   },
+   {
+    "id": "F-R54-4",
+    "severity": "INFO",
+    "status_at_1940292c": "CLOSED",
+    "closure_basis": "READ",
+    "evidence": "type lib.rs:45-57 constant-time terminator match",
+    "lane": "SMB-SENTINELS-NATIVE-1",
+    "finding": "hsk_studio_type::ends_paragraph evaluates the metered rule per call (a provider Context under a fixed epoch, a never-cancelled token, a refusing admission port and 64 work units, then the vendored bidi-class table search"
+   },
+   {
+    "id": "F-R54-5",
+    "severity": "INFO",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "READ",
+    "evidence": ".config/round-features.toml:47 harness-core unit import-tiff only; R56 NOT_PROVEN an_import_creates_the_document_then_completes",
+    "lane": "SMB-ROUND-ENTRYPOINT (steward unit) / SMB-BUSINESS-EVENTS-1",
+    "finding": "Rule 4e audit of harness-core at 96ace3ca: the new [import-tiff] unit compiles every import-tiff / any-import gated test file (tiff_export_outcomes, named_colour_book) and run_and_entry_redo's #[cfg(feature = \"import\")] "
+   },
+   {
+    "id": "F-R54-6",
+    "severity": "INFO",
+    "status_at_1940292c": "CLOSED_CLAIM",
+    "closure_basis": "ROUND",
+    "evidence": "R55; sentinels::line_holding used by toc.rs:42, :215",
+    "lane": "SMB-LAYOUT-SENTINELS-1 (probe observation)",
+    "finding": "A glyph-less marker sitting between a placed line and the next, overset line is attributed to the page of the line before (place_markers takes the last line starting at or before it; the overset span starts at the next g"
+   },
+   {
+    "id": "F-R55-10",
+    "severity": "INFO",
+    "status_at_1940292c": "OPEN",
+    "closure_basis": "ROUND",
+    "evidence": "declared readings, SD-47 and SD-48 PROPOSED",
+    "lane": "SMB-PR-SEQUENCE-PRESETS-1 (declared readings)",
+    "finding": "Declared readings checked. Studio-minted, in no spec table or Accord list (STU-CON-008 concern): schema id hsk.studio.sequence_settings@1, three command ids, 391 preset ids, 53 mode ids, time-display wire tokens; the mul"
+   },
+   {
+    "id": "F-R55-11",
+    "severity": "INFO",
+    "status_at_1940292c": "CLOSED_CLAIM",
+    "closure_basis": "ROUND",
+    "evidence": "R56 statement; ledger still lists footnotes::locate as read, not run",
+    "lane": "SMB-LAYOUT-MARKER-LOOKUPS-1",
+    "finding": "Open as the lane states: an endnote or sidenote host with StoryContent::Stored keeps a gap reference unplaced because NoteHost has no text (typed: endnote position None, sidenote in overset; probe l3), confirmed no silen"
+   },
+   {
+    "id": "F-R55-12",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "round infrastructure (context, not a round input)",
+    "finding": "The dispatch named one builder on D: during the round. The lead dispatched SMB-PR-RETIME-HOLD-1 and SMB-PR-MERGE-SYNC-1 on ce644577 after it (gov_kernel 9bbdfb20), and the D: lock lines the probes waited on name owners s"
+   },
+   {
+    "id": "F-R55-8",
+    "severity": "INFO",
+    "status_at_1940292c": "CLOSED_CLAIM",
+    "closure_basis": "ROUND",
+    "evidence": "R56 statement",
+    "lane": "SMB-PR-SEQUENCE-PRESETS-1 (carried by SMB-PR-SEQUENCE-SESSION-1)",
+    "finding": "Recorded, verified at cc58a511, not V4-07 material: sequence_preset.rs:22 cites module shipped_preset, which does not exist; :53 says shipped paths are at most four deep (three, asserted in the MT-33695 test); defaulted_"
+   },
+   {
+    "id": "F-R56-11",
+    "severity": "INFO",
+    "status_at_1940292c": "OPEN_INFO",
+    "closure_basis": "NONE",
+    "evidence": "justification of a U+2028 line differs from a last line",
+    "lane": "SMB-R54-FOLLOWUPS-1",
+    "finding": "In a justified paragraph a line ended by U+2028 is justified up to the word limit with a residual (word_scale 1.33) where a paragraph's last line is not, and a blank line carries Justification Some (word_scale 1, residua"
+   },
+   {
+    "id": "F-R56-14",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "SMB-R54-FOLLOWUPS-1, SMB-PR-RETIME-HOLD-1, SMB-PR-MERGE-SYNC-1 (Operator waiver lists)",
+    "finding": "Paths outside the briefs' owned lists are in substance needed and each is named in its lane file: harness-view view/vector.rs, layout threaded_reflow.rs (R54-FOLLOWUPS); pulse transition.rs, multicam.rs, timeline_edit.rs"
+   },
+   {
+    "id": "F-R56-15",
+    "severity": "INFO",
+    "status_at_1940292c": "CONTEXT_NO_ACTION",
+    "closure_basis": "NONE",
+    "evidence": "no open defect recorded",
+    "lane": "all five claims (V4-07 reading)",
+    "finding": "V4-07 scan of the added doc lines with never, always, guarantees or proves over ce644577..091c4d1b: 16 lines, 8 in test files beside the test they describe, 8 in src, none of the src lines naming a test as V4-07 asks. Ea"
+   }
+  ],
+  "next_lane_candidates": [
+   {
+    "added_at": "2026-11-05T04:36:56Z",
+    "owner": "a later pulse and motion lane",
+    "item": "STU-VID-031a time remapping on a clip (keyframed speed, STU-MOT-045): out of scope of SMB-PR-RETIME-HOLD-1",
+    "status_at_tree": "open per ledger; verified only where the item names a finding above, otherwise NOT_INSPECTED"
+   },
+   {
+    "added_at": "2026-11-05T05:00:48Z",
+    "owner": "a later folio and pulse lane",
+    "item": "STU-VID-029 stored group identity and typed relationship map (MT-33726): needs one more StudioClip field, so a second literal sweep after SMB-PR-RETIME-HOLD-1 pushes; found by SMB-PR-MERGE-SYNC-1",
+    "status_at_tree": "open per ledger; verified only where the item names a finding above, otherwise NOT_INSPECTED"
+   },
+   {
+    "added_at": "2026-11-05T05:00:48Z",
+    "owner": "a later score and pulse lane",
+    "item": "STU-VID-029a synchronize by audio waveform (MT-33727): needs a bounded, cancellable cross-correlator with a typed result (offset, confidence, provider identity); Score fits; pulse returns sync_waveform_unavailable until then",
+    "status_at_tree": "open per ledger; verified only where the item names a finding above, otherwise NOT_INSPECTED"
+   },
+   {
+    "added_at": "2026-11-05T05:59:00Z",
+    "owner": "lead watch",
+    "item": "Harness wall-clock tests audio_import imported_file_plays_through_the_device and viewer_audio looping_audio_wraps_at_the_out_point_and_config_is_checked (400 ms) failed once in a loaded bundled run (292 s against 51 s) and pass alone; load is the builder's reading, not proven. Check against V4-03 if they recur in a round",
+    "status_at_tree": "open per ledger; verified only where the item names a finding above, otherwise NOT_INSPECTED"
+   },
+   {
+    "added_at": "2026-11-05T07:43:42Z",
+    "owner": "a later type and layout lane",
+    "item": "F-R55-13: U+FFFC refuses MissingGlyph on Inter in both providers and no fixture font maps it, so the anchored-object marker cannot compose through native Type (anchors.rs:115, :270); MT-31007's member stays unproven. Decide how it composes without a font glyph (a host-supplied box, like the resolved marker path), then a native test",
+    "status_at_tree": "open per ledger; verified only where the item names a finding above, otherwise NOT_INSPECTED"
+   },
+   {
+    "added_at": "2026-11-05T07:43:42Z",
+    "owner": "contract owner (lead has not edited MT files)",
+    "item": "F-R55-3: the proof commands of MT-33686 and MT-33695..MT-33702 name cargo test -p hsk-studio-pulse --test contracts, which does not exist, and the MTs name STUDIO-MODULE-PULSE as owner though the work is in folio and session. Repoint to folio --test sequence_settings_records and session --test sequence_records_round_trip; MT files are the contract owner's",
+    "status_at_tree": "open per ledger; verified only where the item names a finding above, otherwise NOT_INSPECTED"
+   },
+   {
+    "added_at": "2026-11-05T09:43:42Z",
+    "owner": "a later layout lane",
+    "item": "TOC and cross-reference calls take no sections, so a section marker in a heading is a typed SectionsUnavailable gap there (SMB-LAYOUT-ENTRY-TEXT-1). Give those calls the sections",
+    "status_at_tree": "open per ledger; verified only where the item names a finding above, otherwise NOT_INSPECTED"
+   },
+   {
+    "added_at": "2026-11-05T10:03:00Z",
+    "owner": "a later pulse lane",
+    "item": "STU-VID-029 linked-selection toggle does not reach plan_rate_stretch or plan_assembly_edit, and no test takes a link-only or moved unit through the real session commit path (session has no pulse edge) (SMB-PR-MERGE-SYNC-1 notes)",
+    "status_at_tree": "open per ledger; verified only where the item names a finding above, otherwise NOT_INSPECTED"
+   },
+   {
+    "added_at": "2026-11-05T11:07:36Z",
+    "owner": "lead, with the Type owner",
+    "item": "The harfrust spike provider implements composition v1 only, so @2 and @3 are UnknownComposition there. Decide whether it follows later tokens or stays a v1 spike",
+    "status_at_tree": "open per ledger; verified only where the item names a finding above, otherwise NOT_INSPECTED"
+   },
+   {
+    "added_at": "2026-11-05T11:07:36Z",
+    "owner": "a later GUI lane",
+    "item": "Viewer move, harness-view plan_move: two proposals plus unreported edits where pulse plan_move_clips gives one proposal with a true report, but plan_move_clips cannot change track, refuses overlap where plan_move overwrites, and moves link partners. Whether a drag onto a clip overwrites or refuses is UNVERIFIED (D5); left as is until GUI work resumes. Found by SMB-PR-EDIT-FOOTPRINT-1",
+    "status_at_tree": "open per ledger; verified only where the item names a finding above, otherwise NOT_INSPECTED"
+   },
+   {
+    "added_at": "2026-11-05T14:24:14Z",
+    "owner": "a later interop-media lane",
+    "item": "F-R56-10: interop-media's EDL reads the clip window and ignores the retime record, so a held clip exports as its window with no refusal; other exporters NOT_INSPECTED",
+    "status_at_tree": "open per ledger; verified only where the item names a finding above, otherwise NOT_INSPECTED"
+   },
+   {
+    "added_at": "2026-11-05T14:24:14Z",
+    "owner": "a later pulse lane",
+    "item": "F-R56-12: a group move of both clips of a transition keeps it with a known source length and drops it with an unknown one, though the cut does not change",
+    "status_at_tree": "open per ledger; verified only where the item names a finding above, otherwise NOT_INSPECTED"
+   },
+   {
+    "added_at": "2026-11-05T15:17:11Z",
+    "owner": "with a later Viewer text lane",
+    "item": "F-R56-8: the Point branch of shaped_story and its bidi refusal are unreachable from the public Viewer path; defensive, not wrong",
+    "status_at_tree": "open per ledger; verified only where the item names a finding above, otherwise NOT_INSPECTED"
+   },
+   {
+    "added_at": "2026-11-05T16:46:00Z",
+    "owner": "a later layout lane",
+    "item": "layout anchors.rs:270 reads a glyph-less anchor as unplaced, and footnotes::locate on a blank paragraph is read, not run; same class as line_of. Per-scoped-mark and per-reference paragraph walks stay quadratic. Multi-column frames with these lookups assume a frame's lines stay in source order, not proven. Found by SMB-LAYOUT-BLANK-LINE-LOOKUPS-1",
+    "status_at_tree": "open per ledger; verified only where the item names a finding above, otherwise NOT_INSPECTED"
+   },
+   {
+    "added_at": "2026-11-05T17:54:37Z",
+    "owner": "a later GUI or Viewer text lane",
+    "item": "No window command runs the composition token upgrade, so a Viewer user has no way to take it; animated_glyphs still composes under the current token (its only caller is a test); no glyph-level byte compare between tokens at Viewer level. Found by SMB-TYPE-AUTHORED-TOKEN-1",
+    "status_at_tree": "open per ledger; verified only where the item names a finding above, otherwise NOT_INSPECTED"
+   },
+   {
+    "added_at": "2026-11-05T17:54:37Z",
+    "owner": "a later package lane, or a documented reading",
+    "item": "read_package notes every session-owned studio/* entry as Opaque, so Opened.loss is not a usable loss signal for a host reading at the package layer; Session::loss() is the one that means it. Found by SMB-TYPE-AUTHORED-TOKEN-1",
+    "status_at_tree": "open per ledger; verified only where the item names a finding above, otherwise NOT_INSPECTED"
+   },
+   {
+    "added_at": "2026-11-05T18:17:54Z",
+    "owner": "a later layout lane",
+    "item": "Justified paragraph composer: a window can commit into a dead end past the first line; the last line takes the rest of the paragraph with the excess in hang_pt, not marked overfull (8 of 1560 generated rows, kept byte-identical in SMB-LAYOUT-COMPOSER-DEPTH-1). A fix changes composer output and needs its own proof against the parity rows",
+    "status_at_tree": "open per ledger; verified only where the item names a finding above, otherwise NOT_INSPECTED"
+   },
+   {
+    "added_at": "2026-11-05T18:17:54Z",
+    "owner": "a later settings lane",
+    "item": "STU-VID-035a multi-frame step: one field, no second constant, held only while the document is open; persisting it needs a settings store, not built. Found by SMB-PR-NUDGE-1",
+    "status_at_tree": "open per ledger; verified only where the item names a finding above, otherwise NOT_INSPECTED"
+   },
+   {
+    "added_at": "2026-11-05T18:17:54Z",
+    "owner": "a later session lane",
+    "item": "Multicam angle_order naming a removed track, and a live route naming a removed bus, stay unreadable or open: making them inert needs a reader change beyond skipping. Found by SMB-PR-ENTRY-REFERENCES-1",
+    "status_at_tree": "open per ledger; verified only where the item names a finding above, otherwise NOT_INSPECTED"
+   }
+  ],
+  "closure_trust": "32 closures or fixes rest on code I opened; the rest on a later round's statement (closure_basis ROUND) and are unconfirmed by me. No closure I opened was false. Weak spots: F-R55-4 reports only and creates no entry; F-R51-9 two TOC generators remain."
+ },
+ "q4_dependencies_licences": {
+  "cargo_lock": {
+   "packages": 605,
+   "external_registry": 549,
+   "workspace": 56,
+   "git_sources": 0,
+   "read_from": "Cargo.toml license field in the local cargo registry for all 549; no GPL, LGPL or MPL source opened"
+  },
+  "licences_top": [
+   [
+    "MIT OR Apache-2.0",
+    262
+   ],
+   [
+    "MIT",
+    122
+   ],
+   [
+    "Apache-2.0 OR MIT",
+    51
+   ],
+   [
+    "MIT/Apache-2.0",
+    19
+   ],
+   [
+    "Unicode-3.0",
+    18
+   ],
+   [
+    "Zlib OR Apache-2.0 OR MIT",
+    12
+   ],
+   [
+    "Apache-2.0",
+    10
+   ],
+   [
+    "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+    6
+   ],
+   [
+    "Unlicense OR MIT",
+    5
+   ],
+   [
+    "MIT OR Apache-2.0 OR Zlib",
+    5
+   ],
+   [
+    "BSD-2-Clause",
+    4
+   ],
+   [
+    "BSD-2-Clause OR Apache-2.0 OR MIT",
+    4
+   ]
+  ],
+  "copyleft_by_name": [
+   {
+    "crate": "r-efi",
+    "versions": [
+     "5.3.0",
+     "6.0.0"
+    ],
+    "licence": "MIT OR Apache-2.0 OR LGPL-2.1-or-later",
+    "reading": "an OR choice, satisfied by MIT; via getrandom, UEFI targets"
+   }
+  ],
+  "gpl_lgpl_mpl_only": 0,
+  "other_non_permissive_terms": [
+   "epaint_default_fonts OFL-1.1 AND Ubuntu-font-1.0 (license_gate.py PACKAGE_ALLOW for controls, harness, harness-view)",
+   "libfuzzer-sys NCSA (via rav1e; no fuzz target in the tree)",
+   "hsk-studio-ps resources: TeX Gyre GUST Font License, DejaVu"
+  ],
+  "gate": "S/tools/license_gate.py allows MIT, Apache-2.0, BSD, Zlib, ISC, BSL-1.0, Unicode, CC0, Unlicense; steward-sync runs it. Not rerun here.",
+  "workspace_crate_licence": "47 of 56 workspace crates declare no licence field in R56 metadata; 9 declare Apache-2.0 OR MIT.",
+  "databases": {
+   "linked": "none",
+   "other_than_surrealdb": "none. No surrealdb, rocksdb, sqlite, rusqlite in Cargo.lock. interop-lrcat reads .lrcat bytes with its own reader of the SQLite file format (catalog_bytes.rs:5), not a database engine. SurrealDB named only in doc comments (develop records.rs:7, kernel-bindings lib.rs:2)."
+  },
+  "workspace_rules_forbid": "handshake_core, handshake_native, surrealdb, rocksdb, eframe, image, libsqlite3-sys; -sys or FFI outside render-gpu, score-device, score-plugin, reel-native, motion-js; wgpu outside render-gpu; no new egui (D1); copyleft goes to the lead (builders/WORKSPACE_RULES.md:44)",
+  "rule_conflicts": [
+   "eframe and egui remain in harness and harness-view, image arrives via eframe and arboard, wgpu with them: quarantined by D1, still in the graph",
+   "reel uses unsafe to rav1d's Rust functions, no -sys"
+  ],
+  "vendored": {
+   "stet_0.8.4": "ps, ps-core, ps-engine, ps-fonts, ps-graphics, ps-ops, ps-pdf, Apache-2.0 OR MIT, SOURCE_PROVENANCE.json",
+   "type_third_party": "rustybuzz 0.20.1, ttf-parser 0.25.1, unicode-bidi 0.3.18 in type/third-party and src/provider; provenance hash test tests/provenance.rs",
+   "nib": "SOURCE_PROVENANCE.json, MIT OR Apache-2.0",
+   "reel": "prores from SMPTE RDD 36, vc3/tables.rs generated from SMPTE ST 2019-1 text",
+   "committed_assets": "47 .icc, 33 .pfb, 19 .ps, 9 .ttf, 3 .fig, media fixtures; licence of each NOT_INSPECTED"
+  },
+  "origin_scan": "git grep for ported, derived, adapted from dcraw, LibRaw, rawspeed, darktable, ffmpeg, x264, GIMP, Inkscape, Ghostscript, MuPDF, Poppler: 0 derivation claims; tools/camera-matrix-table.py fits matrices from rawtoaces-data (Apache-2.0). A comment scan cannot prove provenance."
+ },
+ "q5_structure": {
+  "catalogue": {
+   "modules": 35,
+   "crate_count_field": 35,
+   "workspace_crate_count_field": 56,
+   "crates_on_disk": 56
+  },
+  "not_in_modules": [
+   "harness-core",
+   "harness-view",
+   "interop-affinity",
+   "interop-fig-base",
+   "interop-fig-native",
+   "interop-raster",
+   "interop-tiff",
+   "interop-vector-core",
+   "interop-vector-svg",
+   "press-read",
+   "press-write",
+   "ps",
+   "ps-core",
+   "ps-engine",
+   "ps-fonts",
+   "ps-graphics",
+   "ps-ops",
+   "ps-pdf",
+   "web-assets",
+   "web-core",
+   "worker"
+  ],
+  "reading": "All 21 are listed in crate_catalog with an owner module (recorded 2026-10-30 at 3cf0f149), so they are seam halves under an owner, not orphans. The catalogue is stale, though.",
+  "catalogue_is_stale": [
+   "All 35 modules still read status PLANNED_NOT_IMPLEMENTED",
+   "spec_version v02.225 against current v02.229",
+   "53 real edges are absent from modules[].depends_on, e.g. pulse->score, develop->interop-tiff, interop-media->pulse, interop-layout->pigment,press,package, interop-lrcat->develop,kernel-bindings, press->press-read,press-write",
+   "crate_catalog depends_on_crates drifts on 8 of 21: interop-vector-core (ps, ps-core), press-write (observe), ps and its siblings"
+  ],
+  "root_metadata": "workspace.metadata.studio.dependencies allows every real edge: 0 undeclared (recomputed from each Cargo.toml).",
+  "workspace_rules_stale": "builders/WORKSPACE_RULES.md:26 says interop-media -> pulse (D9) is NOT allowed, Operator decision pending; interop-media Cargo.toml:13 and root Cargo.toml:218 carry it (commit 394082ff). UNVERIFIED whether a decision landed.",
+  "forbidden_edges": {
+   "ENG-DAG-FORBID-001": "none broken: no handshake_core, handshake_native, surrealdb, rocksdb in any manifest or Cargo.lock",
+   "ENG-DAG-FORBID-002": "none broken: folio -> accord, schemars, serde, serde_json only; accord has no dependency",
+   "ENG-DAG-FORBID-003": "not an edge check; chronicle holds history by design, NOT_INSPECTED against EventLedger",
+   "cycles": "none in non-dev edges"
+  },
+  "portability": {
+   "step0_R56": "machine_paths violations 0, 18 pinned files",
+   "my_scan": "drive-letter and user-profile paths outside .config/machine-paths.toml: press-write export/verdict.rs:167 test path, ps-engine eval.rs:1298 comment, render-gpu pipeline.rs:136 doc, gpu_submit_fault.rs:267, :269 test inputs, tools/run-round.sh:498 comment. No live product path.",
+   "gaps": "Governance, not product: builders/WORKSPACE_RULES.md:10 hardcodes a D: path, round argv uses C:/HandshakeBuild. The corpus is found by walking ancestors for Handshake_Artifacts (.config/oracle-corpus.toml), fine after moving the whole Worktrees folder."
+  }
+ },
+ "q6_durability": {
+  "origin": "1940292c; git ls-remote finds none of these five",
+  "local_only": [
+   {
+    "branch": "lane/smb-pr-retime-output-1",
+    "tip": "cff47aef",
+    "commits_not_on_origin": 5,
+    "behind_origin": 8,
+    "files": 14,
+    "insertions": 2037,
+    "deletions": 94,
+    "remote_contains": [],
+    "worktree_dirty": 0,
+    "state": "closest to push; closes F-R56-2"
+   },
+   {
+    "branch": "lane/smb-pr-nudge-1",
+    "tip": "31de741d",
+    "commits_not_on_origin": 5,
+    "behind_origin": 8,
+    "files": 8,
+    "insertions": 1293,
+    "deletions": 11,
+    "remote_contains": [],
+    "worktree_dirty": 0,
+    "state": "close"
+   },
+   {
+    "branch": "lane/smb-pr-entry-references-1",
+    "tip": "4529259c",
+    "commits_not_on_origin": 5,
+    "behind_origin": 19,
+    "files": 17,
+    "insertions": 1424,
+    "deletions": 79,
+    "remote_contains": [],
+    "worktree_dirty": 0,
+    "state": "closes F-R56-3, F-R56-7; three changed pins await the lead"
+   },
+   {
+    "branch": "lane/smb-layout-composer-depth-1",
+    "tip": "286d9241",
+    "commits_not_on_origin": 3,
+    "behind_origin": 31,
+    "files": 6,
+    "insertions": 2588,
+    "deletions": 58,
+    "remote_contains": [],
+    "worktree_dirty": 0,
+    "state": "closes F-R56-1 HIGH; clippy and whole suites not run on final code; Knuth-Plass 2^25 cap decision due"
+   },
+   {
+    "branch": "lane/smb-pr-media-markers-1",
+    "tip": "3cfbbeed",
+    "commits_not_on_origin": 5,
+    "behind_origin": 12,
+    "files": 13,
+    "insertions": 2411,
+    "deletions": 34,
+    "remote_contains": [],
+    "worktree_dirty": 3,
+    "state": "red tests, behaviour held back; dirty package tests/externals.rs, pulse annotate.rs, pulse lib.rs; resume patch"
+   }
+  ],
+  "totals": {
+   "commits": 23,
+   "insertions": 9753,
+   "deletions": 276
+  },
+  "also_local": [
+   "backup/smb-pr-track-display-1-pre-fold",
+   "13 stash entries in the shared repository (git stash list)"
+  ],
+  "risk": "One .git on D:. The only fix of the one open HIGH finding exists nowhere else. NAS or other backup of these refs NOT_INSPECTED. No action taken."
+ },
+ "q7_spec_fidelity": {
+  "spec_current": "v02.229 (newest .GOV/spec/master-spec-v* folder)",
+  "proposed_open": [
+   {
+    "id": "SD-31",
+    "gap": "STU-LAY-152 trap-preset table row `black_density` states hard_max 10 while the clause text makes 12.0 (the wider capture, per STU-LAY-103) the normative hard maximum; MT-30847 AC-004 pins 10",
+    "lead_reading": "2026-11-01T03:59:19Z: the lane implements 12.0 (clause text); MT-30847 AC-004 to be regenerated once the table row is corrected",
+    "needs": "one value in the table row and the derived MT"
+   },
+   {
+    "id": "SD-32",
+    "gap": "STU-LAY-148 TOC style field `numbered_paragraphs` is an enumeration with no members",
+    "lead_reading": "2026-11-01T03:59:19Z: stored as a typed open enumeration with no invented members",
+    "needs": "the member list"
+   },
+   {
+    "id": "SD-33",
+    "gap": "STU-LAY-149 says the captured header-type enumeration has twenty-seven members but names only thirteen",
+    "lead_reading": "2026-11-01T03:59:19Z: the lane carries the thirteen named members in a pluggable header-set model",
+    "needs": "the fourteen missing member names"
+   },
+   {
+    "id": "SD-34",
+    "gap": "STU-LAY-045/149 require per-reference page-range scoping but list no page-range scope members",
+    "lead_reading": "2026-11-01T03:59:19Z: the lane uses the members MT-174 lists",
+    "needs": "the page-range scope enumeration"
+   },
+   {
+    "id": "SD-35",
+    "gap": "STU-LAY-152 declares the trap-width cicero bound as 0c7.507 while layout's existing unit converter yields 0c7.505 for 8 pt",
+    "lead_reading": "2026-11-01T03:59:19Z: pt stays canonical; the converted cicero bound follows the existing converter, discrepancy recorded",
+    "needs": "which value is normative (conversion constant)"
+   },
+   {
+    "id": "SD-36",
+    "gap": "STU-LAY-148/149 leave undeclared: the default-styled TOC exception's content, the run-in joiner string, index capitalisation behaviour and the cross-reference lead-in words",
+    "lead_reading": "2026-11-01T03:59:19Z: the lane stores them as unknown or Studio-declared and invents no captured value",
+    "needs": "those values or an explicit statement that they are Studio-declared"
+   },
+   {
+    "id": "SD-37",
+    "gap": "STU-TYP-207 (v02.228 SD-29) says foreign noncharacters in the sentinel range are replaced on import but does not name the replacement code point",
+    "lead_reading": "2026-11-01T05:59:08Z: the lane replaces with U+FFFD and reports a typed loss",
+    "needs": "the replacement (e.g. U+FFFD) and whether a loss is reported"
+   },
+   {
+    "id": "SD-38",
+    "gap": "STU-TYP-207 (v02.228 SD-29) assigns sentinel code points but no Unicode bidi class: noncharacters default to class L, so a break sentinel would not end a bidi paragraph",
+    "lead_reading": "2026-11-01T05:59:08Z: breaks split paragraphs in Studio's own partition before bidi; markers and flush space keep the default class",
+    "needs": "the bidi class per sentinel (break sentinels as paragraph separators, markers and flush space as neutral or L)"
+   },
+   {
+    "id": "SD-39",
+    "gap": "Glow Color Phase (STU-FX-131a ANGLE row, unbounded since v02.228 SD-26) has no stated semantics in module 14: how the phase offsets the A/B colour loop, and in what unit; composite's Glow engine therefore refuses any phase that differs from",
+    "lead_reading": "2026-11-01T06:02:30Z: no invented behaviour; the engine keeps the typed not-implemented refusal, accepting values equal to the default modulo 360 (lane SMB-FOLIO-ANGLE-UNBOUNDED-1)",
+    "needs": "the Color Phase semantics (offset of the A & B colour cycle per degree) and a proven default"
+   },
+   {
+    "id": "SD-40",
+    "gap": "STU-FX-131a Wave World rows whose unit cell is `--` but whose name implies a physical quantity: preroll (row 24), producer position x/y (row 44), amplitude (row 52), frequency (row 54); under v02.228 SD-27 they are unitless with an undeclar",
+    "lead_reading": "2026-11-01T08:51:36Z: SMB-R51-FOLLOWUPS-1 unmaps all four; the engine scalars stay authored studio_declared rows beside the stored recovered rows until the units are declared",
+    "needs": "the unit and engine scale of each row (e.g. seconds/frames for preroll, layer-relative pixels or percent for position, h"
+   },
+   {
+    "id": "SD-41",
+    "gap": "STU-RAS-022 / STU-IO-006 row 9 require channel records to survive OpenEXR round trips (multi-channel preserved), but no Studio crate reads OpenEXR and the only writer (composite three_d/exr.rs) writes uncompressed FLOAT with short names and",
+    "lead_reading": "2026-11-01T13:46:33Z: EXR channel interchange not implemented; MT-30095 stays partly met on the EXR row",
+    "needs": "an owning crate for OpenEXR read/write, or a spec statement limiting channel-record interchange to PSD/PSB and TIFF unti"
+   },
+   {
+    "id": "SD-42",
+    "gap": "sentinel resolution at composition leaves nine questions the spec does not answer (lane proposals SENT-SD-1..9): next/previous page meaning, the index marker's displayed value, odd/even parity source and blank-page insertion, overset at a m",
+    "lead_reading": "2026-11-01T14:45:44Z: SMB-LAYOUT-SENTINELS-1 implements typed unresolved outcomes and records each reading; see builders/lanes/hsk-studio-layout-sentinels-1.json",
+    "needs": "a statement per question"
+   },
+   {
+    "id": "SD-43",
+    "gap": "IDML mapping of the stream sentinels is incomplete in the spec (lane proposals SENT-SD-10..14): no IDML value is stated for the column break, flush space, or the footnote / endnote / cross-reference / index markers; the frame / page / odd /",
+    "lead_reading": "2026-11-02T03:09:53Z: SMB-SENTINELS-NATIVE-1 maps what is stated and leaves the rest typed unavailable",
+    "needs": "the IDML representation per member, or a statement that the member is not carried by IDML"
+   },
+   {
+    "id": "SD-44",
+    "gap": "STU-VID-016a row DNX SQ 720p 29.97 declares no frame rate",
+    "lead_reading": "2026-11-05: the row is not shipped (391 of 392); no fps guessed",
+    "needs": "the fps of the row, or how to ship a row without one"
+   },
+   {
+    "id": "SD-45",
+    "gap": "STU-VID-012b gives no fallback when no timecode member matches the frame rate (48 fps; five code 113 rows)",
+    "lead_reading": "2026-11-05: frames plus warning time_display_code_113, matching Pulse TimeDisplay::matching; UNVERIFIED",
+    "needs": "the fallback display"
+   },
+   {
+    "id": "SD-46",
+    "gap": "STU-VID-016a has no per-preset editing-mode binding (166 presets) and leaves some fields undeclared",
+    "lead_reading": "2026-11-05: bindings not shipped; three defaulted fields are Studio readings, listed in the lane's declared_readings",
+    "needs": "the binding column and the undeclared fields, or a statement that defaults apply"
+   },
+   {
+    "id": "SD-47",
+    "gap": "STU-VID-011 / 018 / 019 say settings are part of the sequence record; the working colour space reference form is not declared",
+    "lead_reading": "2026-11-05: lead accepted the record-set placement (multicam precedent); working colour space is a closed enumeration for now",
+    "needs": "whether the record may live beside the sequence keyed by sequence id, and the reference form"
+   },
+   {
+    "id": "SD-48",
+    "gap": "STU-VID-011 and STU-VID-017 do not state what happens to clips when a preset or mode changes a sequence's frame rate; STU-CON-008 does not list the sequence settings schema id, command ids, preset ids or mode ids",
+    "lead_reading": "2026-11-05: apply writes the rate with no re-timing or frame-grid check, declared, vendor parity UNVERIFIED (D5); ids stand under the multicam precedent until decided",
+    "needs": "the rate-change rule for a sequence holding clips (re-time, refuse, or grid check), and whether the Studio-minted ids ma"
+   },
+   {
+    "id": "SD-49",
+    "gap": "STU-VID-036 says track display state is persisted per sequence and is silent on what happens to it when the sequence is removed",
+    "lead_reading": "2026-11-05: a display entry never blocks a document edit or an undo; an entry naming an absent sequence is inert, listed read-only, removed only explicitly. Settings and multicam keep their refusal. Vendor parity UNVERIFIED (D5)",
+    "needs": "whether a view preference may outlive its sequence and return with an undo"
+   },
+   {
+    "id": "SD-50",
+    "gap": "STU-VID-036 declares no defaults or bounds for track display: the default of each switch and of track heights; the height unit and bounds; what expand-all and minimize-all set; whether 'audio and video fade handles' and 'audio and video key",
+    "lead_reading": "2026-11-05: Studio's readings are recorded in builders/lanes/hsk-studio-pr-track-display-1.json notes.declared_readings; vendor parity UNVERIFIED (D5)",
+    "needs": "the declared values, or the spec's confirmation that Studio's declared readings stand"
+   },
+   {
+    "id": "SD-51",
+    "gap": "The TOC clause does not say what a heading with no visible text produces: an empty heading, a whitespace-only heading, a marker-only heading; or in what order hidden, overset and no-text apply",
+    "lead_reading": "2026-11-05: one reason each, in order hidden, overset, no_text; empty or White_Space-only headings give no entry and are counted. Vendor parity UNVERIFIED (D5)",
+    "needs": "a stated rule, or confirmation of Studio's reading"
+   },
+   {
+    "id": "SD-52",
+    "gap": "STU-TYP-130 does not say which token a stored document with no recorded token composes under, whether the token is per document or per story, or what diffable means for an upgrade",
+    "lead_reading": "2026-11-05: per document; no entry reads as @1 with a typed note and save writes no entry; an unknown token refuses, never the newest; the upgrade records from-token, to-token and affected stories, and refuses older or unknown targets. Vendor parity UNVERIFIED",
+    "needs": "the rule for an unrecorded token and the upgrade's diff content, or confirmation of Studio's reading"
+   }
+  ],
+  "proposed_count": 22,
+  "applied_count": 30,
+  "behaviour_on_unconfirmed_readings": [
+   {
+    "behaviour": "Stored document with no token composes as @1, typed refusal for U+2028 under it, token per document",
+    "sd": "SD-52",
+    "code": "folio composition_token.rs, session composition_token.rs",
+    "in_tree": "yes, no verdict"
+   },
+   {
+    "behaviour": "Token @3 instead of a spec exception to STU-TYP-130",
+    "sd": "lead reading (pause_20261105 overrulable list)",
+    "code": "type validate.rs:6, :325",
+    "in_tree": "yes, PASS R56"
+   },
+   {
+    "behaviour": "TOC order hidden, overset, no_text; empty heading gives no entry",
+    "sd": "SD-51",
+    "code": "layout toc_contract.rs:868-901",
+    "in_tree": "yes, no verdict"
+   },
+   {
+    "behaviour": "Track display entries inert, never block an edit or undo",
+    "sd": "SD-49",
+    "code": "session sequence_records.rs:229",
+    "in_tree": "yes, no verdict"
+   },
+   {
+    "behaviour": "Track display defaults, heights, switches",
+    "sd": "SD-50",
+    "code": "builders/lanes/hsk-studio-pr-track-display-1.json declared_readings",
+    "in_tree": "yes, no verdict"
+   },
+   {
+    "behaviour": "Preset apply writes frame rate with no re-time or grid check",
+    "sd": "SD-48",
+    "code": "folio sequence_preset.rs",
+    "in_tree": "yes, PASS"
+   },
+   {
+    "behaviour": "Sequence settings live beside the sequence; closed working colour enum; 3 defaulted preset fields; 391 of 392 presets shipped; code-113 fallback",
+    "sd": "SD-44..47",
+    "code": "folio sequence_preset/settings.rs, shipped.rs",
+    "in_tree": "yes, PASS"
+   },
+   {
+    "behaviour": "Nine sentinel composition questions; IDML sentinel mapping on a source marked UNVERIFIED",
+    "sd": "SD-42, SD-43",
+    "code": "layout sentinels.rs, interop-layout idml_sentinels.rs:12-14",
+    "in_tree": "yes, PASS"
+   },
+   {
+    "behaviour": "Foreign noncharacter becomes U+FFFD with loss; break sentinels split before bidi",
+    "sd": "SD-37, SD-38",
+    "code": "interop-layout idml_sentinels.rs, type engine.rs",
+    "in_tree": "yes, PASS"
+   },
+   {
+    "behaviour": "black_density 12.0 against table 10; 13 of 27 header types; TOC and index members stored unknown; cicero bound 0c7.505",
+    "sd": "SD-31..36",
+    "code": "layout print.rs, toc_contract.rs, index_contract.rs",
+    "in_tree": "yes, PASS; MT-30847 AC-004 pins 10"
+   },
+   {
+    "behaviour": "Glow Color Phase refused unless default; Wave World rows unmapped",
+    "sd": "SD-39, SD-40",
+    "code": "composite temporal/composition/effects.rs:620-623, simulations/wave_world.rs:121",
+    "in_tree": "yes, PASS"
+   },
+   {
+    "behaviour": "audio_routing inert when its sequence, clip or track is gone",
+    "sd": "lead reading, no SD item yet",
+    "code": "local lane/smb-pr-entry-references-1 only",
+    "in_tree": "no"
+   }
+  ],
+  "scale": "301 'Studio reading' lines in 161 files, 102 studio_declared in 43 files, 122 'lead decision' in 61 files. Readings are declared in code, which is a strength, but the spec owner has confirmed none of SD-31..52."
+ },
+ "health_verdict": {
+  "summary": "An honest, well-gated engine codebase with few crash markers and clean licences, far from the parity its size suggests. Its proofs mostly show Studio agrees with Studio. Vendor agreement covers about 9 percent of audited rows, MT contracts are 1 percent passed, the GUI runs only on a test host due for replacement, and the current head has no verdict.",
+  "weaknesses_in_order_of_worry": [
+   {
+    "rank": 1,
+    "item": "Parity is mostly unverified against vendors",
+    "evidence": "27 of 308 audited rows touch vendor output, 7 match fully; 32 of 4545 distinct tests; 5 of 9 apps have no oracle; one session on 2026-10-16, no new case since; the oracle also fits the code"
+   },
+   {
+    "rank": 2,
+    "item": "MT contracts barely closed",
+    "evidence": "6146 of 6220 PENDING, 62 PASS; 398 PASS lanes is a claim count, not acceptance; MT proof commands name a target that does not exist (F-R55-3, F-R56-13)"
+   },
+   {
+    "rank": 3,
+    "item": "GUI and GPU rest on code decisions have retired",
+    "evidence": "D1 drops egui: harness and harness-view GUI is a quarantined test host; D7 pure Vulkan: render-gpu wgpu code quarantined, refactor RF-12, so GPU proofs stand on a path to be replaced, conflict with WP-KERNEL-012 flagged unresolved; GUI lanes paused on D7 and D8 (D6); no frame decoder on document sequences, so program monitor, trim and retime pixels are unproven; GUI strict 20.8 percent in the 2026-10-23 rollup"
+   },
+   {
+    "rank": 4,
+    "item": "Process abort from document data still in the tree, fix unpushed",
+    "evidence": "F-R56-1 adobe_composer.rs:593; only fix on local lane/smb-layout-composer-depth-1, suites not run; same class candidate interop-fig-native export.rs:384 UNVERIFIED; no fuzzing on PSD, PDF, TIFF, RAW, .fig, IDML, SVG parsers"
+   },
+   {
+    "rank": 5,
+    "item": "Head has no verdict, and recent work is local",
+    "evidence": "31 commits +6600 since R56 unjudged; 23 commits +9753 on five local branches on one disk; R57 must be FULL"
+   },
+   {
+    "rank": 6,
+    "item": "Proof surface is narrow",
+    "evidence": "One Windows host with one GPU, debug profile only, no CI, no clippy gate, cross-host identity NOT_PROVEN, native audio device row never run"
+   },
+   {
+    "rank": 7,
+    "item": "Output silently ignores some stored choices",
+    "evidence": "F-R56-2 frame_blending and optical_flow show a floored frame with no mark; F-R56-10 EDL drops a hold; F-R56-3 sequence removal invalidates all routing"
+   },
+   {
+    "rank": 8,
+    "item": "Behaviour on unconfirmed readings",
+    "evidence": "SD-31..52 PROPOSED, 22 items; 302 UNVERIFIED (D5) lines"
+   },
+   {
+    "rank": 9,
+    "item": "Governance surfaces lag code",
+    "evidence": "STUDIO_MODULES all 35 PLANNED_NOT_IMPLEMENTED, spec v02.225, 53 edges undeclared; crate_catalog drift on 8; parity rollup 13 days old; WORKSPACE_RULES.md:26"
+   },
+   {
+    "rank": 10,
+    "item": "File size",
+    "evidence": "149 non-test files over 1000 lines; plan_sink.rs 4592, native.rs 4053, session.rs 3109"
+   }
+  ],
+  "strengths": [
+   "0 failed rows and 0 timeouts in every union R46..R56; 2 FAIL verdicts (R53, R55) remediated and judged again",
+   "NOT_PROVEN is visible and machine counted; rounds exit 73 rather than hide it; validators probe adversarially and grade findings",
+   "0 todo!, 0 unimplemented!, 7 panic! all test, const or worker; sampled unwraps guarded; unsafe confined to FFI modules, worker and vendored shaper",
+   "Depth bounds on PDF, PSD, kiwi, Lua rules, scene, precomp; PostScript only in a worker process",
+   "Licences clean: 549 crates, no GPL, LGPL or MPL obligation; no database linked; forbidden edges intact; graph acyclic; folio pure",
+   "No live machine paths in product code; step 0 enforces it",
+   "Closures I opened held up: none of the fixes read was false"
+  ]
+ }
+}
