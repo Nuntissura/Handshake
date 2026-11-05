@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-05T05:13:00Z",
+ "updated_at": "2026-11-05T05:59:00Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19334,6 +19334,16 @@
     "added_at": "2026-11-05T05:13:00Z",
     "item": "Retime output (MT-33730, MT-33731): SMB-PR-RETIME-HOLD-1 stores and resolves the choices, but the audio mix ignores maintain_audio_pitch, frame_layers carries no interpolation choice, and pulse has no edge to pigment's optical-flow estimator, so frame_blending and optical_flow do not change a rendered frame yet",
     "owner": "a later pulse, reel and pigment lane (a new edge is steward-owned)"
+   },
+   {
+    "added_at": "2026-11-05T05:59:00Z",
+    "item": "V4-06 failure class in pulse: EditProposal changes() and write_footprint() empty for a real edit. Found and fixed for link-only (SMB-PR-MERGE-SYNC-1, ClipChange::Relink) and retime (SMB-PR-RETIME-HOLD-1, ClipChange::RetimeRecord). Read from diff, not run: reverse-only speed change, marker, transition and work-area record edits. Sweep after both lanes push; first establish what reads the footprint and what a wrong empty one costs",
+    "owner": "a later pulse lane"
+   },
+   {
+    "added_at": "2026-11-05T05:59:00Z",
+    "item": "Harness wall-clock tests audio_import imported_file_plays_through_the_device and viewer_audio looping_audio_wraps_at_the_out_point_and_config_is_checked (400 ms) failed once in a loaded bundled run (292 s against 51 s) and pass alone; load is the builder's reading, not proven. Check against V4-03 if they recur in a round",
+    "owner": "lead watch"
    }
   ],
   "pause_20261103": {
