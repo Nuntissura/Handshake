@@ -1,0 +1,44 @@
+{
+  "crate": "hsk-studio-layout (derived text of TOC, running text and cross-references; note hosts)",
+  "lane": "SMB-LAYOUT-ENTRY-TEXT-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-layout-entry-text-1",
+  "base": "ce644577",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, rebase, per-sha, push, READY",
+  "updated_at": "2026-11-05T07:43:42Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "report_for_host: layout returns typed outcomes, emission stays with the host",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "unchanged: generated text is not a mutating command",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "low"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-05T07:43:42Z",
+    "disk": "D",
+    "closes": [
+      "F-R55-5",
+      "F-R55-9",
+      "F-R55-11"
+    ],
+    "closes_candidates": []
+  }
+}

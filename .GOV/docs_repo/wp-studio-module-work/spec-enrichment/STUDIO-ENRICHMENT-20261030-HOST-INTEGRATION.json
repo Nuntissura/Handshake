@@ -397,6 +397,14 @@
    "lead_reading": "2026-11-05: lead accepted the record-set placement (multicam precedent); working colour space is a closed enumeration for now",
    "source": "lane SMB-PR-SEQUENCE-PRESETS-1 notes.spec_proposals, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-48",
+   "gap": "STU-VID-011 and STU-VID-017 do not state what happens to clips when a preset or mode changes a sequence's frame rate; STU-CON-008 does not list the sequence settings schema id, command ids, preset ids or mode ids",
+   "needs": "the rate-change rule for a sequence holding clips (re-time, refuse, or grid check), and whether the Studio-minted ids may stand",
+   "lead_reading": "2026-11-05: apply writes the rate with no re-timing or frame-grid check, declared, vendor parity UNVERIFIED (D5); ids stand under the multicam precedent until decided",
+   "source": "STUDIO-R55 F-R55-7, F-R55-10, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-05T05:59:00Z",
+ "updated_at": "2026-11-05T07:43:42Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -17788,6 +17788,24 @@
     "MT-33726",
     "MT-33727"
    ]
+  },
+  {
+   "lane_id": "SMB-LAYOUT-ENTRY-TEXT-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-layout (derived text of TOC, running text and cross-references; note hosts)",
+   "lane_file": "builders/lanes/hsk-studio-layout-entry-text-1.json",
+   "brief": "builders/briefs/lane-smb-layout-entry-text-1.md",
+   "worktree": "wt-studio-lanes/smb-layout-entry-text-1",
+   "base": "ce644577",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-05T07:43:42Z",
+   "closes": [
+    "F-R55-5",
+    "F-R55-9",
+    "F-R55-11"
+   ]
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -19672,6 +19690,16 @@
     "added_at": "2026-11-05T05:59:00Z",
     "item": "Harness wall-clock tests audio_import imported_file_plays_through_the_device and viewer_audio looping_audio_wraps_at_the_out_point_and_config_is_checked (400 ms) failed once in a loaded bundled run (292 s against 51 s) and pass alone; load is the builder's reading, not proven. Check against V4-03 if they recur in a round",
     "owner": "lead watch"
+   },
+   {
+    "added_at": "2026-11-05T07:43:42Z",
+    "item": "F-R55-13: U+FFFC refuses MissingGlyph on Inter in both providers and no fixture font maps it, so the anchored-object marker cannot compose through native Type (anchors.rs:115, :270); MT-31007's member stays unproven. Decide how it composes without a font glyph (a host-supplied box, like the resolved marker path), then a native test",
+    "owner": "a later type and layout lane"
+   },
+   {
+    "added_at": "2026-11-05T07:43:42Z",
+    "item": "F-R55-3: the proof commands of MT-33686 and MT-33695..MT-33702 name cargo test -p hsk-studio-pulse --test contracts, which does not exist, and the MTs name STUDIO-MODULE-PULSE as owner though the work is in folio and session. Repoint to folio --test sequence_settings_records and session --test sequence_records_round_trip; MT files are the contract owner's",
+    "owner": "contract owner (lead has not edited MT files)"
    }
   ],
   "pause_20261103": {
