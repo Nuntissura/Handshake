@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-05T15:58:35Z",
+ "updated_at": "2026-11-05T16:46:00Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -18198,8 +18198,8 @@
   },
   {
    "lane_id": "SMB-LAYOUT-BLANK-LINE-LOOKUPS-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-layout (TOC, index and cross-reference line lookup)",
    "lane_file": "builders/lanes/hsk-studio-layout-blank-line-lookups-1.json",
    "brief": "builders/briefs/lane-smb-layout-blank-line-lookups-1.md",
@@ -18207,11 +18207,12 @@
    "base": "091c4d1b",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-05T14:24:14Z",
+   "updated_at": "2026-11-05T16:46:00Z",
    "closes": [
     "F-R56-5",
     "F-R56-9"
-   ]
+   ],
+   "claim": "c9648315..66c0e7c9"
   },
   {
    "lane_id": "SMB-PR-ENTRY-REFERENCES-1",
@@ -20206,6 +20207,11 @@
     "added_at": "2026-11-05T15:17:11Z",
     "item": "F-R56-8: the Point branch of shaped_story and its bidi refusal are unreachable from the public Viewer path; defensive, not wrong",
     "owner": "with a later Viewer text lane"
+   },
+   {
+    "added_at": "2026-11-05T16:46:00Z",
+    "item": "layout anchors.rs:270 reads a glyph-less anchor as unplaced, and footnotes::locate on a blank paragraph is read, not run; same class as line_of. Per-scoped-mark and per-reference paragraph walks stay quadratic. Multi-column frames with these lookups assume a frame's lines stay in source order, not proven. Found by SMB-LAYOUT-BLANK-LINE-LOOKUPS-1",
+    "owner": "a later layout lane"
    }
   ],
   "pause_20261103": {

@@ -1,19 +1,144 @@
 {
   "crate": "hsk-studio-layout (TOC, index and cross-reference line lookup)",
   "lane": "SMB-LAYOUT-BLANK-LINE-LOOKUPS-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-layout-blank-line-lookups-1",
   "base": "091c4d1b",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "c9648315",
+      "subject": "layout (red): table of marks, destinations and headings against blank paragraphs",
+      "pushed": true
+    },
+    {
+      "sha": "fa9f42ca",
+      "subject": "interop-layout (red 2): blank lines through native Type, the index entry and the outline export",
+      "pushed": true
+    },
+    {
+      "sha": "45c4cba9",
+      "subject": "layout: marks, destinations and headings resolve a blank line",
+      "pushed": true
+    },
+    {
+      "sha": "66c0e7c9",
+      "subject": "layout: the outline destination and a zero-width heading in the table; cite the test",
+      "pushed": true
+    }
+  ],
+  "capabilities_done": [
+    "F-R56-5: toc::line_of finds the blank line of a paragraph with no glyph, by Line.paragraph as place_markers and footnotes::locate read it. An index mark (generate_index, generate_index_contract) and a cross-reference destination (<pageNum/>, paragraph and text anchor) there answer the page composition places them on; a marker's derived value reads the same line",
+    "Found by the table, same function: a blank line starts where the next paragraph starts, and line_of took it for that paragraph's line. A heading, mark or destination after a blank line read the blank line's page, and a paragraph overset right after a placed blank line read as placed. An empty span now holds no byte, so both answer their own line (a_blank_line_is_not_the_line_of_the_paragraph_after_it, a_paragraph_overset_after_a_placed_blank_line_is_overset, consecutive_blank_lines_keep_their_own_pages). This also moves a running-text occurrence after a blank line to its true page",
+    "A scoped index range ending in a blank paragraph ends on that paragraph's page; it read as overset and took the story's last placed page (a_scoped_range_ending_in_a_blank_paragraph_ends_on_its_page)",
+    "F-R56-9: one reason per mapped heading left out, in one order at both TOC generators: hidden (its line on a hidden layer, include_hidden off, whatever it holds), then overset (no placed line, include_overset off, text unread), then no_text (derived text empty or only white space, placed or not, marker or not; DerivedText::no_text). Empty, marker-only, spaces-only and U+2028-only headings give no entry with include_overset on or off",
+    "Every omission counted: generate_toc gains GeneratedStory.omitted (TocOmitted {overset, hidden, no_text}), equal to the contract's omitted_overset, omitted_hidden, omitted_no_text in every row of the table; before it counted none",
+    "Running text unchanged on purpose: a blank styled paragraph stays no occurrence and does not take the place of the heading before it; running.rs untouched, reading toc::page_of, the line of text (a_blank_styled_paragraph_is_no_running_text_occurrence)",
+    "Consumers: an index entry from a blank line composes and exports to PDF with its Type glyphs (longdoc_pdf an_index_entry_from_a_mark_on_a_blank_line_exports); a white-space heading leaves the TOC and the PDF outline, no blank bookmark (a_white_space_heading_leaves_the_outline_and_is_counted); both tables hold through native Type (derived_text_native_type)",
+    "Hostile input: lookups are a binary search per frame instead of a walk over every line; a document of 65,536 empty paragraphs (Limits::default().max_paragraphs), every paragraph a mark and a heading, answers within the suite's timeout; one paragraph more is refused as budget_exceeded (v4_02_a_document_of_only_empty_paragraphs_at_the_limits_stays_bounded). No new per-call allocation beyond the existing lines of the byte's paragraph"
+  ],
+  "tests": {
+    "red_proof": {
+      "compiles": true,
+      "sha_map_before_rebases": {
+        "9198b142": "1835669c then c9648315",
+        "849f0f1f": "f710844b then fa9f42ca",
+        "9dbc1f1a": "45c4cba9",
+        "6063e0e5": "66c0e7c9"
+      },
+      "runs": [
+        {
+          "argv": "cargo nextest run --offline -p hsk-studio-layout -E 'binary(blank_line_lookups)' --no-fail-fast (D:, owner lane)",
+          "sha": "9198b142",
+          "exit": 100,
+          "passed": 5,
+          "failed": 17,
+          "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-blank-line-lookups-1/red-proof-smb-layout-blank-line-lookups-1-9198b142.log"
+        },
+        {
+          "argv": "cargo nextest run --offline -p hsk-studio-interop-layout -E 'binary(derived_text_native_type) | binary(longdoc_pdf)' --no-fail-fast (C:, STUDIO_BUILD_DISK=ssd, owner lane)",
+          "sha": "849f0f1f",
+          "exit": 100,
+          "passed": 16,
+          "failed": 4,
+          "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-blank-line-lookups-1/red-proof-smb-layout-blank-line-lookups-1-849f0f1f-ssd.log"
+        }
+      ],
+      "green_at_the_red_tip_not_red": {
+        "a_blank_styled_paragraph_is_no_running_text_occurrence, a_white_space_paragraph_stays_the_running_text_occurrence_it_was": "pin behaviour that must not change",
+        "a_blank_line_made_by_a_forced_break_among_glyphs_is_found_as_before, a_heading_with_a_letter_among_white_space_keeps_its_entry_as_written": "controls",
+        "table_an_overset_mark_counts_unplaced_and_an_overset_destination_reads_unplaced": "overset already read as unplaced in these rows; it holds the rule against the fix"
+      },
+      "corrected_after_red": [
+        "a_paragraph_overset_after_a_placed_blank_line_is_overset was red first on its own fixture line (overset end written 15; the story ends at 16). Fixed in 45c4cba9; the answers it then checks were read green only",
+        "a_mark_and_a_destination_answer_the_page_composition_places_the_marker_on and the native table asked a paragraph destination for a marker byte that is not a paragraph start (Broken by contract). Fixed in 45c4cba9 to the paragraph's first byte; each had been red at its base on the index assertion before reaching that line",
+        "66c0e7c9 adds to two tests after the first green run: the outline destination (page_id, baseline) and a zero-width heading. Not re-proven red"
+      ],
+      "squashed": "none"
+    },
+    "stopped_not_a_result": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-blank-line-lookups-1/red-proof-smb-layout-blank-line-lookups-1-849f0f1f.log: stopped while queued for the D: lock, before any compile, on the coordinator's move to C: (my own background job; marked in the log)",
+    "focused_before_bundle": [
+      {
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-blank-line-lookups-1/focus-smb-layout-blank-line-lookups-1-g1.log",
+        "exit": 100,
+        "passed": 112,
+        "failed": 2,
+        "note": "uncommitted fix; the two test defects named in corrected_after_red"
+      },
+      {
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-blank-line-lookups-1/focus-smb-layout-blank-line-lookups-1-g2.log",
+        "exit": 0,
+        "passed": 388,
+        "failed": 0,
+        "note": "uncommitted fix, whole suites of layout and interop-layout"
+      }
+    ],
+    "bundled": {
+      "argv": "lane-check.sh --owner smb-layout-blank-line-lookups-1 --disk ssd -- cargo nextest run -p hsk-studio-layout -p hsk-studio-interop-layout --no-fail-fast (step 0; clippy layout, interop-layout, harness, harness-view; whole suites)",
+      "exit": 0,
+      "sha": "6063e0e5",
+      "passed": 388,
+      "failed": 0,
+      "per_crate": {
+        "hsk-studio-layout": 312,
+        "hsk-studio-interop-layout": 76
+      },
+      "new_tests": {
+        "crates/hsk-studio-layout/tests/blank_line_lookups.rs": 22,
+        "crates/hsk-studio-interop-layout/tests/derived_text_native_type.rs": 2,
+        "crates/hsk-studio-interop-layout/tests/longdoc_pdf.rs": 2
+      },
+      "not_proven_lines": 0,
+      "clippy": "no warning located in layout or interop-layout",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-blank-line-lookups-1/bundled-smb-layout-blank-line-lookups-1-6063e0e5.log",
+      "log_sha256": "5ca941117a0cad538c011d71c1edc91d9278052ea634f6a2592f3f2ac8ded1c3"
+    },
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-layout-blank-line-lookups-1 --disk ssd --per-sha origin/codex/handshake-studio-assets",
+      "result": "PER_SHA_RESULT OK shas=4 range=41d0e0da..66c0e7c9 (exit 0)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-blank-line-lookups-1/persha-smb-layout-blank-line-lookups-1-66c0e7c9.log",
+      "log_sha256": "8e62a53668c49d457fa68c26a9694eaae98b2722f6b0785299fae1244d4bbd1b"
+    },
+    "rebases": "Twice. Before the bundled run, onto c143625f (SMB-PR-TRACK-DISPLAY-1, folio and session): the red runs are from before it. After the bundled run, onto 41d0e0da (SMB-PR-EDIT-FOOTPRINT-1, pulse and harness-view, none of this lane's crates): the brief's short path, rebase, per-sha, new tests only, push. So bundled.sha 6063e0e5 is the same four commits as 66c0e7c9 over the earlier base; per-sha also ran at 6063e0e5, PER_SHA_RESULT OK shas=4 range=c143625f..6063e0e5, persha-smb-layout-blank-line-lookups-1-6063e0e5.log",
+    "new_tests_after_rebase": {
+      "argv": "cargo nextest run --offline -p hsk-studio-layout -p hsk-studio-interop-layout -E 'binary(blank_line_lookups) | test(blank_line) | test(a_heading_with_no_text_is_counted) | test(a_white_space_heading_leaves_the_outline)' --no-fail-fast",
+      "sha": "66c0e7c9",
+      "exit": 0,
+      "passed": 29,
+      "failed": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-blank-line-lookups-1/newtests-smb-layout-blank-line-lookups-1-66c0e7c9.log"
+    },
+    "push": "git push origin 66c0e7c94eeb3b131bd22acfa2f6ec33d8b16b85:refs/heads/codex/handshake-studio-assets (41d0e0da..66c0e7c9, fast-forward); re-fetch shows origin = 66c0e7c9 at 2026-11-05T16:45:16Z",
+    "doctests": "none added or changed (4d)",
+    "round_features_4e": "the new test file and the two extended ones have no feature gate; the default unit ran them",
+    "step0": "lane-check step 0 clean"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-05T14:24:14Z",
+  "next": "validator: judge c9648315..66c0e7c9",
+  "updated_at": "2026-11-05T16:45:16Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -33,11 +158,132 @@
   },
   "notes": {
     "dispatched_at": "2026-11-05T14:24:14Z",
-    "disk": "D",
+    "disk": "C",
     "closes": [
       "F-R56-5",
       "F-R56-9"
     ],
-    "closes_candidates": []
-  }
+    "closes_candidates": [],
+    "disk_move": "Coordinator 2026-11-05: the D: lock queue was long and the C: lock free. The first red ran on D: before the message; the queued D: job was stopped; everything after on C: (target C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-layout-blank-line-lookups-1). This replaces the brief's on D: line",
+    "readers_of_line_of": {
+      "toc::placed_page_of": {
+        "toc.rs generate_toc, toc_contract.rs generate_table_of_contents": "the heading's page: a blank line answers its page, and no text then removes the heading with its count",
+        "index.rs:210 generate_index, index_contract.rs:889 generate_index_contract": "the mark's page: the page composition places it on",
+        "index_contract.rs:763 scope_end": "the page where a scoped range ends: the blank paragraph's page, not the story's last placed page"
+      },
+      "toc::baseline_of": "toc.rs, toc_contract.rs: an entry's outline destination, the same line as its page",
+      "toc_contract::frame_of through on_hidden_layer": "toc.rs, toc_contract.rs, index.rs, index_contract.rs: whether the layer removes it: a blank line's frame counts, so it reads hidden",
+      "xref.rs:315 page_of": "<pageNum/> of a paragraph or anchor destination: the blank line's page",
+      "derived_text.rs value_at": "the page of a page-number marker: the same line, no second lookup",
+      "toc::page_of, one caller, running.rs:123": "a running-text occurrence: the line of text only, so a blank line answers no occurrence, unchanged"
+    },
+    "spec_basis": {
+      "STU-LAY-044": "Tables of contents MUST be style-driven.",
+      "STU-LAY-148": [
+        "`include_hidden` | boolean | Include entries from text on hidden layers.",
+        "The generate command takes a TOC style, a replace-existing flag, an optional book, a place point and an INCLUDE-OVERSET flag; Studio MUST expose the overset flag, because a TOC generated from a document with overset text otherwise silently omits entries.",
+        "`remove_forced_line_break` | boolean | Strip forced breaks from captured entry text."
+      ],
+      "STU-LAY-045": "Indexing MUST build a topic/subtopic hierarchy through inserted index marks, with sort-by overrides, per-reference page-range scoping and cross-reference forms.",
+      "STU-LAY-149": "`include_hidden_entries` | boolean |",
+      "STU-LAY-047": "Cross-references MUST insert references to paragraphs or named text anchors using editable formats assembled from building blocks, with a character style, and MUST flag stale or broken references in preflight. Named text anchors MUST provide hyperlink and cross-reference destinations at exact text positions across documents.",
+      "silent": "The spec does not state the line of a paragraph with no glyph, what a TOC does with a mapped heading that has no text, or which reason counts when more than one applies. No row decides dropping a whitespace-only heading: it is a declared reading"
+    },
+    "declared_readings": [
+      "UNVERIFIED (D5). A mark or destination in a paragraph with no glyph answers the page of that paragraph's blank line, the page compose_with_sentinels gives a marker there",
+      "UNVERIFIED (D5). A mapped heading with no text gives no entry: empty, markers with no value only, spaces or other Unicode White_Space only, U+2028 only (kept or not). Basis: an entry with no words and a page number reads as a defect in a TOC and as a blank bookmark in an outline, and one rule replaces three answers (an empty entry with include_overset on, spaces with a label, overset with it off). Behaviour change: a whitespace-only heading was listed with its spaces and a label at both generators, and a placed empty heading was counted overset. InDesign behaviour not known; for the D5 oracle",
+      "UNVERIFIED (D5). One reason per heading, first that applies: hidden, overset, no text. The layer removes a heading before its text is read; an overset heading with include_overset off is counted overset, its text unread and no gap reported, as before; with include_overset on, a heading with no text counts no_text, not overset",
+      "UNVERIFIED (D5). White space means Unicode White_Space (str::trim): a zero-width space is a character, so a heading of one keeps its entry",
+      "A heading on a hidden layer and overset is on no frame, so it counts as overset or no text, not hidden",
+      "A blank styled paragraph stays no running-text occurrence: on a running header it would replace the heading before it with nothing. A whitespace-only styled paragraph has glyphs and a line and stays the occurrence it was, so the TOC and running text read it differently. Stated, not changed: running.rs is outside this lane. InDesign UNVERIFIED (D5)",
+      "A cross-reference has no hidden rule: a destination on a hidden layer still answers its page, as before for text with glyphs",
+      "A destination in an empty paragraph with <fullPara/> resolves to empty text, status as before: not flagged by this lane",
+      "The blank lookup reads Line.paragraph as the index of story.paragraphs, as place_markers reads the partition. A story whose paragraphs are not the composition's partition reads its blank line as not placed, typed and counted"
+    ],
+    "spec_proposals": [
+      "UNVERIFIED (D5). STU-LAY-148: state what a TOC does with a mapped heading that has no text (empty, white space, markers only), with and without INCLUDE-OVERSET. This lane reads no entry, counted",
+      "UNVERIFIED (D5). STU-LAY-148: state the order when a heading is hidden, overset and without text. This lane reads hidden, overset, no text",
+      "UNVERIFIED (D5). STU-LAY-045 / STU-LAY-149 / STU-LAY-047: state that an index mark or a destination in a paragraph with no glyph takes that paragraph's line",
+      "UNVERIFIED (D5). STU-LAY-048 (running text): state whether a whitespace-only styled paragraph is an occurrence; this lane leaves it one and a blank one none",
+      "Carried from SMB-LAYOUT-MARKER-LOOKUPS-1 and SMB-LAYOUT-ENTRY-TEXT-1: state the line of a glyph-less byte at a line boundary"
+    ],
+    "v4_06": {
+      "class": "a byte-to-line lookup that misses the blank line of a paragraph with no glyph, or takes a blank line for the next paragraph's line",
+      "regex": "line_holding|\\.source\\.start|\\.source\\.end|source\\.contains",
+      "scope": "crates/hsk-studio-layout/src, without paragraph.rs and adobe_composer.rs (out of scope, SMB-LAYOUT-COMPOSER-DEPTH-1 is open there), at 091c4d1b",
+      "fixed": [
+        "toc.rs line_of: every reader in readers_of_line_of"
+      ],
+      "already_right": [
+        "sentinels.rs:695-700 place_markers: by Line.paragraph, the reference",
+        "footnotes.rs:244-270 locate: by Line.paragraph; read, not run with a blank paragraph by this lane"
+      ],
+      "not_fixed_reported": [
+        "anchors.rs:270: contains only, so an anchored object byte on a blank line reads unplaced, typed in out.unplaced. Outside the lane's paths; a glyph-less anchor needs its own case, see gaps_outside_lane"
+      ],
+      "not_applicable": "threaded_reflow.rs, table.rs, story_tables.rs, styles.rs, cjk.rs and the shaped-paragraph matches of anchors.rs:122: read p.source of a shaped paragraph or write a line's span, no byte-to-line lookup",
+      "other_crates": "harness-view layout_ui.rs:698, layout_ui/threads.rs:123-172 read line spans for display, no byte-to-line lookup; read at the matching lines only"
+    },
+    "consumers": "git grep at 6063e0e5: no other crate builds a GeneratedStory literal (layout's toc.rs, index.rs, endnotes.rs only). Reader outside layout: interop-layout outline_from_toc (src/pdf_export/longdoc.rs:115), which reads entries, so a dropped heading has no bookmark, covered by a_white_space_heading_leaves_the_outline_and_is_counted. No reader of the counters outside layout's tests and these tests. Generators are called outside layout only from interop-layout tests; the existing export tests pass unchanged",
+    "microtasks": {
+      "read": "MT-30776, MT-30777, MT-30778, MT-30785 rows in full by id and criterion; MT-173, MT-174, MT-176 acceptance rows",
+      "claimed": [],
+      "not_claimed": {
+        "MT-30778": "stays carried PASS_V1. The R56 note on it, a mark in a marker-only paragraph counted unplaced (F-R56-5), no longer holds; no new row proven",
+        "MT-30777": "stays carried PASS_V1. AC-001 overset flag holds and a placed empty heading no longer counts as overset; AC-011 holds; the row table is untouched",
+        "MT-30776": "stays carried PASS_V1, no row touched",
+        "MT-30785": "partly met stays: AC-001 preflight and editable formats, AC-002 across documents are not touched. The stated R56 reason that a destination in a marker-only paragraph reads Unplaced is removed",
+        "MT-173, MT-174, MT-176": "no row claimed; rows carry PROOF TARGET REQUIRED and are not advanced by this lane"
+      },
+      "files_edited": "none"
+    },
+    "paths_beyond_brief": [
+      {
+        "path": "crates/hsk-studio-layout/src/toc_contract.rs",
+        "sites": "the import, the module doc, generate_table_of_contents' heading decision",
+        "why": "the F-R56-9 site: the decision must read the placed page and the one no-text rule",
+        "approval": "coordinator approved; goes on the Operator list"
+      },
+      {
+        "path": "crates/hsk-studio-layout/src/endnotes.rs",
+        "sites": "the two GeneratedStory literals, one added field each (omitted: Default::default()), nothing else",
+        "why": "the new counter field stops those literals compiling",
+        "approval": "coordinator approved; goes on the Operator list"
+      },
+      {
+        "path": "crates/hsk-studio-layout/src/lib.rs",
+        "sites": "the toc re-export gains TocOmitted, besides the DESCRIPTOR the brief lists",
+        "why": "a public field's type must be nameable",
+        "approval": "NOT asked beforehand: one name in a re-export line of a listed file; reported here for the waiver"
+      }
+    ],
+    "gaps_outside_lane": [
+      "anchors.rs:270 (see v4_06): an anchored object byte on a blank line reads unplaced. Typed; U+FFFC does not compose natively in the fixtures (F-R55-13), so not reachable through them. NOT_PROVEN either way",
+      "Pre-existing per-call walks not changed: index_contract.rs scope_end walks the paragraphs for each scoped mark, and xref.rs walks the paragraphs for each reference, so a hostile count of scoped marks or references over many paragraphs is quadratic in time, not in memory. The bound test has neither. Candidate",
+      "Running text and the TOC read a whitespace-only paragraph differently (declared_readings). Candidate for a decision"
+    ],
+    "open": [
+      "NOT RUN: the test suites of the dependents harness and harness-view (clippy only, through lane-check). git grep finds no use of the changed types there",
+      "NOT_PROVEN by a native test: scope_end on a blank paragraph, hidden rows and counters of generate_table_of_contents are proven with toy shaping; the native rows cover marks, destinations, generate_toc's no_text count and a heading after a blank line",
+      "NOT_INSPECTED: footnotes::locate with a blank paragraph was read, not run; other crates' line lookups beyond the regex; multi-column frames with a blank paragraph (lookups assume a frame's lines do not decrease in source order, as place_markers states; suites with columns pass, none combines them with these lookups)",
+      "Timing of the bound test is not asserted: 10.5 s in the debug profile at the uncommitted tree, against 49 s at the red tip, most of it composition and not measured apart. Bounded by nextest's per-test timeout",
+      "UNVERIFIED (D5): InDesign's handling of an index mark, a destination and a TOC heading in a blank paragraph"
+    ],
+    "behaviour_change": "Public: GeneratedStory.omitted, TocOmitted. A placed empty heading moves from omitted_overset to omitted_no_text. A whitespace-only heading moves from an entry to omitted_no_text at both generators, and leaves the outline. A marker-only heading on a hidden layer moves from omitted_no_text to omitted_hidden, and an empty one from omitted_overset to omitted_hidden. A mark or destination on a blank line reads its page, a mark there on a hidden layer counts hidden, not unplaced. After a blank line, a heading, mark, destination or running-text occurrence reads its own page, and text overset right after a placed blank line reads overset. A scoped range ending in a blank paragraph ends there. Tests that held the replaced readings changed, with the reason in each: derived_text.rs an_empty_heading_gives_no_entry_as_the_marker_only_reading_says, white_space_with_no_marker_is_not_this_rule, renamed white_space_with_no_marker_is_this_rule_too because its claim reversed, not to evade anything",
+    "kernel_commit": "Lead commits this lane file; this builder left it uncommitted",
+    "claim_range_v4_14": "c9648315..66c0e7c9",
+    "lead_decisions": [
+      {
+        "at": "2026-11-05T16:46:00Z",
+        "on": "lib.rs re-export gains TocOmitted, not asked first",
+        "decision": "Accepted: a new public type's export is needed by the counters I told the builder to add. Listed with the lane's other paths for the Operator's waiver."
+      },
+      {
+        "at": "2026-11-05T16:46:00Z",
+        "on": "whitespace-only heading gives no entry; placed empty heading moves from overset to no_text",
+        "decision": "Accepted as declared readings with a spec question; both stay typed and counted."
+      }
+    ]
+  },
+  "pushed_sha": "66c0e7c9"
 }

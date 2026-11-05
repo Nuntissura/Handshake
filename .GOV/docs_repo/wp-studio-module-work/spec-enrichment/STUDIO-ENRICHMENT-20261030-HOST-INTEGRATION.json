@@ -421,6 +421,14 @@
    "lead_reading": "2026-11-05: Studio's readings are recorded in builders/lanes/hsk-studio-pr-track-display-1.json notes.declared_readings; vendor parity UNVERIFIED (D5)",
    "source": "lane SMB-PR-TRACK-DISPLAY-1, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-51",
+   "gap": "The TOC clause does not say what a heading with no visible text produces: an empty heading, a whitespace-only heading, a marker-only heading; or in what order hidden, overset and no-text apply",
+   "needs": "a stated rule, or confirmation of Studio's reading",
+   "lead_reading": "2026-11-05: one reason each, in order hidden, overset, no_text; empty or White_Space-only headings give no entry and are counted. Vendor parity UNVERIFIED (D5)",
+   "source": "lane SMB-LAYOUT-BLANK-LINE-LOOKUPS-1, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [
