@@ -1,19 +1,113 @@
 {
   "crate": "hsk-studio-folio (clip retime property), hsk-studio-pulse (frame hold planners, source-frame resolution)",
   "lane": "SMB-PR-RETIME-HOLD-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-pr-retime-hold-1",
-  "base": "ce644577",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "base": "ab61c368",
+  "commits": [
+    {
+      "sha": "2b119c69",
+      "subject": "retime (SMB-PR-RETIME-HOLD-1, red): clip retime field, resolver and hold planner stubs, new tests",
+      "pushed": true
+    },
+    {
+      "sha": "9d5a6f9f",
+      "subject": "retime (SMB-PR-RETIME-HOLD-1): clip retime record, source-frame resolution, frame hold planners",
+      "pushed": true
+    },
+    {
+      "sha": "8cffce02",
+      "subject": "retime (SMB-PR-RETIME-HOLD-1, red 2): commit path, change list and multicam tests",
+      "pushed": true
+    },
+    {
+      "sha": "51eb8f20",
+      "subject": "retime (SMB-PR-RETIME-HOLD-1): list retime changes, multicam refuses a hold it would read",
+      "pushed": true
+    }
+  ],
+  "capabilities_done": [
+    "StudioClip.retime (frame_interpolation, maintain_audio_pitch, frame_hold): omitted at its default, validated on the Folio path (tests clip_retime_records)",
+    "resolve_source_frames: Sampled, Blended, Estimated (marked), Held; reverse; exact integer arithmetic (tests frame_sampling_is_the_nearest_source_frame, frame_blending_gives_the_two_neighbours_and_an_exact_weight, optical_flow_is_the_same_two_frames_marked_as_an_estimation, reverse_speed_resolves_exactly, sampling_is_the_heavier_neighbour_at_every_speed, resolution_refusals_are_typed)",
+    "plan_set_frame_hold, plan_clear_frame_hold, plan_insert_frame_hold_segment: one proposal and one TimelineInverse each (tests every_hold_origin_freezes_one_source_frame_at_every_tick, set_and_clear_are_one_step_with_one_inverse, insert_frame_hold_segment_splits_out_a_held_span, a_held_clip_leaves_its_linked_audio_playing, hold_refusals_are_typed)",
+    "plan_set_retime_options (test retime_options_are_independent_and_undoable)",
+    "Rate planners keep the record; rate.rs gap note updated (test rate_planners_keep_the_retime_record)",
+    "Record travels through razor, trim, slip, range lift, subsequence and nest; clip_source_at, frame_layers and frame_layers_nested read the hold (tests edits_carry_the_retime_record, the_program_monitor_path_reads_the_hold)",
+    "Package: two members classified, record round trip, old-shape clip byte-identical (tests every_folio_reference_property_is_classified, clip_retime_round_trips_through_the_package)",
+    "ClipChange::RetimeRecord: a set, clear or options change is named in changes() and the clip is in write_footprint() (test set_and_clear_are_one_step_with_one_inverse)",
+    "Commit path: hold and options through submit_timeline, undo, redo, save_to, open_path, compare; preconditions and idempotency keys see a retime-only difference (session tests retime_commit)",
+    "multicam_hold_unsupported in resolve, flatten, create and enable (test frame_hold_is_refused_where_multicam_would_read_it)"
+  ],
+  "tests": {
+    "bundled": {
+      "argv": "lane-check.sh --owner smb-pr-retime-hold-1 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-pulse -p hsk-studio-package -p hsk-studio-session -p hsk-studio-interop-media -p hsk-studio-harness-core -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/audio-batch,hsk-studio-harness/audio-device --no-fail-fast",
+      "exit": 0,
+      "sha": "51eb8f2089e4ca4d2e27c475ad8e4226e09dd7bc",
+      "passed": 859,
+      "failed": 0,
+      "skipped": 20,
+      "per_crate": {
+        "hsk-studio-folio": 197,
+        "hsk-studio-pulse": 94,
+        "hsk-studio-package": 39,
+        "hsk-studio-session": 73,
+        "hsk-studio-interop-media": 8,
+        "hsk-studio-harness-core": 52,
+        "hsk-studio-harness-view": 154,
+        "hsk-studio-harness": 242
+      },
+      "new_tests": {
+        "hsk-studio-pulse::retime_hold": 17,
+        "hsk-studio-pulse::multicam_flatten::frame_hold_is_refused_where_multicam_would_read_it": 1,
+        "hsk-studio-folio::clip_retime_records": 5,
+        "hsk-studio-session::retime_commit": 2,
+        "hsk-studio-package::externals::clip_retime_round_trips_through_the_package": 1
+      },
+      "step0": "clean",
+      "clippy": "lane-check clippy over the tested crates and their direct dependents: no error line; no warning located in retime.rs, multicam.rs, timeline_edit.rs, transition.rs, rate.rs or folio timeline.rs",
+      "features": "audio-batch and audio-device reach every literal-touched gated test file; both are round units for harness, and viewer and desktop+audio-batch for harness-view (rule 4e)",
+      "doctests": "none added or changed, not run (rule 4d)",
+      "summary_duration_s": 45.076,
+      "started": "2026-11-05T08:19:12Z",
+      "ended": "2026-11-05T08:55:53Z",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-hold-1/bundled-smb-pr-retime-hold-1-51eb8f20.log",
+      "load_log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-hold-1/bundled-load-smb-pr-retime-hold-1-51eb8f20.log"
+    },
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-pr-retime-hold-1 --disk d --per-sha origin/codex/handshake-studio-assets",
+      "exit": 0,
+      "result": "PER_SHA_RESULT OK shas=4 range=ab61c368..51eb8f20",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-hold-1/per-sha-run-smb-pr-retime-hold-1-51eb8f20.log"
+    },
+    "push": {
+      "result": "ab61c368..51eb8f20 fast-forward with the guarded sha form",
+      "read_back": "git ls-remote gives 51eb8f20; fetched tree equals the local tree 0d8f8e3b",
+      "at": "2026-11-05T09:16:56Z"
+    },
+    "earlier_failed_bundled": {
+      "sha": "4ac48aa9, before the rebase",
+      "exit": 100,
+      "passed": 822,
+      "failed": 2,
+      "skipped": 20,
+      "summary_duration_s": 292.495,
+      "tests": [
+        "hsk-studio-harness::audio_import imported_file_plays_through_the_device (silence at 1764)",
+        "hsk-studio-harness::viewer_audio looping_audio_wraps_at_the_out_point_and_config_is_checked (wraps 0, presented 1 after 400 ms)"
+      ],
+      "reading": "Both wall-clock tests passed in the rebased run, whose test phase took 45 s against 292 s. Load remains a reading, not a proven cause. A later round under load can fail them again.",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-hold-1/bundled-smb-pr-retime-hold-1-4ac48aa9.log",
+      "isolated_log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-hold-1/isolate-audio-wallclock-smb-pr-retime-hold-1-4ac48aa9.log",
+      "harness_suite_alone_log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-hold-1/harness-suite-smb-pr-retime-hold-1-4ac48aa9.log"
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push after STUDIO-R55 on the lead's release",
-  "updated_at": "2026-11-05T04:36:56Z",
+  "next": "validator: judge ab61c368..51eb8f20. SMB-PR-MERGE-SYNC-1 pushes after this lane and takes the ClipChange rebase.",
+  "updated_at": "2026-11-05T09:16:56Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -34,11 +128,250 @@
   "notes": {
     "dispatched_at": "2026-11-05T04:36:56Z",
     "disk": "D",
-    "closes": [],
+    "closes": [
+      "MT-33730"
+    ],
     "closes_candidates": [
       "MT-33730",
       "MT-33731",
       "MT-33732"
+    ],
+    "spec_basis": "Master Spec v02.229 14-studio-creative-suite.md STU-VID-031 (speed, Maintain audio pitch, the frame-interpolation enumeration) and STU-VID-031a (Frame hold, insert frame hold segment; Time remapping is NOT in this lane).",
+    "fields_added": {
+      "StudioClip": [
+        "retime"
+      ],
+      "ClipRetime": [
+        "frame_interpolation",
+        "maintain_audio_pitch",
+        "frame_hold"
+      ],
+      "ClipFrameHold": [
+        "source_tick",
+        "anchor"
+      ],
+      "FrameInterpolation": [
+        "frame_sampling",
+        "frame_blending",
+        "optical_flow"
+      ],
+      "FrameHoldAnchor": [
+        "playhead",
+        "clip_marker",
+        "in_point",
+        "out_point"
+      ]
+    },
+    "deviations_from_brief": [
+      {
+        "item": "Items 1 and hostile input: Folio does NOT refuse a hold outside the clip's source window.",
+        "why": "Item 1 requires razor and clones to carry the hold. A razor of a held clip leaves one piece whose window does not hold the frame, and a trim or slip can do the same, and both must keep showing it. A window check in validate_sequences would make every razor of a held clip folio_rejected.",
+        "instead": "The planners refuse it when the frame is chosen (frame_hold_outside_source_window); resolve_source_frames and clip_source_at refuse a stored hold at or past a KNOWN source length (past_source_end). Folio refuses a hold on a non-video track and at the last representable tick. With an unknown source length a hand-edited hold outside the window loads and resolves. Tests a_hold_outside_the_window_of_a_cut_piece_loads, edits_carry_the_retime_record, hold_refusals_are_typed.",
+        "decision_needed": "none: accepted by the lead"
+      },
+      {
+        "item": "Owned paths: crates/hsk-studio-pulse/src/transition.rs is outside them. clip_source_at gains the hold branch (8 code lines) and 3 doc lines.",
+        "why": "frame_layers, transition_frame and frame_layers_nested read clip_source_at, so without it the program monitor plays through a hold and brief item 3 (a held clip resolves to its one source frame at every timeline tick) is false on that path.",
+        "waiver_requested": "yes, see waiver_list_outside_owned_paths"
+      },
+      {
+        "item": "Owned paths: rate.rs gets more than its gap note: members and multicam_reads become pub(crate).",
+        "why": "Reuse instead of a third copy of the link-group and multicam checks. rate.rs behaviour is unchanged."
+      },
+      {
+        "item": "plan_set_retime_options is added beyond the planners item 3 lists.",
+        "why": "Without it the interpolation choice and Maintain audio pitch have no undoable way to change: a host would have to mutate the clip outside a proposal."
+      },
+      {
+        "item": "Item 1 says 92 StudioClip literals outside folio; at the pushed tip there are 53 existing-file literals (5 in folio tests, 48 outside folio), plus 2 in the lane's new test files.",
+        "why": "git grep 'StudioClip {' also matches function signatures. Each literal got the one line `retime: Default::default(),` and nothing else; `..clip` in harness tests/cli_export_sequence.rs:123 needs none."
+      },
+      {
+        "item": "Item 2: no optical_flow_unavailable code.",
+        "why": "The search found an estimator: hsk_studio_pigment::frame_blend::{optical_flow, pixel_motion}, already used by composite frame_content.rs. Pulse has no edge to pigment (a new edge is steward-owned, and pixel work is out of scope), so the answer is the typed Estimated with its mark and nothing renders it yet."
+      },
+      {
+        "item": "resolve_source_frames and the hold planners take a SourceFrameGrid from the caller.",
+        "why": "Pulse holds no source frame rate: the SourceExtents port gives a length only and FrameDecoder answers per decode."
+      }
+    ],
+    "declared_readings": [
+      "UNVERIFIED (D5), accepted by the lead: Folio does NOT refuse a frame hold outside the clip's source window, because razor and trim pieces must keep the frame. Planners refuse it when set (frame_hold_outside_source_window); reads refuse a hold at or past a KNOWN source length (past_source_end). A hand-edited hold outside the window, with an UNKNOWN source length, loads and resolves to that frame.",
+      "UNVERIFIED (D5), spec silent: AUDIO OF A HELD CLIP. A frame hold freezes the picture only. A clip on a non-video track cannot be held (frame_hold_not_video; Folio invalid_field). A linked audio partner keeps playing its own window through the held span; insert frame hold segment cuts it at the same ticks so each link group stays one clip per track.",
+      "UNVERIFIED (D5), spec silent: the held frame is resolved once and stored as the first tick of that frame. In point and out point do not follow later trims or slips; razor pieces keep it even when their window no longer holds it.",
+      "UNVERIFIED (D5), spec silent: the OUT POINT frame. source_out is exclusive, so the frame is the last one starting before source_out (130 F exactly gives frame 129; 129 F + 1 tick also gives 129). MT-33732's proof text asks an ambiguous out-point selection to refuse and forbids a silent guess: this is a stated rule instead, with a spec proposal.",
+      "UNVERIFIED (D5), spec silent: in point and out point are the clip's source bounds whatever the sign of the speed.",
+      "UNVERIFIED (D5), spec silent: the playhead picks the frame frame_sampling shows there, whatever the clip's interpolation choice.",
+      "UNVERIFIED (D5), spec silent: a hold and the retime options apply to the named clip, not its link group.",
+      "UNVERIFIED (D5): insert frame hold segment holds a span of the clip in place. Nothing moves, the outer pieces keep their windows and the frame count stays; the first piece keeps the clip id. MT-33732's oracle says 'split plan preserves outer windows and frame count'. Premiere's command may insert time instead.",
+      "UNVERIFIED (D5): frame_sampling's nearest frame takes a tie to the later source frame, in both directions.",
+      "UNVERIFIED (D5): reversed position is L - offset * |speed| with L the start of the last frame of the window, so the head shows the last frame and unit reverse mirrors forward.",
+      "UNVERIFIED (D5): only frames of the source window are named. A position past the last frame, or below the first when reversed, stays on it with weight 0; handles are not read.",
+      "UNVERIFIED (D5): defaults when a clip states nothing are frame_sampling and maintain_audio_pitch false.",
+      "A held clip answers Held at every interpolation choice and carries no estimation mark: it is one real source frame.",
+      "A hold on a multicam clip or a clip of a multicam source sequence is refused frame_hold_multicam when the caller passes the records (None skips the check, as rate.rs does); clearing a hold stays open.",
+      "UNVERIFIED (D5): multicam reads no hold. A hold on a clip multicam would read is refused multicam_hold_unsupported in resolve, flatten, create and enable; switch, the other toggles and a record pass do not read a frame and are not refused. Turning a mode off and clearing the hold stay open."
+    ],
+    "spec_proposals": [
+      "STU-VID-031a: state the audio behaviour of a frame hold and of insert frame hold segment. Proposed: picture only; a linked audio clip plays on.",
+      "STU-VID-031a: state which frame 'at the out point' is on a half-open window. Proposed: the last frame starting before source_out.",
+      "STU-VID-031a: state whether the anchor is live (in and out holds follow a trim) or resolved once. Proposed: resolved once.",
+      "STU-VID-031a: state that a held frame may lie outside a cut piece's window, and whether insert frame hold segment inserts time or holds a span in place. Proposed: it may, and in place.",
+      "STU-VID-031: state the tie rule of frame_sampling, the default interpolation choice and the default of Maintain audio pitch.",
+      "STU-VID-020 or 031: name the source frame grid a clip resolves against; no record holds it today.",
+      "MT-33730, 33731, 33732: repoint the proof commands from pulse --test contracts (no such target) to pulse --test retime_hold and folio --test clip_retime_records."
+    ],
+    "microtasks": {
+      "MT-33730": {
+        "state": "met at the asset level, no GUI or host",
+        "evidence": "speed and duration as one value: rate_stretch tests at base, still green; Maintain audio pitch independent: retime_options_are_independent_and_undoable; explicit choice with no implicit optical flow: enumerations_are_the_declared_members; AC-001 estimation mark: optical_flow_is_the_same_two_frames_marked_as_an_estimation",
+        "gaps": [
+          "No diagnostic comparing an estimated frame to a source frame exists yet; the mark is on the typed answer only",
+          "Maintain audio pitch is stored and the mix does not read it",
+          "gui_obligation and Argus not met (host lane)"
+        ]
+      },
+      "MT-33731": {
+        "state": "partly_met",
+        "rows": {
+          "AC-001 frame_sampling": "met at the typed answer (0.25 -> nearest; test frame_sampling_is_the_nearest_source_frame); no pixels",
+          "AC-002 frame_blending": "met at the typed answer (exact weight of the later frame, the other share is its complement; test frame_blending_gives_the_two_neighbours_and_an_exact_weight); no pixels",
+          "AC-003 optical_flow": "NOT met as a behaviour: enumeration member, the same two frames and the estimation mark only. No motion-estimated frame is produced on the timeline; the MT's moving-edge and occlusion oracle is not run"
+        }
+      },
+      "MT-33732": {
+        "state": "partly_met",
+        "met": "Frame hold at the four origins, explicit property, insert frame hold segment, undo, multicam, stale revision and cancel refusals (tests named in capabilities_done)",
+        "gaps": [
+          "Time remapping clause: not started, out of scope",
+          "gui_obligation and Argus not met (host lane)"
+        ]
+      }
+    },
+    "time_remapping_needs": "Later lane: a keyframable speed property on the clip (a Folio field or record, STU-VID-031a says an ordinary property); evaluation on the keyframe timeline (STU-MOT-045), which pulse cannot reach today: hsk_studio_motion::time_remap exists but pulse has no edge to motion (new edge, steward-owned, needs a lead decision); a duration law, because Folio's duration check is span * den / |num| for one constant speed; resolve_source_frames would take the evaluated source position instead of offset * speed; every planner that reads clip.speed (split_clip, retime_edge, rate.rs, multicam forward) must refuse or handle a remapped clip.",
+    "gaps_outside_lane": [
+      "STATED GAPS, lead scopes a follow-up lane: the mix ignores maintain_audio_pitch; frame_layers carries no interpolation choice.",
+      "harness-view/src/view/timeline/rate.rs:28-29 still says Maintain audio pitch and the interpolation choice are unavailable because the record has no field. Now stale; a GUI lane owns it (brief: nothing else in literal files, no GUI). Also not wired: every control (control_descriptors none).",
+      "frame_layers returns one source tick and carries no interpolation choice, so the monitor and export show floor-rounded frames for every method. To render the choices: a source frame grid port, frame_layers carrying SourceFrameAnswer, and a renderer calling pigment frame_mix and pixel_motion with the estimation mark in its diagnostics.",
+      "clip_source_at on a reversed clip answers source_out at the head, the tick after the window, where resolve_source_frames answers the last frame; a playhead hold on sub-frame positions can also differ from what the floor-rounding monitor showed before the hold. Existing mapping, not changed; a renderer lane should move to the resolver. Decoder effect NOT_INSPECTED.",
+      "Maintain audio pitch: build_timeline_mix does not read it. hsk_studio_score has time_stretch and pitch_shift, offline whole-clip functions; streaming use is not inspected.",
+      "Interchange: interop-media and other exporters do not write the record (the folio_map literal takes the default on import). Exporters NOT_INSPECTED beyond that literal.",
+      "Transition handle accounting on a held clip is unchanged and still reads the window: a held clip may be refused a transition its one frame could play.",
+      "Multicam flatten keeps each angle clip's own retime record and drops the multicam clip's interpolation choice and pitch flag; nothing refuses or reports it.",
+      "Multicam switch, the other toggles and a record pass do not refuse a held clip: they read no frame; a later resolve or flatten refuses. A planner given multicam None still sets a hold, which those reads then refuse."
+    ],
+    "hostile_input": "Folio: unknown method and anchor tokens, wrong types, negative and float ticks, null and string records (invalid_field), missing members (missing_field), unknown members (read-only document, unknown_field), hold at u64::MAX and on an audio clip (invalid_field at CLIP/retime/frame_hold). Pulse: arithmetic in u128 with checked operations and #![deny(clippy::arithmetic_side_effects)] on retime.rs and timeline.rs; widest values give overflow or a clamped frame (resolution_refusals_are_typed); fresh id lists are consumed lazily, so their length allocates nothing; Folio validates the prospective document, so a malformed fresh id is folio_rejected.",
+    "vendor_parity": "UNVERIFIED (D5): Premiere Frame Hold, Insert Frame Hold Segment, Frame Sampling, Frame Blending, Optical Flow, Maintain Audio Pitch.",
+    "red_proof": {
+      "argv": "cargo nextest run -p hsk-studio-folio --test clip_retime_records -p hsk-studio-pulse --test retime_hold -p hsk-studio-package --test externals --no-fail-fast",
+      "sha": "12e4bccb",
+      "compiles": true,
+      "exit": 100,
+      "result": "28 run, 22 failed, 6 passed",
+      "passed_at_red": [
+        "enumerations_are_the_declared_members and a_hold_outside_the_window_of_a_cut_piece_loads: the stub already held the types, so neither was shown red",
+        "four existing externals tests"
+      ],
+      "weak_red": "hostile_retime_wire_is_refused was red on a wrong expected code at 12e4bccb, which proved nothing; replaced by the mutation proofs in red_proof_2.",
+      "earlier_attempt": "592a508a failed to compile its test target (ambiguous DESCRIPTOR); amended into 12e4bccb, never pushed",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-hold-1/red-smb-pr-retime-hold-1-12e4bccb.log",
+      "shas_note": "The shas in this block are from before the rebase on ab61c368: 12e4bccb = 2b119c69, c1067295 = 9d5a6f9f, 79edca11 = 8cffce02, 4ac48aa9 = 51eb8f20. Rebasing changed nothing in these commits but the one literal line."
+    },
+    "red_proof_2": {
+      "items_1_and_2": {
+        "sha_tree": "worktree of 79edca11",
+        "argv": "cargo nextest run -p hsk-studio-pulse --test retime_hold --test multicam_flatten -p hsk-studio-session --test retime_commit --no-fail-fast",
+        "exit": 100,
+        "result": "29 run, 2 failed: set_and_clear_are_one_step_with_one_inverse (empty change list), frame_hold_is_refused_where_multicam_would_read_it (flatten accepted a hold). Both session tests passed: the commit path had no defect.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-hold-1/red2-smb-pr-retime-hold-1-worktree-over-c1067295.log"
+      },
+      "item_3_validate_retime": {
+        "method": "temporary mutation of folio timeline.rs at 4ac48aa9, run, restored from a copy, touched (V4-11), git diff clean; each log holds the mutation diff",
+        "no-kind-check": {
+          "removes": "kind != TrackKind::Video",
+          "exit": 100,
+          "red_at": "hostile_retime_wire_is_refused, clip_retime_records.rs:188, on_audio refusal",
+          "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-hold-1/mutation-no-kind-check-smb-pr-retime-hold-1-4ac48aa9.log"
+        },
+        "no-last-tick-check": {
+          "removes": "source_tick.checked_add(1).is_err()",
+          "exit": 100,
+          "red_at": "hostile_retime_wire_is_refused, clip_retime_records.rs:182, at_max refusal",
+          "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-hold-1/mutation-no-last-tick-check-smb-pr-retime-hold-1-4ac48aa9.log"
+        }
+      },
+      "session_test_not_vacuous": {
+        "mutation": "retime-not-written: #[serde(default, skip_serializing)] on StudioClip.retime",
+        "exit": 100,
+        "red_at": "retime_commit.rs:224 (reopen lost the record) and :279 (idempotency binding no longer saw it)",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-hold-1/mutation-retime-not-written-smb-pr-retime-hold-1-4ac48aa9.log"
+      },
+      "shas_note": "The shas in this block are from before the rebase on ab61c368: 12e4bccb = 2b119c69, c1067295 = 9d5a6f9f, 79edca11 = 8cffce02, 4ac48aa9 = 51eb8f20. Rebasing changed nothing in these commits but the one literal line."
+    },
+    "commit_path_finding": {
+      "write_lost": "No. TimelineStep carries whole sequences and StudioSequence equality includes retime. retime_commit passed before any fix; the mutation retime-not-written shows it detects a loss.",
+      "footprint": "Was wrong, the same defect SMB-PR-MERGE-SYNC-1 found: changes() and write_footprint() were both empty for set, clear and options because diff compares the window only. Fixed with ClipChange::RetimeRecord; the clip is written, its track is not.",
+      "who_reads_them": "In src, only the example pulse-timeline-consumer reads EditProposal changes() and write_footprint() (git grep); the commit path does not, which is why nothing was lost.",
+      "same_class_not_fixed": "By reading diff, not run: a reverse-only speed change (declared in rate.rs) and RecordEdit changes (clip and sequence markers, transitions, work area) still list nothing and have an empty write footprint unless the duration changes. Outside this lane; lead to scope.",
+      "not_proven": "Planner to session end to end: session has no edge to pulse, so retime_commit builds its sequences by hand. Pulse tests pin that inverse().expect() and inverse().restore() are the prospective and prior sequences.",
+      "rebase_for_merge_sync": "SMB-PR-MERGE-SYNC-1 rebases over this: its enum tail and accessor arms conflict with RetimeRecord; the diff block has the same shape as its own; the footprint line in propose is identical to its own. Its tests/merge_sync.rs literal needs the retime line."
+    },
+    "waiver_list_outside_owned_paths": [
+      {
+        "file": "crates/hsk-studio-pulse/src/transition.rs",
+        "edit": "clip_source_at answers the held frame",
+        "why": "without it frame_layers plays through a hold",
+        "status": "lead taking it to the Operator"
+      },
+      {
+        "file": "crates/hsk-studio-pulse/src/multicam.rs",
+        "edit": "not_held, HoldUnsupported, refusals in resolve, flatten, create and enable, module docs",
+        "why": "lead close-out item 2",
+        "status": "lead taking it to the Operator"
+      },
+      {
+        "file": "crates/hsk-studio-pulse/src/timeline_edit.rs",
+        "edit": "ClipChange::RetimeRecord, diff, the footprint match",
+        "why": "lead close-out item 1",
+        "status": "named by the lead; add to the waiver"
+      },
+      {
+        "file": "crates/hsk-studio-pulse/tests/multicam_flatten.rs",
+        "edit": "one new test and one helper beside the reverse test",
+        "why": "lead close-out item 2 needs that file's fixtures",
+        "status": "add to the waiver"
+      },
+      {
+        "file": "crates/hsk-studio-session/tests/retime_commit.rs",
+        "edit": "new test file",
+        "why": "lead close-out item 1",
+        "status": "requested by the lead"
+      },
+      {
+        "file": "crates/hsk-studio-pulse/src/rate.rs",
+        "edit": "members and multicam_reads become pub(crate), beyond the gap note",
+        "why": "reuse of the link-group and multicam checks",
+        "status": "accepted by the lead"
+      }
+    ],
+    "lead_decisions": {
+      "folio_window": "accepted: Folio does not refuse a hold outside the window",
+      "plan_set_retime_options": "accepted",
+      "pub_crate_in_rate": "accepted",
+      "source_frame_grid": "accepted: caller-supplied",
+      "transition_rs": "needed; waiver going to the Operator",
+      "stated_gaps": "the mix ignores maintain_audio_pitch; frame_layers carries no interpolation choice; lead scopes a follow-up lane"
+    },
+    "rebase": {
+      "onto": "ab61c368a1c9e0fa965d72d5e87e958a9ccff12c",
+      "literal": "crates/hsk-studio-session/tests/sequence_records_support/mod.rs:108 is a literal: the one field line was folded into 2b119c69, the commit that adds the field, so every commit compiles. git grep then finds 55 StudioClip literals: 53 outside the lane's two new test files; all carry the field, and the struct-update site in harness tests/cli_export_sequence.rs needs none."
+    },
+    "unproven_at_ready": [
+      "Planner to session end to end: retime_commit builds its sequences by hand, because session has no edge to pulse.",
+      "Why the two wall-clock audio tests failed once at 4ac48aa9: load is a reading, not a proven cause.",
+      "Vendor parity UNVERIFIED (D5)."
     ]
-  }
+  },
+  "host_integration_outcome": "unchanged from the block: no GUI, no GPU, no controls, no jobs; pulse plans return typed proposals and refusal codes and report() remains the emission path; no new actor literal.",
+  "pushed_sha": "51eb8f2089e4ca4d2e27c475ad8e4226e09dd7bc"
 }

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-05T08:19:02Z",
+ "updated_at": "2026-11-05T09:17:21Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -17757,8 +17757,8 @@
   },
   {
    "lane_id": "SMB-PR-RETIME-HOLD-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-folio (clip retime property), hsk-studio-pulse (frame hold planners, source-frame resolution)",
    "lane_file": "builders/lanes/hsk-studio-pr-retime-hold-1.json",
    "brief": "builders/briefs/lane-smb-pr-retime-hold-1.md",
@@ -17766,12 +17766,13 @@
    "base": "ce644577",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-05T04:36:56Z",
+   "updated_at": "2026-11-05T09:17:21Z",
    "closes": [
     "MT-33730",
     "MT-33731",
     "MT-33732"
-   ]
+   ],
+   "claim": "2b119c69..51eb8f20"
   },
   {
    "lane_id": "SMB-PR-MERGE-SYNC-1",
