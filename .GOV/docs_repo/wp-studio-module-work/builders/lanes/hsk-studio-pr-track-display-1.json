@@ -1,19 +1,213 @@
 {
   "crate": "hsk-studio-folio (track display records), hsk-studio-session (document entry and commit)",
   "lane": "SMB-PR-TRACK-DISPLAY-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-pr-track-display-1",
   "base": "27cba13b",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "e8647bfa",
+      "subject": "folio: red 1, records with behaviour held back",
+      "pushed": true
+    },
+    {
+      "sha": "377c9474",
+      "subject": "folio, item 1: track display records, defaults, bounds, commands",
+      "pushed": true
+    },
+    {
+      "sha": "6c177757",
+      "subject": "session: red 2, entry and commit with behaviour held back",
+      "pushed": true
+    },
+    {
+      "sha": "078c523a",
+      "subject": "session, items 2 and 4: track display entry and commit (8330159f and f3fad388 folded, lead decision)",
+      "pushed": true
+    },
+    {
+      "sha": "c7cb109c",
+      "subject": "session: red 3, a removal may not orphan the entry (rule later replaced)",
+      "pushed": true
+    },
+    {
+      "sha": "b2acf2fd",
+      "subject": "session, item 3 as first briefed (replaced by c143625f)",
+      "pushed": true
+    },
+    {
+      "sha": "a4b14e59",
+      "subject": "package tests: red 4, the schema in the externals guard",
+      "pushed": true
+    },
+    {
+      "sha": "994223ac",
+      "subject": "package tests, item 4: classify the properties; one session doc line",
+      "pushed": true
+    },
+    {
+      "sha": "4d65b5a6",
+      "subject": "session tests: MT-33739's own case through reopen",
+      "pushed": true
+    },
+    {
+      "sha": "7495a277",
+      "subject": "session: the entry guard without a dyn table (clippy type_complexity)",
+      "pushed": true
+    },
+    {
+      "sha": "02c4f151",
+      "subject": "folio, session: red 5, display state blocks no edit, inert entries",
+      "pushed": true
+    },
+    {
+      "sha": "c143625f",
+      "subject": "folio, session, item 3 replaced: display state blocks no edit or undo",
+      "pushed": true
+    }
+  ],
+  "capabilities_done": [
+    "Item 1: folio track_display.rs, StudioTrackDisplayRecords (hsk.studio.track_display@1) beside the document, one entry per sequence id; all 18 declared switches required on the wire, closed enumerations for thumbnails and waveform scaling, unknown fields refused at every level; heights per track kind; named height presets; six typed commands including expand-all and minimize-all; resolve_track_displays gives the declared defaults and stored false for a sequence with no entry",
+    "Item 2: session token track_display; track_display_records, set_track_display_records, resolved_track_displays; an invalid entry opens, carries a LossReason::Opaque note, refuses on read and keeps its bytes on save; SequenceRecordsStep carries it as a third RecordEdit, so no third copy of the step; submit_track_display_command_as and _keyed_as; one revision, one receipt, one inverse, one Observe frame, codes and counters only",
+    "Item 3 as the lead replaced it for display entries: no guard holds the track display entry, on a commit or a resync, so a multicam or records step that removes a sequence commits normally and does not touch the entry (a timeline step cannot remove one); the undo of a nest works with a display toggle on the nested sequence, and the display state is back when the sequence is. An entry naming a sequence the document does not hold is inert: valid, not refused on read, kept byte-identically, listed read-only in stored order by inert_track_display_entries; a records step can remove one explicitly and nothing removes one on its own. Settings and multicam keep their rule",
+    "Item 4: package round trip and externals classification (rule 4b); save_to, open_path and export_checkpoint through the session, byte-identical, with inverses taken before the save still undoing after the reopen"
+  ],
+  "tests": {
+    "red_proof": {
+      "note": "Every red below compiles and fails on behaviour; reasons were read from the logs. Logs and these entries keep the sha they ran at; notes.sha_map gives the pushed sha. --per-sha compiled each pushed red. No red was rerun on the pushed tree.",
+      "folio": {
+        "argv": "cargo nextest run --offline -p hsk-studio-folio --test track_display_records --no-fail-fast",
+        "sha": "2580758c9c65b9b5c41769ba811bb8079cd0c8e1",
+        "compiles": true,
+        "exit": 100,
+        "passed": 1,
+        "failed": 11,
+        "reading": "validate, parse, resolve and apply stubbed. the_schema_requires_every_switch passes in red: it pins the types, which the red holds.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-track-display-1/red-proof-folio-smb-pr-track-display-1-2580758c.log"
+      },
+      "session": {
+        "argv": "cargo nextest run --offline -p hsk-studio-session --test track_display --no-fail-fast",
+        "sha": "fc299b452f619de4a40d55a62ef2c3c5aacd1e78",
+        "compiles": true,
+        "exit": 100,
+        "passed": 0,
+        "failed": 13,
+        "reading": "token absent, reads answer nothing, writes and commands refuse not_implemented, the step ignores its field. One failure was also a wrong test (receipt count on an unkeyed step), fixed in the green commit.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-track-display-1/red-proof-session-smb-pr-track-display-1-fc299b45.log"
+      },
+      "removal": {
+        "argv": "cargo nextest run --offline -p hsk-studio-session --test track_display --test sequence_records_commit --no-fail-fast -E \"test(removing_a_sequence_its_entry) | test(named_by_both) | test(already_invalid_does_not_hold) | test(a_resync_keeps_a_valid_track_display)\"",
+        "sha": "e4d993c8dbf4217152484c5b893e55bd97c7ceea (before the fold)",
+        "compiles": true,
+        "exit": 100,
+        "passed": 1,
+        "failed": 3,
+        "reading": "The removals and the resync committed. an_entry_already_invalid_does_not_hold_a_removal_up_and_a_new_sequence_resolves_to_the_defaults passes in red: regression proof, the guard must not add a refusal there.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-track-display-1/red-proof-removal-smb-pr-track-display-1-e4d993c8.log",
+        "sha_now": "aef3f25b",
+        "superseded": "These tests pinned the refusal the lead replaced; see notes.changed_assertions."
+      },
+      "package": {
+        "argv": "cargo nextest run --offline -p hsk-studio-package --test externals --no-fail-fast",
+        "sha": "41c678e58fd59a5b8bf037525dc16246b15d595a (before the fold)",
+        "compiles": true,
+        "exit": 100,
+        "passed": 6,
+        "failed": 1,
+        "reading": "every_folio_reference_property_is_classified fails on the 9 new properties. track_display_records_round_trip_through_the_package passes in red: the package carries the entry verbatim, so it is regression proof.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-track-display-1/red-proof-package-smb-pr-track-display-1-41c678e5.log",
+        "sha_now": "f196a61d"
+      },
+      "never_seen_red": [
+        "two_sequences_keep_independent_display_state_through_reopen_mt_33739: written after the green once the MT's case was read against the tests; passed first run at 250b801d, now 0a692f61 (17 passed, log green-mtcase-smb-pr-track-display-1-250b801d.log)",
+        "track_display_errors_keep_their_meaning_at_the_session_boundary_r55_f6: a unit test added with the green code it tests"
+      ],
+      "void_runs": [
+        "6e3ff2b8 red 2 did not compile (two test bindings not mut), exit 101; amended locally to fc299b45 before anything else was built on it. Log red-proof-session-smb-pr-track-display-1-6e3ff2b8.log.",
+        "void-partial-patch-smb-pr-track-display-1-fc299b45.log: a patch script stopped halfway and my chained command ran the tests on the dirty tree; no claim rests on it.",
+        "void-stopped-bundled-smb-pr-track-display-1-3673d316.log: I stopped my own bundled run during clippy to add the MT's case; exit 101 is the stop, not a finding."
+      ],
+      "inert": {
+        "argv": "cargo nextest run --offline -p hsk-studio-folio -p hsk-studio-session --test track_display_records --test track_display --test sequence_records_commit --no-fail-fast",
+        "sha": "166cd9f6",
+        "compiles": true,
+        "exit": 100,
+        "passed": 45,
+        "failed": 9,
+        "reading": "inert_track_display_entries stubbed and the old guards and dangling check in place. a_display_toggle_on_a_nested_sequence_does_not_block_undo_and_comes_back_with_it fails on the undo refused folio_rejected at revision 5, the lead's case. an_inert_entry_survives_save_and_reopen_byte_identically fails on the Opaque loss note. The other failures: Folio DanglingReference, or a removal refused. The 45 that pass are the ones this change does not touch.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-track-display-1/red-proof-inert-smb-pr-track-display-1-166cd9f6.log"
+      },
+      "pushed_red_shas": {
+        "folio": "e8647bfa",
+        "session": "6c177757",
+        "removal": "c7cb109c",
+        "package": "a4b14e59",
+        "inert": "02c4f151"
+      }
+    },
+    "bundled": {
+      "argv": "lane-check.sh --owner smb-pr-track-display-1 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-session -p hsk-studio-package --no-fail-fast",
+      "exit": 0,
+      "sha": "2af7845e94f097585b1cb0442066c541afdeefe7",
+      "tree_note": "Ran at 2af7845e, base 27cba13b. Rebased to c143625f on 091c4d1b; git diff 2af7845e c143625f over folio, session and package is empty. The lead ruled no whole-suite rerun for that move: origin moved over hsk-studio-harness-view hsk-studio-interop-layout hsk-studio-layout hsk-studio-type; none of the three crates.",
+      "passed": 346,
+      "failed": 0,
+      "skipped": 0,
+      "per_crate": {
+        "hsk-studio-folio": 211,
+        "hsk-studio-session": 95,
+        "hsk-studio-package": 40
+      },
+      "clippy": "folio, session, package and their 20 direct dependents (the set is in the log); no error lines and no warning on a file in those three crates",
+      "step0": "clean",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-track-display-1/bundled-smb-pr-track-display-1-2af7845e.log",
+      "earlier_runs": [
+        {
+          "sha": "250b801d4e32f3328d0c76d24bfc4fa0670daf18",
+          "exit": 0,
+          "passed": 341,
+          "failed": 0,
+          "note": "One clippy type_complexity warning at session.rs:1612, mine, led to d85e1b2d (now aaaeddc1).",
+          "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-track-display-1/bundled-smb-pr-track-display-1-250b801d.log"
+        },
+        {
+          "sha": "d85e1b2d115df82d203b78b88dc8fd30ef7c9679",
+          "exit": 0,
+          "passed": 341,
+          "failed": 0,
+          "note": "The first tip reported to the lead. Its tree equals aaaeddc1's (git diff empty after the fold). Replaced by the lead's decisions.",
+          "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-track-display-1/bundled-smb-pr-track-display-1-d85e1b2d.log"
+        }
+      ]
+    },
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-pr-track-display-1 --disk d --per-sha origin/codex/handshake-studio-assets",
+      "exit": 0,
+      "result": "PER_SHA_RESULT OK shas=12 range=091c4d1b..c143625f",
+      "units_ok": 298,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-track-display-1/per-sha-smb-pr-track-display-1-c143625f.log"
+    },
+    "lane_tests": {
+      "folio": "crates/hsk-studio-folio/tests/track_display_records.rs (14)",
+      "session": "crates/hsk-studio-session/tests/track_display.rs (20)",
+      "session_resync": "crates/hsk-studio-session/tests/sequence_records_commit.rs a_resync_is_not_held_up_by_a_track_display_entry (1)",
+      "session_unit": "crates/hsk-studio-session/src/sequence_records_step.rs track_display_errors_keep_their_meaning_at_the_session_boundary_r55_f6 (1)",
+      "package": "crates/hsk-studio-package/tests/externals.rs track_display_records_round_trip_through_the_package (1), every_folio_reference_property_is_classified (changed)"
+    },
+    "doctests": "not run: no doc examples added (no code fences in the new source)",
+    "not_run": [
+      "No test ran on the pushed tree c143625f: the lead's instruction, and the three crates' trees equal the bundled run's. The crates that moved in the rebase are not dependencies of these three; --per-sha compiled the dependents.",
+      "The dependents were clippied at 2af7845e and compiled by --per-sha, feature units included; their suites were not run.",
+      "No harness or harness-view test: no caller there uses the new entry points."
+    ]
+  },
   "verdicts": [],
   "blockers": [],
-  "lock_wait_s": 0,
+  "lock_wait_s": null,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push after STUDIO-R56 on the lead's release",
-  "updated_at": "2026-11-05T10:05:08Z",
+  "next": "validator: judge e8647bfa..c143625f under notes.lead_decisions. Never claimed PASS by the builder.",
+  "updated_at": "2026-11-05T15:14:30Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -37,6 +231,305 @@
     "closes": [],
     "closes_candidates": [
       "MT-33739"
-    ]
-  }
+    ],
+    "spec_basis": "Master Spec v02.229 14-studio-creative-suite.md STU-VID-036 (:23870-23876). Vendor parity UNVERIFIED (D5).",
+    "declared_readings": [
+      "Studio-minted, not in the spec: schema id hsk.studio.track_display@1, token track_display, the six command ids track_display.switches.set, .height.set, .expand_all, .minimize_all, .height_preset.save, .height_preset.recall, code invalid_height, and every Rust and wire name beyond the clause's words.",
+      "Defaults, none stated by the clause, vendor parity UNVERIFIED (D5): every on/off switch on, so nothing is hidden by default; video_thumbnails head_only; waveforms shown, logarithmic, not rectified; every track kind 48.",
+      "Height unit is logical pixels. Bounds 16..=4096. Minimize-all sets 16, expand-all sets 200, both for every kind. They set values, they are not toggles and keep no prior heights; undo or a preset brings those back. UNVERIFIED (D5).",
+      "Audio and video fade handles and audio and video keyframes are one switch per medium, so 18 switches. A single-switch reading is served by setting both.",
+      "Audio waveforms hold shown, scaling and rectified. Scaling is one choice of two members, logarithmic or dynamic, from the clause's wording; there is no linear member because the clause declares none. MT-33739 step 1 calls these flags, and its case toggles rectified with both scales, which this shape serves.",
+      "'Per kind' means the four members of Folio's TrackKind: video, audio, caption, submix.",
+      "Height presets live on the sequence's entry, because the clause makes this state per sequence. A preset has a key-grammar preset_id, unique in the entry, and a name that need not be unique, the sequence preset's shape. Recall is by id. No delete command, the clause states none; a records step can drop one.",
+      "A command that does not change what a sequence resolves to adds no entry and is no revision; its report says changed false. Otherwise a sequence without an entry starts from the defaults.",
+      "All six commands read the entry, so all are refused folio_rejected or budget_exceeded while it is invalid, on every sequence. As with settings, a bad entry stops display commands, not the file or other commits. A step that does not name it leaves its bytes alone.",
+      "Bytes that do not parse and a repeated token cannot be quoted (value_conflict); an explicit set_track_display_records is the way out, the lead's accepted reading for settings. The undo of a step that replaced an invalid entry is refused folio_rejected, also as settings.",
+      "A step quoting invalid records unchanged with nothing else changing is no change, not a refusal: the existing no-op check runs first. With anything else changing it is folio_rejected.",
+      "resolved_track_displays sends no Observe frame, as the other typed reads do not.",
+      "Bounds: at most MAX_TRACK_DISPLAY_ENTRIES (64, equal to MAX_SEQUENCES) entries, inert ones included, 64 presets per entry, names at most 128 bytes, wire form at most MAX_TRACK_DISPLAY_INPUT_BYTES (1 MiB) whatever the caller's budget allows, and Budget::input_bytes when that is lower. A new entry at the entry limit is refused budget_exceeded, on a command or a step; removing an inert entry makes room. Studio's bounds.",
+      "Lead decision, Studio reading of a clause silent on a removed sequence, vendor parity UNVERIFIED (D5): display state is a view preference and blocks no document edit or undo. A multicam or records step that removes a sequence, and a resync to a document without it, commit and do not touch the entry. A timeline step cannot remove a sequence: it edits one value under one id.",
+      "An inert entry is an entry naming a sequence the document does not hold. It is valid, not noted as a loss, not refused on read, and saved byte-identically. Only the reference is narrowed: its heights, preset ids and names, and its uniqueness are still checked. This narrowing is for this record set only.",
+      "resolved_track_displays lists the document's sequences only. inert_track_display_entries lists inert entries whole, read-only, in stored order, and refuses while the entry is invalid. Stored order is the order of the record set, so a commit that replaces the records can change it.",
+      "A command cannot edit an inert entry: it answers sequence_missing. A records step can remove or rewrite one. A sequence that comes back has its display state again, with no prune and no extra inverse, because the entry never left.",
+      "Consequence of the decision, not tested: a new sequence created with the id of an inert entry takes that entry's display state, since the id is the only link. Sequence ids are the caller's, so this depends on the caller not reusing them."
+    ],
+    "r55_findings": {
+      "F-R55-4": {
+        "a": "Not reintroduced: a sequence without an entry resolves to declared defaults, which is state and not a gap, and resolved_track_displays lists every sequence with stored true or false.",
+        "b": "Replaced by the lead's decision: a stale reference no longer exists for this record set. An entry naming an absent sequence is inert, listed by inert_track_display_entries, and stops nothing. Other invalid forms open, refuse on read and stop display commands only.",
+        "c": "Not reintroduced: a created sequence gets no entry and resolves to the defaults (an_entry_already_invalid_does_not_hold_a_removal_up_and_a_new_sequence_resolves_to_the_defaults).",
+        "d": "Not reintroduced: the entry copies no document value except the sequence id (the_records_hold_no_copy_of_a_document_value)."
+      },
+      "F-R55-6": "Not reintroduced: StudioTrackDisplayError has its own Canceled and BudgetExceeded codes (command_codes_tell_cancellation_and_budget_from_bad_input_r55_f6), and the session maps them. A real mid-command cancel reaching the session is proven by a unit test of the mapping only, because the session's own check runs first.",
+      "F-R55-7": "Not reintroduced: the Folio command takes the document read-only and returns records, no document; the session commit bumps the revision once and validates (every_command_commits_one_revision_one_receipt_and_one_frame)."
+    },
+    "hostile_input": "V4-01 deny on track_display.rs, and the session crate denies it at crate level. V4-02: bytes and depth before any parse, lists counted before walking and charged to Budget::nodes, names to payload_bytes. Tests: dims_u32_max_and_aggregate_over_budget_are_refused, records_are_bound_to_the_document_and_hostile_input_is_refused, the_wire_refuses_as_the_sequence_settings_refuse_mt_33739, an_invalid_entry_opens_is_noted_refuses_on_read_and_save_keeps_its_bytes (12 cases), step_and_command_refusals_leave_the_document_and_the_entry_untouched. the_entry_limit_counts_inert_entries_and_refuses_typed, the_list_refuses_while_the_entry_is_invalid_and_the_limit_refuses_typed.",
+    "spec_proposals": [
+      "STU-VID-036: declare the default of each switch and the track heights.",
+      "STU-VID-036: declare the height unit, the bounds, and what expand-all and minimize-all set.",
+      "STU-VID-036: say whether 'audio and video fade handles' and 'audio and video keyframes' are one switch or two.",
+      "STU-VID-036: say whether height presets are per sequence or a library, and whether they can be deleted.",
+      "STU-VID-036: say whether logarithmic and dynamic exclude each other and whether a linear scale exists; MT-33739 calls them flags.",
+      "STU-VID-036 with SD-47: state whether this state may live in a per-sequence record beside the sequence.",
+      "STU-VID-036 says persisted per sequence and is silent on a removed sequence. Studio's reading, by lead decision: the state outlives the sequence as an inert entry and returns with it, and it never blocks a document edit or an undo. State this, or state the rule. Vendor parity UNVERIFIED (D5)."
+    ],
+    "microtasks": {
+      "MT-33739": {
+        "state": "partly_met",
+        "rows_proven": [
+          {
+            "row": "ASSET-AC-001: persisted per sequence",
+            "proof": "two_sequences_keep_independent_display_state_through_reopen_mt_33739, authored_display_state_survives_save_and_reopen_through_the_session",
+            "limit": "beside the document, not on StudioSequence (SD-47)"
+          },
+          {
+            "row": "ASSET-AC-001: the declared switches, thumbnails four modes, waveforms with both scales and rectified",
+            "proof": "every_declared_switch_is_on_the_wire_by_its_spec_name_mt_33739, two_sequences_keep_independent_display_state_through_reopen_mt_33739",
+            "limit": "fade handles and keyframes are one switch per medium, a Studio reading"
+          },
+          {
+            "row": "ASSET-AC-001: track heights adjustable per kind",
+            "proof": "each_track_kind_has_its_own_height_mt_33739"
+          },
+          {
+            "row": "ASSET-AC-001: save-and-recall named presets, expand-all, minimize-all",
+            "proof": "the_commands_are_typed_attributed_and_atomic_mt_33739, every_command_commits_one_revision_one_receipt_and_one_frame, two_sequences_keep_independent_display_state_through_reopen_mt_33739"
+          },
+          {
+            "row": "implementation_steps 2 and 3, the case: two sequences, every thumbnail mode, rectified with both scales, named video and audio heights around expand and minimize, reopen; oracle: serialized record and unchanged clip graph",
+            "proof": "two_sequences_keep_independent_display_state_through_reopen_mt_33739",
+            "limit": "the fixture's clip holds no sample data, so 'no samples change' only as far as the clip's fields; the test was never seen red"
+          },
+          {
+            "row": "failure_and_recovery: invalid revision or domain violation refuses, cancellation changes nothing",
+            "proof": "step_and_command_refusals_leave_the_document_and_the_entry_untouched, the_as_form_of_the_step_and_the_command_answer_under_the_context"
+          }
+        ],
+        "rows_not_proven": [
+          {
+            "row": "ASSET-AC-001: model-visible",
+            "state": "partly: a typed session read and its JSON (a_valid_entry_opens_typed_without_a_loss_note). No harness state_json, RUN_COMMANDS or Registry row: out of scope by the brief"
+          },
+          {
+            "row": "gui_obligation: operator surface and Argus",
+            "state": "not built, out of scope"
+          },
+          {
+            "row": "user_manual_obligation",
+            "state": "DESCRIPTOR text only; no canonical UserManual entry"
+          },
+          {
+            "row": "hbr_obligations",
+            "state": "no pillar proof recorded; each proof_status stays as it is in the MT. HBR-INT-001 EventLedger replay and HBR-SWARM-001 concurrent sessions are not exercised"
+          },
+          {
+            "row": "resource_privacy_obligation",
+            "state": "not exercised: the entry inherits the session's grant checks and no test of its own covers them"
+          },
+          {
+            "row": "host_boundary: distinct host adoption",
+            "state": "later embedding MT, not this lane"
+          },
+          {
+            "row": "vendor parity",
+            "state": "UNVERIFIED (D5)"
+          }
+        ]
+      },
+      "mt_proof_commands": "MT-33739 names hsk-studio-pulse: source_subdirectory, planned_compile_command, build_selection and allowed_write_paths handshake-studio-assets/crates/hsk-studio-pulse/**, and its spec refs are v02.207. The work is in folio and session at v02.229 by the brief, so that command cannot prove the claim. The MT has no acceptance_criteria rows; ASSET-AC-001 under closure_unit is the row. Repointing is recorded on the lead's side (folio --test track_display_records, session --test track_display). No MT was edited."
+    },
+    "gaps_outside_lane": [
+      "Controls: no Registry or RUN_COMMANDS rows for the 6 command ids (brief: out of scope). No GUI, no drawing, no thumbnails or waveform rendering.",
+      "No caller of the new commands or of inert_track_display_entries in harness-core or harness-view."
+    ],
+    "not_inspected": [
+      "Removing a sequence named by other document entries such as audio_routing: NOT_INSPECTED here. The lead holds it as R56 F-R56-3, a separate item outside this lane.",
+      "Adobe's actual defaults, heights and switch list: UNVERIFIED (D5)."
+    ],
+    "commit_history_notes": [
+      "Fold, lead decision: f3fad388 went into 8330159f, making 586baf0d; git diff d85e1b2d aaaeddc1 is empty. notes.sha_map has every sha. Local ref backup/smb-pr-track-display-1-pre-fold holds the old series, is not pushed, and is on the lead's cleanup list for Operator approval: not deleted.",
+      "Each green commit's tests ran at its pre-rebase sha, not at its pushed sha: green-session-...-f3fad388.log is the tree of 078c523a in those crates. The bundled run covers the tip only.",
+      "6e3ff2b8 was amended to fc299b45 (non-compiling, local only, nothing built on it).",
+      "b2acf2fd builds a guard that c143625f takes out again, kept as history per the dispatch's no-squash rule. --per-sha compiled both."
+    ],
+    "deviations_from_brief": [
+      "Brief item 3 replaced by the lead for display entries (notes.lead_decisions).",
+      "Bundled starts: one stopped by me, two superseded (tests.bundled.earlier_runs), and the one on the tip the lead asked for."
+    ],
+    "paths_beyond_brief": "None. crates/hsk-studio-session/tests/sequence_records_support/mod.rs (one field in a literal) and sequence_records_commit.rs (one new test, it holds the Authority fixture) are session tests, inside the owned paths.",
+    "new_module_edges": "none; no Cargo.toml changed",
+    "cleanup_for_steward": "D: target Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-track-display-1/target (counts toward P3); list it for Operator-approved deletion when the lane is PASS or abandoned. Nothing deleted. Two logs renamed void-* by me, both my own. Local ref backup/smb-pr-track-display-1-pre-fold, as in notes.commit_history_notes.",
+    "vendor_parity": "UNVERIFIED (D5)",
+    "lead_decisions": [
+      {
+        "at": "2026-11-05",
+        "on": "8330159f failing one of its own tests",
+        "decision": "Fold f3fad388 into 8330159f; no pushed green commit may fail its own tests. Reds stay separate. Old logs stay in the notes under their old shas.",
+        "done_at": "586baf0d"
+      },
+      {
+        "at": "2026-11-05",
+        "on": "notes.removal_rule_case",
+        "decision": "Display state is a view preference and must never block a document edit or an undo. Replaces brief item 3 for display entries only; settings and multicam keep their rule. A removal commits and does not touch the entry; an entry naming a sequence not in the document is inert, the one narrowing of Folio's dangling-reference check, for this record set only; no prune and no extra inverse; resolved_track_displays lists the document's sequences only; one read-only list of inert entries; a records step can remove one explicitly and nothing removes one on its own; entry count under the declared limit with a typed refusal.",
+        "done_at": "2af7845e"
+      },
+      {
+        "at": "2026-11-05",
+        "on": "repointing MT-33739's proof command",
+        "decision": "Recorded on the lead's side."
+      }
+    ],
+    "changed_assertions": [
+      {
+        "test": "folio records_are_bound_to_the_document_and_hostile_input_is_refused",
+        "old": "an entry naming seq-x refused DanglingReference",
+        "new": "assertion removed; proven the other way in an_entry_naming_no_document_sequence_is_inert"
+      },
+      {
+        "test": "folio the_records_hold_no_copy_of_a_document_value",
+        "old": "after removing the sequence, validation refused DanglingReference",
+        "new": "validation passes"
+      },
+      {
+        "test": "folio command_codes_tell_cancellation_and_budget_from_bad_input_r55_f6",
+        "old": "bad input was a dangling sequence id, InvalidInput(DanglingReference)",
+        "new": "bad input is a height of 0, InvalidInput(InvalidField)"
+      },
+      {
+        "test": "session invalid_cases (an_invalid_entry_opens_is_noted_refuses_on_read_and_save_keeps_its_bytes)",
+        "old": "13 cases, one a sequence the document does not hold, DanglingReference",
+        "new": "12 cases, that row removed"
+      },
+      {
+        "test": "session typed_writes_validate_and_refusals_change_nothing",
+        "old": "a set naming seq-x refused DanglingReference",
+        "new": "a set with a height of 0 refused InvalidField"
+      },
+      {
+        "test": "session step_and_command_refusals_leave_the_document_and_the_entry_untouched",
+        "old": "a step writing an entry for seq-x refused folio_rejected",
+        "new": "row removed; the height-0 row covers folio_rejected"
+      },
+      {
+        "test": "session a_step_replaces_an_entry_it_can_quote_and_refuses_bytes_it_cannot",
+        "old": "the parsable invalid entry named seq-x",
+        "new": "the parsable invalid entry has a height of 0"
+      },
+      {
+        "test": "session removing_a_sequence_its_entry_names_is_refused_unless_the_entry_goes_with_it",
+        "old": "pinned the refusal on multicam and records steps",
+        "new": "removed; a_display_toggle_on_a_nested_sequence_does_not_block_undo_and_comes_back_with_it and a_records_step_removes_a_sequence_without_touching_the_entry_and_its_undo_brings_it_back"
+      },
+      {
+        "test": "session a_sequence_named_by_both_entries_needs_both_edits",
+        "old": "the display entry also held the removal",
+        "new": "removed; a_removal_is_held_by_the_settings_entry_and_not_by_the_display_entry"
+      },
+      {
+        "test": "session an_entry_already_invalid_does_not_hold_a_removal_up_and_a_new_sequence_resolves_to_the_defaults",
+        "old": "the already-invalid entry named seq-x",
+        "new": "the already-invalid entry has a height of 0"
+      },
+      {
+        "test": "session sequence_records_commit a_resync_keeps_a_valid_track_display_entry_valid",
+        "old": "resync refused folio_rejected",
+        "new": "removed; a_resync_is_not_held_up_by_a_track_display_entry: the resync commits and the entry is inert"
+      },
+      {
+        "note": "No assertion of a test that predates this lane changed."
+      }
+    ],
+    "removal_rule": {
+      "state": "The rule was built as briefed, then replaced for display entries by the lead (notes.lead_decisions). The session guard at 2af7845e is the settings guard as at base; settings and multicam are unchanged.",
+      "tests": [
+        "a_display_toggle_on_a_nested_sequence_does_not_block_undo_and_comes_back_with_it",
+        "a_records_step_removes_a_sequence_without_touching_the_entry_and_its_undo_brings_it_back",
+        "an_inert_entry_survives_save_and_reopen_byte_identically",
+        "the_list_refuses_while_the_entry_is_invalid_and_the_limit_refuses_typed",
+        "a_removal_is_held_by_the_settings_entry_and_not_by_the_display_entry",
+        "a_resync_is_not_held_up_by_a_track_display_entry",
+        "an_entry_naming_no_document_sequence_is_inert",
+        "the_entry_limit_counts_inert_entries_and_refuses_typed"
+      ],
+      "not_proven": "The nest here is a multicam step built in the session test, not the viewer's nest command: harness-view and harness-core tests were not run and do not use this entry."
+    },
+    "sha_map": {
+      "columns": "pushed <- after the fold <- before the fold, for the commits the fold rewrote",
+      "rows": [
+        {
+          "pushed": "e8647bfa",
+          "after_fold": "2580758c",
+          "kind": "red",
+          "before_fold": "2580758c"
+        },
+        {
+          "pushed": "377c9474",
+          "after_fold": "6f5d0d31",
+          "kind": "green",
+          "before_fold": "6f5d0d31"
+        },
+        {
+          "pushed": "6c177757",
+          "after_fold": "fc299b45",
+          "kind": "red",
+          "before_fold": "fc299b45"
+        },
+        {
+          "pushed": "078c523a",
+          "after_fold": "586baf0d",
+          "kind": "green",
+          "before_fold": "8330159f + f3fad388"
+        },
+        {
+          "pushed": "c7cb109c",
+          "after_fold": "aef3f25b",
+          "kind": "red",
+          "before_fold": "e4d993c8"
+        },
+        {
+          "pushed": "b2acf2fd",
+          "after_fold": "6e219a78",
+          "kind": "green",
+          "before_fold": "bd8bb30d"
+        },
+        {
+          "pushed": "a4b14e59",
+          "after_fold": "f196a61d",
+          "kind": "red",
+          "before_fold": "41c678e5"
+        },
+        {
+          "pushed": "994223ac",
+          "after_fold": "bf089f62",
+          "kind": "green",
+          "before_fold": "3673d316"
+        },
+        {
+          "pushed": "4d65b5a6",
+          "after_fold": "0a692f61",
+          "kind": "test",
+          "before_fold": "250b801d"
+        },
+        {
+          "pushed": "7495a277",
+          "after_fold": "aaaeddc1",
+          "kind": "green",
+          "before_fold": "d85e1b2d"
+        },
+        {
+          "pushed": "02c4f151",
+          "after_fold": "166cd9f6",
+          "kind": "red",
+          "before_fold": "166cd9f6"
+        },
+        {
+          "pushed": "c143625f",
+          "after_fold": "2af7845e",
+          "kind": "green",
+          "before_fold": "2af7845e"
+        }
+      ]
+    }
+  },
+  "pushed_sha": "c143625f2e6f280e2eb1a519fec3495699182bc9"
 }

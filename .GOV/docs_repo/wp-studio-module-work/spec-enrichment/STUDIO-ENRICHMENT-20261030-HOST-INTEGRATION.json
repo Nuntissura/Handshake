@@ -413,6 +413,14 @@
    "lead_reading": "2026-11-05: a display entry never blocks a document edit or an undo; an entry naming an absent sequence is inert, listed read-only, removed only explicitly. Settings and multicam keep their refusal. Vendor parity UNVERIFIED (D5)",
    "source": "lane SMB-PR-TRACK-DISPLAY-1, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-50",
+   "gap": "STU-VID-036 declares no defaults or bounds for track display: the default of each switch and of track heights; the height unit and bounds; what expand-all and minimize-all set; whether 'audio and video fade handles' and 'audio and video keyframes' are one switch or two; whether height presets are per sequence or a library and can be deleted; whether logarithmic and dynamic exclude each other and whether a linear scale exists (MT-33739 calls them flags)",
+   "needs": "the declared values, or the spec's confirmation that Studio's declared readings stand",
+   "lead_reading": "2026-11-05: Studio's readings are recorded in builders/lanes/hsk-studio-pr-track-display-1.json notes.declared_readings; vendor parity UNVERIFIED (D5)",
+   "source": "lane SMB-PR-TRACK-DISPLAY-1, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [
