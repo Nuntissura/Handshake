@@ -2,18 +2,137 @@
   "crate": "hsk-studio-session (document entries against sequence and clip removal), hsk-studio-folio (entry validation)",
   "lane": "SMB-PR-ENTRY-REFERENCES-1",
   "status": null,
-  "phase": "build",
+  "phase": "paused_20261105",
   "worktree": "wt-studio-lanes/smb-pr-entry-references-1",
   "base": "c143625f",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "5013dd17",
+      "subject": "session tests, red 1: the measured removal table",
+      "pushed": false
+    },
+    {
+      "sha": "9facfc8a",
+      "subject": "folio, session, pulse and harness-view tests, red 2: inert ids with behaviour held back",
+      "pushed": false
+    },
+    {
+      "sha": "e7e7ef93",
+      "subject": "folio, session, F-R56-3: an id the document does not hold is inert",
+      "pushed": false
+    },
+    {
+      "sha": "57cdf077",
+      "subject": "session tests, red 3, F-R56-7: the answer an undo gives, held back",
+      "pushed": false
+    },
+    {
+      "sha": "4529259c",
+      "subject": "session, F-R56-7: an undo answers what it can restore",
+      "pushed": false
+    }
+  ],
+  "capabilities_done": [
+    "Item 1: the table over every token, path and removal (tests/entry_references.rs every_removal_does_what_the_table_says); notes.reference_table has before and after",
+    "Lead decisions 1, 2, 3 and tracks: a routing of an absent sequence, a route, bus effect chain or automation lane of an absent track, a gain or pan envelope of an absent clip and a multicam mode of an absent clip are inert: valid, kept byte-identically, live again with an undo, still checked for what they hold, counted by the node budget",
+    "Typed read-only listings: Session::inert_audio_routing_references, Session::inert_multicam_clips (Folio inert_audio_routing_references, inert_multicam_clips)",
+    "Session::audio_routing_records: typed read; a damaged routing opens with a LossReason::Opaque note, refuses typed on read, save keeps its bytes, a direct write replaces it and takes the note",
+    "resync_diverged refuses an authority document a valid multicam entry does not validate against (measured unreadable at base)",
+    "F-R56-7: Applied::sequence_records_undo answers Complete, WithoutEntries(tokens) or Unavailable(tokens); the inverse leaves an entry it cannot restore alone and the rest keeps its undo; no step that can never apply is handed out",
+    "Item 5: undo, redo, save and reopen for each newly inert cell, bytes identical (newly_inert_cells_undo_redo_save_and_reopen_with_their_bytes, a_resync_leaves_an_inert_entry_byte_identical_through_reopen, an_inert_routing_survives_save_to_and_open_path)",
+    "Requirement 2: a stale id unheard, run: pulse tests/inert_routing_mix.rs, sample for sample",
+    "Requirement 4: Viewer::audio_routing answers Ok with inert ids (harness-view tests/viewer_inert_routing.rs); viewer_timeline_nest and viewer_timeline_nest_2 green in the bundled run"
+  ],
+  "tests": {
+    "red_proof": {
+      "note": "Each log starts with the sha; the runs were on those trees before the commit. Reasons read from the logs.",
+      "table": {
+        "argv": "cargo nextest run --offline -p hsk-studio-session --test entry_references --no-fail-fast --no-capture",
+        "sha": "5013dd17",
+        "exit": 100,
+        "passed": 2,
+        "failed": 1,
+        "reading": "11 of 40 cells unreadable at base c143625f (sequence and clip rows; the track row came with red 2).",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/red-proof-table-smb-pr-entry-references-1-5013dd17.log"
+      },
+      "inert": {
+        "argv": "cargo nextest run --offline -p hsk-studio-session -p hsk-studio-pulse -p hsk-studio-harness-view --features hsk-studio-harness-view/viewer,hsk-studio-harness-view/audio-batch --test entry_references --test inert_routing_mix --test viewer_inert_routing --no-fail-fast --no-capture",
+        "sha": "9facfc8a",
+        "exit": 100,
+        "passed": 6,
+        "failed": 7,
+        "reading": "17 cells off the table, listings empty, Viewer::audio_routing refused. The 6 that pass: the 3 pulse mix tests (regression proof, the mix never looked a stale id up, never seen red), every_document_entry_token_is_classified, a_token_that_names_neither_is_untouched_by_a_removal, a_valid_routing_opens_typed_without_a_note.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/red-proof-inert-smb-pr-entry-references-1-9facfc8a.log"
+      },
+      "undo": {
+        "argv": "cargo nextest run --offline -p hsk-studio-session --test entry_references --no-fail-fast -E 'test(repair) | test(a_step_over_valid_records)'",
+        "sha": "57cdf077",
+        "exit": 100,
+        "passed": 0,
+        "failed": 5,
+        "reading": "The answer held back at None, and the inverse handed out regardless.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/red-proof-undo-smb-pr-entry-references-1-57cdf077.log"
+      },
+      "never_seen_red": [
+        "every_record_half_answers_the_same_and_a_replay_repeats_it: outside the red 3 filter by my mistake; green in the bundled run"
+      ],
+      "void_runs": [
+        "A first red 2 compile failed on a wrong Result type in the pulse test, exit 101; fixed before anything was built on it. No log kept: the file was overwritten by the rerun."
+      ]
+    },
+    "interim": {
+      "argv": "cargo nextest run --offline -p hsk-studio-folio -p hsk-studio-session --no-fail-fast",
+      "sha": "e7e7ef93",
+      "exit": 0,
+      "passed": 316,
+      "failed": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/green-inert-smb-pr-entry-references-1-e7e7ef93.log",
+      "earlier": "The run before it answered 315 passed, 1 failed, exit 100: session multicam_commit.rs:372, see notes.changed_assertions. Its log was overwritten by the rerun."
+    },
+    "bundled": {
+      "argv": "lane-check.sh --owner smb-pr-entry-references-1 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-session -p hsk-studio-package -p hsk-studio-pulse -p hsk-studio-harness-core -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch,hsk-studio-harness/audio-device --no-fail-fast",
+      "exit": 0,
+      "sha": "4529259ca2d745e509020462ea4dd29096e4aa34",
+      "passed": 932,
+      "failed": 0,
+      "skipped": 20,
+      "tree_note": "Base c143625f, NOT rebased. Not the tree a push would carry.",
+      "per_crate": {
+        "hsk-studio-folio": 212,
+        "hsk-studio-harness": 244,
+        "hsk-studio-harness-core": 52,
+        "hsk-studio-harness-view": 162,
+        "hsk-studio-package": 40,
+        "hsk-studio-pulse": 112,
+        "hsk-studio-session": 110
+      },
+      "clippy": "Lane-check clippy passed; the log names none of the seven files listed in notes.clippy_files_checked. Warnings in it belong to other crates.",
+      "step0": "clean",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/bundled-smb-pr-entry-references-1-4529259c.log"
+    },
+    "per_sha": "NOT RUN",
+    "lane_tests": {
+      "session": "crates/hsk-studio-session/tests/entry_references.rs (15)",
+      "folio": "crates/hsk-studio-folio/tests/audio_routing_records.rs an_id_the_document_does_not_hold_is_inert_and_still_checked (1); multicam_records.rs changed in place",
+      "pulse": "crates/hsk-studio-pulse/tests/inert_routing_mix.rs (3)",
+      "harness_view": "crates/hsk-studio-harness-view/tests/viewer_inert_routing.rs (1)"
+    },
+    "doctests": "not run: no doc examples added",
+    "not_run": [
+      "--per-sha: not run, Operator pause.",
+      "Nothing has run on a rebase onto origin. Origin is 1940292c, which changes DOCUMENT_ENTRY_TOKENS: classify the new token on resume.",
+      "The 20 skipped tests of the bundled run: names not read.",
+      "harness-view under its [viewer] unit alone: the bundled run used the desktop and audio-batch set.",
+      "Direct dependents of folio other than the crates in the argv: clippied by lane-check, suites not run.",
+      "A resync of a track or sequence against a damaged entry, and a keyed multicam step over an inert entry: no test of their own."
+    ]
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-05T15:17:11Z",
+  "next": "Resume steps, in order: (1) git fetch; git rebase origin/codex/handshake-studio-assets (origin 1940292c edits session; expect source.rs, session.rs and lib.rs conflicts). (2) If origin added a document entry token, classify it in tests/entry_references.rs NAMING or NOT_APPLICABLE, as a fixup into the commit that needs it. (3) Check whether the Folio DESCRIPTOR needs the inert rule (notes.not_inspected) and amend only if it claims otherwise. (4) Commits touch session, so one bundled run with the argv in tests.bundled, log named with the lane id and the new sha. (5) lane-check.sh --owner smb-pr-entry-references-1 --disk d --per-sha origin/codex/handshake-studio-assets. (6) On PER_SHA_RESULT OK, re-fetch, confirm the base is still origin, then SHA=$(git rev-parse HEAD) && [ -n \"$SHA\" ] && git push origin \"$SHA:refs/heads/codex/handshake-studio-assets\". (7) Update commits, tests, pushed_sha, set READY_FOR_VALIDATION, phase validation. Lead: rule on notes.for_the_lead.",
+  "updated_at": "2026-11-05T18:05:30Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -38,6 +157,177 @@
       "F-R56-3",
       "F-R56-7"
     ],
-    "closes_candidates": []
+    "closes_candidates": [],
+    "paused": "Operator pause 2026-11-05: five local commits on lane/smb-pr-entry-references-1, nothing pushed, working tree clean, no process of this lane left running.",
+    "clippy_files_checked": [
+      "session src/sequence_records_step.rs",
+      "session src/sequence_records.rs",
+      "folio src/audio_routing.rs",
+      "folio src/multicam.rs",
+      "session tests/entry_references.rs",
+      "pulse tests/inert_routing_mix.rs",
+      "harness-view tests/viewer_inert_routing.rs"
+    ],
+    "reference_table": {
+      "columns": "token: cell by path (Timeline, Multicam, Records, Resync), before at base -> after. Red proof logs hold every cell.",
+      "audio_routing": {
+        "sequence": "Timeline cannot remove; Multicam, Records, Resync unreadable -> reads, inert",
+        "clip": "all four unreadable -> reads, inert",
+        "track": "all four unreadable -> reads, inert (routes, bus_effects, track_automation)"
+      },
+      "multicam": {
+        "sequence": "Timeline cannot remove; Multicam, Records refused folio_rejected, unchanged; Resync unreadable -> refused folio_rejected",
+        "clip": "Timeline, Records, Resync unreadable, Multicam refused -> all four read, inert",
+        "track": "Timeline, Records unreadable -> UNCHANGED, reported gap (angle_order); Multicam refused, unchanged; Resync unreadable -> refused folio_rejected"
+      },
+      "sequence_settings": {
+        "sequence": "Timeline cannot remove; others refused folio_rejected, unchanged",
+        "clip": "reads, unchanged: names no clip",
+        "track": "reads, unchanged: names no track"
+      },
+      "track_display": {
+        "all": "Timeline cannot remove a sequence; otherwise reads, unchanged (SD-49)"
+      },
+      "other_paths": {
+        "provider submit": "not a removal path: derives_from refuses any change outside the declared addresses and chronicle addresses no sequence (session.rs derives_from, chronicle mask_property; proposal_not_derived, session_contract.rs:915). By reading, not a table cell.",
+        "clip_finishing": "not a session token (pinned by every_document_entry_token_is_classified): only composite and folio use the type. It names clips and needs a row when the session carries it."
+      },
+      "not_applicable": {
+        "selection": "a pixel plane, no id",
+        "text": "text stories keyed by SLYR layer",
+        "develop": "a camera-raw recipe",
+        "vector": "vector paths keyed by SLYR layer",
+        "composition": "SLYR layers and SCOM compositions; run with an empty composition set, so the reading rests on the source, not the run",
+        "motion": "composition layers",
+        "waveform_edit": "source identity digest and operations; clip there is a clipboard range",
+        "proof": "SDOC document",
+        "design": "SLYR layers and components",
+        "info": "colour samplers",
+        "sequence_presets": "not bound to a document sequence"
+      },
+      "v4_06_class": {
+        "name": "an entry validator that refuses the whole set on one id the document no longer holds",
+        "regex": "document\\.sequences|\\.tracks\\.iter\\(\\)|kinds\\.get|clips\\.contains|owners\\.get",
+        "sites": {
+          "folio audio_routing.rs sequence lookup": "fixed",
+          "folio audio_routing.rs routes": "fixed",
+          "folio audio_routing.rs bus_effects": "fixed",
+          "folio audio_routing.rs track_automation": "fixed",
+          "folio audio_routing.rs clip_gains, clip_pans": "fixed",
+          "folio audio_routing.rs live route output and send target": "not fixed, gap: pulse bus_mix.rs:249, :260 play into it",
+          "folio multicam.rs clips": "fixed",
+          "folio multicam.rs multicam_sequences": "not applicable: refusal kept, lead decision 2",
+          "folio multicam.rs angle_order": "not fixed, gap: pulse multicam.rs:374, :957, :991 read it by index",
+          "folio sequence_preset settings": "not applicable: refusal kept",
+          "folio track_display.rs": "not applicable: already inert (SD-49)"
+        }
+      }
+    },
+    "declared_readings": [
+      "Lead decision, replacing the brief item 2 reading for audio_routing: a routing naming an absent sequence is inert, valid, kept, back with an undo, never blocking an edit, because with the sequence gone nothing can be heard. Sequence settings and multicam sequences keep their refusals. The difference between the three rules is the lead's to record (SD item).",
+      "Why not refuse, measured by reading: Run commits a sequence first and writes the entry after (harness-core harness.rs:1777 then :1783; undo :1939 then :1944), so a session refusal would hit the Viewer's own edits and undos.",
+      "Inert keeps what can be checked without the owner: key grammar of an absent sequence id, uniqueness, point counts and ranges, levels, send ids, budgets. A multicam mode of an absent clip keeps its SCLP grammar, uniqueness, follow rule and the angle ceiling MAX_MULTICAM_ANGLES, since it has no source to count against.",
+      "An id held with the wrong kind stays refused InvalidId: an envelope of a clip on a video track, a route of a video track, bus effects on an audio track.",
+      "An inert route is inert whole: its own output and send targets are not checked as references.",
+      "Consequence of the rule: a write may name an absent id, on Viewer::set_audio_routing and on a multicam step. A step writing a mode for a clip it does not hold commits (session multicam_commit.rs:372 removed).",
+      "Consequence, not tested: a new clip, track or sequence created with the id of an inert member takes that member. Clip and track ids are minted uuids; sequence ids are the caller's.",
+      "A direct set_document_entry of audio_routing stays its producer's to validate, unlike settings: harness-core tests/run_and_entry_redo.rs:304 writes `{}` under this token. A file with such bytes is noted at the next open.",
+      "The records step does not carry audio_routing (lead decision 3). A bad routing is replaced by a direct write.",
+      "Listing shape: the requirement said codes and counters only, and following inert_track_display_entries. Studio reading: a kind code and an opaque id per row, no points, levels or names; a host could not act on a count alone. A whole absent sequence is one row. No Observe frame, as the other typed reads. The multicam listing returns the stored modes: ids, angle numbers and switches.",
+      "A repair undo: WithoutEntries(tokens) when other changes keep their undo; Unavailable(tokens) with no inverse when nothing else changed, or when the kept new records would not validate against the document the undo restores (a repair naming a sequence the same step inserts). In that second case the sequence edit has no undo either: the undo would be refused, and the answer says so rather than hand out a step that cannot apply. This is the one corner where item 4's \"the sequence edit keeps its undo\" does not hold.",
+      "The undo answer judges only records the step replaced: expect against the pre-step document. A sequence removal guarded later can still refuse an inverse for another entry written after the commit; that is the live state, not this answer.",
+      "Multicam guard on the records step still runs only on a Remove, as before; a Replace is not guarded, so Records Track stays in the gap.",
+      "Studio-minted, not in the spec: StudioInertRoutingKind and its members, StudioInertRoutingReference, SequenceRecordsUndo and its members, Applied::sequence_records_undo. Vendor parity UNVERIFIED (D5)."
+    ],
+    "spec_proposals": [
+      "STU-FX-137: say what a routing means when its sequence, track or clip is gone. Studio reading by lead decision: inert, returns with the id, blocks no edit.",
+      "STU-VID-033: the same for a clip's multicam mode. The source sequence keeps its refusal.",
+      "STU-FX-137: say what a live route does when its output or send target bus is removed: fall back to the master, refuse the removal, or something else. Today the whole set is refused.",
+      "STU-VID-033: say what angle numbering does when a source sequence gains or loses a video track.",
+      "State why three rules exist side by side: refuse (settings, multicam sequences), inert (track display, routing, multicam clip modes)."
+    ],
+    "for_the_lead": [
+      "session multicam_commit.rs:372 was a fourth multicam pin you did not name: a step writing a mode for a clip it does not hold is no longer refused. Removed as a consequence of decision 2; confirm or say otherwise.",
+      "folio audio_routing_records.rs:121 and :189 were two more pins, consequences of decisions 3 and tracks.",
+      "One corner of F-R56-7 keeps no undo for the sequence edit (declared_readings, a repair naming what the step inserts).",
+      "harness-view tests/viewer_inert_routing.rs is a new test file; you approved no harness-view source edit and it is none, but it is outside the owned paths. It adds no egui line.",
+      "session src/source.rs: one doc sentence, outside the owned paths."
+    ],
+    "changed_assertions": [
+      {
+        "test": "folio audio_routing_records.rs:121",
+        "old": "a routing of seq-x refused InvalidId",
+        "new": "a routing of ../seq refused InvalidId; seq-x is inert, lead decision 3",
+        "reason": "the old pin predates the requirement that one stale id never makes the set unreadable"
+      },
+      {
+        "test": "folio audio_routing_records.rs:189",
+        "old": "automation of STRK-nope refused InvalidId",
+        "new": "row removed; the video-track row stays",
+        "reason": "as above, tracks decision"
+      },
+      {
+        "test": "folio audio_routing_records.rs:242",
+        "old": "pan envelope of SCLP-nope refused InvalidId",
+        "new": "row removed; the video-clip row stays",
+        "reason": "as above, lead decision 1"
+      },
+      {
+        "test": "folio multicam_records.rs:250",
+        "old": "a mode of an unknown clip refused DanglingReference",
+        "new": "Ok, listed; twice is DuplicateIdentity; angle 0 and u32::MAX InvalidField",
+        "reason": "as above, lead decision 2"
+      },
+      {
+        "test": "session multicam_entry.rs:230-240",
+        "old": "a timeline step removing the clip leaves the entry DanglingReference",
+        "new": "it reads, one inert clip, bytes kept",
+        "reason": "as above, lead decision 2"
+      },
+      {
+        "test": "session multicam_commit.rs:372",
+        "old": "a step writing a mode for a clip it does not hold refused folio_rejected",
+        "new": "row removed; bad_records still covers folio_rejected",
+        "reason": "consequence of lead decision 2, not named by the lead"
+      },
+      {
+        "test": "session sequence_records_commit.rs a_successful_commit_replaces_a_parsable_invalid_entry",
+        "old": "the undo of a repair refused folio_rejected",
+        "new": "no inverse, Unavailable(sequence_settings)",
+        "reason": "F-R56-7"
+      },
+      {
+        "test": "session track_display.rs a_step_replaces_an_entry_it_can_quote_and_refuses_bytes_it_cannot",
+        "old": "the undo of a repair refused folio_rejected",
+        "new": "no inverse, Unavailable(track_display)",
+        "reason": "F-R56-7"
+      }
+    ],
+    "microtasks": "NOT_INSPECTED: no MT row read, none claimed. No MT file edited.",
+    "gaps_outside_lane": [
+      "A live route whose output or send target names a removed bus keeps the whole routing refused: pulse src/bus_mix.rs:249, :260 answer invalid_input, so it plays. Folio pin: an_id_the_document_does_not_hold_is_inert_and_still_checked.",
+      "Multicam angle_order: removing a source video track leaves the record set unreadable on a timeline or records step: pulse src/multicam.rs:374, :957, :991 read it by index. Pinned as the two Unreadable cells of the table. Adding a video track breaks it the same way by reading of folio multicam.rs; not run.",
+      "harness-view src/view/timeline/envelopes.rs:151 comment says Folio refuses an envelope of a clip not in the sequence; it no longer does. Behaviour unchanged, comment stale; no harness-view source edit approved.",
+      "Inert entries are never pruned. A long-lived document can hold them up to the existing counts; only the listing shows them, and no host or control calls it yet.",
+      "A multicam entry that does not validate gets no loss note at open, unlike routing; its read still refuses typed.",
+      "No Registry or RUN_COMMANDS row and no GUI for the listings (control_descriptors none)."
+    ],
+    "paths_beyond_brief": [
+      "crates/hsk-studio-pulse/tests/inert_routing_mix.rs: new, approved by the lead for this test only.",
+      "crates/hsk-studio-harness-view/tests/viewer_inert_routing.rs: new test file, required by requirement 4, no source edit: for the lead to accept.",
+      "crates/hsk-studio-session/src/source.rs: one doc sentence on the token list.",
+      "crates/hsk-studio-session/src/lib.rs: the public use lines and DESCRIPTOR. crates/hsk-studio-session/src/multicam_step.rs: not touched. crates/hsk-studio-folio/src/multicam.rs: entry validation the table proved wrong, within the brief."
+    ],
+    "not_inspected": [
+      "The Folio DESCRIPTOR: not read for audio routing or multicam reference claims and not updated. The session DESCRIPTOR is updated.",
+      "Whether origin 1940292c adds a document entry token or touches the same session lines: 1940292c, which changes DOCUMENT_ENTRY_TOKENS: classify the new token on resume.",
+      "Adobe behaviour on a removed sequence, clip or track in routing or multicam: UNVERIFIED (D5).",
+      "The 20 tests the bundled run skipped."
+    ],
+    "token_test_warning": "every_document_entry_token_is_classified fails on any new token until it is classified. SMB-TYPE-AUTHORED-TOKEN-1 adds one: whichever lane lands second adds the row.",
+    "hostile_input": "V4-01: audio_routing.rs and multicam.rs keep their arithmetic deny; the new code adds no arithmetic. V4-02: no new allocation beyond the existing limits: the listing is bounded by what parse admitted, inert members count in Budget::nodes and MAX_AUDIO_ROUTINGS (an_id_the_document_does_not_hold_is_inert_and_still_checked). Damaged forms including nesting past the budget: a_damaged_routing_opens_noted_refuses_typed_and_save_keeps_its_bytes.",
+    "new_module_edges": "none; no Cargo.toml changed",
+    "cleanup_for_steward": "D: target Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/target and tmp (counts toward P3); list for Operator-approved deletion when the lane is PASS or abandoned. Nothing deleted. The log measure-base-c143625f.log is a copy of the red 1 run.",
+    "vendor_parity": "UNVERIFIED (D5)"
   }
 }

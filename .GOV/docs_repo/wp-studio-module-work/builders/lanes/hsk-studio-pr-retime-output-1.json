@@ -2,18 +2,148 @@
   "crate": "hsk-studio-pulse (frame layers and timeline mix), hsk-studio-harness-view (monitor frame output)",
   "lane": "SMB-PR-RETIME-OUTPUT-1",
   "status": null,
-  "phase": "build",
+  "phase": "paused_20261105",
   "worktree": "wt-studio-lanes/smb-pr-retime-output-1",
   "base": "41d0e0da",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "c9e1e14fbc74e485c985ec1fe115ab01b51f8ddd",
+      "subject": "retime output (SMB-PR-RETIME-OUTPUT-1, red): table of every interpolation choice, pitch flag and false text tests",
+      "pushed": false,
+      "red": true
+    },
+    {
+      "sha": "1f3a30f122645c473f674b3fc971539f30828aea",
+      "subject": "pulse (SMB-PR-RETIME-OUTPUT-1): each frame layer carries the source frame answer",
+      "pushed": false
+    },
+    {
+      "sha": "22b1a25a7dd9de4372dac53236e318872b76de1d",
+      "subject": "harness-view (SMB-PR-RETIME-OUTPUT-1): the program monitor renders the interpolation choice",
+      "pushed": false
+    },
+    {
+      "sha": "b933aace006cee6eba3dbb51ad1c6dea408a4c35",
+      "subject": "pulse (SMB-PR-RETIME-OUTPUT-1): Maintain audio pitch keeps the pitch in the timeline mix",
+      "pushed": false
+    },
+    {
+      "sha": "cff47aefa17a96fd1ee2d4b2ba1583ad4b338344",
+      "subject": "harness-view (SMB-PR-RETIME-OUTPUT-1): the speed form no longer says the clip has no field",
+      "pushed": false
+    }
+  ],
+  "capabilities_done": [
+    "FrameLayer.answer carries SourceFrameAnswer with FrameLayer::estimation_mark on frame_layers, frame_layers_nested and prefetch_layers (tests table_of_every_choice_at_mid_frame_positions_through_frame_layers, every_frame_of_every_speed_matches_an_independent_rational_oracle)",
+    "frame_sampling at any speed but unit forward shows the nearest source frame, reverse shows frames of the window from the last one; unit speed forward keeps its tick (test unit_speed_sampling_output_does_not_change)",
+    "frame_layers_on_grids, prefetch_layers_on_grids, frame_layers_nested_on_grids and the SourceGrids port; FrameSource::source_grid; MediaFrames states the container's frame duration; a nested clip resolves on the nested sequence's rate (tests the_source_grid_comes_from_the_port, the_grid_comes_from_the_frame_source_and_reaches_prefetch, nested_clips_resolve_on_the_inner_grid_and_refuse_a_pair)",
+    "Transition handles carry the choice past the window (tests a_transition_handle_carries_the_choice_past_the_window, a_dissolve_blends_each_clip_by_its_own_choice)",
+    "FramePipeline::prefetch decodes both frames of a pair inside max_decodes; the cache's byte budget holds (test prefetch_decodes_both_frames_of_a_pair_within_its_budget)",
+    "The program monitor renders Blended through composite FrameBlended and Pigment frame_mix, Estimated through pixel_motion on render-cpu (tests table_of_every_choice_through_the_monitor, optical_flow_moves_the_edge_where_blending_ghosts_it, real_decoded_frames_blend_through_the_frame_cache)",
+    "ProgramFrame.layers and state_json shown_layers report answer, frames, exact share and estimation_mark (tests the_report_names_each_answer, optical_flow_over_an_occlusion_is_an_estimation_and_says_so)",
+    "Typed outcomes instead of a floored frame: the source's refusal for a missing second frame, frame_interpolation_unavailable for a nested pair, an out-of-domain sample or a raster over the pixel_motion work budget (tests a_path_that_cannot_render_the_choice_answers_typed_never_a_floored_frame, optical_flow_over_the_work_budget_is_refused_before_the_estimate_and_a_mix_is_not)",
+    "Maintain audio pitch: flag on keeps pitch and duration through Score's StreamingStretch at speeds 1/16..16, with reverse; flag off byte-identical to Score's resampler path (tests the_flag_keeps_pitch_and_duration_at_every_speed, a_burst_inside_the_clip_lands_where_the_speed_puts_it, stereo_keeps_each_channel_and_both_lengths, reverse_with_the_flag_plays_backward_at_the_kept_pitch, flag_off_is_byte_identical_to_the_resampler, block_size_and_seek_do_not_change_the_kept_pitch_output)",
+    "rate.rs state_json strings and the timeline_ui.rs hover text say the true state (test the_false_text_is_gone_from_the_speed_form)"
+  ],
+  "tests": {
+    "bundled": {
+      "argv": "lane-check.sh --owner smb-pr-retime-output-1 -- cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-view --features hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch --no-fail-fast --success-output final",
+      "exit": 0,
+      "sha": "2487d10f; the same five commits rebased are c9e1e14f..cff47aef",
+      "passed": 326,
+      "failed": 0,
+      "skipped": 0,
+      "summary_duration_s": 20.173,
+      "new_tests": {
+        "hsk-studio-pulse::retime_output": 13,
+        "hsk-studio-pulse::retime_output_audio": 8,
+        "hsk-studio-harness-view::viewer_retime_output": 13
+      },
+      "step0": "clean",
+      "clippy": "lane-check clippy over pulse, harness-view [desktop, audio-batch] and dependents: exit 0. In this lane's files one warning kind, clippy::type_complexity on the two `rows` tables in tests/retime_output.rs:102 and tests/viewer_retime_output.rs:132; no warning in a changed src file.",
+      "features": "desktop + audio-batch activates viewer and media: the widest harness-view unit. A viewer-only run of the same suites is under tests.focus_viewer.",
+      "doctests": "none added or changed, not run (rule 4d)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-output-1/bundled-smb-pr-retime-output-1-2487d10f.log",
+      "sha_note": "Run before the rebase on 66c0e7c9, which touched layout and interop-layout only. Origin has moved again since (next, step 2): this run does not cover that union."
+    },
+    "red_proof": {
+      "argv": "cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-view --features hsk-studio-harness-view/viewer --test retime_output --test retime_output_audio --test viewer_retime_output --no-fail-fast",
+      "tree": "the tree committed as red, then at 3f36dc58, base 41d0e0da",
+      "exit": 100,
+      "run": 32,
+      "passed": 8,
+      "failed": 24,
+      "passed_at_red": {
+        "a_late_estimate_follows_the_existing_drop_policy": "pins the existing scheduler; never shown red",
+        "frames_of_another_size_fit_then_blend_near_the_top_of_the_domain": "the base floored to one frame and passed; first meaningful at green",
+        "unit_speed_sampling_output_does_not_change": "guard: must pass before and after",
+        "hostile_input_answers_typed": "the flag was ignored, so flag on and off refused alike; guard",
+        "the_flag_changes_nothing_when_the_speed_keeps_the_pitch_anyway": "guard",
+        "block_size_and_seek_do_not_change_the_kept_pitch_output": "guard",
+        "the_cost_of_the_stretch_at_session_build_is_reported": "reports only",
+        "flag_off_is_byte_identical_to_the_resampler": "guard: the same equality passed at the base and at the tip"
+      },
+      "not_in_red_run": "real_decoded_frames_blend_through_the_frame_cache needs feature media; the red run was viewer only. First run failed on its own fixture (reel refuses F12:1 as a frame rate), fixed to F24:1.",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-output-1/red-smb-pr-retime-output-1-41d0e0da-dirty.log"
+    },
+    "focus_viewer": {
+      "argv": "cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-view --features hsk-studio-harness-view/viewer --no-fail-fast --success-output final",
+      "tree": "first green tree, on 3f36dc58, dirty",
+      "exit": 100,
+      "run": 270,
+      "passed": 268,
+      "failed": 2,
+      "failed_tests": "optical_flow_moves_the_edge_where_blending_ghosts_it (centroid 9.36 against my tolerance 10.5 +- 1) and optical_flow_over_an_occlusion_is_an_estimation_and_says_so (I expected the post to hold; the estimator paints the bar over it, 1.0 at columns 22 and 23)",
+      "changed": "Both were my expectations of the estimator, read from the measured columns, listed in notes.declared_readings. See notes.test_expectations_corrected.",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-output-1/focus1-smb-pr-retime-output-1-3f36dc58-dirty.log"
+    },
+    "focus_media": {
+      "argv": "cargo nextest run -p hsk-studio-harness-view --features desktop,audio-batch --test viewer_retime_output --no-fail-fast --success-output final",
+      "tree": "second green tree, on 3f36dc58, dirty",
+      "exit": 100,
+      "run": 13,
+      "passed": 12,
+      "failed": 1,
+      "failed_tests": "real_decoded_frames_blend_through_the_frame_cache: fixture F12:1, source_grid None",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-output-1/focus2-smb-pr-retime-output-1-3f36dc58-dirty.log"
+    },
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-pr-retime-output-1 --per-sha origin/codex/handshake-studio-assets",
+      "result": "PER_SHA_RESULT OK shas=5 range=66c0e7c9..cff47aef",
+      "exit": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-output-1/per-sha-run-smb-pr-retime-output-1-cff47aef.log",
+      "proves": "each commit compiles in the round units; it does not rerun the red commit's failures on the rebased tree.",
+      "note": "Valid for range 66c0e7c9..cff47aef only; origin has moved, so it must be repeated after the rebase. The hold ran over the 900 s advisory: events.log OVER_MAX_HOLD 1793898800-41115-3732020 at 2026-11-05T17:36:54Z, 901 s by this lane."
+    },
+    "after_rebase_new_tests": {
+      "status": "NOT_RUN",
+      "why": "Queued for the C: lock when the Operator paused the lane; stopped while queued, no compile and no test started. No exit code exists.",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-output-1/new-tests-smb-pr-retime-output-1-cff47aef.log"
+    },
+    "wall_clock_watch": {
+      "status": "NOT_RUN",
+      "why": "Same stopped job. harness tests/audio_import.rs:360 and tests/viewer_audio.rs:225, and viewer_monitor, timeline_export, viewer_source_monitor, have not run against this lane.",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-output-1/new-tests-smb-pr-retime-output-1-cff47aef.log"
+    },
+    "push": {
+      "status": "NOT_PUSHED",
+      "why": "Operator pause 2026-11-05."
+    },
+    "measurements": {
+      "pitch": "Flag on, tone 440 Hz, zero-crossing frequency 440.00 Hz within 0.00 cents and DFT peak 440 at 2, 1/2, 3/2, 3/4, 4, 1/4, 5, 8, 16, 1/8, 1/16; exact lengths ceil(window / speed); energy at the moved pitch below 0.00004 of the tone. Flag off, same measure: the moved pitch (880, 220, 660, 330, 1760, 110, 2200, 3520, 7040, 55, 27.5 Hz).",
+      "burst": "0.5 s tone at 1 s of a 3 s window: 2x lands at samples 23808..36096 against 24000..36000; 1/2 at 96000..144128 against 96000..144000.",
+      "reverse": "Rising sweep 300..600 Hz at -2: flag on falls 540.0 -> 359.9 Hz, forward at 2x rises 360.1 -> 540.1 Hz, flag off falls 1080 -> 720 Hz.",
+      "stereo": "330 Hz left and 660 Hz right at 3/2: 330.00 and 660.00 Hz.",
+      "stretch_cost": "10 s stereo source at 2x in a debug build, mix built and rendered: flag on 1.20 s, flag off 2.49 s. The stretch costs less than the resampler it replaces, so it adds no load to session build. Not a release-build figure.",
+      "flow_budget": "920 x 920 refused frame_interpolation_unavailable, Composite(BudgetExceeded), after 4.1 s in a debug build: the two frames are rendered before Pigment's admission refuses."
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on C:, push when green",
-  "updated_at": "2026-11-05T15:58:35Z",
+  "next": "Resume, in order, in the lane worktree on branch lane/smb-pr-retime-output-1 (tip cff47aef, nothing pushed): (1) git fetch origin, then git rebase origin/codex/handshake-studio-assets. (2) Origin moved past 66c0e7c9 with commits touching harness-view (SMB-TYPE-AUTHORED-TOKEN-1, seen at 1940292c), so run that crate's suite once: lane-check.sh --owner smb-pr-retime-output-1 -- cargo nextest run -p hsk-studio-harness-view --features hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch --no-fail-fast; if later commits touch pulse too, add -p hsk-studio-pulse. (3) lane-check.sh --owner smb-pr-retime-output-1 --per-sha origin/codex/handshake-studio-assets. (4) New tests plus the wall-clock watch, the run stopped at the pause: cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch,hsk-studio-harness/audio-batch,hsk-studio-harness/audio-device,hsk-studio-harness/viewer --no-fail-fast --success-output final -E 'binary(retime_output) | binary(retime_output_audio) | binary(viewer_retime_output) | binary(audio_import) | binary(viewer_audio) | binary(viewer_monitor) | binary(timeline_export) | binary(viewer_source_monitor)'. (5) On PER_SHA_RESULT OK and green: SHA=$(git rev-parse HEAD) && [ -n \"$SHA\" ] && git push origin \"$SHA:refs/heads/codex/handshake-studio-assets\". (6) Update commits with the pushed shas and pushed true, tests.per_sha, tests.after_rebase_new_tests, tests.wall_clock_watch, tests.push; set status READY_FOR_VALIDATION, phase pushed, pushed_sha.",
+  "updated_at": "2026-11-05T18:00:44Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -40,6 +170,134 @@
     "closes_candidates": [
       "MT-33730",
       "MT-33731"
-    ]
+    ],
+    "spec_basis": "Master Spec v02.229 14-studio-creative-suite.md STU-VID-031: `frame_sampling` \"Nearest source frame\"; `frame_blending` \"Weighted blend of the two neighbouring source frames\"; `optical_flow` \"MUST be marked as an estimation in any diagnostic that compares it to a source frame\"; \"`Maintain audio pitch` is an independent boolean\".",
+    "brief_answers": {
+      "floor_against_nearest": "They disagree at every non-unit speed with a position nearer the later frame: 3/4 at timeline frame 1 is source 0.75; clip_source_at gave tick 0.75 F, which the decoder reads as frame 0; the spec's nearest is frame 1. Also reverse: clip_source_at gave source_out at the head, the tick after the window, frame_unavailable at the end of a source. The spec wins at non-unit speeds. clip_source_at itself is unchanged: it is the tick mapping and other paths read it; frame_layers no longer takes its frame from it there.",
+      "stretch_and_the_block_mix": "stretch serves the mix with no Score change. The block-based stream builds a whole clip into a TrackSpec when a group's session is built; blocks read that buffer. So the clip goes through StreamingStretch once at build. StreamingStretch rather than time_stretch: time_stretch refuses output above 2^25 samples (11.6 min at 48 kHz) and would refuse the whole mix over one long clip; with transients off StreamingStretch is bit-identical to it (score test streaming_without_transients_is_bit_identical_to_the_offline_stretch).",
+      "reverse_with_the_flag": "The window plays backward with each tone at its own pitch and the speed's duration: reversed, then stretched. At -1 the flag changes nothing: the exact reverse keeps the pitch. UNVERIFIED (D5).",
+      "drop_policy_when_pixel_motion_misses_the_budget": "The render is synchronous with no deadline and is never abandoned or replaced by a mix. Then the scheduler answers as for any late frame: DropLate presents the due frame and counts the skipped ones (shown 0, 3, 6, 9, dropped 6 with each render taking 3 frames); PresentEveryFrame presents each frame in order and lag grows (shown 0, 1, 2, 3, dropped 0, lag 6 frames). The caller's thread is blocked for the render. Test a_late_estimate_follows_the_existing_drop_policy, which advances a headless clock between refreshes: no real slow render was timed.",
+      "wall_clock_tests": "The two 400 ms tests are in the harness crate, not harness-view: tests/audio_import.rs:360 and tests/viewer_audio.rs:225. See tests.wall_clock_watch."
+    },
+    "declared_readings": [
+      "UNVERIFIED (D5): unit speed forward with frame_sampling keeps the frame holding its tick, which off the source grid can differ from the nearest frame. The brief's rule: unit-speed output must not change. The spec's nearest applies at every other speed; frame_blending and optical_flow at unit speed blend off the grid.",
+      "UNVERIFIED (D5): a source whose grid no port states reads on its sequence's frame grid; a nested sequence on its own rate.",
+      "UNVERIFIED (D5): in a transition handle the position law runs past the window, bounded by a known source length or, unknown, by the window; inside the clip only frames of the window are named, so the last source frame of a window does not blend with the frame after it.",
+      "A share of 0 needs one frame and no blend, whatever the method; an optical_flow clip keeps its mark there, though the pixels are the source frame: the spec's duty stays on the safe side.",
+      "A frame hold is one real source frame: Held, no mark, whatever the method.",
+      "Each frame is fitted to the monitor raster before the blend, so pixel_motion's budget is charged at the raster, not the source: a large source on a small monitor can estimate. Limit: BlendLimits::DEFAULT 2e10 visits at FlowParams::DEFAULT, 826719 pixels, so by that arithmetic a 1920 x 1080 raster is refused (the refusal was run at 920 x 920 only).",
+      "UNVERIFIED (D5): the estimator is Pigment's Horn-Schunck with no occlusion reasoning. Measured on a 4-wide bar moving 6: brightest columns in the right place, faint residue at the source positions; on a bar crossing a post it overdraws the post. The artefact the spec names; the frame carries the mark.",
+      "UNVERIFIED (D5): speeds past the vocoder's 1/4..4 take two passes. Premiere's range for Maintain Audio Pitch is not known here.",
+      "Transients off in the stretch: channels are stretched separately, and an onset detected on one only would shift it against the other. Percussive material smears more than it would with transients on; not measured."
+    ],
+    "changed_assertions": [],
+    "changed_assertions_note": "None. The whole pulse and harness-view suites pass with no existing test changed: no existing assertion pinned a floored frame at a non-unit speed, nor the reversed head tick. tests/nest.rs:323 (speed 2) sits on the frame grid and is unchanged.",
+    "test_expectations_corrected": "Before any push, in the lane's own new test viewer_retime_output.rs: optical_flow_moves_the_edge_where_blending_ghosts_it now asserts the bright columns lie in 9..13 and the centroid within 1.5 of 10.5 (was within 1); the occlusion test no longer asserts the post holds, it asserts the source frames' mix holds the post, the estimate differs from the mix and the mark is reported. Both loosened to what the estimator measurably does, not to what the spec asks of it; a validator should read them as that.",
+    "spec_proposals": [
+      "STU-VID-031: state which frame a source grid mismatch shows at unit speed; today's reading keeps the frame holding the position.",
+      "STU-VID-031: state the range of Maintain audio pitch, and what reverse does with it.",
+      "STU-VID-031: state what optical_flow does when it cannot finish in time or over its budget. Today: late frame by the drop policy, typed refusal over budget.",
+      "STU-VID-020 or 031: name the source frame grid a clip resolves against (carried over from SMB-PR-RETIME-HOLD-1)."
+    ],
+    "microtasks": {
+      "MT-33730": {
+        "state": "AC-001 met at the asset level, no GUI or host; the clause's Maintain audio pitch now changes the mix",
+        "evidence": "the_report_names_each_answer, optical_flow_over_an_occlusion_is_an_estimation_and_says_so, the_flag_keeps_pitch_and_duration_at_every_speed",
+        "gaps": [
+          "gui_obligation, Argus and manual not met (host lane; the form is not wired)",
+          "HBR rows pending, none claimed"
+        ]
+      },
+      "MT-33731": {
+        "state": "AC-001, AC-002, AC-003 met at the asset level on actual pixels, no GUI or host",
+        "rows": {
+          "AC-001": "1/4 coordinate shows frame 0 (table rows; independent oracle)",
+          "AC-002": "1/4 coordinate blends 3/4 frame 0 + 1/4 frame 1, exact share, hand pixel values",
+          "AC-003": "pixel_motion on a moving edge and an occlusion fixture with the mark in the report; no provider or over budget answers typed, never frame_blending"
+        },
+        "gaps": [
+          "gui_obligation, Argus and manual not met",
+          "HBR rows pending, none claimed",
+          "Rendering on real media only through a Y4M fixture"
+        ]
+      },
+      "proof_commands": "Both MTs' proof commands name pulse --test contracts, which does not exist (F-R56-13). The actual targets: pulse --test retime_output, --test retime_output_audio; harness-view --features viewer --test viewer_retime_output. MT files not edited."
+    },
+    "gaps_outside_lane": [
+      "crates/hsk-studio-harness-view/src/view/timeline/export_media.rs:201: FramePort states no source grid (default None), and its channel carries frames only. An export renders the choice through render_at on the sequence's grid: for a source at another rate the wrong pair is named. One forwarded request type would fix it. Export pixels of a non-unit clip NOT_INSPECTED.",
+      "crates/hsk-studio-pulse/src/transition.rs: TransitionFrame.outgoing_source and incoming_source keep clip_source_at's floor; only tests read them now.",
+      "crates/hsk-studio-harness-view/src/view/timeline/nest.rs:370: reveal maps the playhead with clip_source_at, floored: picks an inner tick, shows no frame. Left.",
+      "A nested clip with a pair is refused; rendering it needs the two inner scenes through FrameBlended: possible with what exists, not done.",
+      "Each stereo channel is stretched separately: phase between channels is not preserved. Score has no multichannel stretch. Measured per channel only; image NOT_INSPECTED.",
+      "Speed/Duration form still shows both options unavailable: GUI lane.",
+      "The stretch runs at session build on the render caller's thread, like the resampler. Whether a device pump meets its deadline with it NOT_INSPECTED."
+    ],
+    "v4_06": {
+      "class": "a program frame taken from clip_source_at's floored tick with no choice, no mark and no typed refusal",
+      "regex": "git grep -nE \"clip_source_at\\(|\\.outgoing_source|\\.incoming_source\" -- 'crates/*/src/*'",
+      "sites": [
+        {
+          "site": "pulse src/retime.rs layer_frame (2 calls)",
+          "verdict": "FIXED: the hold and unit-speed or handle branches; the answer comes from the choice"
+        },
+        {
+          "site": "pulse src/playback.rs frame_layers_on_grids",
+          "verdict": "FIXED: no longer calls it"
+        },
+        {
+          "site": "pulse src/transition.rs transition_frame (2 calls)",
+          "verdict": "NOT APPLICABLE: TransitionFrame is tick mapping and progress; frame_layers takes the frame from layer_frame"
+        },
+        {
+          "site": "pulse src/transition.rs clip_source_at itself",
+          "verdict": "NOT APPLICABLE: kept as the tick mapping, documented"
+        },
+        {
+          "site": "harness-view src/view/timeline/nest.rs:370",
+          "verdict": "NOT APPLICABLE: picks a tick to reveal, renders nothing; listed in gaps_outside_lane"
+        }
+      ]
+    },
+    "hostile_input": "No new unbounded allocation: a pair adds one frame to a layer, through the same FrameSource and cache; the frame cache evicts inside max_bytes (test) with the two Arcs alive for the render, as every layer's are. The stretch's output is the same ceil(frames / |speed|) the resampler allocates, refused at MAX_CLIP_FRAMES and by StreamLimits before copying; StreamingStretch's rings are bounded at construction; a stream that cannot advance returns a typed refusal. Speeds 0, denominator 0, i64 ends, u64 ends and a grid of u64::MAX answer typed or a frame of the window (test degenerate_speeds_and_grids_answer_typed_never_panic). Arithmetic checked under deny(arithmetic_side_effects). A MediaFrames grid map holds at most one entry per registered source.",
+    "vendor_parity": "UNVERIFIED (D5): Premiere Frame Sampling, Frame Blending, Optical Flow, Maintain Audio Pitch.",
+    "not_proven": [
+      "The lane is paused and unpushed: no READY claim stands. The rebased tree on current origin has run nothing yet.",
+      "Nothing here is a PASS; a validator judges.",
+      "A real desktop window; H.264, AV1, ProRes or DNx frames: real decode is one Y4M fixture.",
+      "A slow pixel_motion in real time: the drop policy test advances a headless clock.",
+      "Estimator quality beyond the bar fixtures; audio quality beyond pitch, level and placement: no listening test.",
+      "Export of a non-unit clip through the new path.",
+      "Red commit's failures were not rerun after the rebase; per-sha proves it compiles."
+    ],
+    "paths_beyond_brief": [],
+    "sha_map": {
+      "note": "Logs name the shas they ran at. Local commits, then the rebase on 66c0e7c9.",
+      "red": [
+        "3f36dc58",
+        "c9e1e14f"
+      ],
+      "frame_layers_answer": [
+        "878a9e8d",
+        "1f3a30f1"
+      ],
+      "monitor": [
+        "6bbbaa39",
+        "22b1a25a"
+      ],
+      "pitch": [
+        "3c6cc788",
+        "b933aace"
+      ],
+      "false_text": [
+        "2487d10f",
+        "cff47aef"
+      ]
+    },
+    "pause": {
+      "at": "2026-11-05T18:00:44Z",
+      "brief_items": "Items 1-5 implemented and committed locally; item 6 read and recorded in notes.microtasks as the builder's reading, unpushed, so no claim yet.",
+      "stopped_job": "Only the job this lane started, while it was queued for the C: lock (no cargo work had begun). Its queue ticket 11793900878082394-1793900878-50644-175419189 stays in C:/HandshakeBuild/.disk-build-lock/queue with a dead process (msys pid 50644): the lock tool removes dead tickets when the next waiter scans (tools/disk-build-lock.sh:149). Not removed by hand. Its log ends on a waiting line with no EXIT.",
+      "worktree": "clean; no WIP commit; no background job left"
+    }
   }
 }

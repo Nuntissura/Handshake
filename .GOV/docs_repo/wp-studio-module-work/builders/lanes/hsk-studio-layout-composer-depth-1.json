@@ -2,18 +2,105 @@
   "crate": "hsk-studio-layout (Adobe paragraph composer)",
   "lane": "SMB-LAYOUT-COMPOSER-DEPTH-1",
   "status": null,
-  "phase": "build",
+  "phase": "paused_20261105",
   "worktree": "wt-studio-lanes/smb-layout-composer-depth-1",
   "base": "091c4d1b",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "0f1326ff",
+      "kind": "red",
+      "pushed": false,
+      "subject": "tests/composer_depth.rs, composer_depth_diff.rs, composer_depth_table.txt (table from the unchanged composer of 091c4d1b)"
+    },
+    {
+      "sha": "6e7e3dc9",
+      "kind": "red 2",
+      "pushed": false,
+      "subject": "ladder dead end asserts the emergency line (lead direction), cost past float range refuses, cheaper CJK line budget"
+    },
+    {
+      "sha": "286d9241",
+      "kind": "green candidate",
+      "pushed": false,
+      "subject": "explicit stack, memo key, budgets, emergency rule from the first line, Knuth-Plass budget, DESCRIPTOR composer_bounds"
+    }
+  ],
+  "capabilities_done": [
+    "NOT CLAIMED until the bundled run is green. Local at 286d9241: Para::best on an explicit stack with a resumable scan; d out of the memo key on a whole-paragraph window; line class by flat_from; budgets para_work_budget and PARA_STATE_BUDGET; emergency rule under rescue when no path exists from the first line; InvalidGeometry for a cost past float range; Knuth-Plass kp_work_budget and KP_NODE_BUDGET with cancellation inside the active loop."
+  ],
+  "tests": {
+    "note": "No bundled run and no --per-sha has completed. Every entry is a focused run. The last column of proof for 286d9241 is partial: see not_run.",
+    "red_1": {
+      "argv": "cargo nextest run --offline -p hsk-studio-layout --test composer_depth --test composer_depth_diff --no-fail-fast",
+      "exit": 100,
+      "sha": "0f1326ff",
+      "passed": 7,
+      "failed": 14,
+      "skipped": 2,
+      "detail": "9 failed (7 ABORT 0xC00000FD, 2 assertion or panic), 5 TIMEOUT at the 120 s cap",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-composer-depth-1/smb-layout-composer-depth-1-red-0f1326ff.log"
+    },
+    "red_2": {
+      "argv": "cargo nextest run --offline -p hsk-studio-layout --test composer_depth --no-fail-fast -E 'test(ladder) | test(cost_range) | test(cjk_single_line_past) | test(cjk_every_line_past)'",
+      "exit": 100,
+      "sha": "6e7e3dc9",
+      "passed": 2,
+      "failed": 2,
+      "skipped": 17,
+      "detail": "both failures: panic at threaded_reflow.rs:1410",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-composer-depth-1/smb-layout-composer-depth-1-red-6e7e3dc9.log"
+    },
+    "focused_b": {
+      "argv": "cargo nextest run --offline -p hsk-studio-layout --no-fail-fast --lib --test composer_depth --test composer_depth_diff -E 'binary(composer_depth) | binary(composer_depth_diff) | test(a_cancel_inside_the_pass)'",
+      "exit": 100,
+      "sha": "6e7e3dc9 + working tree, before the first-line rule",
+      "passed": 22,
+      "failed": 1,
+      "skipped": 2,
+      "detail": "failure: 8 table rows differ, which led to the first-line rule; every other test of composer_depth passed here at the final budgets",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-composer-depth-1/smb-layout-composer-depth-1-focus-6e7e3dc9-b.log"
+    },
+    "focused_c": {
+      "argv": "cargo nextest run --offline -p hsk-studio-layout --no-fail-fast --test composer_depth_diff --test composer_depth -E 'binary(composer_depth_diff) | test(ladder) | test(cost_range)'",
+      "exit": 100,
+      "sha": "6e7e3dc9 + working tree with the first-line rule",
+      "passed": 4,
+      "failed": 1,
+      "skipped": 20,
+      "detail": "every_generated_paragraph_composes_as_on_the_base_sha PASS (1549 rows byte-identical, 11 panic rows answered by the emergency rule); failure was my wrong reading in a_window_dead_end, corrected",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-composer-depth-1/smb-layout-composer-depth-1-focus-6e7e3dc9-c.log"
+    },
+    "focused_d": {
+      "argv": "cargo nextest run --offline -p hsk-studio-layout --no-fail-fast --test composer_depth_diff -E 'test(a_window_dead_end)'",
+      "exit": 0,
+      "sha": "6e7e3dc9 + working tree equal to 286d9241",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 3,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-composer-depth-1/smb-layout-composer-depth-1-focus-6e7e3dc9-d.log"
+    },
+    "bundled": {
+      "argv": "lane-check.sh --owner smb-layout-composer-depth-1 --disk ssd -- cargo nextest run -p hsk-studio-layout -p hsk-studio-interop-layout --no-fail-fast",
+      "exit": null,
+      "sha": "286d9241",
+      "detail": "NOT RUN: stopped while queued for the C: lock under the Operator pause (360 s in the queue, never held the lock, no clippy or test ran). The log holds only lock-wait lines.",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-composer-depth-1/smb-layout-composer-depth-1-bundled-286d9241.log"
+    },
+    "not_run": [
+      "bundled run at 286d9241: clippy over layout and direct dependents, whole suites of layout and interop-layout, the D5 oracle rows through interop-layout",
+      "the whole composer_depth binary and the lib unit test after the first-line rule (run b preceded it)",
+      "--per-sha, rebase, push",
+      "timings at the final budgets, debug and release"
+    ]
+  },
   "verdicts": [],
-  "blockers": [],
+  "blockers": [
+    "Operator pause 2026-11-05: no further run or push until the lead resumes this lane."
+  ],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-05T14:24:14Z",
+  "next": "Resume in order, in wt-studio-lanes/smb-layout-composer-depth-1/handshake-studio-assets, branch tip 286d9241, all on C: (--disk ssd): (1) lane-check.sh --owner smb-layout-composer-depth-1 --disk ssd -- cargo nextest run -p hsk-studio-layout -p hsk-studio-interop-layout --no-fail-fast, log named with the lane and sha; (2) fix anything it finds in a new commit, one re-run, two failed bundled runs on the same failure stop the lane; (3) run the ignored test composer_depth timings in debug and release at the final budgets (test binary run directly: the largest rows pass the 120 s cap in debug) and record notes.measurements final rows; (4) git fetch, rebase on origin/codex/handshake-studio-assets, keeping the red commits; origin moved in layout (SMB-LAYOUT-BLANK-LINE-LOOKUPS-1 at least), so expect a DESCRIPTOR conflict and keep both lanes' text; that move touches layout, so run the layout suite once after the rebase; (5) lane-check.sh --owner smb-layout-composer-depth-1 --disk ssd --per-sha origin/codex/handshake-studio-assets; (6) on PER_SHA_RESULT OK: SHA=$(git rev-parse HEAD) && [ -n \"$SHA\" ] && git push origin \"$SHA:refs/heads/codex/handshake-studio-assets\"; (7) set status READY_FOR_VALIDATION on the pushed sha, update commits and tests with the rebased shas. Open decision for the lead: the 8 window dead-end rows (notes.open).",
+  "updated_at": "2026-11-05T17:57:00Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -33,10 +120,123 @@
   },
   "notes": {
     "dispatched_at": "2026-11-05T14:24:14Z",
-    "disk": "D",
+    "disk": "C",
+    "disk_move": "2026-11-05T15:35:38Z: coordinator moved this lane to the C: target (--disk ssd for every lane-check run, per-sha included; STUDIO_BUILD_DISK=ssd for direct cargo), replacing the brief's 'on D:' line, because the D: lock queue was long. The queued D: capture was stopped by this lane before it ran; its compile on D: (BUILD rc=0, capture-091c4d1b.log) is not used as proof.",
     "closes": [
       "F-R56-1"
     ],
-    "closes_candidates": []
+    "closes_candidates": [],
+    "paused": "2026-11-05T17:56:23Z Operator pause. Nothing pushed. Worktree clean at 286d9241. The queued bundled job and its three processes (all started by this lane) were stopped; its queue entry left the C: lock.",
+    "paths_beyond_brief": "threaded_reflow.rs was approved by the lead and NOT touched: the wrong assumption lives in adobe_composer.rs, and the sweep found no other composer that returns no break. Touched: src/adobe_composer.rs, src/breaker.rs (Knuth-Plass, proven wrong by the sweep), src/lib.rs DESCRIPTOR, tests/composer_depth.rs, tests/composer_depth_diff.rs, tests/composer_depth_table.txt.",
+    "output_identity": {
+      "method": "bytes captured from the base sha, not a test-only copy: composer_depth_table.txt written by the ignored test capture_the_table on the unchanged composer of 091c4d1b (test binary run directly, the base composer passes the per-test cap); 1560 generated paragraphs (both windows, forced breaks, hyphen runs with ladder limits 0..3, letter and glyph ranges, threads of two measures); every line value compared, floats by bits, as an FNV-1a digest per case.",
+      "result": "1549 rows byte-identical (run c). 11 rows are panics on the base sha, no bytes to compare; each now answers by the emergency rule: lines tile, one overfull line, ladder limit held.",
+      "not_yet": "existing composer fixtures and D5 oracle rows: part of the bundled run, NOT RUN at 286d9241.",
+      "why_by_construction": "a state's value is a pure function of (s, width sequence from line, run, d); d cannot reach 0 on a whole-paragraph window because every line advances s; line collapses only when all later widths are bit-equal; the scan yields the same candidates in the same order with the same 1e-12 rule; rescue is entered only where the base panicked."
+    },
+    "declared_readings": {
+      "work_counter": "On the base sha `work` bounded nothing: it is the cadence of the cancellation check (every 256), counting scan steps. 1800 words ran past 120 s because d was in the memo key while a whole-paragraph window restarts at n + 1 for each committed line, so every line recomputed the rest of the paragraph (lines x states), and line multiplied the states again.",
+      "memo_dimensions": "d: not needed on a whole-paragraph window (removed there), needed on the justified window of 7 (kept). line: needed only while widths differ; collapsed from flat_from on. run: kept.",
+      "para_budget": "steps: 2^24 + 1024 per item, ceiling 2^28; live states 2^21 (about 270 MiB, estimate, not measured). Typed BudgetExceeded. PARA_MODEL unchanged; window unchanged.",
+      "kp_budget": "visits: 2^24 + 16 per legal break squared, ceiling 2^30; nodes 2^25 (about 2.4 GiB, estimate). Cancellation now read inside the active loop.",
+      "budget_limits_that_change_an_answer": "Ragged paragraphs past the budgets could not be answered on the base sha anyway (abort past about 340 lines on a 2 MiB stack). Two places where the base sha answered and this refuses: justified Adobe paragraphs at the largest sizes with no ladder limit (reading below, at the earlier fixed budget, not re-read); Knuth-Plass past 2^25 nodes: about 6100 legal breaks of long hyphenated words that fail the first pass (0.86 nodes per break squared; about 1500 words of 'typographic ') or about 45000 CJK glyphs with mojikumi (0.0159 per break squared). The base sha needed over 2.4 GiB for those. The lead should confirm this bound."
+    },
+    "measurements": {
+      "base_sha": "F-R56-1 readings, debug: 600 words 31 s, 1800 words past 120 s, 3000 words abort.",
+      "status": "Release rows below are from run smb-layout-composer-depth-1-work-6e7e3dc9.log and kp-readings, on a working tree with temporary counters and earlier fixed budgets (Para 2^26). Plain rows do not reach any budget, so the final budgets cannot change them; they were not re-run. Final-budget refusal times and all debug timings of these rows: NOT RUN.",
+      "plain_release_ms": {
+        "600 ragged": 2.6,
+        "600 justified": 3.2,
+        "1800 ragged": 2.5,
+        "1800 justified": 10.2,
+        "5000 ragged": 7.1,
+        "5000 justified": 23.9,
+        "20000 ragged": 24.3,
+        "20000 justified": 97.2
+      },
+      "plain_debug_test_durations_s": {
+        "1800 ragged": 0.05,
+        "3000 ragged": 0.06,
+        "3000 justified": 0.15,
+        "note": "nextest durations at the final budgets, run b; 600, 5000 and 20000 debug NOT RUN"
+      },
+      "max_glyphs_release": {
+        "plain ragged": "0.24 s, 2.9M steps",
+        "plain justified": "1.32 s, 20.7M steps",
+        "hyphen limit 3 ragged": "0.83 s, 18.2M steps",
+        "hyphen no limit ragged": "BudgetExceeded 2.15 s (state budget)"
+      },
+      "time_to_refusal_release_at_earlier_budget_2e26": {
+        "wide measure 20000 words": "3.8 s",
+        "zero advance ragged 20000 words": "3.7 s",
+        "zero advance justified 20000 words": "3.0 s",
+        "hyphen limit 3 justified at max_glyphs": "3.9 s",
+        "hyphen no limit justified at max_glyphs": "4.6 s"
+      },
+      "time_to_refusal_debug_final_budgets_s": {
+        "zero advance justified 6000 words": 5.7,
+        "zero advance ragged 6000 words": 7.8,
+        "wide measure 6000 words": 8.4,
+        "knuth-plass active list 1000 words": 14.3,
+        "cjk every-line active list 1000 glyphs": 14.9
+      },
+      "ceiling_estimates_unmeasured": "Para ceiling 2^28 about 12 s release and 80 s debug; Knuth-Plass ceiling 2^30 about 85 s release: extrapolated from the rates above, UNVERIFIED until the timings run.",
+      "knuth_plass_growth_release": {
+        "hyphen 1000 words": "4000 breaks, 145M visits, 13.7M nodes, 11.7 s",
+        "hyphen 500 words": "2000 breaks, 36M visits, 3.4M nodes, 2.3 s",
+        "cjk mojikumi 18000 glyphs": "97.6M visits, 5.1M nodes, 3.6 s",
+        "cjk mojikumi 36000 glyphs": "390.6M visits, 20.6M nodes, 14.5 s",
+        "plain max_glyphs": "454K visits, 0.15 s"
+      }
+    },
+    "sweep_sites": {
+      "class": "self-recursion over document-sized data; regex-backed call graph (fn bodies, bare, self. and Self:: calls, cycles by Tarjan), then read by hand. Script kept in the session scratchpad, not in the repo.",
+      "layout": {
+        "adobe_composer.rs best": "FIXED: explicit stack",
+        "toc.rs sort_nodes, flatten": "NOT APPLICABLE: tree depth bounded by MAX_TOC_LEVEL 9 (check_toc_style; a node nests only under a shallower level)",
+        "toc_contract.rs sort_nodes, flatten": "NOT APPLICABLE: same, checked at toc_contract.rs:316",
+        "index.rs walk, index_contract.rs walk": "NOT APPLICABLE: depth bounded by MAX_INDEX_LEVELS 4 (Folio check_index_marks)",
+        "false positives": "print.rs failure_code (another type's method); the compose cycle (a closure named finish in paragraph.rs conflated with liquid.rs finish); method self-matches on other receivers (45 lines) read as other types",
+        "count": "9 cycles listed, 5 real sites plus best, 2 false; 45 method lines read"
+      },
+      "type_read_only": {
+        "metered, depth refused by Context::enter against the host recursion_limit": "cursive_pos reverse_cursive_minor_offset, propagate_attachment_offsets, ot_shape_normalize decompose",
+        "constant depth": "glyf outline_impl and gvar outline_var_impl MAX_COMPONENTS 32, cff1 and cff2 _parse_char_string STACK_LIMIT 10, sbix get_inner 10, colr paint recursion stack 64, GSUB/GPOS lookups MAX_NESTING_LEVEL 64",
+        "one step": "buffer allocate_lig_id (a serial of 0 once)",
+        "false positives": "engine check_opentype_feature, bidi chars and char_indices, paint_extents, set_digest, unicode general_category, ttf parse/get/next, dict parse_operands (a same-named method of another type); recursion_limit values per host NOT_INSPECTED",
+        "count": "34 cycles listed, none fixed (read only), none unbounded found"
+      },
+      "panic_sweep_on_composer_result_paths": {
+        "scope": "breaker, adobe_composer, paragraph, typeset, threaded_reflow, cjk, story_tables, table, footnotes, endnotes, running, autosize",
+        "unwrap_expect_panic_macros": "0 in those src files outside cfg(test)",
+        "indexing": "read: slots[used - 1] was the only reachable one (used 0 when a composer returns no break); first_fit, Knuth-Plass, Adobe single line and CJK single line always return a break for items ending in a forced break, and build_items always ends so. Other indices are built from the same breaks. No other reachable site found; indexing in the 21 other layout modules not on this path NOT_INSPECTED.",
+        "arithmetic": "check()'s u32 counter: the Adobe paragraph and Knuth-Plass ceilings keep it under 2^31; the linear composers stay far below at Limits::max_glyphs. compose_cjk_lines takes no Limits, so its bound there is the caller's text."
+      },
+      "budget_tests_per_composer": "first-fit, Knuth-Plass, single-line, every-line, CJK both scopes: tests/composer_depth.rs *_past_the_line_budget, every_composer_past_the_glyph_budget"
+    },
+    "host_reach": "Read only, nothing run. Can reach the every-line composer past 8192 bytes: harness-view layout_ui compose (layout_ui.rs:454): request composer FirstFit, but styles are passed, so a style chain with composition_scope every_line selects it (typeset.rs:317), Limits::default 1 048 576 glyphs, shaped by preview_paragraphs with no Type budget. This corrects the R56 reading that layout_ui composes first-fit. interop-layout reflow (reflow.rs:203): options.composer and IDML every_line styles (idml_composition.rs:173), Limits::default, shaper is a host port with no budget here. Layout's table, footnote, endnote and running-text compose take the caller's composer and limits. Viewer 8192 and native fixture 4096 as R56. Other hosts NOT_INSPECTED.",
+    "spec_proposals": [
+      "None required. Possible: STU-TYP-135 says nothing on a paragraph-size bound for every_line; the declared budgets could be recorded there by the spec owner."
+    ],
+    "microtasks": {
+      "MT-30904": "read with STU-TYP-135. NOT claimed: AC-001 needs all six combinations to compose; world_ready and adornment stay unsupported_composition. This lane proves only that latin_cjk + every_line does not take the process down."
+    },
+    "gaps_outside_lane": [
+      "F-R56-1 file_line reading of layout_ui corrected in host_reach.",
+      "Knuth-Plass legit memory: 13.7M nodes for 1000 long hyphenated words through the second pass (the arena is never pruned). Pre-existing; bounded here, not reduced."
+    ],
+    "open": [
+      "DECISION FOR THE LEAD: 8 table rows (80, 334, 609, 807, 842, 1201, 1269, 1440), all justified: the 7-line window commits into a ladder dead end past the first line; the composer stops and the last line takes the rest of the paragraph's glyphs, the excess in hang_pt, overfull false. Base-sha output, kept byte-identical per the lead's rule and pinned by a_window_dead_end_keeps_the_answer_of_the_base_sha. Removing the first-line condition in paragraph() gives them the emergency rule (it was tried: 21 lines where row 80 has 8), and changes those rows.",
+      "Emergency-rule answer on no path: InDesign UNVERIFIED (D5). Chosen over a refusal per the lead: the composer has the rule; it was unreachable from a ladder-skipped break.",
+      "V4-01 lint not added to adobe_composer.rs or breaker.rs: neither decodes bytes. New integer arithmetic is bounded by the item count.",
+      "red_1 knuth-plass and CJK active-list tests were proven red at 4000; 286d9241 runs them at 1000 so the budget is reached inside the test cap. At 1000 on the base sha: NOT RUN.",
+      "Vendor parity UNVERIFIED (D5); no parity row re-blessed."
+    ],
+    "not_inspected": [
+      "hosts other than those in host_reach",
+      "recursion_limit values per Type host",
+      "memory at the budgets (estimates only)",
+      "lines 825+ of MT-30904.json beyond the sections relevant here"
+    ]
   }
 }

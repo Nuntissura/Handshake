@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-05T17:54:37Z",
+ "updated_at": "2026-11-05T18:17:54Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -18183,18 +18183,19 @@
   {
    "lane_id": "SMB-LAYOUT-COMPOSER-DEPTH-1",
    "status": null,
-   "phase": "build",
+   "phase": "paused_20261105",
    "crate": "hsk-studio-layout (Adobe paragraph composer)",
    "lane_file": "builders/lanes/hsk-studio-layout-composer-depth-1.json",
    "brief": "builders/briefs/lane-smb-layout-composer-depth-1.md",
    "worktree": "wt-studio-lanes/smb-layout-composer-depth-1",
    "base": "091c4d1b",
-   "disk_planned": "D",
+   "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-05T14:24:14Z",
+   "updated_at": "2026-11-05T18:17:54Z",
    "closes": [
     "F-R56-1"
-   ]
+   ],
+   "local_tip": "286d9241"
   },
   {
    "lane_id": "SMB-LAYOUT-BLANK-LINE-LOOKUPS-1",
@@ -18217,7 +18218,7 @@
   {
    "lane_id": "SMB-PR-ENTRY-REFERENCES-1",
    "status": null,
-   "phase": "build",
+   "phase": "paused_20261105",
    "crate": "hsk-studio-session (document entries against sequence and clip removal), hsk-studio-folio (entry validation)",
    "lane_file": "builders/lanes/hsk-studio-pr-entry-references-1.json",
    "brief": "builders/briefs/lane-smb-pr-entry-references-1.md",
@@ -18225,11 +18226,12 @@
    "base": "c143625f",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-05T15:17:11Z",
+   "updated_at": "2026-11-05T18:17:54Z",
    "closes": [
     "F-R56-3",
     "F-R56-7"
-   ]
+   ],
+   "local_tip": "4529259c"
   },
   {
    "lane_id": "SMB-TYPE-AUTHORED-TOKEN-1",
@@ -18253,7 +18255,7 @@
   {
    "lane_id": "SMB-PR-RETIME-OUTPUT-1",
    "status": null,
-   "phase": "build",
+   "phase": "paused_20261105",
    "crate": "hsk-studio-pulse (frame layers and timeline mix), hsk-studio-harness-view (monitor frame output)",
    "lane_file": "builders/lanes/hsk-studio-pr-retime-output-1.json",
    "brief": "builders/briefs/lane-smb-pr-retime-output-1.md",
@@ -18261,17 +18263,18 @@
    "base": "41d0e0da",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-05T15:58:35Z",
+   "updated_at": "2026-11-05T18:17:54Z",
    "closes": [
     "F-R56-2",
     "MT-33730",
     "MT-33731"
-   ]
+   ],
+   "local_tip": "cff47aef"
   },
   {
    "lane_id": "SMB-PR-MEDIA-MARKERS-1",
    "status": null,
-   "phase": "build",
+   "phase": "paused_20261105",
    "crate": "hsk-studio-folio (media item marker records), hsk-studio-session (document entry and commit), hsk-studio-pulse (resolved read)",
    "lane_file": "builders/lanes/hsk-studio-pr-media-markers-1.json",
    "brief": "builders/briefs/lane-smb-pr-media-markers-1.md",
@@ -18279,15 +18282,16 @@
    "base": "41d0e0da",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-05T15:58:35Z",
+   "updated_at": "2026-11-05T18:17:54Z",
    "closes": [
     "MT-33736"
-   ]
+   ],
+   "local_tip": "3cfbbeed"
   },
   {
    "lane_id": "SMB-PR-NUDGE-1",
    "status": null,
-   "phase": "build",
+   "phase": "paused_20261105",
    "crate": "hsk-studio-pulse (track nudge planner), hsk-studio-harness-view (timeline command)",
    "lane_file": "builders/lanes/hsk-studio-pr-nudge-1.json",
    "brief": "builders/briefs/lane-smb-pr-nudge-1.md",
@@ -18295,10 +18299,11 @@
    "base": "41d0e0da",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-05T15:58:35Z",
+   "updated_at": "2026-11-05T18:17:54Z",
    "closes": [
     "MT-33738"
-   ]
+   ],
+   "local_tip": "31de741d"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -20223,6 +20228,21 @@
     "added_at": "2026-11-05T17:54:37Z",
     "item": "read_package notes every session-owned studio/* entry as Opaque, so Opened.loss is not a usable loss signal for a host reading at the package layer; Session::loss() is the one that means it. Found by SMB-TYPE-AUTHORED-TOKEN-1",
     "owner": "a later package lane, or a documented reading"
+   },
+   {
+    "added_at": "2026-11-05T18:17:54Z",
+    "item": "Justified paragraph composer: a window can commit into a dead end past the first line; the last line takes the rest of the paragraph with the excess in hang_pt, not marked overfull (8 of 1560 generated rows, kept byte-identical in SMB-LAYOUT-COMPOSER-DEPTH-1). A fix changes composer output and needs its own proof against the parity rows",
+    "owner": "a later layout lane"
+   },
+   {
+    "added_at": "2026-11-05T18:17:54Z",
+    "item": "STU-VID-035a multi-frame step: one field, no second constant, held only while the document is open; persisting it needs a settings store, not built. Found by SMB-PR-NUDGE-1",
+    "owner": "a later settings lane"
+   },
+   {
+    "added_at": "2026-11-05T18:17:54Z",
+    "item": "Multicam angle_order naming a removed track, and a live route naming a removed bus, stay unreadable or open: making them inert needs a reader change beyond skipping. Found by SMB-PR-ENTRY-REFERENCES-1",
+    "owner": "a later session lane"
    }
   ],
   "pause_20261103": {
@@ -20239,6 +20259,26 @@
    "at": "2026-11-05T03:55:32Z",
    "operator_instruction": "ok proceed",
    "state": "product origin cc58a511; SMB-PR-SEQUENCE-PRESETS-1 and SMB-LAYOUT-MARKER-LOOKUPS-1 builders resumed by message; next STUDIO-R55 (scoped) per pause_20261103.resume_steps"
+  },
+  "pause_20261105": {
+   "at": "2026-11-05T18:17:54Z",
+   "operator_instruction": "find a good fitting place to pause work",
+   "state": "product origin 1940292c. No builder running. READY for STUDIO-R57: SMB-PR-TRACK-DISPLAY-1, SMB-PR-EDIT-FOOTPRINT-1, SMB-LAYOUT-BLANK-LINE-LOOKUPS-1, SMB-TYPE-AUTHORED-TOKEN-1. Paused local and unpushed, each with its resume steps in its lane file's next: SMB-PR-RETIME-OUTPUT-1 at cff47aef, SMB-PR-NUDGE-1 at 31de741d, SMB-PR-ENTRY-REFERENCES-1 at 4529259c, SMB-LAYOUT-COMPOSER-DEPTH-1 at 286d9241, SMB-PR-MEDIA-MARKERS-1 at 3cfbbeed. STUDIO-R57 not started; it must be FULL (CX-VAL-011).",
+   "resume_steps": [
+    "Resume builders by message, one lane pushing at a time so a later push does not repeat an earlier per-sha. Order, closest first: SMB-PR-RETIME-OUTPUT-1 and SMB-PR-NUDGE-1 (rebase, harness-view suite once, per-sha, new tests, push), SMB-PR-ENTRY-REFERENCES-1 (rebase, classify the composition_token entry in tests/entry_references.rs, one bundled run, per-sha, push), SMB-LAYOUT-COMPOSER-DEPTH-1 (bundled run first: clippy and whole suites have not run on the final code), SMB-PR-MEDIA-MARKERS-1 (git apply -R of its resume patch, pulse red, then its next).",
+    "Then STUDIO-R57, FULL, with every READY lane, and only when no lane is building on C:."
+   ],
+   "lead_decisions_due_on_resume": [
+    "SMB-LAYOUT-COMPOSER-DEPTH-1: the Knuth-Plass 2^25-node cap refuses some very large paragraphs the base sha could answer (about 1500 long hyphenated words failing the first pass, or about 45000 CJK glyphs with mojikumi). Read the measurements in the lane notes before accepting it.",
+    "SMB-LAYOUT-COMPOSER-DEPTH-1: 8 justified table rows keep the base answer where the last line takes the rest of the paragraph, excess in hang_pt, not marked overfull. Kept byte-identical on the lead's instruction; a fix changes composer output and needs its own lane and proof.",
+    "SMB-PR-ENTRY-REFERENCES-1: confirm three changed pins the lead did not name: multicam_commit.rs:372, audio_routing_records.rs:121 and :189. Record the inert rule as an SD item on READY."
+   ],
+   "operator_decisions_open": [
+    "Waiver list of paths outside briefs (GLOBAL-SCOPE-005), now including this wave's lanes",
+    "Cleanup list: PASS lanes' build targets and worktrees, probe trees, backup/smb-pr-track-display-1-pre-fold (direction.cleanup_pending_operator_approval and the lead's report)",
+    "Overrulable lead readings: token @3 instead of a spec exception; display entries inert (SD-49); no stored token reads as @1 with a typed refusal for U+2028; audio_routing inert when its sequence, clip or track is gone",
+    "Spec-owner items SD-31..SD-52 PROPOSED"
+   ]
   }
  },
  "round_R45": {

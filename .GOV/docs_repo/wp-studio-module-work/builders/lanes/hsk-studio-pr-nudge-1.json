@@ -2,18 +2,126 @@
   "crate": "hsk-studio-pulse (track nudge planner), hsk-studio-harness-view (timeline command)",
   "lane": "SMB-PR-NUDGE-1",
   "status": null,
-  "phase": "build",
+  "phase": "paused_20261105",
   "worktree": "wt-studio-lanes/smb-pr-nudge-1",
-  "base": "41d0e0da",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "base": "66c0e7c94eeb3b131bd22acfa2f6ec33d8b16b85",
+  "commits": [
+    {
+      "sha": "92411146fe10ffae991fc2fe3813c4cc724526e9",
+      "subject": "harness-view (SMB-PR-NUDGE-1, audit): every nudge STU-VID-035a names, driven and printed",
+      "pushed": false,
+      "note": "Passes at base by design: the run is the audit."
+    },
+    {
+      "sha": "a7d720d2d4bbac2cab7e48438ba4a6e7e7c1f2bf",
+      "subject": "pulse (SMB-PR-NUDGE-1, red): up and down by one track, the planner refuses everything",
+      "pushed": false,
+      "red": true
+    },
+    {
+      "sha": "a54a208d7e8a74486705ee7053adc81aa004e993",
+      "subject": "harness-view (SMB-PR-NUDGE-1, red 2): the clip track nudge command refuses, no spec ids for clip nudges",
+      "pushed": false,
+      "red": true
+    },
+    {
+      "sha": "1246b8e242243fb8021df1e51e39b1bb3ec2d86b",
+      "subject": "pulse (SMB-PR-NUDGE-1): plan_nudge_track moves a clip one track up or down and keeps its time",
+      "pushed": false,
+      "note": "Holds the approved comment at timeline_edit.rs:190, so the line is never false at a sha."
+    },
+    {
+      "sha": "31de741dc6e9598f6fdb9d3c0ea47c88f7715acb",
+      "subject": "harness-view (SMB-PR-NUDGE-1): TimelineCommand::ClipTrackNudge through the proposal path, spec ids for all six clip nudges",
+      "pushed": false
+    }
+  ],
+  "capabilities_done": [
+    "pulse plan_nudge_track: every named clip keeps its time and moves whole to the next track of its kind, one proposal with one inverse for the selection",
+    "Typed refusals NudgeError: nudge_no_track, track_locked (the track left or landed on), nudge_range_occupied (names the clip and the one in the way); plus limit_exceeded before any work, invalid_input, duplicate_id, unknown_clip, linked_edit_unsupported, stale_revision, canceled",
+    "Six rows join the EditProposal table of tests/edit_footprint.rs (43 to 49), each also checked as its undo; the oracle now expects track_move and names the clip that changed track",
+    "Viewer TimelineCommand::ClipTrackNudge { up } through timeline_commit, one undo step, status note for a dropped transition",
+    "spec_command for all six clip nudges: cmd.timeline.nudge.left.one, .left.several, .right.one, .right.several, .up, .down; left and right had none at base",
+    "DESCRIPTOR key nudge; the doc above key_command corrected: Alt+Left and Alt+Right come from the module 14 tables, not the harness"
+  ],
+  "tests": {
+    "argv": "lane-check.sh --owner smb-pr-nudge-1 -- cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-view --features hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch --no-fail-fast",
+    "exit": 0,
+    "sha": "31de741dc6e9598f6fdb9d3c0ea47c88f7715acb",
+    "on_origin": "66c0e7c94eeb3b131bd22acfa2f6ec33d8b16b85",
+    "passed": 317,
+    "failed": 0,
+    "skipped": 0,
+    "by_crate": {
+      "hsk-studio-pulse": 143,
+      "hsk-studio-harness-view": 174
+    },
+    "new_tests": {
+      "hsk-studio-pulse::track_nudge": 13,
+      "hsk-studio-pulse::edit_footprint the_track_nudge_rows_report_what_they_write": 1,
+      "hsk-studio-harness-view::viewer_timeline_nudge": 10
+    },
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nudge-1/bundled-smb-pr-nudge-1-31de741d.log",
+    "clippy": "pulse and harness-view [desktop, audio-batch], then dependents harness and interop-media with --tests, same lock hold, exit 0. One warning on this lane's code: clippy::type_complexity at tests/viewer_timeline_nudge.rs:227 (the row helper's expected list). Not fixed: a change would need a new bundled run. None located in src/nudge.rs or view/timeline/trim.rs.",
+    "step0": "clean",
+    "audit_run": {
+      "argv": "cargo nextest run -p hsk-studio-harness-view --features viewer --test viewer_timeline_nudge --no-fail-fast --success-output immediate",
+      "tree": "41d0e0da plus the untracked test file, the first version of audit_how_long_the_step_lasts",
+      "exit": 0,
+      "result": "3 run, 3 passed",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nudge-1/audit-smb-pr-nudge-1-41d0e0da-dirty.log",
+      "note": "After this run audit_how_long_the_step_lasts was changed from printing to pinning what the run printed, and its comment was corrected, because the run disproved my guess that the panel entry resets the step. The pinned form first ran in the red log."
+    },
+    "red_proof": {
+      "argv": "cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-view --features hsk-studio-harness-view/viewer --no-fail-fast -E 'binary(track_nudge) | binary(viewer_timeline_nudge) | test(the_track_nudge_rows)'",
+      "sha": "ad69c10eabcf39e82d8c824986198ad3bd1c0f3d",
+      "exit": 100,
+      "result": "24 run, 3 passed, 21 failed",
+      "passed_at_red": "The three audit_ tests: they pin behaviour at base and were never shown red.",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nudge-1/red-smb-pr-nudge-1-ad69c10e.log",
+      "note": "One lock hold over both red commits, on the tree before the rebase. Not rerun after it: per-sha proves the red commits compile, not that they still fail."
+    },
+    "focused_green": {
+      "argv": "cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-view --features hsk-studio-harness-view/viewer --no-fail-fast --success-output immediate -E 'binary(track_nudge) | binary(viewer_timeline_nudge) | binary(edit_footprint)'",
+      "sha": "0a0b802b45cd0c3fc37add5b3791a2b46d07c2de",
+      "exit": 0,
+      "result": "37 run, 37 passed",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nudge-1/focus-smb-pr-nudge-1-0a0b802b.log",
+      "first_attempt": {
+        "sha": "27c542c376c1a85a7cc1e3dd91964bef018c58a5",
+        "exit": 101,
+        "cause": "Compile errors in src/nudge.rs: no From<ValidationError> for NudgeError, an uninferred array type, two unused imports. Fixed and folded into the planner commit before any test ran, so the rerun was on a changed input.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nudge-1/focus-smb-pr-nudge-1-27c542c3.log"
+      }
+    },
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-pr-nudge-1 --per-sha origin/codex/handshake-studio-assets",
+      "result": "PER_SHA_RESULT OK shas=5 range=66c0e7c9..31de741d",
+      "exit": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nudge-1/per-sha-run-smb-pr-nudge-1-31de741d.log",
+      "stale": "Its base 66c0e7c9 is older than origin 1940292c, so it does not admit a push. Not pushed, on the lead's pause instruction."
+    },
+    "not_run": [
+      "Anything on a tree containing origin 1940292c: no rebase, no bundled run, no per-sha.",
+      "Whole suites of the dependents harness and interop-media: clippy and the per-sha compile only.",
+      "The viewer-only feature unit as a whole suite: the bundled run used desktop and audio-batch, which activates viewer; the new viewer tests also ran under viewer alone in the focused run.",
+      "hsk-studio-package: no Folio record field added. Doctests: none added or changed."
+    ],
+    "sha_map": {
+      "note": "Logs name the shas they ran at. Local commits, then the rebase on 66c0e7c9.",
+      "audit": ["ce066f30", "92411146"],
+      "red": ["9f4eeb96", "a7d720d2"],
+      "red_2": ["ad69c10e", "a54a208d"],
+      "planner": ["31d12f42", "1246b8e2"],
+      "command": ["0a0b802b", "31de741d"]
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on C:, push when green",
-  "updated_at": "2026-11-05T15:58:35Z",
+  "next": "Paused by the Operator, nothing pushed. Resume in order: (1) in wt-studio-lanes/smb-pr-nudge-1/handshake-studio-assets, git fetch and git rebase origin/codex/handshake-studio-assets; (2) origin moved 66c0e7c9..1940292c and touched harness-view, not pulse, so under the brief's short path run the harness-view suite once: lane-check.sh --owner smb-pr-nudge-1 -- cargo nextest run -p hsk-studio-harness-view --features desktop,audio-batch --no-fail-fast; (3) lane-check.sh --owner smb-pr-nudge-1 --per-sha origin/codex/handshake-studio-assets; (4) cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-view --features hsk-studio-harness-view/viewer --no-fail-fast -E 'binary(track_nudge) | binary(viewer_timeline_nudge) | binary(edit_footprint)'; (5) on PER_SHA_RESULT OK with origin unmoved: SHA=$(git rev-parse HEAD) && [ -n \"$SHA\" ] && git push origin \"$SHA:refs/heads/codex/handshake-studio-assets\"; (6) set READY_FOR_VALIDATION with the pushed sha and the rebased runs. Lead: commit this lane file.",
+  "updated_at": "2026-11-05T18:15:11Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -33,10 +141,125 @@
   },
   "notes": {
     "dispatched_at": "2026-11-05T15:58:35Z",
+    "paused_at": "2026-11-05T18:15:11Z",
+    "paused_by": "Operator pause relayed by the lead: stay local because the per-sha base is older than origin 1940292c",
     "disk": "C",
     "closes": [],
     "closes_candidates": [
       "MT-33738"
-    ]
+    ],
+    "spec_basis": {
+      "clause": "Master Spec v02.229 14-studio-creative-suite.md STU-VID-035a (:23863)",
+      "quote": "a selected clip nudges left or right by one frame or by the configured multi-frame step, and up or down by one track. Slip and slide have their own one-and-many nudge pairs. The multi-frame step is a single preference shared by every \"many\" variant so that one setting governs the whole surface.",
+      "commands": "STU-VID-041 table :23989-23994: cmd.timeline.nudge.down Alt+Down, .left.one Alt+Left, .left.several Alt+Shift+Left, .right.one Alt+Right, .right.several Alt+Shift+Right, .up Alt+Up"
+    },
+    "nudge_audit": {
+      "how": "tests/viewer_timeline_nudge.rs, run at base; every row hand-computed, one history step, one undo restoring the exact sequence",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nudge-1/audit-smb-pr-nudge-1-41d0e0da-dirty.log",
+      "rows": [
+        {
+          "action": "clip left and right by one",
+          "viewer": "ClipNudge { many: false } to MoveClip, op timeline_move",
+          "pulse": "plan_move in harness-view: plan_timeline_edit LiftClip then plan_assembly_edit Overwrite. Not plan_move_clips.",
+          "result": "EXISTS. Clip 6 at [100, 110) goes to 99 and 101."
+        },
+        {
+          "action": "clip left and right by the step",
+          "viewer": "ClipNudge { many: true }, same path",
+          "pulse": "same",
+          "result": "EXISTS. Default step 5: 95 and 105. Step 3: 103."
+        },
+        {
+          "action": "clip up and down by one track",
+          "viewer": "none at base",
+          "pulse": "none at base; plan_move_clips stays on its track, and MoveClip with a track_id takes a start, is lift plus overwrite and is not a nudge",
+          "result": "MISSING at base, the brief's premise holds. Built here."
+        },
+        {
+          "action": "slip one and many",
+          "viewer": "SlipNudge, op timeline_slip_nudge, cmd.timeline.slip.*",
+          "pulse": "plan_timeline_edit TimelineEdit::Slip",
+          "result": "EXISTS. Clip 2 source in 100 goes to 99, 101, 95, 105; step 3: 103; timeline window fixed."
+        },
+        {
+          "action": "slide one and many",
+          "viewer": "SlideNudge, op timeline_slide_nudge, cmd.timeline.slide.*",
+          "pulse": "plan_timeline_edit TimelineEdit::Slide",
+          "result": "EXISTS. Clip 2 at 20 goes to 19, 21, 15, 25; step 3: 17; neighbours follow, its source window fixed. Refuses not_adjacent without both abutting neighbours."
+        },
+        {
+          "action": "the shared step",
+          "viewer": "TimelineState.multi_frame_step, SetMultiFrameStep(1..=1000), state_json timeline.multi_frame_step",
+          "pulse": "none: pulse takes a delta",
+          "result": "EXISTS. One field; clip, slip, slide and trim many all read it."
+        }
+      ],
+      "found_beside_the_table": [
+        "ClipNudge had no spec_command although the tables name its four ids. Fixed.",
+        "The doc above key_command called Alt+Left and Alt+Right a harness binding, Premiere's UNVERIFIED; the tables name them. Fixed, comment only.",
+        "A clip nudge right into a neighbour overwrites it: clip 2 by one left clip 3 at (51, 70, 11, 30). Pinned, not changed.",
+        "A linked clip refuses left and right, linked_move_unsupported, though the clause says a selected clip nudges. Pinned, not changed.",
+        "Left past zero refuses outside_range, where slip and slide commit the achieved delta. Pinned, not changed."
+      ]
+    },
+    "declared_readings": [
+      "Up and down are the rows the Viewer draws (harness-view track_order): up is the next higher index on caption and video, the next lower on audio and submix. Test up_lands_on_the_row_above_in_the_drawn_order checks the planner against track_order. Vendor UNVERIFIED (D5).",
+      "An occupied range refuses and nothing is overwritten, trimmed or shifted, whatever the sync locks say; touching is free. Follows merge-sync's refusal of a collision. This differs from left and right, which overwrite through plan_move. Vendor UNVERIFIED (D5).",
+      "Link partners follow merge-sync's LinkedSelection. On: the whole group takes the one index step its first named clip asks for, in each member's own stack, so V1 + A1 go to V2 + A2 and the audio row goes down when the video row goes up. A partner that cannot go refuses the whole edit, naming the partner. Suspended: the named clip moves alone and keeps its group id. Vendor UNVERIFIED (D5).",
+      "Two members of a group on one track refuse linked_edit_unsupported, as merge-sync states for every linked edit. With On that also refuses a group already holding two members on one track if they land together.",
+      "A selection moves as one step, and a range another selected clip leaves counts as free.",
+      "A transition stays where it still plays, and otherwise is removed and listed in dropped_transitions. Both clips of a transition nudged together keep it.",
+      "The brief asks for the exhaustive carry the footprint lane added. That carry is harness-view's carry_across_move, needed because plan_move rebuilds the clip. The planner moves the StudioClip value whole, so no field is copied and none needs a carry; the exhaustive destructure that matters is pulse's diff. Proven by whole-clip equality, tests a_track_nudge_changes_only_the_track_of_a_clip and a_track_nudge_keeps_every_member_of_the_clip.",
+      "The Viewer passes LinkedSelection::On: it has no linked-selection toggle state.",
+      "The read footprint names the destination track and every clip on it, because the occupied check reads them; a trim of such a clip shares an entry with the read (test the_footprints_name_the_move_and_the_destination).",
+      "The step lasts as long as the document's timeline. Hiding and showing the panel keeps it; closing the document drops it, and the next starts at 5 (test audit_how_long_the_step_lasts). The clause says single preference and does not state persistence across sessions; the reading is that this lane need not add it."
+    ],
+    "step_finding": {
+      "lives": "TimelineState.multi_frame_step, view/timeline.rs:947; default DEFAULT_MULTI_FRAME_STEP 5 and bound MAX_MULTI_FRAME_STEP 1000 in view/timeline/trim.rs:58-59",
+      "persists": "No. In memory for the open document only; no settings store holds it. view/settings_catalog.rs exists and has no entry for it. NEED REPORTED, not built.",
+      "second_constant": "None governs a nudge, so nothing was fixed. Grep of harness-view src: trim.rs:419 timeline_step has map_or(DEFAULT_MULTI_FRAME_STEP, ..) and trim_session.rs:152 has map_or(1, ..). Both are fallbacks for a closed timeline and unreachable: timeline_command_inner refuses no_timeline first. They disagree, and trim_session.rs is outside the owned paths; left as is.",
+      "not_this_step": "source_monitor.rs:475 and :477 StepBack(5) and StepForward(5) carry cmd.transport.step.*.five, whose id says five. Reading: not a many variant. CLIP_GAIN_STEP_DB is decibels. Lead to overrule if the transport row should follow the preference."
+    },
+    "spec_proposals": [
+      "STU-VID-035a: state whether the multi-frame step persists, per document, per user or per session. Today it is per open document.",
+      "STU-VID-035a: state that the \"many\" variants are the frame nudges, and whether cmd.transport.step.*.five and cmd.monitor.nudge.*.five follow the preference.",
+      "STU-VID-035a or STU-VID-026: state what a nudge does at an occupied destination. Today left and right overwrite and up and down refuse; MT-33738's case says an overlapping destination refuses.",
+      "STU-VID-035a or STU-VID-029: state which way link partners go on a vertical nudge."
+    ],
+    "microtasks": {
+      "claimed": [],
+      "read": [
+        "MT-33738"
+      ],
+      "MT-33738": "Advanced, not claimed. Proven: left and right by one and step, up and down, slip and slide pairs, one shared step, undo exact, with hand-computed frames at step 5 and 3. Not met: its case wants an overlapping destination to refuse, and left and right overwrite; its source handle and stale neighbour rows are not all driven by these tests; operator surface, Argus, user manual and the HBR obligations are not done.",
+      "proof_command_problem": "MT-33738 check MT-33738-ASSET-ASSET-AC-001 (line 1746) names --test contracts in hsk-studio-pulse, tests/contracts.rs does not exist, and the step lives in the Viewer, not pulse. The proof here is tests/track_nudge.rs, tests/edit_footprint.rs and harness-view tests/viewer_timeline_nudge.rs. MT file not edited."
+    },
+    "gaps_outside_lane": [
+      "Key binding: the spec names Alt+Up and Alt+Down at :23989 and :23994. key_command takes egui types and the dispatch forbids a new egui line, so ClipTrackNudge has no key. It needs the host's key layer or a lead exception.",
+      "cmd.sequence.trimforward, .trimforwardmany, .trimbackward, .trimbackwardmany (spec :24255-24258, Ctrl and Ctrl+Shift+Left and Right): no reference anywhere in crates. TrimNudge maps to cmd.trim.plus and minus. Not a nudge the clause names; reported.",
+      "Controls registry and RUN_COMMANDS rows for the new command: out of scope by the brief; a later host lane owes them under HOST INTEGRATION (3).",
+      "crates/hsk-studio-harness/RUN-UI.md:328 lists the nudge keys and does not mention the new command; it is outside the owned paths.",
+      "ClipNudge through plan_move: overwrite and the linked refusal stay, tied to the recorded D5 question on plan_move against plan_move_clips."
+    ],
+    "paths_beyond_brief": [
+      {
+        "path": "crates/hsk-studio-pulse/src/timeline_edit.rs:190",
+        "change": "Comment only: the ClipChange::TrackMove doc now names plan_nudge_track instead of saying no planner does this",
+        "approved": "By the lead's message, in the same commit as the planner (1246b8e2)"
+      }
+    ],
+    "open": [
+      "Not pushed. No READY claim.",
+      "timeline_edit.rs near the diff_tests module says members no planner writes are driven through diff directly. Still true of the others; TrackMove keeps its lib test there as well as its planner rows. Not changed.",
+      "The clippy::type_complexity warning at tests/viewer_timeline_nudge.rs:227."
+    ],
+    "not_inspected": [
+      "Premiere behaviour for all of this: UNVERIFIED (D5), no oracle.",
+      "A real window or key press: the new tests use timeline_command with no window.",
+      "The envelopes path (follow_edit) with a clip that has stored clip gains and changes track: read to the call, not driven by a test.",
+      "The audio mixer following a track nudge (timeline_audio_follow): compiled under audio-batch, not asserted."
+    ],
+    "hostile_input": "Selection refused over MAX_MOVE_SELECTION before any work (test a_selection_over_the_bound_is_refused_first). Destinations are found once per track, so the walk is linear in the Folio-bounded document. The module denies clippy::arithmetic_side_effects and does no tick arithmetic: clips keep their time.",
+    "vendor_parity": "UNVERIFIED (D5)."
   }
 }
