@@ -1,19 +1,143 @@
 {
-  "crate": "hsk-studio-session (sequence records entry and commit step), hsk-studio-folio (docs), hsk-studio-pulse (agreement test)",
+  "crate": "hsk-studio-session (sequence records entry and commit step), hsk-studio-folio (docs, command codes), hsk-studio-pulse (agreement test)",
   "lane": "SMB-PR-SEQUENCE-SESSION-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-pr-sequence-session-1",
   "base": "cc58a511",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "3c5acb41",
+      "subject": "folio: command codes for cancellation and budget, preset doc defects",
+      "pushed": true
+    },
+    {
+      "sha": "4a663053",
+      "subject": "pulse: pin the time-display agreement with Folio",
+      "pushed": true
+    },
+    {
+      "sha": "ab61c368",
+      "subject": "session: sequence settings and presets in the session",
+      "pushed": true
+    }
+  ],
+  "capabilities_done": [
+    "Item 1 (lead decision 2026-11-05): tokens sequence_settings and sequence_presets in DOCUMENT_ENTRY_TOKENS; Session::sequence_settings_records / set_sequence_settings_records / sequence_presets / set_sequence_presets; both entries parsed and validated by Folio on open, set and read. A package without them opens unchanged. A package with an invalid entry opens, the entry carries a LossReason::Opaque note, a read gives the typed refusal (document_rejected with the Folio code; two well-formed entries of one token duplicate_identity), and save keeps it byte-for-byte until a successful commit or an explicit set replaces it",
+    "Item 2: SequenceRecordsStep (sequence edits plus RecordEdit expect -> write of each entry), one revision, one receipt, one inverse; submit_sequence_records / _keyed / _as; the 3 Folio command ids through submit_sequence_command_as / _keyed_as under the caller's CommandContext; one Observe frame per operation including refusals, command correlation on the context forms; refusals leave the document, both entries and the receipts untouched; a command or step that would use an invalid entry is refused; a sequence removal that would orphan a valid settings entry is refused folio_rejected on both the multicam step and the records step",
+    "Item 3: settings with immersive and preview, a preset library and an editing mode survive save_to, open_path and export_checkpoint through the session, byte-identical, no loss note; inverses taken before the save still undo on the reopened document",
+    "Item 4: crates/hsk-studio-pulse/tests/time_display_folio_agreement.rs fails on any disagreement in code, member count or member pairing, both directions",
+    "Item 5: the 4 doc defects fixed in sequence_preset.rs and shipped.rs; the generator script not added",
+    "F-R55-4(a), (c): Session::sequences_without_settings, read-only, document order, a typed refusal while the settings entry is invalid; creates no entry",
+    "F-R55-6: StudioSequenceSettingsError::Canceled added and a budget overrun in validation is BudgetExceeded, so code() tells them from invalid_input; the session maps both correctly"
+  ],
+  "tests": {
+    "red_proof": {
+      "note": "The pushed history is three commits. The red runs were on local commits since squashed (lead's next lanes push after this one, and --per-sha cost scales with commits). Those commits are kept as patches with their full shas in Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-session-1/local-series/ (series.txt, 11 patches); the squashed tree was byte-identical to the series tip fcc6af35 before the rebase.",
+      "session": {
+        "argv": "cargo nextest run --offline -p hsk-studio-session --test sequence_records_entry --test sequence_records_commit --test sequence_records_round_trip --no-fail-fast",
+        "sha": "c138f5abedc061ffad49b40550ff8a28067e62a1 (local)",
+        "compiles": true,
+        "exit": 100,
+        "passed": 1,
+        "failed": 19,
+        "reading": "red tree = the API with the behaviour held back: tokens absent, no open check, no commit or resync guard, no set guard, step refused not_implemented. The 19 fail on that behaviour. a_canceled_open_is_canceled passes in red too: the cancel stops the open in the package reader, before the new check, so it does not prove the new check's cancel path.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-session-1/red-proof-smb-pr-sequence-session-1-c138f5ab.log",
+        "void_run": "red-proof-smb-pr-sequence-session-1-09781623.log: 20 failed, but 19 of them in the fixture (a track id repeated across two sequences), so it proved nothing; fixed in c138f5ab and rerun"
+      },
+      "refuse_on_read": {
+        "argv": "the same three test targets",
+        "sha": "9282af668958fcac1bed0fe25c531b515ac00200 (local)",
+        "compiles": true,
+        "exit": 100,
+        "passed": 16,
+        "failed": 10,
+        "reading": "The new and changed table against the open refusal of efc1fe96. All 10 fail because the open is refused; the 16 that pass are the ones this change does not touch.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-session-1/red-proof-on-read-smb-pr-sequence-session-1-9282af66.log"
+      },
+      "r55": {
+        "argv": "cargo nextest run --offline -p hsk-studio-folio -p hsk-studio-session --no-fail-fast -E test(r55)",
+        "sha": "6b11ee1e7ff052ed38b3b7e559395b7835abb5b7 (local)",
+        "compiles": true,
+        "exit": 100,
+        "passed": 2,
+        "failed": 3,
+        "reading": "Failed on behaviour: the query listed nothing (a stub) and did not refuse, and Folio answered invalid_input for a cancel. a_preset_applied_through_the_session_commits_one_revision_and_validates_r55_f7 and a_command_over_the_folio_budget_answers_budget_exceeded_r55_f6 pass here too: they are regression proof, the session already bumped, validated and mapped.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-session-1/red-proof-r55-smb-pr-sequence-session-1-6b11ee1e.log"
+      },
+      "r55_session_mapping": {
+        "argv": "cargo nextest run --offline -p hsk-studio-session --lib --no-fail-fast -E test(r55)",
+        "sha": "6b11ee1e plus the uncommitted Folio change, before the session mapping",
+        "exit": 100,
+        "failed": 1,
+        "reading": "With Folio's new Canceled and the old mapping, a cancel became Provider(\"canceled\"): the right code with the wrong Observe outcome. folio_command_errors_keep_their_meaning_at_the_session_boundary_r55_f6 caught it.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-session-1/red-proof-r55-mapping-smb-pr-sequence-session-1-6b11ee1e.log"
+      },
+      "time_display": {
+        "argv": "cargo nextest run --offline -p hsk-studio-pulse --test time_display_folio_agreement --no-fail-fast",
+        "sha": "f368fcc1cf2b0e410ce00892277fe143d640eb7f (local) plus a temporary mutation, restored and touched afterwards",
+        "mutation": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-session-1/red-proof-time-display-mutation.patch: Folio Milliseconds code 202, Pulse accepts 113",
+        "exit": 100,
+        "passed": 1,
+        "failed": 2,
+        "reading": "The test agrees at base, so red is by mutation. It reported: pulse has 16 members, code 113 pulse only, code 201 pulse only, code 202 folio only, and Milliseconds 201 vs 202. The third test is the comparison's own self-test and passes by design.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-session-1/red-proof-time-display-smb-pr-sequence-session-1-f368fcc1.log"
+      },
+      "doc_defects": "no red: doc comments only"
+    },
+    "bundled": {
+      "argv": "STUDIO_LANE_CHECK_NO_DEPENDENTS=1 lane-check.sh --owner smb-pr-sequence-session-1 --disk d -- cargo nextest run -p hsk-studio-session -p hsk-studio-folio -p hsk-studio-package -p hsk-studio-pulse -p hsk-studio-harness -p hsk-studio-harness-core -p hsk-studio-harness-view -p hsk-studio-kernel-bindings --no-fail-fast",
+      "exit": 0,
+      "sha": "ab61c368a1c9e0fa965d72d5e87e958a9ccff12c",
+      "tree_note": "rebased on origin ce644577, the tree that was pushed",
+      "passed": 455,
+      "failed": 0,
+      "skipped": 1,
+      "skipped_test": "hsk-studio-kernel-bindings fault_scenarios_need_the_test_faults_feature, ignored before this lane",
+      "per_crate": {
+        "hsk-studio-folio": 192,
+        "hsk-studio-package": 38,
+        "hsk-studio-pulse": 76,
+        "hsk-studio-session": 71,
+        "hsk-studio-harness-core": 42,
+        "hsk-studio-harness": 10,
+        "hsk-studio-kernel-bindings": 26,
+        "hsk-studio-harness-view": 0
+      },
+      "binaries": 106,
+      "clippy": "lane-check clippy over the 8 tested crates; no error lines and no warning on a file this lane touched",
+      "step0": "clean",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-session-1/bundled-smb-pr-sequence-session-1-ab61c368.log"
+    },
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-pr-sequence-session-1 --disk d --per-sha origin/codex/handshake-studio-assets",
+      "exit": 0,
+      "result": "PER_SHA_RESULT OK shas=3 range=ce644577..ab61c368",
+      "units_ok": 72,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-session-1/per-sha-smb-pr-sequence-session-1-ab61c368.log"
+    },
+    "lane_tests": {
+      "session_entry": "crates/hsk-studio-session/tests/sequence_records_entry.rs (7)",
+      "session_commit": "crates/hsk-studio-session/tests/sequence_records_commit.rs (19)",
+      "session_round_trip": "crates/hsk-studio-session/tests/sequence_records_round_trip.rs (4)",
+      "session_unit": "crates/hsk-studio-session/src/sequence_records_step.rs folio_command_errors_keep_their_meaning_at_the_session_boundary_r55_f6 (1)",
+      "folio": "crates/hsk-studio-folio/tests/sequence_settings_records.rs command_codes_tell_cancellation_and_budget_from_bad_input_r55_f6 (1)",
+      "pulse": "crates/hsk-studio-pulse/tests/time_display_folio_agreement.rs (3)"
+    },
+    "doctests": "not run: no doc examples added",
+    "not_run": [
+      "harness-view ran 0 tests and harness only its 10 default-feature tests in the bundled run; their feature units were compiled by --per-sha, not executed",
+      "Folio's other direct dependents were compiled by --per-sha but not clippied or tested; folio's code change is one enum variant and its code",
+      "A folio Canceled reaching the session from a real mid-command cancel: the session's own check runs first, so the mapping is proven by a unit test, not end to end",
+      "That adding a member to either enumeration stops the pulse test compiling is by construction (two matches with no wildcard), not shown by a run"
+    ]
+  },
   "verdicts": [],
   "blockers": [],
-  "lock_wait_s": 0,
+  "lock_wait_s": null,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push after STUDIO-R55 on the lead's release",
-  "updated_at": "2026-11-05T04:03:12Z",
+  "next": "validator: judge 3c5acb41..ab61c368 under notes.lead_decisions and notes.r55_findings. Rate-change rule for clips (F-R55-7): spec owner, recorded by the lead.",
+  "updated_at": "2026-11-05T08:17:04Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -37,11 +161,187 @@
     "closes": [
       "SMB-PR-SEQUENCE-PRESETS-1 gaps_outside_lane (session)",
       "known_doc_defects_at_cc58a511",
-      "time-display agreement test"
+      "time-display agreement test",
+      "F-R55-4",
+      "F-R55-6",
+      "F-R55-7 (session side)",
+      "F-R55-8"
     ],
     "closes_candidates": [
       "MT-33701",
       "MT-33702"
-    ]
-  }
+    ],
+    "spec_basis": "Master Spec v02.229 14-studio-creative-suite.md STU-VID-011, 012a, 016, 016a, 017, 017a, 018, 019",
+    "r55_findings": {
+      "F-R55-4": {
+        "a": {
+          "state": "built",
+          "what": "Session::sequences_without_settings lists the sequences with no entry, in document order, and refuses typed while the entry is invalid.",
+          "tests": [
+            "the_sequences_without_settings_are_listed_in_document_order_r55_f4",
+            "listing_sequences_without_settings_refuses_while_the_entry_is_invalid_r55_f4"
+          ]
+        },
+        "b": {
+          "state": "covered, checked by reading",
+          "what": "A session commit cannot make the orphan. session multicam_step.rs:164 is the session's removal, and submit_inner refuses it folio_rejected while a valid entry names the sequence. pulse nest.rs:264 only computes a checked successor; the session reaches it through harness-view view/timeline/nest.rs to_session as a SequenceEdit::Remove, so it takes the same refusal. An orphan from a file no longer stops the whole file: it opens, commits that do not use it go through, and it can be replaced by a commit or a set. Every command still refuses while it is invalid, because all three read that entry: the lead's rule.",
+          "tests": [
+            "removing_a_sequence_its_settings_entry_names_is_refused_as_multicam_refuses",
+            "a_commit_that_would_use_an_invalid_settings_entry_is_refused_and_changes_nothing",
+            "a_commit_that_does_not_use_the_invalid_entry_commits_and_keeps_its_bytes",
+            "a_successful_commit_replaces_a_parsable_invalid_entry"
+          ],
+          "not_proven": "The pulse-to-session route is proven by reading the conversion, not by a harness-view test: harness-view's tests are feature-gated and were not run, and this lane adds none there."
+        },
+        "c": {
+          "state": "built, by report rather than by creation",
+          "what": "A sequence created by nest or multicam reaches the session as an insert, gets no entry, and is listed by the query. The finding's repair direction says add entries in that commit; the lead said do not auto-create, so none is created.",
+          "tests": [
+            "the_sequences_without_settings_are_listed_in_document_order_r55_f4"
+          ]
+        },
+        "d": {
+          "state": "covered; reading it showed one gap in the proof, closed",
+          "what": "A valid entry's frame rate cannot drift from its sequence through a session commit. The test named only the timeline path; assertions for the multicam and records-step paths were added. A drifted pair from a file opens and refuses on read. The records step and apply change the rate and the entry together.",
+          "tests": [
+            "a_timeline_step_cannot_break_the_entry_but_ordinary_edits_commit",
+            "an_invalid_entry_opens_is_noted_and_refuses_on_read (case: a frame rate the sequence does not have)"
+          ]
+        }
+      },
+      "F-R55-6": {
+        "state": "built",
+        "what": "Canceled is a new variant with code canceled, and a budget overrun in validation is BudgetExceeded with code budget_exceeded, at the command boundary. Other validation failures stay InvalidInput with their Folio code. The session maps Canceled to SessionError::Canceled so the Observe outcome is Canceled, and BudgetExceeded to budget_exceeded.",
+        "tests": [
+          "command_codes_tell_cancellation_and_budget_from_bad_input_r55_f6",
+          "folio_command_errors_keep_their_meaning_at_the_session_boundary_r55_f6",
+          "a_command_over_the_folio_budget_answers_budget_exceeded_r55_f6"
+        ],
+        "paths": "The lead extended owned paths to folio src/sequence_preset.rs code for this fix. The test is one new function in folio tests/sequence_settings_records.rs."
+      },
+      "F-R55-7": {
+        "state": "session side proven; the rate-change rule for clips is the spec owner's, recorded by the lead, not decided here",
+        "what": "Folio's ApplyPreset is unchanged. Every one of the 391 shipped presets applied through the session on a sequence holding a clip commits one revision (none if nothing changes), and the document it leaves passes validate_document. The rate is written over the clip with no re-timing, as Folio does.",
+        "tests": [
+          "a_preset_applied_through_the_session_commits_one_revision_and_validates_r55_f7"
+        ]
+      },
+      "F-R55-8": {
+        "state": "covered",
+        "what": "The four doc lines are fixed: sequence_preset.rs no longer names shipped_preset and says three deep, defaulted_fields separates Studio defaults from Studio readings, and shipped.rs says the rows come from the spec tables and what pins them. Checked by grep on the rebased tree. The session gap is closed. The finding's note on a compile-only red is about the earlier lane; this lane's reds fail on behaviour.",
+        "tests": [
+          "valid_entries_open_typed_without_a_loss_note",
+          "settings_library_and_mode_survive_save_and_reopen_through_the_session"
+        ]
+      }
+    },
+    "lead_decisions": [
+      {
+        "on": "the open question at efc1fe96: refuse the whole open on an invalid entry, or refuse on read",
+        "decision": "Refuse on read, as multicam does. One bad settings or preset entry must not lock the whole file out of opening. A package with an invalid entry opens; reading it gives the typed refusal; a commit that would use it is refused and leaves the document and entry untouched; save keeps it byte-for-byte unless a successful commit replaces it; never dropped silently; report it through the existing open-time notes if they fit, and add no new mechanism if they do not.",
+        "done_at": "ab61c368"
+      },
+      {
+        "on": "the session.rs edits beyond the submit entry points (open check, set_document_entry check, commit and resync guards, EntryWrite)",
+        "decision": "Lead's correction: accepted, no waiver needed. Brief items 1 and 2 require them; the brief's path note was too narrow. The waiver request made at efc1fe96 is withdrawn."
+      },
+      {
+        "on": "the frame-rate refusal and the _as refusals",
+        "decision": "Accepted; listed in declared_readings."
+      },
+      {
+        "on": "sequence removal with other entries such as audio_routing",
+        "decision": "Stays NOT_INSPECTED and reported here (notes.not_inspected)."
+      },
+      {
+        "on": "R55 findings on this lane",
+        "decision": "Close F-R55-4, F-R55-6, F-R55-7 (session side) and F-R55-8 here; do not auto-create entries; the rate-change rule for clips goes to the spec owner; extend owned paths to folio src/sequence_preset.rs code for F-R55-6."
+      },
+      {
+        "at": "2026-11-05T08:19:02Z",
+        "on": "an explicit set being the only way to replace unparsable or repeated entries (declared_readings, flagged at 0f3cc50d)",
+        "decision": "Accepted. An explicit set is an operator or model action, not a silent drop; a step cannot quote bytes that do not parse."
+      },
+      {
+        "at": "2026-11-05T08:19:02Z",
+        "on": "12 local commits squashed to 3 before the rebase, so the red-proof shas are not on origin",
+        "decision": "Recorded for the validator. Red proof stands on the logs and patches in Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-session-1/ (local-series/, series.txt); the validator may apply them. Later lanes keep compiling red commits, per RED COMMITS."
+      }
+    ],
+    "loss_notes_fit": "LossReason::Opaque fits and is used, so no new mechanism was added. Its docs say \"preserved, not semantically imported\", and LossNote says \"preserved-opaque, not semantically imported (STU-IO-004/005)\", which is exactly an entry kept verbatim that the session cannot use. The note names the entry (studio/<token>.<sha256>). For a repeated token each entry is noted. An entry already noted Unlisted keeps that note. A note goes when the entry is replaced by a commit or a set. Notes stay as of open: an entry the document later comes to validate keeps its note until the session closes.",
+    "deviations_from_brief": [
+      {
+        "item": "The bundled run's clippy and test set: STUDIO_LANE_CHECK_NO_DEPENDENTS=1 with session's four direct dependents passed as tested crates.",
+        "why": "A plain lane-check over -p folio also clippies folio's 14 other direct dependents, which the brief does not ask for. This gives the brief's clippy set in one lock hold, and also runs the dependents' default-feature suites, which the brief did not ask for. --per-sha compiled folio's other dependents."
+      },
+      {
+        "item": "Three pushed commits; the local red commits were squashed before the rebase, not pushed.",
+        "why": "--per-sha compiles each commit's dependents and feature units, 72 units for three commits and about 17 minutes on D:; twelve commits would have held the next two lanes much longer. tests.red_proof.note says where the red trees are kept."
+      }
+    ],
+    "declared_readings": [
+      "Invalid entry forms that open and refuse on read: bytes that are not JSON, JSON that fails the Folio types or bounds, records that do not validate against the document, bytes past the Folio input budget, and two well-formed entries of one token (DuplicateIdentity, neither chosen).",
+      "A name whose digest is not the body's (or has no digest) is not a document entry of the token. It stays an ordinary opaque entry with its existing loss note, as before this lane, is saved verbatim, and the typed read answers None. A commit can then store a new entry beside it.",
+      "A commit that would use an invalid entry: all three commands read the settings entry; save and apply read the preset entry, even for a shipped preset, because a stored preset could shadow it; set does not read presets, so a bad preset entry does not stop it. Those answer folio_rejected or budget_exceeded. A step that quotes a held entry that does not parse, or a repeated token, answers value_conflict, multicam's rule, including a quote of None. A step that keeps quoted invalid records unchanged while anything else changes answers folio_rejected.",
+      "What does not use it commits and leaves its bytes alone: a timeline step, a multicam step, a records step on the other entry. The commit and resync guards protect a valid settings entry only; an entry already invalid does not hold them up.",
+      "Replacing an invalid entry: a step that quotes parsable invalid records and writes valid ones or None commits. Bytes that do not parse, and a repeated token, cannot be quoted, so an explicit set_sequence_settings_records / set_sequence_presets (valid records or None) is the way out of them. That is explicit, not a silent drop, and goes beyond the lead's wording of a successful commit; flagged at 0f3cc50d with no objection recorded yet.",
+      "The undo of a commit that replaced an invalid entry is refused folio_rejected, because it would write invalid records back; the repair stands (a_successful_commit_replaces_a_parsable_invalid_entry). This is the one step in the lane without a working inverse.",
+      "Accepted by the lead: a commit that changes the frame rate of a sequence with a valid settings entry without changing the entry is refused folio_rejected, because the entry's frame_rate must equal the sequence's. A stale multicam entry after a timeline step stays allowed, as before. A sequence without an entry is unaffected. The records step can change the rate and the entry together.",
+      "Accepted by the lead: the _as forms of the new step refuse actor_mismatch (the context's actor is not the session's), command_mismatch and a stale base revision. submit_multicam_as checks none of these. Grants and receipts belong to the session's actor and a context grants nothing, so a mismatch is refused rather than attributed.",
+      "The records step reuses SequenceEdit, so a sequence and its entry can be inserted or removed in one revision. A Remove there is also checked against the multicam records so this new path does not bypass multicam's own refusal. A Replace is not, as a timeline step is not.",
+      "save_from_sequence and apply look presets up in the stored set plus the shipped library, a stored preset shadowing a shipped one of the same id. Only stored presets are written, so a save does not copy the 391 shipped rows into the document. Applied::sequence_settings_report.presets counts stored presets, not the library Folio saw.",
+      "A keyed command's binding covers the command, its context's command id and correlation, and the expected revision, not the entries: a retry after commit must replay, and the commit itself changes the entries. A keyed step's binding covers its quoted records. A commit authority receives only the successor document in both cases, as multicam.",
+      "Direct set of these two tokens must parse and validate, and is refused reconciliation_required while a commit is pending; removing an entry stays possible so a diverged key can still be resynced.",
+      "sequences_without_settings sends no Observe frame, as the other typed reads do not.",
+      "Studio-minted, not in the spec: tokens sequence_settings and sequence_presets, provider name sequence.records, codes actor_mismatch, command_mismatch and canceled on StudioSequenceSettingsError. Vendor parity of the commands is UNVERIFIED (D5)."
+    ],
+    "undo_after_reopen": "Multicam does it: tests/multicam_commit.rs committed_multicam_step_survives_save_and_reopen undoes on the reopened document with an inverse taken before the save. History itself is not persisted. So it was in scope here and is proven the same way, by settings_library_and_mode_survive_save_and_reopen_through_the_session. An undo with no inverse held by the caller is not possible after a reopen, for multicam or here.",
+    "hostile_input": "Crate-level V4-01 deny applies to the new modules. V4-02: Folio's preflight bounds bytes and depth before any parse, then counts lists; a body the step would store is parsed back through the same check a read uses, so one over the input budget is refused budget_exceeded at commit. Tests: an_invalid_entry_opens_is_noted_and_refuses_on_read (18 cases), a_repeated_entry_refuses_on_read_and_a_misnamed_one_stays_opaque, typed_writes_validate_and_refusals_change_nothing, a_step_that_would_not_fit_the_package_limit_is_refused, refusals_leave_the_document_and_the_entries_untouched, a_commit_that_would_use_an_invalid_settings_entry_is_refused_and_changes_nothing, a_commit_that_would_use_an_invalid_preset_entry_is_refused_and_changes_nothing, save_keeps_an_invalid_entry_byte_for_byte_until_a_commit_replaces_it.",
+    "risks": [
+      {
+        "risk": "Receipts hold each keyed step's inverse, so a library-sized step keeps two copies of the library per held receipt: at most 1024 receipts with bodies of at most the 1 MiB input budget, about 2 GiB in the worst case. Multicam and timeline receipts have the same shape with sequence values.",
+        "mitigation": "None added; acknowledged receipts evict. A preset add/remove delta in the step would shrink it if this ever shows up."
+      },
+      {
+        "risk": "A caller that does not read Session::loss and only sees None or a refused command may not know a file holds a bad entry. The read and the commands do say so; None is only answered for an absent or misnamed entry.",
+        "mitigation": "The note is at open and the harness op record already carries the loss-note count."
+      }
+    ],
+    "not_inspected": [
+      "Removing a sequence named by other document entries (audio_routing and others): NOT_INSPECTED, on the lead's instruction. This lane guards the settings and multicam entries only."
+    ],
+    "microtasks": {
+      "MT-33701": {
+        "state": "partly_met",
+        "claim_added": "All nine immersive fields survive save and reopen through the session (settings_library_and_mode_survive_save_and_reopen_through_the_session, expect_authored).",
+        "still_open": [
+          "Held in the per-sequence entry rather than on StudioSequence: lead decision keeps this partly met, spec-owner item SD-47",
+          "The proof's expected output asks for unrecovered member provenance and gap STU-VID-082 diagnostics, and an explicit missing HRIR or device state: not built",
+          "gui_obligation operator surface and Argus: out of scope for this lane"
+        ]
+      },
+      "MT-33702": {
+        "state": "partly_met",
+        "claim_added": "A per-sequence preview codec and a frame size differing from the sequence's survive save and reopen through the session (same test).",
+        "still_open": [
+          "Same placement condition, SD-47",
+          "The proof's expected output asks for a preview descriptor with capability preflight, an explicit refusal of an unsupported codec, and requested versus actual counts: not built",
+          "That changing the preview does not change export settings is not proven here: no export recipe is involved",
+          "gui_obligation operator surface and Argus: out of scope for this lane"
+        ]
+      },
+      "mt_proof_commands": "Both MTs' declared proof is cargo test -p hsk-studio-pulse --test contracts -- <name>, marked NOT_IMPLEMENTED. That target does not exist at this tip, the work is in folio and session, and allowed_write_paths names pulse only. Those commands cannot prove these claims; no MT was edited. Proposal already in SMB-PR-SEQUENCE-PRESETS-1: repoint them. Add the session test to the repoint."
+    },
+    "gaps_outside_lane": [
+      "Controls: no Registry or RUN_COMMANDS rows for the 3 command ids (brief: out of scope). No GUI.",
+      "Importers: STU-VID-013a legacy normalisation and the code-113 import path are not here.",
+      "Authored editing modes still have no stored home: entries resolve shipped mode ids only.",
+      "Records remain beside the document, not on StudioSequence (lead decision).",
+      "Rate-change rule for clips (F-R55-7): spec owner, recorded by the lead."
+    ],
+    "new_module_edges": "none; no Cargo.toml changed",
+    "cleanup_for_steward": "D: target Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-sequence-session-1/target (counts toward P3); list it for Operator-approved deletion when the lane is PASS or abandoned. Nothing deleted.",
+    "vendor_parity": "UNVERIFIED (D5)"
+  },
+  "pushed_sha": "ab61c368a1c9e0fa965d72d5e87e958a9ccff12c"
 }
