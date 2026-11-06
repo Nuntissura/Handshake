@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-06T19:40:33Z",
+ "updated_at": "2026-11-06T19:48:40Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -21402,6 +21402,37 @@
     "named_limit": "A reversed picture synchronized by marker presents the marked frame in the frame before the mark: forward V mark 23F, reversed V, 0..10F, clap 2F, lands at 15F and frame 2 shows 22F..23F. Pre-existing at 4ffe1b06, not new. Goes to the spec owner (SD-73 revised) and a candidate lane, which would need a unit-level rule.",
     "cost_of_this_change": "It removes code and every pair, unit, anchor and -2 question: F-SR-1, -2, -4, -5, -6 go with it. The marked frame and the displayed marker position differ by a frame on a reversed picture, stated in the docs.",
     "limits": "One probe and one confirming run (CX-EXEC-003A). A third read of the diff before R59."
+   },
+   "third_read_result": {
+    "at": "2026-11-06T19:48:40Z",
+    "verdict": "SAFE_TO_JUDGE at 329e2b9a",
+    "findings": "F-TR-1, F-TR-2 doc truth, fixed by one doc commit before R59; F-TR-3 record shape, fixed here. None would fail a round, by the reviewer's reading.",
+    "correction_to_lead": "'The behaviour at 4ffe1b06' is true for placement only. A reversed picture's displayed marker reads a frame earlier than at 4ffe1b06 (V2 22F, then 23F), which comes from keeping F-R57-1 in the reads."
+   },
+   "diagnosis_record": {
+    "diagnosis_id": "DIAG-MARKERS-SYNC-BASIS-1",
+    "cause": "One helper served two jobs: where a marker appears is a frame question, what synchronize aligns a source-tick one.",
+    "evidence_refs": [
+     "research/pre-review-r59-media-markers.json#second_read/F-SR-1",
+     "research/pre-review-r59-media-markers.json#first_read/F-PR59-1",
+     "validation/round-R58.json#F-R58-1",
+     "validation/round-R57.json#F-R57-1"
+    ],
+    "distinct_from": [
+     "PROBE-R57-MARKERS-1",
+     "PROBE-R58-AUDIO-1"
+    ],
+    "cited_by": "SMB-PR-MEDIA-MARKERS-1 diagnosis_refs"
+   },
+   "r59_memory_gate": {
+    "at": "2026-11-06T19:48:40Z",
+    "rule": "R59 starts when commit free is at least 40 GB, or the Operator says to start regardless. A round's entrypoint takes no runtime override (CX-VAL-007), so it cannot run at reduced parallelism. Only the Operator can free the memory: Chrome held about 140 GB at every check, and the lead stops nothing it did not start (CX-SAFE-001).",
+    "threshold_basis": "Lead's judgement, not a measurement: a builder's 32-job run failed at 5.4 GB commit free, and a round runs about 8 rustc plus 7 link processes at once. R58 finished at 16:32Z with no failure, and the memory state during it was not recorded.",
+    "readings": {
+     "18:05Z": 6.4,
+     "18:48Z": 9.3,
+     "19:40Z": 8.5
+    }
    }
   }
  },

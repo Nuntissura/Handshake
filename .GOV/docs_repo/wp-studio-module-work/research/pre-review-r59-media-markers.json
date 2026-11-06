@@ -291,5 +291,114 @@
       "All video-side bars at d519f6f1: the only source change on those reads is the pair branch, so they carry by reading; R58's probes have not been re-run."
     ],
     "verdict": "FIX_FIRST"
+  },
+  "third_read": {
+    "candidate": "329e2b9a",
+    "base": "d519f6f1",
+    "also_compared": "merge_sync.rs against 4ffe1b06",
+    "reviewer": "fresh read-only, V4-13, third read",
+    "method": "git show, git diff, git grep, python, and the lane's and validator's existing logs. No cargo, no build, no test run by this reviewer. Positions marked by hand are derived from the code and not run. crates/hsk-studio-pulse unless named.",
+    "approach_assessment": "The approach is right. The diagnosis holds: where a marker appears and what an alignment aligns are two questions, and the three failed attempts all came from answering both with one law. Since every clip reads one mapping, every relative position in a unit is a difference under one law, so no anchor, pair or unit question can arise. It does give up something real: a reversed picture synchronized to a forward picture by marker is a frame off the marked frame. That is a limit, not a defect I would FAIL: no clause asks otherwise, and the validator passed SMB-PR-MERGE-SYNC-1 at R57 (PASS_V2) with this behaviour while naming the marker basis in F-R57-1. One correction to how the limit is stated: the placement is 4ffe1b06's, the marker_span gap is not. F-TR-1.",
+    "by_question": [
+      {
+        "q": 1,
+        "answer": "The diagnosis is right and this is not a retreat that leaves a FAIL. merge_sync.rs reads no frame law on any path: the only read is source_to_timeline(clip, marker.start, marker.start, None) at :552, and no picture_frame, kind test or reversed_frame_tick is left in its code. Behaviour equals 4ffe1b06 by reading: the diff is one call plus docs; with None, source_to_timeline skips the law branch (annotate.rs:303) and the rest is 4ffe1b06's body, compared line by line; in pulse src only annotate, lib, merge_sync, retime and snap differ from 4ffe1b06, retime by two added functions; range.rs, timeline_edit.rs and playback.rs have no diff; folio's timeline.rs differs by one visibility word. F-SR-1 closed in every unit shape: each offset is anchor_at - at, both continuous, so the difference between two members is at_j - at_i whatever the anchor, and clips of one window and speed land together. Logs: forward anchor 15F and 15F, 7F and 7F; anchor -1/2 28F and 28F. F-SR-2 gone: 20F, 20F, 26F from all three anchors and by merge, sounds one sample apart; sync(V, A) then sync(A, B) equals sync(V, B) by the same difference. F-SR-4's false sentences gone; its -2 point is half replaced, F-TR-2. F-SR-5 closed, Q5. F-SR-6 gone: one anchor read at :585. Only a refusal still depends on the anchor, because the anchor does not move: V -2, A -1, clap 3F lands by anchor V (A 16.5F), refuses by anchor A. Accepted landings do not.",
+        "evidence": [
+          "git diff 4ffe1b06 329e2b9a -- src/merge_sync.rs: 2 code lines, one call before and after; the rest module docs.",
+          "git grep of picture_frame|reversed_frame_tick in src/merge_sync.rs at 329e2b9a: only a test name in the docs at :39.",
+          "green-sr1 log lines 5048-5066; tests/marker_track_kind.rs a_unit_lands_the_same_from_any_anchor_sr2.",
+          "Validator probes: only r58_probe_audio calls plan_synchronize (r58_a2, forward video anchor, audio member), which this keeps at 15F. No probe on file pins a frame law in synchronize. No host calls plan_synchronize or plan_merge_clips: outside pulse's own src and tests, git grep finds only tests/edit_footprint.rs, still inside pulse."
+        ],
+        "status": "OK"
+      },
+      {
+        "q": 2,
+        "answer": "Half. The placements are the same as 4ffe1b06: forward V mark 23F, reversed V2 lands 23 - 8 = 15F (hand), and retime's position law has no change since 4ffe1b06, so frame 2 shows 22F..23F there too. Forward sound merged to a reversed picture: V reads 20 + 8 = 28F, A goes to 26F, heard 28.0000F, same. marker_spans is NOT the same: at 4ffe1b06 V2's marker read 23F, on the mark, because the read had F-R57-1's defect; at this tip it reads 22F. So the gap between the displayed marker and the aligned position is new against 4ffe1b06, a consequence of keeping F-R57-1 repaired, not of this commit's placement. Not a regression of placement, and the right trade. But 'the behaviour at 4ffe1b06' over-claims in the module docs, the DESCRIPTOR and the ledger. Clause by clause, nothing requires what the limit gives up. Spec STU-VID-029a: 'aligns selected clips by ... marker', no frame term. MT-33727: video marker 5F, audio marker 2F, audio +3F, oracle 'marker/timepoint subtraction', forward, holds. Merge-sync brief item 3: aligns by marker, reuses pulse's time code, typed refusals, holds. Media-markers brief item 4: names 'a read for a clip, and for a sequence', and those keep the law; a synchronize is not that read. MT-33736: appearance, holds. SMB-PR-MERGE-SYNC-1: its row is back at 15F as R58 said it would return, its 15 tests still there; its declared reading 'through the clip speed' fits. F-R58-1's repair direction: 'frame law ONLY where a picture shows', a limit this meets literally; 'restore merge_sync 15F' met.",
+        "evidence": [
+          "Recorded text that leans the other way, not acceptance: F-R57-1's lane field and FAIL_V1 note ('same mapping serves marker_spans and plan_synchronize's marker basis: V4-06'), and FAIL_V2's note ('merge_sync has kind(m)', 'the frame law is right for a clip with a picture ... and stays'). Neither is in failed_acceptance_refs, which name brief item 4 and MT-33736 only. The lane's next field tells the validator plainly: 'now for the appearing reads alone'. R57 passed the merge-sync lane with the behaviour on the record.",
+          "A visible cost for a later host: flags drawn by marker_spans sit a frame apart right after a synchronize, and snapping to the flag gives 16F where synchronize gives 15F. No host calls synchronize today; SD-73 and the candidate lane own it. Vendor behaviour UNVERIFIED (D5)."
+        ],
+        "status": "FINDING"
+      },
+      {
+        "q": 3,
+        "answer": "Confirmed by reading. V -1 at 20F, V2 -2, clap 3F: V reads 27F, V2 reads 3.5F, V2 would land 23.5F, and grid_of(track, rate).check_position refuses not_frame_aligned, at 4ffe1b06 and here; it landed at 23F only under the frame law on 89bbf702, 2fdcbd4a and d519f6f1. The builder's 'forward picture to a reversed picture anchor, a frame apart': part of the named limit, not a separate defect, the same row seen from the anchor. By hand V1 -1 at 20F reads 28F, V2 forward lands 26F, frame 2 at 27F on V1 and from 28F on V2. 'No row' understates it: sr5 pins the position (forward clip 25F with a reversed video anchor); what has no row is the frame_layers reading. A worse form of the same refusal is not named: at -2 on a window on the frame grid, every frame the picture presents refuses and only frames it never presents can land. F-TR-2.",
+        "evidence": [
+          "tests/marker_track_kind.rs a_reversed_pair_of_one_kind_reads_the_continuous_mapping_pr59_f1; sr5 anchor rows.",
+          "4ffe1b06 merge_sync.rs:527 and :624."
+        ],
+        "status": "FINDING"
+      },
+      {
+        "q": 4,
+        "answer": "All four still fixed, by reading of untouched code; not re-run by this reviewer. Between d519f6f1 and 329e2b9a annotate.rs is two doc lines on source_to_timeline, and snap.rs and retime.rs have no diff; media_markers.rs and folio have no diff. F-R57-1 for the reads: marker_span, marker_spans, next, prev, snap and both appearing reads keep the branch. F-R58-1: non-video stays continuous, the audio table and the clap test are unchanged, and the audio sync row is 15F. F-R57-9: folio untouched. F-R57-15: budget loop untouched. F-R57-1's bar was never met on the marker basis at any accepted commit; that is Q2.",
+        "evidence": [
+          "git diff --stat d519f6f1 329e2b9a: annotate 4 lines, lib 2, merge_sync, two test files.",
+          "bundled-sr1 log: 329e2b9a, dirty 0, 807 passed; per-sha PER_SHA_RESULT OK shas=2 by the lane file. origin is 329e2b9a (git ls-remote)."
+        ],
+        "status": "OK"
+      },
+      {
+        "q": 5,
+        "answer": "The sr5 row uses hand numbers and calls no mapping function for its expected values, so it is independent of the mapping under test; it has no output oracle, and says so: it is a pin of the reading, with mix and frame_layers oracles in the rows around it for video and audio. By hand: forward clip 5..15F clap 8F at 20F: 23F; reversed 0..10F clap 2F: 8F in, 15F. Reversed anchor at 20F reads 28F; forward clip 3F in, 25F; other reversed stay 20F. All match. Mutation log: control 29 passed; Video 21/8, Audio 20/9, Caption 27/2, Submix 28/1. Submix is caught by sr5 alone, as the builder says. F-PR59-4's row checked from its fixture: V on Video, A on Audio, V 0..10F at 20F, anchor V. -1, clap 2F: V 28F, A 26F, heard 28.0, shown(27) = 2, shown(28) = 1. -1/2: V 36F, A 34F, shown(35): position 1.5, tie to the later, 2; shown(36) = 1. -2, clap 3F: V 23.5F, A 20.5F, shown(23) = 3, shown(24) = 1. -1, clap 2.5F: V 27.5F, A 25F, shown(27) = 2, shown(28) = 1. A at 2x, clap 4F: A 26F. Forward anchor at 40F: V 34F, shown(41) = 2, shown(42) = 1. Reversed sound anchor: V 26F, shown(28) = 2. All match; the row's rename and numbers are true. tests/merge_sync.rs video row: 15F, shown(22) = 2, shown(23) = 1, by the same law.",
+        "evidence": [
+          "mutation-sr5 log Summary lines 4767, 9989, 15310, 20064, 24791; the mutation is one kind at run time (log line 49).",
+          "Coverage reduced on purpose and disclosed: the -2 whole-clip oracle and the even-clap row are gone, -2 is position rows; in not_proven."
+        ],
+        "status": "OK"
+      },
+      {
+        "q": 6,
+        "answer": "Re-derived with the stated regex at 329e2b9a over crates/*/src/*, comment lines and lib.rs dropped: 18 lines. merge_sync.rs :544, :552, :558, :565, :585, :599 = 6; annotate.rs :294, :344, :347, :357, :363, :377, :461, :599, :611 = 9; snap.rs :113, :131 = 2; harness-view timeline.rs:1337 = 1. 6 fixed and 12 not-applicable, the same lines as the notes. F-SR-3 closed, and d519f6f1's 19 and 16 are recorded.",
+        "evidence": [
+          "git grep -nE with the notes' regex; notes.remediation_R58.diag_markers_sync_basis.v4_06."
+        ],
+        "status": "OK"
+      },
+      {
+        "q": 7,
+        "answer": "True for a model reading only them, with two exceptions, both small. 'The behaviour at 4ffe1b06' sits on a limit that includes the marker_span gap, which 4ffe1b06 did not have: F-TR-1. 'Differ by a frame' is the -1 case: the distance is one source frame in timeline terms, 2F at -1/2 (given as the next example) and 0.5F at -2. The rest I checked holds: both formulas; 15F; 22F..23F; 7F and 21F; at -1/2 frame 2 shows 21F..23F, so 'the frame before the mark' is true; the frame-grid refusal; 'may not be presented at all'; the condition on the window's end; the test names exist. No never, always, guarantees or proves in the added text. HOST INTEGRATION and V4-01/02: nothing new, code is smaller. Paperwork: CX-VAL-008 asks a diagnosis to be a blocker record with a cause of at most 120 chars, evidence refs and distinct_from, cited by diagnosis_refs. DIAG-MARKERS-SYNC-BASIS-1 is in the ledger with a 207-character root_cause, no evidence refs, and no blockers or diagnosis_refs entry in the lane file. The resubmission is admitted anyway because the affected code changed. F-TR-3.",
+        "evidence": [
+          "src/lib.rs:87 merge_sync key; src/merge_sync.rs module docs :33-57; annotate.rs:44-45 'Every read that has a sequence' is about reads and does not mislead given source_to_timeline's doc."
+        ],
+        "status": "FINDING"
+      }
+    ],
+    "findings": [
+      {
+        "id": "F-TR-1",
+        "severity": "LOW",
+        "file_line": "src/lib.rs:87 merge_sync key 'the behaviour at 4ffe1b06'; src/merge_sync.rs module docs 'The limit is the behaviour at 4ffe1b06'; ledger approach_change.named_limit 'Pre-existing at 4ffe1b06, not new'",
+        "claim": "The placement is 4ffe1b06's; the displayed marker's gap from the aligned position is not. A reader told the whole limit is old is told something false about half of it. Not a behaviour defect; a validator would grade it as a doc sentence, as F-R58-5 was.",
+        "failing_input": "Forward V mark 23F, reversed V2 0..10F, -1, clap 2F, after synchronize: marker_spans V2 reads 23F at 4ffe1b06 (no frame law in the read) and 22F here.",
+        "repair_direction": "Say: the placement is as at 4ffe1b06; the marker_span gap comes from keeping F-R57-1 in the reads",
+        "blocks_judging": false
+      },
+      {
+        "id": "F-TR-2",
+        "severity": "LOW",
+        "file_line": "src/merge_sync.rs:552 with link_unit's check_position; module docs 'a reversed picture at -2 onto reversed sound by an odd frame'",
+        "claim": "At -2 on a window on the frame grid, the frames presented are source_out - 1 - 2k, which always read a half frame, so moving that picture by a frame it shows refuses, and only a frame it never presents can land. The docs name one anchor kind and say a skipped frame may not be presented, but not this inversion. Forward 2x is the sensible way round: presented frames land. Same at 4ffe1b06 by reading, typed, recoverable by anchoring the picture. Landed at d519f6f1 and earlier.",
+        "failing_input": "Forward V mark 23F, reversed V2 -2, 0..10F. Clap 3F, a frame it presents: 23 - 3.5 = 19.5F, refused not_frame_aligned. Clap 2F, a frame it never presents: 19F, lands.",
+        "repair_direction": "One sentence in the named limit and SD-73: at -2 a moved picture can land only by a frame it does not present",
+        "blocks_judging": false
+      },
+      {
+        "id": "F-TR-3",
+        "severity": "LOW",
+        "file_line": "S/ledger.json direction.after_r58_20261106.approach_change; lane file blockers, no diagnosis_refs",
+        "claim": "The diagnosis is not in CX-VAL-008's record shape. Lead-side paperwork, no product effect. The resubmission is admitted on the code change alone.",
+        "failing_input": "root_cause 207 chars, limit 120; no evidence refs; lane blockers [] and no diagnosis_refs.",
+        "repair_direction": "Record the diagnosis in CX-VAL-008's shape and cite it from the claim",
+        "blocks_judging": false
+      }
+    ],
+    "not_settled_by_reading": [
+      "Everything is by reading and from the builder's logs; no run here. R58's validator probes have not been re-run at this tip.",
+      "Vendor behaviour on a reversed synchronize: UNVERIFIED (D5).",
+      "A window off the frame grid, other sequence rates, -3/2 on a picture, reversed audio with maintain_audio_pitch, caption and submix against output: not run, all in not_proven.",
+      "How a validator grades the named limit: UNVERIFIED. The R57 PASS of SMB-PR-MERGE-SYNC-1 with this behaviour on record is my reason to expect no FAIL; the FAIL_V1 and FAIL_V2 notes are the reason it could be argued."
+    ],
+    "verdict": "SAFE_TO_JUDGE"
   }
 }
