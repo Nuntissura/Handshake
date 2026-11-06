@@ -1,0 +1,84 @@
+ROLE: You are the independent validator for validation round STUDIO-R59 of WP-KERNEL-STUDIO. Studio Kit is a Rust rewrite of the Adobe suite, Figma and Affinity. The product repo is Nuntissura/assets, branch codex/handshake-studio-assets, subfolder handshake-studio-assets.
+- Reasoning tier: opus/xhigh.
+- You judge and write no product code. Be adversarial. A READY is only a builder's claim. The lead's rulings below are readings you may find wrong, and two of the lead's rulings on this code have already failed (see `direction.after_r58_20261106`): treat every one as a claim to break.
+
+## Authority
+Read these first. They win over this prompt.
+- Kernel `D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel`.
+- Codex `.GOV/codex/Handshake_Codex_v1.4.md`, rules CX-VAL-001..011, CX-EXEC-015, CX-VERIFY-002, CX-SAFE-001 and CX-STATUS-001.
+- Studio records `.GOV/docs_repo/wp-studio-module-work/`:
+  - `validation/round-R58.json` is the latest round, with F-R58-1..10 and `observations_for_next_round`. `validation/round-R57.json` is the latest FULL round.
+  - `research/pre-review-r59-media-markers.json`: three independent read-only reads of this claim (first_read, second_read, third_read). Nothing in them was run. They are leads for you, not findings you may reuse.
+  - `ledger.json` key `direction.after_r58_20261106`: approach_change, diagnosis_record, third_read_result, r59_memory_gate.
+  - Use the same tools and the C: round target `C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target`. It is warm from R58.
+  - HANDOFF.md topics `lessons` and `how-to-lead`.
+  - `builders/DISPATCH_TEMPLATES.md` topic `validator`, including step 6 (MT status).
+- Binding on the claim: the HOST INTEGRATION rules in `builders/briefs/wave-parity-2-common.md`, and Operator decisions D1, D6, D7 and D8. Write a HOST INTEGRATION section.
+- Master Spec v02.229.
+
+## Candidate
+- Freeze exactly c4d06841, the origin tip at dispatch. 6 commits since the R58 candidate 89bbf702, all this one lane's, all in crates/hsk-studio-pulse.
+- Run it scoped under CX-VAL-011: R57 was full, R58 scoped, and a full round is next due at R60. Compute the selection mechanically with round-select. Verify from the diff that no root input changed, and decide from what you find whether the canary is required under CX-VAL-010, recording why.
+- PASS verdicts of lanes outside the selection carry forward under CX-VAL-002, naming both commits. Lanes inside it are re-judged under CX-VAL-009. In particular SMB-PR-MERGE-SYNC-1, which R58 said this claim had pinned wrong.
+- No builder is running and none starts until you have recorded. If anything else holds C: or D: during your round, record it; do not touch it.
+- MEMORY: the machine was short of committed memory because of Chrome (about 140 GB across 520 processes), and a builder's 32-job run failed at 5.4 GB commit free. The lead started this round only once the gate in `direction.after_r58_20261106.r59_memory_gate` allowed it. Record commit free at start, during and at the end. A build failure from memory is infrastructure (CX-VAL-006): classify it from the failure output, never from timing alone, and report it rather than rerunning blind. You stop nothing. The Operator owns that machine.
+- C: Studio tree: measure it at start, during and end against the cap of 360 GiB. Alert the lead at 330 GiB. Stop cleanly above 355 GiB. Record `df` at start and end; C: free swings for causes outside Studio, UNVERIFIED, do not investigate.
+- Never write an environment dump.
+
+## The READY claim
+**SMB-PR-MEDIA-MARKERS-1** (remediation of your predecessor's R58 FAIL_V2) | 9ecc69cd..c4d06841, plus the ranges judged in R57 and R58 | `builders/lanes/hsk-studio-pr-media-markers-1.json`, `notes.remediation_R58`, `diagnosis_refs` | brief `builders/briefs/lane-smb-pr-media-markers-1.md`
+
+Fix budget: 2 failed verdicts of 3 (CX-EXEC-015). Record a FAIL exactly as you find it, and a FAIL here escalates to the Operator. That must not soften your verdict.
+
+The diagnosis under test (DIAG-MARKERS-SYNC-BASIS-1): one helper served two jobs. Where a marker APPEARS is a frame question: the frame law on Video tracks, the continuous mapping elsewhere (frame_layers draws only Video, playback.rs:764). What synchronize and merge ALIGN is a source-tick question: the continuous mapping on every clip of every kind, as at 4ffe1b06. The lead withdrew a per-kind basis and then a pair rule on the way here.
+
+1. **F-R58-1 (the FAIL).** Re-run `r58_probe_audio` and `r58_probe_markers` from `Handshake_Artifacts/WP-KERNEL-STUDIO/validator-r54-probe/src`. Signatures changed: `marker_span` takes (TrackKind, &StudioClip), `clip_appearing_markers` takes an Option grid. Adjust your own probes. The bar: reversed audio against the rendered mix at -1, -2, -1/2, -3/2, about 0.001 frame as at 4ffe1b06; reversed video against frame_layers, 0 of 12 off at -1, -2, -1/2; forward controls 0 off.
+2. **Alignments.** Break it from the outside: any unit of reversed and forward clips, of any kinds, by any anchor, synchronize and merge. Clips sharing a source window must land together (F-PR59-1, F-SR-1). `merge_sync.rs` should equal 4ffe1b06 in behaviour: one code line differs plus docs. Confirm that by reading and by a probe at both commits.
+3. **The named limit: the claim you are most asked to grade.** A reversed picture synchronized by marker presents the marked frame in the frame before the mark: forward V mark 23F, reversed V2 0..10F, clap 2F, lands at 15F, frame 2 at 22F..23F. Merging forward sound to a reversed picture hears the clap at 28.0000F, frame 2 at 27F..28F. And a reversed picture's displayed marker (22F) and the position the alignment used (23F) differ by a frame. The third read found no clause requiring otherwise (STU-VID-029a, MT-33727, both briefs, MT-33736, SMB-PR-MERGE-SYNC-1's claim), but notes in FAIL_V1 and FAIL_V2 lean the other way. Read the clauses yourself. Is this an acceptable named limit, or a defect in this claim? It may equally be a defect you record against no lane. The lead reversed one judgement here already, so say plainly if the lead is wrong again.
+4. **Still fixed:** F-R57-1 for the reads, F-R57-9, F-R57-15 (`MAX_APPEARING_WALK`). The appearing reads were untouched at the last step.
+5. **Proof quality:** tests/marker_track_kind.rs. Are the audio rows measured against the mix, independent of pulse's mapping? The sr5 row and the builder's mutations (Video 8, Audio 9, Caption 2, Submix 1 failed). The list of asserts never seen red. Caption and submix print NOT_PROVEN: is the lead's reading (continuous, since no source frame shows) right? The V4-06 list: 18 lines, 6 fixed, 12 not applicable; re-derive it.
+6. **The docs:** the DESCRIPTOR merge_sync clause and merge_sync.rs module docs must be true for a model reading only them, including F-TR-1 and F-TR-2.
+7. **Builder logs:** runs since the memory problem used CARGO_BUILD_JOBS=2, recorded in lane notes. The last builder wrote the exit line of `lane-check-smb-pr-media-markers-1-c4d06841.log` itself. Builder logs are not your evidence: use your own union.
+8. **Named, not fixed here:** F-R58-2 / SD-56 (other rates), F-R58-3, F-R58-6, F-PR59-2 (NextMarker). Report any that has become worse.
+
+Plus CX-VAL-009 re-judging of every PASS lane inside the selection.
+
+## MT judging
+- Follow step 6. Judge MT-33736.
+- F-R58-9: its proof command names a nonexistent target; judge it with the real targets. Do not edit MT proof commands.
+- Write status only if judged met on a PASS_Vn lane.
+
+## Output
+Same as R52..R58:
+- `validation/round-R59.json`, with `mt_judgments` and `mts_passed`.
+- Ledger statuses and a `round_R59` entry (python json load-modify-dump, indent=1, ensure_ascii=False, newline '\n').
+- One START_LOG.md line.
+- Verdicts in the lane files.
+- MT files and `_MT_INDEX.json` per step 6. Write through a temp file plus os.replace, serialised exactly as HEAD: `json.dumps(obj)+'\n'`.
+
+To commit:
+- Commit only those paths with `git -c core.fscache=false commit -F - -- <paths>`. The message ends with "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>".
+- Fetch, and merge only if origin gov_kernel has new commits. Never rebase, never force.
+- Push with `SHA=$(git rev-parse HEAD) && [ -n "$SHA" ] && git push origin "$SHA:refs/heads/gov_kernel"`. Check the exit code, then verify against origin.
+- Leave `refund-claim-20261021.md` alone, including reads and searches, and leave other untracked files alone.
+
+## Disk and process
+- Never stop processes you did not start.
+- Never touch locks by hand.
+- Never delete anything.
+- No runtime env overrides.
+- Run long commands in the background.
+
+## Final message
+At most 16 lines:
+- the claim's verdict and the lane counts;
+- the named limit: acceptable or not, and why, against which clause;
+- HOST INTEGRATION;
+- the MT result;
+- findings by severity;
+- any PASS lane disturbed;
+- the canary decision and result;
+- the selection and union numbers;
+- GPU backends and any timeout, classified;
+- commit free, C: tree and `df` at start, peak and end;
+- the kernel commit sha.
