@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-06T05:16:12Z",
+ "updated_at": "2026-11-06T06:09:15Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -18220,8 +18220,8 @@
   },
   {
    "lane_id": "SMB-PR-ENTRY-REFERENCES-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-session (document entries against sequence and clip removal), hsk-studio-folio (entry validation)",
    "lane_file": "builders/lanes/hsk-studio-pr-entry-references-1.json",
    "brief": "builders/briefs/lane-smb-pr-entry-references-1.md",
@@ -18229,14 +18229,15 @@
    "base": "c143625f",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-06T02:28:46Z",
+   "updated_at": "2026-11-06T06:09:15Z",
    "closes": [
     "F-R56-3",
     "F-R56-7"
    ],
    "local_tip": "4529259c",
    "backup_branch": "lane/smb-pr-entry-references-1",
-   "resumed_at": "2026-11-06T02:28:46Z"
+   "resumed_at": "2026-11-06T02:28:46Z",
+   "claim": "d47d8e82..a92b8d85"
   },
   {
    "lane_id": "SMB-TYPE-AUTHORED-TOKEN-1",
@@ -20296,6 +20297,26 @@
     "added_at": "2026-11-06T04:55:21Z",
     "item": "The 8 justified dead-end rows (80, 334, 609, 807, 842, 1201, 1269, 1440): the last line takes the rest of the paragraph, excess in hang_pt, overfull false. The emergency rule fixes them and changes output (row 80: 21 lines, not 8) (SMB-LAYOUT-COMPOSER-DEPTH-1 open)",
     "owner": "layout"
+   },
+   {
+    "added_at": "2026-11-06T06:09:15Z",
+    "item": "A live route whose output or send target names a removed bus keeps the whole routing refused, so it plays nothing new (pulse src/bus_mix.rs:249, :260; SMB-PR-ENTRY-REFERENCES-1 gaps_outside_lane)",
+    "owner": "folio, pulse"
+   },
+   {
+    "added_at": "2026-11-06T06:09:15Z",
+    "item": "Multicam angle_order: removing a source video track leaves the record set unreadable on a timeline or records step (pulse src/multicam.rs:374, :957, :991). Adding a track breaks it the same way by reading; not run (SMB-PR-ENTRY-REFERENCES-1 gaps_outside_lane)",
+    "owner": "folio, pulse"
+   },
+   {
+    "added_at": "2026-11-06T06:09:15Z",
+    "item": "Inert entries are never pruned, and no host or control calls the listings yet (SMB-PR-ENTRY-REFERENCES-1 gaps_outside_lane)",
+    "owner": "session, harness-core"
+   },
+   {
+    "added_at": "2026-11-06T06:09:15Z",
+    "item": "Stale comment: harness-view src/view/timeline/envelopes.rs:151 says Folio refuses an envelope of a clip not in the sequence; it no longer does (SMB-PR-ENTRY-REFERENCES-1 gaps_outside_lane)",
+    "owner": "harness-view"
    }
   ],
   "pause_20261103": {

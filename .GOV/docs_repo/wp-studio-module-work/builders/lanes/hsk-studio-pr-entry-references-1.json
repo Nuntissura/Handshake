@@ -1,35 +1,45 @@
 {
   "crate": "hsk-studio-session (document entries against sequence and clip removal), hsk-studio-folio (entry validation)",
   "lane": "SMB-PR-ENTRY-REFERENCES-1",
-  "status": null,
-  "phase": "paused_20261105",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-pr-entry-references-1",
-  "base": "c143625f",
+  "base": "ca23add1",
   "commits": [
     {
-      "sha": "5013dd17",
+      "sha": "d47d8e82",
       "subject": "session tests, red 1: the measured removal table",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "9facfc8a",
+      "sha": "ca698916",
       "subject": "folio, session, pulse and harness-view tests, red 2: inert ids with behaviour held back",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "e7e7ef93",
+      "sha": "f845ad88",
       "subject": "folio, session, F-R56-3: an id the document does not hold is inert",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "57cdf077",
+      "sha": "d73e656e",
       "subject": "session tests, red 3, F-R56-7: the answer an undo gives, held back",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "4529259c",
+      "sha": "5b7be0f7",
       "subject": "session, F-R56-7: an undo answers what it can restore",
-      "pushed": false
+      "pushed": true
+    },
+    {
+      "sha": "674adc04",
+      "subject": "folio tests, red 4: a malformed id is not inert; an inert member comes back live",
+      "pushed": true
+    },
+    {
+      "sha": "a92b8d85",
+      "subject": "folio, F-R56-3: only a well-formed id is inert",
+      "pushed": true
     }
   ],
   "capabilities_done": [
@@ -78,7 +88,16 @@
       ],
       "void_runs": [
         "A first red 2 compile failed on a wrong Result type in the pulse test, exit 101; fixed before anything was built on it. No log kept: the file was overwritten by the rerun."
-      ]
+      ],
+      "grammar": {
+        "argv": "STUDIO_LANE_CHECK_NO_DEPENDENTS=1 lane-check.sh --owner smb-pr-entry-references-1 --disk d -- cargo nextest run -p hsk-studio-folio --test audio_routing_records --no-fail-fast",
+        "sha": "caecace7",
+        "exit": 100,
+        "passed": 2,
+        "failed": 3,
+        "reading": "unwrap_err on Ok at the restored STRK-nope and SCLP-nope rows and the sweep. an_inert_member_is_live_again_when_its_track_or_clip_exists passes in red: regression proof, the rule held and had no test.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/red-proof-grammar-smb-pr-entry-references-1-caecace7.log"
+      }
     },
     "interim": {
       "argv": "cargo nextest run --offline -p hsk-studio-folio -p hsk-studio-session --no-fail-fast",
@@ -91,48 +110,136 @@
     },
     "bundled": {
       "argv": "lane-check.sh --owner smb-pr-entry-references-1 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-session -p hsk-studio-package -p hsk-studio-pulse -p hsk-studio-harness-core -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch,hsk-studio-harness/audio-device --no-fail-fast",
-      "exit": 0,
-      "sha": "4529259ca2d745e509020462ea4dd29096e4aa34",
-      "passed": 932,
+      "exit": 100,
+      "sha": "07f4ceef8e2d1ffb9a642223ebf3e9d565477827",
+      "passed": 985,
       "failed": 0,
+      "timed_out": 1,
       "skipped": 20,
-      "tree_note": "Base c143625f, NOT rebased. Not the tree a push would carry.",
+      "timed_out_test": "hsk-studio-harness::viewer_shared_display viewer_renders_on_the_host_device_into_the_display_texture, TIMEOUT 120.178 s at the 120 s cap",
+      "tree_note": "Rebased on origin 1940292c, the tree a push would carry. NOT green: exit 100 on that one timeout.",
       "per_crate": {
-        "hsk-studio-folio": 212,
-        "hsk-studio-harness": 244,
+        "hsk-studio-folio": 218,
+        "hsk-studio-harness": 243,
         "hsk-studio-harness-core": 52,
-        "hsk-studio-harness-view": 162,
-        "hsk-studio-package": 40,
-        "hsk-studio-pulse": 112,
-        "hsk-studio-session": 110
+        "hsk-studio-harness-view": 170,
+        "hsk-studio-package": 41,
+        "hsk-studio-pulse": 132,
+        "hsk-studio-session": 129
       },
-      "clippy": "Lane-check clippy passed; the log names none of the seven files listed in notes.clippy_files_checked. Warnings in it belong to other crates.",
+      "clippy": "Lane-check clippy passed; the log names none of the seven files listed in notes.clippy_files_checked. It does name one warning in this lane's own test, not fixed: folio tests/audio_routing_records.rs:337 field_reassign_with_default (also in the 4529259c log, a file outside that list).",
       "step0": "clean",
-      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/bundled-smb-pr-entry-references-1-4529259c.log"
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/bundled-smb-pr-entry-references-1-07f4ceef.log",
+      "focused_after_timeout": {
+        "argv": "the same argv with lane-check --tests viewer_renders_on_the_host_device_into_the_display_texture",
+        "sha": "07f4ceef8e2d1ffb9a642223ebf3e9d565477827",
+        "exit": 0,
+        "passed": 1,
+        "skipped": 1005,
+        "seconds": 13.048,
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/focused-gpu-timeout-smb-pr-entry-references-1-07f4ceef.log"
+      },
+      "timeout_reading": "UNVERIFIED cause. Measured: 27.951 s in the 4529259c bundled run, 120.178 s TIMEOUT in this one among parallel tests, 13.048 s alone on the same units. A cargo-nextest and cargo this lane did not start (started 03:18Z, still alive after this run ended) overlapped the test phase. Origin's change on the viewer open path is one package entry in harness-core import.rs and a read in harness.rs; this lane changes nothing in render-gpu, render-cpu or harness. Contention is the likely reading, not proven; GPU use by the other run not inspected.",
+      "earlier_failed_run": {
+        "sha": "57da53257df0a9c8606a042306ad84307b4d4a9c",
+        "exit": 101,
+        "reading": "E0063 before any test: a different failure, fixed by a changed input, see notes.resume_20261106.failed_bundled_run.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/bundled-smb-pr-entry-references-1-57da5325.log"
+      },
+      "read_by_lead": "GPU timeout read as infrastructure, cause not proven (lead ruling 1, 2026-11-06): no whole rerun; SMB-PR-RETIME-OUTPUT-1's viewer tests ran at the same time on the same GPU; the READY claim states exit 100 and 985/1 and cites both logs; R57 FULL runs it again."
     },
-    "per_sha": "NOT RUN",
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-pr-entry-references-1 --disk d --per-sha origin/codex/handshake-studio-assets",
+      "sha": "a92b8d85c7561ece6132f81003176fcff80d36e5",
+      "exit": 0,
+      "result": "PER_SHA_RESULT OK shas=7 range=ca23add1..a92b8d85",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/per-sha-run-smb-pr-entry-references-1-a92b8d85.log"
+    },
     "lane_tests": {
       "session": "crates/hsk-studio-session/tests/entry_references.rs (15)",
-      "folio": "crates/hsk-studio-folio/tests/audio_routing_records.rs an_id_the_document_does_not_hold_is_inert_and_still_checked (1); multicam_records.rs changed in place",
+      "folio": "crates/hsk-studio-folio/tests/audio_routing_records.rs an_id_the_document_does_not_hold_is_inert_and_still_checked, an_inert_member_is_live_again_when_its_track_or_clip_exists (2); multicam_records.rs changed in place",
       "pulse": "crates/hsk-studio-pulse/tests/inert_routing_mix.rs (3)",
       "harness_view": "crates/hsk-studio-harness-view/tests/viewer_inert_routing.rs (1)"
     },
     "doctests": "not run: no doc examples added",
     "not_run": [
-      "--per-sha: not run, Operator pause.",
-      "Nothing has run on a rebase onto origin. Origin is 1940292c, which changes DOCUMENT_ENTRY_TOKENS: classify the new token on resume.",
-      "The 20 skipped tests of the bundled run: names not read.",
-      "harness-view under its [viewer] unit alone: the bundled run used the desktop and audio-batch set.",
-      "Direct dependents of folio other than the crates in the argv: clippied by lane-check, suites not run.",
-      "A resync of a track or sequence against a damaged entry, and a keyed multicam step over an inert entry: no test of their own."
-    ]
+      "No whole-suite run on the pushed tip a92b8d85: only tests.focused_on_pushed_tip. Whole suites ran on earlier tips of this lane: all seven crates at 07f4ceef (exit 100, see the claim), folio and session at b17710d3, pulse and harness-view at ffbdfe5c and d4dab103. Origin's later moves: layout only (ca23add1), which has none of those suites.",
+      "Harness, harness-core and package: last run 07f4ceef, on base 1940292c. Nothing of this lane changed them after it; retime output and nudge landed in pulse and harness-view since, not run against those three.",
+      "The GPU test viewer_renders_on_the_host_device_into_the_display_texture was not re-run in a parallel suite after its timeout: alone only, once. R57 FULL runs it again (lead ruling 1).",
+      "The 20 tests skipped at 07f4ceef: names not read.",
+      "harness-view under its [viewer] unit alone as a whole suite: per-sha compiled it; the focused run ran only viewer_inert_routing under viewer and audio-batch.",
+      "Direct dependents of folio other than the crates in tests.bundled.argv: clippied by lane-check, compiled by per-sha, suites not run.",
+      "A resync of a track or sequence against a damaged entry, and a keyed multicam step over an inert entry: no test of their own.",
+      "Red proofs were not repeated after any rebase: tests.red_proof logs name the shas they ran on (5013dd17, 9facfc8a, 57cdf077 pre-rebase; caecace7 on base 1940292c). The commits at their pushed shas are not re-proven red; per-sha proves only that each compiles.",
+      "Doctests: not run, no doc examples added."
+    ],
+    "bundled_after_ruling": {
+      "argv": "lane-check.sh --owner smb-pr-entry-references-1 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-session -p hsk-studio-pulse -p hsk-studio-harness-view --features hsk-studio-harness-view/viewer,hsk-studio-harness-view/audio-batch --no-fail-fast -E 'package(hsk-studio-folio) | package(hsk-studio-session) | binary(inert_routing_mix) | binary(viewer_inert_routing)'",
+      "sha": "b17710d37b413208497ecb3457827e730f850b4f",
+      "exit": 0,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "per_binary": {
+        "hsk-studio-folio": 219,
+        "hsk-studio-harness-view::viewer_inert_routing": 1,
+        "hsk-studio-pulse::inert_routing_mix": 3,
+        "hsk-studio-session": 129
+      },
+      "clippy": "Lane-check clippy passed. Log names in this lane's files: none; audio_routing_records.rs:337 is gone",
+      "step0": "clean",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/bundled-smb-pr-entry-references-1-b17710d3.log",
+      "tree_note": "Base 1940292c. Rebased since, onto d54293da, tip ffbdfe5c: tests.after_rebase_d54293da."
+    },
+    "after_rebase_d54293da": {
+      "argv": "lane-check.sh --owner smb-pr-entry-references-1 --disk d -- cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-view --features hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch,hsk-studio-harness-view/audio-device --no-fail-fast",
+      "sha": "ffbdfe5c21a90c9a02bebaf1391746838570ccb7",
+      "exit": 0,
+      "summary": "335 tests run: 335 passed, 0 skipped",
+      "per_crate": {
+        "hsk-studio-harness-view": 183,
+        "hsk-studio-pulse": 152
+      },
+      "not_passed": [],
+      "conflicts": "none",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/rebase-suites-pulse-view-smb-pr-entry-references-1-ffbdfe5c.log"
+    },
+    "after_rebase_b9a87c7b": {
+      "argv": "lane-check.sh --owner smb-pr-entry-references-1 --disk d -- cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-view --features hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch,hsk-studio-harness-view/audio-device --no-fail-fast",
+      "sha": "d4dab103fb14fb75dac259b45dd4015b55f54004",
+      "exit": 0,
+      "summary": "359 tests run: 359 passed, 0 skipped",
+      "per_crate": {
+        "hsk-studio-harness-view": 193,
+        "hsk-studio-pulse": 166
+      },
+      "not_passed": [],
+      "conflicts": "none",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/rebase-suites-pulse-view-smb-pr-entry-references-1-d4dab103.log"
+    },
+    "focused_on_pushed_tip": {
+      "argv": "lane-check.sh --owner smb-pr-entry-references-1 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-session -p hsk-studio-pulse -p hsk-studio-harness-view --features hsk-studio-harness-view/viewer,hsk-studio-harness-view/audio-batch --no-fail-fast -E 'binary(entry_references) | binary(audio_routing_records) | binary(multicam_records) | binary(inert_routing_mix) | binary(viewer_inert_routing)'",
+      "sha": "a92b8d85c7561ece6132f81003176fcff80d36e5",
+      "exit": 0,
+      "passed": 28,
+      "failed": 0,
+      "skipped": 0,
+      "per_binary": {
+        "entry_references": 15,
+        "audio_routing_records": 5,
+        "multicam_records": 4,
+        "inert_routing_mix": 3,
+        "viewer_inert_routing": 1
+      },
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/focused-new-tests-smb-pr-entry-references-1-a92b8d85.log"
+    }
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Resume steps, in order: (1) git fetch; git rebase origin/codex/handshake-studio-assets (origin 1940292c edits session; expect source.rs, session.rs and lib.rs conflicts). (2) If origin added a document entry token, classify it in tests/entry_references.rs NAMING or NOT_APPLICABLE, as a fixup into the commit that needs it. (3) Check whether the Folio DESCRIPTOR needs the inert rule (notes.not_inspected) and amend only if it claims otherwise. (4) Commits touch session, so one bundled run with the argv in tests.bundled, log named with the lane id and the new sha. (5) lane-check.sh --owner smb-pr-entry-references-1 --disk d --per-sha origin/codex/handshake-studio-assets. (6) On PER_SHA_RESULT OK, re-fetch, confirm the base is still origin, then SHA=$(git rev-parse HEAD) && [ -n \"$SHA\" ] && git push origin \"$SHA:refs/heads/codex/handshake-studio-assets\". (7) Update commits, tests, pushed_sha, set READY_FOR_VALIDATION, phase validation. Lead: rule on notes.for_the_lead. GitHub backup branch lane/smb-pr-entry-references-1 holds 4529259c. Push rebased or amended tips to the product branch only, never to this backup branch: that would need a force push, which is forbidden. The backup branch stays at this tip until the Operator approves its deletion.",
-  "updated_at": "2026-11-05T21:14:50Z",
+  "next": "Validator judges a92b8d85 in the next round; R57 FULL re-runs the timed-out GPU test. Lead records the SD items (the F-R56-7 corner with no undo, the caller-chosen sequence id case and its probe) and the Operator's waiver list (viewer_inert_routing.rs, the source.rs doc sentence). GitHub backup branch lane/smb-pr-entry-references-1 holds 4529259c and stays there until the Operator approves its deletion; never push to it. Target and tmp cleanup: notes.cleanup_for_steward.",
+  "updated_at": "2026-11-06T06:08:06Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -158,7 +265,7 @@
       "F-R56-7"
     ],
     "closes_candidates": [],
-    "paused": "Operator pause 2026-11-05: five local commits on lane/smb-pr-entry-references-1, nothing pushed, working tree clean, no process of this lane left running.",
+    "paused": "Operator pause 2026-11-05: five local commits on lane/smb-pr-entry-references-1, nothing pushed, working tree clean, no process of this lane left running. Resumed 2026-11-06, see resume_20261106.",
     "clippy_files_checked": [
       "session src/sequence_records_step.rs",
       "session src/sequence_records.rs",
@@ -203,7 +310,8 @@
         "proof": "SDOC document",
         "design": "SLYR layers and components",
         "info": "colour samplers",
-        "sequence_presets": "not bound to a document sequence"
+        "sequence_presets": "not bound to a document sequence",
+        "composition_token": "SDOC document, tokens, and the story ids of its upgrades, a history checked for grammar and order only (folio src/composition_token.rs)"
       },
       "v4_06_class": {
         "name": "an entry validator that refuses the whole set on one id the document no longer holds",
@@ -221,16 +329,37 @@
           "folio sequence_preset settings": "not applicable: refusal kept",
           "folio track_display.rs": "not applicable: already inert (SD-49)"
         }
+      },
+      "v4_06_grammar_class": {
+        "ruling": "Lead ruling 6, 2026-11-06.",
+        "name": "an inert id accepted with no grammar check, so a malformed id reads as a stale one",
+        "regex": "\\b(route|b|a|g|r|c|e|s)\\.(track_id|clip_id|sequence_id|output|target)\\b, in the validators of folio audio_routing.rs, multicam.rs, track_display.rs",
+        "count": 10,
+        "fixed": 7,
+        "already_checked": 3,
+        "sites": {
+          "folio audio_routing.rs routes track_id": "fixed: id STRK",
+          "folio audio_routing.rs inert route output": "fixed: id STRK",
+          "folio audio_routing.rs inert route send target": "fixed: id STRK",
+          "folio audio_routing.rs bus_effects track_id": "fixed: id STRK",
+          "folio audio_routing.rs track_automation track_id": "fixed: id STRK",
+          "folio audio_routing.rs clip_gains clip_id": "fixed: id SCLP",
+          "folio audio_routing.rs clip_pans clip_id": "fixed: id SCLP",
+          "folio audio_routing.rs routing sequence_id": "already checked: key, sequence ids are not domain ids",
+          "folio multicam.rs clips clip_id": "already checked: id SCLP",
+          "folio track_display.rs sequence_id": "already checked: key"
+        },
+        "not_in_the_count": "A live route's output and send target must be a held submix track, so they cannot be absent. The other regex hits are lookups, target strings and the listing, not admission of an id."
       }
     },
     "declared_readings": [
       "Lead decision, replacing the brief item 2 reading for audio_routing: a routing naming an absent sequence is inert, valid, kept, back with an undo, never blocking an edit, because with the sequence gone nothing can be heard. Sequence settings and multicam sequences keep their refusals. The difference between the three rules is the lead's to record (SD item).",
       "Why not refuse, measured by reading: Run commits a sequence first and writes the entry after (harness-core harness.rs:1777 then :1783; undo :1939 then :1944), so a session refusal would hit the Viewer's own edits and undos.",
-      "Inert keeps what can be checked without the owner: key grammar of an absent sequence id, uniqueness, point counts and ranges, levels, send ids, budgets. A multicam mode of an absent clip keeps its SCLP grammar, uniqueness, follow rule and the angle ceiling MAX_MULTICAM_ANGLES, since it has no source to count against.",
+      "Inert keeps what can be checked without the owner: an absent sequence id keeps the key grammar, an absent track or clip id the domain id grammar with its own prefix (malformed is InvalidId, lead ruling 6), uniqueness, point counts and ranges, levels, send ids, budgets. A multicam mode of an absent clip keeps its SCLP grammar, uniqueness, follow rule and the angle ceiling MAX_MULTICAM_ANGLES, since it has no source to count against.",
       "An id held with the wrong kind stays refused InvalidId: an envelope of a clip on a video track, a route of a video track, bus effects on an audio track.",
-      "An inert route is inert whole: its own output and send targets are not checked as references.",
+      "An inert route is inert whole: its own output and send targets are not checked as references, and they keep the STRK grammar (lead ruling 6).",
       "Consequence of the rule: a write may name an absent id, on Viewer::set_audio_routing and on a multicam step. A step writing a mode for a clip it does not hold commits (session multicam_commit.rs:372 removed).",
-      "Consequence, not tested: a new clip, track or sequence created with the id of an inert member takes that member. Clip and track ids are minted uuids; sequence ids are the caller's.",
+      "Consequence: a new clip, track or sequence created with the id of an inert member takes that member. Tested for a track and a clip (an_inert_member_is_live_again_when_its_track_or_clip_exists). Clip and track ids are minted uuids; sequence ids are the caller's, not tested here: the lead records that case as an SD item and a validator probe.",
       "A direct set_document_entry of audio_routing stays its producer's to validate, unlike settings: harness-core tests/run_and_entry_redo.rs:304 writes `{}` under this token. A file with such bytes is noted at the next open.",
       "The records step does not carry audio_routing (lead decision 3). A bad routing is replaced by a direct write.",
       "Listing shape: the requirement said codes and counters only, and following inert_track_display_entries. Studio reading: a kind code and an opaque id per row, no points, levels or names; a host could not act on a count alone. A whole absent sequence is one row. No Observe frame, as the other typed reads. The multicam listing returns the stored modes: ids, angle numbers and switches.",
@@ -247,30 +376,27 @@
       "State why three rules exist side by side: refuse (settings, multicam sequences), inert (track display, routing, multicam clip modes)."
     ],
     "for_the_lead": [
-      "session multicam_commit.rs:372 was a fourth multicam pin you did not name: a step writing a mode for a clip it does not hold is no longer refused. Removed as a consequence of decision 2; confirm or say otherwise.",
-      "folio audio_routing_records.rs:121 and :189 were two more pins, consequences of decisions 3 and tracks.",
-      "One corner of F-R56-7 keeps no undo for the sequence edit (declared_readings, a repair naming what the step inserts).",
-      "harness-view tests/viewer_inert_routing.rs is a new test file; you approved no harness-view source edit and it is none, but it is outside the owned paths. It adds no egui line.",
-      "session src/source.rs: one doc sentence, outside the owned paths."
+      "Rulings of 2026-11-06 applied: 1 timeout read as infrastructure, 2 and 3 pins confirmed, 4 the F-R56-7 corner accepted (lead records an SD item at READY), 5 viewer_inert_routing.rs and the source.rs doc sentence on the Operator's waiver list, 6 to 8 fixed in caecace7 and b17710d3.",
+      "folio src/lib.rs DESCRIPTOR: the multicam clause amended for the inert rule. Audio routing is not in that descriptor, so no routing claim changed."
     ],
     "changed_assertions": [
       {
         "test": "folio audio_routing_records.rs:121",
         "old": "a routing of seq-x refused InvalidId",
         "new": "a routing of ../seq refused InvalidId; seq-x is inert, lead decision 3",
-        "reason": "the old pin predates the requirement that one stale id never makes the set unreadable"
+        "reason": "the old pin predates the requirement that one stale id never makes the set unreadable; confirmed by the lead 2026-11-06"
       },
       {
         "test": "folio audio_routing_records.rs:189",
         "old": "automation of STRK-nope refused InvalidId",
-        "new": "row removed; the video-track row stays",
-        "reason": "as above, tracks decision"
+        "new": "restored as a grammar refusal: STRK-nope is malformed, refused InvalidId; a well-formed absent id is inert; the video-track row stays",
+        "reason": "lead ruling 6, replacing the removal: only a well-formed id is inert"
       },
       {
         "test": "folio audio_routing_records.rs:242",
         "old": "pan envelope of SCLP-nope refused InvalidId",
-        "new": "row removed; the video-clip row stays",
-        "reason": "as above, lead decision 1"
+        "new": "restored as a grammar refusal: SCLP-nope is malformed, refused InvalidId; the video-clip row stays",
+        "reason": "lead ruling 6, replacing the removal: only a well-formed id is inert"
       },
       {
         "test": "folio multicam_records.rs:250",
@@ -288,7 +414,7 @@
         "test": "session multicam_commit.rs:372",
         "old": "a step writing a mode for a clip it does not hold refused folio_rejected",
         "new": "row removed; bad_records still covers folio_rejected",
-        "reason": "consequence of lead decision 2, not named by the lead"
+        "reason": "consequence of lead decision 2, confirmed by the lead 2026-11-06"
       },
       {
         "test": "session sequence_records_commit.rs a_successful_commit_replaces_a_parsable_invalid_entry",
@@ -319,21 +445,95 @@
       "crates/hsk-studio-session/src/lib.rs: the public use lines and DESCRIPTOR. crates/hsk-studio-session/src/multicam_step.rs: not touched. crates/hsk-studio-folio/src/multicam.rs: entry validation the table proved wrong, within the brief."
     ],
     "not_inspected": [
-      "The Folio DESCRIPTOR: not read for audio routing or multicam reference claims and not updated. The session DESCRIPTOR is updated.",
-      "Whether origin 1940292c adds a document entry token or touches the same session lines: 1940292c, which changes DOCUMENT_ENTRY_TOKENS: classify the new token on resume.",
       "Adobe behaviour on a removed sequence, clip or track in routing or multicam: UNVERIFIED (D5).",
-      "The 20 tests the bundled run skipped."
+      "The 20 tests the bundled run skipped.",
+      "Whether another lane's GPU use caused the bundled timeout: tests.bundled.timeout_reading."
     ],
-    "token_test_warning": "every_document_entry_token_is_classified fails on any new token until it is classified. SMB-TYPE-AUTHORED-TOKEN-1 adds one: whichever lane lands second adds the row.",
-    "hostile_input": "V4-01: audio_routing.rs and multicam.rs keep their arithmetic deny; the new code adds no arithmetic. V4-02: no new allocation beyond the existing limits: the listing is bounded by what parse admitted, inert members count in Budget::nodes and MAX_AUDIO_ROUTINGS (an_id_the_document_does_not_hold_is_inert_and_still_checked). Damaged forms including nesting past the budget: a_damaged_routing_opens_noted_refuses_typed_and_save_keeps_its_bytes.",
+    "token_test_warning": "every_document_entry_token_is_classified fails on any new token until it is classified. composition_token is classified, NOT_APPLICABLE, in red 1.",
+    "hostile_input": "V4-01: audio_routing.rs and multicam.rs keep their arithmetic deny; the new code adds no arithmetic. V4-02: no new allocation beyond the existing limits: the listing is bounded by what parse admitted, inert members count in Budget::nodes and MAX_AUDIO_ROUTINGS (an_id_the_document_does_not_hold_is_inert_and_still_checked). Damaged forms including nesting past the budget: a_damaged_routing_opens_noted_refuses_typed_and_save_keeps_its_bytes. Lead ruling 6: a malformed absent id is InvalidId through the existing id check; held_clips is one set bounded by the document's clips, like not_audio.",
     "new_module_edges": "none; no Cargo.toml changed",
     "cleanup_for_steward": "D: target Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/target and tmp (counts toward P3); list for Operator-approved deletion when the lane is PASS or abandoned. Nothing deleted. The log measure-base-c143625f.log is a copy of the red 1 run.",
-    "vendor_parity": "UNVERIFIED (D5)"
+    "vendor_parity": "UNVERIFIED (D5)",
+    "resume_20261106": {
+      "rebased_onto": "1940292c",
+      "conflicts_resolved": "session src sequence_records.rs (imports, check_entry arm, the notes token list), source.rs (doc sentence), lib.rs DESCRIPTOR: both sides kept each time, read from both sides",
+      "composition_token": "NOT_APPLICABLE in tests/entry_references.rs, fixup into red 1: SDOC document, tokens and upgrade story ids; read in folio src/composition_token.rs. a_token_that_names_neither_is_untouched_by_a_removal holds a valid record and reads it after both removals.",
+      "folio_descriptor": "It claimed a multicam clip entry is a clip with a declared source and says nothing of audio routing. Amended the multicam clause only, fixup into the F-R56-3 commit. Routing claim: none to amend.",
+      "red_proofs_predate_rebase": "The red proof logs in tests.red_proof ran on the pre-rebase shas; they were not repeated after the rebase.",
+      "failed_bundled_run": "57da5325, exit 101, before any test ran: E0063, the Applied literal origin added in propose_composition_token had no sequence_records_undo. A merge the rebase could not see. Fixed with one field line, squashed into red 2 (session src/session.rs propose_composition_token), where the field arrives. Log: Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/bundled-smb-pr-entry-references-1-57da5325.log",
+      "commits_map": {
+        "5013dd17": "2eded47c",
+        "9facfc8a": "7794b4a4",
+        "e7e7ef93": "7f5dd919",
+        "57cdf077": "26672298",
+        "4529259c": "07f4ceef"
+      },
+      "commits_map_d54293da": {
+        "2eded47c": "ccf3dd48",
+        "7794b4a4": "6360e8e4",
+        "7f5dd919": "69ce8324",
+        "26672298": "50ff6372",
+        "07f4ceef": "09b651be",
+        "caecace7": "314d1482",
+        "b17710d3": "ffbdfe5c"
+      },
+      "commits_map_b9a87c7b": {
+        "ccf3dd48": "03f06fe7",
+        "6360e8e4": "32f728a6",
+        "69ce8324": "6804abf7",
+        "50ff6372": "d7b882a5",
+        "09b651be": "50f92904",
+        "314d1482": "415a1177",
+        "ffbdfe5c": "d4dab103"
+      },
+      "commits_map_ca23add1": {
+        "03f06fe7": "d47d8e82",
+        "32f728a6": "ca698916",
+        "6804abf7": "f845ad88",
+        "d7b882a5": "d73e656e",
+        "50f92904": "5b7be0f7",
+        "415a1177": "674adc04",
+        "d4dab103": "a92b8d85"
+      },
+      "pushed": "2026-11-06T06:08:06Z ca23add1..a92b8d85 on codex/handshake-studio-assets; origin read back at a92b8d85; backup branch still 4529259c."
+    },
+    "claim": {
+      "commit": "a92b8d85c7561ece6132f81003176fcff80d36e5",
+      "at": "2026-11-06T06:08:06Z",
+      "statement": "READY on a92b8d85, pushed onto ca23add1. Never claimed PASS. The last whole seven-crate run is NOT green: bundled at 07f4ceef exit 100, 985 passed, 1 timed out, 20 skipped (viewer_shared_display viewer_renders_on_the_host_device_into_the_display_texture, 120.178 s). The same test alone on the same sha: exit 0, 13.048 s. The timeout is read as infrastructure by lead ruling 1, cause not proven. Later ruled runs: b17710d3 folio, session, inert_routing_mix, viewer_inert_routing exit 0, 352 passed; ffbdfe5c pulse and harness-view exit 0, 335 passed; d4dab103 pulse and harness-view exit 0, 359 passed; a92b8d85 per-sha OK over 7 commits, focused exit 0, 28 passed. Commits are not re-proven red after the rebases.",
+      "logs": [
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/bundled-smb-pr-entry-references-1-07f4ceef.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/focused-gpu-timeout-smb-pr-entry-references-1-07f4ceef.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/bundled-smb-pr-entry-references-1-b17710d3.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/rebase-suites-pulse-view-smb-pr-entry-references-1-ffbdfe5c.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/rebase-suites-pulse-view-smb-pr-entry-references-1-d4dab103.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/per-sha-run-smb-pr-entry-references-1-a92b8d85.log",
+        "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-entry-references-1/focused-new-tests-smb-pr-entry-references-1-a92b8d85.log"
+      ]
+    },
+    "lead_decisions": [
+      {
+        "at": "2026-11-06T06:09:15Z",
+        "on": "Three changed pins",
+        "decision": "multicam_commit.rs:372 and audio_routing_records.rs:121 confirmed; :189 and :242 restored as grammar refusals on the lead's ruling."
+      },
+      {
+        "at": "2026-11-06T06:09:15Z",
+        "on": "GPU timeout in the bundled run at 07f4ceef",
+        "decision": "No whole rerun; read as infrastructure, cause not proven; R57 FULL runs it again."
+      },
+      {
+        "at": "2026-11-06T06:09:15Z",
+        "on": "Paths beyond the brief",
+        "decision": "harness-view tests/viewer_inert_routing.rs, pulse tests/inert_routing_mix.rs and the source.rs doc sentence accepted; on the Operator's waiver list."
+      }
+    ]
   },
   "backup_branch": {
     "ref": "lane/smb-pr-entry-references-1",
     "sha": "4529259ca2d745e509020462ea4dd29096e4aa34",
     "pushed_at": "2026-11-05T21:14:50Z",
     "rule": "Push rebased or amended tips to the product branch only, never to this backup branch: that would need a force push, which is forbidden. The backup branch stays at this tip until the Operator approves its deletion."
-  }
+  },
+  "pushed_sha": "a92b8d85c7561ece6132f81003176fcff80d36e5"
 }

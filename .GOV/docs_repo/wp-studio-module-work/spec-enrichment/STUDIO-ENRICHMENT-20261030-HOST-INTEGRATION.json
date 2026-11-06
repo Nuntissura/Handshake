@@ -509,6 +509,62 @@
    "lead_reading": "Typed BudgetExceeded past Knuth-Plass 2^25 nodes and 2^30 visits and the Para budgets (peak 1.55-1.61 GiB). Real-font reach is not known; candidate lane recorded.",
    "source": "lane SMB-LAYOUT-COMPOSER-DEPTH-1, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-62",
+   "gap": "STU-FX-137 does not say what a routing means when its sequence, track or clip is gone.",
+   "needs": "Spec owner states it.",
+   "lead_reading": "Inert: kept, its grammar and counts still checked, live again when the id returns, blocks no edit. A malformed id stays refused.",
+   "source": "lane SMB-PR-ENTRY-REFERENCES-1, v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-63",
+   "gap": "STU-VID-033 does not say the same for a clip's multicam mode.",
+   "needs": "Spec owner states it.",
+   "lead_reading": "Inert for an absent clip; the source sequence keeps its refusal.",
+   "source": "lane SMB-PR-ENTRY-REFERENCES-1, v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-64",
+   "gap": "STU-FX-137 does not say what a live route does when its output or send target bus is removed.",
+   "needs": "Spec owner chooses: fall back to the master, refuse the removal, or something else.",
+   "lead_reading": "Today the whole set is refused.",
+   "source": "lane SMB-PR-ENTRY-REFERENCES-1, v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-65",
+   "gap": "STU-VID-033 does not say what angle numbering does when a source sequence gains or loses a video track.",
+   "needs": "Spec owner states it.",
+   "lead_reading": "None taken; the record set reads as Unreadable today.",
+   "source": "lane SMB-PR-ENTRY-REFERENCES-1, v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-66",
+   "gap": "No clause says why three rules exist side by side: refuse (settings, multicam sequences) and inert (track display, routing, multicam clip modes).",
+   "needs": "Spec owner states one rule or the reason for each.",
+   "lead_reading": "Refusal blocks a Run that commits the sequence before its entry, which is why routing went inert.",
+   "source": "lane SMB-PR-ENTRY-REFERENCES-1, v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-67",
+   "gap": "A new sequence given a caller-chosen id takes over an inert routing of that id. Clip and track ids are minted uuids; sequence ids are the caller's.",
+   "needs": "Spec owner decides whether that is wanted; a probe for the validator.",
+   "lead_reading": "Accepted as the consequence of live again when the id returns; not tested for sequences.",
+   "source": "lane SMB-PR-ENTRY-REFERENCES-1, v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-68",
+   "gap": "F-R56-7 corner: a repair naming a sequence the same step inserts keeps no undo for the sequence edit, because the undo would be refused.",
+   "needs": "Spec owner accepts or says otherwise.",
+   "lead_reading": "Accepted: the answer says so in a typed outcome (Unavailable) rather than hand out a step that cannot apply.",
+   "source": "lane SMB-PR-ENTRY-REFERENCES-1, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [
