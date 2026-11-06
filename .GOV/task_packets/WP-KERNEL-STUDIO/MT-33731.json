@@ -16,15 +16,15 @@
     "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "PASS_V1",
     "depends_on": [],
     "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING",
-    "phase": "blocked",
-    "updated_at_utc": "2026-10-09T19:13:15.152291+00:00",
-    "contract_preparation_only": true,
-    "blocked_on": "SPEC207_PUBLICATION_AND_NEW_IMPLEMENTATION_SESSION"
+    "active": true,
+    "validator_verdict": "PASS_V1",
+    "phase": "validation",
+    "updated_at_utc": "2026-11-06T11:22:32Z",
+    "contract_preparation_only": false,
+    "blocked_on": null
   },
   "clause": "`speed` is a rational multiplier and retiming is a stated algorithm choice - governs what happens between source frames and is normative enumeration",
   "spec_anchor": [
@@ -2036,7 +2036,42 @@
     "current_dispatch_authorized": false
   },
   "submissions": [],
-  "verdicts": [],
+  "verdicts": [
+    {
+      "verdict_id": "MT-33731-STUDIO-R57-PASS-V1",
+      "mt_id": "MT-33731",
+      "verdict": "PASS_V1",
+      "decision": "passed",
+      "round": "STUDIO-R57",
+      "idempotency_key": "STUDIO-R57:MT-33731:4ffe1b06:V1",
+      "scope": "asset_local_engine_half",
+      "candidate_commit": "4ffe1b060286695f5380fd1a1533a922c6f30b4e",
+      "candidate_tree": "59c77e3c2fa8132a65e52713d8abeec2f1522822",
+      "kernel_base_commit": "638cc3c4ce7448531c0c8d7e996983c2fed43cbb",
+      "kernel_record": "the gov_kernel commit that records validation/round-R57.json (ledger round_R57)",
+      "validator_role": "wp_validator",
+      "validator_session": "wp_validator STUDIO-R57",
+      "lane": "SMB-PR-RETIME-OUTPUT-1",
+      "lane_verdict": "PASS_V1",
+      "lane_idempotency_key": "STUDIO-R57:SMB-PR-RETIME-OUTPUT-1:4ffe1b060286:PASS_V1",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R56",
+      "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+      "round_ref": ".GOV/docs_repo/wp-studio-module-work/validation/round-R57.json",
+      "started_at": "2026-11-06T07:25:11Z",
+      "completed_at": "2026-11-06T11:21:26Z",
+      "ac_coverage": "AC-001..AC-003 (3 of 3 acceptance rows)",
+      "evidence_basis": "validator_statement_met",
+      "evidence_ref": {
+        "file": ".GOV/docs_repo/wp-studio-module-work/validation/round-R57.json",
+        "json_path": "/mt_judgments/claims/SMB-PR-RETIME-OUTPUT-1/MT-33731",
+        "quote": "met: asset level, AC-001, AC-002, AC-003: 1/4 coordinate shows frame 0, blends 3/4 + 1/4 at hand pixel values, and estimates on the bar fixtures with the mark, typed unavailable over budget. The check reads 'flow estimation/unavailable outcome' and 'rendered frame proof remains selected media owner', so the named gaps do not undo the row: export naming another pair at another source rate is the me"
+      },
+      "prior_status": "PENDING",
+      "written_by": "wp_validator STUDIO-R57 (step 6)",
+      "written_at": "2026-11-06T11:22:32Z",
+      "note": "round validator status write from the validated lane verdict; engine/asset half only, later kernel/host acceptance stays PENDING"
+    }
+  ],
   "blockers": [],
   "preserved_original": {
     "schema_id": "hsk.preserved_microtask@1",
@@ -2605,9 +2640,15 @@
       "all_original_edges_explicitly_reconciled": true,
       "asset_vs_host_phase_separated": true,
       "status": "PENDING_ACTUAL_CAPABILITY_PROOF"
+    },
+    "asset_validation": {
+      "status": "PASS_V1",
+      "scope": "asset_local_engine_half",
+      "verdict_ref": "MT-33731-STUDIO-R57-PASS-V1",
+      "round": "STUDIO-R57"
     }
   },
-  "updated_at_utc": "2026-10-09T23:57:23Z",
+  "updated_at_utc": "2026-11-06T11:22:32Z",
   "rule_refs": [
     "CX-MODULE-LIFECYCLE-001",
     "CX-MODULE-LIFECYCLE-002",

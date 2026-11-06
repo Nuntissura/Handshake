@@ -202,7 +202,9 @@
       "No harness or harness-view test: no caller there uses the new entry points."
     ]
   },
-  "verdicts": [],
+  "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "status_change": "PASS_V1", "included_by": "READY claim in candidate", "prior_status": "READY_FOR_VALIDATION", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "display entries inert: agreed; MT-33739 partly met", "idempotency_key": "STUDIO-R57:SMB-PR-TRACK-DISPLAY-1:4ffe1b060286:PASS_V1", "claim_scope": "Lead reading 'display entries inert': agreed. It is a view preference, it blocks no document edit or undo, and a takeover by a new sequence of the same id costs a stale view state and no wrong output, unlike F-R57-3. MT-33739 stays partly met: no state_json, RUN_COMMANDS or Registry surface, and the fixture's clip holds no samples, as the builder says.", "round": "STUDIO-R57", "lane": "SMB-PR-TRACK-DISPLAY-1", "candidate": "4ffe1b060286695f5380fd1a1533a922c6f30b4e", "tree": "59c77e3c2fa8132a65e52713d8abeec2f1522822", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R57", "started_at": "2026-11-06T07:25:11Z", "completed_at": "2026-11-06T11:21:26Z", "host_integration": {"result": "PASS", "rows": {"1 no egui / wgpu / toolkit type": "PASS: folio and session types only", "2 no new GPU device/instance/queue/pool/budget owner": "PASS: no GPU code", "3 controls registry": "PASS: no control added; engine entries with no Registry row until a host exposes them (R52-R56 precedent, control_descriptors none)", "4 actor": "PASS: submit_track_display_command_as and _keyed_as take CommandContext", "5 observe, no text": "PASS: one terminal session frame per operation, codes and counters only", "6 jobs": "PASS: no queue or worker", "7 host_integration block before READY": "PASS"}}, "findings": [], "round_ref": "validation/round-R57.json", "mt_judgments": {"MT-33739": "partly met"}, "mts_passed": []}
+ ],
   "blockers": [],
   "lock_wait_s": null,
   "bg_pids": [],
