@@ -530,7 +530,7 @@
    "id": "SD-64",
    "gap": "STU-FX-137 does not say what a live route does when its output or send target bus is removed.",
    "needs": "Spec owner chooses: fall back to the master, refuse the removal, or something else.",
-   "lead_reading": "Today the whole set is refused.",
+   "lead_reading": "Revised 2026-11-06 on F-R57-2: 'today the whole set is refused' is an open defect, not an answer. Overrulable reading for the repair: an absent output or send target is inert, the set stays readable, the route plays to the master, a missing send is skipped, the listing names them. Not refused at commit, because harness-core commits the sequence before its entry.",
    "source": "lane SMB-PR-ENTRY-REFERENCES-1, v02.229",
    "status": "PROPOSED"
   },
@@ -554,7 +554,7 @@
    "id": "SD-67",
    "gap": "A new sequence given a caller-chosen id takes over an inert routing of that id. Clip and track ids are minted uuids; sequence ids are the caller's.",
    "needs": "Spec owner decides whether that is wanted; a probe for the validator.",
-   "lead_reading": "Accepted as the consequence of live again when the id returns; not tested for sequences.",
+   "lead_reading": "WITHDRAWN 2026-11-06 on F-R57-3: a re-created sequence silently takes the old master (mix rms ratio 0.100 at master 0.1), and ids are not all minted uuids (the Viewer mints the first unused counter). Live again stays right for an undo of the removal only. Repair: a typed takeover report and minting past inert ids; spec owner rules on the rest.",
    "source": "lane SMB-PR-ENTRY-REFERENCES-1, v02.229",
    "status": "PROPOSED"
   },

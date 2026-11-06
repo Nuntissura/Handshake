@@ -248,6 +248,17 @@ These replaced D11 (eframe plus wgpu window) as a product path. Spec: v02.226..2
 
 <topic id="state" status="active" summary="Current state at the pause of 2026-11-05">
 
+## Current state (2026-11-06, new lead running)
+
+**Authority:** `ledger.json` `direction.resume_20261106` and `direction.after_r57_20261106`, `validation/round-R57.json`. They supersede the pause text below, which is kept for history.
+
+- All five paused lanes landed; product origin 4ffe1b06 at STUDIO-R57 FULL: 406 PASS, 1 FAIL. HIGH F-R56-1 closed on the crash.
+- SMB-PR-MEDIA-MARKERS-1 FAIL_V1 is in remediation. A scoped round follows it (R58; CX-VAL-011: a full round is due by R60).
+- New lanes are held: CX-GIT-001 bans creating worktrees and branches and the new-lane step below does both. No Operator exception is on record; the question is with the Operator. Remediation in an existing lane worktree is unaffected.
+- Open with the Operator: O1, O3, O6 (lead's picks in the session report: O1 yes through a separate new WP while WP-012 keeps its pin; O3 wgpu only, WGSL compiled by naga; O6 window-free Viewer logic only), cleanup list, waivers (F-R57-14).
+- Lead reading on SD-67 withdrawn and SD-64 revised on F-R57-3 and F-R57-2.
+- C: physical free fell 415 to about 240 GB outside Studio's tree (cause UNVERIFIED). R57's default build took 28 m against 13 m from outside load.
+
 ## State at the pause (2026-11-05)
 
 **Authority:** `ledger.json` `direction.pause_20261105`. Nothing is running; the lead confirmed no cargo, rustc or nextest process.

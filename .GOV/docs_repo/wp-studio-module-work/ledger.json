@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-06T07:22:51Z",
+ "updated_at": "2026-11-06T11:29:15Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -20758,6 +20758,41 @@
     "added_at": "2026-11-06T07:22:51Z",
     "item": "No caller of the media marker read in harness-core or harness-view; no host path from session to pulse, and session has no pulse edge (SMB-PR-MEDIA-MARKERS-1 gaps_outside_lane)",
     "owner": "harness-core, harness-view"
+   },
+   {
+    "added_at": "2026-11-06T11:29:15Z",
+    "item": "F-R57-2 and F-R57-3 together: a live route naming an absent bus goes inert and stays readable; a re-created sequence reports a takeover of a stored routing; Viewer minting skips inert ids; multicam angle_order options first (direction.after_r57_20261106.lead_rulings). Highest of the R57 findings: it changes what is heard",
+    "owner": "folio, session, pulse, harness-view"
+   },
+   {
+    "added_at": "2026-11-06T11:29:15Z",
+    "item": "F-R57-4: optical_flow admits before rendering; budget or lower estimate raster, since it refuses from 720p up",
+    "owner": "composite, pigment, harness-view"
+   },
+   {
+    "added_at": "2026-11-06T11:29:15Z",
+    "item": "F-R57-5: FramePort forwards source_grid through one request type; a 30 fps source on a 25 fps sequence exports other frames than the monitor shows on 4 to 7 of 12",
+    "owner": "harness-view"
+   },
+   {
+    "added_at": "2026-11-06T11:29:15Z",
+    "item": "F-R57-8: a multichannel stretch when Score has one; the stereo image moves with the speed; clips under about 2048 source samples",
+    "owner": "score, pulse"
+   },
+   {
+    "added_at": "2026-11-06T11:29:15Z",
+    "item": "F-R57-11: render_reported codes every failure of a frame with a blended layer as frame_interpolation_unavailable; code it only for the estimate's own refusals",
+    "owner": "harness-view"
+   },
+   {
+    "added_at": "2026-11-06T11:29:15Z",
+    "item": "F-R57-12: a token change through the direct entry write has no record; refuse it there; the upgrade command with the host control lane",
+    "owner": "session"
+   },
+   {
+    "added_at": "2026-11-06T11:29:15Z",
+    "item": "F-R57-13, F-R55-3, F-R56-13: repoint MT proof commands to real targets by a contract change",
+    "owner": "lead, governance"
    }
   ],
   "pause_20261103": {
@@ -20931,6 +20966,22 @@
     "open_risk": "Toy font rows only. Whether a real font on a long paragraph at a normal measure reaches the second pass and this refusal is not known; candidate lane recorded at READY."
    },
    "lead_correction": "Lead told the Operator and nudge's builder the nudge bundled log had no exit line. It has one (LANE_CHECK_EXIT=0, written by the run's wrapper from $?); the lead's grep pattern was too narrow. Withdrawn."
+  },
+  "after_r57_20261106": {
+   "at": "2026-11-06T11:29:15Z",
+   "r57": "Recorded at 4ffe1b06: 406 PASS, 1 FAIL (SMB-PR-MEDIA-MARKERS-1), kernel d6a987b6. HIGH F-R56-1 closed on the crash.",
+   "remediation_running": "SMB-PR-MEDIA-MARKERS-1: F-R57-1 (the FAIL), plus this lane's own recorded F-R57-15 and F-R57-9, fresh builder, C:.",
+   "lead_withdrawn": "SD-67 reading ('accepted as the consequence of live again when the id returns') withdrawn: F-R57-3 measured a silent wrong mix (rms ratio 0.100 at master 0.1) and its premise that ids are minted uuids is wrong in the Viewer (first unused counter, timeline.rs:1034, nest.rs:55). Live again stays right for an undo of the removal; a new sequence is not an undo.",
+   "lead_rulings": {
+    "F-R57-2_bus": "The validator's reading stands: this is an open defect, not a settled state; SD-64's 'today the whole set is refused' is not an answer. Lead reading for the repair, overrulable, spec owner decides (SD-64): an output or send target naming an absent bus is inert like the rest of the rule, the set stays readable, the route plays to the master, a missing send is skipped, and the listing names them. Not the validator's interim refusal at commit: harness-core commits the sequence before its entry (harness.rs:1777-1783), so a refusal would block a step that removes a bus and repoints the routing together, the same reason routing went inert. No host removes a track today, so reach is a file or a direct commit.",
+    "F-R57-2_angle_order": "Open. angle_order is derived and read by index (folio multicam.rs:25, :35, :140). The builder reads it and sends options before any edit.",
+    "F-R57-3": "Fix: the commit reports a typed takeover when a step that is not an undo gives a new sequence an id with a stored routing, and Viewer id minting skips ids an inert entry names (V4-06 across the mint functions). Spec owner rules on the rest (SD-67).",
+    "F-R57-4": "Candidate lane: admit before rendering the two frames, then the estimate's budget or a lower estimate raster. Today optical_flow refuses from 826,720 pixels, so 720p and up, and takes 17 s a frame at 1024 x 768.",
+    "F-R57-6": "Real-font answer narrows the candidate: the composer a style selects never refuses (10000 words in milliseconds). Keep it for the day a host offers Knuth-Plass, and for CJK every-line with a real CJK font, not run."
+   },
+   "blocked_on_operator": {
+    "new_lane_worktrees": "Codex CX-GIT-001 says no agent, test or tool creates a worktree or branch; START_LOG:80 records it. The handoff's new-lane step and every lane since the lead decision of 2026-10-15 create both; 108 worktrees are registered. No Operator exception is on record (the Operator ordered 46 removed on 2026-10-23 and did not rule on creating them). The takeover prompt says repo authority wins over the handoff, so the new lead creates none until the Operator rules. Remediation in an existing lane worktree is unaffected."
+   }
   }
  },
  "round_R45": {
