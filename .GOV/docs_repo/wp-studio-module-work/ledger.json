@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-06T02:28:46Z",
+ "updated_at": "2026-11-06T03:46:46Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -18258,8 +18258,8 @@
   },
   {
    "lane_id": "SMB-PR-RETIME-OUTPUT-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-pulse (frame layers and timeline mix), hsk-studio-harness-view (monitor frame output)",
    "lane_file": "builders/lanes/hsk-studio-pr-retime-output-1.json",
    "brief": "builders/briefs/lane-smb-pr-retime-output-1.md",
@@ -18267,7 +18267,7 @@
    "base": "41d0e0da",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-06T02:28:46Z",
+   "updated_at": "2026-11-06T03:46:46Z",
    "closes": [
     "F-R56-2",
     "MT-33730",
@@ -18275,12 +18275,13 @@
    ],
    "local_tip": "cff47aef",
    "backup_branch": "lane/smb-pr-retime-output-1",
-   "resumed_at": "2026-11-06T02:28:46Z"
+   "resumed_at": "2026-11-06T02:28:46Z",
+   "claim": "c629c0c5..d54293da"
   },
   {
    "lane_id": "SMB-PR-MEDIA-MARKERS-1",
    "status": null,
-   "phase": "paused_20261105",
+   "phase": "build",
    "crate": "hsk-studio-folio (media item marker records), hsk-studio-session (document entry and commit), hsk-studio-pulse (resolved read)",
    "lane_file": "builders/lanes/hsk-studio-pr-media-markers-1.json",
    "brief": "builders/briefs/lane-smb-pr-media-markers-1.md",
@@ -18288,17 +18289,18 @@
    "base": "41d0e0da",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-05T21:14:50Z",
+   "updated_at": "2026-11-06T03:46:46Z",
    "closes": [
     "MT-33736"
    ],
    "local_tip": "3cfbbeed",
-   "backup_branch": "lane/smb-pr-media-markers-1"
+   "backup_branch": "lane/smb-pr-media-markers-1",
+   "resumed_at": "2026-11-06T03:46:46Z"
   },
   {
    "lane_id": "SMB-PR-NUDGE-1",
    "status": null,
-   "phase": "paused_20261105",
+   "phase": "build",
    "crate": "hsk-studio-pulse (track nudge planner), hsk-studio-harness-view (timeline command)",
    "lane_file": "builders/lanes/hsk-studio-pr-nudge-1.json",
    "brief": "builders/briefs/lane-smb-pr-nudge-1.md",
@@ -18306,12 +18308,13 @@
    "base": "41d0e0da",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-05T21:14:50Z",
+   "updated_at": "2026-11-06T03:46:46Z",
    "closes": [
     "MT-33738"
    ],
    "local_tip": "31de741d",
-   "backup_branch": "lane/smb-pr-nudge-1"
+   "backup_branch": "lane/smb-pr-nudge-1",
+   "resumed_at": "2026-11-06T03:46:46Z"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -20251,6 +20254,21 @@
     "added_at": "2026-11-05T18:17:54Z",
     "item": "Multicam angle_order naming a removed track, and a live route naming a removed bus, stay unreadable or open: making them inert needs a reader change beyond skipping. Found by SMB-PR-ENTRY-REFERENCES-1",
     "owner": "a later session lane"
+   },
+   {
+    "added_at": "2026-11-06T03:46:46Z",
+    "item": "An export names the wrong frame pair for a source at another rate: FramePort states no source grid (harness-view view/timeline/export_media.rs:201); one forwarded request type would fix it. Export pixels of a non-unit clip NOT_INSPECTED (SMB-PR-RETIME-OUTPUT-1 gaps_outside_lane)",
+    "owner": "harness-view"
+   },
+   {
+    "added_at": "2026-11-06T03:46:46Z",
+    "item": "optical_flow on the monitor: BlendLimits::DEFAULT at FlowParams::DEFAULT allows 826719 pixels, so by the builder's arithmetic a 1920 x 1080 raster is refused (refusal run at 920 x 920 only). Typed, but it stops flow at HD; read and decide (SMB-PR-RETIME-OUTPUT-1 declared_readings)",
+    "owner": "pigment, harness-view"
+   },
+   {
+    "added_at": "2026-11-06T03:46:46Z",
+    "item": "A nested clip with a frame pair is refused; rendering it needs the two inner scenes through FrameBlended (SMB-PR-RETIME-OUTPUT-1 gaps_outside_lane)",
+    "owner": "harness-view, composite"
    }
   ],
   "pause_20261103": {
@@ -20396,7 +20414,27 @@
     "O1",
     "O3",
     "O6"
-   ]
+   ],
+   "second_wave_at": "2026-11-06T03:46:46Z",
+   "second_wave": {
+    "SMB-PR-NUDGE-1": "rebase on d54293da, pulse and harness-view suite on C:, then waits for the push slot (origin moved into pulse, so the lane file's step 2 was corrected in the dispatch)",
+    "SMB-PR-MEDIA-MARKERS-1": "next steps 1-5 on C:, then waits for the push slot"
+   },
+   "push_order": "Composer next: shortest remaining job, closes HIGH F-R56-1, and a layout push does not touch nudge's crates. Then granted one at a time as each lane reaches WAITING_FOR_PUSH_SLOT.",
+   "c_tree_at_second_wave_gib": 291.4,
+   "c_tree_growth_note": "Retime output's target went from 17.9 to 50.7 GiB across its suite, per-sha and new-tests runs. If nudge grows the same way the tree reaches the 330 alert before R57; estimate from one lane, UNVERIFIED.",
+   "lead_rulings_entry_references": {
+    "gpu_timeout": "No whole rerun. viewer_renders_on_the_host_device_into_the_display_texture TIMEOUT 120.178 s in the bundled run, PASS 13.048 s alone on the same sha 07f4ceef, diff touches no display or GPU path, retime output's viewer tests overlapped on the same GPU. Read as infrastructure, cause not proven; stated plainly in the READY claim. R57 FULL runs it again.",
+    "confirmed_pins": [
+     "session multicam_commit.rs:372",
+     "folio audio_routing_records.rs:121"
+    ],
+    "overruled": "Inert track and clip ids in audio routing had lost their grammar check while the module docs claim it and multicam keeps it. Malformed ids stay refused InvalidId; rows :189 (STRK-nope) and :242 (SCLP-nope) are restored as grammar refusals. A test pins a member going live again when its id comes back.",
+    "for_sd_at_ready": [
+     "The F-R56-7 corner with no undo for the sequence edit",
+     "A new sequence given a caller-chosen id takes over an inert routing of that id; also a probe for the validator"
+    ]
+   }
   }
  },
  "round_R45": {

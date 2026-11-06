@@ -437,6 +437,38 @@
    "lead_reading": "2026-11-05: per document; no entry reads as @1 with a typed note and save writes no entry; an unknown token refuses, never the newest; the upgrade records from-token, to-token and affected stories, and refuses older or unknown targets. Vendor parity UNVERIFIED (D5)",
    "source": "lane SMB-TYPE-AUTHORED-TOKEN-1, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-53",
+   "gap": "STU-VID-031 does not state which frame a source grid mismatch shows at unit speed.",
+   "needs": "Spec owner states it.",
+   "lead_reading": "Builder's reading stands for now: unit speed forward with frame_sampling keeps the frame holding its tick; see the lane's declared_readings.",
+   "source": "lane SMB-PR-RETIME-OUTPUT-1, v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-54",
+   "gap": "STU-VID-031 does not state the range of Maintain audio pitch, or what reverse does with it.",
+   "needs": "Spec owner states both.",
+   "lead_reading": "Builder's reading in the lane's declared_readings stands for now.",
+   "source": "lane SMB-PR-RETIME-OUTPUT-1, v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-55",
+   "gap": "STU-VID-031 does not state what optical_flow does when it cannot finish in time or over its budget.",
+   "needs": "Spec owner states it.",
+   "lead_reading": "Builder's reading stands for now: a late frame by the drop policy, a typed refusal over budget.",
+   "source": "lane SMB-PR-RETIME-OUTPUT-1, v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-56",
+   "gap": "STU-VID-020 or 031 does not name the source frame grid a clip resolves against (carried over from SMB-PR-RETIME-HOLD-1).",
+   "needs": "Spec owner names it.",
+   "lead_reading": "Builder's reading stands for now: a source whose grid no port states reads on its sequence's frame grid; a nested sequence on its own rate.",
+   "source": "lane SMB-PR-RETIME-OUTPUT-1, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [

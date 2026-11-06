@@ -1,36 +1,36 @@
 {
   "crate": "hsk-studio-pulse (frame layers and timeline mix), hsk-studio-harness-view (monitor frame output)",
   "lane": "SMB-PR-RETIME-OUTPUT-1",
-  "status": null,
-  "phase": "paused_20261105",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed",
   "worktree": "wt-studio-lanes/smb-pr-retime-output-1",
   "base": "41d0e0da",
   "commits": [
     {
-      "sha": "c9e1e14fbc74e485c985ec1fe115ab01b51f8ddd",
+      "sha": "c629c0c5cb6341eb1f775f419180bafa709ea9f3",
       "subject": "retime output (SMB-PR-RETIME-OUTPUT-1, red): table of every interpolation choice, pitch flag and false text tests",
-      "pushed": false,
+      "pushed": true,
       "red": true
     },
     {
-      "sha": "1f3a30f122645c473f674b3fc971539f30828aea",
+      "sha": "954a2602b2f3c2b9f3e0d3f69cf3578ca3c5e06a",
       "subject": "pulse (SMB-PR-RETIME-OUTPUT-1): each frame layer carries the source frame answer",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "22b1a25a7dd9de4372dac53236e318872b76de1d",
+      "sha": "d74c824444e8f807daa0478e05c1c52ef760f32c",
       "subject": "harness-view (SMB-PR-RETIME-OUTPUT-1): the program monitor renders the interpolation choice",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "b933aace006cee6eba3dbb51ad1c6dea408a4c35",
+      "sha": "85137ddb4f03fd9765388a6b01b06df66c046018",
       "subject": "pulse (SMB-PR-RETIME-OUTPUT-1): Maintain audio pitch keeps the pitch in the timeline mix",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "cff47aefa17a96fd1ee2d4b2ba1583ad4b338344",
+      "sha": "d54293da1f4b0d871f131b5d2f01593aaa6d5e75",
       "subject": "harness-view (SMB-PR-RETIME-OUTPUT-1): the speed form no longer says the clip has no field",
-      "pushed": false
+      "pushed": true
     }
   ],
   "capabilities_done": [
@@ -55,8 +55,8 @@
       "skipped": 0,
       "summary_duration_s": 20.173,
       "new_tests": {
-        "hsk-studio-pulse::retime_output": 13,
-        "hsk-studio-pulse::retime_output_audio": 8,
+        "hsk-studio-pulse::retime_output": 11,
+        "hsk-studio-pulse::retime_output_audio": 9,
         "hsk-studio-harness-view::viewer_retime_output": 13
       },
       "step0": "clean",
@@ -64,7 +64,8 @@
       "features": "desktop + audio-batch activates viewer and media: the widest harness-view unit. A viewer-only run of the same suites is under tests.focus_viewer.",
       "doctests": "none added or changed, not run (rule 4d)",
       "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-output-1/bundled-smb-pr-retime-output-1-2487d10f.log",
-      "sha_note": "Run before the rebase on 66c0e7c9, which touched layout and interop-layout only. Origin has moved again since (next, step 2): this run does not cover that union."
+      "sha_note": "Run before the rebases on 66c0e7c9 and 1940292c. It is the only whole-suite run of pulse on this lane; tests.crate_suite_after_rebase covers harness-view at the pushed tip. Origin's commits since did not touch pulse.",
+      "new_tests_corrected": "Corrected 2026-11-06: this file said retime_output 13 and retime_output_audio 8. Counted #[test] in the files and in the run at d54293da: 11, 9 and 13, 33 in all, which also fits the red run's 32 without the media-only test."
     },
     "red_proof": {
       "argv": "cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-view --features hsk-studio-harness-view/viewer --test retime_output --test retime_output_audio --test viewer_retime_output --no-fail-fast",
@@ -109,25 +110,54 @@
     },
     "per_sha": {
       "argv": "lane-check.sh --owner smb-pr-retime-output-1 --per-sha origin/codex/handshake-studio-assets",
-      "result": "PER_SHA_RESULT OK shas=5 range=66c0e7c9..cff47aef",
+      "result": "PER_SHA_RESULT OK shas=5 range=1940292c..d54293da",
       "exit": 0,
-      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-output-1/per-sha-run-smb-pr-retime-output-1-cff47aef.log",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-output-1/per-sha-run-smb-pr-retime-output-1-d54293da.log",
       "proves": "each commit compiles in the round units; it does not rerun the red commit's failures on the rebased tree.",
-      "note": "Valid for range 66c0e7c9..cff47aef only; origin has moved, so it must be repeated after the rebase. The hold ran over the 900 s advisory: events.log OVER_MAX_HOLD 1793898800-41115-3732020 at 2026-11-05T17:36:54Z, 901 s by this lane."
+      "note": "The hold ran over the 900 s advisory again: events.log OVER_MAX_HOLD 1793933012-2492-2053115874 at 2026-11-06T03:02:36Z, 901 s by this lane. The earlier per-sha run over 66c0e7c9..cff47aef is in Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-output-1/per-sha-run-smb-pr-retime-output-1-cff47aef.log."
     },
     "after_rebase_new_tests": {
-      "status": "NOT_RUN",
-      "why": "Queued for the C: lock when the Operator paused the lane; stopped while queued, no compile and no test started. No exit code exists.",
-      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-output-1/new-tests-smb-pr-retime-output-1-cff47aef.log"
+      "argv": "cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch,hsk-studio-harness/audio-batch,hsk-studio-harness/audio-device,hsk-studio-harness/viewer --no-fail-fast --success-output final -E 'binary(retime_output) | binary(retime_output_audio) | binary(viewer_retime_output) | binary(audio_import) | binary(viewer_audio) | binary(viewer_monitor) | binary(timeline_export) | binary(viewer_source_monitor)'",
+      "sha": "d54293da1f4b0d871f131b5d2f01593aaa6d5e75",
+      "exit": 0,
+      "run": 48,
+      "passed": 48,
+      "failed": 0,
+      "skipped": 0,
+      "summary_duration_s": 10.589,
+      "by_binary": {
+        "retime_output": 11,
+        "retime_output_audio": 9,
+        "viewer_retime_output": 13,
+        "audio_import": 6,
+        "viewer_audio": 2,
+        "viewer_monitor": 2,
+        "timeline_export": 2,
+        "viewer_source_monitor": 3
+      },
+      "not_proven_lines": "One, in a test this lane does not change: audio_import wav_and_surround_files_import_with_the_bs775_downmix_and_channel_map prints NOT_PROVEN: AAC 5.1 downmix needs --features studio-aac (D24-A).",
+      "wrapper": "Run through studio-env.sh with STUDIO_OWNER=smb-pr-retime-output-1, STUDIO_BUILD_DISK=ssd, without lane-check, so no separate clippy in this run. Compile 18m 21s.",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-output-1/new-tests-smb-pr-retime-output-1-d54293da.log"
     },
     "wall_clock_watch": {
-      "status": "NOT_RUN",
-      "why": "Same stopped job. harness tests/audio_import.rs:360 and tests/viewer_audio.rs:225, and viewer_monitor, timeline_export, viewer_source_monitor, have not run against this lane.",
-      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-output-1/new-tests-smb-pr-retime-output-1-cff47aef.log"
+      "status": "PASSED_NOT_WIDENED",
+      "sha": "d54293da1f4b0d871f131b5d2f01593aaa6d5e75",
+      "exit": 0,
+      "tests": {
+        "hsk-studio-harness tests/audio_import.rs:360 imported_file_plays_through_the_device": "PASS 0.650 s, 400 ms window",
+        "hsk-studio-harness tests/viewer_audio.rs:225 looping_audio_wraps_at_the_out_point_and_config_is_checked": "PASS 0.471 s, 400 ms window"
+      },
+      "also_run": "viewer_audio audio_out_plays_the_timeline_mix_through_the_device_in_sync PASS 0.875 s; viewer_monitor, timeline_export and viewer_source_monitor all pass.",
+      "moved": "Neither failed and neither was edited: the lane's diff has no hsk-studio-harness file. One run only. No duration from before this lane was found in recent artifact logs (search was bounded, top three directory levels, last five days), so no before and after timing is claimed.",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-output-1/new-tests-smb-pr-retime-output-1-d54293da.log"
     },
     "push": {
-      "status": "NOT_PUSHED",
-      "why": "Operator pause 2026-11-05."
+      "status": "PUSHED",
+      "sha": "d54293da1f4b0d871f131b5d2f01593aaa6d5e75",
+      "ref": "codex/handshake-studio-assets",
+      "range": "1940292c..d54293da",
+      "base_check": "git fetch immediately before: origin tip and merge-base both 1940292c. After: origin/codex/handshake-studio-assets reads d54293da, origin/lane/smb-pr-retime-output-1 reads cff47aef.",
+      "at": "2026-11-06T03:45:03Z"
     },
     "measurements": {
       "pitch": "Flag on, tone 440 Hz, zero-crossing frequency 440.00 Hz within 0.00 cents and DFT peak 440 at 2, 1/2, 3/2, 3/4, 4, 1/4, 5, 8, 16, 1/8, 1/16; exact lengths ceil(window / speed); energy at the moved pitch below 0.00004 of the tone. Flag off, same measure: the moved pitch (880, 220, 660, 330, 1760, 110, 2200, 3520, 7040, 55, 27.5 Hz).",
@@ -136,14 +166,27 @@
       "stereo": "330 Hz left and 660 Hz right at 3/2: 330.00 and 660.00 Hz.",
       "stretch_cost": "10 s stereo source at 2x in a debug build, mix built and rendered: flag on 1.20 s, flag off 2.49 s. The stretch costs less than the resampler it replaces, so it adds no load to session build. Not a release-build figure.",
       "flow_budget": "920 x 920 refused frame_interpolation_unavailable, Composite(BudgetExceeded), after 4.1 s in a debug build: the two frames are rendered before Pigment's admission refuses."
+    },
+    "crate_suite_after_rebase": {
+      "argv": "lane-check.sh --owner smb-pr-retime-output-1 -- cargo nextest run -p hsk-studio-harness-view --features hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch --no-fail-fast",
+      "sha": "d54293da1f4b0d871f131b5d2f01593aaa6d5e75",
+      "exit": 0,
+      "passed": 182,
+      "failed": 0,
+      "skipped": 0,
+      "summary_duration_s": 16.679,
+      "step0": "clean",
+      "clippy": "lane-check clippy over harness-view [desktop, audio-batch] and dependent harness: exit 0. In this lane's files one warning, clippy::type_complexity at tests/viewer_retime_output.rs:132. harness-view's other two warnings are clippy::manual_clamp at src/view/timeline_export/composition.rs:155-156, a file this lane does not change.",
+      "scope": "Next step 2: origin's eight commits touched harness-view and not pulse, so pulse was not added. Includes viewer_retime_output 13 and origin's viewer_composition_token 5.",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-output-1/suite-smb-pr-retime-output-1-d54293da.log"
     }
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Resume, in order, in the lane worktree on branch lane/smb-pr-retime-output-1 (tip cff47aef, not on the product branch): (1) git fetch origin, then git rebase origin/codex/handshake-studio-assets. (2) Origin moved past 66c0e7c9 with commits touching harness-view (SMB-TYPE-AUTHORED-TOKEN-1, seen at 1940292c), so run that crate's suite once: lane-check.sh --owner smb-pr-retime-output-1 -- cargo nextest run -p hsk-studio-harness-view --features hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch --no-fail-fast; if later commits touch pulse too, add -p hsk-studio-pulse. (3) lane-check.sh --owner smb-pr-retime-output-1 --per-sha origin/codex/handshake-studio-assets. (4) New tests plus the wall-clock watch, the run stopped at the pause: cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch,hsk-studio-harness/audio-batch,hsk-studio-harness/audio-device,hsk-studio-harness/viewer --no-fail-fast --success-output final -E 'binary(retime_output) | binary(retime_output_audio) | binary(viewer_retime_output) | binary(audio_import) | binary(viewer_audio) | binary(viewer_monitor) | binary(timeline_export) | binary(viewer_source_monitor)'. (5) On PER_SHA_RESULT OK and green: SHA=$(git rev-parse HEAD) && [ -n \"$SHA\" ] && git push origin \"$SHA:refs/heads/codex/handshake-studio-assets\". (6) Update commits with the pushed shas and pushed true, tests.per_sha, tests.after_rebase_new_tests, tests.wall_clock_watch, tests.push; set status READY_FOR_VALIDATION, phase pushed, pushed_sha. GitHub backup branch lane/smb-pr-retime-output-1 holds cff47aef. Push rebased or amended tips to the product branch only, never to this backup branch: that would need a force push, which is forbidden. The backup branch stays at this tip until the Operator approves its deletion.",
-  "updated_at": "2026-11-05T21:14:50Z",
+  "next": "Pushed at d54293da on codex/handshake-studio-assets, READY_FOR_VALIDATION: a validator judges. Builder work is done unless a verdict returns findings. GitHub backup branch lane/smb-pr-retime-output-1 holds cff47aef, the pre-rebase tip, and stays there until the Operator approves its deletion: never push to it.",
+  "updated_at": "2026-11-06T03:45:03Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -261,8 +304,9 @@
     "hostile_input": "No new unbounded allocation: a pair adds one frame to a layer, through the same FrameSource and cache; the frame cache evicts inside max_bytes (test) with the two Arcs alive for the render, as every layer's are. The stretch's output is the same ceil(frames / |speed|) the resampler allocates, refused at MAX_CLIP_FRAMES and by StreamLimits before copying; StreamingStretch's rings are bounded at construction; a stream that cannot advance returns a typed refusal. Speeds 0, denominator 0, i64 ends, u64 ends and a grid of u64::MAX answer typed or a frame of the window (test degenerate_speeds_and_grids_answer_typed_never_panic). Arithmetic checked under deny(arithmetic_side_effects). A MediaFrames grid map holds at most one entry per registered source.",
     "vendor_parity": "UNVERIFIED (D5): Premiere Frame Sampling, Frame Blending, Optical Flow, Maintain Audio Pitch.",
     "not_proven": [
-      "The lane is paused and unpushed: no READY claim stands. The rebased tree on current origin has run nothing yet.",
       "Nothing here is a PASS; a validator judges.",
+      "The whole pulse suite last ran before the rebases, at 2487d10f; at the pushed tip pulse ran its two new test binaries only. Origin's commits since touched no pulse file. The harness suite ran only the listed binaries.",
+      "No clippy over pulse at the pushed tip; its last clippy is in the bundled run at 2487d10f.",
       "A real desktop window; H.264, AV1, ProRes or DNx frames: real decode is one Y4M fixture.",
       "A slow pixel_motion in real time: the drop policy test advances a headless clock.",
       "Estimator quality beyond the bar fixtures; audio quality beyond pitch, level and placement: no listening test.",
@@ -271,26 +315,31 @@
     ],
     "paths_beyond_brief": [],
     "sha_map": {
-      "note": "Logs name the shas they ran at. Local commits, then the rebase on 66c0e7c9.",
+      "note": "Logs name the shas they ran at. Local commits, the rebase on 66c0e7c9, then the rebase on 1940292c, which is what was pushed.",
       "red": [
         "3f36dc58",
-        "c9e1e14f"
+        "c9e1e14f",
+        "c629c0c5"
       ],
       "frame_layers_answer": [
         "878a9e8d",
-        "1f3a30f1"
+        "1f3a30f1",
+        "954a2602"
       ],
       "monitor": [
         "6bbbaa39",
-        "22b1a25a"
+        "22b1a25a",
+        "d74c8244"
       ],
       "pitch": [
         "3c6cc788",
-        "b933aace"
+        "b933aace",
+        "85137ddb"
       ],
       "false_text": [
         "2487d10f",
-        "cff47aef"
+        "cff47aef",
+        "d54293da"
       ]
     },
     "pause": {
@@ -298,6 +347,10 @@
       "brief_items": "Items 1-5 implemented and committed locally; item 6 read and recorded in notes.microtasks as the builder's reading, unpushed, so no claim yet.",
       "stopped_job": "Only the job this lane started, while it was queued for the C: lock (no cargo work had begun). Its queue ticket 11793900878082394-1793900878-50644-175419189 stays in C:/HandshakeBuild/.disk-build-lock/queue with a dead process (msys pid 50644): the lock tool removes dead tickets when the next waiter scans (tools/disk-build-lock.sh:149). Not removed by hand. Its log ends on a waiting line with no EXIT.",
       "worktree": "clean; no WIP commit; no background job left"
+    },
+    "resume": {
+      "at": "2026-11-06T03:45:03Z",
+      "note": "Resumed 2026-11-06 on the lead's dispatch; next steps 1 to 5 run in order, no code changed, no conflict in the rebase, no failed run. The five commits differ from c9e1e14f..cff47aef only by the rebase."
     }
   },
   "backup_branch": {
@@ -305,5 +358,6 @@
     "sha": "cff47aefa17a96fd1ee2d4b2ba1583ad4b338344",
     "pushed_at": "2026-11-05T21:14:50Z",
     "rule": "Push rebased or amended tips to the product branch only, never to this backup branch: that would need a force push, which is forbidden. The backup branch stays at this tip until the Operator approves its deletion."
-  }
+  },
+  "pushed_sha": "d54293da1f4b0d871f131b5d2f01593aaa6d5e75"
 }
