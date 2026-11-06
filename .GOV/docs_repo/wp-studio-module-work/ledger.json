@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-06T17:40:58Z",
+ "updated_at": "2026-11-06T18:47:15Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19034,14 +19034,14 @@
    "base": "41d0e0da",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-06T17:23:21Z",
+   "updated_at": "2026-11-06T18:47:15Z",
    "closes": [
     "MT-33736"
    ],
    "local_tip": "3cfbbeed",
    "backup_branch": "lane/smb-pr-media-markers-1",
    "resumed_at": "2026-11-06T03:46:46Z",
-   "claim": "9ecc69cd..2fdcbd4a (remediation of FAIL_V2), plus e0697ed6..89bbf702 and 149482df..4ffe1b06 judged in R58 and R57",
+   "claim": "f2c24270..d519f6f1 and 9ecc69cd..2fdcbd4a (remediation of FAIL_V2), plus e0697ed6..89bbf702 and 149482df..4ffe1b06 judged in R58 and R57",
    "verdicts": [
     "STUDIO-R57 FAIL_V1 @4ffe1b06 (a zero-length marker on a reversed clip appears one source frame from the frame shown; point marker on a reversed clip maps to the frame's first shown tick; oracle frame_layers, not clip_source_at; NOT_PROVEN lines: 5, see round-R57.json)",
     "STUDIO-R58 FAIL_V2 @89bbf702 (a point marker on a reversed audio clip reads up to 2 frames from the sample the mix plays; frame law only where a picture shows; a point on a reversed audio clip keeps source_out - a; restore merge_sync 15F; NOT_PROVEN lines: 29, see round-R58.json)"
@@ -21134,6 +21134,11 @@
     "added_at": "2026-11-06T17:40:58Z",
     "item": "F-PR59-2: NextMarker can stick on a reversed audio in point at a sequence's end or on a position off the frame grid; forward 2x has the same class at every commit (annotate.rs:597, playback.rs:542)",
     "owner": "pulse, harness-view"
+   },
+   {
+    "added_at": "2026-11-06T18:47:15Z",
+    "item": "Marker synchronize at -2 presents odd frames only, so an even frame's sound falls under the next presented frame; and V-2 moving onto A-1 by an odd clap refuses not_frame_aligned where the picture as anchor works (SMB-PR-MEDIA-MARKERS-1 notes.remediation_R58.pre_review_pr59)",
+    "owner": "pulse"
    }
   ],
   "pause_20261103": {

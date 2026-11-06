@@ -597,6 +597,14 @@
    "lead_reading": "Builder's reading in the lane's declared_readings stands for now.",
    "source": "lane SMB-PR-MEDIA-MARKERS-1, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-73",
+   "gap": "No clause says how a marker-basis synchronize or merge reads a reversed picture and a reversed sound clip, whose positions for one source tick differ by a frame.",
+   "needs": "Spec owner states the basis.",
+   "lead_reading": "A pair both reversed with exactly one clip on a Video track reads the continuous mapping on both sides, so a source-locked pair moves 0. Every other pair reads by its own kind. Vendor behaviour UNVERIFIED (D5).",
+   "source": "lane SMB-PR-MEDIA-MARKERS-1, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [
