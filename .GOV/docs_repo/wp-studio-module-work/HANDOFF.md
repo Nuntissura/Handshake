@@ -253,7 +253,8 @@ These replaced D11 (eframe plus wgpu window) as a product path. Spec: v02.226..2
 **Authority:** `ledger.json` `direction.resume_20261106` and `direction.after_r57_20261106`, `validation/round-R57.json`. They supersede the pause text below, which is kept for history.
 
 - All five paused lanes landed; product origin 4ffe1b06 at STUDIO-R57 FULL: 406 PASS, 1 FAIL. HIGH F-R56-1 closed on the crash.
-- SMB-PR-MEDIA-MARKERS-1 FAIL_V1 is in remediation. A scoped round follows it (R58; CX-VAL-011: a full round is due by R60).
+- STUDIO-R58 at 89bbf702: 325 PASS, 1 FAIL. SMB-PR-MEDIA-MARKERS-1 is FAIL_V2 on reversed audio (F-R58-1) and in remediation; fix budget 2 of 3, so one more FAIL escalates to the Operator. V4-13 requires a read-only pre-review before R59 (`direction.after_r58_20261106`). A full round is due by R60 (CX-VAL-011).
+- Lead error on record: the new lead approved a merge_sync pin by a hand check that missed the row's clip was audio. Withdrawn. Lesson: ask what kind of clip a row holds before reasoning about frames, and give a validator the lead's checks as claims to break.
 - New lanes are held: CX-GIT-001 bans creating worktrees and branches and the new-lane step below does both. No Operator exception is on record; the question is with the Operator. Remediation in an existing lane worktree is unaffected.
 - Open with the Operator: O1, O3, O6 (lead's picks in the session report: O1 yes through a separate new WP while WP-012 keeps its pin; O3 wgpu only, WGSL compiled by naga; O6 window-free Viewer logic only), cleanup list, waivers (F-R57-14).
 - Lead reading on SD-67 withdrawn and SD-64 revised on F-R57-3 and F-R57-2.

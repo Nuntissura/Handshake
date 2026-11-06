@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-06T12:34:20Z",
+ "updated_at": "2026-11-06T16:40:02Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19034,7 +19034,7 @@
    "base": "41d0e0da",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-06T12:34:20Z",
+   "updated_at": "2026-11-06T16:40:02Z",
    "closes": [
     "MT-33736"
    ],
@@ -21119,6 +21119,16 @@
     "added_at": "2026-11-06T11:29:15Z",
     "item": "F-R57-13, F-R55-3, F-R56-13: repoint MT proof commands to real targets by a contract change",
     "owner": "lead, governance"
+   },
+   {
+    "added_at": "2026-11-06T16:40:02Z",
+    "item": "F-R58-6: Open Nested on a reversed nested clip lands one frame past the picture (harness-view timeline/nest.rs:370); open at the nested layer's source_tick. Small, egui-free, view state",
+    "owner": "harness-view"
+   },
+   {
+    "added_at": "2026-11-06T16:40:02Z",
+    "item": "F-R58-3: when a host adopts sequence_appearing_markers, sort points per item and charge spans, or raise MAX_APPEARING_WALK to its measured cost: 5000 markers on 4000 cuts refuses although it would map in about a second",
+    "owner": "pulse"
    }
   ],
   "pause_20261103": {
@@ -21308,6 +21318,24 @@
    "blocked_on_operator": {
     "new_lane_worktrees": "Codex CX-GIT-001 says no agent, test or tool creates a worktree or branch; START_LOG:80 records it. The handoff's new-lane step and every lane since the lead decision of 2026-10-15 create both; 108 worktrees are registered. No Operator exception is on record (the Operator ordered 46 removed on 2026-10-23 and did not rule on creating them). The takeover prompt says repo authority wins over the handoff, so the new lead creates none until the Operator rules. Remediation in an existing lane worktree is unaffected."
    }
+  },
+  "after_r58_20261106": {
+   "at": "2026-11-06T16:40:02Z",
+   "r58": "Recorded at 89bbf702: 325 PASS, 1 FAIL, kernel 87b14197. SMB-PR-MEDIA-MARKERS-1 FAIL_V2 on PROBE-R58-AUDIO-1 (F-R58-1). F-R57-1 holds for clips with a picture; F-R57-9 and F-R57-15 closed.",
+   "lead_error": "The lead approved the merge_sync pin 15F to 16F as 'source 2F of a 0..10F clip shows 7F in', and told R58's validator it had been checked by hand. That clip is on TrackKind::Audio (tests/merge_sync.rs:707, on a line the lead had read), which shows nothing: the old 15F was right, and 16F hears the clap 40 ms late. Ruling withdrawn. The lead reasoned about frames without asking what kind of clip the row held; the validator's independent measurement caught it.",
+   "rulings": {
+    "frame_law_scope": "The frame law applies only to clips on TrackKind::Video, the one kind frame_layers draws (playback.rs:764, retime.rs:627). Audio, Caption and Submix keep the continuous mapping source_out - a. Answers the validator's open question on caption and submix: they have no source frame on screen. Overrulable; caption reversal NOT RUN.",
+    "F-R58-1": "Repair as recorded: restore merge_sync 15F, audio rows measured against the rendered mix.",
+    "F-R58-4": "State it, do not change it in this lane: a forward point keeps its tick; whole-frame points are 0 off at every speed; only off-grid markers differ. Fix budget is 2 of 3, so this repair stays narrow.",
+    "F-R58-5": "Doc condition only: a whole-frame span covers its frames when the window's end is on the frame grid.",
+    "F-R58-2": "Stays a named gap with SD-56. The validator found it larger than stated (up to 2 source frames); it does not stop MT-33736 at asset level.",
+    "F-R58-3": "Budget accepted for now: no host calls the read. Candidate: when a host adopts it, sort points per item and charge spans.",
+    "F-R58-6": "Candidate lane: Open Nested on a reversed nested clip lands one frame past the picture; a small egui-free view-state fix."
+   },
+   "counters": "CX-EXEC-015(1) fix budget 2 of 3 on SMB-PR-MEDIA-MARKERS-1: one more FAIL records fix_budget_exhausted and escalates to the Operator. CX-EXEC-015(2) 1 of 2 on the new failure class.",
+   "pre_review": "V4-13: a lane with 2 failed verdicts gets a read-only adversarial pre-review of its diff since the last FAIL before it enters a round; FIX_FIRST goes back to the builder; only SAFE_TO_JUDGE is offered to R59.",
+   "c_tree_gib": 314.267,
+   "c_tree_note": "15.7 GiB under the 330 alert, 45.7 under the cap. Deletion of PASS-lane targets needs Operator approval in the same turn; none deleted."
   }
  },
  "round_R45": {
