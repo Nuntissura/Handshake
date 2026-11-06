@@ -75,6 +75,16 @@
       "sha": "89bbf702",
       "subject": "folio, F-R57-9: media markers use the document's validate_marker",
       "pushed": true
+    },
+    {
+      "sha": "9ecc69cd",
+      "subject": "pulse, red R58: a point by its track's kind, against the mix and frame_layers",
+      "pushed": true
+    },
+    {
+      "sha": "2fdcbd4a",
+      "subject": "pulse, F-R58-1: the frame law only where a picture shows",
+      "pushed": true
     }
   ],
   "capabilities_done": [
@@ -82,7 +92,8 @@
     "Items 3, 5 and 6, focused run green at f28b3ed4: session token media_markers; media_marker_records, set_media_marker_records; SequenceRecordsStep carries it as a fourth RecordEdit, no new step; submit_media_marker_command_as and _keyed_as; removal table; save and reopen; a commit or resync giving a document marker an id the entry holds is refused folio_rejected",
     "Item 4 and rule 4b: bundled run green at 4ffe1b06, pushed: pulse annotate.rs clip_appearing_markers, sequence_appearing_markers; package media_marker_records_round_trip_through_the_package and the two properties classified",
     "Merged with origin's R56 F-R56-7 at the rebase: the media_markers half of a step goes through inverse_half, so a step that replaced invalid records answers Unavailable or WithoutEntries; a_step_replaces_an_entry_it_can_quote_and_refuses_bytes_it_cannot, green at 4ffe1b06",
-    "R57 remediation, bundled run green at 89bbf702, pushed: F-R57-1 a reversed point appears on its frame as frame_layers shows it; F-R57-15 the sequence read charges its walk first; F-R57-9 one marker validator."
+    "R57 remediation, bundled run green at 89bbf702, pushed: F-R57-1 a reversed point appears on its frame as frame_layers shows it; F-R57-15 the sequence read charges its walk first; F-R57-9 one marker validator.",
+    "R58 remediation, bundled run green at 2fdcbd4a, pushed: F-R58-1 the frame law applies only to clips on TrackKind::Video; audio, caption and submix keep source_out - a; audio measured against the rendered mix, video against frame_layers; merge_sync reversed audio row back to 15F."
   ],
   "tests": {
     "red_proof": {
@@ -154,6 +165,17 @@
         "skipped": 165,
         "reading": "Fails only its own: the 7 new or changed media_markers tests and the merge_sync reversed row, each read from the log on behaviour: 3.00 for 2.00, 108 for 107, 15 for 16, a walk of 16842752 answering Ok. a_reversed_point_from_a_source_at_another_rate fails at red by an index past the empty layers at the exclusive end.",
         "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/red-proof-r57-smb-pr-media-markers-1-e0697ed6.log"
+      },
+      "r58": {
+        "argv": "cargo nextest run --offline -p hsk-studio-pulse --no-fail-fast -E \"binary(=marker_track_kind) | test(synchronize_by_marker_maps_speed_and_reverse)\"",
+        "sha": "9ecc69cd",
+        "compiles": true,
+        "exit": 100,
+        "passed": 1,
+        "failed": 6,
+        "skipped": 180,
+        "reading": "Fails only its own, each read from the log on behaviour: the audio table with the validator's own numbers (-1 0.999F, -2 0.500F, -1/2 1.999F, -3/2 0.666F, always early; forward 0.000F); the in point 25F for 26F; caption 22F for 23F; merge_sync 16 for 15 at the restored row; synchronize placed at 16F for 15F; the law by kind on the audio row. The video table passes at red: it is the control. Each of those tests stops at its first assert, so the later asserts of the caption/submix and clap tests first ran at green. a_lone_clip_answers_by_the_grid_it_is_given_r58_f1 needs the new signature and is not in the red; it was first run at green.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/red-proof-r58-smb-pr-media-markers-1-9ecc69cd.log"
       }
     },
     "focused_green": {
@@ -198,6 +220,14 @@
         "passed": 49,
         "failed": 0,
         "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/green-r57-smb-pr-media-markers-1-89bbf702.log"
+      },
+      "r58": {
+        "argv": "cargo nextest run --offline -p hsk-studio-pulse --no-fail-fast --no-capture -E \"binary(=marker_track_kind) | binary(=media_markers) | binary(=merge_sync) | binary(=snap) | binary(=editing)\"",
+        "sha": "2fdcbd4a",
+        "exit": 0,
+        "passed": 45,
+        "failed": 0,
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/green-r58-smb-pr-media-markers-1-2fdcbd4a.log"
       }
     },
     "bundled": {
@@ -277,6 +307,35 @@
       "from": "4ffe1b06",
       "exit": 0,
       "reread": "git ls-remote after the push: codex/handshake-studio-assets 89bbf702, lane/smb-pr-media-markers-1 3cfbbeed, lane/smb-pr-media-markers-1-uncommitted b1a299ed"
+    },
+    "bundled_r58": {
+      "argv": "lane-check.sh --owner smb-pr-media-markers-1 -- cargo nextest run -p hsk-studio-folio -p hsk-studio-session -p hsk-studio-pulse -p hsk-studio-package -p hsk-studio-harness-view --features hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch --no-fail-fast",
+      "sha": "2fdcbd4a",
+      "exit": 0,
+      "passed": 800,
+      "failed": 0,
+      "skipped": 0,
+      "per_crate_passed": {
+        "folio": 230,
+        "session": 147,
+        "pulse": 188,
+        "package": 42,
+        "harness_view": 193
+      },
+      "reading": "On origin 89bbf702, unmoved. Step 0 clean; clippy over the five crates and their direct dependents exits 0; whole suites, no timeout. Pulse is 181 + 7, the new tests/marker_track_kind.rs. Clippy prints 2 warnings in the new test file, tests/marker_track_kind.rs:212 needless_borrows_for_generic_args and :324 type_complexity, left as they are: test-only, and clearing them would invalidate this run. Clippy over the dependents compiled marker_span's and clip_appearing_markers' new signatures: no caller outside pulse broke.",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/bundled-r58-smb-pr-media-markers-1-2fdcbd4a.log"
+    },
+    "per_sha_r58": {
+      "argv": "lane-check.sh --owner smb-pr-media-markers-1 --per-sha origin/codex/handshake-studio-assets",
+      "result": "PER_SHA_RESULT OK shas=2 range=89bbf702..2fdcbd4a",
+      "exit": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/per-sha-run-r58-smb-pr-media-markers-1-2fdcbd4a.log"
+    },
+    "push_r58": {
+      "refspec": "2fdcbd4aa6c74ab0634780571fd71d62ac8da690:refs/heads/codex/handshake-studio-assets",
+      "from": "89bbf702",
+      "exit": 0,
+      "reread": "git ls-remote after the push: codex/handshake-studio-assets 2fdcbd4a, lane/smb-pr-media-markers-1 3cfbbeed, lane/smb-pr-media-markers-1-uncommitted b1a299ed"
     }
   },
   "verdicts": [
@@ -361,13 +420,123 @@
       },
       "mts_passed": []
     },
-  {"decision": "failed", "verdict": "FAIL_V2", "status_change": "FAIL_V2", "included_by": "READY claim in candidate", "prior_status": "READY_FOR_VALIDATION", "failures": [{"test": "validator probe hsk-studio-pulse::r58_probe_audio r58_a1_a_point_on_an_audio_clip_against_the_mix, r58_a2_synchronize_by_marker_against_what_is_heard", "unit": "validator probe (scratch tree at 89bbf702 + test files, same probe at 4ffe1b06; D:, own owner dir)", "status": "failed", "failure_kind": "product", "failure_class": "reversed-point-marker-on-audio-off-the-mix", "file_line": "crates/hsk-studio-pulse/src/annotate.rs:289 source_to_timeline, :328, :440; src/merge_sync.rs:527; tests/merge_sync.rs:704-710", "evidence": "reversed audio clip, point marker against the mix's energy centroid: -1 0.999 frame early, -2 0.500, -1/2 1.999, -3/2 0.666; at 4ffe1b06 0.001; forward 0.000 at both. Synchronize by marker on the merge_sync row: clap heard 23.999F against a video mark at 23F, +40 ms; at 4ffe1b06 22.999F", "acceptance_ref": "builders/briefs/lane-smb-pr-media-markers-1.md item 4: at its timeline position through the same exact mapping playback uses (non-unit speed, reverse, hold); MT-33736 ASSET-AC-001 appears on every clip cut from it", "artifact_ref": "Handshake_Artifacts/WP-KERNEL-STUDIO/validator-r58-probe/cand-audio.log, base-audio.log; validator-R58/probe.json PROBE-R58-AUDIO-1"}], "remediation": {"failed_acceptance_refs": ["lane-smb-pr-media-markers-1.md item 4", "MT-33736 ASSET-AC-001"], "failed_checks": ["a point marker on a reversed audio clip reads up to 2 frames from the sample the mix plays"], "artifact_refs": ["validator-r58-probe/cand-audio.log", "validator-r58-probe/base-audio.log", "validator-R58/probe.json PROBE-R58-AUDIO-1"], "affected_code_refs": ["crates/hsk-studio-pulse/src/annotate.rs:289", "crates/hsk-studio-pulse/src/merge_sync.rs:527", "crates/hsk-studio-pulse/tests/merge_sync.rs:704-710"], "repair_direction": "frame law only where a picture shows; a point on a reversed audio clip keeps source_out - a; restore merge_sync 15F", "diagnosis_ref": "PROBE-R58-AUDIO-1 (validation/round-R58.json probe)", "note": "new diagnosis, distinct from F-R57-1: the frame law is right for a clip with a picture, 0 off everywhere, and stays. source_to_timeline needs the track kind or a stated no-frame answer: marker_span and marker_spans hold the sequence, sequence_appearing_markers walks tracks, merge_sync has kind(m), clip_appearing_markers' grid can become optional. Oracle for the audio rows: the rendered mix, not a pulse function. Everything else of the lane holds and needs no rework: F-R57-9, F-R57-15, the merges, the id space, the round trip, MT-33736's scenario."}, "blocker": null, "not_proven": ["hsk-studio-pulse hsk-studio-pulse::multicam::flatten_renders_the_same_cut_list_as_ordinary_clips (default): program-monitor playback and composite render of the active angle (no nested-sequence resolution in pulse playback or composite); flatten gives the renderable result", "hsk-studio-pulse hsk-studio-pulse::multicam::paging_and_navigation_are_bounded (default): the paged preview grid in the window (GUI lane follow-up); paging is the engine model only", "hsk-studio-pulse hsk-studio-pulse::multicam_flatten::flatten_carries_clip_markers_to_their_pieces (default): Premiere marker placement after a multicam flatten (no Premiere oracle); Studio carries clip markers by declared reading", "hsk-studio-pulse hsk-studio-pulse::multicam_flatten::frame_hold_is_refused_where_multicam_would_read_it (default): Premiere frame hold on a multicam clip (no Premiere oracle); Studio refuses it by declared reading", "hsk-studio-pulse hsk-studio-pulse::multicam_flatten::reverse_speed_is_refused_named (default): Premiere reverse-speed multicam behaviour (no Premiere oracle); Studio refuses it by declared reading", "hsk-studio-harness-view hsk-studio-harness-view::viewer_fig_edit::component_swap_rematches_by_name_and_hierarchy (features:hsk-studio-harness-view+viewer): dropped-override branch of a swap (the fixture's two components share one structure; covered by hsk-studio-components rematch tests)", "hsk-studio-harness-view hsk-studio-harness-view::viewer_fig_edit_persist::edited_instance_survives_save_and_reopen (features:hsk-studio-harness-view+viewer): Figma's own persistence of instance overrides in a .fig round trip (no .fig export from the window; no Figma oracle)", "hsk-studio-harness-view hsk-studio-harness-view::viewer_info::histogram_numbers_are_in_state_json (features:hsk-studio-harness-view+viewer): equality with Photoshop's Histogram panel (no D5 case for PS-30)", "hsk-studio-harness-view hsk-studio-harness-view::viewer_info::info_opens_from_the_workspace_menu_and_shortcut (features:hsk-studio-harness-view+viewer): the Info panel's GPU shared-device display path (the panel reads the render-cpu read-back) and a real desktop window", "hsk-studio-harness-view hsk-studio-harness-view::viewer_info::four_samplers_read_live_values (features:hsk-studio-harness-view+viewer): equality with Photoshop's colour samplers (no D5 case for PS-30)", "hsk-studio-harness-view hsk-studio-harness-view::viewer_info::hovering_the_canvas_reads_the_pixel_under_the_pointer (features:hsk-studio-harness-view+viewer): equality with Photoshop's Info panel readout (no D5 case for PS-30)", "hsk-studio-harness-view hsk-studio-harness-view::viewer_proof::not_proven_lines (features:hsk-studio-harness-view+viewer): GPU shared-device display path with proof on (desktop window; the proof view uses the read-back frame)", "hsk-studio-harness-view hsk-studio-harness-view::viewer_proof::not_proven_lines (features:hsk-studio-harness-view+viewer): equality with Photoshop View > Proof Colors / Gamut Warning output and defaults (no D5 proof case)", "hsk-studio-harness-view hsk-studio-harness-view::viewer_timeline_nest::program_monitor_asks_for_the_nested_sequences_media (features:hsk-studio-harness-view+viewer): program-monitor pixels of a nested clip (no frame decoder bound on a document sequence)", "hsk-studio-harness-view hsk-studio-harness-view::viewer_timeline_rate::rate_stretch_drag_changes_speed_not_source (features:hsk-studio-harness-view+viewer): playback/render of a stretched clip's frames (no frame decoder on document sequences); audio at non-unit speed", "hsk-studio-harness-view hsk-studio-harness-view::viewer_timeline_trim::focus_and_type_toggle_are_typed_commands (features:hsk-studio-harness-view+viewer): Premiere trim cursor zones, default multi-frame step and ripple/roll toggle feel (no Premiere oracle; UNVERIFIED)", "hsk-studio-harness-view hsk-studio-harness-view::viewer_timeline_trim::trim_session_adjusts_and_commits_one_step (features:hsk-studio-harness-view+viewer): trim session outgoing/incoming frame pixels and composite preview picture (no frame decoder bound on a document sequence)", "hsk-studio-harness-view hsk-studio-harness-view::viewer_fig_edit::component_swap_rematches_by_name_and_hierarchy (features:hsk-studio-harness-view+audio-batch+desktop): dropped-override branch of a swap (the fixture's two components share one structure; covered by hsk-studio-components rematch tests)", "hsk-studio-harness-view hsk-studio-harness-view::viewer_fig_edit_persist::edited_instance_survives_save_and_reopen (features:hsk-studio-harness-view+audio-batch+desktop): Figma's own persistence of instance overrides in a .fig round trip (no .fig export from the window; no Figma oracle)", "hsk-studio-harness-view hsk-studio-harness-view::viewer_info::info_opens_from_the_workspace_menu_and_shortcut (features:hsk-studio-harness-view+audio-batch+desktop): the Info panel's GPU shared-device display path (the panel reads the render-cpu read-back) and a real desktop window", "hsk-studio-harness-view hsk-studio-harness-view::viewer_info::histogram_numbers_are_in_state_json (features:hsk-studio-harness-view+audio-batch+desktop): equality with Photoshop's Histogram panel (no D5 case for PS-30)", "hsk-studio-harness-view hsk-studio-harness-view::viewer_info::hovering_the_canvas_reads_the_pixel_under_the_pointer (features:hsk-studio-harness-view+audio-batch+desktop): equality with Photoshop's Info panel readout (no D5 case for PS-30)", "hsk-studio-harness-view hsk-studio-harness-view::viewer_info::four_samplers_read_live_values (features:hsk-studio-harness-view+audio-batch+desktop): equality with Photoshop's colour samplers (no D5 case for PS-30)", "hsk-studio-harness-view hsk-studio-harness-view::viewer_proof::not_proven_lines (features:hsk-studio-harness-view+audio-batch+desktop): GPU shared-device display path with proof on (desktop window; the proof view uses the read-back frame)", "hsk-studio-harness-view hsk-studio-harness-view::viewer_proof::not_proven_lines (features:hsk-studio-harness-view+audio-batch+desktop): equality with Photoshop View > Proof Colors / Gamut Warning output and defaults (no D5 proof case)", "hsk-studio-harness-view hsk-studio-harness-view::viewer_timeline_nest::program_monitor_asks_for_the_nested_sequences_media (features:hsk-studio-harness-view+audio-batch+desktop): program-monitor pixels of a nested clip (no frame decoder bound on a document sequence)", "hsk-studio-harness-view hsk-studio-harness-view::viewer_timeline_trim::focus_and_type_toggle_are_typed_commands (features:hsk-studio-harness-view+audio-batch+desktop): Premiere trim cursor zones, default multi-frame step and ripple/roll toggle feel (no Premiere oracle; UNVERIFIED)", "hsk-studio-harness-view hsk-studio-harness-view::viewer_timeline_trim::trim_session_adjusts_and_commits_one_step (features:hsk-studio-harness-view+audio-batch+desktop): trim session outgoing/incoming frame pixels and composite preview picture (no frame decoder bound on a document sequence)", "hsk-studio-harness-view hsk-studio-harness-view::viewer_timeline_rate::rate_stretch_drag_changes_speed_not_source (features:hsk-studio-harness-view+audio-batch+desktop): playback/render of a stretched clip's frames (no frame decoder on document sequences); audio at non-unit speed"], "note": "FAIL on the validator's probe, as the R53, R55 and R57 precedents; the union rows of the claim are green. F-R57-1 is repaired for a clip with a picture and regressed for a clip without one.", "idempotency_key": "STUDIO-R58:SMB-PR-MEDIA-MARKERS-1:89bbf702e9aa:FAIL_V2", "claim_scope": "FAIL_V2 on the validator's probe (R53, R55, R57 precedent): item 4 of the brief, 'at its timeline position through the same exact mapping playback uses (non-unit speed, reverse, hold)', for a clip with no picture. The remediation named holds where it was aimed. F-R57-1 on a clip with a picture: r57_probe_markers re-run, 0 of 12 off at -1, -2, -1/2 against frame_layers, 0 of 12 at 1, 2, 1/2, 3/4; wider, 0 off at six broadcast rates, 13 speeds, sampling, blending, flow; the window's first frame now appears inside the clip. One owner: reversed_frame_tick in retime.rs is the only inverse of the law; annotate.rs states neither L nor its inverse (read; git grep of source_out and window_frames). But the repair has no track kind, so it also moved the point on a reversed audio clip, which had been exact, up to 1 frame at -1 and 2 at -1/2 from the sample the mix plays, and plan_synchronize now lands a reversed clap 40 ms late: F-R58-1. The changed merge_sync row pins the wrong answer; the old 15F was right, measured at both commits. The lead's hand check read a picture where the row's clip is on an audio track. Changed assertions, each checked: every_reported_position_shows_the_markers_frame_in_frame_layers, a stronger oracle, right for video, every clip in it on a video track; table rows reverse point 108F to 107F and reverse in point 110F to 109F, right for a clip with a picture (hand-derived again: L = 19F, frame 12 at 100F + 7F, frame 10 at 100F + 9F); marker_spans, next and previous marker and snap_targets in navigation_and_snapping_land_on_a_reversed_points_frame_r57_f1, right for video, hand-derived again here (2, 8..10, 13); merge_sync reversed start 15F to 16F, WRONG, an audio clip. V4-06 re-derived from git: the regex gives 37 sites, the same 37; classification holds for the picture; 'fixed' on annotate.rs:289, :328, :440, merge_sync.rs:527, snap.rs:131 and harness-view timeline.rs:1337 is where the audio class now sits, and the sweep's own row at envelopes.rs:52 names 'continuous audio position, no picture frame' without carrying it over. A wider net over every crate's src for is_reversed and clip_source_at adds only nest.rs:370, which the builder reported (F-R58-6), and retime.rs's own calls. F-R57-15: closed, F-R58-3. F-R57-9: closed: one validate_marker, validate_fields gone, 57 hostile rows answer identically at both commits, code and target. The builder's two limits graded acceptable, F-R58-8; the sub-frame span acceptable, F-R58-7; the named gap F-R58-2, not by itself a stop for the MT. API as stated: marker_span gains the sequence, clip_appearing_markers gains grid, no caller outside pulse; MAX_APPEARING_WALK the one new public name. Paths beyond the brief as approved, F-R58-10. Proof read from the lane's own logs: red e0697ed6 16 run, 8 failed, all its own and read on behaviour; bundled 89bbf702 793 passed, log starts with the sha; PER_SHA_RESULT OK shas=4. Everything of the lane outside this one mapping holds and needs no rework.", "round": "STUDIO-R58", "lane": "SMB-PR-MEDIA-MARKERS-1", "candidate": "89bbf702e9aa1461c97eaf4292e6171e64b6d6b4", "tree": "7fcbf63a2948ed10824a916016b54b05700b043d", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R58", "started_at": "2026-11-06T12:37:28Z", "completed_at": "2026-11-06T16:36:15Z", "host_integration": {"result": "PASS (the FAIL_V2 is item 4 on an audio clip, not a host row)", "rows": {"1 no egui / wgpu / toolkit type": "PASS: folio and pulse types only; D1, D7 hold: no GUI or GPU line. D6: engine-only lane. D8: no controls surface touched", "2 no new GPU device/instance/queue/pool/budget owner": "PASS: no GPU code", "3 controls registry": "PASS: no control added; engine entries with no Registry row until a host exposes them (R52-R57 precedent, control_descriptors none)", "4 actor": "PASS: no new mutating op; the range changes reads and a validator; submit_media_marker_command_as and _keyed_as as judged in R57", "5 observe, no text": "PASS: reads send no frame, as the other typed reads; the session's terminal frames unchanged", "6 jobs": "PASS: no queue or worker. HBR-HOST-004's bound is met by MAX_APPEARING_WALK, typed, charged first, cancellable; the read stays synchronous on the caller's thread, under a second at the budget in debug", "7 host_integration block before READY": "PASS"}}, "findings": ["F-R58-1 MEDIUM", "F-R58-2 MEDIUM", "F-R58-3 LOW", "F-R58-4 LOW", "F-R58-5 LOW", "F-R58-7 LOW", "F-R58-8 INFO", "F-R58-10 INFO"], "round_ref": "validation/round-R58.json", "mt_judgments": {"MT-33736": "partly met"}, "mts_passed": []}
- ],
+    {
+      "decision": "failed",
+      "verdict": "FAIL_V2",
+      "status_change": "FAIL_V2",
+      "included_by": "READY claim in candidate",
+      "prior_status": "READY_FOR_VALIDATION",
+      "failures": [
+        {
+          "test": "validator probe hsk-studio-pulse::r58_probe_audio r58_a1_a_point_on_an_audio_clip_against_the_mix, r58_a2_synchronize_by_marker_against_what_is_heard",
+          "unit": "validator probe (scratch tree at 89bbf702 + test files, same probe at 4ffe1b06; D:, own owner dir)",
+          "status": "failed",
+          "failure_kind": "product",
+          "failure_class": "reversed-point-marker-on-audio-off-the-mix",
+          "file_line": "crates/hsk-studio-pulse/src/annotate.rs:289 source_to_timeline, :328, :440; src/merge_sync.rs:527; tests/merge_sync.rs:704-710",
+          "evidence": "reversed audio clip, point marker against the mix's energy centroid: -1 0.999 frame early, -2 0.500, -1/2 1.999, -3/2 0.666; at 4ffe1b06 0.001; forward 0.000 at both. Synchronize by marker on the merge_sync row: clap heard 23.999F against a video mark at 23F, +40 ms; at 4ffe1b06 22.999F",
+          "acceptance_ref": "builders/briefs/lane-smb-pr-media-markers-1.md item 4: at its timeline position through the same exact mapping playback uses (non-unit speed, reverse, hold); MT-33736 ASSET-AC-001 appears on every clip cut from it",
+          "artifact_ref": "Handshake_Artifacts/WP-KERNEL-STUDIO/validator-r58-probe/cand-audio.log, base-audio.log; validator-R58/probe.json PROBE-R58-AUDIO-1"
+        }
+      ],
+      "remediation": {
+        "failed_acceptance_refs": [
+          "lane-smb-pr-media-markers-1.md item 4",
+          "MT-33736 ASSET-AC-001"
+        ],
+        "failed_checks": [
+          "a point marker on a reversed audio clip reads up to 2 frames from the sample the mix plays"
+        ],
+        "artifact_refs": [
+          "validator-r58-probe/cand-audio.log",
+          "validator-r58-probe/base-audio.log",
+          "validator-R58/probe.json PROBE-R58-AUDIO-1"
+        ],
+        "affected_code_refs": [
+          "crates/hsk-studio-pulse/src/annotate.rs:289",
+          "crates/hsk-studio-pulse/src/merge_sync.rs:527",
+          "crates/hsk-studio-pulse/tests/merge_sync.rs:704-710"
+        ],
+        "repair_direction": "frame law only where a picture shows; a point on a reversed audio clip keeps source_out - a; restore merge_sync 15F",
+        "diagnosis_ref": "PROBE-R58-AUDIO-1 (validation/round-R58.json probe)",
+        "note": "new diagnosis, distinct from F-R57-1: the frame law is right for a clip with a picture, 0 off everywhere, and stays. source_to_timeline needs the track kind or a stated no-frame answer: marker_span and marker_spans hold the sequence, sequence_appearing_markers walks tracks, merge_sync has kind(m), clip_appearing_markers' grid can become optional. Oracle for the audio rows: the rendered mix, not a pulse function. Everything else of the lane holds and needs no rework: F-R57-9, F-R57-15, the merges, the id space, the round trip, MT-33736's scenario."
+      },
+      "blocker": null,
+      "not_proven": [
+        "hsk-studio-pulse hsk-studio-pulse::multicam::flatten_renders_the_same_cut_list_as_ordinary_clips (default): program-monitor playback and composite render of the active angle (no nested-sequence resolution in pulse playback or composite); flatten gives the renderable result",
+        "hsk-studio-pulse hsk-studio-pulse::multicam::paging_and_navigation_are_bounded (default): the paged preview grid in the window (GUI lane follow-up); paging is the engine model only",
+        "hsk-studio-pulse hsk-studio-pulse::multicam_flatten::flatten_carries_clip_markers_to_their_pieces (default): Premiere marker placement after a multicam flatten (no Premiere oracle); Studio carries clip markers by declared reading",
+        "hsk-studio-pulse hsk-studio-pulse::multicam_flatten::frame_hold_is_refused_where_multicam_would_read_it (default): Premiere frame hold on a multicam clip (no Premiere oracle); Studio refuses it by declared reading",
+        "hsk-studio-pulse hsk-studio-pulse::multicam_flatten::reverse_speed_is_refused_named (default): Premiere reverse-speed multicam behaviour (no Premiere oracle); Studio refuses it by declared reading",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_fig_edit::component_swap_rematches_by_name_and_hierarchy (features:hsk-studio-harness-view+viewer): dropped-override branch of a swap (the fixture's two components share one structure; covered by hsk-studio-components rematch tests)",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_fig_edit_persist::edited_instance_survives_save_and_reopen (features:hsk-studio-harness-view+viewer): Figma's own persistence of instance overrides in a .fig round trip (no .fig export from the window; no Figma oracle)",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_info::histogram_numbers_are_in_state_json (features:hsk-studio-harness-view+viewer): equality with Photoshop's Histogram panel (no D5 case for PS-30)",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_info::info_opens_from_the_workspace_menu_and_shortcut (features:hsk-studio-harness-view+viewer): the Info panel's GPU shared-device display path (the panel reads the render-cpu read-back) and a real desktop window",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_info::four_samplers_read_live_values (features:hsk-studio-harness-view+viewer): equality with Photoshop's colour samplers (no D5 case for PS-30)",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_info::hovering_the_canvas_reads_the_pixel_under_the_pointer (features:hsk-studio-harness-view+viewer): equality with Photoshop's Info panel readout (no D5 case for PS-30)",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_proof::not_proven_lines (features:hsk-studio-harness-view+viewer): GPU shared-device display path with proof on (desktop window; the proof view uses the read-back frame)",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_proof::not_proven_lines (features:hsk-studio-harness-view+viewer): equality with Photoshop View > Proof Colors / Gamut Warning output and defaults (no D5 proof case)",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_timeline_nest::program_monitor_asks_for_the_nested_sequences_media (features:hsk-studio-harness-view+viewer): program-monitor pixels of a nested clip (no frame decoder bound on a document sequence)",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_timeline_rate::rate_stretch_drag_changes_speed_not_source (features:hsk-studio-harness-view+viewer): playback/render of a stretched clip's frames (no frame decoder on document sequences); audio at non-unit speed",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_timeline_trim::focus_and_type_toggle_are_typed_commands (features:hsk-studio-harness-view+viewer): Premiere trim cursor zones, default multi-frame step and ripple/roll toggle feel (no Premiere oracle; UNVERIFIED)",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_timeline_trim::trim_session_adjusts_and_commits_one_step (features:hsk-studio-harness-view+viewer): trim session outgoing/incoming frame pixels and composite preview picture (no frame decoder bound on a document sequence)",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_fig_edit::component_swap_rematches_by_name_and_hierarchy (features:hsk-studio-harness-view+audio-batch+desktop): dropped-override branch of a swap (the fixture's two components share one structure; covered by hsk-studio-components rematch tests)",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_fig_edit_persist::edited_instance_survives_save_and_reopen (features:hsk-studio-harness-view+audio-batch+desktop): Figma's own persistence of instance overrides in a .fig round trip (no .fig export from the window; no Figma oracle)",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_info::info_opens_from_the_workspace_menu_and_shortcut (features:hsk-studio-harness-view+audio-batch+desktop): the Info panel's GPU shared-device display path (the panel reads the render-cpu read-back) and a real desktop window",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_info::histogram_numbers_are_in_state_json (features:hsk-studio-harness-view+audio-batch+desktop): equality with Photoshop's Histogram panel (no D5 case for PS-30)",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_info::hovering_the_canvas_reads_the_pixel_under_the_pointer (features:hsk-studio-harness-view+audio-batch+desktop): equality with Photoshop's Info panel readout (no D5 case for PS-30)",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_info::four_samplers_read_live_values (features:hsk-studio-harness-view+audio-batch+desktop): equality with Photoshop's colour samplers (no D5 case for PS-30)",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_proof::not_proven_lines (features:hsk-studio-harness-view+audio-batch+desktop): GPU shared-device display path with proof on (desktop window; the proof view uses the read-back frame)",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_proof::not_proven_lines (features:hsk-studio-harness-view+audio-batch+desktop): equality with Photoshop View > Proof Colors / Gamut Warning output and defaults (no D5 proof case)",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_timeline_nest::program_monitor_asks_for_the_nested_sequences_media (features:hsk-studio-harness-view+audio-batch+desktop): program-monitor pixels of a nested clip (no frame decoder bound on a document sequence)",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_timeline_trim::focus_and_type_toggle_are_typed_commands (features:hsk-studio-harness-view+audio-batch+desktop): Premiere trim cursor zones, default multi-frame step and ripple/roll toggle feel (no Premiere oracle; UNVERIFIED)",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_timeline_trim::trim_session_adjusts_and_commits_one_step (features:hsk-studio-harness-view+audio-batch+desktop): trim session outgoing/incoming frame pixels and composite preview picture (no frame decoder bound on a document sequence)",
+        "hsk-studio-harness-view hsk-studio-harness-view::viewer_timeline_rate::rate_stretch_drag_changes_speed_not_source (features:hsk-studio-harness-view+audio-batch+desktop): playback/render of a stretched clip's frames (no frame decoder on document sequences); audio at non-unit speed"
+      ],
+      "note": "FAIL on the validator's probe, as the R53, R55 and R57 precedents; the union rows of the claim are green. F-R57-1 is repaired for a clip with a picture and regressed for a clip without one.",
+      "idempotency_key": "STUDIO-R58:SMB-PR-MEDIA-MARKERS-1:89bbf702e9aa:FAIL_V2",
+      "claim_scope": "FAIL_V2 on the validator's probe (R53, R55, R57 precedent): item 4 of the brief, 'at its timeline position through the same exact mapping playback uses (non-unit speed, reverse, hold)', for a clip with no picture. The remediation named holds where it was aimed. F-R57-1 on a clip with a picture: r57_probe_markers re-run, 0 of 12 off at -1, -2, -1/2 against frame_layers, 0 of 12 at 1, 2, 1/2, 3/4; wider, 0 off at six broadcast rates, 13 speeds, sampling, blending, flow; the window's first frame now appears inside the clip. One owner: reversed_frame_tick in retime.rs is the only inverse of the law; annotate.rs states neither L nor its inverse (read; git grep of source_out and window_frames). But the repair has no track kind, so it also moved the point on a reversed audio clip, which had been exact, up to 1 frame at -1 and 2 at -1/2 from the sample the mix plays, and plan_synchronize now lands a reversed clap 40 ms late: F-R58-1. The changed merge_sync row pins the wrong answer; the old 15F was right, measured at both commits. The lead's hand check read a picture where the row's clip is on an audio track. Changed assertions, each checked: every_reported_position_shows_the_markers_frame_in_frame_layers, a stronger oracle, right for video, every clip in it on a video track; table rows reverse point 108F to 107F and reverse in point 110F to 109F, right for a clip with a picture (hand-derived again: L = 19F, frame 12 at 100F + 7F, frame 10 at 100F + 9F); marker_spans, next and previous marker and snap_targets in navigation_and_snapping_land_on_a_reversed_points_frame_r57_f1, right for video, hand-derived again here (2, 8..10, 13); merge_sync reversed start 15F to 16F, WRONG, an audio clip. V4-06 re-derived from git: the regex gives 37 sites, the same 37; classification holds for the picture; 'fixed' on annotate.rs:289, :328, :440, merge_sync.rs:527, snap.rs:131 and harness-view timeline.rs:1337 is where the audio class now sits, and the sweep's own row at envelopes.rs:52 names 'continuous audio position, no picture frame' without carrying it over. A wider net over every crate's src for is_reversed and clip_source_at adds only nest.rs:370, which the builder reported (F-R58-6), and retime.rs's own calls. F-R57-15: closed, F-R58-3. F-R57-9: closed: one validate_marker, validate_fields gone, 57 hostile rows answer identically at both commits, code and target. The builder's two limits graded acceptable, F-R58-8; the sub-frame span acceptable, F-R58-7; the named gap F-R58-2, not by itself a stop for the MT. API as stated: marker_span gains the sequence, clip_appearing_markers gains grid, no caller outside pulse; MAX_APPEARING_WALK the one new public name. Paths beyond the brief as approved, F-R58-10. Proof read from the lane's own logs: red e0697ed6 16 run, 8 failed, all its own and read on behaviour; bundled 89bbf702 793 passed, log starts with the sha; PER_SHA_RESULT OK shas=4. Everything of the lane outside this one mapping holds and needs no rework.",
+      "round": "STUDIO-R58",
+      "lane": "SMB-PR-MEDIA-MARKERS-1",
+      "candidate": "89bbf702e9aa1461c97eaf4292e6171e64b6d6b4",
+      "tree": "7fcbf63a2948ed10824a916016b54b05700b043d",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R58",
+      "started_at": "2026-11-06T12:37:28Z",
+      "completed_at": "2026-11-06T16:36:15Z",
+      "host_integration": {
+        "result": "PASS (the FAIL_V2 is item 4 on an audio clip, not a host row)",
+        "rows": {
+          "1 no egui / wgpu / toolkit type": "PASS: folio and pulse types only; D1, D7 hold: no GUI or GPU line. D6: engine-only lane. D8: no controls surface touched",
+          "2 no new GPU device/instance/queue/pool/budget owner": "PASS: no GPU code",
+          "3 controls registry": "PASS: no control added; engine entries with no Registry row until a host exposes them (R52-R57 precedent, control_descriptors none)",
+          "4 actor": "PASS: no new mutating op; the range changes reads and a validator; submit_media_marker_command_as and _keyed_as as judged in R57",
+          "5 observe, no text": "PASS: reads send no frame, as the other typed reads; the session's terminal frames unchanged",
+          "6 jobs": "PASS: no queue or worker. HBR-HOST-004's bound is met by MAX_APPEARING_WALK, typed, charged first, cancellable; the read stays synchronous on the caller's thread, under a second at the budget in debug",
+          "7 host_integration block before READY": "PASS"
+        }
+      },
+      "findings": [
+        "F-R58-1 MEDIUM",
+        "F-R58-2 MEDIUM",
+        "F-R58-3 LOW",
+        "F-R58-4 LOW",
+        "F-R58-5 LOW",
+        "F-R58-7 LOW",
+        "F-R58-8 INFO",
+        "F-R58-10 INFO"
+      ],
+      "round_ref": "validation/round-R58.json",
+      "mt_judgments": {
+        "MT-33736": "partly met"
+      },
+      "mts_passed": []
+    }
+  ],
   "blockers": [],
   "lock_wait_s": null,
   "bg_pids": [],
-  "next": "Resubmission of SMB-PR-MEDIA-MARKERS-1 after STUDIO-R57 FAIL_V1 (failure_class reversed-point-marker-off-the-frame-shown), naming the validator's remediation: 'point marker on a reversed clip maps to the frame's first shown tick; oracle frame_layers, not clip_source_at' (CX-VAL-008; failed refs lane-smb-pr-media-markers-1.md item 4, MT-33736 ASSET-AC-001; failed check 'a zero-length marker on a reversed clip appears one source frame from the frame shown'; artifacts validator-r57-probe/c-markers.log, validator-R57/probe.json PROBE-R57-MARKERS-1; code annotate.rs source_to_timeline, appearing_span, tests/media_markers.rs), done on 89bbf702 and pushed; notes.remediation_R57 has the red proof, the V4-06 sweep, the changed assertions and the named gap. The claim reads the SEQUENCE's grid (seq.frame_rate.ticks_per_frame) on every read with a sequence; a reversed clip from a source at another rate is the F-R57-5 / SD-56 named gap. A validator judges. GitHub backup branches lane/smb-pr-media-markers-1 (3cfbbeed) and lane/smb-pr-media-markers-1-uncommitted (b1a299ed) stay until the Operator approves their deletion: never push to them, never merge them.",
-  "updated_at": "2026-11-06T12:33:00Z",
+  "next": "Resubmission of SMB-PR-MEDIA-MARKERS-1 after STUDIO-R58 FAIL_V2 (failure_class reversed-point-marker-on-audio-off-the-mix), naming the validator's remediation: 'frame law only where a picture shows; a point on a reversed audio clip keeps source_out - a; restore merge_sync 15F' (CX-VAL-008; failed refs lane-smb-pr-media-markers-1.md item 4, MT-33736 ASSET-AC-001; failed check 'a point marker on a reversed audio clip reads up to 2 frames from the sample the mix plays'; artifacts validator-r58-probe/cand-audio.log, base-audio.log, validator-R58/probe.json PROBE-R58-AUDIO-1; code annotate.rs source_to_timeline, merge_sync.rs marker_position, tests/merge_sync.rs reversed row), done on 2fdcbd4a and pushed; notes.remediation_R58 has the red proof, the readings against the mix, the V4-06 sweep and the re-judged assertions. The lead's hand check on the merge_sync pin is withdrawn. V4-13: a read-only pre-review of the diff since 89bbf702 comes before any round. A validator judges. GitHub backup branches lane/smb-pr-media-markers-1 (3cfbbeed) and lane/smb-pr-media-markers-1-uncommitted (b1a299ed) stay until the Operator approves their deletion: never push to them, never merge them.",
+  "updated_at": "2026-11-06T17:22:37Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -426,7 +595,8 @@
       "R56 F-R56-7, from origin, now applies to this entry: records that do not validate against the document the undo restores cannot go back, the half is dropped and the step says so. Before the rebase this lane's undo was handed out and then refused.",
       "R57. A zero-length marker on a reversed clip belongs to a frame: every tick of that frame maps to one timeline tick, where the picture's position law reaches the frame's start, rounded toward the clip start. On a window too short to reach it, the clip's last tick. Vendor parity UNVERIFIED (D5).",
       "R57. \"First displayed tick\" is the position law's tick for the frame. frame_sampling's nearest rule also shows that frame up to half a frame earlier off the sequence's frame ticks; those ticks are not where a sequence frame starts, and forward speeds map the same way.",
-      "R57. MAX_APPEARING_WALK = 2^24, Studio's bound: 256 clips of an item holding the 65536 markers a record set may hold. A larger valid file gets limit_exceeded from the sequence read; clip_appearing_markers walks one clip, linear in its input, and is not charged."
+      "R57. MAX_APPEARING_WALK = 2^24, Studio's bound: 256 clips of an item holding the 65536 markers a record set may hold. A larger valid file gets limit_exceeded from the sequence read; clip_appearing_markers walks one clip, linear in its input, and is not charged.",
+      "R58, supersedes the scope of the R57 reading: the frame law is for a clip on a TrackKind::Video track. A clip on an audio, caption or submix track keeps source_out - a; the window's first source tick there reads the clip's end. The kind alone decides, enabled or not. A lone clip given no grid answers the continuous mapping. Vendor parity UNVERIFIED (D5)."
     ],
     "spec_proposals": [
       "STU-VID-034: say what identifies a media item for project-item markers (Studio: the content digest), and whether two imports of identical bytes are one item.",
@@ -442,8 +612,8 @@
     "hostile_input": "V4-01 deny on media_markers.rs and annotate.rs; session denies at crate level. V4-02: bytes and depth before parse, lists counted before walking: dims_u32_max_and_aggregate_over_budget_are_refused (green), the 16 cases of an_invalid_entry_opens_is_noted_refuses_on_read_and_save_keeps_its_bytes (green). Pulse the_read_is_bounded_and_cancellable: passed in the bundled run at 4ffe1b06.",
     "microtasks": {
       "MT-33736": {
-        "state": "open. ASSET-AC-001 met at the asset level with records passed in by the test, no GUI or host; reversed points repaired after R57 FAIL_V1. A validator judges.",
-        "proven_so_far_by_run": "Bundled run at 89bbf702, pushed.",
+        "state": "open. ASSET-AC-001 met at the asset level with records passed in by the test, no GUI or host; reversed points by track kind after R58 FAIL_V2. A validator judges.",
+        "proven_so_far_by_run": "Bundled run at 2fdcbd4a, pushed.",
         "rows": {
           "clip marker travels with the clip": "markers_keep_their_scope_through_edits_with_spans_and_undo; the_three_scopes_appear_labelled_and_move_as_the_clause_says_mt_33736",
           "sequence marker does not move with clips": "same two tests",
@@ -471,7 +641,8 @@
       "crates/hsk-studio-pulse/src/snap.rs:113, :131: marker_span takes the sequence. Approved by the lead 2026-11-06; for the Operator waiver list.",
       "crates/hsk-studio-pulse/src/merge_sync.rs:519, :527, :533, :540, :560, :574: ticks_per_frame through reference to marker_position. Approved by the lead 2026-11-06; for the Operator waiver list.",
       "crates/hsk-studio-pulse/src/retime.rs: one pub(crate) function, reversed_frame_tick, approved by the lead 2026-11-06 under CX-CAP-001.",
-      "crates/hsk-studio-folio/src/timeline.rs:551: validate_marker pub(crate), the line the dispatch approved."
+      "crates/hsk-studio-folio/src/timeline.rs:551: validate_marker pub(crate), the line the dispatch approved.",
+      "R58, approved by the dispatch: crates/hsk-studio-pulse/src/retime.rs, one pub(crate) function picture_frame_ticks; src/snap.rs:131, the track's kind; src/merge_sync.rs marker_position, reference, alignment_offsets, one import and one doc phrase; tests/merge_sync.rs. For the Operator waiver list. New test target crates/hsk-studio-pulse/tests/marker_track_kind.rs is under the owned tests/."
     ],
     "new_module_edges": "none; no Cargo.toml changed",
     "not_inspected": [
@@ -722,7 +893,321 @@
         "on": "pulse snap.rs and merge_sync.rs outside the owned paths",
         "decision": "Approved: retime.rs:12-14 defines reversed playback from the start of the window's last frame, so the point mapping needs the frame length. Conditions: one owner for the position law, and the sequence-grid gap named rather than fixed."
       }
-    ]
+    ],
+    "remediation_R58": {
+      "names_remediation": "frame law only where a picture shows; a point on a reversed audio clip keeps source_out - a; restore merge_sync 15F (CX-VAL-008)",
+      "verdict": "FAIL_V2, STUDIO-R58",
+      "failed_refs": [
+        "lane-smb-pr-media-markers-1.md item 4",
+        "MT-33736 ASSET-AC-001"
+      ],
+      "failed_check": "a point marker on a reversed audio clip reads up to 2 frames from the sample the mix plays",
+      "artifacts": [
+        "validator-r58-probe/cand-audio.log",
+        "validator-r58-probe/base-audio.log",
+        "validator-R58/probe.json PROBE-R58-AUDIO-1"
+      ],
+      "lead_hand_check_withdrawn": "The lead's approval of merge_sync 15F to 16F, recorded in notes.remediation_R57.changed_assertions as 'Lead confirmed 2026-11-06', is withdrawn (ledger direction.after_r58_20261106.lead_error): that row's clip is on TrackKind::Audio. The old 15F was right, and is restored with its comment. The R57 entry stays as history.",
+      "ruling_applied": "ledger direction.after_r58_20261106.rulings.frame_law_scope: the frame law applies only to clips on TrackKind::Video; audio, caption and submix keep source_out - a; by kind only. Overrulable by the validator.",
+      "change": "source_to_timeline takes picture_frame: Option<u64>; no parallel function. One kind test, retime.rs picture_frame_ticks, beside reversed_frame_tick, the one owner of the law; annotate.rs and merge_sync.rs consume it. playback.rs:764 and retime.rs require_holdable keep their own older tests: each also asks another question there, and playback.rs is outside this lane's paths.",
+      "public_api_changed": [
+        "marker_span(sequence, Option<(TrackKind, &StudioClip)>, marker): the clip comes with its track's kind. No caller outside pulse (git grep; clippy over the dependents).",
+        "clip_appearing_markers(clip, media, Option<SourceFrameGrid>, cancel): None answers the continuous mapping, stated in its doc. No caller in crates/*/src. The validator's probe r57_probe_markers.rs:225 passes a grid and needs Some(..); that tree is the validator's and was not edited."
+      ],
+      "new_public_names": [],
+      "audio_against_the_mix": {
+        "test": "tests/marker_track_kind.rs a_point_on_an_audio_clip_reads_where_the_mix_plays_it_r58_f1: window 2..26, 6 points, whole-frame and mid-frame; marker_spans, both scopes of sequence_appearing_markers, next_marker, prev_marker, snap_targets all one tick",
+        "worst_off_in_frames_red_then_green": {
+          "-1": [
+            0.999,
+            0.001
+          ],
+          "-2": [
+            0.5,
+            0.0
+          ],
+          "-1/2": [
+            1.999,
+            0.001
+          ],
+          "-3/2": [
+            0.666,
+            0.0
+          ],
+          "1": [
+            0.0,
+            0.0
+          ],
+          "2": [
+            0.0,
+            0.0
+          ],
+          "1/2": [
+            0.0,
+            0.0
+          ],
+          "3/2": [
+            0.0,
+            0.0
+          ]
+        },
+        "bound": "WITHIN 0.002 frame: a reversed mix plays a source sample one sample before source_out - a, two mix samples at -1/2",
+        "clap": "The merge_sync row by synchronize and by merge: placed 15F, heard 22.999F against the mark at 23F. All 7 rows of a_clap_is_heard_on_the_mark_after_a_synchronize_or_merge_by_marker_r58_f1 within the bound, both operations.",
+        "in_point": "A point on the window's first source tick on a reversed audio clip reads the clip's end, which the mix plays one sample before (one-sample impulse, -1 only). As at 4ffe1b06, by the ruling; next_marker can land there."
+      },
+      "video_against_frame_layers": "a_point_on_a_video_clip_reads_where_frame_layers_shows_its_frame_r58_f1: -1, -2, -1/2 whole-frame and mid-frame with the frame before it in play; forward 1 whole and mid-frame, 2 and 1/2 whole-frame. tests/merge_sync.rs: the same reversed clip on a video track goes to 16F, frame_layers shows frame 2 at 23F and frame 3 at 22F.",
+      "by_kind_alone": "the_law_goes_by_the_tracks_kind_alone_r58_f1: video enabled, track disabled, track muted, clip disabled all 14F; audio the same four all 15F; mid-frame 14F and 14.5F; forward 13F.",
+      "caption_and_submix": "a_point_on_a_caption_or_submix_clip_keeps_the_continuous_mapping_r58_f1 proves three things: the read answers source_out - a by hand at -1, -2, -1/2, -3/2 on 6 points; frame_layers draws nothing at that tick; the mix is silent over the clip. It does not prove the position against rendered output, as none plays these kinds: the test prints NOT_PROVEN. The answer is the lead's reading.",
+      "lone_clip": "a_lone_clip_answers_by_the_grid_it_is_given_r58_f1: no grid agrees with the audio sequence read and the mix; a stated grid agrees with the video sequence read and frame_layers, at -1, -2, -1/2, -3/2.",
+      "changed_assertions_rejudged": [
+        {
+          "test": "tests/merge_sync.rs synchronize_by_marker_maps_speed_and_reverse_and_refuses_a_hidden_marker, reversed row",
+          "track_kind": "audio (:708)",
+          "r57": "15F to 16F",
+          "now": "RESTORED to 15F, comment restored and naming the kind. It was the audio row."
+        },
+        {
+          "test": "same test, new row",
+          "track_kind": "video",
+          "r57": "none",
+          "now": "16F, by frame_layers"
+        },
+        {
+          "test": "tests/media_markers.rs table, reverse: a point",
+          "track_kind": "no track: a lone clip stating the frame grid, so a clip with a picture",
+          "r57": "108F to 107F",
+          "now": "107F stays. With no grid the same clip reads 108F, in the mix's position."
+        },
+        {
+          "test": "same table, reverse: the in point",
+          "track_kind": "no track: a lone clip stating the frame grid",
+          "r57": "110F to 109F",
+          "now": "109F stays. With no grid the same clip reads 110F."
+        },
+        {
+          "test": "every_reported_position_shows_the_markers_frame_in_frame_layers (renamed)",
+          "track_kind": "video: frame_layers reads its fixture's one video track; the read is a lone clip stating the grid",
+          "r57": "oracle repointed",
+          "now": "stays"
+        },
+        {
+          "test": "navigation_and_snapping_land_on_a_reversed_points_frame_r57_f1: marker_spans, next_marker, prev_marker, snap_targets",
+          "track_kind": "video: the fixture's sequence() has one video track",
+          "r57": "pinned 2, 8..10, 13",
+          "now": "stays"
+        }
+      ],
+      "no_audio_row_elsewhere": "Reversed clips in pulse tests: media_markers.rs, all on its one video track or lone with a grid; merge_sync.rs:707, the row above; editing.rs:680, a one-frame span (F-R58-10), so the point branch does not reach it. harness-view tests: viewer_timeline_move_keeps.rs:112, video, no point marker read.",
+      "f_r58_5": "Doc only: annotate.rs module docs state the condition, the window's end on the frame grid.",
+      "f_r58_4": "Doc only, by lead ruling: a forward point keeps its tick; whole-frame points are 0 off at every speed run; only a marker off the frame grid can differ. Forward behaviour unchanged.",
+      "v4_06": {
+        "failure_class": "a point on a clip whose track shows no picture read through the picture's frame law",
+        "regex": "source_to_timeline\\(|marker_span\\(|marker_spans\\(|is_reversed\\(\\)|source_out\\.checked_sub|source_out\\.value\\(\\)\\)?\\.checked_sub",
+        "searched": "git grep at 2fdcbd4a over crates/hsk-studio-pulse/src, crates/hsk-studio-harness-view/src, crates/hsk-studio-interop-media/src, comment lines dropped",
+        "count": {
+          "sites": 37,
+          "fixed": 12,
+          "not_applicable": 25
+        },
+        "sites": [
+          [
+            "pulse annotate.rs:294 source_to_timeline",
+            "video: frame law; audio, caption, submix: continuous; lone clip: by the grid its caller states",
+            "fixed: takes picture_frame"
+          ],
+          [
+            "pulse annotate.rs:305 the R57 repair",
+            "video only now",
+            "fixed: reached only with picture_frame Some"
+          ],
+          [
+            "pulse annotate.rs:344 marker_span",
+            "any kind, or no clip",
+            "fixed: takes (TrackKind, &StudioClip); the None arm is no clip"
+          ],
+          [
+            "pulse annotate.rs:347 clip scope",
+            "any kind",
+            "fixed: picture_frame_ticks(kind, ..)"
+          ],
+          [
+            "pulse annotate.rs:357 marker_spans",
+            "any kind",
+            "fixed: walks tracks with their kind"
+          ],
+          [
+            "pulse annotate.rs:377 clip scope",
+            "any kind",
+            "fixed: passes the track's kind"
+          ],
+          [
+            "pulse annotate.rs:459 appearing_span",
+            "any kind from the sequence read; a lone clip by its grid",
+            "fixed: picture_frame from the caller"
+          ],
+          [
+            "pulse annotate.rs:597 next_marker",
+            "any kind",
+            "fixed: follows marker_spans, no edit"
+          ],
+          [
+            "pulse annotate.rs:609 prev_marker",
+            "any kind",
+            "fixed: follows marker_spans, no edit"
+          ],
+          [
+            "pulse snap.rs:131 clip scope",
+            "any kind",
+            "fixed: passes track.kind"
+          ],
+          [
+            "pulse merge_sync.rs:528 marker basis",
+            "each member's own: video, audio, caption or submix",
+            "fixed: picture_frame per member, alignment_offsets; the row in the failure is audio"
+          ],
+          [
+            "harness-view timeline.rs:1337 marker_spans",
+            "any kind",
+            "fixed: follows pulse, no edit"
+          ],
+          [
+            "pulse annotate.rs:272 split_records",
+            "any kind",
+            "not-applicable: window membership, half open; no timeline position"
+          ],
+          [
+            "pulse annotate.rs:321 span direction",
+            "any kind",
+            "not-applicable: spans and the continuous mapping, which is the audio answer; unchanged"
+          ],
+          [
+            "pulse annotate.rs:323 span from",
+            "any kind",
+            "not-applicable: as above"
+          ],
+          [
+            "pulse annotate.rs:324 span to",
+            "any kind",
+            "not-applicable: as above"
+          ],
+          [
+            "pulse annotate.rs:363 sequence scope",
+            "no clip",
+            "not-applicable: sequence ticks"
+          ],
+          [
+            "pulse snap.rs:113 sequence scope",
+            "no clip",
+            "not-applicable: sequence ticks"
+          ],
+          [
+            "pulse transition.rs:203 handle availability",
+            "any kind",
+            "not-applicable: source lengths"
+          ],
+          [
+            "pulse transition.rs:304 clip_source_at direction",
+            "any kind",
+            "not-applicable: the documented tick mapping, no marker"
+          ],
+          [
+            "pulse transition.rs:305 clip_source_at position",
+            "any kind",
+            "not-applicable: as above"
+          ],
+          [
+            "pulse retime.rs:276 window_frames",
+            "video, through frame_layers and the law's callers",
+            "not-applicable: the law itself"
+          ],
+          [
+            "pulse retime.rs:295 neighbours",
+            "video",
+            "not-applicable: the law itself, the oracle"
+          ],
+          [
+            "pulse retime.rs:380 handle_neighbours",
+            "video",
+            "not-applicable: the law itself, past the window"
+          ],
+          [
+            "pulse timeline_edit.rs:613 trim edge",
+            "any kind",
+            "not-applicable: which window edge moves"
+          ],
+          [
+            "pulse timeline_edit.rs:827 split direction",
+            "any kind",
+            "not-applicable: window split, no timeline position of a source point"
+          ],
+          [
+            "pulse timeline_edit.rs:828 split cut",
+            "any kind",
+            "not-applicable: as above"
+          ],
+          [
+            "pulse assemble.rs:163 speed sign",
+            "any kind",
+            "not-applicable: sign only"
+          ],
+          [
+            "pulse audio.rs:415 source span",
+            "audio",
+            "not-applicable: window length; this is the oracle's own code, not edited"
+          ],
+          [
+            "pulse audio.rs:419 reverse flag",
+            "audio",
+            "not-applicable: sign only; the oracle's own code, not edited"
+          ],
+          [
+            "pulse multicam.rs:860 forward",
+            "any kind",
+            "not-applicable: reverse refused"
+          ],
+          [
+            "pulse rate.rs:215 reverse choice",
+            "any kind",
+            "not-applicable: sign only"
+          ],
+          [
+            "pulse rate.rs:288 window span",
+            "any kind",
+            "not-applicable: window length"
+          ],
+          [
+            "pulse rate.rs:301 speed label",
+            "any kind",
+            "not-applicable: label"
+          ],
+          [
+            "harness-view timeline/envelopes.rs:52 anchor",
+            "audio",
+            "not-applicable: continuous audio position, the class this repair carries over"
+          ],
+          [
+            "harness-view timeline/rate.rs:195 speed form",
+            "any kind",
+            "not-applicable: flag"
+          ],
+          [
+            "interop-media edl.rs:543 speed label",
+            "any kind",
+            "not-applicable: label"
+          ]
+        ],
+        "wider": "git grep of reversed_frame_tick and picture_frame_ticks over pulse src: the law has one caller, annotate.rs:308, reached only on a video clip; the kind test is read at annotate.rs:351, :582 and merge_sync.rs:559."
+      },
+      "not_proven": [
+        "A marker on a reversed caption or submix clip against rendered output: no oracle. Caption and submix reversal otherwise unmeasured.",
+        "Audio at speeds other than the eight rows run; audio at sample rates other than 48 kHz; a window whose end is off the frame grid on audio: not run.",
+        "The in point against the mix at any speed but -1: not run.",
+        "F-R58-2 / F-R57-5 / SD-56 stays a named gap, its pinned test unchanged and passing. F-R58-3, F-R58-6 not touched. F-R58-10 comment not touched: editing.rs not in this repair.",
+        "Vendor parity UNVERIFIED (D5).",
+        "Doctests: none added, none run. The validator's probe r58_probe_audio: not run by this lane; its tree is read-only here."
+      ],
+      "fix_budget": "2 of 3: one more FAIL escalates to the Operator (CX-EXEC-015)."
+    }
   },
   "backup_branch": {
     "ref": "lane/smb-pr-media-markers-1",
@@ -732,5 +1217,5 @@
     "uncommitted_ref": "lane/smb-pr-media-markers-1-uncommitted",
     "uncommitted_sha": "b1a299ed6c45f111ba498a23b41b138ef47f1c57"
   },
-  "pushed_sha": "89bbf702e9aa1461c97eaf4292e6171e64b6d6b4"
+  "pushed_sha": "2fdcbd4aa6c74ab0634780571fd71d62ac8da690"
 }
