@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-05T22:59:01Z",
+ "updated_at": "2026-11-06T02:28:46Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -18183,7 +18183,7 @@
   {
    "lane_id": "SMB-LAYOUT-COMPOSER-DEPTH-1",
    "status": null,
-   "phase": "paused_20261105",
+   "phase": "build",
    "crate": "hsk-studio-layout (Adobe paragraph composer)",
    "lane_file": "builders/lanes/hsk-studio-layout-composer-depth-1.json",
    "brief": "builders/briefs/lane-smb-layout-composer-depth-1.md",
@@ -18191,12 +18191,13 @@
    "base": "091c4d1b",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-05T21:14:50Z",
+   "updated_at": "2026-11-06T02:28:46Z",
    "closes": [
     "F-R56-1"
    ],
    "local_tip": "286d9241",
-   "backup_branch": "lane/smb-layout-composer-depth-1"
+   "backup_branch": "lane/smb-layout-composer-depth-1",
+   "resumed_at": "2026-11-06T02:28:46Z"
   },
   {
    "lane_id": "SMB-LAYOUT-BLANK-LINE-LOOKUPS-1",
@@ -18219,7 +18220,7 @@
   {
    "lane_id": "SMB-PR-ENTRY-REFERENCES-1",
    "status": null,
-   "phase": "paused_20261105",
+   "phase": "build",
    "crate": "hsk-studio-session (document entries against sequence and clip removal), hsk-studio-folio (entry validation)",
    "lane_file": "builders/lanes/hsk-studio-pr-entry-references-1.json",
    "brief": "builders/briefs/lane-smb-pr-entry-references-1.md",
@@ -18227,13 +18228,14 @@
    "base": "c143625f",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-05T21:14:50Z",
+   "updated_at": "2026-11-06T02:28:46Z",
    "closes": [
     "F-R56-3",
     "F-R56-7"
    ],
    "local_tip": "4529259c",
-   "backup_branch": "lane/smb-pr-entry-references-1"
+   "backup_branch": "lane/smb-pr-entry-references-1",
+   "resumed_at": "2026-11-06T02:28:46Z"
   },
   {
    "lane_id": "SMB-TYPE-AUTHORED-TOKEN-1",
@@ -18257,7 +18259,7 @@
   {
    "lane_id": "SMB-PR-RETIME-OUTPUT-1",
    "status": null,
-   "phase": "paused_20261105",
+   "phase": "build",
    "crate": "hsk-studio-pulse (frame layers and timeline mix), hsk-studio-harness-view (monitor frame output)",
    "lane_file": "builders/lanes/hsk-studio-pr-retime-output-1.json",
    "brief": "builders/briefs/lane-smb-pr-retime-output-1.md",
@@ -18265,14 +18267,15 @@
    "base": "41d0e0da",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-05T21:14:50Z",
+   "updated_at": "2026-11-06T02:28:46Z",
    "closes": [
     "F-R56-2",
     "MT-33730",
     "MT-33731"
    ],
    "local_tip": "cff47aef",
-   "backup_branch": "lane/smb-pr-retime-output-1"
+   "backup_branch": "lane/smb-pr-retime-output-1",
+   "resumed_at": "2026-11-06T02:28:46Z"
   },
   {
    "lane_id": "SMB-PR-MEDIA-MARKERS-1",
@@ -20360,6 +20363,40 @@
     "proof": "Blob hashes of the worktree files equal those GitHub's compare API reports for the branch; compare says ahead 1, behind 0 of the media markers backup branch; worktree HEAD 3cfbbeed with the same 3 dirty files and a clean real index afterwards; git apply -R --check of resume/pulse-green.patch still passes."
    },
    "not_covered": "The helpers in the lane's Handshake_Artifacts resume/ folder (pulse-green.patch, nx.sh, package_green.py), which the lane's next uses, are on one disk only. Not asked for and not copied."
+  },
+  "resume_20261106": {
+   "at": "2026-11-06T02:28:46Z",
+   "operator_instruction": "Takeover prompt pasted by the Operator in the new lead's session: finish the paused lanes with fresh builders, one lane pushing at a time, dispatch STUDIO-R57 FULL, follow the next-work topic.",
+   "verified_before_dispatch": {
+    "processes": "0 cargo, rustc, cargo-nextest, clippy-driver, rustdoc, link, rust-lld, hsk-studio test binaries",
+    "product_origin": "1940292c64d57a65cc753f3258374f8b57b97f36 (git ls-remote)",
+    "lane_tips": "cff47aef, 31de741d, 4529259c, 286d9241, 3cfbbeed equal locally and on their backup branches; b1a299ed on the uncommitted branch; media markers has its 3 expected dirty files",
+    "c_tree_gib": 256.5,
+    "c_free_gb": 320,
+    "c_free_note": "C: free was 415 GB at the pause; the Studio tree did not grow (256.5 GiB, record 2026-11-05 same), so about 95 GB went outside Studio. Cause UNVERIFIED.",
+    "live_lane_targets_c": [
+     "smb-layout-blank-line-lookups-1",
+     "smb-layout-composer-depth-1",
+     "smb-pr-media-markers-1",
+     "smb-pr-nudge-1",
+     "smb-pr-retime-output-1"
+    ]
+   },
+   "push_slot": "One lane holds the slot from its per-sha through its push. A builder stops before per-sha and asks; the lead grants the slot by message.",
+   "first_wave": {
+    "SMB-PR-RETIME-OUTPUT-1": "holds the push slot; runs its next through to push on C:",
+    "SMB-LAYOUT-COMPOSER-DEPTH-1": "next steps 1-3 on C:, then waits for the push slot",
+    "SMB-PR-ENTRY-REFERENCES-1": "next steps 1-4 on D:, then waits for the push slot"
+   },
+   "held_back": {
+    "SMB-PR-NUDGE-1": "dispatch after retime output pushes: both touch pulse and harness-view, so running now would repeat its suite",
+    "SMB-PR-MEDIA-MARKERS-1": "dispatch next on C:, after the first builders have cleared the lock queue"
+   },
+   "operator_decisions_put": [
+    "O1",
+    "O3",
+    "O6"
+   ]
   }
  },
  "round_R45": {
