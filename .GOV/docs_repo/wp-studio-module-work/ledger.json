@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-06T04:55:21Z",
+ "updated_at": "2026-11-06T05:16:12Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -18182,8 +18182,8 @@
   },
   {
    "lane_id": "SMB-LAYOUT-COMPOSER-DEPTH-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-layout (Adobe paragraph composer)",
    "lane_file": "builders/lanes/hsk-studio-layout-composer-depth-1.json",
    "brief": "builders/briefs/lane-smb-layout-composer-depth-1.md",
@@ -18191,13 +18191,14 @@
    "base": "091c4d1b",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-06T02:28:46Z",
+   "updated_at": "2026-11-06T05:16:12Z",
    "closes": [
     "F-R56-1"
    ],
    "local_tip": "286d9241",
    "backup_branch": "lane/smb-layout-composer-depth-1",
-   "resumed_at": "2026-11-06T02:28:46Z"
+   "resumed_at": "2026-11-06T02:28:46Z",
+   "claim": "7c8c5312..ca23add1"
   },
   {
    "lane_id": "SMB-LAYOUT-BLANK-LINE-LOOKUPS-1",

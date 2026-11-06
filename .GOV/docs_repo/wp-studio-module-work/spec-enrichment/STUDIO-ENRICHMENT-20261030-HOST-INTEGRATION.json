@@ -501,6 +501,14 @@
    "lead_reading": "Builder's reading in the lane's declared_readings stands for now.",
    "source": "lane SMB-PR-NUDGE-1, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-61",
+   "gap": "STU-TYP-135 says nothing on a paragraph-size bound for every_line composition.",
+   "needs": "Spec owner records the bound, or says what the product does past it.",
+   "lead_reading": "Typed BudgetExceeded past Knuth-Plass 2^25 nodes and 2^30 visits and the Para budgets (peak 1.55-1.61 GiB). Real-font reach is not known; candidate lane recorded.",
+   "source": "lane SMB-LAYOUT-COMPOSER-DEPTH-1, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [
