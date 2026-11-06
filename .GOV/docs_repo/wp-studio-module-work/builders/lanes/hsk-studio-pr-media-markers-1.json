@@ -95,6 +95,16 @@
       "sha": "d519f6f1",
       "subject": "pulse, F-PR59-1: a reversed pair with one picture aligns by one law",
       "pushed": true
+    },
+    {
+      "sha": "ff20157c",
+      "subject": "pulse, red SR1: clips of one source window through a marker alignment, the named limit",
+      "pushed": true
+    },
+    {
+      "sha": "329e2b9a",
+      "subject": "pulse, DIAG-MARKERS-SYNC-BASIS-1: an alignment by marker aligns source ticks on every kind",
+      "pushed": true
     }
   ],
   "capabilities_done": [
@@ -104,7 +114,8 @@
     "Merged with origin's R56 F-R56-7 at the rebase: the media_markers half of a step goes through inverse_half, so a step that replaced invalid records answers Unavailable or WithoutEntries; a_step_replaces_an_entry_it_can_quote_and_refuses_bytes_it_cannot, green at 4ffe1b06",
     "R57 remediation, bundled run green at 89bbf702, pushed: F-R57-1 a reversed point appears on its frame as frame_layers shows it; F-R57-15 the sequence read charges its walk first; F-R57-9 one marker validator.",
     "R58 remediation, bundled run green at 2fdcbd4a, pushed: F-R58-1 the frame law applies only to clips on TrackKind::Video; audio, caption and submix keep source_out - a; audio measured against the rendered mix, video against frame_layers; merge_sync reversed audio row back to 15F.",
-    "Pre-review V4-13 remediation, bundled run green at d519f6f1, pushed: F-PR59-1 a marker alignment reads a pair both reversed with exactly one clip on a Video track through the continuous mapping on both sides, against the rendered mix and frame_layers; F-PR59-2, -3, -4, -5 as recorded in notes.remediation_R58.pre_review_pr59."
+    "Pre-review V4-13 remediation, bundled run green at d519f6f1, pushed: F-PR59-1 a marker alignment reads a pair both reversed with exactly one clip on a Video track through the continuous mapping on both sides, against the rendered mix and frame_layers; F-PR59-2, -3, -4, -5 as recorded in notes.remediation_R58.pre_review_pr59.",
+    "Remediation under CX-EXEC-003, DIAG-MARKERS-SYNC-BASIS-1, bundled run green at 329e2b9a, pushed: a marker alignment reads the continuous mapping for every clip of every kind and direction; merge_sync.rs is its 4ffe1b06 form with source_to_timeline's one new argument and the docs; the appearing reads keep the frame law on Video, unchanged. The pair ruling is withdrawn. The named limit is pinned against frame_layers."
   ],
   "tests": {
     "red_proof": {
@@ -217,6 +228,48 @@
           "reading": "a_reversed_pair_of_one_kind_reads_by_its_kind_pr59_f1 fails: two pictures at different speeds refused not_frame_aligned where the frame law lands them. Only that row discriminates the condition.",
           "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/mutation-no-one-picture-pr59-smb-pr-media-markers-1-d519f6f1.log"
         }
+      },
+      "sr1": {
+        "argv": "cargo nextest run --offline -p hsk-studio-pulse --test marker_track_kind --build-jobs 2 --no-fail-fast --no-capture",
+        "sha": "ff20157c",
+        "compiles": true,
+        "exit": 100,
+        "passed": 13,
+        "failed": 2,
+        "skipped": 0,
+        "reading": "Fails only its own two new tests, each read from the log on behaviour. clips_sharing_a_source_window_land_together_sr1: forward anchor -1 V2 16F, A 15F; -1/2 V2 9F, A 7F; anchor -1/2, members -1, V2 27F, A 28F; whole-clip ticks heard under the wrong frame on each. no_clip_kind_reads_the_frame_law_in_an_alignment_sr5: stops at its first assert, V2 16F for 15F, so its anchor rows were not seen red here (the mutation below).",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/red-proof-sr1-smb-pr-media-markers-1-ff20157c.log"
+      },
+      "sr5_mutation": {
+        "mutation": "Uncommitted at the green commit, restored by the reverse of the same edits, tree 0 dirty after: merge_sync.rs passes the sequence's frame length to source_to_timeline for one kind, chosen at run time by SR5_MUT. Control run first. Log says dirty: 1.",
+        "argv": "cargo nextest run --offline -p hsk-studio-pulse --test marker_track_kind --test merge_sync --build-jobs 2 --no-fail-fast, once per SR5_MUT",
+        "control_none": {
+          "exit": 0,
+          "passed": 29,
+          "failed": 0
+        },
+        "video": {
+          "exit": 100,
+          "passed": 21,
+          "failed": 8
+        },
+        "audio": {
+          "exit": 100,
+          "passed": 20,
+          "failed": 9
+        },
+        "caption": {
+          "exit": 100,
+          "passed": 27,
+          "failed": 2
+        },
+        "submix": {
+          "exit": 100,
+          "passed": 28,
+          "failed": 1
+        },
+        "reading": "no_clip_kind_reads_the_frame_law_in_an_alignment_sr5 fails under every kind, and is the only test that catches submix. Video and audio also turn the sr1, sr2, pr59_f4, different-speeds, same-source and tests/merge_sync.rs rows red; audio also a_clap_is_heard_on_the_mark. Tests that collect rows (sr1, same-source, different-speeds) show every row; tests that assert stop at their first failing row, so in sr2, pr59_f4, the one-kind test and sr5 the rows past it were not seen red under a kind that fails earlier. Caption also fails the one-kind test's caption row. Caption and submix rows pin a reading, no output.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/mutation-sr5-smb-pr-media-markers-1-329e2b9a.log"
       }
     },
     "focused_green": {
@@ -277,6 +330,15 @@
         "passed": 48,
         "failed": 0,
         "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/green-pr59-smb-pr-media-markers-1-d519f6f1.log"
+      },
+      "sr1": {
+        "argv": "cargo nextest run --offline -p hsk-studio-pulse --test marker_track_kind --test merge_sync --build-jobs 2 --no-fail-fast --no-capture",
+        "env": "CARGO_BUILD_JOBS=2",
+        "sha": "329e2b9a",
+        "exit": 0,
+        "passed": 29,
+        "failed": 0,
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/green-sr1-smb-pr-media-markers-1-329e2b9a.log"
       }
     },
     "bundled": {
@@ -416,6 +478,37 @@
       "from": "2fdcbd4a",
       "exit": 0,
       "reread": "git ls-remote after the push: codex/handshake-studio-assets d519f6f1, lane/smb-pr-media-markers-1 3cfbbeed, lane/smb-pr-media-markers-1-uncommitted b1a299ed"
+    },
+    "bundled_sr1": {
+      "argv": "lane-check.sh --owner smb-pr-media-markers-1 --disk ssd -- cargo nextest run -p hsk-studio-folio -p hsk-studio-session -p hsk-studio-pulse -p hsk-studio-package -p hsk-studio-harness-view --features hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch --no-fail-fast",
+      "env": "CARGO_BUILD_JOBS=2, this builder's runs only, accepted by the lead for this lane's builder runs; it is in no config or tool. A round takes no runtime env override (CX-VAL-007).",
+      "sha": "329e2b9a",
+      "exit": 0,
+      "passed": 807,
+      "failed": 0,
+      "skipped": 0,
+      "per_crate_passed": {
+        "folio": 230,
+        "session": 147,
+        "pulse": 195,
+        "package": 42,
+        "harness_view": 193
+      },
+      "reading": "On origin d519f6f1, unmoved. Step 0 clean; clippy over the five crates and their direct dependents exits 0, with no new warning on marker_track_kind: the same two as at d519f6f1, lines moved by one; whole suites. Pulse 194 + 1: two tests added, the head test folded. No GPU timeout, no exit 77.",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/bundled-sr1-smb-pr-media-markers-1-329e2b9a.log"
+    },
+    "per_sha_sr1": {
+      "argv": "lane-check.sh --owner smb-pr-media-markers-1 --disk ssd --per-sha origin/codex/handshake-studio-assets",
+      "env": "CARGO_BUILD_JOBS=2",
+      "result": "PER_SHA_RESULT OK shas=2 range=d519f6f1..329e2b9a",
+      "exit": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/per-sha-run-sr1-smb-pr-media-markers-1-329e2b9a.log"
+    },
+    "push_sr1": {
+      "refspec": "329e2b9ab77f9be5bd7bc553d7230b7cddcc74d6:refs/heads/codex/handshake-studio-assets",
+      "from": "d519f6f1",
+      "exit": 0,
+      "reread": "git ls-remote after the push: codex/handshake-studio-assets 329e2b9a, lane/smb-pr-media-markers-1 3cfbbeed, lane/smb-pr-media-markers-1-uncommitted b1a299ed"
     }
   },
   "verdicts": [
@@ -615,8 +708,8 @@
   "blockers": [],
   "lock_wait_s": null,
   "bg_pids": [],
-  "next": "Resubmission of SMB-PR-MEDIA-MARKERS-1 on d519f6f1 after the V4-13 pre-review of 2fdcbd4a answered FIX_FIRST (F-PR59-1); no round was spent, the fix budget stays 2 of 3. The earlier remediation stands as named: 'frame law only where a picture shows; a point on a reversed audio clip keeps source_out - a; restore merge_sync 15F' (CX-VAL-008; failed refs lane-smb-pr-media-markers-1.md item 4, MT-33736 ASSET-AC-001). notes.remediation_R58.pre_review_pr59 has the pair ruling, a lead reading the validator may overrule, the readings against the mix, the sweep, and what was never seen red. The pre-review reads this fix again before R59. A validator judges. GitHub backup branches lane/smb-pr-media-markers-1 (3cfbbeed) and lane/smb-pr-media-markers-1-uncommitted (b1a299ed) stay until the Operator approves their deletion: never push to them, never merge them.",
-  "updated_at": "2026-11-06T18:46:14Z",
+  "next": "Resubmission of SMB-PR-MEDIA-MARKERS-1 on 329e2b9a after the second V4-13 read of d519f6f1 answered FIX_FIRST (F-SR-1, F-SR-3) and the lead changed the approach under CX-EXEC-003; no round was spent, the fix budget stays 2 of 3. The earlier remediation stands as named: 'frame law only where a picture shows; a point on a reversed audio clip keeps source_out - a; restore merge_sync 15F' (CX-VAL-008; failed refs lane-smb-pr-media-markers-1.md item 4, MT-33736 ASSET-AC-001), now for the appearing reads alone; alignment reads the continuous mapping on every kind, DIAG-MARKERS-SYNC-BASIS-1. notes.remediation_R58.diag_markers_sync_basis has the diagnosis, the withdrawn pair ruling, the named limit, the sweep and what is not proven. The ledger plans a third read of this diff before R59. A validator judges. GitHub backup branches lane/smb-pr-media-markers-1 (3cfbbeed) and lane/smb-pr-media-markers-1-uncommitted (b1a299ed) stay until the Operator approves their deletion.",
+  "updated_at": "2026-11-06T19:39:27Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -1287,7 +1380,7 @@
         "Doctests: none added, none run. The validator's probe r58_probe_audio: not run by this lane; its tree is read-only here.",
         "Reversed audio with maintain_audio_pitch at any speed but -1 against the mix: not run, F-PR59-5; pre_review_pr59.not_proven has this round's list."
       ],
-      "fix_budget": "2 of 3, unmoved: the V4-13 pre-review spent no round. One more FAIL escalates to the Operator (CX-EXEC-015).",
+      "fix_budget": "2 of 3, unmoved: neither V4-13 pre-review spent a round. One more FAIL escalates to the Operator (CX-EXEC-015).",
       "pre_review_pr59": {
         "source": "research/pre-review-r59-media-markers.json, V4-13 FIX_FIRST at 2fdcbd4a; ledger direction.after_r58_20261106",
         "lead_reading": "A LEAD READING, overrulable by the validator, not a spec clause: in a marker-basis alignment, a pair both reversed with exactly one clip on a Video track reads the continuous mapping on both sides; every other pair reads each clip by its own kind (lead_ruling_pair). Applied at alignment_offsets, per pair of anchor and member; plan_synchronize and plan_merge_clips both reach it through plan_unit and link_unit. One kind test kept, picture_frame_ticks; one law owner kept, reversed_frame_tick. No public API change, no new public name.",
@@ -1355,7 +1448,220 @@
           "Vendor parity UNVERIFIED (D5). Doctests: none added, none run. The validator's probes: not run by this lane."
         ],
         "not_this_lane": "F-R58-2, F-R58-3, F-R58-6 untouched; MT files unedited.",
-        "paths_beyond_brief": "None: crates/hsk-studio-pulse src/merge_sync.rs, src/annotate.rs, src/lib.rs, tests/marker_track_kind.rs."
+        "paths_beyond_brief": "None: crates/hsk-studio-pulse src/merge_sync.rs, src/annotate.rs, src/lib.rs, tests/marker_track_kind.rs.",
+        "status_after_diag": "History from here down. The pair ruling this block records is withdrawn; the code it describes is gone at 329e2b9a; notes.remediation_R58.diag_markers_sync_basis is current."
+      },
+      "diag_markers_sync_basis": {
+        "diagnosis_id": "DIAG-MARKERS-SYNC-BASIS-1",
+        "source": "ledger direction.after_r58_20261106.approach_change, CX-EXEC-003 and -003A; research/pre-review-r59-media-markers.json second_read",
+        "root_cause": "One helper served two jobs. Where a marker appears is a frame question; what synchronize aligns is a source-tick question. merge_sync.rs marker_position was changed only because it shares source_to_timeline.",
+        "pair_ruling": "WITHDRAWN (ledger lead_ruling_pair_status). The rule, the picture_frame closure, the per-pair anchor read and every picture-frame parameter are gone from merge_sync.rs.",
+        "change": "merge_sync.rs marker_position calls source_to_timeline(clip, marker.start, marker.start, None) for every clip of every kind and direction. Against 4ffe1b06 the code differs on that one line; everything else in the diff is module docs.",
+        "merge_sync_diff_against_4ffe1b06": "git diff --stat 4ffe1b06 329e2b9a -- crates/hsk-studio-pulse/src/merge_sync.rs: 28 insertions, 3 deletions. 2 of those 31 changed lines are code, the one call before and after; the other 29 are module docs.",
+        "not_touched": "marker_span, marker_spans, next_marker, prev_marker, snap_targets, clip_appearing_markers, sequence_appearing_markers. git diff d519f6f1 329e2b9a shows src/annotate.rs two doc lines on source_to_timeline's None, and no change to src/snap.rs or src/retime.rs. F-R57-1, F-R57-9, F-R57-15, F-R58-1 stay fixed: their tests are unchanged and in the bundled run.",
+        "named_limit": {
+          "statement": "A reversed picture synchronized by marker presents the marked frame in the frame before the mark, and its displayed marker and the position synchronize aligns differ by a frame.",
+          "row": "Forward V 5..15F at 20F, clap 8F, mark 23F; reversed V 0..10F, -1, clap 2F: lands at 15F.",
+          "reading_against_frame_layers": "frame_layers 22F frame 2, 23F frame 1; marker_spans V2 22.00F, A 23.00F. At -1/2: lands at 7F, frame_layers 22F frame 2, 23F frame 1, marker_spans V2 21.00F. Log green-sr1 lines 5048-5058.",
+          "pinned_by": "tests/marker_track_kind.rs clips_sharing_a_source_window_land_together_sr1 and tests/merge_sync.rs synchronize_by_marker_maps_speed_and_reverse_and_refuses_a_hidden_marker: each fails if the limit closes.",
+          "from_the_other_side": "Forward sound aligned to a reversed picture by a whole-frame marker is heard on the position where the frame's presentation ends: clap heard 28.0000F, frame 2 at 27F..28F, by synchronize and by merge (a_reversed_picture_anchor_aligns_forward_sound_on_the_continuous_mapping_pr59_f4). A mid-frame marker falls inside: 27.5F.",
+          "by_reading_not_a_row": "A forward picture aligned to a reversed picture as anchor: by hand, V1 -1 at 20F, V2 forward at 26F, frame 2 at 27F and at 28F, a frame apart. Same limit, no row.",
+          "provenance": "The behaviour at 4ffe1b06, not new. Goes to the spec owner (SD-73 revised) and a candidate lane, not started."
+        },
+        "second_read_findings": {
+          "F-SR-1": "Closed: V2 and A land together, 15F at -1 and 7F at -1/2, 28F from a -1/2 anchor. Seen red at ff20157c: 16F and 15F, 9F and 7F, 27F and 28F, as the second read derived.",
+          "F-SR-2": "Gone with the rule: the three clips land 20F, 20F, 26F from each of the three anchors and by merge, the two sounds 27.9995F and 28.0000F, one sample apart (a_unit_lands_the_same_from_any_anchor_sr2).",
+          "F-SR-3": "Closed below, v4_06.",
+          "F-SR-4": "The false sentences are gone from the module docs and the DESCRIPTOR. What replaces them states the frame grid condition and that a speed that skips frames may not present the marked frame.",
+          "F-SR-5": "Closed: no_clip_kind_reads_the_frame_law_in_an_alignment_sr5, confirmed per kind by mutation, tests.red_proof.sr5_mutation.",
+          "F-SR-6": "Gone with the rule: one anchor read per operation again."
+        },
+        "pr59_items": {
+          "F-PR59-2": "Stands as it closed: AppearingMarker.span doc, the navigation limit named, candidate lane.",
+          "F-PR59-3": "Stands as it closed for the test lists and annotate docs. The DESCRIPTOR merge_sync clause it fixed was rewritten here, item 5 of this repair; media_item_markers' clause unchanged.",
+          "F-PR59-4": "Stands as it closed, and its row's numbers moved: the reversed-anchor row exists, renamed a_reversed_picture_anchor_aligns_forward_sound_on_the_continuous_mapping_pr59_f4, because the frame law on that anchor is what this repair removes. Clap 2F: A 26F for 25F, heard 28.0000F for 27.0000F. Its never_seen_red list is history for the tests that remain.",
+          "F-PR59-5": "Stands as it closed: reversed audio with maintain_audio_pitch stays in not_proven."
+        },
+        "changed_assertions": [
+          {
+            "test": "tests/merge_sync.rs synchronize_by_marker_maps_speed_and_reverse_and_refuses_a_hidden_marker",
+            "track_kind": "video, the clip on TrackKind::Video",
+            "was": "16F, frame_layers 23F frame 2, 22F frame 3",
+            "now": "15F, frame_layers 22F frame 2, 23F frame 1: the named limit"
+          },
+          {
+            "test": "same test, the row above it",
+            "track_kind": "audio",
+            "was": "15F",
+            "now": "15F, unchanged; heard on the mark against the mix in a_clap_is_heard_on_the_mark_after_a_synchronize_or_merge_by_marker_r58_f1, unchanged"
+          },
+          {
+            "test": "a_third_clip_reads_its_own_pair_against_the_anchor_pr59_f1, renamed a_unit_lands_the_same_from_any_anchor_sr2",
+            "track_kind": "video, audio, audio",
+            "was": "forward sound 25F from the picture, 26F from reversed sound",
+            "now": "26F from every anchor and by merge; a forward-sound anchor added"
+          },
+          {
+            "test": "a_reversed_picture_and_forward_sound_read_the_frame_law_on_the_picture_pr59_f4, renamed a_reversed_picture_anchor_aligns_forward_sound_on_the_continuous_mapping_pr59_f4",
+            "track_kind": "video, audio",
+            "was": "A 100, 128, 80, 98, 100 quarter frames, heard on the frame's first presented tick",
+            "now": "A 104, 136, 82, 100, 104, heard on the mark, the marked frame in the frame before it"
+          },
+          {
+            "test": "same test, forward sound anchor",
+            "track_kind": "video, audio",
+            "was": "V 35F, frame 2 at 42F",
+            "now": "V 34F, frame 2 at 41F, frame 1 at 42F"
+          },
+          {
+            "test": "a_reversed_pair_of_one_kind_reads_by_its_kind_pr59_f1, renamed a_reversed_pair_of_one_kind_reads_the_continuous_mapping_pr59_f1",
+            "track_kind": "video, video",
+            "was": "-1 and -2, clap 3F: V2 23F, frame 3 on both at 26F",
+            "now": "refused not_frame_aligned, half a frame in, as at 4ffe1b06; a position row added, -1 and -1/2, clap 2F, V2 12F, both frame 2 at 27F"
+          }
+        ],
+        "removed_rows": [
+          "a_reversed_pair_at_the_head_has_nothing_to_move_pr59_f1: the pair at the head is now one more start in a_reversed_picture_and_its_sound_stay_in_sync_through_a_marker_alignment_pr59_f1; underflow came only from two laws.",
+          "The -2 oracle: frame_under and every whole-clip reading at -2. -2 stays a position row for the same-source pair. The -2 V + -1 A even-clap row, whose only claim was the -2 one."
+        ],
+        "same_source_pair": "Rev V + rev A, same source, moves 0 by either anchor and by merge, at 20F and at 0F, -1, -2, -1/2, on and inside a frame: a_reversed_picture_and_its_sound_stay_in_sync_through_a_marker_alignment_pr59_f1. It passed at the red commit too, as the pair rule held it; F-SR-1 is what failed.",
+        "oracles": "frame_layers and the rendered mix, neither through the alignment's read. Every row's track kind is in its fixture.",
+        "v4_06": {
+          "failure_class": "a marker-basis alignment reading a clip under the frame law",
+          "regex": "source_to_timeline\\(|marker_position\\(|marker_span\\(|marker_spans\\(|reference\\(clip|SyncPoint::Marker",
+          "searched": "git grep at d519f6f1 and at 329e2b9a over crates/*/src/*, comment lines and lib.rs dropped",
+          "count": {
+            "at_d519f6f1": 19,
+            "listed_before": 16,
+            "added_here": 3,
+            "at_tip": 18,
+            "at_tip_fixed": 6,
+            "at_tip_not_applicable": 12
+          },
+          "added_lines_f_sr_3": [
+            [
+              "annotate.rs:344 marker_span definition (unmoved)",
+              "appearing read",
+              "not-applicable: a definition; the frame law stays there by design"
+            ],
+            [
+              "annotate.rs:357 marker_spans definition (unmoved)",
+              "appearing read",
+              "not-applicable: a definition; the frame law stays there by design"
+            ],
+            [
+              "merge_sync.rs:538 marker_position definition, now :544",
+              "alignment",
+              "not-applicable under this diagnosis: no frame-law parameter remains, so nothing can be passed a picture's frame; a definition, its one read is at :552"
+            ]
+          ],
+          "sites_at_tip": [
+            [
+              "merge_sync.rs:544 marker_position",
+              "alignment",
+              "fixed: no frame-law parameter"
+            ],
+            [
+              "merge_sync.rs:552 source_to_timeline(.., None)",
+              "alignment",
+              "fixed: continuous for every clip"
+            ],
+            [
+              "merge_sync.rs:558 reference",
+              "alignment",
+              "fixed: no frame-law parameter"
+            ],
+            [
+              "merge_sync.rs:565 SyncPoint::Marker arm",
+              "alignment",
+              "fixed: follows marker_position"
+            ],
+            [
+              "merge_sync.rs:585 the anchor's read",
+              "alignment",
+              "fixed: once per operation"
+            ],
+            [
+              "merge_sync.rs:599 a member's read",
+              "alignment",
+              "fixed: same read as the anchor"
+            ],
+            [
+              "annotate.rs:294 source_to_timeline",
+              "helper",
+              "not-applicable: the signature stays; its doc names both callers of None"
+            ],
+            [
+              "annotate.rs:344 marker_span",
+              "appearing",
+              "not-applicable: frame law on Video, unchanged"
+            ],
+            [
+              "annotate.rs:347 clip scope",
+              "appearing",
+              "not-applicable: unchanged"
+            ],
+            [
+              "annotate.rs:357 marker_spans",
+              "appearing",
+              "not-applicable: unchanged"
+            ],
+            [
+              "annotate.rs:363 sequence scope",
+              "appearing",
+              "not-applicable: sequence ticks"
+            ],
+            [
+              "annotate.rs:377 clip scope",
+              "appearing",
+              "not-applicable: unchanged"
+            ],
+            [
+              "annotate.rs:461 appearing_span",
+              "appearing",
+              "not-applicable: unchanged"
+            ],
+            [
+              "annotate.rs:599 next_marker",
+              "appearing",
+              "not-applicable: follows marker_spans"
+            ],
+            [
+              "annotate.rs:611 prev_marker",
+              "appearing",
+              "not-applicable: follows marker_spans"
+            ],
+            [
+              "snap.rs:113 sequence scope",
+              "appearing",
+              "not-applicable: sequence ticks"
+            ],
+            [
+              "snap.rs:131 clip scope",
+              "appearing",
+              "not-applicable: unchanged"
+            ],
+            [
+              "harness-view view/timeline.rs:1337 marker_spans",
+              "appearing",
+              "not-applicable: a single read for drawing"
+            ]
+          ]
+        },
+        "infrastructure": "CARGO_BUILD_JOBS=2 and --build-jobs 2 on this builder's runs, accepted by the lead for this lane; about 9 GB of commit free measured at the start (FreeVirtualMemory 9453064 KiB). In no config or tool. No run failed on memory.",
+        "runs_on_this_failure": "CX-EXEC-003A: one probe, red-proof-sr1 at ff20157c; one confirming run, green-sr1 at 329e2b9a, first time. Then the per-kind mutation item 7 allows, the bundled proof and the per-sha gate.",
+        "not_proven": [
+          "A window whose end is off the frame grid in an alignment: not run; the named limit's statement is conditional on it.",
+          "Every alignment row is 25 fps. Other sequence rates, and sources on another stated grid (F-R57-5 / SD-56): not run.",
+          "A reversed caption or submix clip aligned by marker against rendered output: no oracle, the rows pin the reading and print NOT_PROVEN.",
+          "Reversed audio with maintain_audio_pitch against the mix, at any speed but -1 (F-PR59-5): not run.",
+          "-3/2 on a picture in an alignment: not run. -2 on a picture in an alignment: positions, one odd-frame row against frame_layers, and refusals; no whole-clip reading. An even marked frame at -2 is not presented, by reading.",
+          "Merge at different speeds: reversed picture and sound at different speeds are synchronize rows only; the forward-sound rows run both.",
+          "A forward picture aligned to a reversed picture as anchor: by hand only, named_limit.by_reading_not_a_row.",
+          "Vendor parity UNVERIFIED (D5). Doctests: none added, none run. The validator's probes: not run by this lane. A third read of this diff has not happened."
+        ],
+        "paths_beyond_brief": "None new: crates/hsk-studio-pulse src/merge_sync.rs, src/annotate.rs (two doc lines), src/lib.rs, tests/marker_track_kind.rs, tests/merge_sync.rs. tests/merge_sync.rs is the owned merge_sync test the brief names.",
+        "not_this_lane": "F-R58-2, F-R58-3, F-R58-6 untouched; the frame-accurate reversed synchronize not started; MT files unedited; no Master Spec edit; no Cargo.toml change."
       }
     }
   },
@@ -1367,5 +1673,5 @@
     "uncommitted_ref": "lane/smb-pr-media-markers-1-uncommitted",
     "uncommitted_sha": "b1a299ed6c45f111ba498a23b41b138ef47f1c57"
   },
-  "pushed_sha": "d519f6f1c6a1d018974bf78fd1f6f76f776cc52f"
+  "pushed_sha": "329e2b9ab77f9be5bd7bc553d7230b7cddcc74d6"
 }
