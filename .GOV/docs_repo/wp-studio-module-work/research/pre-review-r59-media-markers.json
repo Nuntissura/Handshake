@@ -1,0 +1,157 @@
+{
+  "schema": "hsk.studio_pre_review@1",
+  "lane": "SMB-PR-MEDIA-MARKERS-1",
+  "candidate": "2fdcbd4a",
+  "base": "89bbf702",
+  "reviewer": "fresh read-only, V4-13",
+  "method": "git show, git diff, git grep, python over JSON, and reading the lane's and the validator's existing logs. No cargo, no build, no test run by this reviewer. Every position below is hand-derived from the code unless it names a log. Paths are under crates/hsk-studio-pulse unless they name another crate.",
+  "ruling_assessment": "Right for what it rules: per clip, the frame law on Video and source_out - a elsewhere matches frame_layers (playback.rs:764) and the mix (audio.rs:283, varispeed.rs at(i) = end - 1 - i). Incomplete for one operation: alignment_offsets (merge_sync.rs:562, :576) subtracts two positions read under different laws when a reversed video clip and a reversed audio clip meet, and the ruling does not say what that means. See F-PR59-1.",
+  "by_question": [
+    {
+      "q": 1,
+      "answer": "Every caller passes the kind of the track that holds the clip. No default, guess, first-match lookup across tracks, or stale kind. Each read takes the kind from the same iteration item that yields the clip.",
+      "evidence": [
+        "source_to_timeline: annotate.rs:347 (marker_span), :459 (appearing_span), merge_sync.rs:528; no other caller (git grep over crates/**/*.rs).",
+        "marker_span: annotate.rs:363 and snap.rs:113 pass None (sequence markers); annotate.rs:377 takes kind from :370, t.clips.iter().map(|c| (t.kind, c)); snap.rs:131 takes track.kind from the loop at :118-119.",
+        "marker_spans: annotate.rs:597, :609; harness-view view/timeline.rs:1337. next_marker, prev_marker: harness-view timeline.rs:1436, both over marker_spans.",
+        "snap_targets: harness-view timeline.rs:1336, :1359, :1443; multicam.rs:1254, which walks the sequence it was given.",
+        "clip_appearing_markers, sequence_appearing_markers: no caller in any src; tests only. sequence_appearing_markers takes kind at annotate.rs:576 and uses it at :582.",
+        "merge_sync: members_of (merge_sync.rs:451-455) walks seq.tracks and records the real track index; picture_frame reads seq.tracks[m.track].kind (:559), anchor at :562, member at :576. One seq, from propose. Offsets are computed before anything moves and no sync changes a track, so the kind cannot be stale. Clip ids are unique in a valid document (folio timeline.rs:749), so the BTreeMap at :454 cannot shadow a clip.",
+        "Grid: always sequence.frame_rate.ticks_per_frame; the other-rate case stays the named gap F-R57-5 / SD-56."
+      ],
+      "status": "OK"
+    },
+    {
+      "q": 2,
+      "answer": "Sequence-level markers are intact: same None arm, no kind involved. A caller can get the frame law on an audio clip two ways: clip_appearing_markers(audio_clip, _, Some(grid), _) and marker_span(seq, Some((TrackKind::Video, audio_clip)), m). The reverse also holds: clip_appearing_markers(video_clip, _, None, _) silently answers up to 2 frames from the picture (at -1/2). A StudioClip does not know its track, so neither can be refused. It is stated for the grid (annotate.rs:519-522). It is not reachable from any read that answers for a sequence: sequence_appearing_markers calls walk_clip directly with the kind's answer (:582-583), never clip_appearing_markers, and no src calls clip_appearing_markers.",
+      "evidence": [
+        "annotate.rs:346 None => from_start_duration; annotate.rs:363, :573-574; snap.rs:113.",
+        "annotate.rs:519-522 doc; annotate.rs:344 signature; annotate.rs:582-583.",
+        "marker_span's Some arm has no direct test: tests/ call only marker_spans (git grep of marker_span( over tests/*.rs finds none). It is covered through marker_spans and snap_targets.",
+        "Cost to the validator: its r57_probe_markers.rs:225 passes a bare grid and needs Some(..) (lane notes.remediation_R58.public_api_changed). common brief line 21 asks for additive changes only on shared engines; these two are not additive, recorded in the lane file, no caller outside pulse."
+      ],
+      "status": "OK"
+    },
+    {
+      "q": 3,
+      "answer": "picture_frame_ticks (retime.rs:334) is the one kind test for the frame law: annotate.rs:351, :582, merge_sync.rs:559. No second copy of the inverse: reversed_frame_tick (retime.rs:342) has one caller, annotate.rs:308. Other kind tests answer other questions: playback.rs:764 (what to draw), retime.rs:634 (what may hold), merge_sync.rs:481-484 (who may merge). The filter difference is visible and harmless: a point on a disabled video track reads the frame law (14F, tests/marker_track_kind.rs:325-328) where frame_layers returns nothing, because the track is filtered at playback.rs:764. Enabling the track shows that frame there, by the same law. Stated at annotate.rs:32-33. Nothing pins the two filters together if a new drawable kind is added, as the lane notes admit.",
+      "evidence": [
+        "git grep over pulse src of reversed_frame_tick, picture_frame_ticks, TrackKind::Video, .kind ==.",
+        "Other reversed mappings are the tick mapping, not the law: transition.rs:304-305 (clip_source_at); harness-view timeline/nest.rs:370 is F-R58-6, ruled a candidate lane.",
+        "V4-06 sweep re-derived with the lane's regex and paths at 2fdcbd4a: 37 sites, the same 37 by file and line as notes.remediation_R58.v4_06."
+      ],
+      "status": "OK"
+    },
+    {
+      "q": 4,
+      "answer": "Reachable by all three. A point on source_in of a reversed audio clip reads timeline_end as a zero-length span (annotate.rs:323-338, test marker_track_kind.rs:237-247). It cannot land past the clip in a valid document, because folio requires duration == derived_duration exactly (folio timeline.rs:822), so to_timeline(window) == duration. It does land on the next clip's first tick when one abuts, labelled with the earlier clip_id, and on sequence.duration when the clip is last, outside play_range's half-open [0, duration). Synchronize is sound here: the clip's end goes to the mark and the sample is heard one source sample earlier, within WITHIN. Snap is sound: an EditPoint already sits on that tick (snap.rs:129). Navigation is not sound, F-PR59-2. The validator's own repair direction says source_out - a, so this is not a re-opening of F-R57-1.",
+      "evidence": [
+        "Failing input for navigation: one Audio track, clip source 2..26F at 2F, speed -1, point at 2F; duration 26F. next_marker(seq, 25F) = Some(26F) (annotate.rs:597-600). scrub clamps to end - 1 and floors to the frame, 25F (playback.rs:542-545). harness-view timeline.rs:1436-1438 returns Ok with the playhead unchanged, so no_next_marker is never reached. The video table pins the opposite: tests/media_markers.rs:238 'the exclusive end holds no marker'.",
+        "Doc: AppearingMarker.span 'clipped to what the clip plays' (annotate.rs:406) does not hold for this tick; module docs annotate.rs:34-35 do state it.",
+        "Not this diff: an audio clip placed by synchronize off the sample grid (for example a marker between samples, pinned for forward at tests/merge_sync.rs:723-726) is then refused not_frame_aligned by the mix (time.rs:65-69, audio.rs:331). Forward has it at every commit. NOT_INSPECTED by a run."
+      ],
+      "status": "FINDING"
+    },
+    {
+      "q": 5,
+      "answer": "The oracle is real. It measures the rendered mix: TimelineMixStream (audio.rs) through render_at_speed (score varispeed.rs), neither of which references annotate, retime's law or source_to_timeline (git grep finds none). heard_at is the energy centroid of the rendered samples; the Hann pulse is symmetric, so reversal does not shift it. By hand the read stands 1/|speed| mix samples after the mix: at(i) = end - 1 - i gives source tick s at start + (so - s - 1 sample)/r against the read's start + (so - s)/r. That is 0.0005F at -1, 0.0010F at -1/2, 0.0003F at -2, below WITHIN 0.002F (3.84 samples). It cannot pass with the bug: on all six QUARTERS at all four reversed speeds, law and continuous differ by at least 0.25F (smallest: -2, q46: 6.00 against 6.25 frames in). Red log confirms the table: red-proof-r58 line 4806 region, worst 0.999, 0.500, 1.999, 0.666.",
+      "evidence": [
+        "tests/marker_track_kind.rs:177-186 heard_at; :205-227 the table; green-r58 log lines 4767-4774 worst 0.001, 0.000, 0.001, 0.000, forward 0.000.",
+        "Red run: 7 run, 1 passed (video control), 6 failed. Panics at :244 (in point, 25F for 26F), :334 at red numbering (caption, first row), merge_sync.rs:710, :366 at red numbering (clap, first row, placed), :312 at red numbering (kind table, first audio row), :231 (audio table, its last assert).",
+        "NEVER SEEN TO FAIL, with what each needs. (a) a_lone_clip_answers_by_the_grid_it_is_given (:253): the whole test, added at green, disclosed; its heard assert (:264) is the one worth red proof, because no other test reads the None arm against the mix. (b) clap test (:394) heard assert, and rows 2-7 of the placed assert: never ran against a wrong read in this lane; the validator's r58_a2 at 89bbf702 gives external red for row 1, synchronize only. Merge has no red anywhere. (c) in point heard assert (:246): a wrong read of 25F would miss by 0.9995F, so it discriminates by arithmetic, not by run. (d) audio table per-point asserts (:211, :215-220): consistency checks that passed at red and green; they catch only a partial repair and need a mutation to show it. (e) kind table: audio inside-a-frame and forward asserts, and the three audio rows after the first (:337-340 loop). (f) caption and submix: reported assert on every row after the first; frame_layers empty (:360) and mix silent (:361-362) cannot be moved by this repair; mix() is empty there because length is 0 with no audible clip (audio.rs:612-626), which is still a true answer: an audible caption would make it non-empty and fail. (g) tests/merge_sync.rs video row (:713-721): first run at green; passes at red by construction, a control.",
+        "Only (a) and (b)-merge lack any failure evidence and guard a claimed behaviour. Scratch-copy red under V4-11 is cheap; not a round stopper because the arithmetic and r58_a2 stand behind them. The red proof note in tests.red_proof.r58 discloses this. F-PR59-4."
+      ],
+      "status": "FINDING"
+    },
+    {
+      "q": 6,
+      "answer": "Every changed assertion holds against the position law, re-derived from retime.rs neighbours (:295-300, position = last*F*den - (t - start)*|num|) and reversed_frame_tick (:342-356), not from the builder's comment. The builder's 107F and 109F are right for a clip with a picture, and the row's track kind is what the fixture says.",
+      "evidence": [
+        "tests/merge_sync.rs:708, TrackKind::Audio, clip source 0..10F, -1, clap 2F, mark 23F (V source 8F of 5..15F at 20F: 20 + 3). Continuous: 10 - 2 = 8F in. 23 - 8 = 15F. Mix: 15F + 8F - 1 sample = 22.9995F; log 'placed 15F, heard 22.999F'. RIGHT.",
+        "tests/merge_sync.rs:713, TrackKind::Video, same clip. last = 9, frame 2: 9 - 2 = 7F in. 23 - 7 = 16F. Law check: at 23F, offset 7F, position 9F - 7F = 2F, frame 2; at 22F, 6F, 3F, frame 3. Asserted (2, 3) at :721. RIGHT.",
+        "tests/media_markers.rs:130, lone clip, Some(F), source 10..20F at 100F, -1, point 12F. last = 19; 19 - 12 = 7; 107F. Law: 19F - 7F = 12F, frame 12. No grid: 20 - 12 = 8, 108F. RIGHT for a picture.",
+        "tests/media_markers.rs:131, same clip, point 10F. 19 - 10 = 9; 109F, inside the clip (end 110F). Law: 19F - 9F = 10F. No grid: 110F. RIGHT for a picture.",
+        "tests/media_markers.rs:137, -2, source 10..30F at 100F, point 15F. last = 29; (29 - 15)/2 = 7; 107F. Law at 107F: 29F - 7F*2 = 15F. Unchanged by this diff. RIGHT.",
+        "tests/media_markers.rs:234-241, Video, source 10..22F at 2F, -1. first(21): 2F; last(10): 11 + 2 = 13F; span 14..16: 22-16 = 6, 22-14 = 8, so 8..10F. marks 2, 8, 10, 13. RIGHT.",
+        "tests/marker_track_kind.rs:374 clap rows, audio, V mark 23F. (-1, 2): 23-8 = 15. (-1, 5): 23-5 = 18. (-2, 4): (10-4)/2 = 3, 20. (-1/2, 3): (10-3)*2 = 14, 9. (-3/2, 4): 6*2/3 = 4, 19. (1, 2): 21. (2, 4): 2, 21. ALL RIGHT.",
+        "tests/marker_track_kind.rs:336-340 kind table, source 2..26F at 2F. Video, 13F: last 25, 12 in, 14F. Audio, 13F: 26-13 = 13 in, 15F. Audio, 13.5F: 12.5 in, 14.5F. Forward: 13F. ALL RIGHT."
+      ],
+      "status": "OK"
+    },
+    {
+      "q": 7,
+      "answer": "F-R57-1's bar holds by reading through every read on a Video track. With picture_frame = Some(tpf) the branch at annotate.rs:303-310 is the 89bbf702 branch, same guard order in effect, same call, so the validator's R58 runs at 89bbf702 (r57_m1 0 of 12; r58_m1 six rates, 13 speeds) carry by reading; they have not been re-run at 2fdcbd4a. Forward: the branch needs is_reversed, the rest of the function is unchanged, so forward is identical on every kind; DESCRIPTOR's forward clauses are untouched. Disabled video: frame law, pinned by hand only, no picture to compare. Nested on Video: same law through frame_layers; the inner-rate case is the named gap, and marker reads against frame_layers_nested are NOT_INSPECTED by any run (the validator's r58_m7 measures Open Nested, not the marker read). Multicam: reverse refused at multicam.rs:860; nothing new. Held: guard kept at annotate.rs:306; appearing_span:458-469 and not_held merge_sync.rs:499-503 unchanged; folio refuses a hold off a video track (folio timeline.rs:641-643), so an audio hold is not a valid document. The one video-side change in effect is the mixed case of F-PR59-1, where the video clip's read is unchanged and the audio member's is what moved.",
+      "evidence": [
+        "git diff 89bbf702 2fdcbd4a annotate.rs hunk @@ -286,7 +300,11 @@.",
+        "4ffe1b06 source_to_timeline read: the continuous path below the new branch is that code (git show 4ffe1b06 annotate.rs:264-276 and on).",
+        "tests/media_markers.rs:243-247 held; :249-255 no frame rate: a reversed video point refuses invalid_input, forward answers. New and correct: a reversed audio point on a sequence with frame rate 0 now answers instead of refusing, as at 4ffe1b06; no test pins it."
+      ],
+      "status": "OK"
+    },
+    {
+      "q": 8,
+      "answer": "HOST INTEGRATION: nothing in the diff touches it. No GUI type, GPU, command, job or actor; read paths only; the host_integration block stands. V4-01/02: annotate, retime, merge_sync, snap all carry the deny (git show, each true); the new lines add no arithmetic; the hostile path on an audio track is the checked continuous path (u128, try_from, typed Overflow, annotate.rs:313-320). V4-07: added lines use the listed words only in a test's own doc ('These rows prove ... They do not prove', tests/marker_track_kind.rs:345-346), which also prints NOT_PROVEN (V4-03, green log line 4750). No new unbacked claim in src. DESCRIPTOR: media_item_markers is true and the only key changed; the merge_sync key is stale, F-PR59-3. F-R57-15: the budget loop annotate.rs:558-567 precedes every mapping and is untouched; walk_clip's mapping starts at :576 after it, so yes on every sequence path. clip_appearing_markers has no budget by design, one clip, as before. Clippy: two new warnings in the new test file (:212, :324), disclosed by the builder; the earlier two were left by a lead ruling, these two have none, and other test targets carry warnings too (bundled log line 8010).",
+      "evidence": [
+        "bundled-r58 log head: 2fdcbd4a, dirty 0, step 0 clean, 800 passed; per-sha-run-r58 PER_SHA_RESULT OK shas=2. origin codex/handshake-studio-assets = 2fdcbd4a (git ls-remote), so V4-14 holds. Logs read, not reproduced.",
+        "lib.rs:87 DESCRIPTOR diff by key: media_item_markers only."
+      ],
+      "status": "FINDING"
+    }
+  ],
+  "findings": [
+    {
+      "id": "F-PR59-1",
+      "severity": "MEDIUM",
+      "file_line": "src/merge_sync.rs:562, :576, :559 with src/annotate.rs:303-310 and :321-338; no row in tests/merge_sync.rs (only reversed row :707, forward anchor) or tests/marker_track_kind.rs:374-380 (all forward video anchor)",
+      "claim": "New at this candidate. When a reversed video clip and a reversed audio clip are aligned by marker, the two positions come from different laws, and the marker basis moves a pair that is already in sync. At 89bbf702 both read the frame law and at 4ffe1b06 both read continuous: offset 0 at both. A pair in sync plays each source tick inside its own frame's presentation (frame k presented on [T+L-1-k, T+L-k) at -1, tick s at T+L-s). After the move the whole audio clip leads the picture by the law gap, up to 1 frame at -1, 2 at -1/2, 0.5 at -2: the same 40, 80 and 20 ms as F-R58-1, in the opposite direction and over the whole clip. The clap itself passes the 'heard on the mark' oracle, so the lane's tests and r58_a2's oracle cannot see it. The offset also depends on where inside the frame the marker sits. No refusal, no report, not stated in the docs, the lane notes or the ruling. The R58 validator's note asks for 'one careful read of both picture and sound'. Hand-derived; NOT RUN. Whether a validator fails or grades it is UNVERIFIED; I put it near even, not certain.",
+      "failing_input": "V on Video and A on Audio: each source 0..10F, start 20F, speed -1, marker 'clap' at 2F. plan_synchronize anchor V, or plan_merge_clips align Marker. V reads 20+7 = 27F, A reads 20+8 = 28F, delta -1F: A goes to 19F (expected 20F, already in sync). Tick 2.5F then plays at 26.5F while frame 3 shows, was 27.5F during frame 2. At -1/2: V 34F, A 36F, A to 18F. At -2: V 23.5F, A 24F, A to 19.5F. Both clips at start 0F, -1: refused underflow (range.rs:44-46), where both earlier commits merged them. Marker 2.5F on both, -1: delta -0.5F.",
+      "repair_direction": "Lead rules the reversed V+A basis; pin the row, offset or no-op, and state it in merge_sync docs and DESCRIPTOR",
+      "blocks_judging": true
+    },
+    {
+      "id": "F-PR59-2",
+      "severity": "LOW",
+      "file_line": "src/annotate.rs:597-600 with src/playback.rs:542-545 and harness-view src/view/timeline.rs:1436-1438; doc src/annotate.rs:406",
+      "claim": "NextMarker cannot terminate on a reversed audio in point at the end of a sequence: the marker reads sequence.duration, scrub clamps to the last frame, the next press finds the same marker. Same dead key on any position off the frame grid, which reversed audio regains at -1 mid-frame compared with 89bbf702. Forward 2x has it at every commit (F-R58-4 class), so it is a read-plus-monitor limit, not this repair's error. By reading; NOT RUN.",
+      "failing_input": "Audio clip source 2..26F at 2F, -1, point at 2F, last on the sequence: from a playhead at 25F, next_marker returns Some(26F), scrub stays at 25F, no_next_marker is never returned. Point at 13.5F: read 14.5F, scrub 14F, next press finds 14.5F again, later markers unreachable going forward.",
+      "repair_direction": "Say span may be the clip's exclusive end on AppearingMarker.span; name the nav limit in the lane notes; no code here",
+      "blocks_judging": false
+    },
+    {
+      "id": "F-PR59-3",
+      "severity": "LOW",
+      "file_line": "src/lib.rs:87 DESCRIPTOR key merge_sync; key media_item_markers last clause",
+      "claim": "merge_sync.rs:23-24 module docs now say 'what its track plays'; the DESCRIPTOR's merge_sync key still says 'Marker{name} = ... through the clip speed (a position between ticks rounds down)', with neither the kind nor the frame law, so a model reading only it computes a reversed video mark one frame off. Also media_item_markers ends 'tests media_markers.rs' while naming a test in tests/marker_track_kind.rs. The doc 'one sample after it' (annotate.rs:34) is one source sample: two mix samples at -1/2, as the test's own WITHIN comment says.",
+      "failing_input": "Read the DESCRIPTOR for a reversed video clip source 0..10F at 0F, marker 2F: the clause gives 8F, the code gives 7F.",
+      "repair_direction": "One clause in the merge_sync key: by the track's kind, as marker_span; add tests/marker_track_kind.rs to the list",
+      "blocks_judging": false
+    },
+    {
+      "id": "F-PR59-4",
+      "severity": "LOW",
+      "file_line": "tests/marker_track_kind.rs:253-272, :394; src/merge_sync.rs:562",
+      "claim": "Proof gaps a validator can name, each disclosed or small. a_lone_clip has no red, and no failure evidence exists for its heard assert or for the merge half of the clap test. No test has a reversed anchor, so replacing picture_frame(anchor) at merge_sync.rs:562 with None would pass the suite; the code is right by reading. The row F-PR59-1 asks for closes the second.",
+      "failing_input": "Mutation: merge_sync.rs:562 passes None; V reversed anchor, A forward: anchor reads 28F for 27F; no existing test fails.",
+      "repair_direction": "A reversed-anchor row in the clap test; a scratch-copy red (V4-11) of the lone clip's None arm",
+      "blocks_judging": false
+    },
+    {
+      "id": "F-PR59-5",
+      "severity": "LOW",
+      "file_line": "src/audio.rs:228-230, :157-178; lane notes.remediation_R58.not_proven",
+      "claim": "A reversed audio clip with maintain_audio_pitch at any speed but -1 does not go through render_at_speed: it reverses, then goes through a vocoder (kept_pitch_spec). No row measures a marker against that mix, here or in r58_probe_audio, and not_proven does not list it. Whether the centroid stays within 0.002F is UNVERIFIED; a vocoder may not hold 3.84 samples. It would be the same at 4ffe1b06 and is a property of the mix, not of this repair.",
+      "failing_input": "Audio clip source 2..26F, -2, retime.maintain_audio_pitch = true, Hann pulse at a point: read against heard_at. NOT RUN.",
+      "repair_direction": "List it in not_proven, or add the row with its own stated bound",
+      "blocks_judging": false
+    }
+  ],
+  "not_settled_by_reading": [
+    "F-PR59-1: the positions are hand-derived and I expect them to hold; how a validator grades them is UNVERIFIED.",
+    "Every video-side bar at 2fdcbd4a: carried from 89bbf702 runs by reading of an unchanged branch; not re-run at this candidate.",
+    "Marker reads against frame_layers_nested on a reversed nested clip: NOT_INSPECTED by any run.",
+    "Reversed audio with maintain_audio_pitch against the mix: UNVERIFIED.",
+    "Caption and submix: the ruling's reading; no output oracle; the test says NOT_PROVEN. By reading no src plays a clip on those tracks (folio clip_finishing.rs:855 reads caption segments, not clips; bus_mix.rs:243 uses submix tracks as buses), but I did not read every caption consumer in reel or composite.",
+    "F-PR59-2's monitor behaviour: by reading, no viewer test run."
+  ],
+  "verdict": "FIX_FIRST"
+}

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-06T17:23:21Z",
+ "updated_at": "2026-11-06T17:40:58Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -21129,6 +21129,11 @@
     "added_at": "2026-11-06T16:40:02Z",
     "item": "F-R58-3: when a host adopts sequence_appearing_markers, sort points per item and charge spans, or raise MAX_APPEARING_WALK to its measured cost: 5000 markers on 4000 cuts refuses although it would map in about a second",
     "owner": "pulse"
+   },
+   {
+    "added_at": "2026-11-06T17:40:58Z",
+    "item": "F-PR59-2: NextMarker can stick on a reversed audio in point at a sequence's end or on a position off the frame grid; forward 2x has the same class at every commit (annotate.rs:597, playback.rs:542)",
+    "owner": "pulse, harness-view"
    }
   ],
   "pause_20261103": {
@@ -21335,7 +21340,33 @@
    "counters": "CX-EXEC-015(1) fix budget 2 of 3 on SMB-PR-MEDIA-MARKERS-1: one more FAIL records fix_budget_exhausted and escalates to the Operator. CX-EXEC-015(2) 1 of 2 on the new failure class.",
    "pre_review": "V4-13: a lane with 2 failed verdicts gets a read-only adversarial pre-review of its diff since the last FAIL before it enters a round; FIX_FIRST goes back to the builder; only SAFE_TO_JUDGE is offered to R59.",
    "c_tree_gib": 314.267,
-   "c_tree_note": "15.7 GiB under the 330 alert, 45.7 under the cap. Deletion of PASS-lane targets needs Operator approval in the same turn; none deleted."
+   "c_tree_note": "15.7 GiB under the 330 alert, 45.7 under the cap. Deletion of PASS-lane targets needs Operator approval in the same turn; none deleted.",
+   "pre_review_result": {
+    "at": "2026-11-06T17:40:58Z",
+    "file": "research/pre-review-r59-media-markers.json",
+    "verdict": "FIX_FIRST at 2fdcbd4a",
+    "blocking": "F-PR59-1: a reversed video clip and a reversed audio clip aligned by marker read under two laws. Same source 0..10F at 20F, -1, 'clap' at 2F: V 27F, A 28F, so synchronize or merge moves an in-sync pair by a frame (A to 19F). -1/2 moves it 2F. Offset was 0 at both 4ffe1b06 and 89bbf702, so this is new at this candidate. The lead's per-clip ruling did not consider two laws being subtracted."
+   },
+   "lead_ruling_pair": {
+    "at": "2026-11-06T17:40:58Z",
+    "rule": "In a marker-basis alignment, a pair that is both reversed and holds exactly one clip on a Video track is read under the continuous mapping on both sides. Every other pair reads each clip by its own kind.",
+    "why": "Reversed clips of one direction are source-locked: each source tick plays inside its own frame's presentation, so two laws open a gap that was not there. A reversed picture against forward audio has no such lock, so the frame law stays and the clap is heard on the clap frame's first tick.",
+    "checked_rows": {
+     "rev V + rev A, same source, -1": "28F and 28F, offset 0; the frame law would give 27F and 28F",
+     "forward V mark 23F + rev A, 0..10F, clap 2F": "A at 15F, the R58 row, not both reversed",
+     "forward V mark 23F + rev V": "16F, frame law",
+     "rev V + rev V": "frame law both, offset 0",
+     "rev V anchor + forward A": "frame law on V, clap heard at 27F, frame 2's first tick"
+    },
+    "status": "Overrulable lead reading; the validator gets it as a claim to break; goes to the spec owner as an SD item at READY. Lead derived these by hand, which is not proof; the builder proves them against frame_layers and the rendered mix."
+   },
+   "other_pre_review_findings": {
+    "F-PR59-2": "Doc plus lane note, no code: an appearing span may be the clip's exclusive end. NextMarker can stick at a sequence's end; candidate lane, not new at this candidate.",
+    "F-PR59-3": "Fix the DESCRIPTOR clause and its test list.",
+    "F-PR59-4": "A reversed-anchor row; state what was never seen red.",
+    "F-PR59-5": "List reversed audio with maintain_audio_pitch in not_proven."
+   },
+   "next_lane_candidates_added": true
   }
  },
  "round_R45": {
