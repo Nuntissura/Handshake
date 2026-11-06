@@ -105,6 +105,11 @@
       "sha": "329e2b9a",
       "subject": "pulse, DIAG-MARKERS-SYNC-BASIS-1: an alignment by marker aligns source ticks on every kind",
       "pushed": true
+    },
+    {
+      "sha": "c4d06841",
+      "subject": "media markers docs: placement as at 4ffe1b06, displayed marker a frame earlier; -2 lands by unpresented frames (F-TR-1, F-TR-2)",
+      "pushed": true
     }
   ],
   "capabilities_done": [
@@ -709,7 +714,7 @@
   "lock_wait_s": null,
   "bg_pids": [],
   "next": "Resubmission of SMB-PR-MEDIA-MARKERS-1 on 329e2b9a after the second V4-13 read of d519f6f1 answered FIX_FIRST (F-SR-1, F-SR-3) and the lead changed the approach under CX-EXEC-003; no round was spent, the fix budget stays 2 of 3. The earlier remediation stands as named: 'frame law only where a picture shows; a point on a reversed audio clip keeps source_out - a; restore merge_sync 15F' (CX-VAL-008; failed refs lane-smb-pr-media-markers-1.md item 4, MT-33736 ASSET-AC-001), now for the appearing reads alone; alignment reads the continuous mapping on every kind, DIAG-MARKERS-SYNC-BASIS-1. notes.remediation_R58.diag_markers_sync_basis has the diagnosis, the withdrawn pair ruling, the named limit, the sweep and what is not proven. The ledger plans a third read of this diff before R59. A validator judges. GitHub backup branches lane/smb-pr-media-markers-1 (3cfbbeed) and lane/smb-pr-media-markers-1-uncommitted (b1a299ed) stay until the Operator approves their deletion.",
-  "updated_at": "2026-11-06T19:39:27Z",
+  "updated_at": "2026-11-06T20:01:22Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -1662,6 +1667,17 @@
         ],
         "paths_beyond_brief": "None new: crates/hsk-studio-pulse src/merge_sync.rs, src/annotate.rs (two doc lines), src/lib.rs, tests/marker_track_kind.rs, tests/merge_sync.rs. tests/merge_sync.rs is the owned merge_sync test the brief names.",
         "not_this_lane": "F-R58-2, F-R58-3, F-R58-6 untouched; the frame-accurate reversed synchronize not started; MT files unedited; no Master Spec edit; no Cargo.toml change."
+      },
+      "docs_fix_c4d06841": {
+        "commit": "c4d06841",
+        "subject": "docs and DESCRIPTOR only (merge_sync.rs module docs, lib.rs merge_sync clause); no code line changed",
+        "closed": [
+          "F-TR-1",
+          "F-TR-2"
+        ],
+        "F-TR-1": "placement is as at 4ffe1b06; a reversed picture's displayed marker reads a frame earlier (V2 22F, 4ffe1b06 read 23F)",
+        "F-TR-2": "at -2 a moved picture lands only by frames it never presents (clap 3F refuses not_frame_aligned, clap 2F lands at 19F); same at 4ffe1b06",
+        "proof": "lane-check nextest -p hsk-studio-pulse 195 passed exit 0; per-sha OK 329e2b9a..c4d06841; pushed to codex/handshake-studio-assets at 2026-11-06T20:01:22Z"
       }
     }
   },
@@ -1673,5 +1689,8 @@
     "uncommitted_ref": "lane/smb-pr-media-markers-1-uncommitted",
     "uncommitted_sha": "b1a299ed6c45f111ba498a23b41b138ef47f1c57"
   },
-  "pushed_sha": "329e2b9ab77f9be5bd7bc553d7230b7cddcc74d6"
+  "pushed_sha": "c4d068417b1fe065453510460d86c0df8eb83559",
+  "diagnosis_refs": [
+    "DIAG-MARKERS-SYNC-BASIS-1"
+  ]
 }
