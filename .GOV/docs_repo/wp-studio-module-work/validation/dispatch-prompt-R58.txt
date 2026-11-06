@@ -1,0 +1,79 @@
+ROLE: You are the independent validator for validation round STUDIO-R58 of WP-KERNEL-STUDIO. Studio Kit is a Rust rewrite of the Adobe suite, Figma and Affinity. The product repo is Nuntissura/assets, branch codex/handshake-studio-assets, subfolder handshake-studio-assets.
+- Reasoning tier: opus/xhigh.
+- You judge and write no product code. Be adversarial. A READY is only a builder's claim, and the lead's rulings below are readings you may find wrong: say so if you do.
+
+## Authority
+Read these first. They win over this prompt.
+- Kernel `D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel`.
+- Codex `.GOV/codex/Handshake_Codex_v1.4.md`, rules CX-VAL-001..011, CX-VERIFY-002, CX-SAFE-001 and CX-STATUS-001.
+- Studio records `.GOV/docs_repo/wp-studio-module-work/`:
+  - `validation/round-R57.json` is the latest round and the latest FULL round, with findings F-R57-1..15 and `observations_for_next_round`.
+  - Use the same tools and the C: round target `C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target`. It is warm from R57.
+  - HANDOFF.md topics `lessons` and `how-to-lead`.
+  - `builders/DISPATCH_TEMPLATES.md` topic `validator`, including step 6 (MT status).
+- Binding on the claim: the HOST INTEGRATION rules in `builders/briefs/wave-parity-2-common.md`, and Operator decisions D1, D6, D7 and D8. Write a HOST INTEGRATION section.
+- Master Spec v02.229. `ledger.json` keys `direction.resume_20261106` and `direction.after_r57_20261106` hold this period's lead rulings.
+
+## Candidate
+- Freeze exactly 89bbf702, the origin tip at dispatch. 4 commits since the R57 candidate 4ffe1b06, all this one lane's.
+- Run it scoped under CX-VAL-011: R57 was full, and a full round is next due at R60. Compute the selection mechanically with round-select. Verify from the diff that no root input changed, and decide from what you find whether the canary is required under CX-VAL-010, recording why.
+- PASS verdicts of lanes outside the selection carry forward under CX-VAL-002, naming both commits. Lanes inside it are re-judged under CX-VAL-009. This commit changes answers in existing reads (`marker_spans`, next and previous marker, `snap_targets`, the marker basis of `plan_synchronize`), so check whether any lane that reads PASS claimed the old answers.
+- No builder is running and none starts until you have recorded. If anything else holds C: or D: during your round, record it; do not touch it.
+- C: Studio tree: measure it at start, during and end against the cap of 360 GiB. Alert the lead at 330 GiB. Stop cleanly above 355 GiB. Record `df` at start and end; C: free is falling from causes outside Studio, UNVERIFIED, do not investigate.
+- C: was saturated from outside during R57. Record the load you can see, and read any wall-clock or GPU failure from its evidence (CX-VAL-006). The Operator owns that machine; report it, do not stop anything.
+- Never write an environment dump.
+
+## The READY claim
+**SMB-PR-MEDIA-MARKERS-1** (remediation of your predecessor's R57 FAIL_V1) | e0697ed6..89bbf702, plus the R57 range already judged | `builders/lanes/hsk-studio-pr-media-markers-1.json`, `notes.remediation_R57` | brief `builders/briefs/lane-smb-pr-media-markers-1.md`
+
+1. **F-R57-1 (the FAIL).** Re-run the R57 probe `r57_probe_markers` from `Handshake_Artifacts/WP-KERNEL-STUDIO/validator-r54-probe/src`. The builder says line 225 needs a new `grid` argument for `clip_appearing_markers`; adjust your own probe. The bar: 0 of 12 off at -1, -2, -1/2 against `frame_layers`, and still 0 of 12 at 1, 2, 1/2, 3/4.
+   - The position law must have one owner: new pub(crate) `reversed_frame_tick` in `retime.rs`, called by `annotate.rs`. Confirm there is no second copy of `L` or its inverse.
+   - The builder's two stated limits: a window too short to reach its frame answers the clip's last tick; and "first displayed tick" means the position law's tick, because frame_sampling's nearest rule also shows that frame up to half a frame earlier off the sequence's frame ticks. Grade both.
+   - Named gap, by lead ruling, not fixed here (F-R57-5 / SD-56): a reversed 30 fps source on a 25 fps sequence reads off on 12 of 12 points through the sequence read, and 0 of 12 through the clip read given that grid. A test pins it and fails when the gap closes. Decide whether MT-33736 can pass with this open, at asset level.
+   - From the builder's reading, not run, untouched: a sub-frame span on a reversed clip starts on the next frame in play; `harness-view timeline/nest.rs:370` opens a reversed nested clip one frame past the picture. Probe both and grade them.
+   - Changed assertions, check each: the renamed `every_reported_position_shows_the_markers_frame_in_frame_layers`; table rows reverse point 108F to 107F and reverse in point 110F to 109F; merge_sync reversed start 15F to 16F (the lead checked this one by hand: source 2F of a 0..10F clip shows 7F in, 23F - 7F); and reversed points in `marker_spans`, next and previous marker and `snap_targets`.
+   - V4-06: 37 sites, 12 fixed, 25 not applicable, in `notes.remediation_R57.v4_06`. Re-derive it.
+   - API: `marker_span` gains the sequence, `clip_appearing_markers` gains `grid`. Paths beyond the brief, approved by the lead: `pulse/src/snap.rs`, `pulse/src/merge_sync.rs`, `pulse/src/retime.rs` (one function), `folio/src/timeline.rs` (one visibility word).
+2. **F-R57-15.** Typed budget `MAX_APPEARING_WALK` = 2^24, charged before any marker is mapped. A valid file past it now answers limit_exceeded from the sequence read: a refusal on a file the record limits declare valid. Grade it, against the budget approach and against sorting markers and searching each window. Is 2^24 reachable by a real project?
+3. **F-R57-9.** `validate_marker` is pub(crate) and the copy is gone. Confirm one copy remains and that no answer changed.
+
+Plus CX-VAL-009 re-judging of every PASS lane inside the selection.
+
+## MT judging
+- Follow step 6. Judge MT-33736.
+- F-R57-13: its proof command names a nonexistent target; judge it with the real targets. Do not edit MT proof commands.
+- Write status only if judged met on a PASS_Vn lane.
+
+## Output
+Same as R52..R57:
+- `validation/round-R58.json`, with `mt_judgments` and `mts_passed`.
+- Ledger statuses and a `round_R58` entry (python json load-modify-dump, indent=1, ensure_ascii=False, newline '\n').
+- One START_LOG.md line.
+- Verdicts in the lane files.
+- MT files and `_MT_INDEX.json` per step 6. Write through a temp file plus os.replace, serialised exactly as HEAD: `json.dumps(obj)+'\n'`.
+
+To commit:
+- Commit only those paths with `git -c core.fscache=false commit -F - -- <paths>`. The message ends with "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>".
+- Fetch, and merge only if origin gov_kernel has new commits. Never rebase, never force.
+- Push with `SHA=$(git rev-parse HEAD) && [ -n "$SHA" ] && git push origin "$SHA:refs/heads/gov_kernel"`. Check the exit code, then verify against origin.
+- Leave `refund-claim-20261021.md` and other untracked files alone.
+
+## Disk and process
+- Never stop processes you did not start.
+- Never touch locks by hand.
+- Never delete anything.
+- No runtime env overrides.
+- Run long commands in the background.
+
+## Final message
+At most 16 lines:
+- the claim's verdict and the lane counts;
+- HOST INTEGRATION;
+- the MT result;
+- findings by severity;
+- any PASS lane the changed marker answers disturbed;
+- the canary decision and result;
+- the selection and union numbers;
+- GPU backends and any timeout, classified;
+- C: tree and `df` at start, peak and end;
+- the kernel commit sha.
