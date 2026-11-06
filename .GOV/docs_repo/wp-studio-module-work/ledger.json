@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-06T18:47:15Z",
+ "updated_at": "2026-11-06T18:56:39Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -21139,6 +21139,11 @@
     "added_at": "2026-11-06T18:47:15Z",
     "item": "Marker synchronize at -2 presents odd frames only, so an even frame's sound falls under the next presented frame; and V-2 moving onto A-1 by an odd clap refuses not_frame_aligned where the picture as anchor works (SMB-PR-MEDIA-MARKERS-1 notes.remediation_R58.pre_review_pr59)",
     "owner": "pulse"
+   },
+   {
+    "added_at": "2026-11-06T18:56:39Z",
+    "item": "Frame-accurate marker synchronize for a reversed picture: today the marked frame is presented in the frame before the mark (direction.after_r58_20261106.approach_change.named_limit). Needs a unit-level rule, not a pair rule; spec owner first (SD-73). Reach is small: reversed clips synchronized by marker",
+    "owner": "pulse"
    }
   ],
   "pause_20261103": {
@@ -21371,7 +21376,33 @@
     "F-PR59-4": "A reversed-anchor row; state what was never seen red.",
     "F-PR59-5": "List reversed audio with maintain_audio_pitch in not_proven."
    },
-   "next_lane_candidates_added": true
+   "next_lane_candidates_added": true,
+   "second_read_result": {
+    "at": "2026-11-06T18:56:39Z",
+    "verdict": "FIX_FIRST at d519f6f1",
+    "blocking": "F-SR-1: a pair rule cannot close this, because members meet only through the anchor. Anchor V1 forward 5..15F at 20F, clap 8F, mark 23F; V2 Video and A Audio both 0..10F, -1, clap 2F: V2 goes to 16F and A to 15F, a frame apart over the whole clip; they matched at 4ffe1b06 and 89bbf702. F-SR-3: V4-06 notes list 16 of the regex's 19 lines."
+   },
+   "lead_ruling_pair_status": "WITHDRAWN 2026-11-06T18:56:39Z: right for two clips, not for a unit. The second lead rule on this code to fail.",
+   "approach_change": {
+    "at": "2026-11-06T18:56:39Z",
+    "rule": "CX-EXEC-003, CX-EXEC-003A: three attempts at one problem, so the approach changes.",
+    "diagnosis_id": "DIAG-MARKERS-SYNC-BASIS-1",
+    "failing_assertion": "A marker-basis alignment must not move clips that share a source window apart from each other.",
+    "attempts": [
+     "F-R57-1 repair: the frame law in source_to_timeline for every clip. Failed: reversed audio off the mix (F-R58-1).",
+     "F-R58-1 repair: the frame law per track kind. Failed: a reversed picture and sound pair read under two laws (F-PR59-1).",
+     "F-PR59-1 repair: the lead's pair rule. Failed: a unit's members meet only through the anchor (F-SR-1)."
+    ],
+    "root_cause": "One helper served two jobs. Where a marker appears is a frame question; what synchronize aligns is a source-tick question. merge_sync.rs marker_position was changed only because it shares source_to_timeline.",
+    "distinct_from": [
+     "PROBE-R57-MARKERS-1",
+     "PROBE-R58-AUDIO-1"
+    ],
+    "intended_fix": "merge_sync reads the continuous mapping for every clip of every kind, its behaviour at 4ffe1b06, under which SMB-PR-MERGE-SYNC-1 passed. Frame law stays in the appearing reads (annotate.rs, snap.rs). merge_sync.rs returns to its 4ffe1b06 form apart from the helper's signature.",
+    "named_limit": "A reversed picture synchronized by marker presents the marked frame in the frame before the mark: forward V mark 23F, reversed V, 0..10F, clap 2F, lands at 15F and frame 2 shows 22F..23F. Pre-existing at 4ffe1b06, not new. Goes to the spec owner (SD-73 revised) and a candidate lane, which would need a unit-level rule.",
+    "cost_of_this_change": "It removes code and every pair, unit, anchor and -2 question: F-SR-1, -2, -4, -5, -6 go with it. The marked frame and the displayed marker position differ by a frame on a reversed picture, stated in the docs.",
+    "limits": "One probe and one confirming run (CX-EXEC-003A). A third read of the diff before R59."
+   }
   }
  },
  "round_R45": {

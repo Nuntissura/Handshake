@@ -153,5 +153,143 @@
     "Caption and submix: the ruling's reading; no output oracle; the test says NOT_PROVEN. By reading no src plays a clip on those tracks (folio clip_finishing.rs:855 reads caption segments, not clips; bus_mix.rs:243 uses submix tracks as buses), but I did not read every caption consumer in reel or composite.",
     "F-PR59-2's monitor behaviour: by reading, no viewer test run."
   ],
-  "verdict": "FIX_FIRST"
+  "verdict": "FIX_FIRST",
+  "second_read": {
+    "candidate": "d519f6f1",
+    "base": "2fdcbd4a",
+    "reviewer": "fresh read-only, V4-13, second read",
+    "method": "git show, git diff, git grep, python, and the lane's existing logs. No cargo, no build, no test run by this reviewer. Positions marked by hand are derived from the code and not run. crates/hsk-studio-pulse unless named.",
+    "ruling_assessment": "The pair ruling is right for a unit of exactly two clips: by reading, and by the builder's runs against the mix and frame_layers, the pair stays in sync at -1, -2 and -1/2 and nothing underflows. It is incomplete as a rule for a unit. Every member is aligned against the anchor alone, so two members meet only through the anchor, and their relative position is the difference of two reads that can be under two laws. No per-pair rule can close that: against a forward anchor the frame law is needed for a reversed picture (16F, frame_layers) and the continuous mapping for reversed sound (15F, the mix), and those two rows are a frame apart by construction. Not wrong; it needs a sentence saying where it stops.",
+    "by_question": [
+      {
+        "q": 1,
+        "answer": "Closed for merge in every path: merge has one video clip and it is the anchor (merge_sync.rs:497-507), so any reversed audio member pairs with it directly. Closed for a two-clip synchronize. NOT closed for a synchronize of three or more clips where the anchor is forward, or reversed at another speed than the reversed picture and sound it aligns. alignment_offsets is the only site that literally subtracts two reads: confirmed. It is not the only place two laws meet, because member against member is the same subtraction done through the anchor. F-SR-1.",
+        "evidence": [
+          "Literal sites: merge_sync.rs:586, :601, :603, reached by both operations through link_unit (:641) and plan_unit. git grep over crates/*/src: no SyncPoint or plan_synchronize or plan_merge_clips outside merge_sync.rs and DESCRIPTOR strings, so no host caller and no second basis. annotate.rs, snap.rs and harness-view timeline.rs:1337 are single reads. multicam.rs flatten carries markers by source tick and subtracts no two positions.",
+          "Non-marker points: reads_continuous can be true for InPoint and OutPoint, and reference ignores picture_frame there (:555-558), so they are unchanged. Timecode refuses a reversed clip first at timecode_span (:530). Hold refuses in both reads through not_held.",
+          "The anchor itself: reads_continuous(anchor) is false (x != x), so its offset is anchor_own - anchor_own = 0.",
+          "Tests: a_third_clip (tests/marker_track_kind.rs:595-618) has reversed anchors only, at one speed. No row holds a forward anchor with reversed picture and reversed sound, though the lane's checked rows state its two halves separately: 'forward V mark 23F + rev A' and 'forward V mark 23F + rev V'."
+        ],
+        "status": "FINDING"
+      },
+      {
+        "q": 2,
+        "answer": "The pinned case is correct sound-to-sound alignment, not a defect in itself. Reversed sound's clap is heard 27.9995F, forward sound 28.0000F, one sample apart (green-pr59 log line 5099). It is outside frame 2's presentation only by the half-open edge: the tick the anchor's read names is the frame's exclusive end. Yes, one operation can give inconsistent results across its members: from a reversed picture anchor the same clap is heard 27.9995F on reversed sound and 27.0000F on forward sound, 40 ms apart inside one operation, both under frame 2 (line 5097; by hand 80 ms at -1/2 and 20 ms at -2). The result depends on which clip is the anchor: the same three clips put forward sound at 25F or 26F relative to the unmoved pair (tests :606, :613). That is new: at 4ffe1b06, 89bbf702 and for all forward clips, relative positions do not depend on the anchor. It does not depend on member order: each offset is a pure function of anchor and member (:601-603), clip_ids order only orders the output, and settle touches one member per track. Also path-dependent: sync(V, A) then sync(A, B) gives B 26F, sync(V, B) gives 25F. Named in the lane notes, and 'the anchor's position can differ by member' is in the docs and DESCRIPTOR; the 40 ms between two sounds and the anchor-dependence are not spelled out for a model. F-SR-2.",
+        "evidence": [
+          "merge_sync.rs:579-583 reads_continuous; :601-603.",
+          "tests/marker_track_kind.rs:616-617 asserts reversed against forward within 0.002F and reversed under frame 2. It does not assert forward under frame 2, the case the builder names.",
+          "Post-condition: after a locked pair aligns, marker_spans still read the two claps at their own kinds, V 27F and A 28F at -1, so a reader checking 'the markers landed on one tick' sees a frame's difference and next_marker stops twice. By reading; docs imply it, do not state it."
+        ],
+        "status": "FINDING"
+      },
+      {
+        "q": 3,
+        "answer": "Not new against the base. New only against 89bbf702 and 2fdcbd4a, the two commits with the frame law on a reversed picture. V -2, A -1, clap 3F, anchor A. 4ffe1b06: source_to_timeline had no law (git show 4ffe1b06 annotate.rs:264), V reads (10-3)/2 = 3.5F, A reads 7F, V's move lands off the grid and link_unit's grid_of(track, rate).check_position (4ffe1b06 merge_sync.rs:624) refuses not_frame_aligned, as d519f6f1 does. 89bbf702: V (9-3)/2 = 3F, A 6F, V lands A+3F. 2fdcbd4a: V 3F, A 7F, V lands A+4F. Grade: LOW, acceptable. Typed, changes nothing, states its recovery: the picture as anchor gives A 16.5F, heard 23.4995F under frame 3 (green log 4795-4796), and merge always anchors the picture. Forward V 2x onto audio by an odd clap has the same refusal at every commit. Stated in merge_sync.rs module docs and DESCRIPTOR. Same class by hand, also refused at base: same source at -2 with windows one odd frame apart (V 0..10F, A 1..11F), anchor A: V lands A+0.5F.",
+        "evidence": [
+          "tests/marker_track_kind.rs:583-587 pins the refusal; red and green readings in notes.remediation_R58.pre_review_pr59.readings."
+        ],
+        "status": "OK"
+      },
+      {
+        "q": 4,
+        "answer": "Independent, yes. Sound is the centroid of the rendered mix through heard_on (:465-469) and picture is frame_layers at the start of the timeline frame (:449-455); neither calls the marker read, and placed positions are hand numbers. Mutations read from their logs: anchor None fails 6 of 28, dropped condition fails 1 of 28, at :676, refused not_frame_aligned. One test is enough for the mutation and thin for the condition. The condition can change a result only for two reversed pictures whose law and continuous reads differ: same speed and same window cannot see it (:663-669 pass under it), and sound-sound and caption read continuous either way. The one row detects by a refusal, at -1 and -2 with an odd clap, not by a position. A position row costs one line: V -1 anchor at T, V2 -1/2, clap 2F: law V2 at T-7F, dropped condition T-8F, both on the grid. Wrong in a way all rows miss: yes, three ways. The member-member case, F-SR-1. A window off the frame grid, where the claimed lock does not hold: V and A 0.5..10.5F at -1, last = 10, position runs half a frame behind the sound, so half of each frame's sound is under the next frame; not run, listed in not_proven. Submix, and caption as anchor: no row, same branch by reading.",
+        "evidence": [
+          "mutation-no-one-picture log: Summary 27 passed, 1 failed; panic :676:58. mutation-anchor-none log: Summary 22 passed, 6 failed. Both logs show dirty: 1 by design.",
+          "frame_under (:458-463) is a permissive oracle by necessity at -2: own frame or the next higher presented. It still catches the frame law at -2 (red: A 19.5F, tick readings off). The margin at the frame edge is one source sample, 0.26 mix sample at -2; deterministic, passes in the log."
+        ],
+        "status": "FINDING"
+      },
+      {
+        "q": 5,
+        "answer": "It holds, and it is stated, with imprecise words. By hand at -2, window 0..10F: in timeline frame k the monitor presents frame 9-2k and the mix plays source 10-2k down to 8-2k, frames 9-2k and 8-2k together. So every tick is under its own frame or, for a skipped frame, under the frame one index up. Log: 24 of 42 own, 18 next. Parity comes from the window, not from -2: a last frame of 8 presents the even frames; the same argument holds, by hand. 'The next one presented' (merge_sync.rs module docs; test doc :456-457) misleads: frame 2's sound is under frame 3, which plays before where frame 2 would be, so it is the one before in play order. Where it is not stated: the frame-law branch. Reversed picture at -2, forward sound, even clap: the law reads 3.5F in, the docs and DESCRIPTOR say the monitor presents that frame from that tick, and the monitor never presents it; rows there use an odd clap only (:629). F-SR-4.",
+        "evidence": [
+          "green-pr59 log 4803-4804: V 24F, A 20F, source 2.00F heard 27.9995F under frame 3.",
+          "retime.rs:295-300 and playback.rs:545 floor to the timeline frame."
+        ],
+        "status": "FINDING"
+      },
+      {
+        "q": 6,
+        "answer": "F-PR59-2 closed as asked: AppearingMarker.span doc (annotate.rs:406-408), and the navigation limit named in the lane notes as a candidate lane. F-PR59-3 closed as asked for what I named, the merge_sync key now gives each law's formula and the pair rule, the test lists are fixed, the doc says one source sample. But the new text adds a sentence that is false for a model reading only it: 'the tick the monitor presents that frame from' fails for a skipped frame at -2 and for a fraction at -3/2. The formula also lacks reversed_frame_tick's clamp on a window shorter than its frames (retime.rs:355). And it does not tell a model the F-SR-1 and F-SR-2 consequences, though both follow from 'read per pair'. F-PR59-4 half closed: the reversed anchor is covered and seen red by mutation; the lone clip's scratch-copy red is stated as not run, a statement, not a closure. F-PR59-5 closed as asked: in not_proven.",
+        "evidence": [
+          "DESCRIPTOR diff by key: merge_sync and media_item_markers only.",
+          "notes.remediation_R58.pre_review_pr59.f_pr59_2 to f_pr59_5."
+        ],
+        "status": "FINDING"
+      },
+      {
+        "q": 7,
+        "answer": "HOST INTEGRATION: nothing touched; no new public name, command, job or actor. V4-01: merge_sync.rs still carries the deny; the new lines add a boolean and a tuple, no arithmetic. V4-02: one new cost. :601 re-reads the anchor for every continuous member, a full name scan of the anchor's markers, where it was once per operation: up to 1023 members times up to 65,535 markers, about 6.7e7 string compares, bounded and cancellable per member, not per scan. F-SR-6. V4-07: no listed word in the added lines; the DESCRIPTOR hits are all older text. V4-06: the sweep is short by three, F-SR-3. V4-14: origin is d519f6f1. Proof ran at CARGO_BUILD_JOBS=2, parallelism only, disclosed; a round takes no override and the lead owns that.",
+        "evidence": [
+          "bundled-pr59 log: d519f6f1, dirty 0, 806 passed. per-sha PER_SHA_RESULT OK shas=2.",
+          "Re-derived the lane's regex at d519f6f1: 19 lines. Listed in the notes: 16. Missing: annotate.rs:344, :357, merge_sync.rs:538, three definition lines; the list does include the definition at annotate.rs:294. R58's sweep carried counts, this one does not."
+        ],
+        "status": "FINDING"
+      }
+    ],
+    "findings": [
+      {
+        "id": "F-SR-1",
+        "severity": "MEDIUM",
+        "file_line": "src/merge_sync.rs:579-583, :601-603; no row in tests/marker_track_kind.rs:595-618 (reversed anchors at one speed only)",
+        "claim": "F-PR59-1's class stays open for a synchronize of three or more clips. A reversed picture and reversed sound of one source, both members, are aligned only against the anchor, so the pair is moved apart when the anchor reads them under different laws. Same size as F-PR59-1 and F-R58-1: 40 ms at -1, 80 ms at -1/2, 20 ms at -2, over the whole clip. In lock at 4ffe1b06 (both continuous) and 89bbf702 (both frame law); apart at 2fdcbd4a and here, so my first read missed it too. The pair rule cannot close it, because both of the forward rows it stands next to are right. Merge cannot reach it. Hand-derived, NOT RUN. It joins two rows the lane already pins, and the rule goes to the validator as a claim to break, so I expect it to be found; how it is graded is UNVERIFIED, near even as before.",
+        "failing_input": "Synchronize, anchor V1: V1 forward, source 5..15F at 20F, clap 8F (mark 23F); V2 Video, source 0..10F at 40F, -1, clap 2F; A Audio, same window, start and speed, clap 2F. V2 to 16F, A to 15F (expected one start). Tick 2.5F heard 22.5F, frame 2 presented 23F..24F. At -1/2: V2 9F, A 7F. Second form: anchor V3 Video -1/2 at 20F, V and A both -1, clap 2F: V 27F, A 28F, frame 2 on 34F..35F, clap heard 35.9995F.",
+        "repair_direction": "Lead rules units of 3+: name the limit and pin both rows in docs and DESCRIPTOR, or refuse with a typed code",
+        "blocks_judging": true
+      },
+      {
+        "id": "F-SR-2",
+        "severity": "LOW",
+        "file_line": "src/merge_sync.rs:601-603; tests/marker_track_kind.rs:606-617",
+        "claim": "Inside one operation two sounds of one clap land 40 ms apart from a picture anchor, and relative positions depend on which clip is the anchor. Correct under the ruling and pinned for the positions; the two consequences are not spelled out for a reader, and :617 leaves out the forward sound the builder names. Not member-order dependent. Contrived material: reversed and forward sound of one clap in one unit.",
+        "failing_input": "V and A at 20F, -1, B forward, clap 2F on all. Anchor V: B 25F, heard 27.9995F and 27.0000F. Anchor A: B 26F, heard 27.9995F and 28.0000F. Sync(V, A) then sync(A, B): 26F; sync(V, B): 25F.",
+        "repair_direction": "One sentence in merge_sync docs: relative positions can depend on the anchor; same clause in the DESCRIPTOR",
+        "blocks_judging": false
+      },
+      {
+        "id": "F-SR-3",
+        "severity": "LOW",
+        "file_line": "lane notes.remediation_R58.pre_review_pr59.v4_06; src/annotate.rs:344, :357; src/merge_sync.rs:538",
+        "claim": "V4-06: 'A count mismatch blocks READY_FOR_VALIDATION', and the validator re-derives the sweep (it did at R58). The stated regex gives 19 lines; the notes list 16 and carry no count. The three missing lines are definitions and all not-applicable. A notes edit, no product change.",
+        "failing_input": "git grep -nE 'source_to_timeline\\(|marker_position\\(|marker_span\\(|marker_spans\\(|reference\\(clip|SyncPoint::Marker' d519f6f1 over crates/*/src, comment lines and lib.rs dropped: 19.",
+        "repair_direction": "Add the three lines and a count to the lane notes",
+        "blocks_judging": true
+      },
+      {
+        "id": "F-SR-4",
+        "severity": "LOW",
+        "file_line": "src/lib.rs:87 merge_sync key 'the tick the monitor presents that frame from'; src/merge_sync.rs module docs 'first tick the monitor presents its frame', 'the next one presented', 'each source tick is heard under its own frame's presentation'",
+        "claim": "Three unconditional sentences. The frame-law tick is not a presented tick for a skipped frame at -2 or a fraction at -3/2. 'Next one presented' is the frame before it in play order. The lock assumes the window's end on the frame grid, the condition F-R58-5 made the lane add for spans. The formula omits the clamp on a short window.",
+        "failing_input": "Reversed V -2, 0..10F at 20F, even clap 2F, forward sound: read 23.5F, the monitor presents frame 3 there and never frame 2. V and A 0.5..10.5F at -1: half of each frame's sound is under the next frame (by hand, NOT RUN).",
+        "repair_direction": "Say: where that frame is presented; the frame one index up; when the window's end is on the frame grid",
+        "blocks_judging": false
+      },
+      {
+        "id": "F-SR-5",
+        "severity": "LOW",
+        "file_line": "tests/marker_track_kind.rs:675-678",
+        "claim": "The one-picture condition is proven by one row, through a refusal. Enough for the mutation run; no position row, no submix row, no caption-as-anchor row. The lone clip's None arm still has no red.",
+        "failing_input": "V -1 anchor at 20F, V2 -1/2, clap 2F: law V2 at 13F, dropped condition 12F. No row asserts it.",
+        "repair_direction": "One position row in a_reversed_pair_of_one_kind; a submix row beside the caption row",
+        "blocks_judging": false
+      },
+      {
+        "id": "F-SR-6",
+        "severity": "LOW",
+        "file_line": "src/merge_sync.rs:601",
+        "claim": "The anchor's continuous read is repeated per member: bounded and cancellable, but per-member work where one read serves. V4-02 flavour only; not a refused or unbounded case.",
+        "failing_input": "Anchor with 65,000 markers, 1,000 reversed members of the other kind: about 6.5e7 name compares where 65,000 did. Not measured.",
+        "repair_direction": "Read the anchor's continuous position once, on the first member that needs it",
+        "blocks_judging": false
+      }
+    ],
+    "not_settled_by_reading": [
+      "F-SR-1's positions and the off-grid lock: hand-derived, not run. How the validator grades F-SR-1: UNVERIFIED.",
+      "Reversed audio with maintain_audio_pitch in a pair: no run, listed in not_proven.",
+      "Reversed caption or submix in a pair against output: no oracle; submix has no row.",
+      "Other sequence rates and sources on another stated grid in a pair: every row is 25 fps; not_proven lists them.",
+      "All video-side bars at d519f6f1: the only source change on those reads is the pair branch, so they carry by reading; R58's probes have not been re-run."
+    ],
+    "verdict": "FIX_FIRST"
+  }
 }
