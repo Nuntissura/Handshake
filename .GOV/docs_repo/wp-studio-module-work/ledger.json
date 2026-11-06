@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-06T06:09:15Z",
+ "updated_at": "2026-11-06T07:22:51Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -18282,8 +18282,8 @@
   },
   {
    "lane_id": "SMB-PR-MEDIA-MARKERS-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-folio (media item marker records), hsk-studio-session (document entry and commit), hsk-studio-pulse (resolved read)",
    "lane_file": "builders/lanes/hsk-studio-pr-media-markers-1.json",
    "brief": "builders/briefs/lane-smb-pr-media-markers-1.md",
@@ -18291,13 +18291,14 @@
    "base": "41d0e0da",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-06T03:46:46Z",
+   "updated_at": "2026-11-06T07:22:51Z",
    "closes": [
     "MT-33736"
    ],
    "local_tip": "3cfbbeed",
    "backup_branch": "lane/smb-pr-media-markers-1",
-   "resumed_at": "2026-11-06T03:46:46Z"
+   "resumed_at": "2026-11-06T03:46:46Z",
+   "claim": "149482df..4ffe1b06"
   },
   {
    "lane_id": "SMB-PR-NUDGE-1",
@@ -20317,6 +20318,21 @@
     "added_at": "2026-11-06T06:09:15Z",
     "item": "Stale comment: harness-view src/view/timeline/envelopes.rs:151 says Folio refuses an envelope of a clip not in the sequence; it no longer does (SMB-PR-ENTRY-REFERENCES-1 gaps_outside_lane)",
     "owner": "harness-view"
+   },
+   {
+    "added_at": "2026-11-06T07:22:51Z",
+    "item": "folio timeline.rs:551 validate_marker is private, so media_markers.rs holds a copy of the marker field rules, pinned by a test; pub(crate) would remove the copy (SMB-PR-MEDIA-MARKERS-1 gaps_outside_lane)",
+    "owner": "folio"
+   },
+   {
+    "added_at": "2026-11-06T07:22:51Z",
+    "item": "pulse marker_span and marker_spans keep their window mapping on a held clip, so playhead navigation and the new marker read can differ there (SMB-PR-MEDIA-MARKERS-1 gaps_outside_lane)",
+    "owner": "pulse"
+   },
+   {
+    "added_at": "2026-11-06T07:22:51Z",
+    "item": "No caller of the media marker read in harness-core or harness-view; no host path from session to pulse, and session has no pulse edge (SMB-PR-MEDIA-MARKERS-1 gaps_outside_lane)",
+    "owner": "harness-core, harness-view"
    }
   ],
   "pause_20261103": {

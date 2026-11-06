@@ -565,6 +565,38 @@
    "lead_reading": "Accepted: the answer says so in a typed outcome (Unavailable) rather than hand out a step that cannot apply.",
    "source": "lane SMB-PR-ENTRY-REFERENCES-1, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-69",
+   "gap": "STU-VID-034 does not say what identifies a media item for project-item markers, or whether two imports of identical bytes are one item.",
+   "needs": "Spec owner states it.",
+   "lead_reading": "Builder's reading stands for now: the content digest identifies the item.",
+   "source": "lane SMB-PR-MEDIA-MARKERS-1, v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-70",
+   "gap": "STU-VID-034 does not say whether marker identity is shared across the scopes, or what an edit colliding with it does.",
+   "needs": "Spec owner states both.",
+   "lead_reading": "Builder's reading in the lane's declared_readings stands for now: one id space.",
+   "source": "lane SMB-PR-MEDIA-MARKERS-1, v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-71",
+   "gap": "STU-VID-034 does not say where a project-item marker appears on a frame-held clip and on a nested-sequence clip.",
+   "needs": "Spec owner states it.",
+   "lead_reading": "Builder's reading in the lane's declared_readings stands for now.",
+   "source": "lane SMB-PR-MEDIA-MARKERS-1, v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-72",
+   "gap": "STU-VID-034 with SD-47 does not state whether these records may live beside the document; the clause names no project or media pool surface.",
+   "needs": "Spec owner states it.",
+   "lead_reading": "Builder's reading in the lane's declared_readings stands for now.",
+   "source": "lane SMB-PR-MEDIA-MARKERS-1, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [

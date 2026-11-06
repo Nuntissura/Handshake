@@ -1,41 +1,67 @@
 {
   "crate": "hsk-studio-folio (media item marker records), hsk-studio-session (document entry and commit), hsk-studio-pulse (resolved read)",
   "lane": "SMB-PR-MEDIA-MARKERS-1",
-  "status": null,
-  "phase": "paused_20261105",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed",
   "worktree": "wt-studio-lanes/smb-pr-media-markers-1",
-  "base": "41d0e0da",
+  "base": "a92b8d85",
   "commits": [
     {
-      "sha": "06d508c3",
+      "sha": "149482df",
       "subject": "folio, red 1: media item marker records with behaviour held back",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "7ca8e79e",
+      "sha": "114e7302",
       "subject": "folio, item 2: media item marker records, one id space, typed commands",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "7cbbdb8c",
+      "sha": "d0ea5967",
       "subject": "session, red 2: media marker entry and commit with behaviour held back",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "f28b3ed4",
+      "sha": "646868c9",
       "subject": "session, items 3, 5, 6: media marker entry, commit, one id space through commits",
-      "pushed": false
+      "pushed": true
     },
     {
-      "sha": "3cfbbeed",
-      "subject": "pulse, red 3: what appears on a clip or sequence, behaviour held back. NEVER COMPILED: the pause came while its run queued",
-      "pushed": false
+      "sha": "ef62f7cb",
+      "subject": "pulse, red 3: what appears on a clip or sequence, behaviour held back",
+      "pushed": true
+    },
+    {
+      "sha": "9102e8fd",
+      "subject": "pulse, item 4: what appears on a clip or sequence",
+      "pushed": true
+    },
+    {
+      "sha": "948c0042",
+      "subject": "package, red 4: media marker records in the externals test, unclassified",
+      "pushed": true
+    },
+    {
+      "sha": "6fa05cc0",
+      "subject": "package, rule 4b: the media marker record properties are classified",
+      "pushed": true
+    },
+    {
+      "sha": "877e794c",
+      "subject": "session tests: a repaired entry answers what its undo can restore",
+      "pushed": true
+    },
+    {
+      "sha": "4ffe1b06",
+      "subject": "session tests: media_markers is classified in the entry reference table",
+      "pushed": true
     }
   ],
   "capabilities_done": [
     "Item 2, focused run green at 7ca8e79e: folio media_markers.rs, StudioMediaMarkerRecords (hsk.studio.media_markers@1) beside the document, one entry per media item keyed by ContentDigest; closed serde; bounded counts and bytes; marker ids unique over the three scopes; media_marker.add, .replace, .remove",
     "Items 3, 5 and 6, focused run green at f28b3ed4: session token media_markers; media_marker_records, set_media_marker_records; SequenceRecordsStep carries it as a fourth RecordEdit, no new step; submit_media_marker_command_as and _keyed_as; removal table; save and reopen; a commit or resync giving a document marker an id the entry holds is refused folio_rejected",
-    "NOT DONE: item 4 (code and table written, never compiled or run), rule 4b package round trip (test written, not committed, not run), the bundled run, per-sha, push"
+    "Item 4 and rule 4b: bundled run green at 4ffe1b06, pushed: pulse annotate.rs clip_appearing_markers, sequence_appearing_markers; package media_marker_records_round_trip_through_the_package and the two properties classified",
+    "Merged with origin's R56 F-R56-7 at the rebase: the media_markers half of a step goes through inverse_half, so a step that replaced invalid records answers Unavailable or WithoutEntries; a_step_replaces_an_entry_it_can_quote_and_refuses_bytes_it_cannot, green at 4ffe1b06"
   ],
   "tests": {
     "red_proof": {
@@ -73,16 +99,30 @@
       "pulse": {
         "argv": "cargo nextest run --offline -p hsk-studio-pulse -p hsk-studio-folio --no-fail-fast -E \"binary(=media_markers) | test(markers_keep_their_scope_through_edits_with_spans_and_undo) | test(markers_and_transitions_round_trip_and_old_wire_is_unchanged)\"",
         "sha": "3cfbbeed",
-        "compiles": "NOT_RUN",
-        "exit": null,
-        "reading": "Stopped by me while queued for the disk lock, on the operator pause; no cargo ran. No red proof exists for pulse.",
-        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/red-proof-pulse-smb-pr-media-markers-1-3cfbbeed.log"
+        "compiles": true,
+        "exit": 100,
+        "passed": 2,
+        "failed": 10,
+        "skipped": 349,
+        "reading": "Run on resume 2026-11-06, the pulse green held out with git apply -R, externals.rs dirty and not in the run's crates. Compiled first time, no amend. All 10 failures are the media_markers table on behaviour (both reads answer nothing); the 2 passes are the audit tests, folio timeline_records markers_and_transitions_round_trip_and_old_wire_is_unchanged and pulse editing markers_keep_their_scope_through_edits_with_spans_and_undo. The earlier log red-proof-pulse-smb-pr-media-markers-1-3cfbbeed.log is the stopped run and stays.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/red-proof-pulse-resume-smb-pr-media-markers-1-3cfbbeed.log"
       },
-      "package": "NOT_RUN",
+      "package": {
+        "argv": "cargo nextest run --offline -p hsk-studio-package --test externals --no-fail-fast",
+        "sha": "7509ac93",
+        "compiles": true,
+        "exit": 100,
+        "passed": 7,
+        "failed": 1,
+        "reading": "every_folio_reference_property_is_classified fails; its unclassified set is exactly StudioMediaMarkerEntry.content_digest and StudioMediaMarkerRecords.media_items, compared from the log. The round-trip test passes at red, as it should: it pins behaviour the session and folio already have.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/red-proof-package-smb-pr-media-markers-1-7509ac93.log"
+      },
       "void_runs": [
         "red-proof-session-smb-pr-media-markers-1-8735b553.log: exit 101, did not compile (two test bindings not mut); amended locally.",
-        "green-session-smb-pr-media-markers-1-d3ebb444.log: exit 100, 56 passed, 1 failed: a test fixture fault, fixed in the local red commit; the green commit became f28b3ed4."
-      ]
+        "green-session-smb-pr-media-markers-1-d3ebb444.log: exit 100, 56 passed, 1 failed: a test fixture fault, fixed in the local red commit; the green commit became f28b3ed4.",
+        "bundled-smb-pr-media-markers-1-877e794c.log: exit 100, 594 passed, 1 failed: every_document_entry_token_is_classified, origin's new table had no row for media_markers. Fixed in 4ffe1b06, one rerun, green."
+      ],
+      "note": "Red and focused green shas in this block are pre-rebase; notes.commit_history_notes maps them. No red was rerun after the rebase; per-sha compiled every commit."
     },
     "focused_green": {
       "folio": {
@@ -100,25 +140,82 @@
         "passed": 57,
         "failed": 0,
         "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/green-session-smb-pr-media-markers-1-f28b3ed4.log"
+      },
+      "pulse": {
+        "argv": "cargo nextest run --offline -p hsk-studio-pulse -p hsk-studio-folio --no-fail-fast -E \"binary(=media_markers) | test(markers_keep_their_scope_through_edits_with_spans_and_undo) | test(markers_and_transitions_round_trip_and_old_wire_is_unchanged)\"",
+        "sha": "3cfbbeed with the patch applied, uncommitted; the same files were then committed as 634326cd",
+        "exit": 0,
+        "passed": 12,
+        "failed": 0,
+        "skipped": 349,
+        "reading": "The read compiled and passed the table the first time it ran; no fix was needed and neither source nor test changed.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/green-pulse-uncommitted-smb-pr-media-markers-1-3cfbbeed.log"
+      },
+      "package": {
+        "argv": "cargo nextest run --offline -p hsk-studio-package --test externals --no-fail-fast",
+        "sha": "54b827ad",
+        "exit": 0,
+        "passed": 8,
+        "failed": 0,
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/green-package-smb-pr-media-markers-1-54b827ad.log"
       }
     },
-    "bundled": "NOT_RUN",
-    "per_sha": "NOT_RUN",
+    "bundled": {
+      "argv": "lane-check.sh --owner smb-pr-media-markers-1 -- cargo nextest run -p hsk-studio-folio -p hsk-studio-session -p hsk-studio-pulse -p hsk-studio-package --no-fail-fast",
+      "sha": "4ffe1b06",
+      "exit": 0,
+      "passed": 595,
+      "failed": 0,
+      "skipped": 0,
+      "per_crate_passed": {
+        "folio": 230,
+        "session": 147,
+        "pulse": 176,
+        "package": 42
+      },
+      "reading": "On a92b8d85. Step 0 clean; clippy over the four crates and their direct dependents exits 0, with the 2 type_complexity warnings in pulse tests/media_markers.rs left as the lead ruled; whole suites.",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/bundled-smb-pr-media-markers-1-4ffe1b06.log"
+    },
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-pr-media-markers-1 --per-sha origin/codex/handshake-studio-assets",
+      "result": "PER_SHA_RESULT OK shas=10 range=a92b8d85..4ffe1b06",
+      "exit": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/per-sha-run-smb-pr-media-markers-1-4ffe1b06.log"
+    },
     "not_run": [
-      "Nothing in hsk-studio-pulse has compiled: 3cfbbeed, the uncommitted green and tests/media_markers.rs. Compile errors and wrong table rows are possible.",
-      "Whole suites of folio, session, pulse and package; clippy over them and their direct dependents; step 0; doctests (none added).",
-      "Session unit test media_marker_errors_keep_their_meaning_at_the_session_boundary_r55_f6 (--lib).",
-      "Package: every_folio_reference_property_is_classified and media_marker_records_round_trip_through_the_package.",
-      "The two existing tests the MT audit cites (see notes.mt_audit).",
-      "7cbbdb8c as such: its fixture fix was run only at the green f28b3ed4."
-    ]
+      "Red runs on the rebased commits: per-sha compiled them only.",
+      "Doctests: none added, none run.",
+      "Tests at the intermediate rebased commits: only 877e794c and the tip were run. From reading, UNVERIFIED by run: from 646868c9 up to the commit that fixes each, every_document_entry_token_is_classified and a_step_replaces_an_entry_it_can_quote_and_refuses_bytes_it_cannot fail, settled by 4ffe1b06 and 877e794c."
+    ],
+    "bundled_pre_rebase": {
+      "argv": "lane-check.sh --owner smb-pr-media-markers-1 -- cargo nextest run -p hsk-studio-folio -p hsk-studio-session -p hsk-studio-pulse -p hsk-studio-package --no-fail-fast",
+      "sha": "54b827ad",
+      "exit": 0,
+      "passed": 515,
+      "failed": 0,
+      "skipped": 0,
+      "per_crate_passed": {
+        "folio": 222,
+        "session": 113,
+        "pulse": 139,
+        "package": 41
+      },
+      "reading": "Before the rebase, base 41d0e0da. Step 0 clean; clippy over the four crates and 19 direct dependents exits 0; whole suites. Local tip, base 41d0e0da: not rebased, so nothing here covers origin's commits since then. Clippy prints 2 type_complexity warnings in this lane's pulse tests/media_markers.rs:109 and :184, left as they are.",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/bundled-smb-pr-media-markers-1-54b827ad.log"
+    },
+    "push": {
+      "refspec": "4ffe1b060286695f5380fd1a1533a922c6f30b4e:refs/heads/codex/handshake-studio-assets",
+      "from": "a92b8d85",
+      "exit": 0,
+      "reread": "git ls-remote after the push: codex/handshake-studio-assets 4ffe1b06, lane/smb-pr-media-markers-1 3cfbbeed, lane/smb-pr-media-markers-1-uncommitted b1a299ed"
+    }
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": null,
   "bg_pids": [],
-  "next": "Paused by the Operator; nothing on the product branch, nothing READY. The backup branch holds the commits. lane/smb-pr-media-markers-1-uncommitted holds the three uncommitted files as one restore-only commit, b1a299ed, on top of 3cfbbeed: never merge it. They stay uncommitted in this worktree, so the steps below run unchanged. Resume in the lane worktree in this order. (1) Hold the uncommitted pulse green out: git apply -R Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-media-markers-1/resume/pulse-green.patch, leaving externals.rs dirty. (2) Run the pulse red at HEAD 3cfbbeed with the argv in tests.red_proof.pulse (helper: resume/nx.sh <label> <cargo args>, one cargo call with a log named by lane and sha). It must compile and fail on behaviour, the two audit tests passing. A compile fault there: fix it and amend locally; the product branch does not have this commit. (3) git apply the patch, touch annotate.rs and lib.rs, run the same argv, fix what the table shows, commit as pulse item 4. (4) Commit the externals.rs test as package red 4, run cargo nextest run --offline -p hsk-studio-package --test externals --no-fail-fast (expect every_folio_reference_property_is_classified to fail); run resume/package_green.py from the workspace, commit, rerun. (5) One bundled run: lane-check.sh --owner smb-pr-media-markers-1 -- cargo nextest run -p hsk-studio-folio -p hsk-studio-session -p hsk-studio-pulse -p hsk-studio-package --no-fail-fast. (6) git fetch, rebase on origin/codex/handshake-studio-assets, git diff --stat, lane-check.sh --owner smb-pr-media-markers-1 --per-sha origin/codex/handshake-studio-assets, on PER_SHA_RESULT OK push with the guarded sha form. (7) Finish notes.microtasks and set READY_FOR_VALIDATION on the pushed commit. GitHub backup branch lane/smb-pr-media-markers-1 holds 3cfbbeed. Push rebased or amended tips to the product branch only, never to this backup branch: that would need a force push, which is forbidden. The backup branch stays at this tip until the Operator approves its deletion.",
-  "updated_at": "2026-11-05T22:59:01Z",
+  "next": "Pushed at 4ffe1b06 on codex/handshake-studio-assets, READY_FOR_VALIDATION: a validator judges. Builder work is done unless a verdict returns findings. GitHub backup branch lane/smb-pr-media-markers-1 holds 3cfbbeed, the pre-rebase pause tip, and lane/smb-pr-media-markers-1-uncommitted holds b1a299ed, restore-only; both stay until the Operator approves their deletion: never push to them, never merge them.",
+  "updated_at": "2026-11-06T07:18:35Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -144,6 +241,7 @@
       "MT-33736"
     ],
     "paused_at": "2026-11-05T17:58:25Z",
+    "waiting_20261106T043940Z": "Package rerun at 54b827ad has been queued for the C: lock since 2026-11-06T04:09:10Z, at the queue head, behind lane-check smb-pr-nudge-1 (per-sha cargo running). No cargo of this lane has run since then. Local commits so far: 634326cd, 7509ac93, 54b827ad. Resolved: lock taken, package rerun passed at 04:40Z.",
     "spec_basis": "Master Spec v02.229 14-studio-creative-suite.md STU-VID-034 (:23849). Vendor parity UNVERIFIED (D5).",
     "working_tree_at_pause": {
       "branch_tip": "3cfbbeed19a839db43ee860b5d9d4e1dfaf297df on lane/smb-pr-media-markers-1, base 41d0e0da",
@@ -152,13 +250,14 @@
         "crates/hsk-studio-package/tests/externals.rs: schema line and round-trip test without the classification, never compiled; the classification is resume/package_green.py"
       ],
       "why_not_a_wip_commit": "The pause allows a WIP commit only if it compiles, and no build may start. 3cfbbeed was committed before the pause and has not compiled either; git reset needs a backup push first and the pause forbids pushing, so it stays and is flagged here.",
-      "processes": "TaskStop left two of my own nx.sh bash processes queued; I stopped them by id. No lane process and no lock queue record remains."
+      "processes": "TaskStop left two of my own nx.sh bash processes queued; I stopped them by id. No lane process and no lock queue record remains.",
+      "resolved_20261106": "The three uncommitted files are now committed in 634326cd, 7509ac93 and 54b827ad; the worktree is clean. Branch lane/smb-pr-media-markers-1-uncommitted stays restore-only."
     },
     "mt_audit": {
       "mt": "MT-33736. It has no acceptance_criteria rows; ASSET-AC-001 under closure_unit is the row, its clause sentences are the sub-rows.",
-      "clip_scope": "Read, not run in this lane: pulse tests/editing.rs markers_keep_their_scope_through_edits_with_spans_and_undo. Its run was stopped in the queue, so nothing is claimed by run yet.",
-      "sequence_scope": "Same test, read, not run.",
-      "fields": "Read, not run: folio tests/timeline_records.rs markers_and_transitions_round_trip_and_old_wire_is_unchanged.",
+      "clip_scope": "Run, passed: pulse tests/editing.rs markers_keep_their_scope_through_edits_with_spans_and_undo, at the pulse red and in the bundled runs at 54b827ad and 4ffe1b06.",
+      "sequence_scope": "Same test, same runs.",
+      "fields": "Run, passed: folio tests/timeline_records.rs markers_and_transitions_round_trip_and_old_wire_is_unchanged, at the pulse red and in the bundled runs at 54b827ad and 4ffe1b06.",
       "third_scope_at_base": "Absent, as the brief says."
     },
     "declared_readings": [
@@ -169,9 +268,10 @@
       "One marker id space over three scopes. validate_document checks sequence and clip markers; the records check extends it to this scope. A commit or resync that gives a document marker an id a valid entry holds is refused folio_rejected, as the settings guard refuses. This is the entry's only hold on a document edit. An entry already invalid does not hold a commit up. An undo or redo landing on an id taken since is refused too.",
       "One records step can move a marker between scopes, the id space being checked at the end of the step.",
       "An item no clip is cut from is valid; no read lists such items.",
-      "Item 4, written and NOT RUN. Mapping: playback's, source_to_timeline for speed and reverse, the half-open window, rounding toward the clip start. A reversed point at source_in lands on the clip's exclusive end tick, matching clip_source_at.",
-      "Item 4, written and NOT RUN. Frame hold: a held clip plays one source tick, so a marker holding it spans the whole clip and any other is hidden, for the clip's own markers too. Exact tick match, no frame grid, so a marker inside the held frame past its first tick is hidden. A held frame outside the window still counts, as playback shows it. Vendor parity UNVERIFIED (D5).",
-      "Item 4, written and NOT RUN. A disabled clip still shows markers. A nested sequence or primitive source has no media item, ClipMediaItem says so, and inner clips' markers are not lifted to the outer clip. Hidden is a counter, summed per clip in a sequence read. More than MAX_MARKERS_PER_SEQUENCE appearing is limit_exceeded, never truncated. The walk is bounded by clips times markers and cancellable, with no separate scan budget."
+      "Item 4, run green in the bundled run at 4ffe1b06. Mapping: playback's, source_to_timeline for speed and reverse, the half-open window, rounding toward the clip start. A reversed point at source_in lands on the clip's exclusive end tick, matching clip_source_at.",
+      "Item 4, run green in the bundled run at 4ffe1b06. Frame hold: a held clip plays one source tick, so a marker holding it spans the whole clip and any other is hidden, for the clip's own markers too. Exact tick match, no frame grid, so a marker inside the held frame past its first tick is hidden. A held frame outside the window still counts, as playback shows it. Vendor parity UNVERIFIED (D5).",
+      "Item 4, run green in the bundled run at 4ffe1b06. A disabled clip still shows markers. A nested sequence or primitive source has no media item, ClipMediaItem says so, and inner clips' markers are not lifted to the outer clip. Hidden is a counter, summed per clip in a sequence read. More than MAX_MARKERS_PER_SEQUENCE appearing is limit_exceeded, never truncated. The walk is bounded by clips times markers and cancellable, with no separate scan budget.",
+      "R56 F-R56-7, from origin, now applies to this entry: records that do not validate against the document the undo restores cannot go back, the half is dropped and the step says so. Before the rebase this lane's undo was handed out and then refused."
     ],
     "spec_proposals": [
       "STU-VID-034: say what identifies a media item for project-item markers (Studio: the content digest), and whether two imports of identical bytes are one item.",
@@ -181,19 +281,26 @@
     ],
     "r55_findings": {
       "F-R55-4": "Written against it, tested at f28b3ed4 by the_entry_names_no_sequence_or_clip_r55_f4: an item with no marker is a state, nothing can dangle, a created sequence needs no entry, no document value is copied. One document link remains, the id space, guarded and typed.",
-      "F-R55-6": "Canceled and BudgetExceeded have their own codes: command_codes_tell_cancellation_and_budget_from_bad_input_r55_f6, green at 7ca8e79e. The session mapping unit test has not run.",
+      "F-R55-6": "Canceled and BudgetExceeded have their own codes: command_codes_tell_cancellation_and_budget_from_bad_input_r55_f6, green at 7ca8e79e. The session mapping unit test media_marker_errors_keep_their_meaning_at_the_session_boundary_r55_f6 passed in the bundled run at 4ffe1b06.",
       "F-R55-7": "The command returns records and a report, no document: a_command_returns_records_and_never_a_document_r55_f7, green; the session commit bumps once and validates, every_command_commits_one_revision_one_receipt_and_one_frame, green."
     },
-    "hostile_input": "V4-01 deny on media_markers.rs and annotate.rs; session denies at crate level. V4-02: bytes and depth before parse, lists counted before walking: dims_u32_max_and_aggregate_over_budget_are_refused (green), the 16 cases of an_invalid_entry_opens_is_noted_refuses_on_read_and_save_keeps_its_bytes (green). Pulse the_read_is_bounded_and_cancellable: NOT RUN.",
+    "hostile_input": "V4-01 deny on media_markers.rs and annotate.rs; session denies at crate level. V4-02: bytes and depth before parse, lists counted before walking: dims_u32_max_and_aggregate_over_budget_are_refused (green), the 16 cases of an_invalid_entry_opens_is_noted_refuses_on_read_and_save_keeps_its_bytes (green). Pulse the_read_is_bounded_and_cancellable: passed in the bundled run at 4ffe1b06.",
     "microtasks": {
       "MT-33736": {
-        "state": "open, no row claimed at the pause",
-        "proven_so_far_by_run": "The third scope's storage, commit, removal and reopen at folio and session level, tests above. Appears on every clip cut from it: NOT proven, item 4 has not run.",
+        "state": "open. ASSET-AC-001 met at the asset level with records passed in by the test, no GUI or host. A validator judges.",
+        "proven_so_far_by_run": "Bundled run at 4ffe1b06, pushed.",
+        "rows": {
+          "clip marker travels with the clip": "markers_keep_their_scope_through_edits_with_spans_and_undo; the_three_scopes_appear_labelled_and_move_as_the_clause_says_mt_33736",
+          "sequence marker does not move with clips": "same two tests",
+          "project-item marker lives on a media item": "folio a_media_item_holds_markers_with_every_field_of_the_clause_mt_33736; session removing_the_last_clip_cut_from_an_item_leaves_the_entry_valid_and_unchanged, the_entry_names_no_sequence_or_clip_r55_f4, a_token_that_names_neither_is_untouched_by_a_removal",
+          "appears on every clip cut from it": "every_clip_cut_from_the_item_shows_it_whatever_its_handle_mt_33736; the_media_items_markers_appear_on_a_clip_through_the_mapping_playback_uses_mt_33736; a_marker_appears_once_per_clip_and_a_razor_hands_each_piece_what_it_plays",
+          "name, comment, colour, duration, typed payload": "markers_and_transitions_round_trip_and_old_wire_is_unchanged; a_media_item_holds_markers_with_every_field_of_the_clause_mt_33736"
+        },
         "not_proven": [
           "gui_obligation operator surface and Argus: out of scope",
           "user_manual_obligation: DESCRIPTOR text only",
           "hbr_obligations: no pillar proof recorded",
-          "host adoption MT-36200: later",
+          "host adoption MT-36200: later; no host path from session to pulse exists",
           "vendor parity UNVERIFIED (D5)"
         ],
         "proof_command_problem": "The MT plans cargo test -p hsk-studio-pulse --test contracts, NOT_IMPLEMENTED; the target does not exist and the work spans folio, session and pulse, with spec refs at v02.207. That command cannot prove the claim. No MT edited."
@@ -204,15 +311,31 @@
       "pulse marker_span and marker_spans keep their window mapping on a held clip, so playhead navigation and the new read can differ there. Left unchanged, stated in the annotate.rs docs.",
       "No caller in harness-core or harness-view; no host path from session to pulse is proven, session having no pulse edge. No Registry or RUN_COMMANDS rows: out of scope."
     ],
-    "paths_beyond_brief": "None so far. session tests/sequence_records_support/mod.rs (one field) and sequence_records_commit.rs (one test, it holds the Authority fixture) are session tests inside the owned paths.",
+    "paths_beyond_brief": "None beyond the owned session tests. session tests/sequence_records_support/mod.rs (one field), sequence_records_commit.rs (one test) and entry_references.rs (SMB-PR-ENTRY-REFERENCES-1's file: one NOT_APPLICABLE row and a read after both removals, as its table demands of a new token).",
     "new_module_edges": "none; no Cargo.toml changed",
     "not_inspected": [
       "Adobe behaviour for all of the above: UNVERIFIED (D5).",
-      "Whether another lane now edits source.rs and session.rs at origin: not fetched since 41d0e0da at dispatch; a rebase is expected."
+      "Origin's other commits since 41d0e0da were read only where they conflicted or a test failed; the suites of the four crates passed over them. harness-view and layout changes not read; per-sha compiled the dependents."
     ],
-    "commit_history_notes": "Local history was rewritten before any push: 8735b553 to 0e29bc35 to 0f8a190f to 7cbbdb8c, and d3ebb444 to f28b3ed4. Logs keep the shas they ran at.",
-    "cleanup_for_steward": "C: target C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-media-markers-1 (counts toward P3). Nothing deleted.",
-    "vendor_parity": "UNVERIFIED (D5)"
+    "commit_history_notes": "Local history was rewritten before any push: 8735b553 to 0e29bc35 to 0f8a190f to 7cbbdb8c, and d3ebb444 to f28b3ed4. Logs keep the shas they ran at. Rebase of 2026-11-06 onto a92b8d85: 06d508c3 to 149482df, 7ca8e79e to 114e7302, 7cbbdb8c to d0ea5967, f28b3ed4 to 646868c9, 3cfbbeed to ef62f7cb, 634326cd to 9102e8fd, 7509ac93 to 948c0042, 54b827ad to 6fa05cc0. Logs keep the shas they ran at.",
+    "cleanup_for_steward": "C: target C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-media-markers-1 (counts toward P3). Nothing deleted. Lane PASS or abandoned lists it for deletion (P2). The GitHub branches lane/smb-pr-media-markers-1 and lane/smb-pr-media-markers-1-uncommitted are now superseded by the product branch; deleting them is the Operator's decision. Nothing deleted.",
+    "vendor_parity": "UNVERIFIED (D5)",
+    "pulse_read_first_compile": "No fault. Red 3 compiled and went red on behaviour; the patch compiled and passed all 12 selected tests on its first run, with no change to source or test.",
+    "rebase_20261106": {
+      "onto": "a92b8d85",
+      "conflicts": {
+        "folio lib.rs DESCRIPTOR": "origin's text kept, this lane's api names and media_markers key added",
+        "session source.rs": "origin's doc and tokens kept, media_markers added after composition_token",
+        "session lib.rs": "both exports kept; origin's DESCRIPTOR with this lane's text added",
+        "session sequence_records.rs": "both docs, imports, entry constants and check arms; validated_token and invalid_entry_notes hold composition_token, audio_routing as noted_token, and media_markers",
+        "session sequence_records_step.rs": "origin's undo answer kept and the media_markers half added through inverse_half, restores_something and the inverse fields, in place of this lane's plain swapped inverse",
+        "session session.rs": "both Applied fields, Step arms and entry points; media_marker_report added to every Applied literal; at resync origin's multicam guard kept and keep_settings_entry_valid replaced by this lane's keep_entry_valid loop, which also holds media_markers",
+        "pulse lib.rs DESCRIPTOR": "origin's retime and nudge text kept, media_item_markers key added",
+        "package externals.rs": "both schema rows and both round-trip tests"
+      },
+      "auto_merged": "annotate.rs merged with no conflict. Retime's FrameLayer.answer is not read by the marker read: positions stay tick-exact through source_to_timeline, and every_reported_position_agrees_with_clip_source_at passes on the rebased tree.",
+      "local_slip": "The first rebase attempt continued past a crashed resolver script (a step chained after ;) and committed conflict markers into a local rebased folio commit, 2674c267. Found at once, git rebase --abort back to 54b827ad, nothing lost and nothing pushed from it; the rebase was then redone. No marker in the pushed commits: git grep over all ten finds none, and per-sha compiled them."
+    }
   },
   "backup_branch": {
     "ref": "lane/smb-pr-media-markers-1",
@@ -221,5 +344,6 @@
     "rule": "Push rebased or amended tips to the product branch only, never to this backup branch: that would need a force push, which is forbidden. The backup branch stays at this tip until the Operator approves its deletion.",
     "uncommitted_ref": "lane/smb-pr-media-markers-1-uncommitted",
     "uncommitted_sha": "b1a299ed6c45f111ba498a23b41b138ef47f1c57"
-  }
+  },
+  "pushed_sha": "4ffe1b060286695f5380fd1a1533a922c6f30b4e"
 }
