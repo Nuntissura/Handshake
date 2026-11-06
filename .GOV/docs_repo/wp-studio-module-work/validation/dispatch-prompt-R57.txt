@@ -1,0 +1,105 @@
+ROLE: You are the independent validator for validation round STUDIO-R57 of WP-KERNEL-STUDIO. Studio Kit is a Rust rewrite of the Adobe suite, Figma and Affinity. The product repo is Nuntissura/assets, branch codex/handshake-studio-assets, subfolder handshake-studio-assets.
+- Reasoning tier: opus/xhigh.
+- You judge and write no product code. Be adversarial. A READY is only a builder's claim, and the lead's rulings below are readings you may find wrong: say so if you do.
+
+## Authority
+Read these first. They win over this prompt.
+- Kernel `D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel`.
+- Codex `.GOV/codex/Handshake_Codex_v1.4.md`, rules CX-VAL-001..011, CX-VERIFY-002, CX-SAFE-001 and CX-STATUS-001.
+- Studio records `.GOV/docs_repo/wp-studio-module-work/`:
+  - `validation/round-R56.json` is the latest round (scoped), with findings F-R56-1..15 and `observations_for_next_round`.
+  - `validation/round-R54.json` is the latest FULL round: use its FULL shape (round-select SELECTION --all, 56 crates).
+  - Use the same tools and the C: round target `C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target`. It is warm from R56.
+  - HANDOFF.md topics `lessons` and `how-to-lead`.
+  - `builders/DISPATCH_TEMPLATES.md` topic `validator`, including step 6 (MT status).
+- Binding on every claim: the HOST INTEGRATION rules in `builders/briefs/wave-parity-2-common.md`, and Operator decisions D1, D6, D7 and D8. Write a HOST INTEGRATION section per claim.
+- Master Spec v02.229. Spec-owner items in `spec-enrichment/STUDIO-ENRICHMENT-20261030-HOST-INTEGRATION.json`; SD-49..SD-72 are new since R56 began.
+- Lead decision F-R51-11 applies to catalogue rows with an open tooltip half.
+- `ledger.json` key `direction.resume_20261106` holds this period's lead rulings.
+
+## Candidate
+- Freeze exactly 4ffe1b06, the origin tip at dispatch. 61 commits since the R56 candidate 091c4d1b; 84 files, +16,524 -454.
+- This round is FULL (CX-VAL-011: R55 and R56 were scoped). All 56 crates.
+- The lead found no root input in 091c4d1b..4ffe1b06 (0 paths outside crates/) and 0 added egui, eframe, winit, wgpu, naga or WGSL code lines (the only match is a doc comment saying "adds no egui line", harness-view view/timeline.rs). Crates changed: folio, harness, harness-core, harness-view, interop-layout, layout, package, pulse, session, type. Verify both findings yourself. Decide from what you find whether the canary is required under CX-VAL-010 and record why.
+- No builder is running and none starts until you have recorded. The lead verified 0 cargo, rustc and nextest processes just before dispatch. If anything else holds C: or D: during your round, record it; do not touch it.
+- C: Studio tree: measure it at start, during and end against the cap of 360 GiB. Alert the lead at 330 GiB. Stop cleanly above 355 GiB. It was 296.5 GiB at dispatch (studio-round 194.5). PASS-lane targets await Operator approval for deletion, so you have about 64 GiB of room.
+- C: physical free space fell from 415 GB to 265 GB over the last day while the Studio tree grew only about 40 GiB; the rest is outside Studio and the cause is UNVERIFIED. Record `df` at start, during and end; do not investigate it.
+- Record the GPU backend per unit. "vulkan" here means wgpu's Vulkan backend: asset-local proof only.
+- GPU load: 466 chrome.exe processes were running at dispatch, and a Chrome GPU process has slowed GPU tests 3 to 30 times in past rounds. Classify any GPU timeout from evidence in the failure output (CX-VAL-006), never from timing correlation alone. The Operator owns that machine; report it, do not stop anything.
+- Watch: `audio_import imported_file_plays_through_the_device` and `viewer_audio looping_audio_wraps_at_the_out_point_and_config_is_checked` (400 ms wall-clock). They read 0.650 s and 0.471 s in a builder run at d54293da and passed. Report them against V4-03 if they fail or come close.
+- Watch: `viewer_shared_display viewer_renders_on_the_host_device_into_the_display_texture` timed out at 120 s in one builder's parallel run (07f4ceef) while another lane's viewer tests ran, and passes alone in 13 s. Report what it does in your union.
+- Never write an environment dump.
+
+## READY claims (judge in this order)
+1. **SMB-LAYOUT-COMPOSER-DEPTH-1** | 7c8c5312..ca23add1 | `builders/lanes/hsk-studio-layout-composer-depth-1.json`, including top-level `ready_claim` | brief `builders/briefs/lane-smb-layout-composer-depth-1.md` | candidate closure of HIGH F-R56-1.
+   - Re-run your R56 readings: no document data may abort a composer, in any of the four composers, ragged and justified.
+   - Lead accepted the Knuth-Plass node cap 2^25, visit ceiling 2^30 and the Para budgets, and did not tune them. Refused rows the lifted loop answers: 1570+ long hyphenated words at 180 pt, 46080+ CJK glyphs with mojikumi, zero-advance at 1000, Adobe justified zero-advance at 5000. Slowest refusal read 80 s in release; debug of that row NOT RUN. Grade the reading, and the time to refuse.
+   - Most useful probe: all those rows use a toy font. If you can, compose a long real-font paragraph at a normal measure and report whether it reaches the second pass and a refusal. The lead's candidate lane depends on this answer.
+   - 8 window dead-end rows (80, 334, 609, 807, 842, 1201, 1269, 1440) stay byte-identical to base and are wrong-looking; the lead left them for a separate lane. Decide whether that is acceptable while F-R56-1 closes.
+   - The two tests at 1000 pin a declared refusal, not a red proof. Its "base loop" readings are a lifted patch, not the base sha. The interop-layout suite did not run after the rebase over SMB-LAYOUT-BLANK-LINE-LOOKUPS-1; your union covers it.
+2. **SMB-PR-RETIME-OUTPUT-1** | c629c0c5..d54293da | `builders/lanes/hsk-studio-pr-retime-output-1.json` | brief `builders/briefs/lane-smb-pr-retime-output-1.md` | F-R56-2; MT-33730, MT-33731 candidates.
+   - The whole pulse suite last ran before its rebases. No existing assertion changed, it says: confirm.
+   - Pitch proof must be an independent measurement, not the same code. Each stereo channel is stretched separately. Reverse with the flag on.
+   - By the builder's arithmetic a 1920 x 1080 monitor raster is refused for optical_flow (826,719 pixel limit), run only at 920 x 920. Probe it and grade it.
+   - Named gaps: export of a non-unit clip names the wrong frame pair at another source rate (export_media.rs:201), NOT_INSPECTED pixels; nested clip with a pair refused. Decide whether MT-33731's asset-level reading holds with those open.
+3. **SMB-PR-ENTRY-REFERENCES-1** | d47d8e82..a92b8d85 | `builders/lanes/hsk-studio-pr-entry-references-1.json`, `notes.claim` | brief `builders/briefs/lane-smb-pr-entry-references-1.md` | F-R56-3, F-R56-7.
+   - Its last whole seven-crate run is NOT green: 07f4ceef exit 100, 985 passed, 1 timed out (the watch above). Harness, harness-core and package last ran at 07f4ceef.
+   - The inert rule: an id the document does not hold is inert; a malformed id stays refused InvalidId (lead overruled the first version, which accepted any string; 10 sites, 7 fixed). Re-derive the V4-06 list. An id held with the wrong kind stays refused.
+   - Probe: a new sequence with a caller-chosen id takes over an inert routing of that id (SD item). Grade it: wanted, or a silent wrong answer? Live again when the id returns is tested for track and clip, not sequence.
+   - F-R56-7 corner: a repair naming a sequence the same step inserts has no undo for the sequence edit, answered Unavailable. Judge it.
+   - Not tested by the builder: a resync against a damaged entry, a keyed multicam step over an inert entry. Three rules side by side (refuse, inert): settings and multicam sequences keep refusal.
+4. **SMB-PR-MEDIA-MARKERS-1** | 149482df..4ffe1b06 | `builders/lanes/hsk-studio-pr-media-markers-1.json` | brief `builders/briefs/lane-smb-pr-media-markers-1.md` | MT-33736 candidate.
+   - Highest merge risk this round. It rebased over all four lanes above with real conflicts in session. Read these merges yourself: `session.rs` (media_marker_report in every Applied literal); `sequence_records_step` (its swapped inverse replaced by inverse_half); Resync, where origin's multicam guard was kept and `keep_settings_entry_valid` was replaced by a `keep_entry_valid` loop. Confirm no behaviour of SMB-PR-ENTRY-REFERENCES-1 or the earlier settings guards was lost.
+   - The first rebase attempt committed conflict markers locally and was redone; the lead checked the ten pushed commits for markers (0). Commits 646868c9 up to 877e794c should fail two session tests by reading, UNVERIFIED by run; its rebased reds were not re-proven.
+   - It edited `tests/entry_references.rs`, another lane's file (+14 -1): check the NOT_APPLICABLE classification.
+   - No host path from session to pulse: the read is proven only with records a test passes in. Judge the MT row at asset level only. `validate_marker` is copied in `media_markers.rs`, pinned by a test: V4-05 class?
+5. **SMB-PR-NUDGE-1** | 8172b2c5..b9a87c7b | `builders/lanes/hsk-studio-pr-nudge-1.json` | brief `builders/briefs/lane-smb-pr-nudge-1.md` | MT-33738 candidate.
+   - No test asserts nudge and retime together, and retime changed `FrameLayer`. Probe a nudged retimed clip.
+   - Left and right overwrite while up and down refuse; MT-33738's case says an overlapping destination refuses. The builder did not claim it. Grade it.
+   - No key binding (needs an egui line, so correctly absent). Whole suites of the dependents harness and interop-media were not run: your union covers them.
+6. **SMB-PR-EDIT-FOOTPRINT-1** | 56c3a5f3..41d0e0da | `builders/lanes/hsk-studio-pr-edit-footprint-1.json` | brief `builders/briefs/lane-smb-pr-edit-footprint-1.md` | exhaustive clip diff; F-R56-10's `plan_move` part.
+7. **SMB-PR-TRACK-DISPLAY-1** | e8647bfa..c143625f | `builders/lanes/hsk-studio-pr-track-display-1.json` | brief `builders/briefs/lane-smb-pr-track-display-1.md` | MT-33739 partly met; SD-49, SD-50. Lead reading to grade: display entries inert.
+8. **SMB-LAYOUT-BLANK-LINE-LOOKUPS-1** | c9648315..66c0e7c9 | `builders/lanes/hsk-studio-layout-blank-line-lookups-1.json` | brief `builders/briefs/lane-smb-layout-blank-line-lookups-1.md` | F-R56-5, F-R56-9; SD-51.
+9. **SMB-TYPE-AUTHORED-TOKEN-1** | 1894d7f7..1940292c | `builders/lanes/hsk-studio-type-authored-token-1.json` | brief `builders/briefs/lane-smb-type-authored-token-1.md` | F-R56-4, F-R56-6; MT-30898 partly met; SD-52. Whole type, folio, session, package and harness-core suites last ran at 62f81467. Lead reading to grade: no stored token reads as @1, with a typed refusal for U+2028 in text saved since 2fba5f61 (one constant).
+
+Plus CX-VAL-009 re-judging of every PASS lane: this round is FULL, so report anything the full union changes for a lane that read PASS.
+
+## MT judging
+- Follow step 6.
+- Judge MT-33730, MT-33731, MT-33736, MT-33738, MT-33739, MT-30898 and any MT a claim names.
+- F-R55-3 and F-R56-13: several MTs name a nonexistent proof target; judge them with the real targets, as R55 and R56 did. Do not edit MT proof commands.
+- Write status only for MTs judged met on a PASS_Vn lane.
+
+## Output
+Same as R52..R56:
+- `validation/round-R57.json`, with `mt_judgments` and `mts_passed`.
+- Ledger statuses and a `round_R57` entry (python json load-modify-dump, indent=1, ensure_ascii=False, newline '\n').
+- One START_LOG.md line.
+- Verdicts in the lane files.
+- MT files and `_MT_INDEX.json` per step 6. Write through a temp file plus os.replace, serialised exactly as HEAD: `json.dumps(obj)+'\n'`.
+
+To commit:
+- Commit only those paths with `git -c core.fscache=false commit -F - -- <paths>`. The message ends with "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>".
+- Fetch, and merge only if origin gov_kernel has new commits. Never rebase, never force.
+- Push with `SHA=$(git rev-parse HEAD) && [ -n "$SHA" ] && git push origin "$SHA:refs/heads/gov_kernel"`. Check the exit code, then verify against origin.
+- Leave `refund-claim-20261021.md` and other untracked files alone.
+
+## Disk and process
+- Never stop processes you did not start.
+- Never touch locks by hand.
+- Never delete anything.
+- No runtime env overrides.
+- Run long commands in the background.
+
+## Final message
+At most 24 lines:
+- counts and the nine claim verdicts;
+- HOST INTEGRATION per claim;
+- MTs written;
+- findings by severity;
+- the canary decision and result;
+- union numbers, and any PASS lane the full union disturbed;
+- GPU backends and any GPU timeout, classified;
+- C: tree and `df` at start, peak and end;
+- the real-font composer answer, if you could get one;
+- the kernel commit sha.
