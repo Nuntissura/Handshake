@@ -17,7 +17,7 @@ Read these first. They win over this prompt.
 - Master Spec v02.229.
 
 ## Candidate
-- Freeze exactly c4d06841, the origin tip at dispatch. 6 commits since the R58 candidate 89bbf702, all this one lane's, all in crates/hsk-studio-pulse.
+- Freeze exactly c4d06841, the origin tip at dispatch. 7 commits since the R58 candidate 89bbf702, all this one lane's, all in crates/hsk-studio-pulse.
 - Run it scoped under CX-VAL-011: R57 was full, R58 scoped, and a full round is next due at R60. Compute the selection mechanically with round-select. Verify from the diff that no root input changed, and decide from what you find whether the canary is required under CX-VAL-010, recording why.
 - PASS verdicts of lanes outside the selection carry forward under CX-VAL-002, naming both commits. Lanes inside it are re-judged under CX-VAL-009. In particular SMB-PR-MERGE-SYNC-1, which R58 said this claim had pinned wrong.
 - No builder is running and none starts until you have recorded. If anything else holds C: or D: during your round, record it; do not touch it.
