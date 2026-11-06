@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-06T03:46:46Z",
+ "updated_at": "2026-11-06T04:55:21Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -18299,8 +18299,8 @@
   },
   {
    "lane_id": "SMB-PR-NUDGE-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-pulse (track nudge planner), hsk-studio-harness-view (timeline command)",
    "lane_file": "builders/lanes/hsk-studio-pr-nudge-1.json",
    "brief": "builders/briefs/lane-smb-pr-nudge-1.md",
@@ -18308,13 +18308,14 @@
    "base": "41d0e0da",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-06T03:46:46Z",
+   "updated_at": "2026-11-06T04:55:21Z",
    "closes": [
     "MT-33738"
    ],
    "local_tip": "31de741d",
    "backup_branch": "lane/smb-pr-nudge-1",
-   "resumed_at": "2026-11-06T03:46:46Z"
+   "resumed_at": "2026-11-06T03:46:46Z",
+   "claim": "8172b2c5..b9a87c7b"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -20269,6 +20270,31 @@
     "added_at": "2026-11-06T03:46:46Z",
     "item": "A nested clip with a frame pair is refused; rendering it needs the two inner scenes through FrameBlended (SMB-PR-RETIME-OUTPUT-1 gaps_outside_lane)",
     "owner": "harness-view, composite"
+   },
+   {
+    "added_at": "2026-11-06T04:55:21Z",
+    "item": "ClipTrackNudge has no key: the spec names Alt+Up and Alt+Down (:23989, :23994), and key_command takes egui types, which the dispatch forbids adding to. Waits for the host's key layer (SMB-PR-NUDGE-1 gaps_outside_lane)",
+    "owner": "harness-view, host"
+   },
+   {
+    "added_at": "2026-11-06T04:55:21Z",
+    "item": "cmd.sequence.trimforward, trimforwardmany, trimbackward, trimbackwardmany (spec :24255-24258) have no reference in any crate (SMB-PR-NUDGE-1 gaps_outside_lane)",
+    "owner": "harness-view"
+   },
+   {
+    "added_at": "2026-11-06T04:55:21Z",
+    "item": "The multi-frame step is in memory for the open document only; no settings store holds it (SMB-PR-NUDGE-1 step_finding)",
+    "owner": "harness-view"
+   },
+   {
+    "added_at": "2026-11-06T04:55:21Z",
+    "item": "Real-font reading of the composer budgets: with a real font, does a long paragraph at a normal measure (the toy rows refuse at 5000 words at 480 pt after 75-80 s) reach the second pass and refuse? If it does, decide on a marked degraded answer instead of a refusal (SMB-LAYOUT-COMPOSER-DEPTH-1 cap_readings)",
+    "owner": "layout"
+   },
+   {
+    "added_at": "2026-11-06T04:55:21Z",
+    "item": "The 8 justified dead-end rows (80, 334, 609, 807, 842, 1201, 1269, 1440): the last line takes the rest of the paragraph, excess in hang_pt, overfull false. The emergency rule fixes them and changes output (row 80: 21 lines, not 8) (SMB-LAYOUT-COMPOSER-DEPTH-1 open)",
+    "owner": "layout"
    }
   ],
   "pause_20261103": {
@@ -20420,7 +20446,7 @@
     "SMB-PR-NUDGE-1": "rebase on d54293da, pulse and harness-view suite on C:, then waits for the push slot (origin moved into pulse, so the lane file's step 2 was corrected in the dispatch)",
     "SMB-PR-MEDIA-MARKERS-1": "next steps 1-5 on C:, then waits for the push slot"
    },
-   "push_order": "Composer next: shortest remaining job, closes HIGH F-R56-1, and a layout push does not touch nudge's crates. Then granted one at a time as each lane reaches WAITING_FOR_PUSH_SLOT.",
+   "push_order": "Slot goes to whichever lane is ready when it frees, so it never sits idle: nudge took it first because composer's phase 1 was still running; composer holds it from 2026-11-06T04:55:21Z; entry references next, then media markers.",
    "c_tree_at_second_wave_gib": 291.4,
    "c_tree_growth_note": "Retime output's target went from 17.9 to 50.7 GiB across its suite, per-sha and new-tests runs. If nudge grows the same way the tree reaches the 330 alert before R57; estimate from one lane, UNVERIFIED.",
    "lead_rulings_entry_references": {
@@ -20434,7 +20460,14 @@
      "The F-R56-7 corner with no undo for the sequence edit",
      "A new sequence given a caller-chosen id takes over an inert routing of that id; also a probe for the validator"
     ]
-   }
+   },
+   "lead_rulings_composer": {
+    "at": "2026-11-06T04:55:21Z",
+    "cap": "Accepted: Knuth-Plass node cap 2^25, visit ceiling 2^30, Para budgets. Bound required (HBR-HOST-004); peak 1.55-1.61 GiB measured against 3.1-6.2 GiB lifted; typed outcome; cancellation read inside the loop; past the budgets on ragged text the base aborted anyway. READY claim states the rows refused that the lifted loop answers and the 80 s slowest refusal.",
+    "dead_end_rows": "Accepted for this lane: rows 80, 334, 609, 807, 842, 1201, 1269, 1440 stay byte-identical and pinned, stated as wrong-looking and not fixed. The emergency rule changes output (row 80: 21 lines, not 8) and needs its own lane.",
+    "open_risk": "Toy font rows only. Whether a real font on a long paragraph at a normal measure reaches the second pass and this refusal is not known; candidate lane recorded at READY."
+   },
+   "lead_correction": "Lead told the Operator and nudge's builder the nudge bundled log had no exit line. It has one (LANE_CHECK_EXIT=0, written by the run's wrapper from $?); the lead's grep pattern was too narrow. Withdrawn."
   }
  },
  "round_R45": {

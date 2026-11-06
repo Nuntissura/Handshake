@@ -1,39 +1,39 @@
 {
   "crate": "hsk-studio-pulse (track nudge planner), hsk-studio-harness-view (timeline command)",
   "lane": "SMB-PR-NUDGE-1",
-  "status": null,
-  "phase": "paused_20261105",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed_20261106",
   "worktree": "wt-studio-lanes/smb-pr-nudge-1",
   "base": "66c0e7c94eeb3b131bd22acfa2f6ec33d8b16b85",
   "commits": [
     {
-      "sha": "92411146fe10ffae991fc2fe3813c4cc724526e9",
+      "sha": "8172b2c5cf9b8bed76b8a39b63d6431b83918655",
       "subject": "harness-view (SMB-PR-NUDGE-1, audit): every nudge STU-VID-035a names, driven and printed",
-      "pushed": false,
+      "pushed": true,
       "note": "Passes at base by design: the run is the audit."
     },
     {
-      "sha": "a7d720d2d4bbac2cab7e48438ba4a6e7e7c1f2bf",
+      "sha": "e530167d5b4e193cf78c7d116985f929ece75d8d",
       "subject": "pulse (SMB-PR-NUDGE-1, red): up and down by one track, the planner refuses everything",
-      "pushed": false,
+      "pushed": true,
       "red": true
     },
     {
-      "sha": "a54a208d7e8a74486705ee7053adc81aa004e993",
+      "sha": "097fc3e8adfaba0093cc3dbc0d95aa9d67a6e969",
       "subject": "harness-view (SMB-PR-NUDGE-1, red 2): the clip track nudge command refuses, no spec ids for clip nudges",
-      "pushed": false,
+      "pushed": true,
       "red": true
     },
     {
-      "sha": "1246b8e242243fb8021df1e51e39b1bb3ec2d86b",
+      "sha": "64d44cf542b5a4ef0790b0c7bb0681b38ea12d70",
       "subject": "pulse (SMB-PR-NUDGE-1): plan_nudge_track moves a clip one track up or down and keeps its time",
-      "pushed": false,
-      "note": "Holds the approved comment at timeline_edit.rs:190, so the line is never false at a sha."
+      "pushed": true,
+      "note": "Holds the approved comment at timeline_edit.rs:190, so the line is never false at a sha. The DESCRIPTOR conflict with SMB-PR-RETIME-OUTPUT-1 was resolved in this commit (notes.rebase_20261106)."
     },
     {
-      "sha": "31de741dc6e9598f6fdb9d3c0ea47c88f7715acb",
+      "sha": "b9a87c7b1e7062cc153207189f8cbadca9d3cf90",
       "subject": "harness-view (SMB-PR-NUDGE-1): TimelineCommand::ClipTrackNudge through the proposal path, spec ids for all six clip nudges",
-      "pushed": false
+      "pushed": true
     }
   ],
   "capabilities_done": [
@@ -99,44 +99,89 @@
       "result": "PER_SHA_RESULT OK shas=5 range=66c0e7c9..31de741d",
       "exit": 0,
       "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nudge-1/per-sha-run-smb-pr-nudge-1-31de741d.log",
-      "stale": "Its base 66c0e7c9 is older than origin 1940292c, so it does not admit a push. Not pushed, on the lead's pause instruction."
+      "stale": "Old range 66c0e7c9..31de741d, kept as history. The per-sha that admitted the push is rebased_per_sha."
     },
     "not_run": [
-      "Anything on a tree containing origin 1940292c: no rebase, no bundled run, no per-sha.",
       "Whole suites of the dependents harness and interop-media: clippy and the per-sha compile only.",
-      "The viewer-only feature unit as a whole suite: the bundled run used desktop and audio-batch, which activates viewer; the new viewer tests also ran under viewer alone in the focused run.",
+      "The viewer-only feature unit as a whole suite: the bundled run used desktop and audio-batch, which activates viewer; the new viewer tests also ran under viewer alone in rebased_focused.",
+      "The red commits were not re-proven red after either rebase: per-sha proves they compile, not that they still fail.",
       "hsk-studio-package: no Folio record field added. Doctests: none added or changed."
     ],
     "sha_map": {
-      "note": "Logs name the shas they ran at. Local commits, then the rebase on 66c0e7c9.",
+      "note": "Logs name the shas they ran at. Local commits, then the rebase on 66c0e7c9, then the rebase on d54293da.",
       "audit": [
         "ce066f30",
-        "92411146"
+        "92411146",
+        "8172b2c5"
       ],
       "red": [
         "9f4eeb96",
-        "a7d720d2"
+        "a7d720d2",
+        "e530167d"
       ],
       "red_2": [
         "ad69c10e",
-        "a54a208d"
+        "a54a208d",
+        "097fc3e8"
       ],
       "planner": [
         "31d12f42",
-        "1246b8e2"
+        "1246b8e2",
+        "64d44cf5"
       ],
       "command": [
         "0a0b802b",
-        "31de741d"
+        "31de741d",
+        "b9a87c7b"
       ]
+    },
+    "rebased_run": {
+      "argv": "lane-check.sh --owner smb-pr-nudge-1 -- cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-view --features hsk-studio-harness-view/desktop,hsk-studio-harness-view/audio-batch --no-fail-fast",
+      "exit": 0,
+      "sha": "b9a87c7b1e7062cc153207189f8cbadca9d3cf90",
+      "on_origin": "d54293da1f4b0d871f131b5d2f01593aaa6d5e75",
+      "passed": 355,
+      "failed": 0,
+      "skipped": 0,
+      "by_crate": {
+        "hsk-studio-pulse": 163,
+        "hsk-studio-harness-view": 192
+      },
+      "new_tests_passed": {
+        "hsk-studio-pulse::track_nudge": 13,
+        "hsk-studio-pulse::edit_footprint the_track_nudge_rows_report_what_they_write": 1,
+        "hsk-studio-harness-view::viewer_timeline_nudge": 10
+      },
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nudge-1/bundled-smb-pr-nudge-1-b9a87c7b.log",
+      "clippy": "Same lock hold, exit 0, over pulse and harness-view [desktop, audio-batch], then the dependents harness and interop-media. One warning on this lane's code, the same as before: clippy::type_complexity at tests/viewer_timeline_nudge.rs:227.",
+      "exit_source": "lane-check exit 0, the LANE_CHECK_EXIT=0 line (log line 13151, finished 2026-11-06T04:05:37Z) and the background task's exit code 0."
+    },
+    "rebased_focused": {
+      "argv": "cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-view --features hsk-studio-harness-view/viewer --no-fail-fast --success-output immediate -E 'binary(track_nudge) | binary(viewer_timeline_nudge) | binary(edit_footprint)'",
+      "sha": "b9a87c7b1e7062cc153207189f8cbadca9d3cf90",
+      "on_origin": "d54293da1f4b0d871f131b5d2f01593aaa6d5e75",
+      "exit": 0,
+      "result": "37 run, 37 passed",
+      "by_binary": {
+        "track_nudge": 13,
+        "viewer_timeline_nudge": 10,
+        "edit_footprint": 14
+      },
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nudge-1/focus-smb-pr-nudge-1-b9a87c7b.log"
+    },
+    "rebased_per_sha": {
+      "argv": "lane-check.sh --owner smb-pr-nudge-1 --per-sha origin/codex/handshake-studio-assets",
+      "result": "PER_SHA_RESULT OK shas=5 range=d54293da..b9a87c7b",
+      "exit": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-nudge-1/per-sha-run-smb-pr-nudge-1-b9a87c7b.log"
     }
   },
   "verdicts": [],
   "blockers": [],
-  "lock_wait_s": 0,
+  "lock_wait_s": 41,
   "bg_pids": [],
-  "next": "Paused by the Operator, nothing on the product branch. Resume in order: (1) in wt-studio-lanes/smb-pr-nudge-1/handshake-studio-assets, git fetch and git rebase origin/codex/handshake-studio-assets; (2) origin moved 66c0e7c9..1940292c and touched harness-view, not pulse, so under the brief's short path run the harness-view suite once: lane-check.sh --owner smb-pr-nudge-1 -- cargo nextest run -p hsk-studio-harness-view --features desktop,audio-batch --no-fail-fast; (3) lane-check.sh --owner smb-pr-nudge-1 --per-sha origin/codex/handshake-studio-assets; (4) cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-view --features hsk-studio-harness-view/viewer --no-fail-fast -E 'binary(track_nudge) | binary(viewer_timeline_nudge) | binary(edit_footprint)'; (5) on PER_SHA_RESULT OK with origin unmoved: SHA=$(git rev-parse HEAD) && [ -n \"$SHA\" ] && git push origin \"$SHA:refs/heads/codex/handshake-studio-assets\"; (6) set READY_FOR_VALIDATION with the pushed sha and the rebased runs. Lead: commit this lane file. GitHub backup branch lane/smb-pr-nudge-1 holds 31de741d. Push rebased or amended tips to the product branch only, never to this backup branch: that would need a force push, which is forbidden. The backup branch stays at this tip until the Operator approves its deletion.",
-  "updated_at": "2026-11-05T21:14:50Z",
+  "next": "Validator: judge pushed commit b9a87c7b (range d54293da..b9a87c7b). Lead: commit this lane file. GitHub backup branch lane/smb-pr-nudge-1 holds the pre-rebase 31de741d and stays there until the Operator approves its deletion; never push to it.",
+  "updated_at": "2026-11-06T04:54:11Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -246,7 +291,7 @@
       "read": [
         "MT-33738"
       ],
-      "MT-33738": "Advanced, not claimed. Proven: left and right by one and step, up and down, slip and slide pairs, one shared step, undo exact, with hand-computed frames at step 5 and 3. Not met: its case wants an overlapping destination to refuse, and left and right overwrite; its source handle and stale neighbour rows are not all driven by these tests; operator surface, Argus, user manual and the HBR obligations are not done.",
+      "MT-33738": "Advanced, not claimed; state unchanged by the rebase and push. Proven: left and right by one and step, up and down, slip and slide pairs, one shared step, undo exact, with hand-computed frames at step 5 and 3. Not met: its case wants an overlapping destination to refuse, and left and right overwrite; its source handle and stale neighbour rows are not all driven by these tests; operator surface, Argus, user manual and the HBR obligations are not done.",
       "proof_command_problem": "MT-33738 check MT-33738-ASSET-ASSET-AC-001 (line 1746) names --test contracts in hsk-studio-pulse, tests/contracts.rs does not exist, and the step lives in the Viewer, not pulse. The proof here is tests/track_nudge.rs, tests/edit_footprint.rs and harness-view tests/viewer_timeline_nudge.rs. MT file not edited."
     },
     "gaps_outside_lane": [
@@ -264,7 +309,7 @@
       }
     ],
     "open": [
-      "Not pushed. No READY claim.",
+      "Pushed at b9a87c7b, READY_FOR_VALIDATION; no PASS claimed. The clippy::type_complexity warning below stays, on the lead's instruction.",
       "timeline_edit.rs near the diff_tests module says members no planner writes are driven through diff directly. Still true of the others; TrackMove keeps its lib test there as well as its planner rows. Not changed.",
       "The clippy::type_complexity warning at tests/viewer_timeline_nudge.rs:227."
     ],
@@ -275,7 +320,24 @@
       "The audio mixer following a track nudge (timeline_audio_follow): compiled under audio-batch, not asserted."
     ],
     "hostile_input": "Selection refused over MAX_MOVE_SELECTION before any work (test a_selection_over_the_bound_is_refused_first). Destinations are found once per track, so the walk is linear in the Folio-bounded document. The module denies clippy::arithmetic_side_effects and does no tick arithmetic: clips keep their time.",
-    "vendor_parity": "UNVERIFIED (D5)."
+    "vendor_parity": "UNVERIFIED (D5).",
+    "resumed_at": "2026-11-06T03:46:04Z",
+    "rebase_20261106": {
+      "onto": "d54293da1f4b0d871f131b5d2f01593aaa6d5e75",
+      "from_tip": "31de741dc6e9598f6fdb9d3c0ea47c88f7715acb",
+      "tip": "b9a87c7b1e7062cc153207189f8cbadca9d3cf90",
+      "conflicts": [
+        "crates/hsk-studio-pulse/src/lib.rs DESCRIPTOR, in the planner commit, against SMB-PR-RETIME-OUTPUT-1. Both behaviours kept: origin's line unchanged plus this lane's nudge key. Checked by script: the lane's change was a pure insertion, the merged line parses as JSON, every origin key is byte-equal, nudge equals this lane's, and nudge is the only key added."
+      ],
+      "auto_merged": "No other conflict. The retime lane's harness-view files (media.rs, monitor.rs, rate.rs, timeline_ui.rs) are not in this lane's diff."
+    },
+    "pushed": {
+      "sha": "b9a87c7b1e7062cc153207189f8cbadca9d3cf90",
+      "onto": "d54293da1f4b0d871f131b5d2f01593aaa6d5e75",
+      "at": "2026-11-06T04:53:32Z",
+      "reread": "git ls-remote after the push: refs/heads/codex/handshake-studio-assets is b9a87c7b, refs/heads/lane/smb-pr-nudge-1 still 31de741d.",
+      "slot": "Push slot granted by the lead's message. Origin was fetched and confirmed d54293da immediately before the push."
+    }
   },
   "backup_branch": {
     "ref": "lane/smb-pr-nudge-1",

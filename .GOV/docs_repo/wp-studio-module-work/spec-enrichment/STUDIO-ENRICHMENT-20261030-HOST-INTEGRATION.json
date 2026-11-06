@@ -469,6 +469,38 @@
    "lead_reading": "Builder's reading stands for now: a source whose grid no port states reads on its sequence's frame grid; a nested sequence on its own rate.",
    "source": "lane SMB-PR-RETIME-OUTPUT-1, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-57",
+   "gap": "STU-VID-035a does not state whether the multi-frame step persists per document, per user or per session.",
+   "needs": "Spec owner states it.",
+   "lead_reading": "Today it is per open document, in memory.",
+   "source": "lane SMB-PR-NUDGE-1, v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-58",
+   "gap": "STU-VID-035a does not state that the many variants are the frame nudges, or whether cmd.transport.step.*.five and cmd.monitor.nudge.*.five follow the preference.",
+   "needs": "Spec owner states both.",
+   "lead_reading": "Builder's reading stands for now: the id says five, so the transport row is not a many variant.",
+   "source": "lane SMB-PR-NUDGE-1, v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-59",
+   "gap": "STU-VID-035a or STU-VID-026 does not state what a nudge does at an occupied destination. Left and right overwrite and up and down refuse, while MT-33738's case says an overlapping destination refuses.",
+   "needs": "Spec owner states it.",
+   "lead_reading": "None taken; the MT row stays unclaimed.",
+   "source": "lane SMB-PR-NUDGE-1, v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-60",
+   "gap": "STU-VID-035a or STU-VID-029 does not state which way link partners go on a vertical nudge.",
+   "needs": "Spec owner states it.",
+   "lead_reading": "Builder's reading in the lane's declared_readings stands for now.",
+   "source": "lane SMB-PR-NUDGE-1, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [
