@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T07:10:08Z",
+ "updated_at": "2026-11-07T07:57:24Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19073,8 +19073,8 @@
   },
   {
    "lane_id": "SMB-PR-ROUTING-REPAIR-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-folio, hsk-studio-session, hsk-studio-pulse, hsk-studio-harness-view (id minting, no drawing)",
    "lane_file": "builders/lanes/hsk-studio-pr-routing-repair-1.json",
    "brief": "builders/briefs/lane-smb-pr-routing-repair-1.md",
@@ -19082,11 +19082,12 @@
    "base": "c4d06841",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-07T05:20:57Z",
+   "updated_at": "2026-11-07T07:57:24Z",
    "closes": [
     "F-R57-2",
     "F-R57-3"
-   ]
+   ],
+   "claim": "04a9b119..2ae24210"
   },
   {
    "lane_id": "SMB-SESSION-WRITE-SAFETY-1",
@@ -19192,6 +19193,38 @@
     "MT-32814",
     "MT-32892",
     "MT-32863"
+   ]
+  },
+  {
+   "lane_id": "SMB-DOC-NEW-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness-core, hsk-studio-harness, hsk-studio-harness-view, hsk-studio-session",
+   "lane_file": "builders/lanes/hsk-studio-doc-new-1.json",
+   "brief": "builders/briefs/lane-smb-doc-new-1.md",
+   "worktree": "wt-studio-lanes/smb-ai-distort-effects-1",
+   "base": "c4d06841",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-07T07:12:07Z",
+   "closes": [
+    "workflows/backlog-20261107.json SMB-DOC-NEW-1"
+   ]
+  },
+  {
+   "lane_id": "SMB-MOTION-COMMANDS-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness-core, hsk-studio-session, hsk-studio-folio",
+   "lane_file": "builders/lanes/hsk-studio-motion-commands-1.json",
+   "brief": "builders/briefs/lane-smb-motion-commands-1.md",
+   "worktree": "wt-studio-lanes/smb-folio-angle-unbounded-1",
+   "base": "c4d06841",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-07T07:12:07Z",
+   "closes": [
+    "workflows/backlog-20261107.json SMB-MOTION-COMMANDS-1"
    ]
   }
  ],
@@ -21267,6 +21300,26 @@
     "added_at": "2026-11-06T18:56:39Z",
     "item": "Frame-accurate marker synchronize for a reversed picture: today the marked frame is presented in the frame before the mark (direction.after_r58_20261106.approach_change.named_limit). Needs a unit-level rule, not a pair rule; spec owner first (SD-73). Reach is small: reversed clips synchronized by marker",
     "owner": "pulse"
+   },
+   {
+    "added_at": "2026-11-07T07:57:24Z",
+    "item": "Multicam clips never play their active angle: resolve_active_angle has no caller outside pulse tests, so monitor, mix and export treat a multicam clip as a plain nest with all angles' audio summed (lane notes hold file:line and STU-VID-033 clauses; scenario-video-edit.json agrees, both by reading, not run)",
+    "owner": "a pulse and session lane"
+   },
+   {
+    "added_at": "2026-11-07T07:57:24Z",
+    "item": "Stale angle_order in a file: make it inert on read, with the three sites and estimates in this lane's notes",
+    "owner": "a later folio, session and pulse lane"
+   },
+   {
+    "added_at": "2026-11-07T07:57:24Z",
+    "item": "Surface routing_takeovers to hosts",
+    "owner": "a later harness-core lane"
+   },
+   {
+    "added_at": "2026-11-07T07:57:24Z",
+    "item": "A stale id returning with the wrong kind via a direct commit still refuses the whole routing set",
+    "owner": "a later session lane"
    }
   ],
   "pause_20261103": {
@@ -21586,7 +21639,9 @@
     "lane/smb-harness-drive-1",
     "lane/smb-observe-diag-sink-1",
     "lane/smb-controls-egui-gate-1",
-    "lane/smb-pigment-filter-kernels-1"
+    "lane/smb-pigment-filter-kernels-1",
+    "lane/smb-doc-new-1",
+    "lane/smb-motion-commands-1"
    ],
    "target_reuse": {
     "SMB-PR-ROUTING-REPAIR-1": {
@@ -21618,6 +21673,16 @@
      "tree": "smb-ps-mode-convert-1",
      "branch": "lane/smb-pigment-filter-kernels-1",
      "previous_branch": "lane/smb-ps-mode-convert-1"
+    },
+    "SMB-DOC-NEW-1": {
+     "tree": "smb-ai-distort-effects-1",
+     "branch": "lane/smb-doc-new-1",
+     "previous_branch": "lane/smb-ai-distort-effects-1"
+    },
+    "SMB-MOTION-COMMANDS-1": {
+     "tree": "smb-folio-angle-unbounded-1",
+     "branch": "lane/smb-motion-commands-1",
+     "previous_branch": "lane/smb-folio-angle-unbounded-1"
     }
    },
    "why": {

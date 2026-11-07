@@ -605,6 +605,22 @@
    "lead_reading": "Revised 2026-11-06T18:56:39Z: the pair rule is withdrawn. A marker-basis synchronize or merge reads the continuous mapping on every clip of every kind, as at 4ffe1b06, so clips sharing a source window stay together in any unit. Limit: a reversed picture presents the marked frame in the frame before the mark. Vendor behaviour UNVERIFIED (D5).",
    "source": "lane SMB-PR-MEDIA-MARKERS-1, v02.229",
    "status": "PROPOSED"
+  },
+  {
+   "id": "SD-74",
+   "gap": "SD-64 update: absent audio output or send target, and multicam angle_order",
+   "needs": "spec owner",
+   "lead_reading": "An absent output or send target is inert: route to master, send skipped, listed. angle_order refuses at commit; a stale file refuses the whole set on read.",
+   "source": "lane SMB-PR-ROUTING-REPAIR-1, v02.229",
+   "status": "PROPOSED"
+  },
+  {
+   "id": "SD-75",
+   "gap": "SD-67 update: a new sequence taking a stored routing",
+   "needs": "spec owner",
+   "lead_reading": "A typed takeover report at the commit, the routing still applies; undo told by value, so an inverse carried across a reopen reports a takeover; Viewer ids skip entry-named ids.",
+   "source": "lane SMB-PR-ROUTING-REPAIR-1, v02.229",
+   "status": "PROPOSED"
   }
  ],
  "edits": [

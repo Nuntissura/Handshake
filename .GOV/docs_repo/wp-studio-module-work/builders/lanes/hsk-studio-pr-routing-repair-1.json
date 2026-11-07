@@ -1,19 +1,118 @@
 {
   "crate": "hsk-studio-folio, hsk-studio-session, hsk-studio-pulse, hsk-studio-harness-view (id minting, no drawing)",
   "lane": "SMB-PR-ROUTING-REPAIR-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-pr-entry-references-1",
   "base": "c4d06841",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "04a9b119",
+      "subject": "tests, red: F-R57-2 bus, F-R57-3 takeover, id mints, option A",
+      "pushed": true
+    },
+    {
+      "sha": "099923bf",
+      "subject": "tests, red: the viewer fixture's layer, a cheaper budget search",
+      "pushed": true
+    },
+    {
+      "sha": "7b0e41be",
+      "subject": "folio, pulse, F-R57-2: an absent output or send target is inert",
+      "pushed": true
+    },
+    {
+      "sha": "82ce2eb1",
+      "subject": "session, F-R57-3: the commit reports a takeover",
+      "pushed": true
+    },
+    {
+      "sha": "c33adc6f",
+      "subject": "session, F-R57-2 option A: no commit may invalidate valid multicam records",
+      "pushed": true
+    },
+    {
+      "sha": "1dc981f1",
+      "subject": "session: indent",
+      "pushed": true
+    },
+    {
+      "sha": "e76bfe0f",
+      "subject": "harness-view, F-R57-3, V4-06: Viewer mints skip what entries name",
+      "pushed": true
+    },
+    {
+      "sha": "e296bdd9",
+      "subject": "session, review F1, F2: a cancel in the multicam guard; DESCRIPTOR on angle_order",
+      "pushed": true
+    },
+    {
+      "sha": "2ae24210",
+      "subject": "harness-view, review F3: a mixer edit cannot author a target the sequence does not hold",
+      "pushed": true
+    }
+  ],
+  "capabilities_done": [
+    "Item 1: an output or send target naming an absent bus is inert; the set reads, the route plays to the master, a missing send is skipped, sample for sample (pulse tests/inert_routing_mix.rs), listed as RouteOutput and RouteSend",
+    "Item 2, option A only (lead: STOP AFTER A): every commit that changes sequences keeps valid multicam records valid; a stale file can still be edited",
+    "Item 3: Applied::routing_takeovers and DivergenceReport::routing_takeovers; an undo of the removal reports nothing",
+    "Item 4: Viewer clip, track and sequence id mints skip what the routing, multicam and track display entries name"
+  ],
+  "tests": {
+    "red_proof": {
+      "first": {
+        "argv": "STUDIO_LANE_CHECK_NO_DEPENDENTS=1 lane-check.sh --owner smb-pr-entry-references-1 --disk d -- cargo nextest run -p folio -p session -p pulse -p harness-view --features viewer,audio-batch --no-fail-fast --test audio_routing_records --test bus_mix --test inert_routing_mix --test entry_references --test routing_repair --test viewer_mint_skips_inert",
+        "sha": "04a9b119",
+        "exit": 100,
+        "passed": 30,
+        "failed": 26,
+        "reading": "Folio, pulse and session failures read in the log: the behaviour held back. The 6 viewer failures were the fixture (read-only), not the mint: void as red for those tests.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-routing-repair-1/red1-smb-pr-routing-repair-1-04a9b119.log"
+      },
+      "mints": {
+        "argv": "same, with --no-capture",
+        "sha": "1dc981f1",
+        "exit": 100,
+        "passed": 51,
+        "failed": 5,
+        "reading": "Bus, takeover and guard green. Viewer red for its reason: a razor piece and a source edit took the inert id, a nest took nest-1, a subsequence subsequence-1. The fifth, an_entry_that_does_not_parse_reserves_nothing, failed on its fixture: a damaged routing refuses open_multitrack; changed to a damaged multicam entry in e76bfe0f, never seen red.",
+        "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-routing-repair-1/green1-mintred-smb-pr-routing-repair-1-1dc981f1.log"
+      },
+      "never_seen_red_for_its_reason": [
+        "the_harness_sequence_and_entry_paths_cannot_carry_a_track_change_on_a_multicam_source: fixture failure at 04a9b119, passed at 1dc981f1 with the guard on",
+        "Passed in the first red, regression proof: a_host_removes_the_bus_and_then_repoints_the_routing, a_file_with_a_stale_order_refuses_the_whole_set_on_read_and_can_still_be_edited, a_multicam_step_carrying_rewritten_records_can_change_the_tracks, a_step_that_leaves_the_declared_video_tracks_alone_commits_and_undoes, an_undo_of_the_removal_is_not_a_takeover, a_held_track_that_is_not_a_bus_stays_refused"
+      ]
+    },
+    "bundled": {
+      "argv": "lane-check.sh --owner smb-pr-entry-references-1 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-session -p hsk-studio-pulse -p hsk-studio-harness-core -p hsk-studio-harness-view --features hsk-studio-harness-view/viewer,hsk-studio-harness-view/audio-batch --no-fail-fast",
+      "sha": "2ae24210",
+      "exit": 0,
+      "passed": 845,
+      "failed": 0,
+      "skipped": 0,
+      "not_proven_lines": 0,
+      "wall_s": 847,
+      "lock_wait_s": 153,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-routing-repair-1/bundled-smb-pr-routing-repair-1-2ae24210.log",
+      "not_run": "doctests (none added); the harness-view [desktop, audio-batch] round unit; the harness and package suites; release profile"
+    },
+    "guard_cost": "MEASURED, debug profile, 1800 clip modes, fastest of 7 timeline commits: 63.9 ms with the multicam entry, 38.2 ms without: the guard adds about 25.7 ms per sequence commit. The default node budget (4096) caps the set near this size. Log green1-mintred, test measured_guard_cost_on_a_large_record_set. Release NOT RUN.",
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-pr-entry-references-1 --disk d --per-sha HEAD~1",
+      "range": "e296bdd9..2ae24210",
+      "result": "PER_SHA_RESULT OK shas=1",
+      "exit": 0,
+      "wall_s": 2696,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-routing-repair-1/per-sha-smb-pr-routing-repair-1-2ae24210.log",
+      "not_run": "the other 8 commits of the push, by the lead's instruction; 04a9b119 and 1dc981f1 compiled in their own focused runs, 099923bf, 7b0e41be, 82ce2eb1, c33adc6f, e76bfe0f were never built alone"
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-07T05:20:57Z",
+  "next": "validator: judge at 2ae24210; lead: add SD-64 and SD-67 readings, commit this lane file",
+  "updated_at": "2026-11-07T07:56:24Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -39,6 +138,122 @@
       "F-R57-3"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-pr-entry-references-1"
+    "reuses_tree_and_target": "smb-pr-entry-references-1",
+    "target_reuse": {
+      "first_bundled_style_run": "red1 at 04a9b119: wall 1105 s, of which disk lock wait 863 s; test profile build 2m05s (clippy first); tests 37.4 s",
+      "third_party_crates": "reused: 21 Compiling lines, every one a workspace hsk-* crate, 0 third-party",
+      "second_run": "1dc981f1: wall 665 s, lock wait 525 s, clippy 54 s, test build 1m04s, tests 6.8 s"
+    },
+    "named_limit_angle_order": "Lead ruling STOP AFTER A. This cell of F-R57-2 stays OPEN for files: a file whose angle_order does not match its tracks refuses the WHOLE multicam set on read, typed, and no angle moves. Stated in folio src/multicam.rs docs, pinned by session tests/routing_repair.rs a_file_with_a_stale_order_refuses_the_whole_set_on_read_and_can_still_be_edited. A multicam step carrying those records also stays refused (harness Nest on such a file).",
+    "undo_corner": "A stale file repaired by a step goes live; the undo of that repair is refused folio_rejected, nothing moves, the session cannot tell it is an undo. Pinned: an_undo_of_a_repair_of_a_stale_file_is_refused.",
+    "no_planner": "No planner exists for a track change on a multicam source. Such a change is possible only through Session::submit_multicam carrying rewritten records (a_multicam_step_carrying_rewritten_records_can_change_the_tracks); harness submit_sequence_and_entry and submit_sequence_edits_and_entry refuse it whatever token they carry (viewer_mint_skips_inert.rs). Candidate.",
+    "commit_paths_v4_06": {
+      "search": "submit_inner Proposed arms, resync_inner, publish callers",
+      "propose_timeline": "guarded (submit_inner)",
+      "propose_sequence_records, Replace Insert Remove and SequenceCommand": "guarded (submit_inner); replaces the Remove-only call",
+      "propose_multicam": "validates records_write against the successor (multicam_step.rs); guard skipped by provider",
+      "track display and media marker commands": "not applicable: sequences empty, sequences unchanged",
+      "composition token, provider submit (layer restructure_and_entry through it)": "not applicable: sequences unchanged; the submit_inner comparison would guard them if not",
+      "resync_inner": "guarded, its own call, unchanged",
+      "pending commit adopted by reconcile": "guarded before store_pending",
+      "discard_diverged, set_document_entry": "not applicable: no sequence change"
+    },
+    "mint_sweep_v4_06": {
+      "regex": "fn (mint|fresh)[a-z_]*|mint_(clip_ids|track_ids|keys|key|layer_id)\\(|fresh_effect_id\\(, in crates/hsk-studio-harness-view/src",
+      "view/timeline.rs mint_clip_ids": "fixed",
+      "view/source_monitor.rs mint_clip_ids": "fixed",
+      "view/timeline/nest.rs mint_track_ids": "fixed",
+      "view/timeline/nest.rs ids_for sequence id through mint_key": "fixed",
+      "view/timeline.rs mint_key link-tl, nest link-nest": "not applicable: no entry names a link group",
+      "view/timeline.rs mint_key mk-tl, nest mint_keys rec-nest": "not fixed, not an inert entry: a media marker holding such an id is live, and the commit refuses folio_rejected (keep_entry_valid), not a takeover",
+      "view/layers.rs mint_layer_id": "not fixed, by the lead's cut. Routing, multicam and display name no layer. Entries keyed by SLYR are not under the inert rule; text.rs:750 and vector.rs:1584 handle their own, read not run. design and motion NOT_INSPECTED for a stale layer id",
+      "view/mixer.rs fresh_effect_id, mixer send-N": "not applicable: unique within one list, no entry names them across lists",
+      "view/vector.rs mint_path_id, design/auto_layout.rs mint_path_id, vector/style.rs mint_style_id, design/fig_import.rs mint, vector/interop.rs mint, layout_ui mint": "not applicable: path, style, import and layout ids, not named by the routing, multicam or display entries; read of names only",
+      "view/monitor.rs format SCOM SLYR": "not applicable: synthetic values, not stored"
+    },
+    "stale_ids_that_still_refuse_a_whole_set": {
+      "routing, measured in a_stale_id_coming_back_as_the_wrong_kind_still_refuses_the_whole_set": [
+        "an output target that comes back as a non-submix track",
+        "a stale route's track that comes back as video (same code path: bus effects and automation lanes, read not run)",
+        "a stale envelope's clip that comes back on a non-audio track",
+        "a bus that comes back closing a cycle its routes held while it was absent"
+      ],
+      "multicam": [
+        "angle_order, a file only (named limit)",
+        "a multicam_sequences entry of an absent sequence, a file only: guarded at commit",
+        "a clip mode whose clip comes back with a non-sequence or undeclared source, or an out-of-range angle: guarded at commit, a file only"
+      ],
+      "settings": "an entry of an absent sequence, a file only: guarded at commit (keep_entry_valid)",
+      "reach": "routing cases commit cleanly through a direct commit with the reused id, then the read refuses every sequence. The Viewer's mints no longer land there. Not fixed: the brief asks for the list. Validator may grade."
+    },
+    "takeover_limits": "Undo is told by value: a sequence value this session removed. An inverse carried across a reopen reports (pinned), past MAX_REMOVED_SEQUENCES (128) the oldest removal is forgotten: a report, never a refusal. Hand-inserting the identical value reports nothing. A new TRACK or CLIP taking an inert member through a direct commit is not reported. Harness-core and the Viewer do not surface routing_takeovers yet, outside this lane's paths: the host sees no message. The session frame carries no field for it: Observation has outcome only.",
+    "changed_assertions": [
+      "folio audio_routing_records.rs: the reported gap (live route to an absent bus InvalidField) now expects inert; malformed stays refused, now InvalidId",
+      "pulse bus_mix.rs: unknown bus was InvalidInput, now plays; a held non-bus stays InvalidInput",
+      "session entry_references.rs table: multicam Timeline and Records Track cells were Unreadable, now Refused folio_rejected"
+    ],
+    "spec_deltas": {
+      "SD-64": "Proposed reading, spec owner decides: an absent output or send target is inert (route to master, send skipped, listed). angle_order: refuse at commit (option A); a stale file refuses the whole set on read.",
+      "SD-67": "Proposed reading, spec owner decides: a typed takeover report at the commit, the routing still applies; undo told by value; Viewer ids skip entry-named ids."
+    },
+    "candidates": {
+      "B_stale_order_inert_on_read": {
+        "rejected_here_by": "lead, STOP AFTER A",
+        "extra_sites_beyond_the_named_ones": [
+          "folio: split the validator into read (stale order inert; grammar, duplicates, count, empty order, clip modes refused) and write (read plus no NEW stale declaration against the live records)",
+          "pulse multicam.rs start() and finish(), one line each: they validate strictly today, so one stale declaration refuses every planner",
+          "session multicam_step.rs: a step carrying a stale declaration unchanged must pass, or Nest and every harness submit_sequence_edits refuses on a stale file"
+        ],
+        "named_sites": "pulse multicam.rs:374, :614-635, :957, :991; one typed refusal; a listing. rate.rs needs nothing, it never indexes angle_order",
+        "estimate_unverified": "folio 40 lines, session 15, pulse 20"
+      },
+      "multicam_modes_not_played": {
+        "importance": "more than B, per the lead",
+        "finding_by_reading_not_run": "No monitor, mix or export read consults a clip mode. Every multicam clip plays as a plain nest, all angles' audio summed, live or stale, enabled or not.",
+        "evidence": [
+          "pulse src/multicam.rs:932 resolve_active_angle: no caller in crates/*/src (git grep: its own docs :47, :52 and pulse tests only); doc :929-931 says monitor playback of the active angle is not wired",
+          "pulse src/nest.rs:751 expand, :772: any ClipSource::Sequence layer descends through its tracks; takes no multicam records; nest.rs holds no occurrence of multicam",
+          "pulse src/nest.rs:843 audio_nests and :828, :836 NestedAudioSources: a nested sequence's whole mix by sequence id, no angle",
+          "harness-view src/view/audio_session.rs:71, mixer.rs:191, timeline_export.rs:461 NestedAudioSources::with_routing; view/monitor.rs:573 NestedExtents: no records argument",
+          "harness-view src: the only reader of the entry is timeline/rate.rs:109-110, passed to pulse rate.rs:184 and retime.rs:637, presence tests that refuse reverse and hold",
+          "harness-view and harness src call no pulse multicam planner: plan_multicam_switch, record pass, flatten, numbering have no host (case-insensitive git grep multicam: rate.rs and a doc line of nest.rs)"
+        ],
+        "clauses": [
+          "STU-VID-033 lead: a clip exposes an active_angle switchable over time, producing a cut list",
+          "STU-VID-033: two switch modes, with and without a cut",
+          "STU-VID-033: record mode captures live switches",
+          "STU-VID-033: preview surface shows all angles in a paged grid",
+          "STU-VID-033: audio_follows_video, an angle switch also switches the audio",
+          "STU-VID-033: flatten bakes the cut list; one reversible history step",
+          "STU-VID-030a: multicam clips follow or ignore the nest setting, explicit booleans"
+        ],
+        "also": "pulse multicam.rs:930 says pulse playback does not resolve nested sequences; nest.rs does now: a stale doc line, left alone here"
+      },
+      "stale_id_wrong_kind": "A direct commit reusing a stale id with the wrong kind makes the whole routing set refuse (list above). Per-routing isolation of a refusal would close it.",
+      "host_surface_for_takeover": "harness-core and the Viewer surface Applied::routing_takeovers; outside this lane's paths."
+    },
+    "mts_claimed": "none; no MT row read and proven here",
+    "paths_beyond_brief": "session lib.rs export and DESCRIPTOR; harness-view view/mixer.rs Output and AddSend (review F3, lead ruling). Otherwise harness-view changes are the mint functions and their callers.",
+    "undo_corner_harness_F4": "Review F4, read, not run: live records R1 do not declare seq-a. run.submit_sequence_and_entry(op, seq-a plus video track V3, multicam, R2 declaring seq-a with V3) commits: the guard passes on R1, then R2 validates. Undo: harness-core harness.rs:1890 commits the timeline inverse first, while R2 is live and valid, so the guard answers folio_rejected, and every undo attempt refuses, blocking all history under it. At base this undo worked. It is the same sequence-before-entry order cited for not refusing a bus removal at commit. No production caller passes the multicam token: the Viewer passes only the routing entry; only tests/viewer_mint_skips_inert.rs passes multicam. If a host ever carries it: refuse that token in sequence_and_entry_step, or swap the entry first on undo. No edit, lead ruling.",
+    "review_fixes": "research/review-smb-pr-routing-repair-1-e76bfe0f.json FIX_FIRST: F1 fixed with an in-crate test, F2 fixed, F3 fixed by lead ruling in harness-view view/mixer.rs with a test, F4 named. Never run red, one bundled run ordered: a_cancel_during_the_multicam_guard_is_a_cancel_not_stale_records, a_mixer_edit_cannot_author_a_target_the_sequence_does_not_hold.",
+    "takeover_harness_boundary": "Review question 4, confirmed: F-R57-3 is closed at the Session API only. No routing_takeovers in harness-core, harness-view or harness; the Run op record omits it, so a takeover through Run::submit_sequence_edits is still silent. Viewer mints no longer reach it. Candidate.",
+    "pushed": {
+      "tip": "2ae24210b89a166465ad11879a6a61448103c892",
+      "from": "c4d06841",
+      "to": "origin/codex/handshake-studio-assets",
+      "reread": "fetched after the push: origin equals the tip"
+    },
+    "lead_decisions": [
+      {
+        "at": "2026-11-07T07:57:24Z",
+        "on": "angle_order",
+        "decision": "Refuse at commit only, under the Operator's priority of width first; inert on read is a candidate lane."
+      },
+      {
+        "at": "2026-11-07T07:57:24Z",
+        "on": "F3 mixer edits",
+        "decision": "A direct edit naming an absent bus keeps refusing, as at base."
+      }
+    ]
   }
 }
