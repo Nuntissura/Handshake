@@ -1,0 +1,146 @@
+{
+ "schema": "hsk.studio.cleanup_result@1",
+ "plan": "CARGO-CLEANUP-PLAN-20261107-R",
+ "execute": true,
+ "at": "2026-11-07T09:58:47Z",
+ "total_gib": 645.11,
+ "results": [
+  {
+   "id": "R-C01",
+   "owner": "smb-pr-retime-output-1",
+   "planned_gib": 22.74,
+   "files": 332,
+   "dirs": [],
+   "gib": 22.74,
+   "status": "REMOVED"
+  },
+  {
+   "id": "R-C02",
+   "owner": "smb-pr-nudge-1",
+   "planned_gib": 9.27,
+   "files": 218,
+   "dirs": [],
+   "gib": 9.27,
+   "status": "REMOVED"
+  },
+  {
+   "id": "R-C03",
+   "owner": "smb-r54-followups-1",
+   "planned_gib": 1.19,
+   "files": 222,
+   "dirs": [],
+   "gib": 1.19,
+   "status": "REMOVED"
+  },
+  {
+   "id": "R-C04",
+   "owner": "smb-layout-blank-line-lookups-1",
+   "planned_gib": 0.6,
+   "files": 68,
+   "dirs": [],
+   "gib": 0.6,
+   "status": "REMOVED"
+  },
+  {
+   "id": "R-C05",
+   "owner": "smb-layout-sentinels-1",
+   "planned_gib": 0.54,
+   "files": 64,
+   "dirs": [],
+   "gib": 0.54,
+   "status": "REMOVED"
+  },
+  {
+   "id": "R-C06",
+   "owner": "smb-layout-composer-depth-1",
+   "planned_gib": 0.48,
+   "files": 112,
+   "dirs": [],
+   "gib": 0.48,
+   "status": "REMOVED"
+  },
+  {
+   "id": "R-C07",
+   "owner": "smb-pr-sequence-presets-1",
+   "planned_gib": 0.18,
+   "files": 82,
+   "dirs": [],
+   "gib": 0.18,
+   "status": "REMOVED"
+  },
+  {
+   "id": "R-D01",
+   "owner": "studio-round",
+   "planned_gib": 562.66,
+   "files": 17702,
+   "dirs": [
+    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target/debug/incremental"
+   ],
+   "gib": 562.86,
+   "status": "REMOVED"
+  },
+  {
+   "id": "R-D02",
+   "owner": "smb-type-authored-token-1",
+   "planned_gib": 43.57,
+   "files": 628,
+   "dirs": [],
+   "gib": 43.57,
+   "status": "REMOVED"
+  },
+  {
+   "id": "R-D03",
+   "owner": "smb-sentinels-native-1",
+   "planned_gib": 2.08,
+   "files": 288,
+   "dirs": [],
+   "gib": 2.08,
+   "status": "REMOVED"
+  },
+  {
+   "id": "R-D04",
+   "owner": "smb-tiff-channels-1",
+   "planned_gib": 1.13,
+   "files": 378,
+   "dirs": [],
+   "gib": 1.13,
+   "status": "REMOVED"
+  },
+  {
+   "id": "R-D05",
+   "owner": "smb-pr-track-display-1",
+   "planned_gib": 0.24,
+   "files": 44,
+   "dirs": [],
+   "gib": 0.24,
+   "status": "REMOVED"
+  },
+  {
+   "id": "R-D06",
+   "owner": "smb-type-sentinels-registry-1",
+   "planned_gib": 0.24,
+   "files": 60,
+   "dirs": [],
+   "gib": 0.24,
+   "status": "REMOVED"
+  },
+  {
+   "id": "R-D07",
+   "owner": "smb-folio-angle-unbounded-1",
+   "planned_gib": 0.16,
+   "status": "SKIPPED_IN_USE_BY_LANE"
+  },
+  {
+   "id": "R-D08",
+   "owner": "smb-ai-distort-effects-1",
+   "planned_gib": 0.1,
+   "status": "SKIPPED_IN_USE_BY_LANE"
+  },
+  {
+   "id": "R-D09",
+   "owner": "smb-ps-mode-convert-1",
+   "planned_gib": 0.1,
+   "status": "SKIPPED_IN_USE_BY_LANE"
+  }
+ ]
+}

@@ -2,7 +2,7 @@
  "schema": "hsk.studio.cleanup_plan@1",
  "file_id": "CARGO-CLEANUP-PLAN-20261107-R",
  "generated_at": "2026-11-07T05:43:00Z",
- "status": "APPROVED by the Operator 2026-11-07T05:57:18Z ('Approve the list'), to run after STUDIO-R59 is recorded; not yet executed",
+ "status": "EXECUTED 2026-11-07T09:59:06Z: 13 candidates removed, 645.11 GiB; R-D07, R-D08, R-D09 skipped as in use by lanes (result research/cargo-cleanup-result-20261107-R.json)",
  "authority": "Operator 2026-11-07: 'reuse when posible, remove only after inspection of the proposed cargo removal/ or partially removal'.",
  "inspection": [
   "research/cargo-inspect-20261107-C.json",

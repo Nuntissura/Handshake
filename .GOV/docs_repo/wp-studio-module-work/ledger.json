@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T09:57:08Z",
+ "updated_at": "2026-11-07T09:59:06Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -22074,6 +22074,16 @@
     "at": "2026-11-07T05:57:18Z",
     "words": "Approve the list",
     "condition": "after STUDIO-R59 is recorded, with a fresh inspection; a changed candidate needs fresh approval"
+   },
+   "cargo_proposal_executed": {
+    "at": "2026-11-07T09:59:06Z",
+    "removed_gib": 645.11,
+    "skipped": [
+     "R-D07",
+     "R-D08",
+     "R-D09"
+    ],
+    "result": "research/cargo-cleanup-result-20261107-R.json"
    }
   },
   "operator_direction_20261107": {
