@@ -1,0 +1,21 @@
+{
+ "id": "SMB-COMMAND-SURFACE-1",
+ "file": "hsk-studio-command-surface-1",
+ "brief": "lane-smb-command-surface-1",
+ "crate": "hsk-studio-harness-core, hsk-studio-harness, hsk-studio-controls, hsk-studio-harness-view (command file only)",
+ "crates_head": "harness-core, harness, controls, harness-view",
+ "summary": "One typed command catalog split by domain, reaching about 100 more project steps through the process loop",
+ "target": "FIRST STEP, before any code: this is the trunk check after three landings. Run `cargo check --workspace --tests` through lane-check or a sourced studio-env at your base, and message the lead the result at once. If trunk is red, say which commit and stop.\n\nThen make Studio's commands reachable, typed and one catalog. Read `direction.blocker_decisions_20261107` in S/ledger.json, S/research/blockers-20261107-red-team.json (the foundation decision), and S/workflows/backlog-20261107.json row SMB-DRIVE-TYPED-1: about 101 steps across the eight scenarios stay Rust-only until this lands.\n\n1. **First commit, nothing else in it:** split `RUN_COMMANDS` (`harness-core/src/action.rs:843`) into per-domain files, so many lanes can add rows without colliding. Every later width lane depends on this commit, so land it as soon as it is green and tell the lead.\n2. **One registry:** a `UiDescriptor` seed with `command_id`, from existing enumerations, with alias tables for old ids (RF-05's seed). The GUI will bind panels to this: a panel calls a command id, never a private method.\n3. **Typed decoders and rows** for what stays Rust-only: LayoutEdit (10 members), PanelAction (41 variants), ProofCommand and the remaining vector methods taking whole typed records, through the JSONL loop in `harness/src/cli/drive.rs`. Parameters are JSON, decoded with typed refusals. Note harness-view has no serde derive: read the backlog row on this and pick the smallest route.\n\nFacts verified at c4d06841 by the backlog agent, read-only, not run. Treat them as claims:\n- branch lane/smb-harness-drive-1 95af749d hsk-studio-harness/src/cli/drive_viewer.rs:1-5 says methods taking a whole typed spec are not here yet; its 86 rows name neither hosted_action nor any LayoutEdit call; drive.rs has 0 matches for layout\n- hsk-studio-harness-view/src/layout_ui.rs:146 enum LayoutEdit\n- hsk-studio-harness-view/src/view/hosted.rs:217 enum PanelAction, 41 variants; :1348 hosted_action\n- hsk-studio-harness-view/src/view/proof.rs:389 proof_command\n- git grep Deserialize over hosted.rs, layout_ui.rs, mixer.rs: 0 hits; hsk-studio-harness-view/Cargo.toml:64 serde_json only\n\nEach command: named undo where it mutates, caller's attribution, typed refusal, a JSONL test through the process. Width over polish. About 5 commits after the split. State what you cut. Out of scope: draw code, panels, RF-01, render-gpu, STU-AUT-003 and STU-AUT-005.",
+ "diag": "producer_through_observe: one terminal frame per command, codes and counters only",
+ "attr": "required: --actor and --session reach the context of every mutating command; never a default actor",
+ "exposure": "high",
+ "paths": "harness-core/src/action.rs and new per-domain files, harness/src/cli/drive*.rs, harness/tests, controls descriptors, harness-view command decoding without draw code. Anything else: message the lead.",
+ "suites": "harness and harness-core, with named harness-view targets",
+ "closes": [
+  "workflows/backlog-20261107.json SMB-DRIVE-TYPED-1",
+  "RF-05 seed"
+ ],
+ "mts": [],
+ "tree": "smb-pr-edit-footprint-1",
+ "disk": "d"
+}
