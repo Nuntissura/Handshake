@@ -22652,7 +22652,8 @@
     "approval": "Operator in chat, 2026-11-07: 'Approve plan S'.",
     "result": "S-C01 (studio-round, 3,939 files, 166.38 GiB) and S-C02 (smb-pr-media-markers-1, 394 files, 2.78 GiB) REMOVED: older copies of test and binary outputs in debug/deps only; the newest copy of each binary, all libraries, build scripts, fingerprints and the incremental directory kept. df C: free 338G at 12:35Z, 504G at 18:03Z.",
     "tool_fixes": "tools/lead/target_prune.py: (1) the round target C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target added to allowed_path as one fixed path (its docstring already named round targets; the first dry run refused it REFUSED_PATH); (2) a per-candidate select field 'older_copies' so a round-target candidate keeps the newest copies, as plan S says, instead of the round branch's all-binaries-plus-incremental selection (the second dry run skipped it at 188.04 against 166.38 GiB planned). Plan S candidates gained newest_file_utc read after the approval, each predating the 11:21Z inspection (round 08:29Z, media markers 2026-11-06T20:00Z).",
-    "next": "Measure the C: tree (running). Under the 360 GiB cap, R60 FULL with canary can freeze and build on C: when work resumes; the Operator asked to pause first."
+    "next": "Measure the C: tree (running). Under the 360 GiB cap, R60 FULL with canary can freeze and build on C: when work resumes; the Operator asked to pause first.",
+    "c_tree_after": "208 GiB (du -s, 2026-11-07T18:03Z to 18:27Z), under the 360 GiB cap; R60 can build on C:."
    }
   }
  },

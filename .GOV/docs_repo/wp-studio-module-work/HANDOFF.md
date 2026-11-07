@@ -284,7 +284,7 @@ These replaced D11 (eframe plus wgpu window) as a product path. Spec: v02.226..2
 
 **Product origin:** cede5958. **READY_FOR_VALIDATION, unjudged (19):** routing-repair, write-safety, harness-drive, diag-sink, controls-egui-gate, gui-steward, motion-commands, command-surface, pigment-filter-kernels, ui-tree, audio-out-mix, doc-new, vk-host, doc-export, layout-pdf-host, project-bin, web-host, layout-persist, gui-spine. Trunk checks green at 5341e561, 672a1804 and 9ab80edd.
 
-**C: has room again.** Plan S executed on the Operator's approval (`direction.c_cap_20261107.plan_s_executed`): 169.15 GiB of older test-binary copies removed; C: free 338G to 504G. The round target kept its newest copy of every binary, so R60 relinks only what changed.
+**C: has room again.** Plan S executed on the Operator's approval (`direction.c_cap_20261107.plan_s_executed`): 169.15 GiB of older test-binary copies removed; C: free 338G to 504G; the C: Studio tree measured 208 GiB (du, 18:03 to 18:27Z) against the 360 GiB cap. The round target kept its newest copy of every binary, so R60 relinks only what changed.
 
 **First action on resume: R60 FULL with canary.** Freeze the origin tip, then `python tools/lead/dispatch_r60.py <tip8> <commits since c4d06841> --write` writes `validation/dispatch-prompt-R60.txt` from the ledger's READY lanes. Read it, then dispatch one opus validator. Builders stay on D: during the round. A lane may land during it (CX-VAL-001), one at a time.
 
