@@ -1,0 +1,4011 @@
+{
+ "schema": "hsk.studio.workflow_scenario@1",
+ "id": "video-edit",
+ "title": "Short film edit, 'Last Ferry': ingest to multi-format delivery",
+ "domain": "video editing (clip timeline, multicam, finishing, mix, delivery)",
+ "vendor_parity_targets": [
+  "Premiere Pro"
+ ],
+ "evidence_tree": "origin tip c4d06841, read with git show and git grep; nothing built or run. lane/smb-harness-drive-1 (95af749d) is NOT merged into c4d06841 and is not counted as callable.",
+ "status_rule": "callable: reachable through a RUN_COMMANDS id, a CLI subcommand, or a Viewer method / TimelineCommand that the viewer's panels call. The evidence starts with the surface: [cli] a process can call it today; [run] Rust call on hsk_studio_harness_core::Run; [viewer] Rust call on Viewer, or the egui harness panel. engine_only: crate logic and tests exist, no host calls it. missing: searched, not found; the evidence says where. Paths are relative to handshake-studio-assets/crates.",
+ "deliverable": "A 4 minute 24 fps 1920x1080 short film in 3 story scenes (ferry deck dialogue shot on 3 cameras plus boom; cabin insert sequence; dawn ending), graded, captioned in 2 languages, mixed, delivered as: DNxHR HQ mezzanine, H.264 web master with AAC, HEVC UHD, 9:16 social cutdown with burned-in captions, WebVTT and SRT sidecars, audio stems, CMX3600 EDL.",
+ "input_assets": [
+  "cam_a/b/c_*.mov: generated DNxHR LB 1920x1080 24 fps, moving colour pattern with burned-in camera id and frame counter, so an angle and a frame can be read from a pixel probe (generate with any test-pattern tool; hsk-studio-reel/tests/fixtures/dnx/dnxhr-lb-264x120.mov is the committed small fixture)",
+  "boom_*.wav: generated 48 kHz 24-bit mono, speech-band noise bursts with a known clap offset per take (for sync)",
+  "room_tone.wav, music_bed.wav: generated 48 kHz stereo, known LUFS",
+  "unknown.bin: arbitrary bytes for the import refusal",
+  "last_ferry.en.srt, last_ferry.nl.srt: authored by the runner, synthetic dialogue",
+  "ferry_look.cube: generated 33-point .cube identity plus known offset"
+ ],
+ "workspace_or_layout_preset": "Layout Preset `Edit` on the sequence profile default (STU-SHL-090@line32244), `Colour` for grading, both named in the proposed shipped set (STU-SHL-095@line32272; count and names are open decision OD-4). No Task Scope applies: the seven proposed ones hold no video edit scope.",
+ "scenes": [
+  {
+   "scene_id": "S1-ingest-and-assembly",
+   "goal": "From an empty project: ingest, proxies, organise, sync sound, and a first assembly of all 3 story scenes.",
+   "steps": [
+    {
+     "n": 1,
+     "intent": "Create an empty project",
+     "human": {
+      "panel": "project-bin",
+      "tool": "none",
+      "gesture": "File > New Project; name it last_ferry",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "name": "last_ferry"
+      },
+      "status": "missing",
+      "evidence": "git grep new_document|new_project|create_document in harness-view, harness, harness-core, session: nothing. RUN_COMMANDS offers document.open, not new (hsk-studio-harness-core/src/action.rs:865). CLI verbs in hsk-studio-harness/src/cli.rs:270-373 have no new."
+     },
+     "spec_clauses": [
+      "STU-VID-010@line22982"
+     ],
+     "mts": [
+      "MT-33685"
+     ],
+     "expected_state": "One empty document at revision 0.",
+     "visual_check": {
+      "what_must_be_visible": "Empty project-bin with a drop hint; timeline and monitors empty but laid out.",
+      "layout_or_fit_concern": "All Edit panels must appear before any media exists, so the layout can be judged empty."
+     },
+     "failure_a_professional_would_notice": "Studio cannot start a video project; everything has to begin from a prepared package."
+    },
+    {
+     "n": 2,
+     "intent": "Choose the sequence preset: 1080p 24 fps, 48 kHz",
+     "human": {
+      "panel": "project-bin",
+      "tool": "none",
+      "gesture": "New Sequence dialog, pick a preset, read its summary",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "preset": "1080p 24 fps"
+      },
+      "status": "engine_only",
+      "evidence": "Records and session store exist: hsk-studio-folio/src/sequence_preset.rs:72, hsk-studio-session/src/sequence_records.rs:221 set_sequence_presets. git grep sequence_preset|set_sequence_settings in harness-view and harness-core: no caller."
+     },
+     "spec_clauses": [
+      "STU-VID-016@line23091",
+      "STU-VID-011@line22991"
+     ],
+     "mts": [
+      "MT-33695",
+      "MT-33686",
+      "MT-35944",
+      "MT-35945",
+      "MT-35946"
+     ],
+     "expected_state": "A preset is selected; its settings are readable.",
+     "visual_check": {
+      "what_must_be_visible": "Preset list with frame rate, raster, sample rate and working colour space shown before commit.",
+      "layout_or_fit_concern": "Dialog must not cover the panels it configures."
+     },
+     "failure_a_professional_would_notice": "Picking a preset blind, or finding the frame rate wrong after cutting."
+    },
+    {
+     "n": 3,
+     "intent": "Create the sequence with V1-V3, A1-A4, one caption track, Dialogue and Music submix tracks",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "Confirm the dialog; track headers appear",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.submit_sequence_edits",
+      "parameters": {
+       "edits": [
+        {
+         "insert": "StudioSequence seq-main, ticks_per_frame 10584000000 (24 fps)"
+        }
+       ]
+      },
+      "status": "callable",
+      "evidence": "[run] hsk-studio-harness-core/src/action.rs:863 and harness.rs:1644, parameters list is empty: Rust only, the caller writes the whole StudioSequence. No track-creation command: git grep add_track|AddTrack in harness-view, harness-core, pulse: nothing."
+     },
+     "spec_clauses": [
+      "STU-VID-010@line22982",
+      "STU-VID-021@line23628"
+     ],
+     "mts": [
+      "MT-33685",
+      "MT-33706"
+     ],
+     "expected_state": "seq-main in the document, revision +1, one undo step.",
+     "visual_check": {
+      "what_must_be_visible": "Track headers in draw order: caption and video above, audio and submix below; 00:00:00:00 ruler.",
+      "layout_or_fit_concern": "Headers must fit names and all toggles at the default 320 px bottom height."
+     },
+     "failure_a_professional_would_notice": "A pro expects Add Tracks; writing a full record is not a workflow."
+    },
+    {
+     "n": 4,
+     "intent": "Import all camera and sound files into project-bin",
+     "human": {
+      "panel": "media-browser",
+      "tool": "none",
+      "gesture": "Select the card folder, Import",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "paths": [
+        "cam_a/",
+        "cam_b/",
+        "cam_c/",
+        "boom/",
+        "music_bed.wav",
+        "room_tone.wav"
+       ]
+      },
+      "status": "missing",
+      "evidence": "git grep project_bin|media_browser in harness-view, harness, harness-core, session: nothing. Folio has no media item record: ClipSource::Media is a manifest id plus digest (hsk-studio-folio/src/timeline.rs:346). Only one file at a time reaches a monitor (hsk-studio-harness-view/src/view/source_monitor.rs:749 open_source_media), and bind_program_media takes a file list per export (timeline/export_media.rs:464)."
+     },
+     "spec_clauses": [
+      "STU-VID-050@line24736"
+     ],
+     "mts": [
+      "MT-33761",
+      "MT-33762"
+     ],
+     "expected_state": "One media item per file with duration, rate, raster, channels, timecode, digest.",
+     "visual_check": {
+      "what_must_be_visible": "project-bin list or icon view with those columns, thumbnails, and progress in jobs.",
+      "layout_or_fit_concern": "project-bin at 300 px must show name, duration and rate without horizontal scroll."
+     },
+     "failure_a_professional_would_notice": "No bin means nowhere to see what was shot."
+    },
+    {
+     "n": 5,
+     "intent": "Import a file Studio cannot read",
+     "human": {
+      "panel": "media-browser",
+      "tool": "none",
+      "gesture": "Import unknown.bin",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "path": "unknown.bin"
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-reel/src/error.rs:36,99 MEDIA_IMPORT_UNSUPPORTED naming the detected type; Registry::detect_type (reel/src/lib.rs:134). Reachable only as a decode refusal, there is no import command (step above)."
+     },
+     "spec_clauses": [
+      "STU-VID-050@line24736"
+     ],
+     "mts": [
+      "MT-33761",
+      "MT-33762"
+     ],
+     "expected_state": "Typed refusal naming the detected type; the rest of the batch still imports.",
+     "visual_check": {
+      "what_must_be_visible": "A per-file row in problems, not a modal.",
+      "layout_or_fit_concern": "Must not steal focus (quiet law)."
+     },
+     "failure_a_professional_would_notice": "A generic error, or the whole batch aborted."
+    },
+    {
+     "n": 6,
+     "intent": "Organise into bins: Cameras, Sound, Music, one per story scene",
+     "human": {
+      "panel": "project-bin",
+      "tool": "none",
+      "gesture": "New Bin, drag items",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {},
+      "status": "missing",
+      "evidence": "No bin record or command: git grep project_bin and bin_id|StudioBin in hsk-studio-folio/src and harness-view: nothing."
+     },
+     "spec_clauses": [
+      "STU-VID-050@line24736"
+     ],
+     "mts": [
+      "MT-33761",
+      "MT-33762"
+     ],
+     "expected_state": "Bins persist on reopen.",
+     "visual_check": {
+      "what_must_be_visible": "Tree with disclosure and item counts.",
+      "layout_or_fit_concern": "Deep tree in a narrow dock."
+     },
+     "failure_a_professional_would_notice": "A flat list of 60 clips is unusable by day two."
+    },
+    {
+     "n": 7,
+     "intent": "Create proxies for all camera clips as a background job",
+     "human": {
+      "panel": "project-bin",
+      "tool": "none",
+      "gesture": "Right-click, Proxy > Create Proxies, choose a low-res recipe",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cmd.clip.createproxies",
+      "parameters": {
+       "recipe": "low-res DNxHR LB 960x540"
+      },
+      "status": "missing",
+      "evidence": "Spec command row has no code: git grep createproxies|create_proxy over crates: nothing. Only reel/src/registry.rs:32 ProxySource exists, for reading. No queued job. truth-check 20261105 MT-33741 partial."
+     },
+     "spec_clauses": [
+      "STU-VID-038@line23884",
+      "STU-VID-041@line23910"
+     ],
+     "mts": [
+      "MT-33741",
+      "MT-33744"
+     ],
+     "expected_state": "One proxy per clip, each with a receipt; editing stays responsive.",
+     "visual_check": {
+      "what_must_be_visible": "jobs panel: per-clip progress, cancel, no window popping.",
+      "layout_or_fit_concern": "jobs lives on the bottom icon rail: progress must be visible with it collapsed."
+     },
+     "failure_a_professional_would_notice": "Proxies block the UI or need a separate app."
+    },
+    {
+     "n": 8,
+     "intent": "Attach existing proxies from a folder",
+     "human": {
+      "panel": "project-bin",
+      "tool": "none",
+      "gesture": "Proxy > Attach Proxies",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cmd.clip.attachproxy",
+      "parameters": {
+       "folder": "proxies/"
+      },
+      "status": "missing",
+      "evidence": "No attached-proxy field on any media record (no media record exists); git grep attachproxy|attach_proxy: nothing."
+     },
+     "spec_clauses": [
+      "STU-VID-038@line23884",
+      "STU-VID-041@line23910"
+     ],
+     "mts": [
+      "MT-33741",
+      "MT-33744"
+     ],
+     "expected_state": "Media item holds original and proxy identity.",
+     "visual_check": {
+      "what_must_be_visible": "Proxy column filled; mismatch rows flagged.",
+      "layout_or_fit_concern": "None beyond project-bin width."
+     },
+     "failure_a_professional_would_notice": "Relink guessing by file name."
+    },
+    {
+     "n": 9,
+     "intent": "Switch all playback to proxy",
+     "human": {
+      "panel": "sequence-program",
+      "tool": "none",
+      "gesture": "Toggle Proxies button under the monitor",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "proxy": true
+      },
+      "status": "engine_only",
+      "evidence": "reel/src/registry.rs:1,25-36 proxy/original arbitration for preview-purpose requests. No per-project toggle: git grep toggle_proxy|use_proxy|proxy in harness-view/src/view/monitor.rs and media.rs: nothing. Registry reached from media.rs:110 without a proxy."
+     },
+     "spec_clauses": [
+      "STU-VID-038@line23884"
+     ],
+     "mts": [
+      "MT-33741"
+     ],
+     "expected_state": "Decode uses proxies; export still reads originals.",
+     "visual_check": {
+      "what_must_be_visible": "A visible proxy state on both monitors, and proxy badges on clips.",
+      "layout_or_fit_concern": "State must be readable at a glance, not hidden in a menu."
+     },
+     "failure_a_professional_would_notice": "Delivering a proxy by accident is a career event."
+    },
+    {
+     "n": 10,
+     "intent": "Build peak files and seek indices in the background",
+     "human": {
+      "panel": "project-bin",
+      "tool": "none",
+      "gesture": "Automatic after import",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {},
+      "status": "missing",
+      "evidence": "No queued peak, conform or seek-index job (truth-check MT-33765). A synchronous overview exists: harness-view/src/view/timeline/audio.rs:300 peaks, :576 timeline_clip_peaks."
+     },
+     "spec_clauses": [
+      "STU-VID-053@line24879"
+     ],
+     "mts": [
+      "MT-33765"
+     ],
+     "expected_state": "Waveforms appear progressively; deleting the cache only costs a rebuild.",
+     "visual_check": {
+      "what_must_be_visible": "jobs panel rows; waveforms filling in.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Waveform stall on long takes."
+    },
+    {
+     "n": 11,
+     "intent": "Sync boom to camera for each dialogue take by waveform",
+     "human": {
+      "panel": "project-bin",
+      "tool": "none",
+      "gesture": "Select camera and boom clips, Merge Clips, basis Audio",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cmd.clip.merge",
+      "parameters": {
+       "basis": "audio_waveform"
+      },
+      "status": "missing",
+      "evidence": "Typed refusal, no matcher: hsk-studio-pulse/src/merge_sync.rs:705 plan_merge_clips, truth-check MT-33727 'audio waveform basis is a typed refusal'."
+     },
+     "spec_clauses": [
+      "STU-VID-029a@line23768",
+      "STU-VID-029@line23758"
+     ],
+     "mts": [
+      "MT-33727",
+      "MT-33726"
+     ],
+     "expected_state": "Merged clip with boom as its audio, offset reported per take.",
+     "visual_check": {
+      "what_must_be_visible": "Result list with offset and confidence per take.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Hand-syncing every take by clap."
+    },
+    {
+     "n": 12,
+     "intent": "Sync a take by timecode or marker instead",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "Select clips, Synchronize, basis marker",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cmd.clip.synchronizeclips",
+      "parameters": {
+       "basis": "marker"
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-pulse/src/merge_sync.rs:725 plan_synchronize, four bases. git grep plan_synchronize|plan_merge in harness-view, harness-core, session: nothing."
+     },
+     "spec_clauses": [
+      "STU-VID-029a@line23768"
+     ],
+     "mts": [
+      "MT-33727"
+     ],
+     "expected_state": "Clips align at the marker, one undo step.",
+     "visual_check": {
+      "what_must_be_visible": "Clips visibly shift, link group shown.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Sync drift unreported."
+    },
+    {
+     "n": 13,
+     "intent": "Screen a take in source",
+     "human": {
+      "panel": "source",
+      "tool": "none",
+      "gesture": "Double-click a clip, play, shuttle",
+      "shortcut_if_spec_defines_one": "J / K / L, Shift+J / Shift+L, Space"
+     },
+     "agent_call": {
+      "command_id": "viewer.open_source_media + viewer.monitor_key",
+      "parameters": {
+       "bytes": "cam_a_012.mov",
+       "width": 1920,
+       "height": 1080,
+       "key": "ShuttleRight"
+      },
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/source_monitor.rs:749, :611 monitor_key; shell opens it with F7 (hsk-studio-harness/RUN-UI.md:63), feature media. Decodes DNx/VC-3, Y4M; ProRes behind a feature; H.264 only through the OS worker (hsk-studio-reel/src/video.rs:53)."
+     },
+     "spec_clauses": [
+      "STU-VID-023@line23664"
+     ],
+     "mts": [
+      "MT-33709"
+     ],
+     "expected_state": "Frame-accurate playback; state_json reports playhead and marks.",
+     "visual_check": {
+      "what_must_be_visible": "Source viewer left of program in the centre split, transport and timecode under it.",
+      "layout_or_fit_concern": "Source and program must be the same height and share the centre (SHL-090), not float."
+     },
+     "failure_a_professional_would_notice": "Audio-picture offset or dropped frames unreported."
+    },
+    {
+     "n": 14,
+     "intent": "Mark select takes with named markers on the media item",
+     "human": {
+      "panel": "markers",
+      "tool": "none",
+      "gesture": "Press M in source, type note",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cmd.marker.edit",
+      "parameters": {
+       "scope": "project_item",
+       "name": "good read"
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-session/src/sequence_records.rs:327 set_media_marker_records, hsk-studio-folio/src/media_markers.rs:73. git grep set_media_marker_records in harness-view: nothing."
+     },
+     "spec_clauses": [
+      "STU-VID-034@line23849"
+     ],
+     "mts": [
+      "MT-33736"
+     ],
+     "expected_state": "Marker lives on the media item and shows on every clip cut from it.",
+     "visual_check": {
+      "what_must_be_visible": "Marker list with name, colour, duration; marker ticks in source.",
+      "layout_or_fit_concern": "markers tab is in the left stack with 8 tabs: reachable without hunting?"
+     },
+     "failure_a_professional_would_notice": "Notes lost when a take is recut."
+    },
+    {
+     "n": 15,
+     "intent": "Mark in and out on a take",
+     "human": {
+      "panel": "source",
+      "tool": "none",
+      "gesture": "Set In, Set Out",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer.source_monitor_mut.mark_in_at_playhead / mark_out_at_playhead",
+      "parameters": {},
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/source_monitor.rs:232,235. I and O are harness keys: its docs say the captured table has no row."
+     },
+     "spec_clauses": [
+      "STU-VID-023@line23664",
+      "STU-VID-024@line23674"
+     ],
+     "mts": [
+      "MT-33709",
+      "MT-33710"
+     ],
+     "expected_state": "marks set in state_json; span shown on the source ruler.",
+     "visual_check": {
+      "what_must_be_visible": "In and out flags and duration readout.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Off-by-one on the inclusive out."
+    },
+    {
+     "n": 16,
+     "intent": "Patch sources: V1 to V1, boom to A1, mute camera sound",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "Click source-patch toggles at the track heads",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "patches": {
+        "v1": "v1",
+        "boom": "a1"
+       }
+      },
+      "status": "missing",
+      "evidence": "plan_source_edit accepts video tracks only and refuses others unknown_track: harness-view/src/view/source_monitor.rs:353-382. No patch toggle on the headers: git grep .targeted = and SetTrack in timeline.rs, timeline_ui.rs: nothing. Pulse SourcePatch itself is general (hsk-studio-pulse/src/assemble.rs)."
+     },
+     "spec_clauses": [
+      "STU-VID-025@line23686"
+     ],
+     "mts": [
+      "MT-33711"
+     ],
+     "expected_state": "Patches persist per sequence.",
+     "visual_check": {
+      "what_must_be_visible": "Source-patch column left of the track-target column in the track head.",
+      "layout_or_fit_concern": "Two nearly identical toggle columns must stay distinct at narrow head width."
+     },
+     "failure_a_professional_would_notice": "Sound lands on the wrong track, or never."
+    },
+    {
+     "n": 17,
+     "intent": "Insert the take with picture and sound linked",
+     "human": {
+      "panel": "source",
+      "tool": "none",
+      "gesture": "Press Insert",
+      "shortcut_if_spec_defines_one": ","
+     },
+     "agent_call": {
+      "command_id": "viewer.source_edit",
+      "parameters": {
+       "mode": "Insert",
+       "targets": [
+        "v1",
+        "a1"
+       ]
+      },
+      "status": "engine_only",
+      "evidence": "plan_assembly_edit takes any patches and a link group (hsk-studio-pulse/src/assemble.rs:178), but the only host sets link_group None and video targets only (harness-view/src/view/source_monitor.rs:402-425). Sound has to be written into the sequence by submit_sequence."
+     },
+     "spec_clauses": [
+      "STU-VID-024@line23674",
+      "STU-VID-029@line23758",
+      "STU-VID-041@line24298 cmd.clip.insert"
+     ],
+     "mts": [
+      "MT-33710",
+      "MT-33726"
+     ],
+     "expected_state": "Video and audio clips with one link group; sync-locked tracks shift.",
+     "visual_check": {
+      "what_must_be_visible": "Linked clips selected together; a sync indicator.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Picture-only inserts make an assembly silent."
+    },
+    {
+     "n": 18,
+     "intent": "Insert picture only for the assembly of the deck scene",
+     "human": {
+      "panel": "source",
+      "tool": "none",
+      "gesture": "Press Insert",
+      "shortcut_if_spec_defines_one": ","
+     },
+     "agent_call": {
+      "command_id": "viewer.source_edit",
+      "parameters": {
+       "mode": "Insert",
+       "targets": [
+        "v1"
+       ],
+       "fit": null
+      },
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/source_monitor.rs:561 source_edit, :280 SourceEdit, one undo step through Run::submit_sequence; key at :480."
+     },
+     "spec_clauses": [
+      "STU-VID-024@line23674"
+     ],
+     "mts": [
+      "MT-33710"
+     ],
+     "expected_state": "Clip at the program playhead; later content shifts on sync-locked tracks.",
+     "visual_check": {
+      "what_must_be_visible": "New clip on V1; playhead parks after it; both monitors agree.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Playhead not advancing to the end of the insert breaks the rhythm."
+    },
+    {
+     "n": 19,
+     "intent": "Overwrite a cutaway on V2",
+     "human": {
+      "panel": "source",
+      "tool": "none",
+      "gesture": "Press Overwrite",
+      "shortcut_if_spec_defines_one": "."
+     },
+     "agent_call": {
+      "command_id": "viewer.source_edit",
+      "parameters": {
+       "mode": "Overwrite",
+       "targets": [
+        "v2"
+       ]
+      },
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/source_monitor.rs:561,481."
+     },
+     "spec_clauses": [
+      "STU-VID-024@line23674",
+      "STU-VID-041@line24323 cmd.clip.overlay"
+     ],
+     "mts": [
+      "MT-33710"
+     ],
+     "expected_state": "Nothing downstream moves.",
+     "visual_check": {
+      "what_must_be_visible": "Cutaway on V2; V1 unchanged.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Downstream shift."
+    },
+    {
+     "n": 20,
+     "intent": "Fit a shot to a program in-out with four points",
+     "human": {
+      "panel": "source",
+      "tool": "none",
+      "gesture": "Set four marks, Overwrite, answer the fit dialog",
+      "shortcut_if_spec_defines_one": "."
+     },
+     "agent_call": {
+      "command_id": "viewer.source_edit",
+      "parameters": {
+       "mode": "Overwrite",
+       "fit": "ChangeClipSpeed"
+      },
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/source_monitor.rs:285 fit, refusal fit_required when unset (module docs :18); pulse tests per truth-check MT-33710."
+     },
+     "spec_clauses": [
+      "STU-VID-024@line23674"
+     ],
+     "mts": [
+      "MT-33710"
+     ],
+     "expected_state": "Explicit fit honoured; speed visible on the clip.",
+     "visual_check": {
+      "what_must_be_visible": "A fit chooser with all four options and the computed result.",
+      "layout_or_fit_concern": "Chooser must name which durations disagree."
+     },
+     "failure_a_professional_would_notice": "Silent speed change."
+    },
+    {
+     "n": 21,
+     "intent": "Target tracks and toggle sync locks for the insert pass",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "Click track-target and sync-lock toggles",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cmd.timeline.togglelockvideotracks",
+      "parameters": {
+       "tracks": [
+        "v1",
+        "a1"
+       ],
+       "sync_locked": true
+      },
+      "status": "missing",
+      "evidence": "Fields exist and are read (hsk-studio-folio/src/timeline.rs:422 locked, sync_locked, targeted; harness-view/src/view/timeline.rs:1182) but nothing sets them: git grep '.targeted =|.locked =|sync_locked =' in timeline.rs, timeline_ui.rs, timeline/audio*.rs: nothing."
+     },
+     "spec_clauses": [
+      "STU-VID-025@line23686",
+      "STU-VID-029@line23758"
+     ],
+     "mts": [
+      "MT-33711",
+      "MT-33726"
+     ],
+     "expected_state": "Toggles persist, trim and insert honour them.",
+     "visual_check": {
+      "what_must_be_visible": "Per-track target, lock, sync-lock, mute, solo in the head.",
+      "layout_or_fit_concern": "Five toggles plus names at minimum track height."
+     },
+     "failure_a_professional_would_notice": "Sync slips on every insert."
+    },
+    {
+     "n": 22,
+     "intent": "Razor out a flub, then extract the marked range",
+     "human": {
+      "panel": "timeline",
+      "tool": "razor",
+      "gesture": "Mark in-out in program, Extract",
+      "shortcut_if_spec_defines_one": "Ctrl+K for add edit; ' for extract"
+     },
+     "agent_call": {
+      "command_id": "timeline.razor then cmd.sequence.extract",
+      "parameters": {
+       "span": "marks"
+      },
+      "status": "engine_only",
+      "evidence": "Razor is callable (harness-view/src/view/timeline.rs:692). Range forms are engine only: hsk-studio-pulse/src/timeline_edit.rs LiftRange, ExtractRange; TimelineCommand has no range variant (timeline.rs:682-790)."
+     },
+     "spec_clauses": [
+      "STU-VID-027@line23739",
+      "STU-VID-028@line23746"
+     ],
+     "mts": [
+      "MT-33724",
+      "MT-33725"
+     ],
+     "expected_state": "Span gone on targeted tracks, sync-locked tracks shift.",
+     "visual_check": {
+      "what_must_be_visible": "Gap closes; a ghost of the removed span not left behind.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "No keyboard lift and extract is the most obvious missing edit."
+    },
+    {
+     "n": 23,
+     "intent": "Remove a clip with a gap, then one closing the gap",
+     "human": {
+      "panel": "timeline",
+      "tool": "pointer",
+      "gesture": "Select, Delete; select, Alt+Backspace",
+      "shortcut_if_spec_defines_one": "Alt+Backspace (ripple delete)"
+     },
+     "agent_call": {
+      "command_id": "timeline.lift / timeline.ripple_delete",
+      "parameters": {
+       "selected": "v1-c07"
+      },
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/timeline.rs:694,696, spec row 23997; driven by harness/tests through Viewer::timeline_command (timeline.rs:1364)."
+     },
+     "spec_clauses": [
+      "STU-VID-028@line23746"
+     ],
+     "mts": [
+      "MT-33725"
+     ],
+     "expected_state": "Lift leaves a gap, ripple closes it.",
+     "visual_check": {
+      "what_must_be_visible": "Clips move; a selected-clip highlight clears.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Linked audio left behind."
+    },
+    {
+     "n": 24,
+     "intent": "Drop a sequence marker per story beat, go between them",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "M; Shift+M; Ctrl+Shift+M",
+      "shortcut_if_spec_defines_one": "Shift+M next, Ctrl+Shift+M previous (M is a harness key)"
+     },
+     "agent_call": {
+      "command_id": "timeline.marker_add / marker_next / marker_previous",
+      "parameters": {},
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/timeline.rs:698 and plan_record_edit AddMarker at :1456. Name and comment have no command: RecordEdit::ReplaceMarker (hsk-studio-pulse/src/annotate.rs) has no host."
+     },
+     "spec_clauses": [
+      "STU-VID-034@line23849",
+      "STU-VID-035@line23855"
+     ],
+     "mts": [
+      "MT-33736",
+      "MT-33737"
+     ],
+     "expected_state": "Markers in the sequence, saved.",
+     "visual_check": {
+      "what_must_be_visible": "Marker pins on the ruler; markers panel lists them.",
+      "layout_or_fit_concern": "Naming a marker needs a form that does not cover the timeline."
+     },
+     "failure_a_professional_would_notice": "Unnamed markers are noise."
+    },
+    {
+     "n": 25,
+     "intent": "Review the assembly in program",
+     "human": {
+      "panel": "sequence-program",
+      "tool": "none",
+      "gesture": "Space, Up/Down between edits",
+      "shortcut_if_spec_defines_one": "Space, Up, Down"
+     },
+     "agent_call": {
+      "command_id": "viewer.open_monitor + viewer.set_monitor_sources + timeline.edit_next",
+      "parameters": {
+       "sequence_id": "seq-main",
+       "width": 1920,
+       "height": 1080
+      },
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/mod.rs:410,432; timeline/export_media.rs:464 bind_program_media; view/timeline.rs:701. RUN-UI.md:414: a monitor opened from the shell has no decoder bound, so the F6 window shows no clip frames."
+     },
+     "spec_clauses": [
+      "STU-VID-023@line23664",
+      "STU-VID-035@line23855"
+     ],
+     "mts": [
+      "MT-33709",
+      "MT-33737"
+     ],
+     "expected_state": "Plays from the audio clock; state_json has shown_layers.",
+     "visual_check": {
+      "what_must_be_visible": "Program picture with timecode and dropped-frame count.",
+      "layout_or_fit_concern": "No resolution, zoom or safe-margin controls exist on the monitor today (git grep safe_margin|paused_resolution in monitor.rs: nothing)."
+     },
+     "failure_a_professional_would_notice": "Black program in the window unless media is bound by code."
+    },
+    {
+     "n": 26,
+     "intent": "Save, close, reopen; every edit intact",
+     "human": {
+      "panel": "project-bin",
+      "tool": "none",
+      "gesture": "Ctrl+S, reopen",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.save, document.reopen, document.verify",
+      "parameters": {
+       "path": "last_ferry.handshake"
+      },
+      "status": "callable",
+      "evidence": "[run] hsk-studio-harness-core/src/action.rs:868; harness.rs:2106,2157,2166. Viewer::save view/mod.rs:716."
+     },
+     "spec_clauses": [
+      "STU-VID-040@line23902"
+     ],
+     "mts": [],
+     "expected_state": "Same revision content and history policy.",
+     "visual_check": {
+      "what_must_be_visible": "Same timeline on reopen, playhead at the saved place.",
+      "layout_or_fit_concern": "Playhead position persists per STU-VID-035: not on this tree (truth-check MT-33737)."
+     },
+     "failure_a_professional_would_notice": "Playhead reset to zero on reopen."
+    }
+   ]
+  },
+  {
+   "scene_id": "S2-multicam-and-fine-cut",
+   "goal": "Cut the 3-camera deck dialogue as multicam, then fine cut everything: trims, retimes, transitions.",
+   "steps": [
+    {
+     "n": 27,
+     "intent": "Create a multicam source sequence from cam A, B, C and boom, sync by audio",
+     "human": {
+      "panel": "project-bin",
+      "tool": "none",
+      "gesture": "Select clips, Create Multi-Camera Source Sequence, sync: Audio",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cmd.clip.create.multicam",
+      "parameters": {
+       "sync": "audio"
+      },
+      "status": "missing",
+      "evidence": "hsk-studio-pulse/src/multicam.rs module docs and MulticamSync at :642: timecode and audio-waveform sync are refused multicam_sync_unsupported."
+     },
+     "spec_clauses": [
+      "STU-VID-033@line23828",
+      "STU-VID-041@line24281 cmd.clip.create.multicam"
+     ],
+     "mts": [
+      "MT-33735"
+     ],
+     "expected_state": "Source sequence with 3 angles aligned by sound.",
+     "visual_check": {
+      "what_must_be_visible": "A progress row, then a new sequence item with a multicam badge.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Multicam without audio sync is hand-aligning 3 cameras per take."
+    },
+    {
+     "n": 28,
+     "intent": "Create it with caller offsets instead",
+     "human": {
+      "panel": "project-bin",
+      "tool": "none",
+      "gesture": "Same dialog, sync: In points",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cmd.clip.create.multicam",
+      "parameters": {
+       "sync": "in_points",
+       "angles": [
+        "cam_a",
+        "cam_b",
+        "cam_c"
+       ],
+       "numbering": "top_down"
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-pulse/src/multicam.rs:697 plan_create_multicam_source, :92 CMD_CREATE_MULTICAM. git grep plan_multicam|plan_create_multicam|resolve_active_angle over crates: only pulse tests call it, no host. The session stores it (hsk-studio-session/src/multicam.rs:41) but Run only passes the records through (hsk-studio-harness-core/src/harness.rs:1745)."
+     },
+     "spec_clauses": [
+      "STU-VID-033@line23828"
+     ],
+     "mts": [
+      "MT-33735"
+     ],
+     "expected_state": "Source sequence plus records, one step, inverse kept.",
+     "visual_check": {
+      "what_must_be_visible": "Angle list with numbering order visible.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "None if sync is right."
+    },
+    {
+     "n": 29,
+     "intent": "Place the multicam clip on V1 and turn multicam on",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "Clip menu, Multi-Camera > Enable",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cmd.clip.multicam.toggle",
+      "parameters": {
+       "clip_id": "v1-mc01",
+       "enabled": true
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-pulse/src/multicam.rs:560 plan_multicam_toggle_enabled, :94. git grep plan_multicam|plan_create_multicam|resolve_active_angle over crates: only pulse tests call it, no host."
+     },
+     "spec_clauses": [
+      "STU-VID-033@line23828",
+      "STU-VID-041@line24319 cmd.clip.multicam.toggle"
+     ],
+     "mts": [
+      "MT-33735"
+     ],
+     "expected_state": "Clip has a mode and active_angle.",
+     "visual_check": {
+      "what_must_be_visible": "Clip shows MC badge and the active angle name on its body.",
+      "layout_or_fit_concern": "Angle label must survive narrow clips."
+     },
+     "failure_a_professional_would_notice": "No way to see which angle a clip is on."
+    },
+    {
+     "n": 30,
+     "intent": "Open the multicam view in program: all angles in a paged grid",
+     "human": {
+      "panel": "sequence-program",
+      "tool": "none",
+      "gesture": "Toggle Multi-Camera View",
+      "shortcut_if_spec_defines_one": "Shift+0"
+     },
+     "agent_call": {
+      "command_id": "cmd.multicam.toggle.multicam.view",
+      "parameters": {
+       "page": 0
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-pulse/src/multicam.rs:1154 MulticamNav, :1181 MulticamPage, :1239 multicam_step_angle: paging only. No panel: git grep -i multicam in harness-view/src/view/monitor.rs and timeline_ui.rs: nothing; STU-VID-023 channel 'multicam' absent."
+     },
+     "spec_clauses": [
+      "STU-VID-033@line23828",
+      "STU-VID-023@line23664",
+      "STU-VID-041@line24401"
+     ],
+     "mts": [
+      "MT-33735",
+      "MT-33709"
+     ],
+     "expected_state": "Grid of live angles with the active one outlined.",
+     "visual_check": {
+      "what_must_be_visible": "Grid plus the program frame, angle numbers on each cell, red outline while recording.",
+      "layout_or_fit_concern": "Grid must stay readable at 1/2 centre width; 3 angles should not leave empty pages."
+     },
+     "failure_a_professional_would_notice": "Decoding 3 streams drops frames silently: decimation is a stated toggle, not a surprise."
+    },
+    {
+     "n": 31,
+     "intent": "CHECK: play the clip and confirm the program shows its active angle, not the top angle",
+     "human": {
+      "panel": "sequence-program",
+      "tool": "none",
+      "gesture": "Set angle 2, play, read camera id on the picture",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer.open_monitor, then probe shown_layers",
+      "parameters": {
+       "clip_id": "v1-mc01",
+       "active_angle": 2,
+       "expect_track": "angle 2 track"
+      },
+      "status": "engine_only",
+      "evidence": "Confirmed by reading, not run: hsk-studio-pulse/src/multicam.rs:932 resolve_active_angle has no caller outside pulse tests (tests/multicam.rs:287, tests/multicam_flatten.rs:259). ProgramMonitor renders through frame_layers_nested_on_grids (harness-view/src/view/monitor.rs:574); expand (hsk-studio-pulse/src/nest.rs:772) sees ClipSource::Sequence and recurses into every enabled video track bottom-to-top (playback.rs:749), with no records argument. nest.rs, playback.rs, audio.rs, bus_mix.rs, monitor.rs, timeline_export.rs hold no reference to multicam (git grep -l)."
+     },
+     "spec_clauses": [
+      "STU-VID-033@line23828"
+     ],
+     "mts": [
+      "MT-33735"
+     ],
+     "expected_state": "Spec: the active angle plays. Today by reading: the source sequence composites and the topmost enabled angle covers the rest, whatever active_angle says.",
+     "visual_check": {
+      "what_must_be_visible": "Camera id burned into the picture equals the clip's active angle at every tick; a pixel probe per angle.",
+      "layout_or_fit_concern": "A picture that disagrees with the badge is the worst state a monitor can show."
+     },
+     "failure_a_professional_would_notice": "Every cut plays the same camera, with no error."
+    },
+    {
+     "n": 32,
+     "intent": "CHECK: hear the audio of the active angle only",
+     "human": {
+      "panel": "audio-meters",
+      "tool": "none",
+      "gesture": "Solo nothing; play across a switch",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer.mixer_render",
+      "parameters": {
+       "frames": 48000,
+       "expect": "only the audio_angle track"
+      },
+      "status": "engine_only",
+      "evidence": "resolved audio is hsk-studio-pulse/src/multicam.rs:844 ResolvedAngle, unused. NestedAudioSources (hsk-studio-pulse/src/nest.rs:815) renders the nested sequence's mix, which sums all its enabled audio tracks; no multicam read. By reading, not run."
+     },
+     "spec_clauses": [
+      "STU-VID-033@line23828"
+     ],
+     "mts": [
+      "MT-33735"
+     ],
+     "expected_state": "One angle's sound, or boom only.",
+     "visual_check": {
+      "what_must_be_visible": "Meters move for one source.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "All camera mics plus boom summed: phasey, doubled dialogue."
+    },
+    {
+     "n": 33,
+     "intent": "Live-switch angles with a record pass",
+     "human": {
+      "panel": "sequence-program",
+      "tool": "none",
+      "gesture": "Record, play, press camera keys",
+      "shortcut_if_spec_defines_one": "0 record; Ctrl+1 cut to camera 1; 1 no cut"
+     },
+     "agent_call": {
+      "command_id": "cmd.multicam.toggle.record, cmd.multicam.choose.camera.N",
+      "parameters": {
+       "events": [
+        {
+         "tick": 0,
+         "angle": 1
+        },
+        {
+         "tick": 2540160000000,
+         "angle": 2
+        }
+       ]
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-pulse/src/multicam.rs:782 plan_multicam_record_pass (whole pass is one step), :95,:101. No capture during playback in any host. git grep plan_multicam|plan_create_multicam|resolve_active_angle over crates: only pulse tests call it, no host."
+     },
+     "spec_clauses": [
+      "STU-VID-033@line23828",
+      "STU-VID-041@line24402",
+      "STU-VID-041@line24353",
+      "STU-VID-041@line24369"
+     ],
+     "mts": [
+      "MT-33735"
+     ],
+     "expected_state": "A cut list inside the clip, one undo step.",
+     "visual_check": {
+      "what_must_be_visible": "Red record state; cuts appear on the clip as they happen.",
+      "layout_or_fit_concern": "Keys must work with the timeline focused and the grid showing."
+     },
+     "failure_a_professional_would_notice": "Cuts landing a few frames late unadjusted."
+    },
+    {
+     "n": 34,
+     "intent": "Switch one section with a cut, another without",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "Park playhead, press camera key",
+      "shortcut_if_spec_defines_one": "Ctrl+N with cut, N without"
+     },
+     "agent_call": {
+      "command_id": "cmd.multicam.choose.camera.N / choosenocut.cameraN",
+      "parameters": {
+       "clip_id": "v1-mc01",
+       "angle": 3,
+       "cut": true
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-pulse/src/multicam.rs:470 plan_multicam_switch, :428 SwitchAngle. git grep plan_multicam|plan_create_multicam|resolve_active_angle over crates: only pulse tests call it, no host."
+     },
+     "spec_clauses": [
+      "STU-VID-033@line23828"
+     ],
+     "mts": [
+      "MT-33735"
+     ],
+     "expected_state": "Razor plus new angle, or whole clip changes.",
+     "visual_check": {
+      "what_must_be_visible": "A new edit on the clip; angle label changes.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Link partners out of step."
+    },
+    {
+     "n": 35,
+     "intent": "Tune audio follows video",
+     "human": {
+      "panel": "sequence-program",
+      "tool": "none",
+      "gesture": "Monitor menu toggle",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cmd.multicam.audio.follows.video",
+      "parameters": {
+       "on": false
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-pulse/src/multicam.rs:529, :96. git grep plan_multicam|plan_create_multicam|resolve_active_angle over crates: only pulse tests call it, no host."
+     },
+     "spec_clauses": [
+      "STU-VID-033@line23828",
+      "STU-VID-041@line24352"
+     ],
+     "mts": [
+      "MT-33735"
+     ],
+     "expected_state": "Boom stays while pictures switch.",
+     "visual_check": {
+      "what_must_be_visible": "Toggle state visible.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Audio jumping with every camera."
+    },
+    {
+     "n": 36,
+     "intent": "Roll a multicam cut 3 frames later",
+     "human": {
+      "panel": "timeline",
+      "tool": "roll",
+      "gesture": "Drag the cut with the Roll tool",
+      "shortcut_if_spec_defines_one": "N"
+     },
+     "agent_call": {
+      "command_id": "timeline.roll",
+      "parameters": {
+       "clip_id": "v1-mc01",
+       "delta_frames": 3
+      },
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/timeline.rs:719; edges of ordinary abutting clips. Picture check is blocked by the CHECK steps above."
+     },
+     "spec_clauses": [
+      "STU-VID-026@line23707"
+     ],
+     "mts": [
+      "MT-33712",
+      "MT-33713",
+      "MT-33714",
+      "MT-33715"
+     ],
+     "expected_state": "Cut moves, total length unchanged.",
+     "visual_check": {
+      "what_must_be_visible": "Two-up trim preview.",
+      "layout_or_fit_concern": "See trim steps."
+     },
+     "failure_a_professional_would_notice": "Rolling blind while the program plays the wrong angle."
+    },
+    {
+     "n": 37,
+     "intent": "Flatten the cut list into ordinary clips",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "Multi-Camera > Flatten",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cmd.clip.multicam.flatten",
+      "parameters": {
+       "clip_ids": [
+        "v1-mc01"
+       ]
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-pulse/src/multicam.rs:1086 plan_multicam_flatten, :93. Tests compare to resolve_active_angle (tests/multicam_flatten.rs:259). git grep plan_multicam|plan_create_multicam|resolve_active_angle over crates: only pulse tests call it, no host."
+     },
+     "spec_clauses": [
+      "STU-VID-033@line23828",
+      "STU-VID-041@line24318"
+     ],
+     "mts": [
+      "MT-33735"
+     ],
+     "expected_state": "Each piece plays its angle track; one reversible step; refusals typed for reverse and hold.",
+     "visual_check": {
+      "what_must_be_visible": "Clips show their source names; MC badge gone.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "No route to bake means the wrong play path cannot even be avoided."
+    },
+    {
+     "n": 38,
+     "intent": "Set the tool to Ripple and tighten a head",
+     "human": {
+      "panel": "timeline",
+      "tool": "ripple",
+      "gesture": "Drag edge",
+      "shortcut_if_spec_defines_one": "B"
+     },
+     "agent_call": {
+      "command_id": "timeline.tool + timeline.ripple_trim_in",
+      "parameters": {
+       "tool": "Ripple",
+       "clip_id": "v1-c03",
+       "delta_frames": 6
+      },
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/timeline.rs:746,715; trim.rs. Keys B and N are not bound (key_command at timeline.rs covers R only among tools): toolbar buttons instead."
+     },
+     "spec_clauses": [
+      "STU-VID-026@line23707",
+      "STU-VID-041@line24415"
+     ],
+     "mts": [
+      "MT-33712",
+      "MT-33713",
+      "MT-33714",
+      "MT-33715"
+     ],
+     "expected_state": "Clip keeps its start, later content shifts, last_trim reports the achieved delta.",
+     "visual_check": {
+      "what_must_be_visible": "Tool rail state; ripple cursor; delta counter while dragging.",
+      "layout_or_fit_concern": "Tool rail must show one active tool; trim cursors must differ by mode."
+     },
+     "failure_a_professional_would_notice": "Unknown source length refuses extension: source_extent_unknown."
+    },
+    {
+     "n": 39,
+     "intent": "Ripple the tail to the playhead",
+     "human": {
+      "panel": "timeline",
+      "tool": "ripple",
+      "gesture": "Press W at the wanted frame",
+      "shortcut_if_spec_defines_one": "W; Q for the head"
+     },
+     "agent_call": {
+      "command_id": "cmd.sequence.rippletrimnextedittoplayhead",
+      "parameters": {},
+      "status": "missing",
+      "evidence": "Spec row 24237/24238. TimelineCommand has ripple trims by delta, none to the playhead, and key_command binds no Q or W (harness-view/src/view/timeline.rs:682-790). truth-check: 60 of 674 cmd ids in code."
+     },
+     "spec_clauses": [
+      "STU-VID-026@line23707"
+     ],
+     "mts": [
+      "MT-33712",
+      "MT-33713",
+      "MT-33714",
+      "MT-33715"
+     ],
+     "expected_state": "Tail trims to the playhead and later content closes.",
+     "visual_check": {
+      "what_must_be_visible": "Clip end snaps to playhead.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Q and W are the fastest edit in the field: an editor reaches for them first."
+    },
+    {
+     "n": 40,
+     "intent": "Extend the selected edit to the playhead",
+     "human": {
+      "panel": "timeline",
+      "tool": "roll",
+      "gesture": "Press E",
+      "shortcut_if_spec_defines_one": "E"
+     },
+     "agent_call": {
+      "command_id": "timeline.extend_edit",
+      "parameters": {},
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/timeline.rs:742; spec row 24207. Key E not bound in key_command."
+     },
+     "spec_clauses": [
+      "STU-VID-026@line23707"
+     ],
+     "mts": [
+      "MT-33712",
+      "MT-33713",
+      "MT-33714",
+      "MT-33715"
+     ],
+     "expected_state": "Roll edit lands at the playhead.",
+     "visual_check": {
+      "what_must_be_visible": "Edit highlight moves.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "No selected edit: nearest on targeted tracks, targets not settable (see S1)."
+    },
+    {
+     "n": 41,
+     "intent": "Open a trim session on the edit and nudge",
+     "human": {
+      "panel": "timeline",
+      "tool": "roll",
+      "gesture": "Double-click the edit; Ctrl+arrow keys; toggle ripple/roll",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "timeline.edit_point, trim_session_enter, trim_nudge, trim_session_type, trim_session_commit",
+      "parameters": {
+       "mode": "Roll",
+       "forward": true,
+       "many": false
+      },
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/timeline.rs:748-753,730; trim_session.rs. One history step on commit."
+     },
+     "spec_clauses": [
+      "STU-VID-026a@line23725",
+      "STU-VID-026b@line23732"
+     ],
+     "mts": [
+      "MT-33722",
+      "MT-33723"
+     ],
+     "expected_state": "Adjustment commits once; rollback changes nothing.",
+     "visual_check": {
+      "what_must_be_visible": "Two-up outgoing and incoming frames in program, delta counter, trim mode.",
+      "layout_or_fit_concern": "The two-up has to use the program area, not a third floating window."
+     },
+     "failure_a_professional_would_notice": "Multiple undo steps from one trim."
+    },
+    {
+     "n": 42,
+     "intent": "Slip a shot without moving it",
+     "human": {
+      "panel": "timeline",
+      "tool": "slip",
+      "gesture": "Drag body; or nudge",
+      "shortcut_if_spec_defines_one": "Y; Ctrl+Alt+Left/Right per harness docs"
+     },
+     "agent_call": {
+      "command_id": "timeline.slip / slip_nudge",
+      "parameters": {
+       "clip_id": "v1-c05",
+       "delta_frames": -4
+      },
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/timeline.rs:721,732. Slip at speed refused slip_inexact_at_speed (RUN-UI.md:336)."
+     },
+     "spec_clauses": [
+      "STU-VID-026@line23707",
+      "STU-VID-035a@line23863",
+      "STU-VID-041@line24419"
+     ],
+     "mts": [
+      "MT-33712",
+      "MT-33713",
+      "MT-33714",
+      "MT-33715",
+      "MT-33738"
+     ],
+     "expected_state": "source window moves; start and duration fixed.",
+     "visual_check": {
+      "what_must_be_visible": "Four-up: neighbours and new in and out frames.",
+      "layout_or_fit_concern": "Four-up in program without covering timecode."
+     },
+     "failure_a_professional_would_notice": "None."
+    },
+    {
+     "n": 43,
+     "intent": "Slide a cutaway between its neighbours",
+     "human": {
+      "panel": "timeline",
+      "tool": "slide",
+      "gesture": "Drag body",
+      "shortcut_if_spec_defines_one": "U; Alt+, and Alt+."
+     },
+     "agent_call": {
+      "command_id": "timeline.slide / slide_nudge",
+      "parameters": {
+       "clip_id": "v2-c02",
+       "delta_frames": 8
+      },
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/timeline.rs:723."
+     },
+     "spec_clauses": [
+      "STU-VID-026@line23707",
+      "STU-VID-041@line24420"
+     ],
+     "mts": [
+      "MT-33712",
+      "MT-33713",
+      "MT-33714",
+      "MT-33715"
+     ],
+     "expected_state": "Clip moves, neighbours retrim.",
+     "visual_check": {
+      "what_must_be_visible": "Neighbour edges move live.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "A gap appearing."
+    },
+    {
+     "n": 44,
+     "intent": "Nudge a clip by frame and to another track",
+     "human": {
+      "panel": "timeline",
+      "tool": "pointer",
+      "gesture": "Alt+arrows",
+      "shortcut_if_spec_defines_one": "Alt+Left/Right; Alt+Up/Down"
+     },
+     "agent_call": {
+      "command_id": "timeline.clip_nudge / clip_track_nudge",
+      "parameters": {
+       "right": true,
+       "many": false
+      },
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/timeline.rs:736,739; Alt+Up/Down not mapped to keys (docs at key_command)."
+     },
+     "spec_clauses": [
+      "STU-VID-035a@line23863"
+     ],
+     "mts": [
+      "MT-33738"
+     ],
+     "expected_state": "Moves; link partners follow.",
+     "visual_check": {
+      "what_must_be_visible": "Clip moves; snapped indicator.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Audio left behind on a track nudge."
+    },
+    {
+     "n": 45,
+     "intent": "Toggle snapping, zoom to fit, zoom into a cut",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "S, \\, =, -",
+      "shortcut_if_spec_defines_one": "S"
+     },
+     "agent_call": {
+      "command_id": "timeline.snap, zoom_fit, zoom_in",
+      "parameters": {},
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/timeline.rs:703,706."
+     },
+     "spec_clauses": [
+      "STU-VID-035@line23855"
+     ],
+     "mts": [
+      "MT-33737"
+     ],
+     "expected_state": "Snap state persisted in view.",
+     "visual_check": {
+      "what_must_be_visible": "Snap icon state; playhead stays centred when zooming.",
+      "layout_or_fit_concern": "Zoom must hold the playhead, not the left edge."
+     },
+     "failure_a_professional_would_notice": "Losing the place on every zoom."
+    },
+    {
+     "n": 46,
+     "intent": "Match frame from a clip back to its source",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "Press F",
+      "shortcut_if_spec_defines_one": "F"
+     },
+     "agent_call": {
+      "command_id": "cmd.sequence.matchframe",
+      "parameters": {},
+      "status": "missing",
+      "evidence": "git grep -i matchframe|match_frame in harness-view/src and pulse/src: nothing."
+     },
+     "spec_clauses": [
+      "STU-VID-025@line23686",
+      "STU-VID-041@line24222"
+     ],
+     "mts": [
+      "MT-33711"
+     ],
+     "expected_state": "Source shows the same frame of the same take.",
+     "visual_check": {
+      "what_must_be_visible": "Source monitor jumps; in and out shown.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Finding alternate takes by hand."
+    },
+    {
+     "n": 47,
+     "intent": "Speed-ramp feel: set one shot to 50 percent",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "Ctrl+R, Speed 50, OK",
+      "shortcut_if_spec_defines_one": "Ctrl+R"
+     },
+     "agent_call": {
+      "command_id": "timeline.speed_duration",
+      "parameters": {
+       "clip_id": "v1-c09",
+       "target": {
+        "percent": 50
+       },
+       "reverse": false
+      },
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/timeline.rs:763; rate.rs:138-175. Refusals named in RUN-UI.md:337."
+     },
+     "spec_clauses": [
+      "STU-VID-031@line23788",
+      "STU-VID-041@line24335"
+     ],
+     "mts": [
+      "MT-33730",
+      "MT-33731"
+     ],
+     "expected_state": "Speed and duration derived; head stays; envelopes follow.",
+     "visual_check": {
+      "what_must_be_visible": "Clip shows (50.00%).",
+      "layout_or_fit_concern": "Form must show both views of one value."
+     },
+     "failure_a_professional_would_notice": "Length change downstream not stated."
+    },
+    {
+     "n": 48,
+     "intent": "Reverse a shot",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "Speed/Duration, Reverse",
+      "shortcut_if_spec_defines_one": "Ctrl+R"
+     },
+     "agent_call": {
+      "command_id": "timeline.speed_duration",
+      "parameters": {
+       "clip_id": "v1-c10",
+       "target": {
+        "percent": 100
+       },
+       "reverse": true
+      },
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/timeline.rs:763."
+     },
+     "spec_clauses": [
+      "STU-VID-031@line23788"
+     ],
+     "mts": [
+      "MT-33730",
+      "MT-33731"
+     ],
+     "expected_state": "Speed -100 percent; plays backward.",
+     "visual_check": {
+      "what_must_be_visible": "(-100.00%) on the clip.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Audio not reversed or muted without saying."
+    },
+    {
+     "n": 49,
+     "intent": "Rate stretch a shot to fill a gap",
+     "human": {
+      "panel": "timeline",
+      "tool": "rate-stretch",
+      "gesture": "Drag edge",
+      "shortcut_if_spec_defines_one": "R"
+     },
+     "agent_call": {
+      "command_id": "timeline.rate_stretch",
+      "parameters": {
+       "clip_id": "v1-c11",
+       "edge": "Tail",
+       "delta_frames": 12
+      },
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/timeline.rs:761; hsk-studio-pulse/src/rate.rs:264."
+     },
+     "spec_clauses": [
+      "STU-VID-026@line23707",
+      "STU-VID-041@line24417"
+     ],
+     "mts": [
+      "MT-33712",
+      "MT-33713",
+      "MT-33714",
+      "MT-33715"
+     ],
+     "expected_state": "Speed changes, source window does not.",
+     "visual_check": {
+      "what_must_be_visible": "Live percent on the clip.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "None."
+    },
+    {
+     "n": 50,
+     "intent": "Choose optical flow and maintain pitch on the slow shot",
+     "human": {
+      "panel": "effect-controls",
+      "tool": "none",
+      "gesture": "Speed/Duration form: interpolation, pitch",
+      "shortcut_if_spec_defines_one": "Ctrl+R"
+     },
+     "agent_call": {
+      "command_id": "cmd.clip.speed",
+      "parameters": {
+       "clip_id": "v1-c09",
+       "frame_interpolation": "optical_flow",
+       "maintain_audio_pitch": true
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-pulse/src/retime.rs:845 plan_set_retime_options; the monitor renders the record's choice (harness-view/src/view/monitor.rs docs, pixel_motion capped at 826719 pixels). The form says 'unavailable: this form is not wired' (harness-view/src/view/timeline/rate.rs:89-90); git grep plan_set_retime_options in hosts: comment only."
+     },
+     "spec_clauses": [
+      "STU-VID-031@line23788"
+     ],
+     "mts": [
+      "MT-33730",
+      "MT-33731"
+     ],
+     "expected_state": "Record set; layer answer marks estimation.",
+     "visual_check": {
+      "what_must_be_visible": "Interpolation choice in the form and a badge on the clip.",
+      "layout_or_fit_concern": "An estimate mark must show in monitors."
+     },
+     "failure_a_professional_would_notice": "1080p is over the optical-flow budget of 826719 pixels (2073600 pixels at 1920x1080): a typed failure for the real raster, by reading."
+    },
+    {
+     "n": 51,
+     "intent": "Frame hold at a marker; insert a held segment",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "Clip menu, Add Frame Hold / Insert Frame Hold Segment",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cmd.clip.videooptions.addframehold / insertframeholdsegment",
+      "parameters": {
+       "clip_id": "v1-c12",
+       "at": "playhead"
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-pulse/src/retime.rs:691,:711,:831. git grep plan_set_frame_hold|plan_insert_frame_hold in harness-view, harness-core: nothing."
+     },
+     "spec_clauses": [
+      "STU-VID-031a@line23801",
+      "STU-VID-041@line24340",
+      "STU-VID-041@line24343"
+     ],
+     "mts": [
+      "MT-33732"
+     ],
+     "expected_state": "Held frame plays; a segment is its own clip.",
+     "visual_check": {
+      "what_must_be_visible": "Hold badge.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "None if reachable."
+    },
+    {
+     "n": 52,
+     "intent": "Ramp a shot with time remapping keyframes",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": "pen",
+      "gesture": "Rubber band on the clip, add keys, drag",
+      "shortcut_if_spec_defines_one": "P"
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "clip_id": "v1-c13",
+       "keys": [
+        {
+         "t": 0,
+         "speed": 100
+        },
+        {
+         "t": 48,
+         "speed": 25
+        }
+       ]
+      },
+      "status": "missing",
+      "evidence": "Clip records have no time remap: git grep -i time_remap only finds composition layers (hsk-studio-composite/src/temporal/composition.rs:55). truth-check MT-33732: 'not started'. No clip keyframe panel (truth-check MT-33703)."
+     },
+     "spec_clauses": [
+      "STU-VID-031a@line23801",
+      "STU-SHL-091@line32252"
+     ],
+     "mts": [
+      "MT-33732",
+      "MT-34622"
+     ],
+     "expected_state": "Speed is a keyframable clip property.",
+     "visual_check": {
+      "what_must_be_visible": "Speed graph under the clip, or on keyframe-timeline beside timeline.",
+      "layout_or_fit_concern": "timeline and keyframe-timeline share a bottom group: switching tabs must not lose selection."
+     },
+     "failure_a_professional_would_notice": "No ramps: a staple of any edit."
+    },
+    {
+     "n": 53,
+     "intent": "Apply the default video transition across a cut",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "Select edit, Ctrl+D",
+      "shortcut_if_spec_defines_one": "Ctrl+D; Shift+D default to selection"
+     },
+     "agent_call": {
+      "command_id": "cmd.sequence.applydefaultvideotransition",
+      "parameters": {
+       "outgoing_clip_id": "v1-c14",
+       "transition_kind": "cross_dissolve",
+       "duration_frames": 12
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-pulse/src/annotate.rs RecordEdit::SetTransition, plan_record_edit; transition.rs:28 CROSS_DISSOLVE. Only host use of plan_record_edit is AddMarker (harness-view/src/view/timeline.rs:1456). No default or apply command: truth-check MT-33734. Program does render a stored transition (hsk-studio-pulse/src/playback.rs:749)."
+     },
+     "spec_clauses": [
+      "STU-VID-032@line23810",
+      "STU-VID-032a@line23819",
+      "STU-VID-041@line24174"
+     ],
+     "mts": [
+      "MT-33733",
+      "MT-33734"
+     ],
+     "expected_state": "One undo step; both monitors dissolve.",
+     "visual_check": {
+      "what_must_be_visible": "Transition block on the cut, duration readable, centred on cut.",
+      "layout_or_fit_concern": "Short transition blocks need a handle even at low zoom."
+     },
+     "failure_a_professional_would_notice": "No way to add a dissolve from the cut."
+    },
+    {
+     "n": 54,
+     "intent": "Pick a dip to black and a wipe from effects-browser",
+     "human": {
+      "panel": "effects-browser",
+      "tool": "none",
+      "gesture": "Drag from the Transition category to the edit",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cmd.timeline.transition.apply.video.wipe",
+      "parameters": {
+       "transition_kind": "wipe"
+      },
+      "status": "missing",
+      "evidence": "By reading: transition.rs:134 accepts any other kind (`_ => true`), and playback.rs:749 renders every transition as a weighted pair at incoming_weight, so any kind plays as a dissolve. No effects-browser panel. Catalogue in STU-FX-126."
+     },
+     "spec_clauses": [
+      "STU-VID-032@line23810",
+      "STU-FX-126@line13053",
+      "STU-VID-041@line24060"
+     ],
+     "mts": [
+      "MT-33733",
+      "MT-31496"
+     ],
+     "expected_state": "The chosen kind renders as itself.",
+     "visual_check": {
+      "what_must_be_visible": "Transition list with previews.",
+      "layout_or_fit_concern": "effects-browser is on the left stack, 8 tabs."
+     },
+     "failure_a_professional_would_notice": "A wipe that plays as a dissolve with no warning."
+    },
+    {
+     "n": 55,
+     "intent": "Insufficient handles: choose shorten, shift or repeat end frame",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "Apply on a cut with no handle; answer the prompt",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "choice": "shorten"
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-pulse/src/transition.rs:233 transition_handles, :59 shortfall; repeat_end_frame field read in playback. No prompt or apply path: truth-check MT-33733."
+     },
+     "spec_clauses": [
+      "STU-VID-032@line23810"
+     ],
+     "mts": [
+      "MT-33733"
+     ],
+     "expected_state": "Shortfall reported in frames; choice stored.",
+     "visual_check": {
+      "what_must_be_visible": "Warning stripe on the transition; shortfall number.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Silently frozen frames in a dissolve."
+    },
+    {
+     "n": 56,
+     "intent": "Add a 6 frame audio crossfade under the dissolve",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "Select audio edit, Ctrl+Shift+D",
+      "shortcut_if_spec_defines_one": "Ctrl+Shift+D"
+     },
+     "agent_call": {
+      "command_id": "cmd.sequence.applydefaultaudiotransition",
+      "parameters": {
+       "transition_kind": "audio_crossfade",
+       "curve": "equal_power"
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-pulse/src/audio.rs:27,:74 fade pair in the mix; refused audio_unsupported at non-unit speed. No apply host."
+     },
+     "spec_clauses": [
+      "STU-VID-032a@line23819",
+      "STU-VID-041@line24172"
+     ],
+     "mts": [
+      "MT-33734"
+     ],
+     "expected_state": "Crossfade audible in mix and export.",
+     "visual_check": {
+      "what_must_be_visible": "Fade block on the audio edit.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Clicks on every cut."
+    },
+    {
+     "n": 57,
+     "intent": "Nest the ending montage",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "Select clips, Nest",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "timeline.nest",
+      "parameters": {
+       "clips": [
+        "v1-c20",
+        "v1-c21",
+        "v1-c22"
+       ]
+      },
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/timeline.rs:773; nest.rs. Plays and exports nested (monitor.rs:574; timeline_export.rs set_document)."
+     },
+     "spec_clauses": [
+      "STU-VID-030@line23774",
+      "STU-VID-041@line24320"
+     ],
+     "mts": [
+      "MT-33728"
+     ],
+     "expected_state": "One nested clip per kind; one undo step.",
+     "visual_check": {
+      "what_must_be_visible": "Nested clip colour; Ctrl+Alt+F opens it with a way back.",
+      "layout_or_fit_concern": "Back navigation must be visible (nest stack)."
+     },
+     "failure_a_professional_would_notice": "Audio silently dropped."
+    },
+    {
+     "n": 58,
+     "intent": "Render the work area so a heavy section plays",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "Press Enter",
+      "shortcut_if_spec_defines_one": "Return / Enter"
+     },
+     "agent_call": {
+      "command_id": "cmd.sequence.preview",
+      "parameters": {
+       "span": "work_area"
+      },
+      "status": "missing",
+      "evidence": "Only the settings record: truth-check MT-33742; git grep render_files|unrendered empty; WORK_AREA is drawn (harness-view/src/view/timeline.rs:97) but RecordEdit::SetWorkArea has no host."
+     },
+     "spec_clauses": [
+      "STU-VID-039@line23892",
+      "STU-VID-035@line23855",
+      "STU-VID-041@line24228"
+     ],
+     "mts": [
+      "MT-33742",
+      "MT-33737"
+     ],
+     "expected_state": "Render bar turns rendered; playback real time.",
+     "visual_check": {
+      "what_must_be_visible": "Three-state render bar above the clips; progress in jobs.",
+      "layout_or_fit_concern": "Render bar must read at any zoom."
+     },
+     "failure_a_professional_would_notice": "No idea which spans will drop frames."
+    }
+   ]
+  },
+  {
+   "scene_id": "S3-colour-captions-mix",
+   "goal": "Finish the locked cut: grade with scopes, caption in two languages, mix to a loudness target.",
+   "steps": [
+    {
+     "n": 59,
+     "intent": "Switch to the Colour layout",
+     "human": {
+      "panel": "workspace menu",
+      "tool": "none",
+      "gesture": "Workspace > Layout Presets > Colour",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "studio.workspace.layout_preset",
+      "parameters": {
+       "preset": "Colour"
+      },
+      "status": "missing",
+      "evidence": "git grep -l LayoutPreset|layout_preset|TaskScope over crates: nothing. RUN-UI.md:414-418: 'no docking'. Panels are separate Workspace windows opened by F-keys (RUN-UI.md:62-64)."
+     },
+     "spec_clauses": [
+      "STU-SHL-095@line32272",
+      "STU-SHL-055@line31941"
+     ],
+     "mts": [
+      "MT-34626",
+      "MT-34490"
+     ],
+     "expected_state": "Panels rearrange; nothing changes availability; document untouched.",
+     "visual_check": {
+      "what_must_be_visible": "Program large, colour and scopes docked right, timeline low.",
+      "layout_or_fit_concern": "Switching must keep the same playhead and selection and not flash."
+     },
+     "failure_a_professional_would_notice": "No workspaces: every panel is arranged by hand."
+    },
+    {
+     "n": 60,
+     "intent": "Open waveform, parade and vectorscope on the program output",
+     "human": {
+      "panel": "scopes",
+      "tool": "none",
+      "gesture": "Open scopes, choose RGB parade and vectorscope",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "scopes": [
+        "waveform",
+        "rgb_parade",
+        "vectorscope"
+       ],
+       "measure_at": "post_grade"
+      },
+      "status": "missing",
+      "evidence": "git grep -il 'vectorscope|parade|legal.range' over crates: one unrelated ICC file (hsk-studio-ps-graphics). git grep STU-COL-33 over crates: nothing. All STU-COL-330 to 337 MTs PENDING."
+     },
+     "spec_clauses": [
+      "STU-COL-330@line12224",
+      "STU-COL-331@line12236",
+      "STU-COL-332@line12250",
+      "STU-VID-105@line23695"
+     ],
+     "mts": [
+      "MT-35497",
+      "MT-35498",
+      "MT-35499",
+      "MT-35500",
+      "MT-35501",
+      "MT-35505",
+      "MT-35506"
+     ],
+     "expected_state": "Scopes follow the playhead and name their measurement point and space.",
+     "visual_check": {
+      "what_must_be_visible": "Scopes resize with the dock; graticule labels legible; reading updates on pause.",
+      "layout_or_fit_concern": "scopes shares a 0.4 height group with colour: too short for a parade beside a vectorscope?"
+     },
+     "failure_a_professional_would_notice": "Grading by eye on an uncalibrated monitor."
+    },
+    {
+     "n": 61,
+     "intent": "Read scope values as structured state",
+     "human": {
+      "panel": "scopes",
+      "tool": "none",
+      "gesture": "None: model path",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "region": "frame"
+      },
+      "status": "missing",
+      "evidence": "No scope code, as above. Viewer::state_json (harness-view/src/view/mod.rs:837) has no scope block."
+     },
+     "spec_clauses": [
+      "STU-COL-337@line12383"
+     ],
+     "mts": [
+      "MT-35514"
+     ],
+     "expected_state": "Readings with unit and space in JSON.",
+     "visual_check": {
+      "what_must_be_visible": "Same numbers as the graticule.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "A model cannot judge a grade at all."
+    },
+    {
+     "n": 62,
+     "intent": "Declare the timeline working space",
+     "human": {
+      "panel": "properties",
+      "tool": "none",
+      "gesture": "Sequence settings: working colour space",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.submit_sequence",
+      "parameters": {
+       "working_color_space": "rec709"
+      },
+      "status": "callable",
+      "evidence": "[run] hsk-studio-harness-core/src/action.rs:861 with a full sequence write. truth-check MT-33686: the field is not yet a closed enumeration (AC-009 open). Exports are tagged BT.709 regardless (harness-view/src/view/timeline_export.rs:423)."
+     },
+     "spec_clauses": [
+      "STU-COL-156@line10440",
+      "STU-VID-011@line22991"
+     ],
+     "mts": [
+      "MT-31212",
+      "MT-33686",
+      "MT-35944",
+      "MT-35945",
+      "MT-35946"
+     ],
+     "expected_state": "Record survives reopen.",
+     "visual_check": {
+      "what_must_be_visible": "Space named on scopes and in the export dialog.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "A space that nothing honours."
+    },
+    {
+     "n": 63,
+     "intent": "Apply an input LUT to the log shots",
+     "human": {
+      "panel": "colour",
+      "tool": "none",
+      "gesture": "Colour panel, Basic, Input LUT",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "clip_id": "v1-c03",
+       "input_lut": "ferry_look.cube"
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-composite/src/clip_finishing.rs:1-20 stage 1, hsk-studio-prism/src/lut.rs:125 parse_cube. git grep grade_layer|evaluate_effect_stack|apply_effects|caption_burn_in|StudioClipFinishingRecords outside composite and folio src: no non-test caller; the session has no entry for these records and ProgramMonitor never reads them."
+     },
+     "spec_clauses": [
+      "STU-COL-158@line10456",
+      "STU-COL-160@line10481"
+     ],
+     "mts": [
+      "MT-31214",
+      "MT-31215",
+      "MT-31217"
+     ],
+     "expected_state": "Picture changes in program and export.",
+     "visual_check": {
+      "what_must_be_visible": "colour panel sections in order; LUT name and digest.",
+      "layout_or_fit_concern": "Long colour panel in a right group of 0.4 share: collapsible sections needed."
+     },
+     "failure_a_professional_would_notice": "Grade not visible anywhere."
+    },
+    {
+     "n": 64,
+     "intent": "Primary correction: exposure, contrast, temperature, tint, highlights, shadows",
+     "human": {
+      "panel": "colour",
+      "tool": "none",
+      "gesture": "Sliders; double-click resets",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "clip_id": "v1-c03",
+       "exposure": 0.3,
+       "contrast": 12,
+       "temperature": -8
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-folio/src/clip_finishing.rs:402 StudioClipEffectParams::ColorGrade, hsk-studio-composite/src/clip_finishing.rs ClipGrade::prepare and apply, tests under hsk-studio-composite. git grep grade_layer|evaluate_effect_stack|apply_effects|caption_burn_in|StudioClipFinishingRecords outside composite and folio src: no non-test caller; the session has no entry for these records and ProgramMonitor never reads them."
+     },
+     "spec_clauses": [
+      "STU-COL-220@line10946",
+      "STU-COL-160@line10481"
+     ],
+     "mts": [
+      "MT-31287",
+      "MT-31288",
+      "MT-31217"
+     ],
+     "expected_state": "Program updates at the playhead within a frame or two.",
+     "visual_check": {
+      "what_must_be_visible": "Live scope response beside the sliders; numeric fields.",
+      "layout_or_fit_concern": "Slider rows and numbers must align; no overlap at 300 px."
+     },
+     "failure_a_professional_would_notice": "Grade applied on the clip, program unchanged."
+    },
+    {
+     "n": 65,
+     "intent": "Colour wheels: lift, gamma, gain",
+     "human": {
+      "panel": "colour",
+      "tool": "none",
+      "gesture": "Drag wheel pucks",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "lift": [
+        0,
+        0,
+        0.01
+       ],
+       "gamma": [
+        0,
+        0,
+        0
+       ],
+       "gain": [
+        0.01,
+        0,
+        0
+       ]
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-prism/src/grade.rs:188 apply_wheels; hsk-studio-composite/src/clip_finishing.rs stage 6. git grep grade_layer|evaluate_effect_stack|apply_effects|caption_burn_in|StudioClipFinishingRecords outside composite and folio src: no non-test caller; the session has no entry for these records and ProgramMonitor never reads them."
+     },
+     "spec_clauses": [
+      "STU-COL-222@line10990",
+      "STU-COL-223@line11035"
+     ],
+     "mts": [
+      "MT-31291",
+      "MT-31292",
+      "MT-31293",
+      "MT-31294"
+     ],
+     "expected_state": "Exact per STU-COL-222 maths.",
+     "visual_check": {
+      "what_must_be_visible": "Three wheels on one row with values.",
+      "layout_or_fit_concern": "Wheels need a minimum diameter: they will not fit the 0.4 group at default size."
+     },
+     "failure_a_professional_would_notice": "Wheels you cannot grip."
+    },
+    {
+     "n": 66,
+     "intent": "Curves: RGB and hue versus saturation",
+     "human": {
+      "panel": "colour",
+      "tool": "none",
+      "gesture": "Add points on curves",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "rgb": [
+        [
+         0,
+         0
+        ],
+        [
+         0.5,
+         0.55
+        ],
+        [
+         1,
+         1
+        ]
+       ],
+       "hue_vs_sat": []
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-composite/src/clip_finishing.rs stage 5 with Pigment adjust_math. git grep grade_layer|evaluate_effect_stack|apply_effects|caption_burn_in|StudioClipFinishingRecords outside composite and folio src: no non-test caller; the session has no entry for these records and ProgramMonitor never reads them."
+     },
+     "spec_clauses": [
+      "STU-COL-225@line11083",
+      "STU-COL-226@line11111"
+     ],
+     "mts": [
+      "MT-31297",
+      "MT-31298",
+      "MT-31299",
+      "MT-31300"
+     ],
+     "expected_state": "Curves applied in normative order.",
+     "visual_check": {
+      "what_must_be_visible": "Curve editor square with hit points.",
+      "layout_or_fit_concern": "Square curve area in a tall thin group."
+     },
+     "failure_a_professional_would_notice": "None beyond reachability."
+    },
+    {
+     "n": 67,
+     "intent": "Secondary key on the skin, then a vignette",
+     "human": {
+      "panel": "colour",
+      "tool": "none",
+      "gesture": "Pick HSL key, refine, add vignette",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "key": {
+        "hue": [
+         10,
+         40
+        ]
+       },
+       "vignette": -0.2
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-prism/src/grade.rs:271 key_weight, :311 vignette_gain; hsk-studio-composite/src/clip_finishing.rs stages 7-8. git grep grade_layer|evaluate_effect_stack|apply_effects|caption_burn_in|StudioClipFinishingRecords outside composite and folio src: no non-test caller; the session has no entry for these records and ProgramMonitor never reads them."
+     },
+     "spec_clauses": [
+      "STU-COL-227@line11126",
+      "STU-COL-228@line11150"
+     ],
+     "mts": [
+      "MT-31301",
+      "MT-31302",
+      "MT-31303",
+      "MT-31304"
+     ],
+     "expected_state": "Secondaries in stack order.",
+     "visual_check": {
+      "what_must_be_visible": "Matte preview toggle.",
+      "layout_or_fit_concern": "Key preview must use program, not a new window."
+     },
+     "failure_a_professional_would_notice": "No matte view means guessing the key."
+    },
+    {
+     "n": 68,
+     "intent": "Copy the grade to the rest of the scene; compare two shots",
+     "human": {
+      "panel": "colour",
+      "tool": "none",
+      "gesture": "Copy, Paste Attributes; reference split view",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "from": "v1-c03",
+       "to": [
+        "v1-c04",
+        "v1-c05"
+       ]
+      },
+      "status": "missing",
+      "evidence": "git grep paste_attributes|PasteAttributes|comparison|reference_monitor in harness-view: nothing; no adjustment layer either (git grep adjustment_layer|AdjustmentLayer in folio timeline.rs and pulse/src: nothing)."
+     },
+     "spec_clauses": [
+      "STU-VID-020@line23636"
+     ],
+     "mts": [
+      "MT-33707",
+      "MT-35944",
+      "MT-35945",
+      "MT-35946"
+     ],
+     "expected_state": "Same stack on the targets, one undo step.",
+     "visual_check": {
+      "what_must_be_visible": "Split view with a labelled reference frame.",
+      "layout_or_fit_concern": "Compare view inside program."
+     },
+     "failure_a_professional_would_notice": "Grading 90 shots one at a time."
+    },
+    {
+     "n": 69,
+     "intent": "Check legal range before delivery",
+     "human": {
+      "panel": "scopes",
+      "tool": "none",
+      "gesture": "Turn on range warning",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "standard": "rec709_video_range"
+      },
+      "status": "missing",
+      "evidence": "As for scopes: no legal-range check anywhere. Export clamps to limited range (harness-view/src/view/timeline_export.rs ycbcr) without reporting."
+     },
+     "spec_clauses": [
+      "STU-COL-334@line12304",
+      "STU-COL-335@line12322"
+     ],
+     "mts": [
+      "MT-35509",
+      "MT-35510",
+      "MT-35511"
+     ],
+     "expected_state": "Violations listed with tick and channel.",
+     "visual_check": {
+      "what_must_be_visible": "Warning overlay, entries in problems.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Rejected at QC."
+    },
+    {
+     "n": 70,
+     "intent": "Import the English subtitles to a caption track",
+     "human": {
+      "panel": "captions",
+      "tool": "none",
+      "gesture": "Import SRT, map to C1",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "path": "last_ferry.en.srt",
+       "track_id": "c1",
+       "language": "en"
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-interop-media/src/captions.rs:340 parse_srt, :391 parse_vtt. No crate depends on hsk-studio-interop-media (git grep -l over crate manifests and sources, outside itself: nothing)."
+     },
+     "spec_clauses": [
+      "STU-VID-037@line23878",
+      "STU-VID-085@line25704"
+     ],
+     "mts": [
+      "MT-33740",
+      "MT-35368"
+     ],
+     "expected_state": "Segments on C1 at the right ticks.",
+     "visual_check": {
+      "what_must_be_visible": "Segments on the caption row, captions panel lists text and time.",
+      "layout_or_fit_concern": "Caption row height for text at minimum size."
+     },
+     "failure_a_professional_would_notice": "None if reachable."
+    },
+    {
+     "n": 71,
+     "intent": "Or generate them from speech",
+     "human": {
+      "panel": "captions",
+      "tool": "none",
+      "gesture": "Generate Captions",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cmd.sequence.generatecaptions",
+      "parameters": {
+       "language": "en"
+      },
+      "status": "missing",
+      "evidence": "git grep speech_to_text|fn generate|fn transcribe in score and pulse src: nothing. Provider lane decision, no spec detail read beyond the row at 24213."
+     },
+     "spec_clauses": [
+      "STU-VID-037@line23878",
+      "STU-VID-041@line24213"
+     ],
+     "mts": [
+      "MT-33740"
+     ],
+     "expected_state": "Draft segments with confidence.",
+     "visual_check": {
+      "what_must_be_visible": "Draft state distinct from reviewed.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Hand-typing every line."
+    },
+    {
+     "n": 72,
+     "intent": "Fix timing and text of a line, split another",
+     "human": {
+      "panel": "captions",
+      "tool": "none",
+      "gesture": "Edit text in the panel, drag edges on the row",
+      "shortcut_if_spec_defines_one": "Ctrl+Alt+Down / Up between segments"
+     },
+     "agent_call": {
+      "command_id": "cmd.timeline.goto.next.caption.trackitem",
+      "parameters": {
+       "segment": 12,
+       "text": "We leave at dawn."
+      },
+      "status": "missing",
+      "evidence": "No captions panel or caption edit: git grep caption in harness-view/src/view/timeline.rs finds draw order only (:3,:262-274). The Folio track has records only (hsk-studio-folio/src/clip_finishing.rs:774,:800)."
+     },
+     "spec_clauses": [
+      "STU-VID-037@line23878",
+      "STU-VID-041@line23972"
+     ],
+     "mts": [
+      "MT-33740"
+     ],
+     "expected_state": "One undo step per edit.",
+     "visual_check": {
+      "what_must_be_visible": "Text field, reading speed, line length.",
+      "layout_or_fit_concern": "Panel list must keep the playing line visible."
+     },
+     "failure_a_professional_would_notice": "Captions you cannot correct."
+    },
+    {
+     "n": 73,
+     "intent": "See constraint violations",
+     "human": {
+      "panel": "captions",
+      "tool": "none",
+      "gesture": "Show Caption Warning",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cmd.timeline.caption.show.warning",
+      "parameters": {},
+      "status": "engine_only",
+      "evidence": "hsk-studio-folio/src/clip_finishing.rs:826 warnings, :786 constraints. No host."
+     },
+     "spec_clauses": [
+      "STU-VID-037@line23878",
+      "STU-VID-041@line23959"
+     ],
+     "mts": [
+      "MT-33740"
+     ],
+     "expected_state": "Over-long lines flagged per segment.",
+     "visual_check": {
+      "what_must_be_visible": "Warning state on the segment.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "QC failure later."
+    },
+    {
+     "n": 74,
+     "intent": "Add the Dutch track and switch the active one",
+     "human": {
+      "panel": "captions",
+      "tool": "none",
+      "gesture": "Add track, import, set active",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cmd.timeline.activate.next.caption.track",
+      "parameters": {
+       "language": "nl"
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-folio/src/clip_finishing.rs:914 caption_track holds several tracks; activation commands absent: git grep caption in timeline commands returns none."
+     },
+     "spec_clauses": [
+      "STU-VID-037@line23878",
+      "STU-VID-041@line23947"
+     ],
+     "mts": [
+      "MT-33740"
+     ],
+     "expected_state": "One active, others hidden or shown per typed command.",
+     "visual_check": {
+      "what_must_be_visible": "Language labels on caption headers.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Burn the wrong language."
+    },
+    {
+     "n": 75,
+     "intent": "See captions over the program picture",
+     "human": {
+      "panel": "sequence-program",
+      "tool": "none",
+      "gesture": "Play",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {},
+      "status": "engine_only",
+      "evidence": "hsk-studio-composite/src/clip_finishing.rs:742 caption_burn_in (feature motion), test hsk-studio-composite/tests/clip_captions.rs; ProgramMonitor has no caption layer: git grep caption in harness-view/src/view/monitor.rs: nothing."
+     },
+     "spec_clauses": [
+      "STU-VID-037@line23878"
+     ],
+     "mts": [
+      "MT-33740"
+     ],
+     "expected_state": "The active segment renders at its placement.",
+     "visual_check": {
+      "what_must_be_visible": "Caption over picture inside safe margins.",
+      "layout_or_fit_concern": "Safe-margin overlay missing on monitors."
+     },
+     "failure_a_professional_would_notice": "Cannot check a line against the shot."
+    },
+    {
+     "n": 76,
+     "intent": "Bind the mix: waveforms on, mixer on the sequence",
+     "human": {
+      "panel": "audio-mixer",
+      "tool": "none",
+      "gesture": "Open Audio Mixer",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer.open_multitrack, viewer.multitrack_command",
+      "parameters": {
+       "command": "ToggleWaveforms"
+      },
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/timeline/audio.rs:399,:422; mixer.rs:178. Sound port is set by code; the F8 window has only the open audio file (RUN-UI.md:64,415)."
+     },
+     "spec_clauses": [
+      "STU-VID-036@line23870"
+     ],
+     "mts": [
+      "MT-33739"
+     ],
+     "expected_state": "Waveforms on clips; bus stream rebuilt after every edit.",
+     "visual_check": {
+      "what_must_be_visible": "audio-mixer docked in the bottom band beside timeline; audio-meters on the right rail.",
+      "layout_or_fit_concern": "Mixer and timeline share 320 px: strips must not lose fader travel."
+     },
+     "failure_a_professional_would_notice": "Silent mixer in the shell unless a file is open."
+    },
+    {
+     "n": 77,
+     "intent": "Set clip gain on dialogue",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "Select clips, G, +3 dB",
+      "shortcut_if_spec_defines_one": "G"
+     },
+     "agent_call": {
+      "command_id": "viewer.multitrack_command",
+      "parameters": {
+       "command": {
+        "ClipGain": {
+         "clip_id": "a1-c04",
+         "delta_db": 3.0
+        }
+       }
+      },
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/timeline/audio.rs:200 AutomationCommand::ClipGain, :422."
+     },
+     "spec_clauses": [
+      "STU-VID-041@line23910",
+      "STU-VID-041@line24274"
+     ],
+     "mts": [
+      "MT-33744"
+     ],
+     "expected_state": "Envelope shifted; undoable.",
+     "visual_check": {
+      "what_must_be_visible": "Waveform height changes.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "None."
+    },
+    {
+     "n": 78,
+     "intent": "Keyframe a music dip",
+     "human": {
+      "panel": "timeline",
+      "tool": "pen",
+      "gesture": "Show the lane, add points",
+      "shortcut_if_spec_defines_one": "P"
+     },
+     "agent_call": {
+      "command_id": "viewer.multitrack_command",
+      "parameters": {
+       "command": {
+        "AddPoint": {
+         "track_id": "a3",
+         "lane": "Volume",
+         "at": 480,
+         "value": -12.0
+        }
+       }
+      },
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/timeline/audio.rs:200-213 AddPoint, MovePoint, DeletePoint; envelopes follow edits (timeline/envelopes.rs)."
+     },
+     "spec_clauses": [
+      "STU-VID-036@line23870"
+     ],
+     "mts": [
+      "MT-33739"
+     ],
+     "expected_state": "Lane plays and exports.",
+     "visual_check": {
+      "what_must_be_visible": "Lane under the track with handles.",
+      "layout_or_fit_concern": "Lane height against 4 audio tracks."
+     },
+     "failure_a_professional_would_notice": "Automation lost when clips move: tested by reading in envelopes.rs docs."
+    },
+    {
+     "n": 79,
+     "intent": "Duck music under dialogue automatically",
+     "human": {
+      "panel": "audio-mixer",
+      "tool": "none",
+      "gesture": "Add a sidechain compressor keyed from Dialogue",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "bus": "Music",
+       "key": "Dialogue"
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-score/src/sidechain.rs. Mixer offers gain, equalizer, dynamics, lookahead_limiter only (harness-view/src/view/mixer.rs:106); git grep -i sidechain|duck in mixer.rs, audio_batch.rs, audio_session.rs: nothing."
+     },
+     "spec_clauses": [
+      "STU-VID-041@line23910"
+     ],
+     "mts": [
+      "MT-33744"
+     ],
+     "expected_state": "Music falls under speech.",
+     "visual_check": {
+      "what_must_be_visible": "Key source picker on the insert; gain reduction meter.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Ducking by hand on every line."
+    },
+    {
+     "n": 80,
+     "intent": "Clean dialogue: noise reduction on the clip",
+     "human": {
+      "panel": "effects-browser",
+      "tool": "none",
+      "gesture": "Drag denoise to the clip",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "clip_id": "a1-c04",
+       "effect": "denoise"
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-score/src/denoise.rs exists. Mixer effect edits take a bus or master only: harness-view/src/view/mixer.rs:145 MixerEdit::AddEffect bus: Option<String>. No clip stack in the mix path."
+     },
+     "spec_clauses": [
+      "STU-VID-041@line23910"
+     ],
+     "mts": [
+      "MT-33744"
+     ],
+     "expected_state": "Clip effect plays and exports.",
+     "visual_check": {
+      "what_must_be_visible": "Clip FX badge.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Bed noise on location dialogue."
+    },
+    {
+     "n": 81,
+     "intent": "Route to Dialogue and Music submixes, ride faders, EQ the bus",
+     "human": {
+      "panel": "audio-mixer",
+      "tool": "none",
+      "gesture": "Output selectors, faders, add EQ",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer.mixer_edit",
+      "parameters": {
+       "edits": [
+        {
+         "Output": {
+          "track_id": "a1",
+          "bus": "dlg"
+         }
+        },
+        {
+         "Volume": {
+          "track_id": "a3",
+          "linear": 0.7
+         }
+        },
+        {
+         "AddEffect": {
+          "bus": "dlg",
+          "instance": "equalizer"
+         }
+        }
+       ]
+      },
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/mixer.rs:145,:297; each edit one undo step. Submix tracks must already be in the sequence (S1 step 3)."
+     },
+     "spec_clauses": [
+      "STU-VID-036@line23870"
+     ],
+     "mts": [
+      "MT-33739"
+     ],
+     "expected_state": "Routing stored; meters follow; export equals the bus stream (tests/viewer_timeline_export_bus.rs).",
+     "visual_check": {
+      "what_must_be_visible": "Strips with output, sends, inserts; automated fader label.",
+      "layout_or_fit_concern": "Strip width against names; 7 strips at 1920."
+     },
+     "failure_a_professional_would_notice": "None."
+    },
+    {
+     "n": 82,
+     "intent": "Limit the master and read loudness",
+     "human": {
+      "panel": "audio-meters",
+      "tool": "none",
+      "gesture": "Add limiter on master; play the whole film",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer.mixer_edit + viewer.mixer_json",
+      "parameters": {
+       "edit": {
+        "AddEffect": {
+         "bus": null,
+         "instance": "lookahead_limiter"
+        }
+       },
+       "read": [
+        "momentary_lufs",
+        "short_term_lufs"
+       ]
+      },
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/mixer.rs:556,:642-643 BS.1770 meter; hsk-studio-score/src/loudness.rs."
+     },
+     "spec_clauses": [
+      "STU-VID-041@line23910"
+     ],
+     "mts": [
+      "MT-33744"
+     ],
+     "expected_state": "Integrated LUFS within target, true peak under ceiling.",
+     "visual_check": {
+      "what_must_be_visible": "audio-meters on the right rail with LUFS numbers.",
+      "layout_or_fit_concern": "A rail is narrow: LUFS numbers must not truncate."
+     },
+     "failure_a_professional_would_notice": "Mixing loudness by ear."
+    },
+    {
+     "n": 83,
+     "intent": "Normalize a mix track to a target",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "Normalize Mix Track",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cmd.sequence.normalizetrack",
+      "parameters": {
+       "track_id": "a3",
+       "target_lufs": -23
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-score/src/normalize.rs:77,:152. Viewer reaches it through audio_batch on files only (harness-view/src/view/audio_batch.rs:734), not on a sequence track."
+     },
+     "spec_clauses": [
+      "STU-VID-041@line23910",
+      "STU-VID-041@line24225"
+     ],
+     "mts": [
+      "MT-33744"
+     ],
+     "expected_state": "Track gain set; receipt.",
+     "visual_check": {
+      "what_must_be_visible": "Before and after readout.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "None."
+    }
+   ]
+  },
+  {
+   "scene_id": "S4-delivery",
+   "goal": "Export every format from one queue, with receipts, and check them against the sequence.",
+   "steps": [
+    {
+     "n": 84,
+     "intent": "Set the work area to the film without slate",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "Set work bar in and out",
+      "shortcut_if_spec_defines_one": "Alt+[ and Alt+]"
+     },
+     "agent_call": {
+      "command_id": "cmd.timeline.workbar.set.in / set.out",
+      "parameters": {
+       "in_frame": 24,
+       "out_frame": 5784
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-pulse/src/annotate.rs:107 SetWorkArea, read by export default. No host: only AddMarker reaches plan_record_edit (harness-view/src/view/timeline.rs:1456)."
+     },
+     "spec_clauses": [
+      "STU-VID-035@line23855",
+      "STU-VID-041@line24072"
+     ],
+     "mts": [
+      "MT-33737"
+     ],
+     "expected_state": "Export defaults to the span.",
+     "visual_check": {
+      "what_must_be_visible": "Work bar on the ruler.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "None; --in and --out cover it for a process."
+    },
+    {
+     "n": 85,
+     "intent": "Open Export Media, see presets and the output summary",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "Toolbar Export Media",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "timeline.export_media_open",
+      "parameters": {},
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/timeline.rs:785; timeline/export_media.rs module docs: preset picker, In, Out, raster, output path."
+     },
+     "spec_clauses": [
+      "STU-VID-060@line24889",
+      "STU-VID-090@line25716"
+     ],
+     "mts": [
+      "MT-33766",
+      "MT-33843"
+     ],
+     "expected_state": "Form on the timeline's sequence.",
+     "visual_check": {
+      "what_must_be_visible": "A docked render-queue with config apart from execution in jobs (SHL-092), not today's form row.",
+      "layout_or_fit_concern": "Today a row in the timeline toolbar: spec separates configuration and execution surfaces."
+     },
+     "failure_a_professional_would_notice": "None."
+    },
+    {
+     "n": 86,
+     "intent": "Export the DNxHR HQ mezzanine",
+     "human": {
+      "panel": "render-queue",
+      "tool": "none",
+      "gesture": "Choose preset, Run",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cli.export-sequence",
+      "parameters": {
+       "package": "last_ferry.handshake",
+       "--sequence": "seq-main",
+       "--media": [
+        "cam_*.mov"
+       ],
+       "--audio": [
+        "boom_*.wav",
+        "music_bed.wav"
+       ],
+       "--preset": "studio.dnxhr.hq.mov",
+       "--output": "out/lf_mezz.mov"
+      },
+      "status": "callable",
+      "evidence": "[cli] hsk-studio-harness/src/cli.rs:373 export-sequence, drives Viewer::export_sequence (harness-view/src/view/timeline/export_media.rs:496), feature media. Preset table hsk-studio-reel/src/presets.rs:70. Bit depth stays 8 from the CLI: ExportSequenceRequest::new default, no flag passed (cli.rs:373-405); 10-bit only through the Viewer request field."
+     },
+     "spec_clauses": [
+      "STU-VID-060@line24889",
+      "STU-VID-062@line25503"
+     ],
+     "mts": [
+      "MT-33766",
+      "MT-35261",
+      "MT-35262",
+      "MT-35263",
+      "MT-35264"
+     ],
+     "expected_state": "Receipt complete with frames_encoded, audio_frames, output_sha256; PCM audio.",
+     "visual_check": {
+      "what_must_be_visible": "Determinate progress with cancel.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "8-bit mezzanine from the CLI."
+    },
+    {
+     "n": 87,
+     "intent": "Export the H.264 web master picture",
+     "human": {
+      "panel": "render-queue",
+      "tool": "none",
+      "gesture": "Choose H.264 preset",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cli.export-sequence",
+      "parameters": {
+       "package": "last_ferry.handshake",
+       "--sequence": "seq-main",
+       "--media": [
+        "cam_*.mov"
+       ],
+       "--audio": [
+        "boom_*.wav",
+        "music_bed.wav"
+       ],
+       "--preset": "studio.h264.high-20mbps",
+       "--output": "out/lf_web.mp4"
+      },
+      "status": "callable",
+      "evidence": "[cli] hsk-studio-harness/src/cli.rs:373 export-sequence, drives Viewer::export_sequence (harness-view/src/view/timeline/export_media.rs:496), feature media. OS encoder only: without the worker a typed MEDIA_CODEC_UNAVAILABLE (reel/src/presets.rs:6-9, :49)."
+     },
+     "spec_clauses": [
+      "STU-VID-060@line24889",
+      "STU-VID-051@line24790"
+     ],
+     "mts": [
+      "MT-33766",
+      "MT-33763",
+      "MT-33764"
+     ],
+     "expected_state": "MP4 with H.264 and PCM audio.",
+     "visual_check": {
+      "what_must_be_visible": "Refusal names the missing encoder.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "See next step: PCM in an MP4 is not a web deliverable."
+    },
+    {
+     "n": 88,
+     "intent": "Encode AAC audio in the web master",
+     "human": {
+      "panel": "render-queue",
+      "tool": "none",
+      "gesture": "Audio tab: AAC 320 kbps",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "audio": {
+        "codec": "aac",
+        "kbps": 320
+       }
+      },
+      "status": "missing",
+      "evidence": "ExportRecipe.audio is Option<PcmChoice> (hsk-studio-reel/src/export.rs:96-112); docs: 'every preset carries PCM'. reel/src/audio/aac*.rs are decoders, git grep AAC in export.rs, presets.rs, mux.rs: nothing."
+     },
+     "spec_clauses": [
+      "STU-VID-061@line24894",
+      "STU-VID-051@line24790"
+     ],
+     "mts": [
+      "MT-33767",
+      "MT-33768",
+      "MT-33769",
+      "MT-33770",
+      "MT-33763",
+      "MT-33764"
+     ],
+     "expected_state": "AAC stream in MP4; loudness unchanged.",
+     "visual_check": {
+      "what_must_be_visible": "Audio tab with codec, rate, bitrate.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Upload platforms and players reject or mishandle it."
+    },
+    {
+     "n": 89,
+     "intent": "Export HEVC UHD",
+     "human": {
+      "panel": "render-queue",
+      "tool": "none",
+      "gesture": "HEVC preset, 3840x2160",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cli.export-sequence",
+      "parameters": {
+       "package": "last_ferry.handshake",
+       "--sequence": "seq-main",
+       "--media": [
+        "cam_*.mov"
+       ],
+       "--audio": [
+        "boom_*.wav",
+        "music_bed.wav"
+       ],
+       "--preset": "studio.hevc.main-15mbps",
+       "--width": 3840,
+       "--height": 2160,
+       "--output": "out/lf_uhd.mp4"
+      },
+      "status": "callable",
+      "evidence": "[cli] hsk-studio-harness/src/cli.rs:373 export-sequence, drives Viewer::export_sequence (harness-view/src/view/timeline/export_media.rs:496), feature media. reel/src/presets.rs:63; needs the OS HEVC extension, UNVERIFIED on this machine. Raster is scaled, source frames fitted by monitor.rs:515."
+     },
+     "spec_clauses": [
+      "STU-VID-060@line24889"
+     ],
+     "mts": [
+      "MT-33766"
+     ],
+     "expected_state": "UHD file; receipt.",
+     "visual_check": {
+      "what_must_be_visible": "Raster field.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Soft upscale of 1080p source without a warning."
+    },
+    {
+     "n": 90,
+     "intent": "Cut down a 9:16 social version with framing per shot",
+     "human": {
+      "panel": "sequence-program",
+      "tool": "none",
+      "gesture": "New 1080x1920 sequence from the film; reframe each shot",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cli.export-sequence",
+      "parameters": {
+       "package": "last_ferry.handshake",
+       "--sequence": "seq-main",
+       "--media": [
+        "cam_*.mov"
+       ],
+       "--audio": [
+        "boom_*.wav",
+        "music_bed.wav"
+       ],
+       "--preset": "studio.h264.high-8mbps",
+       "--width": 1080,
+       "--height": 1920,
+       "--output": "out/lf_social.mp4"
+      },
+      "status": "missing",
+      "evidence": "Raster flags exist, but frames are fitted uniformly and centred (harness-view/src/view/monitor.rs:515): a letterboxed 16:9, not a reframe. Clip Transform is a Folio effect (hsk-studio-folio/src/clip_finishing.rs:407) with no render path; no reframe code: git grep -i reframe over harness-view, pulse: nothing."
+     },
+     "spec_clauses": [
+      "STU-VID-020@line23636",
+      "STU-VID-060@line24889"
+     ],
+     "mts": [
+      "MT-33707",
+      "MT-35944",
+      "MT-35945",
+      "MT-35946",
+      "MT-33766"
+     ],
+     "expected_state": "Subject stays in a filled 9:16 frame.",
+     "visual_check": {
+      "what_must_be_visible": "Program at 9:16 with its safe margins.",
+      "layout_or_fit_concern": "Portrait monitor in a landscape centre split."
+     },
+     "failure_a_professional_would_notice": "A tiny strip between black bars."
+    },
+    {
+     "n": 91,
+     "intent": "Burn the English captions into the social version",
+     "human": {
+      "panel": "render-queue",
+      "tool": "none",
+      "gesture": "Captions: burn in",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "caption_track": "c1",
+       "mode": "burn_in"
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-composite/src/clip_finishing.rs:742 caption_burn_in, no caller outside its test. git grep caption in timeline/export_media.rs: nothing."
+     },
+     "spec_clauses": [
+      "STU-VID-037@line23878",
+      "STU-VID-061@line24894"
+     ],
+     "mts": [
+      "MT-33740",
+      "MT-33767",
+      "MT-33768",
+      "MT-33769",
+      "MT-33770"
+     ],
+     "expected_state": "Pixels hold the text; placement inside 9:16 safe area.",
+     "visual_check": {
+      "what_must_be_visible": "Burn-in option with a preview.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "No captions on the platform where they matter most."
+    },
+    {
+     "n": 92,
+     "intent": "Embed tx3g captions and write WebVTT and SRT sidecars",
+     "human": {
+      "panel": "render-queue",
+      "tool": "none",
+      "gesture": "Captions: sidecar plus embedded",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "ExportQueue::submit_with_captions",
+      "parameters": {
+       "captions": [
+        "en",
+        "nl"
+       ],
+       "formats": [
+        "tx3g",
+        "webvtt",
+        "srt"
+       ]
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-reel/src/export.rs:391, reel/src/captions.rs:198 webvtt; harness-view/src/view/timeline_export.rs:556 export_captions, used only by harness/tests/timeline_captions.rs; export_sequence never passes captions (git grep export_captions in timeline/export_media.rs: nothing). SRT writer in hsk-studio-interop-media/src/captions.rs:454, no dependents."
+     },
+     "spec_clauses": [
+      "STU-VID-037@line23878",
+      "STU-VID-061@line24894"
+     ],
+     "mts": [
+      "MT-33740",
+      "MT-33767",
+      "MT-33768",
+      "MT-33769",
+      "MT-33770"
+     ],
+     "expected_state": "Sidecars beside the movie, in sync.",
+     "visual_check": {
+      "what_must_be_visible": "Per-language rows.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Accessibility deliverable missing."
+    },
+    {
+     "n": 93,
+     "intent": "Export 25 fps for a European broadcaster",
+     "human": {
+      "panel": "render-queue",
+      "tool": "none",
+      "gesture": "Frame rate override, conform",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "frame_rate": 25
+      },
+      "status": "missing",
+      "evidence": "ExportRecipe has four fields, recipe_id, container, video, audio (reel/src/export.rs:106); frames come from the sequence's rate (timeline_export.rs: tpf)."
+     },
+     "spec_clauses": [
+      "STU-VID-061@line24894"
+     ],
+     "mts": [
+      "MT-33767",
+      "MT-33768",
+      "MT-33769",
+      "MT-33770"
+     ],
+     "expected_state": "Stated conform method.",
+     "visual_check": {
+      "what_must_be_visible": "Rate field.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "None."
+    },
+    {
+     "n": 94,
+     "intent": "Export audio stems: dialogue, music, full mix as WAV",
+     "human": {
+      "panel": "render-queue",
+      "tool": "none",
+      "gesture": "Audio only recipe, per bus",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "buses": [
+        "dlg",
+        "mus",
+        "master"
+       ],
+       "format": "wav_24"
+      },
+      "status": "engine_only",
+      "evidence": "ExportRecipe.video is optional (reel/src/export.rs:110) and writes PCM, but only MP4 and MOV containers (mux.rs:54) and six video presets (presets.rs:49-84). No per-bus render: git grep stem in audio_session.rs, mixer.rs, timeline/audio.rs: nothing."
+     },
+     "spec_clauses": [
+      "STU-VID-062@line25503",
+      "STU-VID-061@line24894"
+     ],
+     "mts": [
+      "MT-35261",
+      "MT-35262",
+      "MT-35263",
+      "MT-35264",
+      "MT-33767",
+      "MT-33768",
+      "MT-33769",
+      "MT-33770"
+     ],
+     "expected_state": "One file per bus, nulls against the mix.",
+     "visual_check": {
+      "what_must_be_visible": "Bus picker.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Sound post cannot be handed anything."
+    },
+    {
+     "n": 95,
+     "intent": "Tune a recipe and save it as a user preset",
+     "human": {
+      "panel": "render-queue",
+      "tool": "none",
+      "gesture": "Edit bitrate, GOP, Save Preset",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "from": "studio.h264.high-20mbps",
+       "bitrate": 12000000
+      },
+      "status": "missing",
+      "evidence": "0 of 453 parameter ids in code (truth-check 20261105 top_missing rank 4); 704 recipe identities not imported (reel/src/presets.rs:12)."
+     },
+     "spec_clauses": [
+      "STU-VID-061@line24894",
+      "STU-VID-063@line25554"
+     ],
+     "mts": [
+      "MT-33767",
+      "MT-33768",
+      "MT-33769",
+      "MT-33770",
+      "MT-35295"
+     ],
+     "expected_state": "Portable recipe, stable id.",
+     "visual_check": {
+      "what_must_be_visible": "Parameter facets without a wall of fields.",
+      "layout_or_fit_concern": "453 parameters need facets and search."
+     },
+     "failure_a_professional_would_notice": "Six fixed presets are not delivery specs."
+    },
+    {
+     "n": 96,
+     "intent": "Queue all deliverables as one batch with per-item receipts; cancel one",
+     "human": {
+      "panel": "jobs",
+      "tool": "none",
+      "gesture": "Add to Queue x5, Start; cancel one",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "ExportQueue",
+      "parameters": {
+       "items": 5
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-reel/src/export.rs:351 ExportQueue with receipts, tests reel/tests/export_queue.rs. Hosts submit one: CLI runs one per process, Viewer holds one export (timeline/export_media.rs). A loop the caller drives is what STU-VID-064 forbids."
+     },
+     "spec_clauses": [
+      "STU-VID-064@line25560",
+      "STU-SHL-092@line32254"
+     ],
+     "mts": [
+      "MT-33831",
+      "MT-34623"
+     ],
+     "expected_state": "Per-item progress and receipts; the cancelled one says canceled; the others finish.",
+     "visual_check": {
+      "what_must_be_visible": "render-queue and jobs, no foreground window.",
+      "layout_or_fit_concern": "Rail registration: both on the bottom icon rail."
+     },
+     "failure_a_professional_would_notice": "Overnight batch that needs a babysitter."
+    },
+    {
+     "n": 97,
+     "intent": "Cancel a running export from the form",
+     "human": {
+      "panel": "timeline",
+      "tool": "none",
+      "gesture": "Cancel",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "timeline.export_media_cancel",
+      "parameters": {},
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/timeline.rs:785-789; timeline/export_media.rs:48."
+     },
+     "spec_clauses": [
+      "STU-VID-064@line25560"
+     ],
+     "mts": [
+      "MT-33831"
+     ],
+     "expected_state": "Receipt outcome canceled, code inside.",
+     "visual_check": {
+      "what_must_be_visible": "Progress stops, partial file named.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Partial file left under the final name."
+    },
+    {
+     "n": 98,
+     "intent": "QC: reopen each deliverable, compare frame hashes and duration to the sequence, read LUFS",
+     "human": {
+      "panel": "source",
+      "tool": "none",
+      "gesture": "Open files, spot check picture and sound",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer.open_source_media + receipt.output_sha256",
+      "parameters": {
+       "path": "out/lf_mezz.mov",
+       "compare_frames": [
+        0,
+        1200,
+        5759
+       ]
+      },
+      "status": "callable",
+      "evidence": "[viewer] harness-view/src/view/source_monitor.rs:749; receipt fields in timeline/export_media.rs docs. DNx decodes in process; H.264 needs media-native (RUN-UI.md:24). No QC command: this is a runner script."
+     },
+     "spec_clauses": [
+      "STU-VID-064@line25560",
+      "STU-VID-023@line23664"
+     ],
+     "mts": [
+      "MT-33831",
+      "MT-33709"
+     ],
+     "expected_state": "Hashes match; first and last frame correct.",
+     "visual_check": {
+      "what_must_be_visible": "Source monitor shows the file with its properties.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "None."
+    },
+    {
+     "n": 99,
+     "intent": "Hand off a CMX3600 EDL for the conform house",
+     "human": {
+      "panel": "project-bin",
+      "tool": "none",
+      "gesture": "File > Export > EDL",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "sequence_id": "seq-main"
+      },
+      "status": "engine_only",
+      "evidence": "hsk-studio-interop-media/src/edl.rs:555 export_cmx3600; no dependents (git grep -l). Native project interchange refused by design: native.rs:124 NativeBlocked."
+     },
+     "spec_clauses": [
+      "STU-VID-050@line24736"
+     ],
+     "mts": [
+      "MT-33761",
+      "MT-33762"
+     ],
+     "expected_state": "EDL matches the cut.",
+     "visual_check": {
+      "what_must_be_visible": "Warnings list for what EDL drops.",
+      "layout_or_fit_concern": "None."
+     },
+     "failure_a_professional_would_notice": "Conform by eye."
+    }
+   ]
+  }
+ ],
+ "gui_review": {
+  "panels_needed_together": [
+   "project-bin",
+   "media-browser",
+   "effects-browser",
+   "markers",
+   "captions",
+   "source",
+   "sequence-program",
+   "timeline",
+   "keyframe-timeline",
+   "audio-mixer",
+   "audio-meters (right rail)",
+   "properties",
+   "effect-controls",
+   "colour",
+   "scopes",
+   "render-queue",
+   "jobs",
+   "problems"
+  ],
+  "layout_basis": "STU-SHL-090@line32244 sequence profile: source and sequence-program split in the centre; left 300 px stack of 8 tabs; right 0.6/0.4 groups; bottom 320 px timeline plus audio-mixer; audio-meters on a visible right rail.",
+  "reachable_without_hunting": [
+   "tool rail: pointer V, ripple B, roll N, rate R, razor C, slip Y, slide U, pen P, with one clear active tool",
+   "insert and overwrite under the source monitor",
+   "per-track patch, target, lock, sync-lock, mute, solo in every head",
+   "proxy toggle, safe margins, multicam view on the monitors",
+   "transition duration on the cut itself",
+   "render bar, snap and linked selection on the timeline",
+   "LUFS numbers without opening a panel",
+   "export progress with the jobs rail collapsed"
+  ],
+  "workspace_switches": [
+   "Edit for ingest, cut, trims, multicam",
+   "Colour for grading: program large, scopes beside colour",
+   "Edit with audio-mixer tab active for the mix (no audio preset is in the proposed set of 12: check if a mix pass needs one, OD-4)",
+   "Back to Edit for delivery. A switch keeps playhead, selection, document and availability (STU-SHL-055@line31941)"
+  ],
+  "would_feel_incoherent": [
+   "Program picture contradicting a clip's active angle badge, with no error (multicam play path)",
+   "A grade set on a clip that no monitor and no export shows",
+   "A wipe accepted and played as a dissolve",
+   "Today: every panel a separate Workspace window from F-keys, no docking, no bin (RUN-UI.md:62-64,414-418)",
+   "Spec shortcuts half-bound: Ctrl+K works, Q, W, E, B, N, Y, U, C do not (key_command in harness-view/src/view/timeline.rs); and M and Delete are harness keys",
+   "The F6 program monitor shows no frames for a document sequence until code binds media (RUN-UI.md:414)",
+   "Export as a row in the timeline toolbar while spec separates render-queue from jobs (STU-SHL-092@line32254)",
+   "Colour panel and scopes stacked in a 0.4 height group: wheels and a parade may not fit, UNVERIFIED until drawn"
+  ]
+ },
+ "gaps": [
+  {
+   "what": "Project and media foundation: New Project, sequence from preset, media item records with a project-bin, import with typed refusal, track creation, working program monitor binding in the shell.",
+   "status": "missing",
+   "blocks_steps": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    25
+   ],
+   "crates_likely": [
+    "hsk-studio-session",
+    "hsk-studio-folio",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-VID-010@line22982",
+    "STU-VID-016@line23091",
+    "STU-VID-050@line24736"
+   ],
+   "mts": [
+    "MT-33685",
+    "MT-33695",
+    "MT-33696",
+    "MT-33761",
+    "MT-33762"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "Every other step sits on it; today a project can only begin as a prepared package written by code."
+  },
+  {
+   "what": "Clip finishing never reaches a picture: colour grade, Transform, crop and effect records have no session entry, no monitor or export read, and no colour panel. Add compare, paste attributes, adjustment layers.",
+   "status": "engine_only",
+   "blocks_steps": [
+    63,
+    64,
+    65,
+    66,
+    67,
+    68,
+    90
+   ],
+   "crates_likely": [
+    "hsk-studio-session",
+    "hsk-studio-harness-view",
+    "hsk-studio-composite"
+   ],
+   "spec_clauses": [
+    "STU-VID-020@line23636",
+    "STU-COL-160@line10481",
+    "STU-COL-220@line10946"
+   ],
+   "mts": [
+    "MT-33707",
+    "MT-35944",
+    "MT-35945",
+    "MT-35946",
+    "MT-35947"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "A whole stage of the film is fully written and then not wired; high return because composite and prism are done."
+  },
+  {
+   "what": "Multicam does not play its active angle. Confirmed by reading c4d06841, not run: resolve_active_angle has no caller; monitor, export and nested audio read the source sequence as a plain nest, so the top angle shows and all angle audio sums. Create, switch, record, audio-follows, flatten and the grid also have no host.",
+   "status": "engine_only",
+   "blocks_steps": [
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    37
+   ],
+   "crates_likely": [
+    "hsk-studio-pulse",
+    "hsk-studio-harness-view",
+    "hsk-studio-harness-core"
+   ],
+   "spec_clauses": [
+    "STU-VID-033@line23828"
+   ],
+   "mts": [
+    "MT-33735"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Silent wrong output, and truth-check 20261105 classes MT-33735 as built: that class holds for the planners only, not for playback or any host."
+  },
+  {
+   "what": "Scopes and legal range: none of the six scopes, no measurement point, no structured reading, no range report.",
+   "status": "missing",
+   "blocks_steps": [
+    60,
+    61,
+    69
+   ],
+   "crates_likely": [
+    "hsk-studio-prism",
+    "hsk-studio-composite",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-COL-330@line12224",
+    "STU-COL-331@line12236",
+    "STU-COL-334@line12304",
+    "STU-COL-335@line12322",
+    "STU-COL-337@line12383"
+   ],
+   "mts": [
+    "MT-35497",
+    "MT-35498",
+    "MT-35505",
+    "MT-35509",
+    "MT-35510",
+    "MT-35514"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "Grading and delivery cannot be judged, by a person or a model, without them; follows finishing because it measures that output."
+  },
+  {
+   "what": "Delivery gaps: no AAC or any compressed audio encoder, six fixed presets, 0 of 453 parameters, no user recipes, no rate override, no reframe, no stems or audio-only file, batch queue not reached by a host.",
+   "status": "missing",
+   "blocks_steps": [
+    88,
+    90,
+    93,
+    94,
+    95,
+    96
+   ],
+   "crates_likely": [
+    "hsk-studio-reel",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-VID-061@line24894",
+    "STU-VID-062@line25503",
+    "STU-VID-063@line25554",
+    "STU-VID-064@line25560"
+   ],
+   "mts": [
+    "MT-33766",
+    "MT-33831"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "Export runs today, but its H.264 file with PCM audio is not a usable web master; AAC alone is the small high-value first cut."
+  },
+  {
+   "what": "Captions: no home in the session, no captions panel, no import host, no display on monitors, burn-in and sidecars not called by export.",
+   "status": "engine_only",
+   "blocks_steps": [
+    70,
+    71,
+    72,
+    73,
+    74,
+    75,
+    91,
+    92
+   ],
+   "crates_likely": [
+    "hsk-studio-session",
+    "hsk-studio-harness-view",
+    "hsk-studio-interop-media"
+   ],
+   "spec_clauses": [
+    "STU-VID-037@line23878",
+    "STU-VID-085@line25704"
+   ],
+   "mts": [
+    "MT-33740"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Engine pieces exist on all sides; only the seams and one panel are absent."
+  },
+  {
+   "what": "Linked picture and sound editing: source edit is video only, no link group, no patch, target, lock or sync-lock toggles on track heads.",
+   "status": "missing",
+   "blocks_steps": [
+    16,
+    17,
+    21
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-pulse"
+   ],
+   "spec_clauses": [
+    "STU-VID-025@line23686",
+    "STU-VID-029@line23758"
+   ],
+   "mts": [
+    "MT-33711",
+    "MT-33726"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Assembly is silent without it; the pulse side exists, so the cost is in the host."
+  },
+  {
+   "what": "Transitions: no apply or default commands, no prompt on short handles, any kind plays as a dissolve.",
+   "status": "engine_only",
+   "blocks_steps": [
+    53,
+    54,
+    55,
+    56
+   ],
+   "crates_likely": [
+    "hsk-studio-pulse",
+    "hsk-studio-harness-view",
+    "hsk-studio-composite"
+   ],
+   "spec_clauses": [
+    "STU-VID-032@line23810",
+    "STU-VID-032a@line23819"
+   ],
+   "mts": [
+    "MT-33733",
+    "MT-33734"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Ctrl+D is core, the record and render exist for dissolve; other kinds need renderers."
+  },
+  {
+   "what": "Proxies and offline: create, attach, toggle, badges, make offline, link media, background peak and index jobs.",
+   "status": "missing",
+   "blocks_steps": [
+    7,
+    8,
+    9,
+    10
+   ],
+   "crates_likely": [
+    "hsk-studio-reel",
+    "hsk-studio-folio",
+    "hsk-studio-session",
+    "hsk-studio-worker"
+   ],
+   "spec_clauses": [
+    "STU-VID-038@line23884",
+    "STU-VID-053@line24879"
+   ],
+   "mts": [
+    "MT-33741",
+    "MT-33765"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "A real film at camera resolution needs it, a synthetic test does not, so it sits below what blocks any output."
+  },
+  {
+   "what": "Retime options: interpolation and pitch form, frame hold commands, and clip time remapping. Optical flow budget is below a 1080p raster.",
+   "status": "engine_only",
+   "blocks_steps": [
+    50,
+    51,
+    52
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-pulse",
+    "hsk-studio-folio"
+   ],
+   "spec_clauses": [
+    "STU-VID-031@line23788",
+    "STU-VID-031a@line23801"
+   ],
+   "mts": [
+    "MT-33730",
+    "MT-33731",
+    "MT-33732"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Plans exist except time remapping; basic speed already works."
+  },
+  {
+   "what": "Sync by waveform and a host for merge and synchronize.",
+   "status": "missing",
+   "blocks_steps": [
+    11,
+    12,
+    27
+   ],
+   "crates_likely": [
+    "hsk-studio-score",
+    "hsk-studio-pulse",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-VID-029a@line23768",
+    "STU-VID-033@line23828"
+   ],
+   "mts": [
+    "MT-33727"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Double-system sound and multicam both want it, but a fixture with stated offsets works around it."
+  },
+  {
+   "what": "Edit commands an editor expects: lift and extract by range, ripple to playhead (Q, W), match frame, marker naming, work area, EDL host, project-item markers, and binding the spec's tool keys.",
+   "status": "engine_only",
+   "blocks_steps": [
+    14,
+    22,
+    39,
+    46,
+    84,
+    99
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-pulse"
+   ],
+   "spec_clauses": [
+    "STU-VID-041@line23910",
+    "STU-VID-042@line24722",
+    "STU-VID-034@line23849"
+   ],
+   "mts": [
+    "MT-33744",
+    "MT-33736",
+    "MT-33737"
+   ],
+   "size": "small",
+   "why_it_ranks_here": "Each is small with pulse mostly done; high feel per line of code."
+  },
+  {
+   "what": "Timeline preview rendering: render spans, three-state bar, render files, render and replace.",
+   "status": "missing",
+   "blocks_steps": [
+    58
+   ],
+   "crates_likely": [
+    "hsk-studio-pulse",
+    "hsk-studio-session",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-VID-039@line23892"
+   ],
+   "mts": [
+    "MT-33742"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "Needed once effects render; pointless until finishing is wired."
+  },
+  {
+   "what": "Audio finishing on sequences: clip effect stacks, sidechain ducking, normalise mix track.",
+   "status": "engine_only",
+   "blocks_steps": [
+    79,
+    80,
+    83
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-pulse"
+   ],
+   "spec_clauses": [
+    "STU-VID-041@line23910"
+   ],
+   "mts": [
+    "MT-33744"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "The bus mix already works and exports truthfully; these improve the mix rather than enable it."
+  },
+  {
+   "what": "Layout Presets and docking in the new GUI: Edit, Colour, no gating, keep state on switch.",
+   "status": "missing",
+   "blocks_steps": [
+    59
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-SHL-090@line32244",
+    "STU-SHL-095@line32272",
+    "STU-SHL-055@line31941"
+   ],
+   "mts": [],
+   "size": "large",
+   "why_it_ranks_here": "Blocks one step by count but decides how the whole suite feels; follows the Vulkan rebuild, owned there."
+  }
+ ],
+ "coverage": {
+  "steps_total": 99,
+  "by_status": {
+   "callable": 34,
+   "engine_only": 39,
+   "missing": 26
+  },
+  "steps_by_status": {
+   "missing": [
+    1,
+    4,
+    6,
+    7,
+    8,
+    10,
+    11,
+    16,
+    21,
+    27,
+    39,
+    46,
+    52,
+    54,
+    58,
+    59,
+    60,
+    61,
+    68,
+    69,
+    71,
+    72,
+    88,
+    90,
+    93,
+    95
+   ],
+   "engine_only": [
+    2,
+    5,
+    9,
+    12,
+    14,
+    17,
+    22,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    37,
+    50,
+    51,
+    53,
+    55,
+    56,
+    63,
+    64,
+    65,
+    66,
+    67,
+    70,
+    73,
+    74,
+    75,
+    79,
+    80,
+    83,
+    84,
+    91,
+    92,
+    94,
+    96,
+    99
+   ],
+   "callable": [
+    3,
+    13,
+    15,
+    18,
+    19,
+    20,
+    23,
+    24,
+    25,
+    26,
+    36,
+    38,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    47,
+    48,
+    49,
+    57,
+    62,
+    76,
+    77,
+    78,
+    81,
+    82,
+    85,
+    86,
+    87,
+    89,
+    97,
+    98
+   ]
+  },
+  "callable_by_surface": {
+   "cli": 3,
+   "run": 3,
+   "viewer": 28
+  },
+  "share_callable": 0.343,
+  "share_callable_by_a_process_today": 0.03,
+  "could_it_run_today": "No, not from empty to final. A Rust test harness could run the callable steps on a prepared package; a CLI process can only run the export-sequence steps. The result would be an ungraded, uncaptioned film whose multicam section shows one camera, with PCM audio in every file.",
+  "method_limits": "Read, never run. Callable means the path was read, not that it passed. Status of a step whose text says UNVERIFIED stays as read."
+ },
+ "runner_notes": {
+  "multicam_check": "resolve_active_angle: confirmed no caller outside pulse tests, by reading c4d06841, not run. Steps named CHECK carry the probe that would prove a fix: burn the camera id into each angle, set active_angle, assert shown_layers and the pixel id at every tick, in monitor and in export.",
+  "driving": "At c4d06841 only export-sequence, batch and the document verbs are process calls; timeline.* is Viewer::timeline_command (harness-view/src/view/timeline.rs:1364). lane/smb-harness-drive-1 (95af749d, unmerged) adds state, command, undo and a stdin session with timeline.<key> and viewer.<method>. By its manual it refuses tool, edit_select, edit_point, rate_stretch, speed_duration and the export form, and its DRIVE_VIEWER names no source_edit, mixer_edit, multitrack_command or open_monitor, so most S1 and S3 steps stay Rust only after it lands. Check again when it merges.",
+  "fixtures": "Prepared package with seq-main and all tracks (hsk-studio-harness/tests/cli_export_sequence.rs shows the shape); generated media with burned-in camera id and frame counter; speech-band audio with stated clap offsets; authored SRT files; a generated .cube. 24 fps = 10584000000 ticks per frame, 2000 samples per frame at 48 kHz.",
+  "features": "media and audio-batch for monitors and mixer; os-encode with reel-native-mf-worker for H.264 and HEVC; av1-encode for AV1; media-native to decode H.264. A missing encoder is typed MEDIA_CODEC_UNAVAILABLE: record NOT_PROVEN, not a pass.",
+  "determinism": "Use DNxHR for byte-stable comparison; OS encoders may vary by machine (UNVERIFIED). HeadlessClock and PresentEveryFrame for frame-exact monitor checks. Fix actor and session ids. Compare by decoded frame hash, receipt output_sha256 and per-bus sample difference within 1e-6 (the bound used in tests/viewer_timeline_export_bus.rs), never by screenshot alone.",
+  "gui_judging": "Capture each Layout Preset at 1920x1080 and 1280x720 with the empty project, the assembled cut and the mix; judge the visual_check of each step, including overlap, truncated names and focus theft. Do not run scripts in the foreground.",
+  "stop_rule": "Run scenes in order. A missing or engine_only step records its gap and continues with the fixture state it would have made, so later steps are still measured."
+ }
+}

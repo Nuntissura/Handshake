@@ -1,0 +1,6160 @@
+{
+ "file_id": "round-time-audit-20261107",
+ "file_kind": "research.round_time_audit",
+ "updated_at": "2026-11-07",
+ "wp": "WP-KERNEL-STUDIO",
+ "scope_split": {
+  "Handshake (Product)": "NONE changed; test entrypoint read at c4d06841",
+  "Repo Governance": "this file only; read-only audit, no commit"
+ },
+ "question": "Why did the union take 3 h 48 in STUDIO-R57 and R58 against 2 h 03 in R52 and R54, and what are the largest cuts to round time that keep proof?",
+ "answer": {
+  "status": "PARTLY_PROVEN: where the time went is measured; why the machine state changed is UNVERIFIED",
+  "measured": [
+   "Builds, not tests. R54 to R57 grew 6290 s: build +4987 s (79%), first test listing +638 s (10%), test run +450 s (7%), doctests +179 s (3%). R52 to R58 grew 6308 s: build +4713 s (75%), first listing +897 s (14%), test run +485 s (8%), doctests +155 s (2%).",
+   "The work did not grow in step. Same rustc 1.97.1 and nextest config; per-unit compile counts are nearly identical for common units. Workspace Rust lines rose 4.1% R52 to R58 and harness test lines 3.4%, while build time rose 82%. R57 and R58 differ by 9 changed paths and took the same time.",
+   "Compute was not the limit. Long CPU-bound develop tests stayed flat (R56 to R58 sum ratio 1.11, median per test 0.98) while some short tests jumped from under a second to 8-10 s. Whole-machine CPU mean stayed 16-17% in R56, R57, R58; disk queue mean (all disks summed) rose from 13.1 to 18.9 and 19.7, and in build phases from 15.9 to 21.6.",
+   "A machine-state signature exists. The validator's C: tree walk took 2-27 s in R52, R54 and R56 at all times; in R55, R57 and R58 the longest walk inside each heavy build was 181-1144 s, while walks between heavy builds stayed near 6 s. 37 of 51 long walks in R57 and R58 ended within 60 s of a heavy unit's build end.",
+   "The disk lock played no part. Waits per round were 1-10 s in total, 1 s at most; all gaps between units were 7-29 s per round. No builder took a C: gap, and no GPU lock wait line exists in any run log of the five rounds."
+  ],
+  "why_91_units_equalled_160": {
+   "R57_only_units": 68,
+   "R57_only_wall_s": 795,
+   "R57_only_doctest_s": 187,
+   "R57_only_nextest_prebuild_s": 608,
+   "common_91_units_R57_s": 12865,
+   "common_91_units_R58_s": 13641,
+   "common_heavy_12_R57_s": 8245,
+   "common_heavy_12_R58_s": 9086,
+   "default_R57_s": 2279,
+   "default_R58_s": 1935,
+   "heavy_plus_default_share_R57": 0.768,
+   "heavy_plus_default_share_R58": 0.805,
+   "heavy_plus_default_share_R54": 0.723,
+   "heavy_plus_default_share_R52": 0.78,
+   "same_pattern_when_healthy": {
+    "R54_only_units": 67,
+    "R54_only_wall_s": 602,
+    "common_R54_s": 6787,
+    "common_R52_s": 7369
+   },
+   "answer": "MEASURED. Unit count barely moves time: R57's 68 extra units cost 795 s (small nextest and doctest units), while the heavy harness family and the default unit, present in both rounds, are 77-81% of each. R58's common units ran 776 s slower than R57's, which cancelled the 795 s. R52 and R54 show the same equality when the machine was healthy: R54's 67 extra units cost 602 s."
+  },
+  "unverified": [
+   "The cause of the slow state. No memory, commit or per-disk reading exists inside any round; the first commit reading is 18:05Z, 93 minutes after R58 ended.",
+   "How much the 44 watchers, Chrome, the tree walk and the full C: disk each contributed. Watchers and the fuller disk arrived between R56 and R57; when Chrome grew is not recorded; watchers and Chrome's size were both gone before R59, so R59 cannot separate them.",
+   "Compile versus link inside a build: logs carry only cargo's total per unit, and the C: round target was off limits.",
+   "That the first listing's extra cost is Defender scanning new executables."
+  ]
+ },
+ "method": {
+  "timestamps": "File mtimes in results/Rxx. build start = empty build.stdout.txt; build end = build.stderr.txt (within about 15 s of cargo's Finished time); run start = empty run.stdout.txt; run end = run.stderr.txt. Doctest wall = its stdout/stderr end minus previous unit end. Test execution = nextest Summary line. Lock = disk-lock.json.",
+  "first_list": "The gap between build end and run start. Source-verified at cargo-nextest 0.9.148 (registry copy, src/dispatch/core/run.rs): exec_run builds the binary list (line 1045), then build_test_list executes every test binary with --list, and only then returns because no_run made runner_builder None (lines 245-247, 1139). So `--no-run` also runs every freshly linked binary once. Attributing the whole gap to that listing is inference; nothing else runs there per the code and run-round.sh.",
+  "second_list": "Run wall minus nextest Summary: cargo's fresh check plus the second listing.",
+  "load": "load-poll.log (typeperf single 1 s samples about every 62-86 s, R56-R58 only; disk queue is PhysicalDisk(_Total), summing 7 disks). No memory counter is recorded in any round.",
+  "tree_walk": "csize.jsonl of the validator cap guard, robocopy /L over C:/HandshakeBuild/WP-KERNEL-STUDIO and again per child.",
+  "not_read": "R59 results, the C: round target, refund-claim-20261021.md. No cargo, build, test or process control."
+ },
+ "phase_split": {
+  "note": "All rounds R50-R58; R52, R54, R56, R57, R58 were requested, the rest are context. target_dir C: for all (target_class ssd).",
+  "rounds": {
+   "R50": {
+    "total_s": 6834.0,
+    "total": "1:53:54",
+    "start_utc": "2026-10-31T20:47:58Z",
+    "end_utc": "2026-10-31T22:41:52Z",
+    "sha": "63ecf5a657",
+    "units_in_round": 158,
+    "unit_counts": {
+     "default": 1,
+     "features": 46,
+     "prebuild": 3,
+     "ignored": 5,
+     "doctest": 102,
+     "doctest_zero_test_units": 84
+    },
+    "phases_s": {
+     "build_default_s": 697.9,
+     "build_features_s": 3904.7,
+     "build_ignored_s": 63.2,
+     "build_prebuild_s": 18.7,
+     "build_total_s": 4684.5,
+     "doctest_exec_reported_s": 8.5,
+     "doctest_wall_s": 397.1,
+     "doctest_zero_test_units_wall_s": 337.3,
+     "first_list_default_s": 133.2,
+     "first_list_features_s": 469.8,
+     "first_list_ignored_s": 53.5,
+     "first_list_s": 656.5,
+     "gap_between_units_s": 9.2,
+     "second_list_and_cargo_fresh_s": 130.9,
+     "step0_corpus_s": 29.2,
+     "tail_s": 0.3,
+     "test_exec_summary_s": 926.3,
+     "test_run_wall_default_s": 140.6,
+     "test_run_wall_features_s": 747.4,
+     "test_run_wall_ignored_s": 169.2,
+     "test_run_wall_s": 1057.2
+    },
+    "disk_lock": {
+     "root": "C:/HandshakeBuild/.disk-build-lock",
+     "schema": "hsk.studio.disk-build-lock@2",
+     "class": "round",
+     "holds": 18,
+     "yields": 17,
+     "slice_s": 300,
+     "waited_s_total": 1,
+     "waited_s_max": 1,
+     "broke_stale": "",
+     "first_acquired_at": "2026-10-31T20:48:22Z",
+     "released_at": "2026-10-31T22:41:52Z"
+    }
+   },
+   "R51": {
+    "total_s": 8863.0,
+    "total": "2:27:43",
+    "start_utc": "2026-11-01T05:44:14Z",
+    "end_utc": "2026-11-01T08:11:57Z",
+    "sha": "a7be22a15a",
+    "units_in_round": 102,
+    "unit_counts": {
+     "default": 1,
+     "features": 31,
+     "prebuild": 3,
+     "ignored": 3,
+     "doctest": 64,
+     "doctest_zero_test_units": 56
+    },
+    "phases_s": {
+     "build_default_s": 1259.0,
+     "build_features_s": 5774.9,
+     "build_ignored_s": 48.9,
+     "build_prebuild_s": 19.2,
+     "build_total_s": 7102.0,
+     "doctest_exec_reported_s": 9.6,
+     "doctest_wall_s": 267.6,
+     "doctest_zero_test_units_wall_s": 242.6,
+     "first_list_default_s": 147.7,
+     "first_list_features_s": 466.9,
+     "first_list_ignored_s": 16.3,
+     "first_list_s": 630.9,
+     "gap_between_units_s": 7.7,
+     "second_list_and_cargo_fresh_s": 124.5,
+     "step0_corpus_s": 23.4,
+     "tail_s": 1.0,
+     "test_exec_summary_s": 706.0,
+     "test_run_wall_default_s": 105.8,
+     "test_run_wall_features_s": 611.0,
+     "test_run_wall_ignored_s": 113.7,
+     "test_run_wall_s": 830.5
+    },
+    "disk_lock": {
+     "root": "C:/HandshakeBuild/.disk-build-lock",
+     "schema": "hsk.studio.disk-build-lock@2",
+     "class": "round",
+     "holds": 17,
+     "yields": 16,
+     "slice_s": 300,
+     "waited_s_total": 1,
+     "waited_s_max": 1,
+     "broke_stale": "",
+     "first_acquired_at": "2026-11-01T05:44:35Z",
+     "released_at": "2026-11-01T08:11:57Z"
+    }
+   },
+   "R52": {
+    "total_s": 7381.0,
+    "total": "2:03:01",
+    "start_utc": "2026-11-01T10:47:27Z",
+    "end_utc": "2026-11-01T12:50:28Z",
+    "sha": "9983645786",
+    "units_in_round": 92,
+    "unit_counts": {
+     "default": 1,
+     "features": 29,
+     "prebuild": 3,
+     "ignored": 3,
+     "doctest": 56,
+     "doctest_zero_test_units": 48
+    },
+    "phases_s": {
+     "build_default_s": 678.0,
+     "build_features_s": 4998.4,
+     "build_ignored_s": 34.7,
+     "build_prebuild_s": 15.5,
+     "build_total_s": 5726.5,
+     "doctest_exec_reported_s": 10.6,
+     "doctest_wall_s": 306.3,
+     "doctest_zero_test_units_wall_s": 269.0,
+     "first_list_default_s": 135.0,
+     "first_list_features_s": 435.2,
+     "first_list_ignored_s": 29.4,
+     "first_list_s": 599.5,
+     "gap_between_units_s": 6.8,
+     "second_list_and_cargo_fresh_s": 113.0,
+     "step0_corpus_s": 13.1,
+     "tail_s": 0,
+     "test_exec_summary_s": 616.3,
+     "test_run_wall_default_s": 74.0,
+     "test_run_wall_features_s": 551.9,
+     "test_run_wall_ignored_s": 103.4,
+     "test_run_wall_s": 729.3
+    },
+    "disk_lock": {
+     "root": "C:/HandshakeBuild/.disk-build-lock",
+     "schema": "hsk.studio.disk-build-lock@2",
+     "class": "round",
+     "holds": 17,
+     "yields": 16,
+     "slice_s": 300,
+     "waited_s_total": 2,
+     "waited_s_max": 1,
+     "broke_stale": "",
+     "first_acquired_at": "2026-11-01T10:47:37Z",
+     "released_at": "2026-11-01T12:50:28Z"
+    }
+   },
+   "R53": {
+    "total_s": 10655.0,
+    "total": "2:57:35",
+    "start_utc": "2026-11-02T05:28:29Z",
+    "end_utc": "2026-11-02T08:26:04Z",
+    "sha": "92ae22329f",
+    "units_in_round": 158,
+    "unit_counts": {
+     "default": 1,
+     "features": 46,
+     "prebuild": 3,
+     "ignored": 5,
+     "doctest": 102,
+     "doctest_zero_test_units": 84
+    },
+    "phases_s": {
+     "build_default_s": 702.4,
+     "build_features_s": 7512.8,
+     "build_ignored_s": 63.5,
+     "build_prebuild_s": 23.8,
+     "build_total_s": 8302.4,
+     "doctest_exec_reported_s": 11.6,
+     "doctest_wall_s": 373.2,
+     "doctest_zero_test_units_wall_s": 305.8,
+     "first_list_default_s": 111.0,
+     "first_list_features_s": 578.2,
+     "first_list_ignored_s": 39.2,
+     "first_list_s": 728.4,
+     "gap_between_units_s": 13.6,
+     "second_list_and_cargo_fresh_s": 234.9,
+     "step0_corpus_s": 22.4,
+     "tail_s": 0.6,
+     "test_exec_summary_s": 979.5,
+     "test_run_wall_default_s": 316.1,
+     "test_run_wall_features_s": 751.4,
+     "test_run_wall_ignored_s": 146.8,
+     "test_run_wall_s": 1214.3
+    },
+    "disk_lock": {
+     "root": "C:/HandshakeBuild/.disk-build-lock",
+     "schema": "hsk.studio.disk-build-lock@2",
+     "class": "round",
+     "holds": 18,
+     "yields": 17,
+     "slice_s": 300,
+     "waited_s_total": 1,
+     "waited_s_max": 1,
+     "broke_stale": "",
+     "first_acquired_at": "2026-11-02T05:28:48Z",
+     "released_at": "2026-11-02T08:26:04Z"
+    }
+   },
+   "R54": {
+    "total_s": 7409.0,
+    "total": "2:03:29",
+    "start_utc": "2026-11-02T11:49:30Z",
+    "end_utc": "2026-11-02T13:52:59Z",
+    "sha": "96ace3ca01",
+    "units_in_round": 160,
+    "unit_counts": {
+     "default": 1,
+     "features": 47,
+     "prebuild": 3,
+     "ignored": 5,
+     "doctest": 103,
+     "doctest_zero_test_units": 84
+    },
+    "phases_s": {
+     "build_default_s": 609.6,
+     "build_features_s": 4788.0,
+     "build_ignored_s": 54.9,
+     "build_prebuild_s": 16.6,
+     "build_total_s": 5469.1,
+     "doctest_exec_reported_s": 8.6,
+     "doctest_wall_s": 375.5,
+     "doctest_zero_test_units_wall_s": 311.6,
+     "first_list_default_s": 128.7,
+     "first_list_features_s": 447.5,
+     "first_list_ignored_s": 28.3,
+     "first_list_s": 604.4,
+     "gap_between_units_s": 9.7,
+     "second_list_and_cargo_fresh_s": 142.1,
+     "step0_corpus_s": 19.1,
+     "tail_s": 0.9,
+     "test_exec_summary_s": 788.1,
+     "test_run_wall_default_s": 128.2,
+     "test_run_wall_features_s": 676.7,
+     "test_run_wall_ignored_s": 125.3,
+     "test_run_wall_s": 930.2
+    },
+    "disk_lock": {
+     "root": "C:/HandshakeBuild/.disk-build-lock",
+     "schema": "hsk.studio.disk-build-lock@2",
+     "class": "round",
+     "holds": 18,
+     "yields": 17,
+     "slice_s": 300,
+     "waited_s_total": 1,
+     "waited_s_max": 1,
+     "broke_stale": "",
+     "first_acquired_at": "2026-11-02T11:49:45Z",
+     "released_at": "2026-11-02T13:52:58Z"
+    }
+   },
+   "R55": {
+    "total_s": 10431.0,
+    "total": "2:53:51",
+    "start_utc": "2026-11-05T04:40:19Z",
+    "end_utc": "2026-11-05T07:34:10Z",
+    "sha": "ce64457749",
+    "units_in_round": 94,
+    "unit_counts": {
+     "default": 1,
+     "features": 30,
+     "prebuild": 3,
+     "ignored": 3,
+     "doctest": 57,
+     "doctest_zero_test_units": 48
+    },
+    "phases_s": {
+     "build_default_s": 1497.2,
+     "build_features_s": 6906.9,
+     "build_ignored_s": 55.4,
+     "build_prebuild_s": 30.3,
+     "build_total_s": 8489.8,
+     "doctest_exec_reported_s": 7.4,
+     "doctest_wall_s": 257.7,
+     "doctest_zero_test_units_wall_s": 229.8,
+     "first_list_default_s": 228.7,
+     "first_list_features_s": 522.6,
+     "first_list_ignored_s": 24.4,
+     "first_list_s": 775.7,
+     "gap_between_units_s": 10.3,
+     "second_list_and_cargo_fresh_s": 147.1,
+     "step0_corpus_s": 14.0,
+     "tail_s": 0.2,
+     "test_exec_summary_s": 736.1,
+     "test_run_wall_default_s": 122.0,
+     "test_run_wall_features_s": 645.3,
+     "test_run_wall_ignored_s": 115.9,
+     "test_run_wall_s": 883.2
+    },
+    "disk_lock": {
+     "root": "C:/HandshakeBuild/.disk-build-lock",
+     "schema": "hsk.studio.disk-build-lock@2",
+     "class": "round",
+     "holds": 19,
+     "yields": 18,
+     "slice_s": 300,
+     "waited_s_total": 5,
+     "waited_s_max": 1,
+     "broke_stale": "",
+     "first_acquired_at": "2026-11-05T04:40:30Z",
+     "released_at": "2026-11-05T07:34:10Z"
+    }
+   },
+   "R56": {
+    "total_s": 8567.0,
+    "total": "2:22:47",
+    "start_utc": "2026-11-05T11:47:46Z",
+    "end_utc": "2026-11-05T14:10:33Z",
+    "sha": "091c4d1b2a",
+    "units_in_round": 94,
+    "unit_counts": {
+     "default": 1,
+     "features": 30,
+     "prebuild": 3,
+     "ignored": 3,
+     "doctest": 57,
+     "doctest_zero_test_units": 48
+    },
+    "phases_s": {
+     "build_default_s": 791.5,
+     "build_features_s": 5978.6,
+     "build_ignored_s": 41.5,
+     "build_prebuild_s": 22.7,
+     "build_total_s": 6834.4,
+     "doctest_exec_reported_s": 9.0,
+     "doctest_wall_s": 267.6,
+     "doctest_zero_test_units_wall_s": 236.7,
+     "first_list_default_s": 138.5,
+     "first_list_features_s": 470.5,
+     "first_list_ignored_s": 17.5,
+     "first_list_s": 626.5,
+     "gap_between_units_s": 9.4,
+     "second_list_and_cargo_fresh_s": 129.1,
+     "step0_corpus_s": 16.1,
+     "tail_s": 0.8,
+     "test_exec_summary_s": 683.0,
+     "test_run_wall_default_s": 83.6,
+     "test_run_wall_features_s": 614.5,
+     "test_run_wall_ignored_s": 114.1,
+     "test_run_wall_s": 812.2
+    },
+    "disk_lock": {
+     "root": "C:/HandshakeBuild/.disk-build-lock",
+     "schema": "hsk.studio.disk-build-lock@2",
+     "class": "round",
+     "holds": 16,
+     "yields": 15,
+     "slice_s": 300,
+     "waited_s_total": 2,
+     "waited_s_max": 1,
+     "broke_stale": "",
+     "first_acquired_at": "2026-11-05T11:47:59Z",
+     "released_at": "2026-11-05T14:10:33Z"
+    }
+   },
+   "R57": {
+    "total_s": 13699.0,
+    "total": "3:48:19",
+    "start_utc": "2026-11-06T07:28:56Z",
+    "end_utc": "2026-11-06T11:17:15Z",
+    "sha": "4ffe1b0602",
+    "units_in_round": 160,
+    "unit_counts": {
+     "default": 1,
+     "features": 47,
+     "prebuild": 3,
+     "ignored": 5,
+     "doctest": 103,
+     "doctest_zero_test_units": 84
+    },
+    "phases_s": {
+     "build_default_s": 1701.1,
+     "build_features_s": 8626.3,
+     "build_ignored_s": 90.0,
+     "build_prebuild_s": 38.3,
+     "build_total_s": 10455.7,
+     "doctest_exec_reported_s": 17.4,
+     "doctest_wall_s": 554.1,
+     "doctest_zero_test_units_wall_s": 434.5,
+     "first_list_default_s": 310.3,
+     "first_list_features_s": 891.6,
+     "first_list_ignored_s": 40.4,
+     "first_list_s": 1242.3,
+     "gap_between_units_s": 28.1,
+     "second_list_and_cargo_fresh_s": 232.1,
+     "step0_corpus_s": 38.5,
+     "tail_s": 0.3,
+     "test_exec_summary_s": 1147.9,
+     "test_run_wall_default_s": 267.3,
+     "test_run_wall_features_s": 962.6,
+     "test_run_wall_ignored_s": 150.1,
+     "test_run_wall_s": 1380.0
+    },
+    "disk_lock": {
+     "root": "C:/HandshakeBuild/.disk-build-lock",
+     "schema": "hsk.studio.disk-build-lock@2",
+     "class": "round",
+     "holds": 22,
+     "yields": 21,
+     "slice_s": 300,
+     "waited_s_total": 9,
+     "waited_s_max": 1,
+     "broke_stale": "",
+     "first_acquired_at": "2026-11-06T07:29:26Z",
+     "released_at": "2026-11-06T11:17:15Z"
+    }
+   },
+   "R58": {
+    "total_s": 13689.0,
+    "total": "3:48:09",
+    "start_utc": "2026-11-06T12:44:39Z",
+    "end_utc": "2026-11-06T16:32:48Z",
+    "sha": "89bbf702e9",
+    "units_in_round": 91,
+    "unit_counts": {
+     "default": 1,
+     "features": 29,
+     "prebuild": 3,
+     "ignored": 3,
+     "doctest": 55,
+     "doctest_zero_test_units": 46
+    },
+    "phases_s": {
+     "build_default_s": 1254.9,
+     "build_features_s": 9043.8,
+     "build_ignored_s": 89.3,
+     "build_prebuild_s": 51.4,
+     "build_total_s": 10439.4,
+     "doctest_exec_reported_s": 13.2,
+     "doctest_wall_s": 461.4,
+     "doctest_zero_test_units_wall_s": 414.4,
+     "first_list_default_s": 453.9,
+     "first_list_features_s": 966.2,
+     "first_list_ignored_s": 76.5,
+     "first_list_s": 1496.6,
+     "gap_between_units_s": 29.0,
+     "second_list_and_cargo_fresh_s": 233.3,
+     "step0_corpus_s": 47.0,
+     "tail_s": 1.3,
+     "test_exec_summary_s": 981.0,
+     "test_run_wall_default_s": 226.6,
+     "test_run_wall_features_s": 873.9,
+     "test_run_wall_ignored_s": 113.8,
+     "test_run_wall_s": 1214.3
+    },
+    "disk_lock": {
+     "root": "C:/HandshakeBuild/.disk-build-lock",
+     "schema": "hsk.studio.disk-build-lock@2",
+     "class": "round",
+     "holds": 20,
+     "yields": 19,
+     "slice_s": 300,
+     "waited_s_total": 10,
+     "waited_s_max": 1,
+     "broke_stale": "",
+     "first_acquired_at": "2026-11-06T12:45:23Z",
+     "released_at": "2026-11-06T16:32:48Z"
+    }
+   }
+  }
+ },
+ "growth": {
+  "R54_to_R57": {
+   "total_a_s": 7409.0,
+   "total_b_s": 13699.0,
+   "delta_s": 6290.0,
+   "phases": {
+    "build": {
+     "a_s": 5469.1,
+     "b_s": 10455.7,
+     "delta_s": 4986.6,
+     "share_of_growth": 0.793,
+     "ratio": 1.91
+    },
+    "first_list_after_build": {
+     "a_s": 604.4,
+     "b_s": 1242.3,
+     "delta_s": 637.9,
+     "share_of_growth": 0.101,
+     "ratio": 2.06
+    },
+    "test_run_wall": {
+     "a_s": 930.2,
+     "b_s": 1380.0,
+     "delta_s": 449.8,
+     "share_of_growth": 0.072,
+     "ratio": 1.48
+    },
+    "doctest_wall": {
+     "a_s": 375.5,
+     "b_s": 554.1,
+     "delta_s": 178.6,
+     "share_of_growth": 0.028,
+     "ratio": 1.48
+    },
+    "step0_corpus": {
+     "a_s": 19.1,
+     "b_s": 38.5,
+     "delta_s": 19.4,
+     "share_of_growth": 0.003,
+     "ratio": 2.02
+    },
+    "gap_between_units_incl_lock_yield": {
+     "a_s": 9.7,
+     "b_s": 28.1,
+     "delta_s": 18.4,
+     "share_of_growth": 0.003,
+     "ratio": 2.9
+    }
+   }
+  },
+  "R52_to_R58": {
+   "total_a_s": 7381.0,
+   "total_b_s": 13689.0,
+   "delta_s": 6308.0,
+   "phases": {
+    "build": {
+     "a_s": 5726.5,
+     "b_s": 10439.4,
+     "delta_s": 4712.9,
+     "share_of_growth": 0.747,
+     "ratio": 1.82
+    },
+    "first_list_after_build": {
+     "a_s": 599.5,
+     "b_s": 1496.6,
+     "delta_s": 897.1,
+     "share_of_growth": 0.142,
+     "ratio": 2.5
+    },
+    "test_run_wall": {
+     "a_s": 729.3,
+     "b_s": 1214.3,
+     "delta_s": 485.0,
+     "share_of_growth": 0.077,
+     "ratio": 1.67
+    },
+    "doctest_wall": {
+     "a_s": 306.3,
+     "b_s": 461.4,
+     "delta_s": 155.1,
+     "share_of_growth": 0.025,
+     "ratio": 1.51
+    },
+    "step0_corpus": {
+     "a_s": 13.1,
+     "b_s": 47.0,
+     "delta_s": 33.9,
+     "share_of_growth": 0.005,
+     "ratio": 3.59
+    },
+    "gap_between_units_incl_lock_yield": {
+     "a_s": 6.8,
+     "b_s": 29.0,
+     "delta_s": 22.2,
+     "share_of_growth": 0.004,
+     "ratio": 4.26
+    }
+   }
+  },
+  "R56_to_R58": {
+   "total_a_s": 8567.0,
+   "total_b_s": 13689.0,
+   "delta_s": 5122.0,
+   "phases": {
+    "build": {
+     "a_s": 6834.4,
+     "b_s": 10439.4,
+     "delta_s": 3605.0,
+     "share_of_growth": 0.704,
+     "ratio": 1.53
+    },
+    "first_list_after_build": {
+     "a_s": 626.5,
+     "b_s": 1496.6,
+     "delta_s": 870.1,
+     "share_of_growth": 0.17,
+     "ratio": 2.39
+    },
+    "test_run_wall": {
+     "a_s": 812.2,
+     "b_s": 1214.3,
+     "delta_s": 402.1,
+     "share_of_growth": 0.079,
+     "ratio": 1.5
+    },
+    "doctest_wall": {
+     "a_s": 267.6,
+     "b_s": 461.4,
+     "delta_s": 193.8,
+     "share_of_growth": 0.038,
+     "ratio": 1.72
+    },
+    "step0_corpus": {
+     "a_s": 16.1,
+     "b_s": 47.0,
+     "delta_s": 30.9,
+     "share_of_growth": 0.006,
+     "ratio": 2.92
+    },
+    "gap_between_units_incl_lock_yield": {
+     "a_s": 9.4,
+     "b_s": 29.0,
+     "delta_s": 19.6,
+     "share_of_growth": 0.004,
+     "ratio": 3.09
+    }
+   }
+  }
+ },
+ "machine_state_index": {
+  "note": "heavy10 = the same 10 harness viewer-family feature units in every round. Load exists from R56 only. R53 ran straight after its target was rebuilt from empty (deleted 2026-11-02T02:58Z, canary 03:04-05:24Z); why its heavy10 was slow with fast walks is UNVERIFIED.",
+  "rounds": {
+   "R50": {
+    "start_utc": "2026-10-31T20:47:58Z",
+    "total": "1:53:54",
+    "units": 158,
+    "heavy10_build_mean_s": 287,
+    "heavy10_first_list_mean_s": 29,
+    "heavy10_nx_mean_s": 36,
+    "default_build_s": 698,
+    "default_first_list_s": 133,
+    "default_nx_s": 124,
+    "tree_walk_duty": 0.052,
+    "tree_walk_median_s": 5.0,
+    "tree_walk_max_s": 22.0,
+    "c_tree_gib": 230.812,
+    "c_free_gib_start": 419.1,
+    "load": null,
+    "gpu": null
+   },
+   "R51": {
+    "start_utc": "2026-11-01T05:44:14Z",
+    "total": "2:27:43",
+    "units": 102,
+    "heavy10_build_mean_s": 448,
+    "heavy10_first_list_mean_s": 31,
+    "heavy10_nx_mean_s": 33,
+    "default_build_s": 1259,
+    "default_first_list_s": 148,
+    "default_nx_s": 89,
+    "tree_walk_duty": 0.296,
+    "tree_walk_median_s": 21.0,
+    "tree_walk_max_s": 214.0,
+    "c_tree_gib": 232.092,
+    "c_free_gib_start": 418.0,
+    "load": null,
+    "gpu": null
+   },
+   "R52": {
+    "start_utc": "2026-11-01T10:47:27Z",
+    "total": "2:03:01",
+    "units": 92,
+    "heavy10_build_mean_s": 386,
+    "heavy10_first_list_mean_s": 29,
+    "heavy10_nx_mean_s": 32,
+    "default_build_s": 678,
+    "default_first_list_s": 135,
+    "default_nx_s": 60,
+    "tree_walk_duty": 0.063,
+    "tree_walk_median_s": 6.0,
+    "tree_walk_max_s": 27.0,
+    "c_tree_gib": 238.403,
+    "c_free_gib_start": 414.0,
+    "load": null,
+    "gpu": null
+   },
+   "R53": {
+    "start_utc": "2026-11-02T05:28:29Z",
+    "total": "2:57:35",
+    "units": 158,
+    "heavy10_build_mean_s": 598,
+    "heavy10_first_list_mean_s": 36,
+    "heavy10_nx_mean_s": 34,
+    "default_build_s": 702,
+    "default_first_list_s": 111,
+    "default_nx_s": 201,
+    "tree_walk_duty": 0.04,
+    "tree_walk_median_s": 4.0,
+    "tree_walk_max_s": null,
+    "c_tree_gib": null,
+    "c_free_gib_start": null,
+    "load": null,
+    "gpu": null,
+    "tree_walk_source": "validator-R53-a2/csize.jsonl (96 walks)"
+   },
+   "R54": {
+    "start_utc": "2026-11-02T11:49:30Z",
+    "total": "2:03:29",
+    "units": 160,
+    "heavy10_build_mean_s": 355,
+    "heavy10_first_list_mean_s": 28,
+    "heavy10_nx_mean_s": 28,
+    "default_build_s": 610,
+    "default_first_list_s": 129,
+    "default_nx_s": 109,
+    "tree_walk_duty": 0.035,
+    "tree_walk_median_s": 3.0,
+    "tree_walk_max_s": 12.0,
+    "c_tree_gib": 196.731,
+    "c_free_gib_start": 456.4,
+    "load": null,
+    "gpu": {
+     "n": 61,
+     "util_mean": 0.9,
+     "mem_mib_mean": 2658,
+     "mem_mib_min": 2633,
+     "mem_mib_max": 3580
+    }
+   },
+   "R55": {
+    "start_utc": "2026-11-05T04:40:19Z",
+    "total": "2:53:51",
+    "units": 94,
+    "heavy10_build_mean_s": 533,
+    "heavy10_first_list_mean_s": 34,
+    "heavy10_nx_mean_s": 38,
+    "default_build_s": 1497,
+    "default_first_list_s": 229,
+    "default_nx_s": 101,
+    "tree_walk_duty": 0.685,
+    "tree_walk_median_s": 87.0,
+    "tree_walk_max_s": 625.0,
+    "c_tree_gib": 204.94,
+    "c_free_gib_start": 420.4,
+    "load": null,
+    "gpu": {
+     "n": 87,
+     "util_mean": 35.0,
+     "mem_mib_mean": 2756,
+     "mem_mib_min": 2529,
+     "mem_mib_max": 3104
+    }
+   },
+   "R56": {
+    "start_utc": "2026-11-05T11:47:46Z",
+    "total": "2:22:47",
+    "units": 94,
+    "heavy10_build_mean_s": 473,
+    "heavy10_first_list_mean_s": 32,
+    "heavy10_nx_mean_s": 37,
+    "default_build_s": 792,
+    "default_first_list_s": 139,
+    "default_nx_s": 68,
+    "tree_walk_duty": 0.055,
+    "tree_walk_median_s": 6.0,
+    "tree_walk_max_s": 22.0,
+    "c_tree_gib": 213.39,
+    "c_free_gib_start": 429.9,
+    "load": {
+     "n": 100,
+     "cpu_mean": 17.3,
+     "cpu_median": 11.4,
+     "cpu_p90": 38.9,
+     "cpu_max": 97.0,
+     "dq_mean": 13.1,
+     "dq_median": 12.0,
+     "dq_p90": 30.0,
+     "dq_max": 39.0,
+     "poll_interval_mean_s": 85.7
+    },
+    "gpu": {
+     "n": 72,
+     "util_mean": 34.6,
+     "mem_mib_mean": 2857,
+     "mem_mib_min": 2762,
+     "mem_mib_max": 3765
+    }
+   },
+   "R57": {
+    "start_utc": "2026-11-06T07:28:56Z",
+    "total": "3:48:19",
+    "units": 160,
+    "heavy10_build_mean_s": 630,
+    "heavy10_first_list_mean_s": 64,
+    "heavy10_nx_mean_s": 41,
+    "default_build_s": 1701,
+    "default_first_list_s": 310,
+    "default_nx_s": 236,
+    "tree_walk_duty": 0.996,
+    "tree_walk_median_s": 78.0,
+    "tree_walk_max_s": 1144.0,
+    "c_tree_gib": 296.444,
+    "c_free_gib_start": 250.8,
+    "load": {
+     "n": 219,
+     "cpu_mean": 16.9,
+     "cpu_median": 13.0,
+     "cpu_p90": 36.0,
+     "cpu_max": 74.0,
+     "dq_mean": 18.9,
+     "dq_median": 19.0,
+     "dq_p90": 32.0,
+     "dq_max": 49.0,
+     "poll_interval_mean_s": 62.6
+    },
+    "gpu": {
+     "n": 114,
+     "util_mean": 1.7,
+     "mem_mib_mean": 2677,
+     "mem_mib_min": 2558,
+     "mem_mib_max": 2896
+    }
+   },
+   "R58": {
+    "start_utc": "2026-11-06T12:44:39Z",
+    "total": "3:48:09",
+    "units": 91,
+    "heavy10_build_mean_s": 690,
+    "heavy10_first_list_mean_s": 73,
+    "heavy10_nx_mean_s": 47,
+    "default_build_s": 1255,
+    "default_first_list_s": 454,
+    "default_nx_s": 201,
+    "tree_walk_duty": 0.919,
+    "tree_walk_median_s": 20.0,
+    "tree_walk_max_s": 726.0,
+    "c_tree_gib": 314.193,
+    "c_free_gib_start": 239.6,
+    "load": {
+     "n": 220,
+     "cpu_mean": 16.2,
+     "cpu_median": 11.5,
+     "cpu_p90": 37.5,
+     "cpu_max": 77.0,
+     "dq_mean": 19.7,
+     "dq_median": 19.0,
+     "dq_p90": 34.0,
+     "dq_max": 62.0,
+     "poll_interval_mean_s": 62.2
+    },
+    "gpu": {
+     "n": 114,
+     "util_mean": 1.3,
+     "mem_mib_mean": 2750,
+     "mem_mib_min": 2633,
+     "mem_mib_max": 3398
+    }
+   }
+  }
+ },
+ "test_level": {
+  "share": "Test execution is small: R58 test run wall 1214 s of 13689 s (9%). Slowest tests did not cause the growth.",
+  "slowest_R57_R58": "develop::container_identity 91-92 s, nef_clean_room 69-72 s, real_raw_levels 51-53 s, camera_colour 41-43 s; harness viewer_develop cli_develop_round_trip 31-34 s repeated in about 10 units.",
+  "largest_single_growth": "develop::container_identity 64.2 to 91.0 s (R54 to R57), then nef_clean_room 51.8 to 71.8 s; R52 to R58 largest +16.5 s, viewer_shell function_keys 1.1 to 17.6 s.",
+  "ratios_same_tests": {
+   "R54_to_R57": {
+    "sum": 1.71,
+    "median_per_test": 1.17,
+    "p90": 4.24,
+    "develop_sum": 1.37
+   },
+   "R52_to_R58": {
+    "sum": 2.18,
+    "median_per_test": 1.29,
+    "p90": 8.07,
+    "develop_sum": 1.17
+   },
+   "R56_to_R58": {
+    "sum": 2.0,
+    "median_per_test": 1.17,
+    "p90": 7.21,
+    "develop_sum": 1.11
+   }
+  },
+  "stalls": {
+   "definition": "test time at least 5 s over its minimum across R52, R54, R56, R57, R58",
+   "count": {
+    "R52": 27,
+    "R54": 28,
+    "R56": 44,
+    "R57": 116,
+    "R58": 200
+   },
+   "excess_s_summed_over_8_threads": {
+    "R52": 225,
+    "R54": 197,
+    "R56": 362,
+    "R57": 861,
+    "R58": 1507
+   },
+   "periodicity": "Cluster start seconds spread evenly over the minute and gaps show no 60 s period, so no watcher tick is visible. Clusters sit inside each harness unit's run."
+  },
+  "duplication": "R58 ran 5600 test instances of 2773 distinct tests; R57 8813 of 4960."
+ },
+ "disk_lock_and_builders": {
+  "slice_s": 300,
+  "lock": {
+   "R52": {
+    "holds": 17,
+    "yields": 16,
+    "waited_s_total": 2,
+    "waited_s_max": 1,
+    "broke_stale": ""
+   },
+   "R54": {
+    "holds": 18,
+    "yields": 17,
+    "waited_s_total": 1,
+    "waited_s_max": 1,
+    "broke_stale": ""
+   },
+   "R56": {
+    "holds": 16,
+    "yields": 15,
+    "waited_s_total": 2,
+    "waited_s_max": 1,
+    "broke_stale": ""
+   },
+   "R57": {
+    "holds": 22,
+    "yields": 21,
+    "waited_s_total": 9,
+    "waited_s_max": 1,
+    "broke_stale": ""
+   },
+   "R58": {
+    "holds": 20,
+    "yields": 19,
+    "waited_s_total": 10,
+    "waited_s_max": 1,
+    "broke_stale": ""
+   }
+  },
+  "verdict": "MEASURED: the 300 s slice cost nothing visible. 15-21 yields per round, waits 1-10 s total, gaps between units 7-29 s total. A builder consuming a gap would have shown as a long wait; none did.",
+  "builders_seen_by_log_mtime_on_D": {
+   "R50": 0,
+   "R51": "3 lanes (06:50Z last)",
+   "R52": "2 lanes (11:11Z last)",
+   "R53": 0,
+   "R54": 0,
+   "R55": "3 lanes plus validator probe",
+   "R56": "validator probe 11:48-12:21Z",
+   "R57": "validator probe 07:30-08:33Z",
+   "R58": "validator probe 12:47-13:07Z"
+  },
+  "note": "HANDOFF calls R57's 28 m default build outside load. The validator's own probe builds on D: overlapped it (07:30-08:33Z), and R56's 13 m comparator also had a probe. R52 had two D: builders during its default build and still took 11 m 18, so D: builds alone do not explain it; effect UNVERIFIED."
+ },
+ "suspects": [
+  {
+   "name": "Builder holding the C: disk lock",
+   "verdict": "REFUTED (measured)",
+   "evidence": "waited_s_total 1-10 s in all five rounds."
+  },
+  {
+   "name": "Code or unit growth",
+   "verdict": "REFUTED as main cause (measured)",
+   "evidence": "+4.1% lines against +82% build; R57 to R58 almost no code change; R58 has fewer units."
+  },
+  {
+   "name": "44 leftover watchers of the lead",
+   "verdict": "Not necessary; contribution UNVERIFIED",
+   "evidence_against": "Started 2026-11-06T02:30Z at the earliest, yet R51, R53 and R55 were slow before that (heavy10 448, 598, 533 s against 355 s in R54). Machine CPU mean did not rise (17.3, 16.9, 16.2%). No 60 s period in test stalls.",
+   "evidence_for": "Timing fits R57 and R58. Mean CPU held while the round took 60% longer, so total CPU-seconds rose about 50% (47k to 71k core-s, derived from samples): about 1.7 extra cores for 3.8 h, source not identified. Each lane_watch tick forks git, python and ls per lane.",
+   "ledger": "Commit free 3.9 GB right after stopping them, so they were not the memory shortage."
+  },
+  {
+   "name": "Chrome memory shortage",
+   "verdict": "UNVERIFIED: consistent, not proven",
+   "evidence_against": "No reading during R57 or R58: readings 6.4, 9.3, 8.5 GB are at 18:05, 18:48, 19:40Z, after R58 ended at 16:32Z. No os error 1455 or paging-file text in R57 or R58 logs. Page file PeakUsage since boot reads 15.3 GB today (whether a resize resets it: UNVERIFIED), so heavy page-out is not shown. Chrome's size in R51, R53, R55 is unknown.",
+   "evidence_for": "CPU was unsaturated while jobs slowed and disk queue rose, which fits a starved file cache. Chrome process count 478-484 in R57 and R58 df-log, but that is count, not memory."
+  },
+  {
+   "name": "Cap guard tree walk (new suspect, validator-side)",
+   "verdict": "UNVERIFIED: symptom or contributor",
+   "evidence": "Busy 92-100% of R57 and R58, 69% of R55, 30% of R51, 3.5-6% of R52, R54, R56. Its script samples every 60 s from 250 GiB instead of 120 s, and the tree passed 250 GiB only in R57 and R58 (296-314 GiB; team-dev 21 to 102-115 GiB). Each sample walks the tree twice. Its walks stall only in slow rounds, so it is at least a symptom. Counterexample: R53 was slow with walks at a median 4 s."
+  },
+  {
+   "name": "C: disk full (Samsung 870 QVO 8 TB, SATA; QLC per the model line, not checked here)",
+   "verdict": "UNVERIFIED",
+   "evidence": "Free fell from 414-456 GB (R52, R54, R56) to 228-251 GB (R57, R58, 97% used); drive model read today. R55 was slow at 420 GB and R56 fast at 430 GB, so free space alone does not decide it."
+  },
+  {
+   "name": "Time of day (correlation only)",
+   "verdict": "UNVERIFIED",
+   "evidence": "Starts at 04:40-05:44Z (R51, R53, R55) were slow, 10:47-11:49Z (R52, R54, R56) faster, 20:47Z (R50) fastest; R58 at 12:44Z breaks the pattern."
+  },
+  {
+   "name": "GPU contention",
+   "verdict": "REFUTED for this growth (measured)",
+   "evidence": "GPU utilisation mean 35% in R55 and R56, 1.3-1.7% in R57 and R58; builds are the growth."
+  }
+ ],
+ "cuts": {
+  "note": "Hours per round. Not additive. Healthy basis R54 (2:03), slow basis R58 (3:48). Cuts 2 and 4 are commits to checked-in config: CX-VAL-007 applies, CX-VAL-011 forces a full round, and R54 shows a canary when a root input changes (R54-canary took 1:57), so each costs about 4-6 h once. Cut 3 is a product test change through a lane. Cuts 1 and 5 touch no checked-in round config.",
+  "ranked": [
+   {
+    "rank": 1,
+    "cut": "Keep rounds out of the slow state",
+    "hours_saved": 1.75,
+    "kind": "MEASURED gap (3:48 against 2:03); attribution UNVERIFIED",
+    "how": "Dispatch-level, no commit: read R59 against the index below; add commit, available memory, cache and per-disk queue to the validator's load poll; replace the cap guard's double tree walk with C: free delta or a far slower cadence; start validator probes after the default unit builds.",
+    "proof_risk": "None for the union. The cap guard must still stop the round before 355 GiB; free delta can miss bytes others write, so keep one real walk at start and end.",
+    "next_measure": "R59 has Chrome at 14.1 GB and no watchers but five D: builders. heavy10 near 355-470 s and walks under 20 s would show the state gone, without separating the causes."
+   },
+   {
+    "rank": 2,
+    "cut": "Drop 5 harness feature units whose features are strict subsets of retained ones: viewer, media, media-native, audio-device, audio-batch",
+    "hours_saved": {
+     "healthy_R54": 0.56,
+     "slow_R58": 1.12
+    },
+    "kind": "MEASURED unit wall; effect on later rounds assumes other units unchanged",
+    "evidence": {
+     "R54": {
+      "units_wall_s": 2014,
+      "their_doctest_wall_s": 12,
+      "prebuild_s": 6,
+      "total_saved_h": 0.56,
+      "test_ids_in_dropped_units": 241,
+      "of_which_not_run_by_kept_units": 0
+     },
+     "R57": {
+      "units_wall_s": 3756,
+      "their_doctest_wall_s": 15,
+      "prebuild_s": 19,
+      "total_saved_h": 1.05,
+      "test_ids_in_dropped_units": 241,
+      "of_which_not_run_by_kept_units": 0
+     },
+     "R58": {
+      "units_wall_s": 3971,
+      "their_doctest_wall_s": 20,
+      "prebuild_s": 27,
+      "total_saved_h": 1.12,
+      "test_ids_in_dropped_units": 241,
+      "of_which_not_run_by_kept_units": 0
+     }
+    },
+    "how": "Commit to .config/round-features.toml, retain desktop+viewer, studio-aac, os-encode, audio-plugin, audio-batch+audio-device. Feature closure read from harness Cargo.toml: every dropped set is implied by a retained one. The only tests that gain proof under specific features (studio-aac AAC 5.1, desktop AccessKit) stay.",
+    "proof_risk": "Exact sets stop being built: code that compiles or passes only with those exact sets goes unseen, such as a missing import when media is on and audio-batch off. Further candidate with the same trade: harness-view+viewer (0 exclusive tests; 134 s R54, 364 s R58). 40 cfg(not(feature)) sites exist in harness and harness-view (desktop 16, audio-batch 12, media 6); negative branches still run in retained units that lack that feature, but not in those exact combinations. Mitigation, at extra cost: cargo check --tests per dropped set, cost UNVERIFIED."
+   },
+   {
+    "rank": 3,
+    "cut": "Merge harness's 74 integration test targets into one test binary",
+    "hours_saved": {
+     "healthy_R54": "0.4-0.75 at 10 units; 0.2-0.4 after cut 2",
+     "slow_R58": "0.85-1.5 at 10 units"
+    },
+    "kind": "ESTIMATED (40-70% of heavy build and first list; link share not measured)",
+    "evidence": "Measured: 10 viewer-family units compile only 2-5 crates (one with 29) yet take 315-409 s in R54, while light units with the same 74 targets, mostly empty without viewer, take 29-58 s. 54-71 of 74 binaries hold tests; each is compiled, linked and listed per unit.",
+    "how": "Product change through a lane: tests/ becomes one crate with modules; same for harness-view (33), render-gpu (36), composite (59) later. First measure compile versus link once with cargo --timings outside a round.",
+    "proof_risk": "Nextest still gives each test its own process, so semantics hold. Test ids change their binary name, so claim mappings and validator history must migrate; one file failing to compile fails all tests in that unit."
+   },
+   {
+    "rank": 4,
+    "cut": "Raise .cargo/config.toml jobs from 8 to about 16 for rounds",
+    "hours_saved": {
+     "healthy_R54": "0.2-0.5",
+     "slow_R58": "unknown, may be none"
+    },
+    "kind": "ESTIMATED (15-35% of 1.52 h build)",
+    "evidence": "Measured: CPU mean 14-16% of 32 threads in build phases, about 5 cores with 8 slots. No load data for R54 itself. If disks are the limit, the gain shrinks.",
+    "proof_risk": "No proof change. Risk is a failed round: os error 1455 at 32 jobs on 2026-10-24 and a builder failure at 5.4 GB commit free. Needs the commit gate kept and machine-wide builders counted, since the file also serves lanes."
+   },
+   {
+    "rank": 5,
+    "cut": "Windows Defender and Search exclusions for C:/HandshakeBuild and the artifact root",
+    "hours_saved": "0.15-0.6",
+    "kind": "ESTIMATED; measured floor if scanning is the cause: first list exceeds second list by 0.13 h (R54) to 0.35 h (R58)",
+    "evidence": "Measured today: real-time protection on, tamper protection on, Search service running, exclusion list unreadable without admin. HANDOFF records no exclusions. First listing costs 4-6 times the second over the same binaries.",
+    "proof_risk": "No proof risk. It is a security trade-off and an Operator setting; the lead only reports it."
+   }
+  ],
+  "smaller_measured": [
+   {
+    "cut": "Skip doctest units with zero doctests",
+    "hours_saved": {
+     "R54": 0.09,
+     "R58": 0.12
+    },
+    "evidence": "R54 84 of 103 units, R58 46 of 55 units have none; they build the lib and find nothing.",
+    "proof_risk": "Loses the doc-build compile check for that set; a new doctest must re-enter the plan mechanically."
+   },
+   {
+    "cut": "Remove the second listing by using cargo test --no-run for the build step",
+    "hours_saved": {
+     "R54": 0.04,
+     "R58": 0.06
+    },
+    "evidence": "Second list and fresh check: 142 s (R54), 233 s (R58).",
+    "proof_risk": "The cold first-run cost moves into the run step; build and run stay separate records."
+   },
+   {
+    "cut": "Not ranked: keep unchanged files' mtimes instead of touching every file",
+    "hours_saved": "0.1-0.3 ESTIMATED",
+    "evidence": "Default rebuilds 56 crates every round on purpose.",
+    "proof_risk": "Touches the guard against stale artifact reuse; run-round.sh's header states why it exists. Not recommended first."
+   }
+  ]
+ },
+ "sources": [
+  "studio-round/results/R50-R58 (units.tsv, round.json, tests.json, junit.xml, stderr logs)",
+  "studio-round/validator-R5x (csize.jsonl, load-poll.log, gpu-poll.log, df-log.txt, capstop.log, r58_capguard.sh)",
+  "tools/run-round.sh, tools/disk-build-lock.sh, .config/*, .cargo/config.toml at c4d06841",
+  "tools/lead/lane_watch.sh",
+  "ledger.json direction.after_r58_20261106.r59_memory_gate, START_LOG.md, HANDOFF.md",
+  "cargo-nextest-0.9.148 registry source",
+  "git show/archive at 99836457, 96ace3ca, 091c4d1b, 4ffe1b06, 89bbf702",
+  "Live read 2026-11-07: Get-MpComputerStatus, Win32_PageFileUsage, Get-PhysicalDisk"
+ ],
+ "per_unit": {
+  "note": "Seconds. gap=idle before unit, build, first_list, run=run wall, nx=nextest Summary. Doctests: wall (includes compile), run=reported. Link cannot be split from compile in these logs.",
+  "rounds": {
+   "R52": [
+    {
+     "unit": "default",
+     "gap": 0.0,
+     "build": 678.0,
+     "first_list": 135.0,
+     "run": 74.0,
+     "nx": 60.4,
+     "compiling": 56,
+     "bins": 564,
+     "tests": 1839
+    },
+    {
+     "unit": "features:hsk-studio-composite+motion",
+     "gap": 0.6,
+     "build": 108.1,
+     "first_list": 13.4,
+     "run": 5.7,
+     "nx": 3.2,
+     "compiling": 9,
+     "bins": 59,
+     "tests": 213
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-psd",
+     "gap": 0.1,
+     "build": 58.3,
+     "first_list": 6.1,
+     "run": 2.9,
+     "nx": 0.2,
+     "compiling": 12,
+     "bins": 74,
+     "tests": 18
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-psd+import-raw",
+     "gap": 0.1,
+     "build": 55.6,
+     "first_list": 6.8,
+     "run": 5.4,
+     "nx": 0.3,
+     "compiling": 9,
+     "bins": 74,
+     "tests": 18
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-tiff",
+     "gap": 0.1,
+     "build": 50.0,
+     "first_list": 7.1,
+     "run": 2.7,
+     "nx": 0.3,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 18
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-raw+import-tiff",
+     "gap": 0.3,
+     "build": 40.0,
+     "first_list": 7.3,
+     "run": 8.0,
+     "nx": 5.2,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 18
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-pdf",
+     "gap": 0.1,
+     "build": 65.1,
+     "first_list": 5.8,
+     "run": 2.5,
+     "nx": 0.1,
+     "compiling": 13,
+     "bins": 74,
+     "tests": 13
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-raster",
+     "gap": 0.2,
+     "build": 41.8,
+     "first_list": 8.3,
+     "run": 3.3,
+     "nx": 0.4,
+     "compiling": 7,
+     "bins": 74,
+     "tests": 14
+    },
+    {
+     "unit": "features:hsk-studio-harness+viewer",
+     "gap": 0.1,
+     "build": 406.5,
+     "first_list": 25.2,
+     "run": 38.6,
+     "nx": 31.5,
+     "compiling": 29,
+     "bins": 74,
+     "tests": 189
+    },
+    {
+     "unit": "features:hsk-studio-harness+desktop+viewer",
+     "gap": 0.2,
+     "build": 324.8,
+     "first_list": 27.0,
+     "run": 35.5,
+     "nx": 32.0,
+     "compiling": 5,
+     "bins": 75,
+     "tests": 191
+    },
+    {
+     "unit": "features:hsk-studio-harness+media",
+     "gap": 0.3,
+     "build": 375.4,
+     "first_list": 29.2,
+     "run": 37.0,
+     "nx": 31.0,
+     "compiling": 4,
+     "bins": 74,
+     "tests": 225
+    },
+    {
+     "unit": "prebuild:hsk-studio-harness+media-native:reel-native-mf-worker",
+     "gap": 0.2,
+     "build": 5.1,
+     "compiling": 3
+    },
+    {
+     "unit": "features:hsk-studio-harness+media-native",
+     "gap": 0.1,
+     "build": 410.6,
+     "first_list": 30.8,
+     "run": 40.6,
+     "nx": 34.6,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 227
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-device",
+     "gap": 0.3,
+     "build": 340.2,
+     "first_list": 25.7,
+     "run": 36.9,
+     "nx": 32.7,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 191
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-batch",
+     "gap": 0.3,
+     "build": 399.4,
+     "first_list": 30.7,
+     "run": 37.9,
+     "nx": 33.2,
+     "compiling": 2,
+     "bins": 74,
+     "tests": 235
+    },
+    {
+     "unit": "features:hsk-studio-harness+layout-ui",
+     "gap": 0.3,
+     "build": 54.5,
+     "first_list": 6.7,
+     "run": 2.6,
+     "nx": 0.2,
+     "compiling": 5,
+     "bins": 74,
+     "tests": 24
+    },
+    {
+     "unit": "features:hsk-studio-harness+studio-aac",
+     "gap": 0.1,
+     "build": 334.8,
+     "first_list": 28.4,
+     "run": 35.2,
+     "nx": 31.3,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 225
+    },
+    {
+     "unit": "prebuild:hsk-studio-harness+os-encode:reel-native-mf-worker",
+     "gap": 0.3,
+     "build": 4.9,
+     "compiling": 1
+    },
+    {
+     "unit": "features:hsk-studio-harness+os-encode",
+     "gap": 0.1,
+     "build": 408.0,
+     "first_list": 29.0,
+     "run": 35.9,
+     "nx": 30.7,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 228
+    },
+    {
+     "unit": "prebuild:hsk-studio-harness+audio-plugin:score-plugin-worker",
+     "gap": 0.2,
+     "build": 5.5,
+     "compiling": 2
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-plugin",
+     "gap": 0.1,
+     "build": 415.4,
+     "first_list": 29.9,
+     "run": 37.5,
+     "nx": 31.7,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 236
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-batch+audio-device",
+     "gap": 0.3,
+     "build": 446.1,
+     "first_list": 30.0,
+     "run": 35.6,
+     "nx": 32.7,
+     "compiling": 2,
+     "bins": 74,
+     "tests": 240
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-affinity",
+     "gap": 0.3,
+     "build": 28.7,
+     "first_list": 6.3,
+     "run": 2.6,
+     "nx": 0.2,
+     "compiling": 4,
+     "bins": 74,
+     "tests": 15
+    },
+    {
+     "unit": "features:hsk-studio-harness-view+viewer",
+     "gap": 0.1,
+     "build": 129.3,
+     "first_list": 10.2,
+     "run": 6.7,
+     "nx": 4.9,
+     "compiling": 3,
+     "bins": 28,
+     "tests": 104
+    },
+    {
+     "unit": "features:hsk-studio-harness-view+audio-batch+desktop",
+     "gap": 0.1,
+     "build": 178.0,
+     "first_list": 12.0,
+     "run": 11.9,
+     "nx": 7.3,
+     "compiling": 3,
+     "bins": 28,
+     "tests": 159
+    },
+    {
+     "unit": "features:hsk-studio-interop-vector+eps-worker",
+     "gap": 0.4,
+     "build": 44.3,
+     "first_list": 1.3,
+     "run": 1.9,
+     "nx": 0.6,
+     "compiling": 13,
+     "bins": 7,
+     "tests": 26
+    },
+    {
+     "unit": "features:hsk-studio-interop-vector-core+eps-worker",
+     "gap": 0.1,
+     "build": 11.1,
+     "first_list": 0.7,
+     "run": 8.8,
+     "nx": 7.8,
+     "compiling": 8,
+     "bins": 5,
+     "tests": 18
+    },
+    {
+     "unit": "features:hsk-studio-kernel-bindings+test-faults",
+     "gap": 0.1,
+     "build": 9.0,
+     "first_list": 0.7,
+     "run": 1.2,
+     "nx": 0.2,
+     "compiling": 4,
+     "bins": 5,
+     "tests": 26
+    },
+    {
+     "unit": "features:hsk-studio-kernel-bindings+ckc-test-double",
+     "gap": 0.1,
+     "build": 5.4,
+     "first_list": 0.6,
+     "run": 1.1,
+     "nx": 0.2,
+     "compiling": 1,
+     "bins": 5,
+     "tests": 26
+    },
+    {
+     "unit": "features:hsk-studio-render-gpu+test-faults",
+     "gap": 0.1,
+     "build": 71.4,
+     "first_list": 14.1,
+     "run": 34.7,
+     "nx": 32.8,
+     "compiling": 3,
+     "bins": 36,
+     "tests": 108
+    },
+    {
+     "unit": "features:hsk-studio-render-gpu+shared-device",
+     "gap": 0.1,
+     "build": 71.1,
+     "first_list": 13.7,
+     "run": 28.9,
+     "nx": 26.3,
+     "compiling": 1,
+     "bins": 36,
+     "tests": 97
+    },
+    {
+     "unit": "features:hsk-studio-render-gpu+shared-device+test-faults",
+     "gap": 0.4,
+     "build": 94.1,
+     "first_list": 14.7,
+     "run": 47.7,
+     "nx": 45.8,
+     "compiling": 1,
+     "bins": 36,
+     "tests": 113
+    },
+    {
+     "unit": "features:hsk-studio-type+harfrust",
+     "gap": 0.1,
+     "build": 21.4,
+     "first_list": 13.6,
+     "run": 2.7,
+     "nx": 1.5,
+     "compiling": 1,
+     "bins": 14,
+     "tests": 107
+    },
+    {
+     "unit": "ignored:hsk-studio-develop",
+     "gap": 0.1,
+     "build": 23.5,
+     "first_list": 17.2,
+     "run": 86.2,
+     "nx": 84.5,
+     "compiling": 2,
+     "bins": 40,
+     "tests": 19
+    },
+    {
+     "unit": "ignored:hsk-studio-harness+import-psd+import-raw",
+     "gap": 0.3,
+     "build": 8.1,
+     "first_list": 10.8,
+     "run": 14.2,
+     "nx": 11.8,
+     "compiling": 1,
+     "bins": 74,
+     "tests": 20
+    },
+    {
+     "unit": "ignored:hsk-studio-harness+import-affinity",
+     "gap": 0.2,
+     "build": 3.0,
+     "first_list": 1.4,
+     "run": 3.0,
+     "nx": 0.7,
+     "compiling": 1,
+     "bins": 74,
+     "tests": 1
+    },
+    {
+     "unit": "doctest:hsk-studio-chronicle",
+     "wall": 4.5,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-components",
+     "wall": 3.1,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-composite",
+     "wall": 9.6,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-composite+motion",
+     "wall": 2.8,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-develop",
+     "wall": 1.8,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-folio",
+     "wall": 31.1,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness",
+     "wall": 1.6,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-psd",
+     "wall": 1.4,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-psd+import-raw",
+     "wall": 1.0,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-tiff",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-raw+import-tiff",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-pdf",
+     "wall": 1.3,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-raster",
+     "wall": 0.8,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+viewer",
+     "wall": 1.2,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+desktop+viewer",
+     "wall": 1.2,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+media",
+     "wall": 0.9,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+media-native",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+audio-device",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+audio-batch",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+layout-ui",
+     "wall": 1.6,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+studio-aac",
+     "wall": 1.6,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+os-encode",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+audio-plugin",
+     "wall": 1.0,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+audio-batch+audio-device",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-affinity",
+     "wall": 0.9,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-core",
+     "wall": 3.7,
+     "compiling": 2,
+     "doctests": 2,
+     "run": 0.4
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-view",
+     "wall": 1.7,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-view+viewer",
+     "wall": 1.8,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-view+audio-batch+desktop",
+     "wall": 2.3,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-fig",
+     "wall": 33.4,
+     "compiling": 15,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-fig-base",
+     "wall": 2.3,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-fig-native",
+     "wall": 8.6,
+     "compiling": 8,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-layout",
+     "wall": 11.5,
+     "compiling": 6,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-lrcat",
+     "wall": 4.9,
+     "compiling": 5,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-media",
+     "wall": 5.4,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-psd",
+     "wall": 19.1,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector",
+     "wall": 6.4,
+     "compiling": 4,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector+eps-worker",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector-core",
+     "wall": 5.4,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector-core+eps-worker",
+     "wall": 0.9,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector-svg",
+     "wall": 8.7,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-kernel-bindings",
+     "wall": 4.0,
+     "compiling": 1,
+     "doctests": 4,
+     "run": 1.7
+    },
+    {
+     "unit": "doctest:hsk-studio-kernel-bindings+test-faults",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 1,
+     "run": 0.1
+    },
+    {
+     "unit": "doctest:hsk-studio-kernel-bindings+ckc-test-double",
+     "wall": 1.8,
+     "compiling": 0,
+     "doctests": 3,
+     "run": 0.3
+    },
+    {
+     "unit": "doctest:hsk-studio-layout",
+     "wall": 26.1,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-package",
+     "wall": 3.0,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-pigment",
+     "wall": 6.8,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-pulse",
+     "wall": 22.9,
+     "compiling": 5,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-render-cpu",
+     "wall": 8.4,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-render-gpu",
+     "wall": 17.1,
+     "compiling": 1,
+     "doctests": 12,
+     "run": 2.1
+    },
+    {
+     "unit": "doctest:hsk-studio-render-gpu+test-faults",
+     "wall": 3.8,
+     "compiling": 0,
+     "doctests": 7,
+     "run": 2.2
+    },
+    {
+     "unit": "doctest:hsk-studio-render-gpu+shared-device",
+     "wall": 3.3,
+     "compiling": 0,
+     "doctests": 10,
+     "run": 2.3
+    },
+    {
+     "unit": "doctest:hsk-studio-render-gpu+shared-device+test-faults",
+     "wall": 2.6,
+     "compiling": 0,
+     "doctests": 5,
+     "run": 1.6
+    },
+    {
+     "unit": "doctest:hsk-studio-session",
+     "wall": 4.0,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-type",
+     "wall": 8.4,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-type+harfrust",
+     "wall": 1.0,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    }
+   ],
+   "R54": [
+    {
+     "unit": "default",
+     "gap": 0.0,
+     "build": 609.6,
+     "first_list": 128.7,
+     "run": 128.2,
+     "nx": 108.8,
+     "compiling": 56,
+     "bins": 781,
+     "tests": 3871
+    },
+    {
+     "unit": "features:hsk-studio-composite+motion",
+     "gap": 0.7,
+     "build": 76.2,
+     "first_list": 11.9,
+     "run": 4.4,
+     "nx": 2.2,
+     "compiling": 9,
+     "bins": 59,
+     "tests": 213
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-psd",
+     "gap": 0.1,
+     "build": 57.6,
+     "first_list": 6.2,
+     "run": 2.7,
+     "nx": 0.3,
+     "compiling": 12,
+     "bins": 74,
+     "tests": 18
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-psd+import-raw",
+     "gap": 0.1,
+     "build": 39.0,
+     "first_list": 6.3,
+     "run": 3.6,
+     "nx": 0.3,
+     "compiling": 9,
+     "bins": 74,
+     "tests": 18
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-tiff",
+     "gap": 0.1,
+     "build": 29.3,
+     "first_list": 6.2,
+     "run": 3.1,
+     "nx": 0.8,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 20
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-raw+import-tiff",
+     "gap": 0.1,
+     "build": 30.2,
+     "first_list": 6.9,
+     "run": 6.6,
+     "nx": 4.2,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 20
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-pdf",
+     "gap": 0.1,
+     "build": 51.4,
+     "first_list": 5.7,
+     "run": 2.6,
+     "nx": 0.2,
+     "compiling": 13,
+     "bins": 74,
+     "tests": 13
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-raster",
+     "gap": 0.5,
+     "build": 31.5,
+     "first_list": 6.1,
+     "run": 2.8,
+     "nx": 0.3,
+     "compiling": 7,
+     "bins": 74,
+     "tests": 14
+    },
+    {
+     "unit": "features:hsk-studio-harness+viewer",
+     "gap": 0.1,
+     "build": 326.8,
+     "first_list": 25.8,
+     "run": 33.9,
+     "nx": 27.7,
+     "compiling": 29,
+     "bins": 74,
+     "tests": 191
+    },
+    {
+     "unit": "features:hsk-studio-harness+desktop+viewer",
+     "gap": 0.3,
+     "build": 364.8,
+     "first_list": 25.2,
+     "run": 34.3,
+     "nx": 27.7,
+     "compiling": 5,
+     "bins": 75,
+     "tests": 193
+    },
+    {
+     "unit": "features:hsk-studio-harness+media",
+     "gap": 0.3,
+     "build": 316.8,
+     "first_list": 27.6,
+     "run": 31.1,
+     "nx": 28.3,
+     "compiling": 4,
+     "bins": 74,
+     "tests": 227
+    },
+    {
+     "unit": "prebuild:hsk-studio-harness+media-native:reel-native-mf-worker",
+     "gap": 0.2,
+     "build": 5.7,
+     "compiling": 3
+    },
+    {
+     "unit": "features:hsk-studio-harness+media-native",
+     "gap": 0.1,
+     "build": 351.3,
+     "first_list": 29.3,
+     "run": 34.1,
+     "nx": 28.3,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 229
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-device",
+     "gap": 0.2,
+     "build": 315.4,
+     "first_list": 25.3,
+     "run": 35.3,
+     "nx": 27.9,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 193
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-batch",
+     "gap": 0.2,
+     "build": 398.6,
+     "first_list": 29.1,
+     "run": 32.5,
+     "nx": 28.9,
+     "compiling": 2,
+     "bins": 74,
+     "tests": 237
+    },
+    {
+     "unit": "features:hsk-studio-harness+layout-ui",
+     "gap": 0.3,
+     "build": 41.9,
+     "first_list": 6.6,
+     "run": 4.2,
+     "nx": 0.2,
+     "compiling": 5,
+     "bins": 74,
+     "tests": 24
+    },
+    {
+     "unit": "features:hsk-studio-harness+studio-aac",
+     "gap": 0.1,
+     "build": 345.7,
+     "first_list": 29.3,
+     "run": 31.1,
+     "nx": 28.2,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 227
+    },
+    {
+     "unit": "prebuild:hsk-studio-harness+os-encode:reel-native-mf-worker",
+     "gap": 0.4,
+     "build": 5.4,
+     "compiling": 1
+    },
+    {
+     "unit": "features:hsk-studio-harness+os-encode",
+     "gap": 0.1,
+     "build": 340.5,
+     "first_list": 27.9,
+     "run": 32.9,
+     "nx": 28.3,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 230
+    },
+    {
+     "unit": "prebuild:hsk-studio-harness+audio-plugin:score-plugin-worker",
+     "gap": 0.3,
+     "build": 5.5,
+     "compiling": 2
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-plugin",
+     "gap": 0.3,
+     "build": 408.6,
+     "first_list": 29.4,
+     "run": 33.7,
+     "nx": 29.6,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 238
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-batch+audio-device",
+     "gap": 0.2,
+     "build": 378.6,
+     "first_list": 29.8,
+     "run": 32.8,
+     "nx": 29.3,
+     "compiling": 2,
+     "bins": 74,
+     "tests": 242
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-affinity",
+     "gap": 0.2,
+     "build": 28.9,
+     "first_list": 6.0,
+     "run": 2.5,
+     "nx": 0.1,
+     "compiling": 4,
+     "bins": 74,
+     "tests": 15
+    },
+    {
+     "unit": "features:hsk-studio-harness-core+import-tiff",
+     "gap": 0.1,
+     "build": 18.5,
+     "first_list": 2.2,
+     "run": 1.7,
+     "nx": 0.6,
+     "compiling": 7,
+     "bins": 11,
+     "tests": 52
+    },
+    {
+     "unit": "features:hsk-studio-harness-view+viewer",
+     "gap": 0.1,
+     "build": 117.6,
+     "first_list": 10.1,
+     "run": 6.5,
+     "nx": 4.7,
+     "compiling": 3,
+     "bins": 28,
+     "tests": 104
+    },
+    {
+     "unit": "features:hsk-studio-harness-view+audio-batch+desktop",
+     "gap": 0.1,
+     "build": 175.2,
+     "first_list": 12.2,
+     "run": 9.3,
+     "nx": 6.7,
+     "compiling": 3,
+     "bins": 28,
+     "tests": 159
+    },
+    {
+     "unit": "features:hsk-studio-interop-vector+eps-worker",
+     "gap": 0.3,
+     "build": 18.0,
+     "first_list": 1.2,
+     "run": 1.7,
+     "nx": 0.7,
+     "compiling": 13,
+     "bins": 7,
+     "tests": 26
+    },
+    {
+     "unit": "features:hsk-studio-interop-vector-core+eps-worker",
+     "gap": 0.1,
+     "build": 9.3,
+     "first_list": 0.7,
+     "run": 8.7,
+     "nx": 7.7,
+     "compiling": 8,
+     "bins": 5,
+     "tests": 18
+    },
+    {
+     "unit": "features:hsk-studio-kernel-bindings+test-faults",
+     "gap": 0.1,
+     "build": 6.2,
+     "first_list": 0.6,
+     "run": 1.8,
+     "nx": 0.2,
+     "compiling": 3,
+     "bins": 5,
+     "tests": 26
+    },
+    {
+     "unit": "features:hsk-studio-kernel-bindings+ckc-test-double",
+     "gap": 0.1,
+     "build": 16.1,
+     "first_list": 0.6,
+     "run": 1.3,
+     "nx": 0.2,
+     "compiling": 1,
+     "bins": 5,
+     "tests": 26
+    },
+    {
+     "unit": "features:hsk-studio-motion-js+quickjs",
+     "gap": 0.2,
+     "build": 22.7,
+     "first_list": 3.3,
+     "run": 6.6,
+     "nx": 5.6,
+     "compiling": 1,
+     "bins": 9,
+     "tests": 35
+    },
+    {
+     "unit": "features:hsk-studio-motion-js+quickjs+test-faults",
+     "gap": 0.1,
+     "build": 8.3,
+     "first_list": 1.6,
+     "run": 6.4,
+     "nx": 5.3,
+     "compiling": 1,
+     "bins": 10,
+     "tests": 38
+    },
+    {
+     "unit": "features:hsk-studio-reel+av1",
+     "gap": 0.1,
+     "build": 30.5,
+     "first_list": 5.3,
+     "run": 18.3,
+     "nx": 16.8,
+     "compiling": 1,
+     "bins": 31,
+     "tests": 156
+    },
+    {
+     "unit": "features:hsk-studio-reel+prores",
+     "gap": 0.1,
+     "build": 19.6,
+     "first_list": 4.2,
+     "run": 20.6,
+     "nx": 18.7,
+     "compiling": 1,
+     "bins": 31,
+     "tests": 155
+    },
+    {
+     "unit": "features:hsk-studio-reel+av1-encode",
+     "gap": 0.1,
+     "build": 32.7,
+     "first_list": 4.1,
+     "run": 18.9,
+     "nx": 17.4,
+     "compiling": 1,
+     "bins": 31,
+     "tests": 154
+    },
+    {
+     "unit": "features:hsk-studio-reel+av1+av1-encode",
+     "gap": 0.1,
+     "build": 25.9,
+     "first_list": 5.6,
+     "run": 20.5,
+     "nx": 18.2,
+     "compiling": 1,
+     "bins": 31,
+     "tests": 161
+    },
+    {
+     "unit": "features:hsk-studio-reel+studio-aac",
+     "gap": 0.2,
+     "build": 20.8,
+     "first_list": 4.0,
+     "run": 18.0,
+     "nx": 16.6,
+     "compiling": 1,
+     "bins": 31,
+     "tests": 155
+    },
+    {
+     "unit": "features:hsk-studio-reel-native+av1-worker",
+     "gap": 0.1,
+     "build": 5.0,
+     "first_list": 0.3,
+     "run": 1.1,
+     "nx": 0.2,
+     "compiling": 2,
+     "bins": 3,
+     "tests": 6
+    },
+    {
+     "unit": "features:hsk-studio-reel-native+av1-worker+test-faults",
+     "gap": 0.1,
+     "build": 4.6,
+     "first_list": 0.5,
+     "run": 1.8,
+     "nx": 0.9,
+     "compiling": 1,
+     "bins": 4,
+     "tests": 25
+    },
+    {
+     "unit": "features:hsk-studio-reel-native+mf-worker",
+     "gap": 0.1,
+     "build": 1.8,
+     "first_list": 0.2,
+     "run": 1.0,
+     "nx": 0.1,
+     "compiling": 1,
+     "bins": 2,
+     "tests": 8
+    },
+    {
+     "unit": "features:hsk-studio-reel-native+mf-worker+test-faults",
+     "gap": 0.1,
+     "build": 4.4,
+     "first_list": 0.5,
+     "run": 6.8,
+     "nx": 5.9,
+     "compiling": 1,
+     "bins": 4,
+     "tests": 16
+    },
+    {
+     "unit": "features:hsk-studio-reel-native+mf-worker+os-encode+test-faults",
+     "gap": 0.1,
+     "build": 5.7,
+     "first_list": 0.6,
+     "run": 6.8,
+     "nx": 5.9,
+     "compiling": 1,
+     "bins": 5,
+     "tests": 18
+    },
+    {
+     "unit": "features:hsk-studio-reel-native+mf-worker+os-encode+studio-aac+test-faults",
+     "gap": 0.1,
+     "build": 5.9,
+     "first_list": 0.6,
+     "run": 6.9,
+     "nx": 5.9,
+     "compiling": 2,
+     "bins": 5,
+     "tests": 18
+    },
+    {
+     "unit": "features:hsk-studio-render-gpu+test-faults",
+     "gap": 0.1,
+     "build": 83.6,
+     "first_list": 14.2,
+     "run": 40.8,
+     "nx": 39.0,
+     "compiling": 3,
+     "bins": 36,
+     "tests": 108
+    },
+    {
+     "unit": "features:hsk-studio-render-gpu+shared-device",
+     "gap": 0.1,
+     "build": 82.7,
+     "first_list": 13.7,
+     "run": 37.9,
+     "nx": 31.5,
+     "compiling": 1,
+     "bins": 36,
+     "tests": 97
+    },
+    {
+     "unit": "features:hsk-studio-render-gpu+shared-device+test-faults",
+     "gap": 1.0,
+     "build": 92.9,
+     "first_list": 15.0,
+     "run": 42.6,
+     "nx": 40.1,
+     "compiling": 1,
+     "bins": 36,
+     "tests": 113
+    },
+    {
+     "unit": "features:hsk-studio-score-device+cpal-backend",
+     "gap": 0.1,
+     "build": 9.2,
+     "first_list": 0.5,
+     "run": 1.7,
+     "nx": 0.6,
+     "compiling": 1,
+     "bins": 4,
+     "tests": 10
+    },
+    {
+     "unit": "features:hsk-studio-score-plugin+test-faults",
+     "gap": 0.1,
+     "build": 6.3,
+     "first_list": 0.7,
+     "run": 10.3,
+     "nx": 9.3,
+     "compiling": 1,
+     "bins": 6,
+     "tests": 26
+    },
+    {
+     "unit": "features:hsk-studio-score-plugin+clap+test-faults",
+     "gap": 0.1,
+     "build": 9.7,
+     "first_list": 0.6,
+     "run": 10.2,
+     "nx": 9.1,
+     "compiling": 1,
+     "bins": 6,
+     "tests": 30
+    },
+    {
+     "unit": "features:hsk-studio-type+harfrust",
+     "gap": 0.1,
+     "build": 17.6,
+     "first_list": 3.6,
+     "run": 3.0,
+     "nx": 1.8,
+     "compiling": 1,
+     "bins": 14,
+     "tests": 109
+    },
+    {
+     "unit": "features:hsk-studio-worker+test-faults",
+     "gap": 0.1,
+     "build": 3.5,
+     "first_list": 0.3,
+     "run": 1.3,
+     "nx": 0.3,
+     "compiling": 1,
+     "bins": 3,
+     "tests": 7
+    },
+    {
+     "unit": "ignored:hsk-studio-develop",
+     "gap": 0.1,
+     "build": 29.4,
+     "first_list": 16.1,
+     "run": 66.0,
+     "nx": 64.2,
+     "compiling": 1,
+     "bins": 40,
+     "tests": 19
+    },
+    {
+     "unit": "ignored:hsk-studio-harness+import-psd+import-raw",
+     "gap": 0.4,
+     "build": 7.7,
+     "first_list": 9.3,
+     "run": 19.2,
+     "nx": 16.8,
+     "compiling": 1,
+     "bins": 74,
+     "tests": 20
+    },
+    {
+     "unit": "ignored:hsk-studio-harness+import-affinity",
+     "gap": 0.1,
+     "build": 4.9,
+     "first_list": 1.5,
+     "run": 3.3,
+     "nx": 1.0,
+     "compiling": 1,
+     "bins": 74,
+     "tests": 1
+    },
+    {
+     "unit": "ignored:hsk-studio-interop-raster",
+     "gap": 0.1,
+     "build": 4.8,
+     "first_list": 0.6,
+     "run": 2.7,
+     "nx": 1.6,
+     "compiling": 1,
+     "bins": 5,
+     "tests": 1
+    },
+    {
+     "unit": "ignored:hsk-studio-interop-tiff",
+     "gap": 0.1,
+     "build": 8.0,
+     "first_list": 0.8,
+     "run": 34.1,
+     "nx": 33.1,
+     "compiling": 1,
+     "bins": 7,
+     "tests": 1
+    },
+    {
+     "unit": "doctest:hsk-studio-accord",
+     "wall": 1.3,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-chronicle",
+     "wall": 4.5,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-components",
+     "wall": 3.1,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0.0
+    },
+    {
+     "unit": "doctest:hsk-studio-composite",
+     "wall": 6.1,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-composite+motion",
+     "wall": 1.7,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-controls",
+     "wall": 4.3,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-develop",
+     "wall": 0.7,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-folio",
+     "wall": 30.2,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness",
+     "wall": 2.5,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-psd",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-psd+import-raw",
+     "wall": 1.0,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-tiff",
+     "wall": 1.4,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-raw+import-tiff",
+     "wall": 0.7,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-pdf",
+     "wall": 1.2,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-raster",
+     "wall": 1.3,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+viewer",
+     "wall": 1.9,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+desktop+viewer",
+     "wall": 1.9,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+media",
+     "wall": 2.6,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+media-native",
+     "wall": 1.6,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+audio-device",
+     "wall": 2.9,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+audio-batch",
+     "wall": 3.4,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+layout-ui",
+     "wall": 1.4,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+studio-aac",
+     "wall": 5.5,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+os-encode",
+     "wall": 1.7,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+audio-plugin",
+     "wall": 1.5,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+audio-batch+audio-device",
+     "wall": 1.2,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-affinity",
+     "wall": 1.6,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-core",
+     "wall": 7.4,
+     "compiling": 2,
+     "doctests": 2,
+     "run": 0.8
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-core+import-tiff",
+     "wall": 2.6,
+     "compiling": 0,
+     "doctests": 2,
+     "run": 1.1
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-view",
+     "wall": 2.8,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-view+viewer",
+     "wall": 3.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-view+audio-batch+desktop",
+     "wall": 5.7,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-affinity",
+     "wall": 1.7,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-fig",
+     "wall": 36.3,
+     "compiling": 15,
+     "doctests": 0,
+     "run": 0.0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-fig-base",
+     "wall": 3.3,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-fig-native",
+     "wall": 9.6,
+     "compiling": 8,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-layout",
+     "wall": 11.3,
+     "compiling": 6,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-lrcat",
+     "wall": 6.2,
+     "compiling": 3,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-media",
+     "wall": 3.6,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-psd",
+     "wall": 6.9,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-raster",
+     "wall": 0.9,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-tiff",
+     "wall": 1.2,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector",
+     "wall": 6.5,
+     "compiling": 4,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector+eps-worker",
+     "wall": 1.6,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector-core",
+     "wall": 1.8,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector-core+eps-worker",
+     "wall": 1.2,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector-svg",
+     "wall": 3.1,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-kernel-bindings",
+     "wall": 3.6,
+     "compiling": 1,
+     "doctests": 4,
+     "run": 0.8
+    },
+    {
+     "unit": "doctest:hsk-studio-kernel-bindings+test-faults",
+     "wall": 1.5,
+     "compiling": 0,
+     "doctests": 1,
+     "run": 0.1
+    },
+    {
+     "unit": "doctest:hsk-studio-kernel-bindings+ckc-test-double",
+     "wall": 0.8,
+     "compiling": 0,
+     "doctests": 3,
+     "run": 0.3
+    },
+    {
+     "unit": "doctest:hsk-studio-layout",
+     "wall": 9.4,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-motion",
+     "wall": 1.8,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-motion-js",
+     "wall": 1.4,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-motion-js+quickjs",
+     "wall": 1.5,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-motion-js+quickjs+test-faults",
+     "wall": 1.2,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-nib",
+     "wall": 4.3,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-observe",
+     "wall": 2.6,
+     "compiling": 1,
+     "doctests": 3,
+     "run": 0.2
+    },
+    {
+     "unit": "doctest:hsk-studio-package",
+     "wall": 3.5,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-pigment",
+     "wall": 7.3,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-press",
+     "wall": 5.9,
+     "compiling": 3,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-press-read",
+     "wall": 5.7,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-press-write",
+     "wall": 2.8,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-prism",
+     "wall": 5.3,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-ps",
+     "wall": 10.9,
+     "compiling": 7,
+     "doctests": 5,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-ps-core",
+     "wall": 4.3,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-ps-engine",
+     "wall": 1.6,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-ps-fonts",
+     "wall": 2.6,
+     "compiling": 1,
+     "doctests": 1,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-ps-graphics",
+     "wall": 4.9,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-ps-ops",
+     "wall": 3.6,
+     "compiling": 1,
+     "doctests": 1,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-ps-pdf",
+     "wall": 2.8,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-pulse",
+     "wall": 9.8,
+     "compiling": 5,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-reel",
+     "wall": 5.2,
+     "compiling": 1,
+     "doctests": 2,
+     "run": 0.1
+    },
+    {
+     "unit": "doctest:hsk-studio-reel+av1",
+     "wall": 2.6,
+     "compiling": 0,
+     "doctests": 2,
+     "run": 0.1
+    },
+    {
+     "unit": "doctest:hsk-studio-reel+prores",
+     "wall": 1.5,
+     "compiling": 0,
+     "doctests": 2,
+     "run": 0.1
+    },
+    {
+     "unit": "doctest:hsk-studio-reel+av1-encode",
+     "wall": 3.9,
+     "compiling": 0,
+     "doctests": 2,
+     "run": 0.1
+    },
+    {
+     "unit": "doctest:hsk-studio-reel+av1+av1-encode",
+     "wall": 2.0,
+     "compiling": 0,
+     "doctests": 2,
+     "run": 0.1
+    },
+    {
+     "unit": "doctest:hsk-studio-reel+studio-aac",
+     "wall": 1.7,
+     "compiling": 0,
+     "doctests": 2,
+     "run": 0.1
+    },
+    {
+     "unit": "doctest:hsk-studio-reel-native",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-reel-native+av1-worker",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-reel-native+av1-worker+test-faults",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-reel-native+mf-worker",
+     "wall": 3.5,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-reel-native+mf-worker+test-faults",
+     "wall": 0.8,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-reel-native+mf-worker+os-encode+test-faults",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-reel-native+mf-worker+os-encode+studio-aac+test-faults",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-render-cpu",
+     "wall": 5.4,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-render-gpu",
+     "wall": 4.7,
+     "compiling": 1,
+     "doctests": 12,
+     "run": 1.8
+    },
+    {
+     "unit": "doctest:hsk-studio-render-gpu+test-faults",
+     "wall": 2.5,
+     "compiling": 0,
+     "doctests": 7,
+     "run": 0.9
+    },
+    {
+     "unit": "doctest:hsk-studio-render-gpu+shared-device",
+     "wall": 2.8,
+     "compiling": 0,
+     "doctests": 10,
+     "run": 1.6
+    },
+    {
+     "unit": "doctest:hsk-studio-render-gpu+shared-device+test-faults",
+     "wall": 1.4,
+     "compiling": 0,
+     "doctests": 5,
+     "run": 0.6
+    },
+    {
+     "unit": "doctest:hsk-studio-score",
+     "wall": 3.0,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-score-device",
+     "wall": 0.8,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-score-device+cpal-backend",
+     "wall": 1.3,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-score-plugin",
+     "wall": 0.5,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-score-plugin+test-faults",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-score-plugin+clap+test-faults",
+     "wall": 1.4,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-session",
+     "wall": 2.3,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-type",
+     "wall": 5.4,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-type+harfrust",
+     "wall": 2.2,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-web",
+     "wall": 2.8,
+     "compiling": 3,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-web-assets",
+     "wall": 1.0,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-web-core",
+     "wall": 1.4,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-worker",
+     "wall": 3.8,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-worker+test-faults",
+     "wall": 0.6,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    }
+   ],
+   "R56": [
+    {
+     "unit": "default",
+     "gap": 0.1,
+     "build": 791.5,
+     "first_list": 138.5,
+     "run": 83.6,
+     "nx": 68.2,
+     "compiling": 56,
+     "bins": 587,
+     "tests": 2083
+    },
+    {
+     "unit": "features:hsk-studio-composite+motion",
+     "gap": 0.6,
+     "build": 86.2,
+     "first_list": 13.2,
+     "run": 5.1,
+     "nx": 2.6,
+     "compiling": 9,
+     "bins": 59,
+     "tests": 213
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-psd",
+     "gap": 0.2,
+     "build": 72.9,
+     "first_list": 6.5,
+     "run": 5.2,
+     "nx": 0.3,
+     "compiling": 12,
+     "bins": 74,
+     "tests": 18
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-psd+import-raw",
+     "gap": 0.1,
+     "build": 32.8,
+     "first_list": 7.1,
+     "run": 2.8,
+     "nx": 0.3,
+     "compiling": 9,
+     "bins": 74,
+     "tests": 18
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-tiff",
+     "gap": 0.1,
+     "build": 30.7,
+     "first_list": 7.1,
+     "run": 3.4,
+     "nx": 0.8,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 20
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-raw+import-tiff",
+     "gap": 0.1,
+     "build": 35.5,
+     "first_list": 7.3,
+     "run": 7.2,
+     "nx": 4.7,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 20
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-pdf",
+     "gap": 0.5,
+     "build": 61.8,
+     "first_list": 6.6,
+     "run": 2.9,
+     "nx": 0.2,
+     "compiling": 13,
+     "bins": 74,
+     "tests": 13
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-raster",
+     "gap": 0.1,
+     "build": 40.7,
+     "first_list": 7.5,
+     "run": 4.0,
+     "nx": 0.2,
+     "compiling": 7,
+     "bins": 74,
+     "tests": 14
+    },
+    {
+     "unit": "features:hsk-studio-harness+viewer",
+     "gap": 0.1,
+     "build": 393.4,
+     "first_list": 27.8,
+     "run": 43.6,
+     "nx": 38.0,
+     "compiling": 29,
+     "bins": 74,
+     "tests": 191
+    },
+    {
+     "unit": "features:hsk-studio-harness+desktop+viewer",
+     "gap": 0.5,
+     "build": 444.2,
+     "first_list": 29.0,
+     "run": 43.1,
+     "nx": 37.7,
+     "compiling": 5,
+     "bins": 75,
+     "tests": 193
+    },
+    {
+     "unit": "features:hsk-studio-harness+media",
+     "gap": 0.4,
+     "build": 459.0,
+     "first_list": 29.8,
+     "run": 40.7,
+     "nx": 36.3,
+     "compiling": 4,
+     "bins": 74,
+     "tests": 227
+    },
+    {
+     "unit": "prebuild:hsk-studio-harness+media-native:reel-native-mf-worker",
+     "gap": 0.3,
+     "build": 7.4,
+     "compiling": 3
+    },
+    {
+     "unit": "features:hsk-studio-harness+media-native",
+     "gap": 0.1,
+     "build": 461.5,
+     "first_list": 30.7,
+     "run": 39.5,
+     "nx": 35.7,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 229
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-device",
+     "gap": 0.3,
+     "build": 380.4,
+     "first_list": 36.0,
+     "run": 40.8,
+     "nx": 33.8,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 193
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-batch",
+     "gap": 0.4,
+     "build": 526.5,
+     "first_list": 32.2,
+     "run": 50.9,
+     "nx": 41.2,
+     "compiling": 2,
+     "bins": 74,
+     "tests": 237
+    },
+    {
+     "unit": "features:hsk-studio-harness+layout-ui",
+     "gap": 0.6,
+     "build": 50.2,
+     "first_list": 7.1,
+     "run": 3.3,
+     "nx": 0.2,
+     "compiling": 5,
+     "bins": 74,
+     "tests": 24
+    },
+    {
+     "unit": "features:hsk-studio-harness+studio-aac",
+     "gap": 0.1,
+     "build": 488.5,
+     "first_list": 31.3,
+     "run": 42.5,
+     "nx": 36.1,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 227
+    },
+    {
+     "unit": "prebuild:hsk-studio-harness+os-encode:reel-native-mf-worker",
+     "gap": 0.3,
+     "build": 7.6,
+     "compiling": 1
+    },
+    {
+     "unit": "features:hsk-studio-harness+os-encode",
+     "gap": 0.1,
+     "build": 473.7,
+     "first_list": 31.6,
+     "run": 40.1,
+     "nx": 36.2,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 230
+    },
+    {
+     "unit": "prebuild:hsk-studio-harness+audio-plugin:score-plugin-worker",
+     "gap": 0.4,
+     "build": 7.7,
+     "compiling": 2
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-plugin",
+     "gap": 0.1,
+     "build": 632.1,
+     "first_list": 32.6,
+     "run": 40.9,
+     "nx": 34.3,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 238
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-batch+audio-device",
+     "gap": 0.4,
+     "build": 473.9,
+     "first_list": 39.1,
+     "run": 39.7,
+     "nx": 36.0,
+     "compiling": 2,
+     "bins": 74,
+     "tests": 242
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-affinity",
+     "gap": 0.4,
+     "build": 30.8,
+     "first_list": 6.6,
+     "run": 2.8,
+     "nx": 0.2,
+     "compiling": 4,
+     "bins": 74,
+     "tests": 15
+    },
+    {
+     "unit": "features:hsk-studio-harness-core+import-tiff",
+     "gap": 0.4,
+     "build": 19.8,
+     "first_list": 2.5,
+     "run": 2.7,
+     "nx": 0.7,
+     "compiling": 7,
+     "bins": 11,
+     "tests": 52
+    },
+    {
+     "unit": "features:hsk-studio-harness-view+viewer",
+     "gap": 0.1,
+     "build": 188.6,
+     "first_list": 11.8,
+     "run": 9.2,
+     "nx": 5.0,
+     "compiling": 3,
+     "bins": 28,
+     "tests": 106
+    },
+    {
+     "unit": "features:hsk-studio-harness-view+audio-batch+desktop",
+     "gap": 0.1,
+     "build": 254.4,
+     "first_list": 12.9,
+     "run": 9.9,
+     "nx": 7.7,
+     "compiling": 3,
+     "bins": 28,
+     "tests": 161
+    },
+    {
+     "unit": "features:hsk-studio-interop-vector+eps-worker",
+     "gap": 0.6,
+     "build": 23.8,
+     "first_list": 1.4,
+     "run": 2.6,
+     "nx": 0.7,
+     "compiling": 13,
+     "bins": 7,
+     "tests": 26
+    },
+    {
+     "unit": "features:hsk-studio-interop-vector-core+eps-worker",
+     "gap": 0.1,
+     "build": 12.3,
+     "first_list": 1.0,
+     "run": 9.0,
+     "nx": 7.8,
+     "compiling": 8,
+     "bins": 5,
+     "tests": 18
+    },
+    {
+     "unit": "features:hsk-studio-kernel-bindings+test-faults",
+     "gap": 0.1,
+     "build": 10.0,
+     "first_list": 0.7,
+     "run": 1.3,
+     "nx": 0.2,
+     "compiling": 3,
+     "bins": 5,
+     "tests": 26
+    },
+    {
+     "unit": "features:hsk-studio-kernel-bindings+ckc-test-double",
+     "gap": 0.1,
+     "build": 6.6,
+     "first_list": 0.7,
+     "run": 1.5,
+     "nx": 0.2,
+     "compiling": 1,
+     "bins": 5,
+     "tests": 26
+    },
+    {
+     "unit": "features:hsk-studio-render-gpu+test-faults",
+     "gap": 0.1,
+     "build": 97.6,
+     "first_list": 15.8,
+     "run": 34.8,
+     "nx": 32.5,
+     "compiling": 3,
+     "bins": 36,
+     "tests": 108
+    },
+    {
+     "unit": "features:hsk-studio-render-gpu+shared-device",
+     "gap": 0.2,
+     "build": 87.9,
+     "first_list": 15.1,
+     "run": 39.7,
+     "nx": 37.6,
+     "compiling": 1,
+     "bins": 36,
+     "tests": 97
+    },
+    {
+     "unit": "features:hsk-studio-render-gpu+shared-device+test-faults",
+     "gap": 0.4,
+     "build": 81.4,
+     "first_list": 15.3,
+     "run": 42.3,
+     "nx": 40.0,
+     "compiling": 1,
+     "bins": 36,
+     "tests": 113
+    },
+    {
+     "unit": "features:hsk-studio-type+harfrust",
+     "gap": 0.2,
+     "build": 21.4,
+     "first_list": 4.0,
+     "run": 3.2,
+     "nx": 1.9,
+     "compiling": 1,
+     "bins": 14,
+     "tests": 114
+    },
+    {
+     "unit": "ignored:hsk-studio-develop",
+     "gap": 0.1,
+     "build": 31.4,
+     "first_list": 5.5,
+     "run": 94.9,
+     "nx": 93.1,
+     "compiling": 1,
+     "bins": 40,
+     "tests": 19
+    },
+    {
+     "unit": "ignored:hsk-studio-harness+import-psd+import-raw",
+     "gap": 0.1,
+     "build": 5.7,
+     "first_list": 10.0,
+     "run": 16.0,
+     "nx": 12.1,
+     "compiling": 1,
+     "bins": 74,
+     "tests": 20
+    },
+    {
+     "unit": "ignored:hsk-studio-harness+import-affinity",
+     "gap": 0.4,
+     "build": 4.4,
+     "first_list": 2.0,
+     "run": 3.2,
+     "nx": 0.6,
+     "compiling": 1,
+     "bins": 74,
+     "tests": 1
+    },
+    {
+     "unit": "doctest:hsk-studio-chronicle",
+     "wall": 2.6,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-components",
+     "wall": 4.2,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-composite",
+     "wall": 7.4,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-composite+motion",
+     "wall": 1.5,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-develop",
+     "wall": 0.9,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-folio",
+     "wall": 36.5,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness",
+     "wall": 1.2,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-psd",
+     "wall": 2.0,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-psd+import-raw",
+     "wall": 1.6,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-tiff",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-raw+import-tiff",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-pdf",
+     "wall": 1.4,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-raster",
+     "wall": 0.8,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+viewer",
+     "wall": 1.3,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+desktop+viewer",
+     "wall": 1.5,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+media",
+     "wall": 1.8,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+media-native",
+     "wall": 1.0,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+audio-device",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+audio-batch",
+     "wall": 1.0,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+layout-ui",
+     "wall": 0.9,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+studio-aac",
+     "wall": 1.4,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+os-encode",
+     "wall": 1.2,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+audio-plugin",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+audio-batch+audio-device",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-affinity",
+     "wall": 1.9,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-core",
+     "wall": 5.0,
+     "compiling": 2,
+     "doctests": 2,
+     "run": 0.4
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-core+import-tiff",
+     "wall": 1.9,
+     "compiling": 0,
+     "doctests": 2,
+     "run": 0.3
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-view",
+     "wall": 2.2,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-view+viewer",
+     "wall": 2.6,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-view+audio-batch+desktop",
+     "wall": 3.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-fig",
+     "wall": 36.9,
+     "compiling": 15,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-fig-base",
+     "wall": 1.7,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-fig-native",
+     "wall": 10.5,
+     "compiling": 8,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-layout",
+     "wall": 11.0,
+     "compiling": 6,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-lrcat",
+     "wall": 5.8,
+     "compiling": 3,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-media",
+     "wall": 3.8,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-psd",
+     "wall": 7.5,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector",
+     "wall": 5.3,
+     "compiling": 4,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector+eps-worker",
+     "wall": 1.2,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector-core",
+     "wall": 2.6,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector-core+eps-worker",
+     "wall": 0.6,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector-svg",
+     "wall": 3.3,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-kernel-bindings",
+     "wall": 3.1,
+     "compiling": 1,
+     "doctests": 4,
+     "run": 0.6
+    },
+    {
+     "unit": "doctest:hsk-studio-kernel-bindings+test-faults",
+     "wall": 1.2,
+     "compiling": 0,
+     "doctests": 1,
+     "run": 0.1
+    },
+    {
+     "unit": "doctest:hsk-studio-kernel-bindings+ckc-test-double",
+     "wall": 1.3,
+     "compiling": 0,
+     "doctests": 3,
+     "run": 0.3
+    },
+    {
+     "unit": "doctest:hsk-studio-layout",
+     "wall": 16.0,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-package",
+     "wall": 3.0,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-pigment",
+     "wall": 6.6,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-pulse",
+     "wall": 12.0,
+     "compiling": 5,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-render-cpu",
+     "wall": 6.4,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-render-gpu",
+     "wall": 9.9,
+     "compiling": 1,
+     "doctests": 12,
+     "run": 2.2
+    },
+    {
+     "unit": "doctest:hsk-studio-render-gpu+test-faults",
+     "wall": 3.1,
+     "compiling": 0,
+     "doctests": 7,
+     "run": 2.2
+    },
+    {
+     "unit": "doctest:hsk-studio-render-gpu+shared-device",
+     "wall": 3.3,
+     "compiling": 0,
+     "doctests": 10,
+     "run": 2.0
+    },
+    {
+     "unit": "doctest:hsk-studio-render-gpu+shared-device+test-faults",
+     "wall": 2.2,
+     "compiling": 0,
+     "doctests": 5,
+     "run": 0.8
+    },
+    {
+     "unit": "doctest:hsk-studio-session",
+     "wall": 7.2,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-type",
+     "wall": 7.0,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-type+harfrust",
+     "wall": 2.7,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    }
+   ],
+   "R57": [
+    {
+     "unit": "default",
+     "gap": 0.0,
+     "build": 1701.1,
+     "first_list": 310.3,
+     "run": 267.3,
+     "nx": 236.5,
+     "compiling": 56,
+     "bins": 815,
+     "tests": 4281
+    },
+    {
+     "unit": "features:hsk-studio-composite+motion",
+     "gap": 1.1,
+     "build": 203.4,
+     "first_list": 17.6,
+     "run": 6.5,
+     "nx": 2.4,
+     "compiling": 9,
+     "bins": 59,
+     "tests": 213
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-psd",
+     "gap": 0.1,
+     "build": 128.3,
+     "first_list": 7.5,
+     "run": 4.9,
+     "nx": 0.3,
+     "compiling": 12,
+     "bins": 74,
+     "tests": 18
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-psd+import-raw",
+     "gap": 0.6,
+     "build": 63.9,
+     "first_list": 7.8,
+     "run": 3.2,
+     "nx": 0.3,
+     "compiling": 9,
+     "bins": 74,
+     "tests": 18
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-tiff",
+     "gap": 0.2,
+     "build": 79.3,
+     "first_list": 8.1,
+     "run": 3.4,
+     "nx": 0.8,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 20
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-raw+import-tiff",
+     "gap": 0.1,
+     "build": 60.7,
+     "first_list": 8.2,
+     "run": 11.7,
+     "nx": 5.0,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 20
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-pdf",
+     "gap": 0.1,
+     "build": 89.7,
+     "first_list": 8.2,
+     "run": 9.0,
+     "nx": 0.1,
+     "compiling": 13,
+     "bins": 74,
+     "tests": 13
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-raster",
+     "gap": 0.3,
+     "build": 76.8,
+     "first_list": 9.7,
+     "run": 3.0,
+     "nx": 0.1,
+     "compiling": 7,
+     "bins": 74,
+     "tests": 14
+    },
+    {
+     "unit": "features:hsk-studio-harness+viewer",
+     "gap": 0.1,
+     "build": 824.1,
+     "first_list": 55.2,
+     "run": 44.3,
+     "nx": 38.1,
+     "compiling": 29,
+     "bins": 74,
+     "tests": 191
+    },
+    {
+     "unit": "features:hsk-studio-harness+desktop+viewer",
+     "gap": 2.3,
+     "build": 556.6,
+     "first_list": 54.5,
+     "run": 50.3,
+     "nx": 40.6,
+     "compiling": 5,
+     "bins": 75,
+     "tests": 193
+    },
+    {
+     "unit": "features:hsk-studio-harness+media",
+     "gap": 2.2,
+     "build": 599.3,
+     "first_list": 52.9,
+     "run": 49.0,
+     "nx": 41.8,
+     "compiling": 4,
+     "bins": 74,
+     "tests": 227
+    },
+    {
+     "unit": "prebuild:hsk-studio-harness+media-native:reel-native-mf-worker",
+     "gap": 1.2,
+     "build": 17.9,
+     "compiling": 3
+    },
+    {
+     "unit": "features:hsk-studio-harness+media-native",
+     "gap": 0.1,
+     "build": 580.8,
+     "first_list": 60.8,
+     "run": 49.0,
+     "nx": 41.6,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 229
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-device",
+     "gap": 0.6,
+     "build": 520.0,
+     "first_list": 63.3,
+     "run": 53.5,
+     "nx": 41.7,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 193
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-batch",
+     "gap": 2.0,
+     "build": 665.0,
+     "first_list": 77.3,
+     "run": 56.6,
+     "nx": 41.5,
+     "compiling": 2,
+     "bins": 74,
+     "tests": 237
+    },
+    {
+     "unit": "features:hsk-studio-harness+layout-ui",
+     "gap": 2.9,
+     "build": 85.2,
+     "first_list": 10.7,
+     "run": 3.4,
+     "nx": 0.4,
+     "compiling": 5,
+     "bins": 74,
+     "tests": 24
+    },
+    {
+     "unit": "features:hsk-studio-harness+studio-aac",
+     "gap": 0.1,
+     "build": 633.4,
+     "first_list": 50.7,
+     "run": 46.7,
+     "nx": 39.5,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 227
+    },
+    {
+     "unit": "prebuild:hsk-studio-harness+os-encode:reel-native-mf-worker",
+     "gap": 0.5,
+     "build": 7.5,
+     "compiling": 1
+    },
+    {
+     "unit": "features:hsk-studio-harness+os-encode",
+     "gap": 0.2,
+     "build": 596.3,
+     "first_list": 59.1,
+     "run": 54.0,
+     "nx": 40.0,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 230
+    },
+    {
+     "unit": "prebuild:hsk-studio-harness+audio-plugin:score-plugin-worker",
+     "gap": 1.6,
+     "build": 12.9,
+     "compiling": 2
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-plugin",
+     "gap": 0.3,
+     "build": 666.5,
+     "first_list": 70.2,
+     "run": 53.3,
+     "nx": 42.8,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 238
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-batch+audio-device",
+     "gap": 0.9,
+     "build": 654.5,
+     "first_list": 92.6,
+     "run": 52.6,
+     "nx": 41.1,
+     "compiling": 2,
+     "bins": 74,
+     "tests": 242
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-affinity",
+     "gap": 1.4,
+     "build": 66.6,
+     "first_list": 13.1,
+     "run": 3.2,
+     "nx": 0.1,
+     "compiling": 4,
+     "bins": 74,
+     "tests": 15
+    },
+    {
+     "unit": "features:hsk-studio-harness-core+import-tiff",
+     "gap": 0.1,
+     "build": 29.6,
+     "first_list": 6.0,
+     "run": 2.2,
+     "nx": 0.7,
+     "compiling": 7,
+     "bins": 11,
+     "tests": 52
+    },
+    {
+     "unit": "features:hsk-studio-harness-view+viewer",
+     "gap": 0.1,
+     "build": 368.5,
+     "first_list": 19.6,
+     "run": 18.6,
+     "nx": 13.1,
+     "compiling": 3,
+     "bins": 33,
+     "tests": 136
+    },
+    {
+     "unit": "features:hsk-studio-harness-view+audio-batch+desktop",
+     "gap": 0.8,
+     "build": 329.6,
+     "first_list": 24.9,
+     "run": 31.4,
+     "nx": 23.9,
+     "compiling": 3,
+     "bins": 33,
+     "tests": 193
+    },
+    {
+     "unit": "features:hsk-studio-interop-vector+eps-worker",
+     "gap": 1.4,
+     "build": 26.9,
+     "first_list": 4.1,
+     "run": 2.5,
+     "nx": 0.7,
+     "compiling": 13,
+     "bins": 7,
+     "tests": 26
+    },
+    {
+     "unit": "features:hsk-studio-interop-vector-core+eps-worker",
+     "gap": 0.1,
+     "build": 19.4,
+     "first_list": 1.8,
+     "run": 9.1,
+     "nx": 7.9,
+     "compiling": 8,
+     "bins": 5,
+     "tests": 18
+    },
+    {
+     "unit": "features:hsk-studio-kernel-bindings+test-faults",
+     "gap": 0.1,
+     "build": 14.3,
+     "first_list": 1.7,
+     "run": 1.4,
+     "nx": 0.4,
+     "compiling": 3,
+     "bins": 5,
+     "tests": 26
+    },
+    {
+     "unit": "features:hsk-studio-kernel-bindings+ckc-test-double",
+     "gap": 0.1,
+     "build": 9.5,
+     "first_list": 0.8,
+     "run": 1.5,
+     "nx": 0.2,
+     "compiling": 1,
+     "bins": 5,
+     "tests": 26
+    },
+    {
+     "unit": "features:hsk-studio-motion-js+quickjs",
+     "gap": 0.1,
+     "build": 11.7,
+     "first_list": 1.7,
+     "run": 7.1,
+     "nx": 6.0,
+     "compiling": 1,
+     "bins": 9,
+     "tests": 35
+    },
+    {
+     "unit": "features:hsk-studio-motion-js+quickjs+test-faults",
+     "gap": 0.1,
+     "build": 10.5,
+     "first_list": 1.6,
+     "run": 6.7,
+     "nx": 5.7,
+     "compiling": 1,
+     "bins": 10,
+     "tests": 38
+    },
+    {
+     "unit": "features:hsk-studio-reel+av1",
+     "gap": 0.2,
+     "build": 46.0,
+     "first_list": 8.1,
+     "run": 24.2,
+     "nx": 22.3,
+     "compiling": 1,
+     "bins": 31,
+     "tests": 156
+    },
+    {
+     "unit": "features:hsk-studio-reel+prores",
+     "gap": 0.1,
+     "build": 25.2,
+     "first_list": 4.6,
+     "run": 23.4,
+     "nx": 22.0,
+     "compiling": 1,
+     "bins": 31,
+     "tests": 155
+    },
+    {
+     "unit": "features:hsk-studio-reel+av1-encode",
+     "gap": 0.1,
+     "build": 38.0,
+     "first_list": 4.8,
+     "run": 27.3,
+     "nx": 22.9,
+     "compiling": 1,
+     "bins": 31,
+     "tests": 154
+    },
+    {
+     "unit": "features:hsk-studio-reel+av1+av1-encode",
+     "gap": 0.3,
+     "build": 38.3,
+     "first_list": 6.9,
+     "run": 26.1,
+     "nx": 24.4,
+     "compiling": 1,
+     "bins": 31,
+     "tests": 161
+    },
+    {
+     "unit": "features:hsk-studio-reel+studio-aac",
+     "gap": 0.1,
+     "build": 25.6,
+     "first_list": 4.8,
+     "run": 23.3,
+     "nx": 21.3,
+     "compiling": 1,
+     "bins": 31,
+     "tests": 155
+    },
+    {
+     "unit": "features:hsk-studio-reel-native+av1-worker",
+     "gap": 0.1,
+     "build": 7.3,
+     "first_list": 0.5,
+     "run": 1.2,
+     "nx": 0.2,
+     "compiling": 2,
+     "bins": 3,
+     "tests": 6
+    },
+    {
+     "unit": "features:hsk-studio-reel-native+av1-worker+test-faults",
+     "gap": 0.1,
+     "build": 7.3,
+     "first_list": 0.9,
+     "run": 2.7,
+     "nx": 1.4,
+     "compiling": 1,
+     "bins": 4,
+     "tests": 25
+    },
+    {
+     "unit": "features:hsk-studio-reel-native+mf-worker",
+     "gap": 1.0,
+     "build": 4.8,
+     "first_list": 0.2,
+     "run": 1.0,
+     "nx": 0.1,
+     "compiling": 1,
+     "bins": 2,
+     "tests": 8
+    },
+    {
+     "unit": "features:hsk-studio-reel-native+mf-worker+test-faults",
+     "gap": 0.1,
+     "build": 5.7,
+     "first_list": 0.5,
+     "run": 9.8,
+     "nx": 8.8,
+     "compiling": 1,
+     "bins": 4,
+     "tests": 16
+    },
+    {
+     "unit": "features:hsk-studio-reel-native+mf-worker+os-encode+test-faults",
+     "gap": 0.1,
+     "build": 4.9,
+     "first_list": 0.7,
+     "run": 7.4,
+     "nx": 6.2,
+     "compiling": 1,
+     "bins": 5,
+     "tests": 18
+    },
+    {
+     "unit": "features:hsk-studio-reel-native+mf-worker+os-encode+studio-aac+test-faults",
+     "gap": 0.2,
+     "build": 12.9,
+     "first_list": 0.9,
+     "run": 7.2,
+     "nx": 6.1,
+     "compiling": 2,
+     "bins": 5,
+     "tests": 18
+    },
+    {
+     "unit": "features:hsk-studio-render-gpu+test-faults",
+     "gap": 0.3,
+     "build": 124.0,
+     "first_list": 22.0,
+     "run": 49.6,
+     "nx": 47.4,
+     "compiling": 3,
+     "bins": 36,
+     "tests": 108
+    },
+    {
+     "unit": "features:hsk-studio-render-gpu+shared-device",
+     "gap": 0.8,
+     "build": 140.8,
+     "first_list": 16.1,
+     "run": 39.1,
+     "nx": 37.0,
+     "compiling": 1,
+     "bins": 36,
+     "tests": 97
+    },
+    {
+     "unit": "features:hsk-studio-render-gpu+shared-device+test-faults",
+     "gap": 0.2,
+     "build": 119.5,
+     "first_list": 17.6,
+     "run": 49.8,
+     "nx": 47.7,
+     "compiling": 1,
+     "bins": 36,
+     "tests": 113
+    },
+    {
+     "unit": "features:hsk-studio-score-device+cpal-backend",
+     "gap": 0.4,
+     "build": 11.1,
+     "first_list": 0.6,
+     "run": 1.9,
+     "nx": 0.6,
+     "compiling": 1,
+     "bins": 4,
+     "tests": 10
+    },
+    {
+     "unit": "features:hsk-studio-score-plugin+test-faults",
+     "gap": 0.3,
+     "build": 4.4,
+     "first_list": 2.0,
+     "run": 13.9,
+     "nx": 12.8,
+     "compiling": 1,
+     "bins": 6,
+     "tests": 26
+    },
+    {
+     "unit": "features:hsk-studio-score-plugin+clap+test-faults",
+     "gap": 0.1,
+     "build": 4.8,
+     "first_list": 0.8,
+     "run": 11.8,
+     "nx": 10.8,
+     "compiling": 1,
+     "bins": 6,
+     "tests": 30
+    },
+    {
+     "unit": "features:hsk-studio-type+harfrust",
+     "gap": 0.3,
+     "build": 30.9,
+     "first_list": 9.7,
+     "run": 3.9,
+     "nx": 1.5,
+     "compiling": 1,
+     "bins": 14,
+     "tests": 115
+    },
+    {
+     "unit": "features:hsk-studio-worker+test-faults",
+     "gap": 0.1,
+     "build": 4.2,
+     "first_list": 0.3,
+     "run": 1.2,
+     "nx": 0.2,
+     "compiling": 1,
+     "bins": 3,
+     "tests": 7
+    },
+    {
+     "unit": "ignored:hsk-studio-develop",
+     "gap": 0.1,
+     "build": 48.1,
+     "first_list": 8.3,
+     "run": 93.0,
+     "nx": 91.0,
+     "compiling": 1,
+     "bins": 40,
+     "tests": 19
+    },
+    {
+     "unit": "ignored:hsk-studio-harness+import-psd+import-raw",
+     "gap": 0.2,
+     "build": 14.9,
+     "first_list": 20.0,
+     "run": 14.7,
+     "nx": 12.1,
+     "compiling": 1,
+     "bins": 74,
+     "tests": 20
+    },
+    {
+     "unit": "ignored:hsk-studio-harness+import-affinity",
+     "gap": 0.6,
+     "build": 10.1,
+     "first_list": 7.6,
+     "run": 3.5,
+     "nx": 1.1,
+     "compiling": 1,
+     "bins": 74,
+     "tests": 1
+    },
+    {
+     "unit": "ignored:hsk-studio-interop-raster",
+     "gap": 0.1,
+     "build": 5.5,
+     "first_list": 3.4,
+     "run": 1.7,
+     "nx": 0.6,
+     "compiling": 1,
+     "bins": 5,
+     "tests": 1
+    },
+    {
+     "unit": "ignored:hsk-studio-interop-tiff",
+     "gap": 0.1,
+     "build": 11.3,
+     "first_list": 1.0,
+     "run": 37.2,
+     "nx": 36.0,
+     "compiling": 1,
+     "bins": 7,
+     "tests": 1
+    },
+    {
+     "unit": "doctest:hsk-studio-accord",
+     "wall": 4.6,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-chronicle",
+     "wall": 14.4,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-components",
+     "wall": 3.5,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-composite",
+     "wall": 11.6,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-composite+motion",
+     "wall": 3.2,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-controls",
+     "wall": 2.9,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-develop",
+     "wall": 3.3,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-folio",
+     "wall": 41.7,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness",
+     "wall": 1.9,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-psd",
+     "wall": 1.2,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-psd+import-raw",
+     "wall": 1.3,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-tiff",
+     "wall": 0.6,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-raw+import-tiff",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-pdf",
+     "wall": 2.5,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-raster",
+     "wall": 0.8,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+viewer",
+     "wall": 4.4,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+desktop+viewer",
+     "wall": 1.7,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+media",
+     "wall": 2.5,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+media-native",
+     "wall": 4.2,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+audio-device",
+     "wall": 2.2,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+audio-batch",
+     "wall": 1.4,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+layout-ui",
+     "wall": 0.9,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+studio-aac",
+     "wall": 1.2,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+os-encode",
+     "wall": 1.0,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+audio-plugin",
+     "wall": 2.8,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+audio-batch+audio-device",
+     "wall": 1.6,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-affinity",
+     "wall": 1.5,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-core",
+     "wall": 9.0,
+     "compiling": 2,
+     "doctests": 2,
+     "run": 0.7
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-core+import-tiff",
+     "wall": 2.4,
+     "compiling": 0,
+     "doctests": 2,
+     "run": 0.6
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-view",
+     "wall": 5.1,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-view+viewer",
+     "wall": 6.8,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-view+audio-batch+desktop",
+     "wall": 3.4,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-affinity",
+     "wall": 1.5,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-fig",
+     "wall": 47.9,
+     "compiling": 15,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-fig-base",
+     "wall": 4.8,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-fig-native",
+     "wall": 9.9,
+     "compiling": 8,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-layout",
+     "wall": 14.1,
+     "compiling": 6,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-lrcat",
+     "wall": 10.5,
+     "compiling": 3,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-media",
+     "wall": 4.9,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-psd",
+     "wall": 19.2,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-raster",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-tiff",
+     "wall": 1.7,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector",
+     "wall": 13.2,
+     "compiling": 4,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector+eps-worker",
+     "wall": 2.8,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector-core",
+     "wall": 4.1,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector-core+eps-worker",
+     "wall": 1.4,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector-svg",
+     "wall": 4.5,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-kernel-bindings",
+     "wall": 4.0,
+     "compiling": 1,
+     "doctests": 4,
+     "run": 0.6
+    },
+    {
+     "unit": "doctest:hsk-studio-kernel-bindings+test-faults",
+     "wall": 0.9,
+     "compiling": 0,
+     "doctests": 1,
+     "run": 0.3
+    },
+    {
+     "unit": "doctest:hsk-studio-kernel-bindings+ckc-test-double",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 3,
+     "run": 0.4
+    },
+    {
+     "unit": "doctest:hsk-studio-layout",
+     "wall": 12.4,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-motion",
+     "wall": 2.4,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-motion-js",
+     "wall": 3.3,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-motion-js+quickjs",
+     "wall": 3.4,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-motion-js+quickjs+test-faults",
+     "wall": 0.5,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-nib",
+     "wall": 5.9,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-observe",
+     "wall": 3.0,
+     "compiling": 1,
+     "doctests": 3,
+     "run": 0.7
+    },
+    {
+     "unit": "doctest:hsk-studio-package",
+     "wall": 2.8,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-pigment",
+     "wall": 7.0,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-press",
+     "wall": 11.4,
+     "compiling": 3,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-press-read",
+     "wall": 7.3,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-press-write",
+     "wall": 3.7,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-prism",
+     "wall": 6.4,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-ps",
+     "wall": 17.2,
+     "compiling": 7,
+     "doctests": 5,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-ps-core",
+     "wall": 2.7,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-ps-engine",
+     "wall": 0.9,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-ps-fonts",
+     "wall": 5.4,
+     "compiling": 1,
+     "doctests": 1,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-ps-graphics",
+     "wall": 4.3,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-ps-ops",
+     "wall": 4.9,
+     "compiling": 1,
+     "doctests": 1,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-ps-pdf",
+     "wall": 3.3,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-pulse",
+     "wall": 14.5,
+     "compiling": 5,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-reel",
+     "wall": 13.1,
+     "compiling": 1,
+     "doctests": 2,
+     "run": 0.1
+    },
+    {
+     "unit": "doctest:hsk-studio-reel+av1",
+     "wall": 9.6,
+     "compiling": 0,
+     "doctests": 2,
+     "run": 0.1
+    },
+    {
+     "unit": "doctest:hsk-studio-reel+prores",
+     "wall": 1.7,
+     "compiling": 0,
+     "doctests": 2,
+     "run": 0.1
+    },
+    {
+     "unit": "doctest:hsk-studio-reel+av1-encode",
+     "wall": 10.7,
+     "compiling": 0,
+     "doctests": 2,
+     "run": 0.1
+    },
+    {
+     "unit": "doctest:hsk-studio-reel+av1+av1-encode",
+     "wall": 3.7,
+     "compiling": 0,
+     "doctests": 2,
+     "run": 0.1
+    },
+    {
+     "unit": "doctest:hsk-studio-reel+studio-aac",
+     "wall": 2.3,
+     "compiling": 0,
+     "doctests": 2,
+     "run": 0.1
+    },
+    {
+     "unit": "doctest:hsk-studio-reel-native",
+     "wall": 0.9,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-reel-native+av1-worker",
+     "wall": 1.5,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-reel-native+av1-worker+test-faults",
+     "wall": 0.9,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-reel-native+mf-worker",
+     "wall": 6.7,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-reel-native+mf-worker+test-faults",
+     "wall": 1.5,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-reel-native+mf-worker+os-encode+test-faults",
+     "wall": 1.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-reel-native+mf-worker+os-encode+studio-aac+test-faults",
+     "wall": 1.0,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-render-cpu",
+     "wall": 9.2,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-render-gpu",
+     "wall": 11.9,
+     "compiling": 1,
+     "doctests": 12,
+     "run": 2.6
+    },
+    {
+     "unit": "doctest:hsk-studio-render-gpu+test-faults",
+     "wall": 9.0,
+     "compiling": 0,
+     "doctests": 7,
+     "run": 7.9
+    },
+    {
+     "unit": "doctest:hsk-studio-render-gpu+shared-device",
+     "wall": 7.6,
+     "compiling": 0,
+     "doctests": 10,
+     "run": 2.1
+    },
+    {
+     "unit": "doctest:hsk-studio-render-gpu+shared-device+test-faults",
+     "wall": 2.1,
+     "compiling": 0,
+     "doctests": 5,
+     "run": 0.8
+    },
+    {
+     "unit": "doctest:hsk-studio-score",
+     "wall": 5.3,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-score-device",
+     "wall": 1.7,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-score-device+cpal-backend",
+     "wall": 1.7,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-score-plugin",
+     "wall": 1.4,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-score-plugin+test-faults",
+     "wall": 0.8,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-score-plugin+clap+test-faults",
+     "wall": 2.9,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-session",
+     "wall": 7.6,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-type",
+     "wall": 7.4,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-type+harfrust",
+     "wall": 2.5,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-web",
+     "wall": 3.8,
+     "compiling": 3,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-web-assets",
+     "wall": 2.2,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-web-core",
+     "wall": 2.6,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-worker",
+     "wall": 2.0,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-worker+test-faults",
+     "wall": 0.7,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    }
+   ],
+   "R58": [
+    {
+     "unit": "default",
+     "gap": 0.0,
+     "build": 1254.9,
+     "first_list": 453.9,
+     "run": 226.6,
+     "nx": 200.6,
+     "compiling": 56,
+     "bins": 595,
+     "tests": 2203
+    },
+    {
+     "unit": "features:hsk-studio-composite+motion",
+     "gap": 1.7,
+     "build": 170.7,
+     "first_list": 13.5,
+     "run": 6.9,
+     "nx": 3.2,
+     "compiling": 9,
+     "bins": 59,
+     "tests": 213
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-psd",
+     "gap": 0.1,
+     "build": 91.7,
+     "first_list": 8.2,
+     "run": 6.3,
+     "nx": 0.4,
+     "compiling": 12,
+     "bins": 74,
+     "tests": 18
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-psd+import-raw",
+     "gap": 0.1,
+     "build": 54.3,
+     "first_list": 8.2,
+     "run": 3.6,
+     "nx": 0.3,
+     "compiling": 9,
+     "bins": 74,
+     "tests": 18
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-tiff",
+     "gap": 0.4,
+     "build": 45.3,
+     "first_list": 10.4,
+     "run": 4.5,
+     "nx": 0.8,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 20
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-raw+import-tiff",
+     "gap": 0.2,
+     "build": 63.6,
+     "first_list": 7.5,
+     "run": 9.2,
+     "nx": 4.6,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 20
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-pdf",
+     "gap": 0.1,
+     "build": 105.3,
+     "first_list": 7.1,
+     "run": 4.1,
+     "nx": 0.2,
+     "compiling": 13,
+     "bins": 74,
+     "tests": 13
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-raster",
+     "gap": 0.1,
+     "build": 61.4,
+     "first_list": 8.0,
+     "run": 3.6,
+     "nx": 0.2,
+     "compiling": 7,
+     "bins": 74,
+     "tests": 14
+    },
+    {
+     "unit": "features:hsk-studio-harness+viewer",
+     "gap": 0.6,
+     "build": 593.9,
+     "first_list": 70.1,
+     "run": 53.5,
+     "nx": 44.9,
+     "compiling": 29,
+     "bins": 74,
+     "tests": 191
+    },
+    {
+     "unit": "features:hsk-studio-harness+desktop+viewer",
+     "gap": 1.8,
+     "build": 678.3,
+     "first_list": 74.8,
+     "run": 68.4,
+     "nx": 57.1,
+     "compiling": 5,
+     "bins": 75,
+     "tests": 193
+    },
+    {
+     "unit": "features:hsk-studio-harness+media",
+     "gap": 1.0,
+     "build": 669.2,
+     "first_list": 77.4,
+     "run": 53.2,
+     "nx": 40.3,
+     "compiling": 4,
+     "bins": 74,
+     "tests": 227
+    },
+    {
+     "unit": "prebuild:hsk-studio-harness+media-native:reel-native-mf-worker",
+     "gap": 1.2,
+     "build": 25.5,
+     "compiling": 3
+    },
+    {
+     "unit": "features:hsk-studio-harness+media-native",
+     "gap": 0.1,
+     "build": 702.3,
+     "first_list": 75.4,
+     "run": 64.7,
+     "nx": 54.4,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 229
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-device",
+     "gap": 1.5,
+     "build": 585.2,
+     "first_list": 61.3,
+     "run": 46.7,
+     "nx": 38.1,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 193
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-batch",
+     "gap": 1.5,
+     "build": 782.5,
+     "first_list": 69.8,
+     "run": 60.8,
+     "nx": 48.2,
+     "compiling": 2,
+     "bins": 74,
+     "tests": 237
+    },
+    {
+     "unit": "features:hsk-studio-harness+layout-ui",
+     "gap": 2.0,
+     "build": 78.7,
+     "first_list": 10.2,
+     "run": 4.1,
+     "nx": 0.5,
+     "compiling": 5,
+     "bins": 74,
+     "tests": 24
+    },
+    {
+     "unit": "features:hsk-studio-harness+studio-aac",
+     "gap": 0.3,
+     "build": 693.4,
+     "first_list": 85.4,
+     "run": 57.2,
+     "nx": 42.1,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 227
+    },
+    {
+     "unit": "prebuild:hsk-studio-harness+os-encode:reel-native-mf-worker",
+     "gap": 1.2,
+     "build": 14.9,
+     "compiling": 1
+    },
+    {
+     "unit": "features:hsk-studio-harness+os-encode",
+     "gap": 0.2,
+     "build": 659.3,
+     "first_list": 61.4,
+     "run": 59.0,
+     "nx": 45.7,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 230
+    },
+    {
+     "unit": "prebuild:hsk-studio-harness+audio-plugin:score-plugin-worker",
+     "gap": 2.1,
+     "build": 11.0,
+     "compiling": 2
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-plugin",
+     "gap": 0.1,
+     "build": 748.3,
+     "first_list": 71.4,
+     "run": 52.3,
+     "nx": 43.2,
+     "compiling": 3,
+     "bins": 74,
+     "tests": 238
+    },
+    {
+     "unit": "features:hsk-studio-harness+audio-batch+audio-device",
+     "gap": 2.2,
+     "build": 785.1,
+     "first_list": 88.0,
+     "run": 78.2,
+     "nx": 56.7,
+     "compiling": 2,
+     "bins": 74,
+     "tests": 242
+    },
+    {
+     "unit": "features:hsk-studio-harness+import-affinity",
+     "gap": 0.8,
+     "build": 84.0,
+     "first_list": 9.7,
+     "run": 4.5,
+     "nx": 0.3,
+     "compiling": 4,
+     "bins": 74,
+     "tests": 15
+    },
+    {
+     "unit": "features:hsk-studio-harness-core+import-tiff",
+     "gap": 0.1,
+     "build": 58.4,
+     "first_list": 4.0,
+     "run": 6.4,
+     "nx": 0.8,
+     "compiling": 7,
+     "bins": 11,
+     "tests": 52
+    },
+    {
+     "unit": "features:hsk-studio-harness-view+viewer",
+     "gap": 0.1,
+     "build": 312.7,
+     "first_list": 29.7,
+     "run": 21.2,
+     "nx": 14.6,
+     "compiling": 3,
+     "bins": 33,
+     "tests": 136
+    },
+    {
+     "unit": "features:hsk-studio-harness-view+audio-batch+desktop",
+     "gap": 1.1,
+     "build": 417.8,
+     "first_list": 32.6,
+     "run": 35.1,
+     "nx": 24.1,
+     "compiling": 3,
+     "bins": 33,
+     "tests": 193
+    },
+    {
+     "unit": "features:hsk-studio-interop-vector+eps-worker",
+     "gap": 1.1,
+     "build": 57.6,
+     "first_list": 2.9,
+     "run": 1.9,
+     "nx": 0.7,
+     "compiling": 13,
+     "bins": 7,
+     "tests": 26
+    },
+    {
+     "unit": "features:hsk-studio-interop-vector-core+eps-worker",
+     "gap": 0.2,
+     "build": 16.5,
+     "first_list": 1.5,
+     "run": 9.7,
+     "nx": 8.3,
+     "compiling": 8,
+     "bins": 5,
+     "tests": 18
+    },
+    {
+     "unit": "features:hsk-studio-kernel-bindings+test-faults",
+     "gap": 0.1,
+     "build": 17.4,
+     "first_list": 1.8,
+     "run": 1.4,
+     "nx": 0.3,
+     "compiling": 3,
+     "bins": 5,
+     "tests": 26
+    },
+    {
+     "unit": "features:hsk-studio-kernel-bindings+ckc-test-double",
+     "gap": 0.1,
+     "build": 29.3,
+     "first_list": 1.4,
+     "run": 1.5,
+     "nx": 0.3,
+     "compiling": 1,
+     "bins": 5,
+     "tests": 26
+    },
+    {
+     "unit": "features:hsk-studio-render-gpu+test-faults",
+     "gap": 0.1,
+     "build": 153.1,
+     "first_list": 23.0,
+     "run": 50.5,
+     "nx": 47.3,
+     "compiling": 3,
+     "bins": 36,
+     "tests": 108
+    },
+    {
+     "unit": "features:hsk-studio-render-gpu+shared-device",
+     "gap": 5.7,
+     "build": 184.3,
+     "first_list": 28.3,
+     "run": 45.1,
+     "nx": 42.8,
+     "compiling": 1,
+     "bins": 36,
+     "tests": 97
+    },
+    {
+     "unit": "features:hsk-studio-render-gpu+shared-device+test-faults",
+     "gap": 0.3,
+     "build": 144.1,
+     "first_list": 23.2,
+     "run": 60.2,
+     "nx": 54.5,
+     "compiling": 1,
+     "bins": 36,
+     "tests": 113
+    },
+    {
+     "unit": "ignored:hsk-studio-develop",
+     "gap": 0.7,
+     "build": 59.7,
+     "first_list": 10.2,
+     "run": 94.2,
+     "nx": 92.1,
+     "compiling": 1,
+     "bins": 40,
+     "tests": 19
+    },
+    {
+     "unit": "ignored:hsk-studio-harness+import-psd+import-raw",
+     "gap": 0.1,
+     "build": 21.6,
+     "first_list": 45.5,
+     "run": 16.2,
+     "nx": 13.0,
+     "compiling": 1,
+     "bins": 74,
+     "tests": 20
+    },
+    {
+     "unit": "ignored:hsk-studio-harness+import-affinity",
+     "gap": 0.1,
+     "build": 8.0,
+     "first_list": 20.9,
+     "run": 3.4,
+     "nx": 0.7,
+     "compiling": 1,
+     "bins": 74,
+     "tests": 1
+    },
+    {
+     "unit": "doctest:hsk-studio-chronicle",
+     "wall": 6.4,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-components",
+     "wall": 4.1,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-composite",
+     "wall": 13.9,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-composite+motion",
+     "wall": 3.0,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-develop",
+     "wall": 3.2,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-folio",
+     "wall": 47.3,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness",
+     "wall": 12.9,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-psd",
+     "wall": 2.0,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-psd+import-raw",
+     "wall": 0.7,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-tiff",
+     "wall": 1.6,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-raw+import-tiff",
+     "wall": 3.6,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-pdf",
+     "wall": 10.5,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-raster",
+     "wall": 2.7,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+viewer",
+     "wall": 7.0,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+desktop+viewer",
+     "wall": 7.4,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+media",
+     "wall": 4.8,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+media-native",
+     "wall": 3.9,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+audio-device",
+     "wall": 2.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+audio-batch",
+     "wall": 2.6,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+layout-ui",
+     "wall": 1.0,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+studio-aac",
+     "wall": 4.0,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+os-encode",
+     "wall": 2.3,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+audio-plugin",
+     "wall": 3.4,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+audio-batch+audio-device",
+     "wall": 2.7,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness+import-affinity",
+     "wall": 2.9,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-core",
+     "wall": 11.5,
+     "compiling": 2,
+     "doctests": 2,
+     "run": 0.8
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-core+import-tiff",
+     "wall": 6.0,
+     "compiling": 0,
+     "doctests": 2,
+     "run": 3.7
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-view",
+     "wall": 3.4,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-view+viewer",
+     "wall": 6.0,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-harness-view+audio-batch+desktop",
+     "wall": 3.8,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-fig",
+     "wall": 53.0,
+     "compiling": 15,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-fig-base",
+     "wall": 4.4,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-fig-native",
+     "wall": 14.4,
+     "compiling": 8,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-layout",
+     "wall": 15.5,
+     "compiling": 6,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-lrcat",
+     "wall": 15.4,
+     "compiling": 3,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-media",
+     "wall": 8.9,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-psd",
+     "wall": 15.0,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector",
+     "wall": 9.8,
+     "compiling": 4,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector+eps-worker",
+     "wall": 6.1,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector-core",
+     "wall": 4.5,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector-core+eps-worker",
+     "wall": 1.4,
+     "compiling": 0,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-interop-vector-svg",
+     "wall": 8.5,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-kernel-bindings",
+     "wall": 5.2,
+     "compiling": 1,
+     "doctests": 4,
+     "run": 1.5
+    },
+    {
+     "unit": "doctest:hsk-studio-kernel-bindings+test-faults",
+     "wall": 3.0,
+     "compiling": 0,
+     "doctests": 1,
+     "run": 1.4
+    },
+    {
+     "unit": "doctest:hsk-studio-kernel-bindings+ckc-test-double",
+     "wall": 1.7,
+     "compiling": 0,
+     "doctests": 3,
+     "run": 0.6
+    },
+    {
+     "unit": "doctest:hsk-studio-layout",
+     "wall": 19.9,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-package",
+     "wall": 16.0,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-pigment",
+     "wall": 8.6,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-pulse",
+     "wall": 22.0,
+     "compiling": 5,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-render-cpu",
+     "wall": 7.6,
+     "compiling": 2,
+     "doctests": 0,
+     "run": 0
+    },
+    {
+     "unit": "doctest:hsk-studio-render-gpu",
+     "wall": 12.7,
+     "compiling": 1,
+     "doctests": 12,
+     "run": 1.9
+    },
+    {
+     "unit": "doctest:hsk-studio-render-gpu+test-faults",
+     "wall": 2.9,
+     "compiling": 0,
+     "doctests": 7,
+     "run": 1.2
+    },
+    {
+     "unit": "doctest:hsk-studio-render-gpu+shared-device",
+     "wall": 2.4,
+     "compiling": 0,
+     "doctests": 10,
+     "run": 1.5
+    },
+    {
+     "unit": "doctest:hsk-studio-render-gpu+shared-device+test-faults",
+     "wall": 1.5,
+     "compiling": 0,
+     "doctests": 5,
+     "run": 0.7
+    },
+    {
+     "unit": "doctest:hsk-studio-session",
+     "wall": 14.3,
+     "compiling": 1,
+     "doctests": 0,
+     "run": 0
+    }
+   ]
+  }
+ }
+}

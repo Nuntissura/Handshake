@@ -1,0 +1,344 @@
+{
+ "schema": "hsk.studio_blocker_position@1",
+ "member": "vulkan-engineer",
+ "lane": "Handshake (Product): Studio Kit GUI and GPU direction. Repo Governance: NONE changed (this file only).",
+ "generated_at": "2026-11-07",
+ "code_basis": "origin tip c4d06841 read with git show; no cargo, no build, no test, no checkout. New crate and tool names below are suggestions: no canonical name exists yet.",
+ "read": {
+  "records": [
+   "S/HANDOFF.md topics vulkan-gui-pivot, truth-check, next-work, workflow",
+   "S/research/truth-check-20261105-vulkan-pivot.json",
+   "S/research/integration-refactor-inventory-20261030.json (RF-02, RF-03, RF-11, RF-12)",
+   "S/spec-enrichment/STUDIO-ENRICHMENT-20261101-D7-VULKAN-ALIGNMENT.json (D7A-01..17)",
+   "S/ledger.json direction (d1, d6, d7, d8, operator_direction_20261107)",
+   "S/builders/WORKSPACE_RULES.md; S/builders/briefs/wave-parity-2-common.md",
+   "K/.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json (HBR-QUIET-001..004, HBR-HOST-001, 003)",
+   "WP-KERNEL-012 MT-197.json, MT-203.json (read only)"
+  ],
+  "spec": [
+   "v02.229 module 15 whole (GUI-DESKTOP-001..055, NATIVE-RENDER-BOOT-*, GPU-QUOTA-*)",
+   "module 14 STU-ARC-002, 023..033, STU-QUIET-005, STU-MDL-002, 004, STU-SHL-009, 068",
+   "module 12 lines 7142, 7147 (TECH-WGPU and TECH-WGSL retirement text); module 13 TAI-VK-001..003"
+  ],
+  "code_at_c4d06841": [
+   "crates/hsk-studio-render-gpu: Cargo.toml, src/lib.rs, src/client.rs, src/client/transient.rs, src/client/external.rs, src/device.rs, src/plan_sink.rs:1320-1340, src/kernel.rs:236-340,590-612, src/pipeline.rs:320-345, 9 WGSL files (counted override, push_constant, var<workgroup>)",
+   "crates/hsk-studio-harness-view/src/view/render.rs",
+   "crates/hsk-studio-render-cpu/Cargo.toml; crates/hsk-studio-harness-core/Cargo.toml",
+   "tools/workspace-probe.rs:485-570; Cargo.toml; Cargo.lock package versions"
+  ],
+  "registry_source_on_disk": [
+   "wgpu-hal-27.0.4/src/vulkan/adapter.rs:2014-2181; wgpu-hal-27.0.4/src/vulkan/device.rs:864-937; wgpu-hal-27.0.4/src/vulkan/instance.rs",
+   "ash-0.38.0+1.3.281: src/entry.rs, src/instance.rs, src/device.rs, Cargo.toml, src/extensions listing",
+   "accesskit_windows-0.29.2: src/adapter.rs, Cargo.toml",
+   "gpu-allocator-0.27.0/Cargo.toml",
+   "naga-27.0.3: Cargo.toml, src/back/spv/mod.rs (Options default), src/front/wgsl/parse/conv.rs"
+  ],
+  "asset_catalog": "origin/codex/handpick assets-index.yaml read from D:/Projects/LLM projects/.assets/assets; native-memory crate at e0b1f024. The create-assets skill bootstrap was NOT run: it fetches and rereads, and this member may not write. Catalog state is therefore the local tracking ref, freshness UNVERIFIED.",
+  "machine": "vulkaninfo --summary on this machine; where glslc, spirv-val, naga",
+  "external_sources": [
+   "https://crates.io/api/v1/crates/ash",
+   "https://api.github.com/repos/ash-rs/ash/commits?per_page=8",
+   "https://api.github.com/repos/ash-rs/ash/releases?per_page=3",
+   "https://crates.io/api/v1/crates/vulkanalia",
+   "https://crates.io/api/v1/crates/vulkano",
+   "https://crates.io/api/v1/crates/gpu-allocator",
+   "https://crates.io/api/v1/crates/naga-cli",
+   "https://lib.rs/crates/jay-ash",
+   "https://raw.githubusercontent.com/gfx-rs/wgpu/v27.0.0/naga-cli/src/bin/naga.rs",
+   "https://docs.vulkan.org/guide/latest/slang.html",
+   "https://github.com/shader-slang/slang/blob/master/LICENSE",
+   "https://fuchsia.googlesource.com/fuchsia/+/main/third_party/glslang/README.fuchsia",
+   "https://doc.qt.io/qt/qtshadertools-attribution-glslang.html",
+   "https://docs.vulkan.org/guide/latest/swapchain_semaphore_reuse.html",
+   "https://docs.vulkan.org/refpages/latest/refpages/source/VkSwapchainCreateInfoKHR.html",
+   "https://github.com/doitsujin/dxvk/pull/991",
+   "https://discourse.libsdl.org/t/sdl-gpu-vulkan-handle-vk-error-surface-lost-khr-in-acquire-path/67125",
+   "https://learn.microsoft.com/en-us/windows/win32/hidpi/high-dpi-desktop-application-development-on-windows",
+   "https://learn.microsoft.com/da-dk/windows/win32/api/winuser/ns-winuser-pointer_pen_info",
+   "https://docs.rs/crate/accesskit_windows/0.33.0/source/examples/hello_world.rs",
+   "https://github.com/rust-windowing/winit/issues/99",
+   "https://raw.githubusercontent.com/zed-industries/zed/main/crates/gpui/Cargo.toml",
+   "https://github.com/ocornut/imgui/tree/master/examples/example_win32_vulkan",
+   "https://raw.githubusercontent.com/KhronosGroup/Vulkan-Loader/main/docs/LoaderLayerInterface.md",
+   "https://www.phoronix.com/news/KosmicKrisp-Vulkan-1.4-2026",
+   "https://www.lunarg.com/?p=4048",
+   "https://docs.nvidia.com/rtx-spark/rtx-spark-porting-guide/latest/porting/vk-gl.html",
+   "https://mail.phoronix.com/news/Vulkan-1.3.264-Released"
+  ],
+  "not_opened_on_purpose": "No GPL, LGPL or MPL source. A search returned Blender commit notes about WM_POINTER; they are not used as evidence and no Blender source was opened. Only the Apache-2.0 crates/gpui manifest of the Zed repository was read."
+ },
+ "positions": [
+  {
+   "blocker": "O2 Vulkan binding crate",
+   "decision": "ash, pinned =0.38.0 (0.38.0+1.3.281), default-features = false, features [std, loaded]. Vulkan 1.3 is the baseline. All ash use and all unsafe live in one new leaf crate; no ash type crosses a public contract. Reject vulkano and vulkanalia.",
+   "why": "ash is already in Cargo.lock, so it adds no licence review and no new third-party crate. It is a thin binding with no ownership model, which is what a device handed between owners needs: ash loads function tables from raw handles (Device::load, Instance::load, Entry::from_static_fn). Vulkan handles and vkGetInstanceProcAddr are the C ABI, so the hand-over does not depend on which binding each side uses. That also answers STU-ARC-024 ('binding crate is named by the GPU owner'): the lead names it as the stand-in owner for standalone Studio, and the MT-203 owner stays free to choose differently without Studio code changing shape. The field agrees on the allocator too: gpu-allocator 0.27.0 (in the lock) and 0.28.0 both target ash 0.38. First-party precedent exists: native-memory pins ash =0.38.0 and isolates unsafe so its parent keeps forbid(unsafe_code). vulkano is rejected because it is a high-level wrapper that manages synchronisation itself, which competes with the central owner's in-flight and settlement rules (GUI-DESKTOP-033, 034); its last release is 2025-08-16. vulkanalia is the real runner-up: Apache-2.0 and actively released (0.35.0, 2026-02-15), but it would add a second binding to the lock next to wgpu-hal's ash during the whole transition, and gpu-allocator does not target it (its manifest takes ash).",
+   "evidence": [
+    "Cargo.lock at c4d06841: ash 0.38.0+1.3.281, gpu-allocator 0.27.0, libloading 0.8.9",
+    "ash licence MIT OR Apache-2.0, https://crates.io/api/v1/crates/ash",
+    "ash-0.38.0+1.3.281/src/device.rs:22, :29; src/instance.rs:23, :30; src/entry.rs:61, :161",
+    "ash-0.38.0+1.3.281 src/extensions has khr/win32_surface.rs, khr/swapchain.rs, khr/surface.rs, ext/swapchain_maintenance1.rs, ext/debug_utils.rs",
+    "origin/codex/handpick:handshake-studio-assets/crates/hsk-studio-render-gpu/native-memory/Cargo.toml and src/lib.rs (e0b1f024; not on the Studio branch)",
+    "gpu-allocator-0.27.0/Cargo.toml feature vulkan = dep:ash; licence MIT OR Apache-2.0",
+    "vulkano 0.35.2 2025-08-16 https://crates.io/api/v1/crates/vulkano; vulkanalia 0.35.0 2026-02-15 Apache-2.0 https://crates.io/api/v1/crates/vulkanalia",
+    "K/.GOV/spec/master-spec-v02.229/spec-modules/14-studio-creative-suite.md:259 (STU-ARC-024)"
+   ],
+   "risk": "ash is maintained but not released. The last release is 0.38.0 on 2024-04-01; master is active (2026-10-28) and already carries Vulkan headers 1.4.352, unreleased. The fork jay-ash exists because of this gap. A needed 1.4-only function or struct would be missing from the pinned release.",
+   "control": "Baseline Vulkan 1.3, which 1.3.281 covers, and this driver reports API 1.4.357. A missing entry point is loaded by hand through get_device_proc_addr inside the leaf crate. Do not take a git dependency: WORKSPACE_RULES forbids git deps. Move to a new ash release only when one ships; the leaf crate is the single edit point.",
+   "proven_wrong_if": "A required feature for window, swapchain or the GPU client cannot be reached through ash 0.38 plus hand-loaded entry points; or the MT-203 owner requires a binding type in the client contract, which HBR-HOST-003 forbids anyway.",
+   "unblocks": "D7A-01, RF-12 start condition, the first Vulkan lane tonight."
+  },
+  {
+   "blocker": "O3 reach of D7, and the shader path",
+   "decision": "D7 reaches wgpu entirely and reaches naga and WGSL at runtime: no shipped binary compiles shaders, and no product crate links naga once wgpu leaves. D7 does not reach WGSL as an offline source text. Contract = committed SPIR-V. Tool = naga 27.0.3 as a library in one small offline tool (suggested tools/spv-build, its own [workspace], never a product dependency), not naga-cli. New GUI shaders are authored in WGSL through the same tool. The 9 WGSL files, 2,942 lines, are compiled, not rewritten, at RF-12. Committed per shader: source .wgsl, one .spv per entry point, one manifest.json with source sha256, tool and naga version, options hash, entry point, spv sha256. Product code embeds with include_bytes!. A plain test compares source hash to manifest, so builders need no tool unless they change a shader.",
+   "why": "The Operator's words are 'pure vulkan, no wgpu'; they say nothing about an authoring language, and Vulkan consumes SPIR-V only. Reasons for compile over rewrite: every Vulkan row since R46 already runs naga's SPIR-V output on this GPU, so the same compiler at the same version with the same options is the one path that does not re-open numeric behaviour (tie precedent F-R46-1). A port to another language touches all 2,942 lines plus generated bodies. The kernels need no feature that makes this hard: 0 override, 0 var<workgroup>, 0 textures across all 9 files, which means pipeline-override processing and workgroup zero-init do not affect them. naga-cli is rejected as the tool because it leaves capabilities, lang_version and fake_missing_bindings at defaults (1.0, none, true), while wgpu-hal uses (1,6), a capability list and false, and compiles per entry point. Exact options must be set from the library. The tool needs nothing new: naga-27.0.3 is already on disk, licence MIT OR Apache-2.0. Slang is the credible alternative (Khronos-documented, Apache-2.0 WITH LLVM-exception, active) but it means a prebuilt external binary, which needs an Operator-approved download, and it re-proves every kernel if used for them; using it only for the GUI means two toolchains. glslang's licence set lists GPL-3.0 with Bison exception in at least one packaging, against the permissive-only rule. Because SPIR-V is the contract, the source language can change per file later with no change to the product crate.",
+   "evidence": [
+    "wgpu-hal-27.0.4/src/vulkan/adapter.rs:2139-2181 (lang_version by device API, 1.3+ = (1,6); index Restrict; buffer Unchecked with robust_buffer_access2 else Restrict; image_load same; force_loop_bounding true; fake_missing_bindings false)",
+    "wgpu-hal-27.0.4/src/vulkan/device.rs:881-935 (per-entry-point write_vec)",
+    "naga-27.0.3/src/back/spv/mod.rs Default for Options (lang_version (1,0), fake_missing_bindings true, capabilities None, ADJUST_COORDINATE_SPACE on)",
+    "naga-cli source v27.0.0: no SPIR-V version flag; capabilities and lang_version left at default https://raw.githubusercontent.com/gfx-rs/wgpu/v27.0.0/naga-cli/src/bin/naga.rs",
+    "WGSL counts at c4d06841: override 0, push_constant 0, var<workgroup> 0, texture_ 0 in all 9 files",
+    "crates/hsk-studio-render-gpu/src/kernel.rs:243-331: shader_source assembles text from constant MODES facts, so it has one deterministic result and can be emitted offline",
+    "truth-check q3: wgpu-hal feature vulkan enables naga/spv-out; every 'vulkan:discrete' row went through it; F-R46-1",
+    "module 12 lines 7142, 7147: TECH-WGSL retired, 'MUST NOT authorize implementation', 'the spec names no shader source language (open item)'; D7A-02",
+    "https://docs.vulkan.org/guide/latest/slang.html; https://github.com/shader-slang/slang/blob/master/LICENSE; https://fuchsia.googlesource.com/fuchsia/+/main/third_party/glslang/README.fuchsia (https://doc.qt.io/qt/qtshadertools-attribution-glslang.html says Bison was removed long ago; current upstream LICENSE.txt UNVERIFIED)",
+    "where glslc, spirv-val, naga on this machine: none found"
+   ],
+   "risk": "1) The v02.227 spec agent retired TECH-WGSL, and a reader can take that as D7 reaching WGSL entirely. 2) Hand-set options may still diverge from wgpu's SPIR-V. buffer policy differs if we choose Restrict; UNVERIFIED that output stays bit-identical in practice. 3) No spirv-val here. 4) A GUI shader may need something WGSL cannot express. 5) Pigment MODES change and the committed kernel SPIR-V goes stale.",
+   "control": "1) Do not revive TECH-WGSL. Record a new spec item answering D7A-02: offline source WGSL through the named tool, SPIR-V committed, no runtime compile. If the Operator rejects it, GUI shaders move to Slang file by file. 2) RF-12 keeps the wgpu implementation behind the seam until every kernel passes parity against pigment and today's rows, ties first. Set buffer policy Restrict: in-bounds accesses behave the same and no robustness2 device feature is required. 3) naga validates in the tool, the validation layer checks at runtime (see the validation position). 4) That one shader moves to another language; its .spv stays the contract. 5) A test hashes shader_source() against the manifest and goes red with a regen instruction.",
+   "proven_wrong_if": "Any kernel on the offline SPIR-V path fails a parity or tie row that the wgpu path passes on the same driver with no fix by options; or the Operator states D7 includes WGSL as source text.",
+   "unblocks": "D7A-02, D7A-03 translation target, RF-12 shader backlog (compile, not rewrite), first textured quad for the canvas."
+  },
+  {
+   "blocker": "O7 render-gpu refactor behind its port now",
+   "decision": "Yes. 'New wgpu code' means new capability or net growth in wgpu API use. Moving, narrowing and putting wgpu behind a crate-private seam are allowed. Gate: wgpu API lines in render-gpu may not exceed the baseline, and no new kernel. Two steps, in this order and neither first: (a) split the plain-data port (AdmissionRequest, GpuGrant, GrantLedger, GpuClientPort, closures, counters) out of render-gpu into a wgpu-free crate that render-gpu re-exports; (b) a crate-private compute-device seam (create kernel, upload, dispatch, read back, fault mapping) with wgpu as its first implementation, so the Vulkan implementation lands beside it and wgpu is deleted only after parity.",
+   "why": "The port cannot receive a Vulkan device today for two structural reasons: GrantLedger::issue_host passes lease None, and DeviceLease holds wgpu::Device and wgpu::Queue. A new host cannot depend on render-gpu for the port without linking wgpu, since wgpu is a non-optional dependency. Waiting for MT-203 leaves this blocked with no date: MT-203 is NOT_STARTED and unclaimed. Moving code adds no wgpu capability and keeps the public API, so the 27 test files with 56 tests that go through GpuBackend stay as written.",
+   "evidence": [
+    "crates/hsk-studio-render-gpu/src/client.rs:13-16, :602-623 (lease: None)",
+    "crates/hsk-studio-render-gpu/src/plan_sink.rs:1330-1332 (NoDevice for a host grant)",
+    "crates/hsk-studio-render-gpu/src/device.rs:245-252",
+    "crates/hsk-studio-render-gpu/Cargo.toml:22; src/lib.rs:16 (forbid unsafe)",
+    "MT-203.json gpu_contract_result status NOT_STARTED, canonical_owner null",
+    "truth-check q3 tests_that_would_break counts; S/builders/briefs/wave-parity-2-common.md rule 1"
+   ],
+   "risk": "Any render-gpu change re-opens its lanes (CX-VAL-009) and rebuilds dependents. A dependency change once made 146.3 GiB of new artifacts (F-R46-8).",
+   "control": "No dependency change in either step. Port split comes after the first window lane, and the seam after that, so the GUI is not waiting on them. Hold a C: and commit-charge check before the round that removes wgpu.",
+   "proven_wrong_if": "The split needs a public wgpu type in the port crate, or changes a public signature that a validated test depends on.",
+   "unblocks": "Host grant with a real device, MT-36248 host side, RF-12 phase work, MT-203 input."
+  },
+  {
+   "blocker": "O8 platform scope after D7",
+   "decision": "Accepted scope now: Windows x86-64 with a Vulkan 1.3 driver. Linux: native Vulkan, no code until a lane names it. macOS: no Metal backend; if it is ever scoped it goes through the Vulkan API on KosmicKrisp (Apple Silicon) or MoltenVK (Intel), declared unproven until run. Windows with no usable Vulkan driver: typed refusal vulkan_unavailable for window and GPU; headless engine and CLI work continues on render-cpu. No DX12, OpenGL or software fallback is called Vulkan. Device selection reports driver name and ID in the receipt; a CPU-type device or a layered driver (Dozen, MoltenVK) is refused unless an explicit flag allows it, and the receipt then says so.",
+   "why": "GUI-DESKTOP-020 and 026 and HBR-HOST-001 forbid renaming a fallback and require limits stated explicitly. Proof exists on one machine and one GPU. Claiming more would be unverified. Using the Vulkan API on macOS is now credible, which answers D7A-04 without a Metal path: KosmicKrisp reports Vulkan 1.4 conformance but needs Metal 4 and Apple Silicon. Windows on Arm has native vendor drivers on some platforms and otherwise Microsoft's compatibility pack on D3D12, a layered path with reduced features. ash's loaded feature opens vulkan-1.dll at runtime, so a missing loader is a typed result and not a failed process start.",
+   "evidence": [
+    "module 15 lines 66, 78 (GUI-DESKTOP-020, 026); HBR-HOST-001 required_action",
+    "ash-0.38.0+1.3.281/src/entry.rs:61; Cargo.toml features loaded, linked",
+    "vulkaninfo here: instance 1.4.357, NVIDIA GeForce RTX 3090, driver 621.01, VK_KHR_win32_surface present",
+    "https://www.phoronix.com/news/KosmicKrisp-Vulkan-1.4-2026; https://www.lunarg.com/?p=4048",
+    "https://docs.nvidia.com/rtx-spark/rtx-spark-porting-guide/latest/porting/vk-gl.html; https://mail.phoronix.com/news/Vulkan-1.3.264-Released (VK_MSFT_layered_driver)",
+    "D7A-04, D7A-05"
+   ],
+   "risk": "Machines without Vulkan get no GUI once eframe goes. Vulkan over a Remote Desktop session is UNVERIFIED. AMD and Intel behaviour UNVERIFIED, no such device here.",
+   "control": "Refusal text names the reason and the remedy. The eframe test host stays until the re-host lands. Vendor coverage is an open row in the parity table, not a claim.",
+   "proven_wrong_if": "The Operator requires macOS or DX12-only Windows for the next release, or a target user machine lacks Vulkan 1.3.",
+   "unblocks": "D7A-04, BackendChoice retirement plan at RF-12, truthful capability labels."
+  },
+  {
+   "blocker": "Window and input layer with no winit, eframe or wgpu",
+   "decision": "The ban holds on Windows. Use raw Win32 through windows-sys =0.61.2, already pinned for hsk-studio-worker: window class, HWND, message pump on a UI thread, rendering on a separate thread, VkSurface from vkCreateWin32SurfaceKHR with just hinstance and hwnd. Input is a typed HostEvent queue from the pump to the render thread, with the same queue reachable by a scripted file so models never use OS input injection. Pen comes from WM_POINTER with GetPointerPenInfoHistory; IME from WM_IME_* through IMM32; AccessKit through accesskit_windows Adapter with handle_wm_getobject in the WndProc. Add the windows crate only where COM is needed (file dialog, drag and drop). Honest limit: this is Windows only. The smallest exception, only when a lane scopes Linux or macOS: winit in a per-OS leaf crate behind the same host trait, non-Windows targets only, never in a public contract. It is not needed tonight, and Windows never uses it.",
+   "why": "winit's main value is cross-platform reach, which O8 does not need yet. Its cost here is real: a creative suite needs pressure, tilt and pointer history, and winit's stylus tracking issue is still the top hit for this, while Win32 gives all of it directly. The separate render thread also keeps drawing during the blocking size and move modal loop. The field shows the pattern works: GPUI (Apache-2.0, a Rust GUI in production use) has no winit in its manifest and uses the windows crate on Windows; Dear ImGui ships example_win32_vulkan. AccessKit needs no winit: accesskit_winit wraps the same adapter, and the crate's own example handles WM_GETOBJECT in a plain window procedure. Spec reading: STU-ARC-025 bars a UI toolkit or GPU abstraction; HBR-HOST-001 bars winit types in a public contract and allows a test host. winit in a leaf would not break those clauses, so its removal is a technical choice under the standing ban, not a law that forces this design.",
+   "evidence": [
+    "Cargo.toml line 463 at c4d06841: windows-sys 0.61.2 direct for worker; tools/workspace-probe.rs:522, :534-543, :559",
+    "accesskit_windows-0.29.2/src/adapter.rs:326, :343, :454; Cargo.toml dependency list has windows, no winit; licence MIT OR Apache-2.0",
+    "https://docs.rs/crate/accesskit_windows/0.33.0/source/examples/hello_world.rs",
+    "https://raw.githubusercontent.com/zed-industries/zed/main/crates/gpui/Cargo.toml (winit not listed; windows under the Windows target; licence Apache-2.0)",
+    "https://github.com/ocornut/imgui/tree/master/examples/example_win32_vulkan",
+    "https://learn.microsoft.com/da-dk/windows/win32/api/winuser/ns-winuser-pointer_pen_info",
+    "https://github.com/rust-windowing/winit/issues/99 (old thread; current winit pen status UNVERIFIED)",
+    "module 14:261 (STU-ARC-025); HBR-HOST-001; GUI-DESKTOP-022"
+   ],
+   "risk": "All the corner cases winit absorbs become ours: IME composition, dead keys, keyboard layouts, custom title bar hit testing, clipboard, drag and drop, multiwindow. Whether IMM32 is enough for every IME, or TSF is needed, is UNVERIFIED. Size is an estimate of a few thousand lines, not measured.",
+   "control": "One owner lane for input with the event type frozen early so UI lanes never touch Win32. The HostEvent queue is also the model's path, so tests exercise it headlessly. MT-36250 cases become its checklist.",
+   "proven_wrong_if": "A required GUI-DESKTOP-022 behaviour cannot be built on Win32 messages in Rust; or the Operator scopes Linux or macOS in the near term, which triggers the leaf exception above.",
+   "unblocks": "Blocker 3 (window, input, focus, IME, DPI, AccessKit) for a standalone host; O6 option c; later adoption by Handshake's shell as a canonical source under CX-MODULE-LIFECYCLE."
+  },
+  {
+   "blocker": "Swapchain, surface loss and recovery, DPI",
+   "decision": "One explicit state machine per window. RUNNING draws. STALE (VK_ERROR_OUT_OF_DATE_KHR or VK_SUBOPTIMAL_KHR) recreates the swapchain with oldSwapchain. MINIMIZED (extent width or height 0) does no acquire and no create, and waits for WM_SIZE. SURFACE_LOST destroys swapchain and surface, recreates both from the same HWND, up to a bounded retry count, then reports typed surface_unrecoverable. DEVICE_LOST calls the owner's rebind: generation + 1, all client resources dropped and re-created, old handles refused. Present-wait semaphores are indexed by swapchain image, not by frame. Format B8G8R8A8_UNORM with SRGB_NONLINEAR, because Frame bytes are already sRGB-encoded and must not be encoded twice. Usage COLOR_ATTACHMENT, TRANSFER_DST, TRANSFER_SRC; a missing flag is a typed refusal. DPI: SetProcessDpiAwarenessContext PER_MONITOR_AWARE_V2 as the first line of main, no build.rs manifest; WM_DPICHANGED applies the suggested rect with SWP_NOACTIVATE and publishes the scale as dpi/96 to layout; use GetSystemMetricsForDpi and AdjustWindowRectExForDpi. WM_ERASEBKGND returns 1 and the class has no background brush.",
+   "why": "Each state comes from a documented failure. A zero extent is a real capability result when minimized and creating at zero is invalid. Treating surface loss as a swapchain recreate is a known infinite-loop bug: SDL fixed exactly that black screen, and the DXVK thread reads the spec as needing destroy and a bounded retry. A submit fence does not cover the present, so frame-indexed semaphores are wrong. PMv2 gives per-monitor notifications and non-client scaling, and Microsoft calls use of the suggested rect critical to avoid a recursive DPI-change cycle.",
+   "evidence": [
+    "https://docs.vulkan.org/refpages/latest/refpages/source/VkSwapchainCreateInfoKHR.html",
+    "https://github.com/doitsujin/dxvk/pull/991; https://discourse.libsdl.org/t/sdl-gpu-vulkan-handle-vk-error-surface-lost-khr-in-acquire-path/67125",
+    "https://docs.vulkan.org/guide/latest/swapchain_semaphore_reuse.html",
+    "https://learn.microsoft.com/en-us/windows/win32/hidpi/high-dpi-desktop-application-development-on-windows",
+    "crates/hsk-studio-harness-view/src/view/render.rs:4, :70 (sRGB-encoded straight alpha)",
+    "crates/hsk-studio-render-gpu/src/client.rs:440-447 (rebind)",
+    "GUI-DESKTOP-022, 036, 037"
+   ],
+   "risk": "Surface loss and device loss are hard to trigger for real, so proof leans on injection. A hidden or fully occluded window may behave differently per driver (UNVERIFIED). The spec text on SURFACE_LOST was not read directly: the refpage URL tried returned 404, so the destroy rule rests on the DXVK thread's reading.",
+   "control": "A test-faults hook returns each error code from a thin wrapper, as render-gpu already does for loss. Real resize and minimize are driven by SetWindowPos and SW_SHOWMINNOACTIVE, with no input injection. Read the WSI chapter of the spec in the lane before coding the SURFACE_LOST branch.",
+   "proven_wrong_if": "The driver reports states this machine does not map, for example a repeated SUBOPTIMAL loop on resize; or captures differ from the offscreen frame for the same clear.",
+   "unblocks": "GUI-DESKTOP-009, 022, 036, 037 proof at asset level."
+  },
+  {
+   "blocker": "Device ownership: no lease, no_device, asset-local host now and Handshake later",
+   "decision": "Studio's device lives in the transient owner already allowed by STU-ARC-024, STU-ARC-032 and HBR-HOST-003, implementing the same GpuClientPort, issuer TransientAssetLocal, never host acceptance. Three contract additions, all plain data with no ash type: (1) a lease of raw handles: vkGetInstanceProcAddr address, VkInstance, VkPhysicalDevice, VkDevice as integers, queue family, API version, enabled extensions, generation. (2) The owner allocates and submits: clients call owner.allocate(grant, usage, size) and owner.submit(grant, command buffers) -> timeline value. Clients may own command pools and pipelines but never call vkQueueSubmit or vkAllocateMemory. gpu-allocator sits inside the owner only. Settlement waits on the timeline value (GUI-DESKTOP-033). (3) A pane never sees a swapchain or window: it draws into an owner-allocated image, the PaneTarget (image, view, format, extent, layouts, wait and signal timeline values, generation). The standalone host copies that image to the swapchain; Handshake's shell will composite it. One device per process: the new host does not link render-gpu until RF-12. Hand-over is then replacing the owner implementation and the presenter, with Studio client and pane code unchanged.",
+   "why": "VkQueue requires external synchronisation, so handing a client a raw queue would break any shared owner; a submit service is required, not a preference. Allocation through the owner is what GUI-DESKTOP-029 to 034 and GPU-QUOTA-010 need in order to attribute and admit. Handles are ABI, so a lease works whatever binding Handshake picks. wgpu-hal also exposes raw handles (native-memory reads them through Device::as_hal at the pinned versions), so even an eframe-based WP-012 shell could produce this lease, though it would not satisfy GUI-DESKTOP-003 and its queue locking is UNVERIFIED. The PaneTarget makes windowed, captured and hosted rendering one path, which is why the first lane builds offscreen first and copies. The memory numbers need no new code: native-memory already reads VK_EXT_memory_budget with estimates kept distinct from exact values (GUI-DESKTOP-031), though it takes a wgpu device and must be adapted to a raw one.",
+   "evidence": [
+    "module 14:259, :275 (STU-ARC-024, 032); HBR-HOST-001, HBR-HOST-003",
+    "module 15 lines 76, 86, 92, 94, 96, 100, 102 (GUI-DESKTOP-025, 029, 032, 033, 034, 036, 037); line 194 (GPU-QUOTA-010)",
+    "crates/hsk-studio-render-gpu/src/client.rs:119-125, :426-456, :602-623; src/device.rs:245-252; src/plan_sink.rs:1330-1332",
+    "MT-197.json AC197-7; MT-203.json AC203-1..7; both NOT_STARTED",
+    "origin/codex/handpick native-memory/src/lib.rs header and VulkanMemorySnapshot; wgpu-hal-27.0.4/src/vulkan/instance.rs:220, :234, :362",
+    "ash-0.38.0+1.3.281/src/device.rs:22"
+   ],
+   "risk": "STU-ARC-024 says the handle type and fields are 'to be settled with the GPU owner'. MT-203's owner may want a different shape, and no one has seen this one. Nothing is told to WP-012 by this member. NATIVE-RENDER-BOOT-007 and the quota issuer are host-side and stay missing. Cross-process clients (D7A-08) are not covered: a lease of raw handles is in-process only.",
+   "control": "Send this contract to the MT-203 owner as Studio's client requirements, through the lead; no WP-012 file is edited. Keep it in one crate so a changed shape costs one crate. Receipts say transient_asset_local and studio_declared budget until a host issues.",
+   "proven_wrong_if": "MT-203 chooses a client model where clients allocate directly, or where panes receive a render pass in the shell's command buffer. Then the PaneTarget or allocate call changes shape, though client draw code still would not touch the window.",
+   "unblocks": "Blocker 2 from the client side, host grant no_device, one-device rule for the new host, blocker 6 pane mount shape."
+  },
+  {
+   "blocker": "Headless and quiet proof",
+   "decision": "Offscreen is the default and needs no window: studio-vk offscreen --size WxH --out X.png --receipt X.json creates a Vulkan instance with no surface extension, renders to the PaneTarget image, copies to a staging buffer, writes PNG, and exits. No HWND exists. Window proof is separate and quiet: studio-vk window --quiet --frames N --capture Y.png uses WS_EX_NOACTIVATE, SW_SHOWNOACTIVATE, HWND_BOTTOM, SWP_NOACTIVATE, never SetForegroundWindow or SetFocus, copies the swapchain image before present, and counts foreground changes with GetForegroundWindow plus EVENT_SYSTEM_FOREGROUND. The receipt reports focus_changes, which must be 0. The interactive foreground window is only studio-vk window, and an unknown argument is exit 2, never a window. Receipt fields: backend vulkan, device name and UUID, driver, API version, binary hash, issuer, source offscreen or swapchain, extent, format, frame sha256, validation state, layers disabled. Each process has its own output paths, so parallel agents do not collide.",
+   "why": "HBR-QUIET-001 requires zero focus or Z-order change, and GUI-DESKTOP-024 requires evidence bound to genuine frames with the actual device identified. A swapchain copy is the genuine frame, and offscreen is what agents use every day. Vulkan needs no surface for rendering, and the existing lease is already headless (device.rs:1-2). Hash equality between offscreen and swapchain captures for the same scene proves the offscreen path represents what the window shows. It also fixes the known trap where the current binary treats help as a file and opens a window.",
+   "evidence": [
+    "HBR-QUIET-001, 002, 004; module 14 STU-QUIET-005 line 22603; GUI-DESKTOP-023, 024, 041",
+    "crates/hsk-studio-render-gpu/src/device.rs:1-2, :260-263",
+    "truth-check top gap 7: harness/src/bin/studio-harness.rs:53-78",
+    "vulkaninfo here: implicit-style layers VK_LAYER_EOS_Overlay, VK_LAYER_OW_OBS_HOOK, VK_LAYER_OW_OVERLAY, VK_LAYER_VALVE_steam_overlay, VK_LAYER_VALVE_steam_fossilize",
+    "https://raw.githubusercontent.com/KhronosGroup/Vulkan-Loader/main/docs/LoaderLayerInterface.md (VK_LOADER_LAYERS_DISABLE)",
+    "png 0.18.1 in Cargo.lock"
+   ],
+   "risk": "Overlay layers installed here (Overwolf, OBS hook, Steam, EOS) can hook the instance and swapchain and change timing or pixels, and they are the Operator's software. Whether each is implicit is UNVERIFIED from the summary. A window at the bottom of the Z-order may still be noticed by the Operator. The readback crash class 0xc0000005 in STU-QUIET-005 is documented for headless hosts; not seen on this path.",
+   "control": "Proof runs set, per process only, VK_LOADER_LAYERS_DISABLE=VK_LAYER_OW_*,VK_LAYER_EOS_*,VK_LAYER_VALVE_* and record it. Do not use ~implicit~, which would also remove NVIDIA's own layers. Nothing system-wide changes. Default agents use offscreen; window --quiet runs only at lane acceptance, in a declared step.",
+   "proven_wrong_if": "focus_changes is above 0 in a quiet run, or a swapchain capture and offscreen capture of the same clear differ, or an offscreen run creates any top-level window.",
+   "unblocks": "O6 option c with HBR-QUIET; agent screenshots of the GUI; designer and workflow agents' visual review."
+  },
+  {
+   "blocker": "Blocker 9: canvas on render-cpu read-back first",
+   "decision": "Yes, this resolves the UNVERIFIED in blocker 9. The new host shows Prefer::Cpu frames: 8-bit sRGB straight RGBA uploaded through a staging buffer into an R8G8B8A8_UNORM image, drawn as one textured quad with a checker under alpha in the fragment shader. Pan and zoom only change the quad; re-render happens only when the document changes. RF-12 does not gate the first GUI. The code must be extracted: render.rs is compiled only inside harness-view's egui-gated module and takes a wgpu-linked GpuBackend. Move its logic to a toolkit-free crate (suggested hsk-studio-view-render) with edges to composite, folio, pigment, render-cpu, prism; harness-view keeps a thin wrapper holding egui::TextureId and the GPU branch. GPU-required effects return their typed refusal in the new host (EFFECT_GPU_UNAVAILABLE, STU-FX-036), which is the existing rule.",
+   "why": "The bytes already exist in the right form and are exercised today as the fallback. Only 2 code lines of the 635-line render.rs name egui (59 and 76, plus the comment at 58) and the GPU branch is small (324, 334-341), so the path is close to free already. No other crate reaches it: harness-view holds every non-test call to render-cpu. Not linking render-gpu keeps one device in the process. UNORM avoids double encoding on the UNORM swapchain.",
+   "evidence": [
+    "crates/hsk-studio-harness-view/src/view/render.rs:2-4, :39-42 (MAX_VIEW_PIXELS 64 Mpx), :59, :70-76, :198, :261-262, :324, :334-341, :355",
+    "crates/hsk-studio-harness-view/src/view/mod.rs:88",
+    "git grep hsk_studio_render_cpu in crates src: only harness-view monitor.rs, render.rs, timeline_export/composition.rs, vector/mesh.rs",
+    "crates/hsk-studio-render-cpu/Cargo.toml (no toolkit, no GPU)",
+    "module 14 line 19865 (STU-FX-036)"
+   ],
+   "risk": "Interactive edits on large documents re-render fully; brush latency on the CPU path is UNVERIFIED and may be poor for a Photoshop-class canvas. A 64 Mpx frame is 256 MiB of staging. The output is clipped 8-bit, so no wide-gamut or HDR view until prism's display path lands. Effects that are GPU-only show a refusal. The number of those is NOT_INSPECTED.",
+   "control": "Measure first-frame and edit-to-frame time in the receipt from day one. Upload dirty rectangles when composite can name them. List GPU-only operators as typed refusals in the parity table, which also becomes RF-12's backlog. Coordinate the file move with the RF-01 owner.",
+   "proven_wrong_if": "A typical document's edit-to-frame time on the CPU path is too slow to judge the GUI, in which case RF-12 moves ahead of panel re-host. Or the extraction forces an egui type into the new crate.",
+   "unblocks": "First real document on the Vulkan window; re-brief of paused GUI lanes with a canvas to prove against; RF-12 no longer gates GUI work."
+  },
+  {
+   "blocker": "Validation layers absent (found here, not on the list)",
+   "decision": "Raw Vulkan work needs the Khronos validation layer. Get it as a per-process tool: the Vulkan-ValidationLayers release (Apache-2.0, licence and current package UNVERIFIED) unpacked under Handshake_Artifacts, selected with VK_ADD_LAYER_PATH, no system install. This is a download, so it needs the Operator's yes under the session rules. Until then lanes run and the receipt says validation: absent, and no synchronisation-heavy lane (port split submit path, RF-12) goes READY.",
+   "why": "With wgpu all barriers and lifetimes were checked for us. D7 moves that to us (D7A-10). vulkaninfo lists no VK_LAYER_KHRONOS_validation on this machine, and spirv-val and glslc are absent, so errors would show only as driver-specific corruption or a device loss. A window and clear frame are small enough to survive this for one night; a compute port is not.",
+   "evidence": [
+    "vulkaninfo --summary here: 7 instance layers, none Khronos",
+    "where glslc, spirv-val: not found; no VULKAN_SDK or VK_* environment variable",
+    "D7A-10; https://raw.githubusercontent.com/KhronosGroup/Vulkan-Loader/main/docs/LoaderLayerInterface.md"
+   ],
+   "risk": "Top risk of the whole pivot: subtle synchronisation bugs that pass on one NVIDIA driver and fail elsewhere. With one machine and no CI, they would ship silently.",
+   "control": "One-time Operator approval of the exact file and source. Debug runs enable the layer and treat any validation error as failure. The receipt field stops anyone claiming validated proof without it.",
+   "proven_wrong_if": "A validation-clean run still shows corruption, which says the layer is insufficient, not unnecessary.",
+   "unblocks": "Trustworthy READY claims for GPU lanes."
+  },
+  {
+   "blocker": "Smallest first lane",
+   "decision": "SMB-VK-HOST-1: two new crates only, touching no existing crate source. No shader, no pipeline: the clear is vkCmdClearColorImage on the PaneTarget image, then vkCmdCopyImage to the swapchain image, so it needs no SPIR-V path. Acceptance: (1) offscreen run writes a PNG with the exact clear value, receipt names the RTX 3090 on direct ash Vulkan, no HWND created. (2) window --quiet shows the same clear on a real HWND, focus_changes 0, swapchain capture hash equals offscreen hash. (3) scripted SetWindowPos resize, minimize, restore through SW_SHOWMINNOACTIVE and SW_SHOWNOACTIVATE recreates correctly; injected OUT_OF_DATE, SURFACE_LOST and DEVICE_LOST take their typed paths. (4) cargo tree for both crates shows no wgpu, naga, winit, eframe, egui. (5) A model opens the PNG and states the verdict. README manual and a state JSON ship in the same lane (GLOBAL-BUILD, HBR-MAN).",
+   "why": "It puts a true Vulkan frame on screen tonight, with every design position exercised at minimum: binding, ownership shape, offscreen-as-the-one-path, surface state machine, quiet proof. It reuses compiled ash, libloading, windows-sys and png from a lane target, so it should be cheap to build. Its files are disjoint from all engine lanes. Root Cargo.toml, Cargo.lock and tools/ are steward surfaces per WORKSPACE_RULES, so the lead or steward does those edits first: two members, ash and windows-sys and png pins, and NATIVE_OWNERS plus DESIGNATED entries.",
+   "evidence": [
+    "S/builders/WORKSPACE_RULES.md topics git, crates-io-deps",
+    "tools/workspace-probe.rs:485-563",
+    "Cargo.lock at c4d06841 (ash, libloading, windows-sys 0.61.2, png 0.18.1)",
+    "HBR-HOST-001 allows an asset-local test host; STU-ARC-032"
+   ],
+   "risk": "It is a host, and it could drift into being treated as the product. Reuse of compiled artifacts depends on feature unification and is UNVERIFIED until built.",
+   "control": "Crate README and receipts say asset-local host, never host acceptance. Red team reviews the diff before the bundled run per workflow item 10.",
+   "proven_wrong_if": "The lane cannot pass acceptance 1 and 2 within the fix budget of 3 on this driver, which would say something is wrong with ash, the driver or this design, and should be raised at once.",
+   "unblocks": "Lanes below; a non-egui test host for GUI lanes (O6, blocker 7); the mechanical quarantine gate has an allow-list target."
+  }
+ ],
+ "plan": [
+  {
+   "lane_id_suggestion": "SMB-VK-HOST-1",
+   "crates": ["new hsk-studio-vulkan (ash, unsafe, instance, device, transient owner, offscreen, capture; no window)", "new hsk-studio-native-host (windows-sys, HWND, swapchain state machine, bin studio-vk)"],
+   "what": "Real Vulkan window with a cleared frame and an offscreen capture, per position 'Smallest first lane'. Steward first: members, pins, probe entries.",
+   "depends_on": [],
+   "parallel_with": ["all engine lanes"],
+   "size": "5 commits (estimate)"
+  },
+  {
+   "lane_id_suggestion": "SMB-VK-SPV-1",
+   "crates": ["new tools/spv-build (own [workspace], naga =27.0.3, features wgsl-in, spv-out; steward surface)", "hsk-studio-vulkan"],
+   "what": "Offline SPIR-V path with wgpu-hal's options set explicitly, manifest and hash test, first graphics pipeline (textured quad with checker), dynamic rendering. Spec note answering D7A-02.",
+   "depends_on": ["SMB-VK-HOST-1"],
+   "parallel_with": ["SMB-GPU-PORT-SPLIT-1", "SMB-VK-WIN32-INPUT-1"],
+   "size": "3 commits (estimate)"
+  },
+  {
+   "lane_id_suggestion": "SMB-VK-CANVAS-READBACK-1",
+   "crates": ["new hsk-studio-view-render", "hsk-studio-harness-view (render.rs becomes a wrapper)", "hsk-studio-native-host"],
+   "what": "Egui-free, wgpu-free Prefer::Cpu frame path, upload, quad, pan and zoom, document on screen, capture, timing in the receipt.",
+   "depends_on": ["SMB-VK-HOST-1", "SMB-VK-SPV-1"],
+   "parallel_with": ["SMB-GPU-PORT-SPLIT-1", "SMB-VK-WIN32-INPUT-1"],
+   "size": "4 commits (estimate). Not parallel with an RF-01 lane touching view/render.rs."
+  },
+  {
+   "lane_id_suggestion": "SMB-VK-WIN32-INPUT-1",
+   "crates": ["hsk-studio-native-host"],
+   "what": "HostEvent queue, keyboard, mouse, WM_POINTER pen with history, IME, DPI, cursors, clipboard, AccessKit adapter, scripted events path, multiwindow swapchains.",
+   "depends_on": ["SMB-VK-HOST-1"],
+   "parallel_with": ["SMB-VK-SPV-1", "SMB-GPU-PORT-SPLIT-1", "SMB-VK-CANVAS-READBACK-1"],
+   "size": "5 commits (estimate)"
+  },
+  {
+   "lane_id_suggestion": "SMB-GPU-PORT-SPLIT-1",
+   "crates": ["new hsk-studio-gpu-port (plain data, no wgpu, no ash)", "hsk-studio-render-gpu (moves, re-exports)", "hsk-studio-vulkan"],
+   "what": "Port out of render-gpu, raw-handle lease, owner allocate and submit with timeline settlement, gpu-allocator 0.27.0 features [vulkan] only, memory budget observer adapted from native-memory, requirements sent to the MT-203 owner via the lead.",
+   "depends_on": ["SMB-VK-HOST-1"],
+   "parallel_with": ["SMB-VK-SPV-1", "SMB-VK-WIN32-INPUT-1", "SMB-VK-CANVAS-READBACK-1"],
+   "size": "5 commits (estimate). Goes READY only with the validation layer."
+  },
+  {
+   "lane_id_suggestion": "SMB-RENDER-GPU-SEAM-1",
+   "crates": ["hsk-studio-render-gpu"],
+   "what": "Crate-private compute-device seam with wgpu as first implementation; shader_source emit and hash test; wgpu line gate at baseline. GPU parity table and CPU-only refusal list.",
+   "depends_on": ["SMB-GPU-PORT-SPLIT-1"],
+   "parallel_with": ["SMB-VK-WIN32-INPUT-1", "SMB-VK-CANVAS-READBACK-1"],
+   "size": "4 commits (estimate)"
+  },
+  {
+   "lane_id_suggestion": "SMB-RENDER-GPU-VULKAN-1",
+   "crates": ["hsk-studio-render-gpu", "hsk-studio-vulkan"],
+   "what": "RF-12: Vulkan implementation behind the seam, 9 WGSL files plus generated bodies plus prism VIEW_WGSL compiled to committed SPIR-V, explicit barriers, fault mapping replacing error scopes, parity on both paths, ties first.",
+   "depends_on": ["SMB-RENDER-GPU-SEAM-1", "SMB-VK-SPV-1"],
+   "parallel_with": ["UI re-host lanes"],
+   "size": "8 commits (estimate)"
+  },
+  {
+   "lane_id_suggestion": "SMB-RENDER-GPU-WGPU-RETIRE-1",
+   "crates": ["hsk-studio-render-gpu", "hsk-studio-harness", "hsk-studio-harness-view", "root Cargo.toml via steward"],
+   "what": "Drop wgpu, BackendChoice, DX12 and Metal rows and SharedDevice. Only after parity holds and no test host needs eframe. Full round; disk check first (F-R46-8).",
+   "depends_on": ["SMB-RENDER-GPU-VULKAN-1", "RF-01 and RF-02 re-host"],
+   "parallel_with": [],
+   "size": "2 commits (estimate)"
+  }
+ ],
+ "needs_from_other_members": [
+  "Controls and Kumihimo member (O4, O5): who owns text and widget drawing. This position gives you a PaneTarget and a command-buffer recording call; I assume the UI renderer records into it and never touches window or swapchain. Say if not.",
+  "WP-012 or O1 member: nothing here waits on O1. A lease of raw handles can be produced by any Vulkan shell; a wgpu-based one can expose handles, but that does not satisfy GUI-DESKTOP-003. Please carry the lease, submit service and PaneTarget shape to the MT-203 owner, since STU-ARC-024 settles them there.",
+  "RF-01 member: SMB-VK-CANVAS-READBACK-1 moves view/render.rs. Agree who moves it, and whether Viewer logic then renders through it.",
+  "GUI designer: the first visible surface is a clear colour, then a canvas quad. Tell me the required format needs (blur or backdrop materials need a second pass; LCD text would need dual-source blending, UNVERIFIED in WGSL at naga 27).",
+  "Governance or steward member: mechanical gate in workspace-probe: ash only in hsk-studio-vulkan, windows-sys additions only in the host crate, naga forbidden in product closures after wgpu retires, wgpu line count capped. Update DESIGNATED and NATIVE_OWNERS with the first lane.",
+  "Lead: put the validation layer download to the Operator as one item, exact file and source, in the next-step box. Also record a spec-owner item for D7A-01, 02, 04 answers. The lead decides whether naming ash under STU-ARC-024's wording needs a spec note.",
+  "Red team, please attack: bit identity of offline SPIR-V against wgpu's output; WGSL as source after TECH-WGSL's retirement text; whether the transient owner's allocate and submit calls are premature before MT-203; whether IMM32 is sufficient."
+ ],
+ "unverified": [
+  "No lane has run: nothing here is built. All sizes are estimates.",
+  "Catalog read from the local tracking ref of origin/codex/handpick; freshness not checked and the create-assets bootstrap not run. No catalog entry seen for a Win32 window or Vulkan device owner; the rationale for new crates is that Kumihimo's 'Vulkan backend selection' goes through eframe (truth-check q5) and render-gpu's is wgpu.",
+  "vulkano's handle-import ability and exact high-level behaviour beyond its published description were not inspected in source.",
+  "Current winit pen status; Vulkan over Remote Desktop; AMD and Intel; Vulkan-ValidationLayers package details; Slang's bundled third-party licences; glslang's current LICENSE.txt.",
+  "Workspace membership of tools/ was not checked; a nested crate with its own [workspace] table is assumed to stay out of the root workspace, to be checked by the steward."
+ ]
+}

@@ -1,0 +1,245 @@
+{
+  "member": "delivery",
+  "generated_at": "2026-11-07T06:55Z",
+  "scope_split": {"Handshake (Product)": "NONE changed; read at c4d06841", "Repo Governance": "this file only"},
+  "headline": "The lock is the queue, but long holds are the cause, not the slot count. On 11-05 and 11-06 per-sha checks were 55% of all builder lock time and caught 2 failures in 63 runs. Cutting holds gives an estimated 3x capacity on the same two slots, with no rule change. A third slot on the C: SATA QLC SSD would feed a disk that is already the limit.",
+  "read": [
+    "S/HANDOFF.md topics truth-check, vulkan-gui-pivot, workflow, state, next-work, how-to-lead, lessons",
+    "S/ledger.json direction.workflow_20261107, operator_direction_20261107, after_r58_20261106, next_lane_candidates",
+    "S/tools/disk-build-lock.sh, disk-lock-audit.sh, lane-check.sh; S/builders/studio-env.sh, WORKSPACE_RULES.md, DISPATCH_TEMPLATES.md, briefs/wave-parity-2-common.md, briefs/lane-smb-controls-egui-gate-1.md; S/workflow/workflow-v3.json WF3-002, WF3-007, WF3-008",
+    "K/.GOV/codex/Handshake_Codex_v1.4.md CX-984-002, CX-984-014, CX-VAL-001, 002, 005, 007, 009, 010, 011, CX-GIT-001A, CX-EXEC-005",
+    "Both lock event logs and live held/queue records; about 7,800 lane logs dated since 2026-10-30 under Handshake_Artifacts/WP-KERNEL-STUDIO (575 of them top-level run logs, the rest per-sha unit logs)",
+    "studio-round/results R52, R54, R55, R56, R57, R58 round.json, unit build logs; R58 junit per unit; R59 live",
+    "S/research/cargo-inspect-20261107-C.json and -D.json, cargo-cleanup-plan-20261107-R.json, cargo-reuse-research-20261107.json, round-time-audit-20261107.json, scope-20261107-*.json, blockers-20261107-authority-and-spec.json, -shell-architect.json, -vulkan-engineer.json",
+    "git at c4d06841: log since 2026-10-21 (540 commits), manifests of 56 crates, tests/ trees, struct literal counts, .cargo/config.toml, .config/nextest.toml, .config/round-features.toml, harness and harness-view features",
+    "Live machine: Get-PhysicalDisk, Get-Volume, CPU, memory, performance counters, Defender preference, fsutil devdrv",
+    "https://nexte.st/docs/running/ (--test selects a target, -E described as a filterset), https://nexte.st/book/how-it-works.html (builds all test binaries, then lists)",
+    "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue",
+    "https://www.uber.com/blog/slashing-ci-costs-at-uber (conflict analysis lets independent changes build concurrently: Uber reports 53% less CI resource and 37% less wait)",
+    "https://matklad.github.io/2021/02/27/delete-cargo-integration-tests.html (one test binary: about 3x compile, 5x artifacts)",
+    "https://www.tomshardware.com/reviews/samsung-870-qvo-sata-ssd/3 and https://www.anandtech.com/show/16136/qlc-8tb-ssd-review-samsung-870-qvo-sabrent-rocket-q/2 (78 GB SLC cache, about 172 MB/s after it, recovered after about 5 min idle)",
+    "https://blogs.windows.com/blog/2023/06/01/dev-drive-performance-security-and-control-for-developers/ (up to 30%; no cargo benchmark found)"
+  ],
+  "measurements": {
+    "machine": "Ryzen 9 5950X, 16 cores, 32 threads; 128 GB RAM; at 06:20Z 79 GB free, 114 GB commit free. C: disk 1 Samsung 870 QVO 8 TB SATA SSD, NTFS, 403 GB free. D: disk 0 Toshiba MG08 16 TB SATA HDD, NTFS, 1,205 GB free. Five USB WD Elements HDDs (E, F, G, I, P). No NVMe. Defender real-time on; exclusions unreadable without admin. Dev Drive enabled in the OS, none in use. .cargo/config.toml jobs = 8; nextest test-threads = 8.",
+    "lock_time_11_05_to_11_06": {
+      "per_sha_compile_h": 11.35,
+      "other_builder_compile_h": 8.38,
+      "builder_test_run_h": 0.98,
+      "per_sha_share": "55%",
+      "test_run_share": "4.7%",
+      "builder_hours_spent_waiting": 13.52,
+      "wait_per_run_s": {"p50": 223, "p75": 656, "p90": 1757, "max": 3089},
+      "non_per_sha_run_s": {"p50": 30, "p75": 99, "p90": 311, "p99": 1355, "max": 2440},
+      "share_of_non_per_sha_compile_in_runs_over_300_s": "67%"
+    },
+    "lock_time_10_30_to_11_02": {"per_sha_compile_h": 10.17, "other_builder_compile_h": 9.76, "test_run_h": 1.42, "waiting_h": 6.57, "wait_p50_s": 78},
+    "today_on_d": "11 runs with a lock line: median wait 642 s, median compile 29 s across the day's 20 compile runs. SMB-OBSERVE-DIAG-SINK-1 green harness: waited 648 s for 19.3 s compile and 4.7 s tests, 96% wait (log smb-observe-diag-sink-1-green-harness-eb559398.log).",
+    "breakdown_since_11_05_excluding_per_sha": {"bundled_or_suite_h": 5.57, "red_or_focus_h": 2.94, "other_h": 0.53, "clippy_phase_of_multi_phase_runs_h": 0.99, "test_build_phase_of_multi_phase_runs_h": 5.79},
+    "worst_bundles": "entry-references 2248 s test build for 986 tests; retime-hold 2010 s for 859; retime-hold 1259 s for 824; media-markers 1052 s for 806. A focused run of 28 tests took 935 s of test build (focused-new-tests-smb-pr-entry-references-1).",
+    "per_sha": "About 240 s per commit: 21 feature units in the common harness closure, 10 to 36 s each (e.g. smb-pr-edit-footprint-1 per-sha-41d0e0da, 7 commits, 147 units, 1582 s cargo time). Repeats after rebases: smb-r54-followups-1 ran 6 tips, about 2.5 h; smb-pr-media-markers-1 6 tips; smb-id-toc-persist-1 3 tips. Result lines in logs with sha in the name since 10-30: 61 OK, 2 FAIL (name filter, so a sample).",
+    "rounds": {
+      "summed_build_s_and_run_s": {"R52": [5678, 616], "R54": [5407, 788], "R55": [8423, 736], "R56": [6775, 683], "R57": [10342, 1148], "R58": [10304, 981]},
+      "harness_pair_build_s": {"R52": 4550, "R54": 4140, "R55": 6320, "R56": 5518, "R57": 7635, "R58": 8213},
+      "claims_judged": {"R55": 3, "R56": 5, "R58": 1},
+      "scoping_note": "R58 selected 26 crates and took the same time as FULL R57 (3 h 48). A change in folio or pulse pulls in the harness family, which is 77 to 81% of a round (round-time-audit why_91_units_equalled_160). Scoping saves little, so a FULL round costs little extra.",
+      "r58_heavy_units": "10 harness viewer-family units took 584 to 784 s each. Each ran 191 to 242 tests, of which only 0 to 3 ran in no other unit of the round."
+    },
+    "disk_bound_not_cpu_bound": "round-time-audit: CPU mean 14 to 17% during rounds, about 5 cores with 8 jobs; disk queue mean 19.7 in R58 with one build on C:; lock waits 1 to 10 s. My 40 s sample at 06:30Z (R59 tests on C:, no rustc): D: idle 0.5% at 3.1 MB/s and 34 ms per transfer, C: idle 33%. My own log scan was reading D: during that sample.",
+    "graph": "Reverse closure at c4d06841: accord 48, observe 43, folio 25, prism 14, nib 13, pigment 13, package 12, type 11, motion 9, composite 7, score 6, render-cpu 5. harness, harness-view, harness-core, render-gpu, interop-fig, interop-layout, interop-vector, kernel-bindings have 2 or fewer.",
+    "test_targets": "767 integration test binaries: harness 73, composite 58, folio 56, pigment 55, render-cpu 47, develop 39, layout 38, score 36, render-gpu 35, harness-view 32.",
+    "limits": "Times come from `Finished` and `Summary` lines, so the lock overhead and tar steps of per-sha are excluded and its share is a floor. Waits are only from logs that were kept. Windows use file mtime. Link and compile cannot be split from these logs. My scan took about 20 minutes on D: while builders ran, the same mistake lessons warn about; do not repeat it, use the saved numbers."
+  },
+  "positions": [
+    {
+      "blocker": "Is one build per physical disk (CX-984-002) the real ceiling, and should a third slot or a higher cap exist on C:?",
+      "decision": "Keep two slots and CX-984-002 tonight. No third slot, no higher cap, no RAM disk, no USB HDD slot. Shrink holds first (positions below). Morning question for the Operator, only if median wait is still over 5 minutes after those cuts: may `cargo check` class commands run beside a holder on C:? Separate purchase question: an NVMe drive for build targets.",
+      "why": "The queue is real: 13.5 builder-hours waited in two days, and a 24 s job waited 648 s. But the cause is heavy tails in a FIFO lock: per-sha 55% of lock time, and runs over 300 s are 67% of the rest. Half of it is removable by habit. The machine is disk-bound, not CPU-bound: one round on C: already shows CPU 16% and disk queue about 20. A second link-heavy build on a SATA QLC disk with a 78 GB cache and about 172 MB/s after it would add writes to the bottleneck. The rule is the Operator's Codex text, and the harness refused the lead's relaxation of HSK-ART-005 today, so the lead should not assume it can relax this one. A USB HDD slot would need a CX-984-014 grant and a cold target; a RAM disk needs a driver install and competes with the memory gate that held R59.",
+      "evidence": ["measurements.lock_time_11_05_to_11_06", "measurements.today_on_d", "measurements.disk_bound_not_cpu_bound", "K/.GOV/codex/Handshake_Codex_v1.4.md:236", "K/.GOV/codex/Handshake_Codex_v1.4.md:238", "S/HANDOFF.md:258", "S/research/round-time-audit-20261107.json answer.measured, cuts rank 4", "https://www.tomshardware.com/reviews/samsung-870-qvo-sata-ssd/3"],
+      "risk": "Holds do not shrink as estimated and the two slots stay the limit through the night, about 7.5 lock-hours in the window.",
+      "control": "Record median wait and lock-hours per lane every 2 hours from the run logs' `acquired after` lines, reading only logs written since the last reading. If median wait is over 5 minutes at T+4 h, cut to 6 builders rather than add slots.",
+      "proven_wrong_if": "Once the Operator allows it, an A/B of the same harness-view viewer build alone and as two concurrent builds on C: shows the pair each under 1.3x the solo time with commit free over 40 GB. Then a second C: slot is right and this decision should be reversed.",
+      "unblocks": "More parallel builders without a Codex change"
+    },
+    {
+      "blocker": "How builders iterate cheaply, and which steps need the lock",
+      "decision": "Three-step ladder in every brief. (1) `cargo check -p <crate> --tests`, in one hold with anything else due. (2) Focused runs name targets: `cargo nextest run -p <crate> --test <file>`. Never use `-E binary(...)` or lane-check `--tests` to narrow a build: they narrow the run, not the link. (3) One bundled run after review. Keep every cargo command under the lock as the wrapper does today. Do not take test execution out of the lock tonight (authority member's GOV-LANE-CHECK-LOCK-1).",
+      "why": "Test execution is 4.7% of builder lock time and about 9% of a round, so moving it gains little and adds wall-clock test failures under load, plus an edit to a script that running lanes source. The link is the cost. The log with `-E binary(diag_sink)` listed 87 binaries and skipped 85, so all were built. A focused run of 28 tests took 935 s. lane-check's own `--tests` becomes one `-E` filter, so it has the same cost. Nextest documents `--test` as selecting the target.",
+      "evidence": ["SMB-OBSERVE-DIAG-SINK-1/smb-observe-diag-sink-1-green-harness-eb559398.log: 'Starting 22 tests across 2 binaries (85 binaries skipped)'", "S/tools/lane-check.sh:10-11", "S/builders/studio-env.sh:232-233", "S/HANDOFF.md:486", "measurements.worst_bundles", "https://nexte.st/docs/running/", "https://nexte.st/book/how-it-works.html"],
+      "risk": "A `--test` run misses a sibling test the change breaks, and that surfaces later at the bundled run or the round.",
+      "control": "The bundled run still covers the suites of the crates the lane edits. Check of the harness pair [viewer] stays. Use one canonical -p and --features form per crate, so targets are not rebuilt under another feature identity (cargo research free_now).",
+      "proven_wrong_if": "A logged `--test` run on harness rebuilds as many binaries as the package run, or red and focus hours do not fall by at least 40% against 2.94 h per the same mix of lanes.",
+      "unblocks": "Short holds that stop queuing behind 37-minute bundles"
+    },
+    {
+      "blocker": "Bundled run size",
+      "decision": "A lane's bundled run is the whole suite of the crates it edits, except harness and harness-view: for those two, only named `--test` targets unless the lane edits that crate's src. Rule 4b suites such as package stay. Drop clippy over dependents with the existing STUDIO_LANE_CHECK_NO_DEPENDENTS=1 only if the lane is not editing a public signature. The scope reports' 'WHOLE harness-view' lines are cut to this for engine lanes. Budget: 5 commits, one bundled run, two failed runs then a fresh diagnostics agent.",
+      "why": "The harness pair is 88 to 98% of test-binary bytes and 74 to 80% of round build time. Bundles of 700 to 2248 s are almost all that link. The round links them anyway, and the Operator asked for minimal testing with rounds as the proof.",
+      "evidence": ["S/research/cargo-reuse-research-20261107.json measured_findings.two_crates_dominate", "measurements.worst_bundles", "S/research/scope-20261107-audio-processors.json suites", "S/HANDOFF.md:265", "S/tools/lane-check.sh:13-16"],
+      "risk": "More breaks reach the round instead of the lane, each costing a fix and a verdict from the budget of 3.",
+      "control": "Compile check of the harness pair at the tip stays in the push gate. Code-check and red-team read before the bundled run. A lane that changes behaviour the Viewer uses names those targets in its brief.",
+      "proven_wrong_if": "R60 fails more than 2 lanes on harness or harness-view tests the lane's narrowed run skipped. Then restore whole suites for folio and session lanes only.",
+      "unblocks": "Harness link time off D: for every engine lane"
+    },
+    {
+      "blocker": "Per-sha cost",
+      "decision": "Tip only, as workflow item 11 says, and skip it entirely when the push gate reports a disjoint rebase. Squash a lane to at most 3 commits before the tip check. Take the round-time audit's 5 dropped units in round-features, which also shrinks per-sha because it reads the same matrix.",
+      "why": "It was the largest single consumer of the lock and found 2 failures in about 63 runs. Those failures are compile errors the tip check or the round's default build would also find, unless they sit on a non-tip commit, which rounds do not judge. Repeats after rebases cost hours.",
+      "evidence": ["measurements.per_sha", "S/tools/lane-check.sh:27-44", "K/.GOV/codex/Handshake_Codex_v1.4.md:173", "S/HANDOFF.md:265, :485-486"],
+      "risk": "An intermediate commit does not compile, so bisecting is harder (the origin of F-R48-4 and F-R49-1).",
+      "control": "RED COMMITS rule stays for what is pushed: squash non-compiling reds before the push. A failed trunk check names the landing, which is enough for tonight's scale.",
+      "proven_wrong_if": "The next round's build fails on a commit that a skipped per-sha would have caught, more than once in the night.",
+      "unblocks": "About 10 of 20.7 lock-hours per two working days (ESTIMATE)"
+    },
+    {
+      "blocker": "The push slot: one lane pushing at a time, with holds during rounds",
+      "decision": "Abolish the slot and the round push hold. Git's non-force push is already an atomic compare-and-swap on the branch. A lane lands by: fetch, rebase, `tools/lead/push_gate.py` (new, read-only, `cargo metadata --no-deps`, runs unlocked), then the guarded push. Gate rule: let O be the crates origin changed since the lane's old base and L the crates the lane changed. If no crate in O has a dependency path to or from a crate in L, the rebase is disjoint: no build, run the lane's new tests only if it has not run them, push. Otherwise run the tip check on the intersecting closure, then push. On rejection, repeat. No lead release step. A trunk check on a clean tree (`cargo check --workspace --tests` plus harness [viewer]) runs after every 3 landings or 2 hours, and before any round freeze.",
+      "why": "CX-VAL-001 freezes one candidate and says later commits queue for the next round, so a push during a round cannot touch the round. Today's PUSH HOLD on STUDIO-R59 is a habit: SMB-CONTROLS-EGUI-GATE-1 is sitting at phase push_hold for a round expected to run hours. Conflict analysis is the field's way to avoid a queue: independent changes do not wait on each other. A merge queue is the heavier form, and with one machine it would serialise the same builds.",
+      "evidence": ["K/.GOV/codex/Handshake_Codex_v1.4.md:173", "S/builders/briefs/lane-smb-controls-egui-gate-1.md:29", "S/builders/lanes/hsk-studio-controls-egui-gate-1.json phase push_hold", "S/builders/briefs/lane-smb-controls-egui-gate-1.md:60", "S/START_LOG.md:700, :707, :720, :723", "https://www.uber.com/blog/slashing-ci-costs-at-uber", "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue"],
+      "risk": "A trunk break lands, or a same-file semantic clash passes a clean textual rebase. The 2026-10-21 incident shows pushes are dangerous when scripted loosely. A repair of a round FAIL rebases over newer work. I did not find a recorded reason for the round hold in Codex; one may exist in the validator's practice (UNVERIFIED).",
+      "control": "PUSH SAFETY text stays verbatim, no force, no delete. Dependency path test includes dev-dependencies. Same-file edits always count as intersecting. A red trunk check stops new landings on that closure only, and the owning lane fixes forward. The R59 validator gets told in its next message that origin may move beyond c4d06841 while it works, and judges only the candidate.",
+      "proven_wrong_if": "Two or more trunk breaks in one night, or the validator shows a verdict depended on origin not moving. Then bring back a slot for lanes that touch folio or session only.",
+      "unblocks": "Many landings an hour, and the egui gate lane now"
+    },
+    {
+      "blocker": "Round policy and keeping CX-VAL-011 honest",
+      "decision": "After R59: no round until a real wave. Freeze R60 at 8 READY lanes or at T+5.5 h, whichever is first, never for fewer than 6 READY unless a HIGH fix is waiting. R60 is FULL, as already due. Land everything that forces a full round before that freeze: steward sync, new dependency versions, the matrix cut. Then keep the lockfile set and `.config` still until the next due FULL. Never narrow a selection by hand; round-select computes it. Count every round in the third-round rule. Report READY as unjudged in every summary to the Operator.",
+      "why": "A round is worth its cost in lanes judged per hour. R58 spent 3 h 48 on one claim, and R55 about 3 h on 3. Scoped costs about the same as FULL whenever the harness family is in the closure, so the third-round rule costs little; timing is what matters. A root input change costs a canary too (R54-canary 1 h 57), so fold all such changes into one sync. Authority member already drops WF3-007's 8-hour half.",
+      "evidence": ["measurements.rounds", "K/.GOV/codex/Handshake_Codex_v1.4.md:193, :181", "S/research/round-time-audit-20261107.json cuts note", "S/workflow/workflow-v3.json WF3-007, WF3-008", "S/research/blockers-20261107-authority-and-spec.json rule_readings CX-VAL-011", "S/HANDOFF.md:265"],
+      "risk": "Up to about 7 hours of unjudged lanes. A systematic error, such as the externals classifier failing three rounds in one class, spreads across a whole wave before any verdict.",
+      "control": "Review before every bundled run. Trunk check before freeze. If two lanes' reviewers report the same failure class, write it into the common brief that day (lessons). A HIGH fix may trigger a scoped round early, which then counts toward the third-round rule.",
+      "proven_wrong_if": "R60 fails more than a quarter of its READY lanes. Then the batch was too large: freeze at 4 to 5 lanes.",
+      "unblocks": "C: as a builder slot for about 2.75 hours between rounds"
+    },
+    {
+      "blocker": "Round duration",
+      "decision": "Apply two round-time-audit cuts to R60, in the one steward sync: rank 2, drop harness viewer, media, media-native, audio-device, audio-batch units (retain desktop+viewer, studio-aac, os-encode, audio-plugin, audio-batch+audio-device); rank 1, start validator probes after the default unit, and replace the cap guard's double tree walk with free-space delta plus a walk at start and end. Do not raise jobs to 16. Test-binary merge (cargo research rank 3) waits until after R60. A deeper cut to fewer viewer-family units is a candidate after R60, UNVERIFIED.",
+      "why": "Audit measured 241 test ids in the dropped units and 0 not run by retained ones, saving 0.56 to 1.12 h per round. My R58 unit table agrees: 10 units at 584 to 784 s with 0 to 3 tests unique to any one. The canary cost is paid once, and SMB-GUI-STEWARD-1 changes `.config/round-features.toml` anyway, so both share one canary. Jobs: audit says the disks may be the limit, and os error 1455 is on record. Merging changes test ids, so claim mappings need migrating, and it would collide with every harness lane during the wave.",
+      "evidence": ["S/research/round-time-audit-20261107.json cuts ranks 1, 2, 3, 4", "measurements.rounds.r58_heavy_units", "S/research/blockers-20261107-shell-architect.json plan SMB-GUI-STEWARD-1", "harness Cargo.toml [features] at c4d06841", ".config/round-features.toml at c4d06841"],
+      "risk": "Exact sets stop being built, so a missing import with media on and audio-batch off goes unseen. Audit counts 40 cfg(not(feature)) sites.",
+      "control": "Retained sets still cover the negative branches: desktop+viewer lacks media, audio-batch+audio-device lacks os-encode. Rebuild the old matrix once at WP boundary (CX-EXEC-008). The commit names the matrix change so the validator can challenge it. Changing it is a checked-in commit (CX-VAL-007), never a runtime override.",
+      "proven_wrong_if": "A failure appears in a downstream build for one of the dropped sets, or the validator rejects the matrix as weakening proof. Then restore the sets at the next FULL.",
+      "unblocks": "An R60 near 2 h 30 to 3 h (ESTIMATE), plus cheaper per-sha"
+    },
+    {
+      "blocker": "Conflicts: where lanes collide, and how many builders can work at once",
+      "decision": "Split work by the map below. Rules: (a) one lane at a time on each hot file in tier 1; everyone else adds a new module and one registration line. (b) Only one lane at a time adds a field to a widely-literal struct, and it lands fast; new text attributes go into one new struct behind one new field, so later lanes do not sweep again. (c) Engine lanes reach a document through session and typed commands, and leave Viewer exposure to one exposure lane per domain per 2 hours. (d) Land RF-01 as one short mechanical lane, with no other lane in view/mod.rs, shell.rs, hosted.rs during it. (e) New GUI crates per the shell and Vulkan members' plans go first in parallel, since they conflict with nothing. (f) Order among folio lanes: first ready lands; others take only the tip check and their new tests.",
+      "why": "Since 10-30, 86 lanes: harness-view touched by 28, folio 20, pulse and harness 18, layout 17, harness-core 15, composite 12, session and package 9. Most lib.rs collisions are module and re-export lines. Struct literals make one field a many-file edit. The first wave already has three lanes in harness cli.rs and harness-core harness.rs.",
+      "evidence": [
+        "Distinct lanes per file since 10-30: layout/src/lib.rs 13, pulse/src/lib.rs 11, folio/src/lib.rs 11, harness-core/src/harness.rs 9, package/tests/externals.rs 8, session/src/lib.rs 7, view/vector.rs 7, view/mod.rs 7, harness/src/cli.rs 7, session/src/session.rs 6, view/timeline.rs 6, session/src/sequence_records.rs 5, session/src/source.rs 5",
+        "Literal sites at c4d06841: StudioSequence 166 in 77 files, StudioClip 156 in 73, StudioDocument 133 in 103, StudioTrack 113 in 72, StudioLayer 74 in 42, Viewer 74 in 71, StoryRange 48 in 36, StudioTextFrame 27 in 22",
+        "package/tests/externals.rs:470 CLASSIFIED table, rule 4b",
+        "S/ledger.json next_lane_candidates: 'needs one more StudioClip field, so a second literal sweep'",
+        "S/research/scope-20261107-filters.json overlaps, scope-20261107-text-attributes.json overlaps, scope-20261107-vector-effects.json overlaps",
+        "S/HANDOFF.md:455, :475"
+      ],
+      "risk": "Engine lanes without Viewer exposure repeat the old failure, where PASS rows could not reach a document (HANDOFF:145). Exclusive hot files become a hidden queue.",
+      "control": "Every engine lane must show a document path through session or a typed command in a test. Exclusive-file holds last only for a lane's push window, about 30 minutes, not its whole life. SMB-SEAMS-1 removes the worst text conflicts. Add `git rerere` per lane tree if a rebase repeats.",
+      "proven_wrong_if": "More than a quarter of rebases still conflict after SMB-SEAMS-1, or GUI panel lanes cannot be written without touching tier 1 files.",
+      "unblocks": "8 builders at once with low rebase cost",
+      "conflict_map": {
+        "tier_1_one_lane_at_a_time": ["harness-core/src/harness.rs", "harness/src/cli.rs", "harness-view/src/view/mod.rs", "harness-view/src/view/shell.rs", "harness-view/src/view/hosted.rs", "harness-view/src/view/vector.rs", "harness-view/src/view/timeline.rs", "session/src/session.rs", "session/src/source.rs", "session/src/sequence_records.rs"],
+        "tier_2_text_only_fix_mechanically": ["layout/src/lib.rs", "pulse/src/lib.rs", "session/src/lib.rs", "type/src/lib.rs", "folio/src/lib.rs mod lines", "package/tests/externals.rs CLASSIFIED"],
+        "tier_3_literal_sweeps_exclusive_per_struct": ["StudioClip", "StudioSequence", "StudioTrack", "StudioLayer", "StudioDocument", "StoryRange", "Viewer"],
+        "parallel_groups": {
+          "A_free_any_time_no_folio": ["score effects: SMB-SCORE-EFFECTS-6 (score first; its audio_batch.rs and mixer.rs part is exposure)", "reel export: SMB-PR-EXPORT-RECIPE-1", "new GUI crates per other members", "web, press, interop-* leaf work"],
+          "B_folio_touching_different_files": ["SMB-PR-ROUTING-REPAIR-1 (audio_routing, multicam)", "SMB-PIGMENT-FILTER-KERNELS-1 (smart_filter, clip_finishing)", "SMB-TYPE-INDENT-SPACING-1 (typestyle)", "SMB-AI-LIVE-EFFECTS-1 (new vector_live_filter)"],
+          "C_harness_level_serial_at_push_only": ["SMB-OBSERVE-DIAG-SINK-1", "SMB-HARNESS-DRIVE-1", "SMB-SESSION-WRITE-SAFETY-1", "SMB-CONTROLS-EGUI-GATE-1"],
+          "D_viewer_serial": ["RF-01 first", "then panel ports in view/panels/<key>.rs per shell architect, parallel by file", "at most one exposure lane per domain"]
+        }
+      }
+    },
+    {
+      "blocker": "Reuse pairs: how many builders each disk hosts under P3",
+      "decision": "C: 6 and D: 6 live targets, 12 in all; run at most 8 builders. D: is full now: entry-references, sequence-session, edit-footprint, r53-followups, retime-hold, ps-mode-convert. C: hosts, by fit: harness-capable retime-output (37 crates), nudge (35), r54-followups (34); narrower sequence-presets (20), composer-depth, sentinels or blank-line-lookups (13, layout and type lanes). media-markers keeps its target until its verdict. Correct two scope reports: SMB-PR-EXPORT-RECIPE-1 goes on smb-pr-nudge-1, because SMB-SCORE-EFFECTS-6 also names retime-output; SMB-AI-LIVE-EFFECTS-1 stays on smb-ai-distort-effects-1 but waits for a D: lane to finish, since it would be a seventh live target. New GUI crates take the smallest clean trees, for example smb-press-ink-manager-1 (8 crates) or smb-pr-track-display-1 (6), because their closures are small. Do not use smb-type-authored-token-1: it is the read-only audit tree.",
+      "why": "From the inspection files, C: has 7 reuse candidates and D: has 22 entries marked reusable, some very small. P3 caps live targets, not trees. The fit that matters is crates built, because a tree that has never built the harness pair links it cold. Demand estimate: at 0.7 utilisation with 12 to 30 lock-minutes per lane cycle of about 75 minutes, one slot serves 2 harness-level lanes or 4 leaf lanes.",
+      "evidence": ["S/research/cargo-inspect-20261107-C.json", "S/research/cargo-inspect-20261107-D.json", "S/HANDOFF.md:442, :256", "S/research/scope-20261107-audio-processors.json tree", "S/research/scope-20261107-timeline-delivery.json tree", "S/research/scope-20261107-vector-effects.json tree"],
+      "risk": "Plan R runs after R59 and removes test binaries from targets, so a reused tree relinks on its first run. smb-fig-grid-3 is paused with a live target and would make D: seven if counted (lead ruling needed). C: tree cap is 360 GiB, last record 314 GiB at 2026-11-06 (.studio-ssd-size), so a FULL round plus 5 lane targets is close.",
+      "control": "Measure the C: tree before R60 and each C: lane dispatch (lessons). Run Plan R on a disk only when no round is on it. Count paused fig-grid-3 as idle only by a recorded lead ruling. If the C: tree is over 330 GiB at R60, close C: lanes first with lane_close.sh and approved prune rows.",
+      "proven_wrong_if": "A reused target's first run compiles as much as a new target, meaning the tree moved too far from base. Then pick by overlap with the lane's closure instead of crate count.",
+      "unblocks": "Second wave without creating any new worktree"
+    },
+    {
+      "blocker": "Agents: how many, and which model and effort",
+      "decision": "Peak 8 builders (5 on D:, 3 on C:), 1 validator, 1 steward, at most 4 read-only reviewers at once, 2 scenario or designer agents. While a round holds C:, C: lanes write code and take only cargo check holds under about 2 minutes in round gaps; no bundled run or cleanup on C:. Each lane gets one review pass before its bundled run: separate code-check and red-team agents for folio schema, session, save-path, or harness-level lanes; one combined agent doing both for leaf lanes of at most 3 commits. Re-review only on a HIGH finding. Update WF3-002, which still says 5 builders.",
+      "why": "Agents waiting on a lock cost wall-clock, not disk (lessons); the stale-base and review load is what grows. Disk capacity is about 2 lanes an hour, so more than 8 builders only lengthens waits. R59's lane needed a third pre-review before it was safe, which shows reads catch what tests miss, but repeated passes are the busy work the Operator excluded.",
+      "evidence": ["S/HANDOFF.md:369-376, :454-456, :461-465, :264-265, :476", "S/workflow/workflow-v3.json WF3-002", "S/research/pre-review-r59-media-markers.json"],
+      "risk": "Lower-effort builders produce more rework. Combined reviews miss what separate adversarial reads catch. Reviewer backlog delays bundled runs.",
+      "control": "Raise effort on any builder whose first review has a HIGH finding. If a reviewer queue passes 30 minutes, the builder continues on its next slice; the review still precedes its bundled run.",
+      "proven_wrong_if": "More than a third of lanes get a HIGH finding on review or FAIL in R60 from the medium-effort group. Then raise that group to high.",
+      "unblocks": "Rapid work without rework",
+      "model_table": [
+        {"job": "Validation round", "model_effort": "opus / xhigh", "at_once": 1},
+        {"job": "Steward sync, round matrix, canary", "model_effort": "opus / high", "at_once": 1},
+        {"job": "Builder: cross-crate contract, spec parameter table, folio schema, session, Vulkan", "model_effort": "opus / high", "at_once": "up to 4"},
+        {"job": "Builder: routine engine slice, panel port", "model_effort": "opus / medium", "at_once": "up to 4"},
+        {"job": "Builder: fully specified single-crate slice", "model_effort": "sonnet / medium", "at_once": "counts in the 8"},
+        {"job": "Red team before bundled run", "model_effort": "opus / high", "at_once": "up to 2"},
+        {"job": "Code check before bundled run", "model_effort": "opus / medium", "at_once": "up to 2"},
+        {"job": "Diagnostics after two failed runs", "model_effort": "opus / high, fresh agent", "at_once": "as needed"},
+        {"job": "Rebase and tip check, no shared-file conflict", "model_effort": "sonnet / medium", "at_once": "as needed"},
+        {"job": "Shared-file merge conflict", "model_effort": "opus / high", "at_once": "as needed"},
+        {"job": "Trunk check, log summaries, records from a report", "model_effort": "sonnet / low", "at_once": 1},
+        {"job": "Designer, workflow scenarios", "model_effort": "opus / medium", "at_once": 2}
+      ]
+    },
+    {
+      "blocker": "Faster linking and write volume for lanes (cargo research ranks 1 and 2)",
+      "decision": "Run the probe, but only V3 (rust-lld plus debug = 0) against the round's measured V0, plus V4 if V3 passes, on D: as one queued lane. Adopt for lanes only at each target's next natural rebuild, for example after the steward sync. Do not force reused live targets to rebuild tonight. Rounds stay unchanged until after R60.",
+      "why": "PDBs are 36 of 47 GiB in a large target, so debug = 0 cuts writes on disks that are the limit. But each reused target rebuilds once when the profile changes: 12 targets at 13 to 30 minutes is 3 to 6 lock-hours, close to half the night's capacity. Field evidence on lld on Windows is thin and mixed, so measure before adopting.",
+      "evidence": ["S/research/cargo-reuse-research-20261107.json ranked_recommendation, probe_step_1", "S/HANDOFF.md:258", "https://github.com/rust-lang/rust/issues/71520", "https://users.rust-lang.org/t/rust-on-windows/134315"],
+      "risk": "The probe itself holds D: during the first wave. Lane binaries diverge from round binaries, so a linker-specific failure appears only in rounds.",
+      "control": "One probe lane, queued like any other, under 45 lock-minutes in total or it stops. Round proof unchanged (CX-VAL-007). STUDIO_DEBUG opt-out stays for failure work, per the research.",
+      "proven_wrong_if": "V3 saves under 25% of relink time on harness-view viewer. Then drop it and keep debug line tables.",
+      "unblocks": "Second-half capacity and C: free space"
+    }
+  ],
+  "plan": [
+    {"lane_id_suggestion": "GOV-DELIVERY-RULES-1", "crates": "none (S/builders/briefs/wave-parity-2-common.md, S/HANDOFF.md workflow topic, S/workflow/workflow-v3.json WF3-002 and WF3-007)", "what": "Record the check ladder, `--test`, bundled scope, tip-only and disjoint rules, no push slot, no round hold, round trigger, builder cap. Send running builders the same text as a short message. Fold into authority member's GOV-BLOCKER-RECORD-1.", "depends_on": [], "parallel_with": ["GOV-PUSH-GATE-1"], "size": "1 governance commit"},
+    {"lane_id_suggestion": "GOV-PUSH-GATE-1", "crates": "none (new S/tools/lead/push_gate.py; existing tools not edited, since lanes run them)", "what": "Read-only: given old base and tip, print DISJOINT or the intersecting closure from `cargo metadata --no-deps`. Self-test on three past landings. Why a new surface: lane-check has an owner and side effects and is in use by running builders; primary debug output is its one stdout line per crate.", "depends_on": [], "parallel_with": ["GOV-DELIVERY-RULES-1"], "size": "1 governance commit"},
+    {"lane_id_suggestion": "SMB-SEAMS-1", "crates": ["package tests", "folio lib.rs mod lines"], "what": "Move CLASSIFIED to tests/externals/classified.rs, one property per line, sorted. Sort folio mod and use pairs. Lead sets the built-in union driver in the common info/attributes (assets-repository/info/attributes, local, no commit) for layout, pulse, session, type src/lib.rs only, with no effect on other assets' paths. A wrongly merged DESCRIPTOR line fails at compile.", "depends_on": [], "parallel_with": ["group A lanes"], "size": "1 to 2 commits, sonnet / medium"},
+    {"lane_id_suggestion": "SMB-CONTROLS-EGUI-GATE-1 (in flight)", "crates": ["controls", "harness-core", "tools/workspace-probe.rs"], "what": "Release from push_hold now, after GOV-DELIVERY-RULES-1. Shell architect's amendment first if not yet applied.", "depends_on": ["GOV-DELIVERY-RULES-1"], "parallel_with": ["all"], "size": "as briefed"},
+    {"lane_id_suggestion": "First-wave landing (in flight)", "crates": ["SMB-PR-ROUTING-REPAIR-1", "SMB-OBSERVE-DIAG-SINK-1", "SMB-HARNESS-DRIVE-1", "SMB-SESSION-WRITE-SAFETY-1", "SMB-PIGMENT-FILTER-KERNELS-1"], "what": "Land as each is ready through the gate; do not wait for R59. cli.rs and harness.rs conflicts resolved by whoever lands second.", "depends_on": ["GOV-PUSH-GATE-1"], "parallel_with": ["each other"], "size": "as briefed, tip check only"},
+    {"lane_id_suggestion": "SMB-GUI-STEWARD-1 + SMB-ROUND-MATRIX-1", "crates": ["root manifest members", "Cargo.lock", ".config/round-features.toml", "tools/workspace-probe.rs", "new crate skeletons"], "what": "One steward landing: GUI skeletons and pins per shell and Vulkan members, plus the 5-unit drop. No canary until the R60 freeze. If the matrix drop needs validator input, it still lands here and is named in the R60 dispatch.", "depends_on": ["SMB-CONTROLS-EGUI-GATE-1"], "parallel_with": ["group A and B lanes"], "size": "2 commits, opus / high, on D:"},
+    {"lane_id_suggestion": "GOV-CARGO-PROBE-1", "crates": ["harness-view in a throwaway owner"], "what": "V3 against R58's V0 number, then V4 if V3 passes; 45 lock-minute cap. Owner: cargo research.", "depends_on": [], "parallel_with": ["all, but only on D: while R59 holds C:"], "size": "no commits; a result JSON"},
+    {"lane_id_suggestion": "Group A wave", "crates": ["score (SMB-SCORE-EFFECTS-6)", "reel (SMB-PR-EXPORT-RECIPE-1)", "GUI crates per other members' first lanes"], "what": "Dispatched at T+0 on C: trees. Write code during R59 with check holds in gaps; bundled runs after R59, or on D: if D: has room.", "depends_on": ["GOV-DELIVERY-RULES-1"], "parallel_with": ["group B", "first wave"], "size": "3 to 5 commits each"},
+    {"lane_id_suggestion": "Group B wave", "crates": ["folio + layout (SMB-TYPE-INDENT-SPACING-1)", "folio + composite + nib (SMB-AI-LIVE-EFFECTS-1)"], "what": "Type on r54-followups on C:. Live effects when a D: tree frees. One literal-sweeping field at a time.", "depends_on": ["SMB-SEAMS-1"], "parallel_with": ["group A"], "size": "4 to 6 commits each"},
+    {"lane_id_suggestion": "RF-01 (per shell architect)", "crates": ["harness-view", "controls"], "what": "Mechanical move, then free the panel ports. Exclusive on view/mod.rs, shell.rs, hosted.rs during its push window.", "depends_on": ["SMB-CONTROLS-EGUI-GATE-1"], "parallel_with": ["groups A and B except exposure lanes"], "size": "per shell architect"},
+    {"lane_id_suggestion": "STUDIO-R60 FULL", "crates": ["all"], "what": "Trigger per the round position. Trunk check, freeze, then canary, then union on C:, with cap guard and probe changes in the dispatch.", "depends_on": ["SMB-GUI-STEWARD-1 + SMB-ROUND-MATRIX-1"], "parallel_with": ["D: lanes only"], "size": "round"}
+  ],
+  "operating_plan_8h": {
+    "clock": "T0 = when the lead records this, about 07:00Z. R59 end time is UNVERIFIED: expected 09:00 to 10:00Z from its unit list and R52 to R58 timings.",
+    "targets": "About 15 to 18 lanes pushed and READY by T+8 (ESTIMATE, against about 1 lane an hour on 11-06). Median lock wait under 5 minutes. A lane's lock budget of 12 minutes for a leaf lane and 30 for harness-level.",
+    "phases": [
+      {"when": "T+0 to R59 recorded", "C": "R59 only; lanes there write code, check holds under 2 minutes in gaps, nothing else.", "D": "Up to 5 active builders of the 6 existing lanes, plus probe and steward in the queue.", "lanes_at_once": "6 to 8", "review": "One pass before each bundled run. The two lanes already waiting on review go first.", "rounds": "R59 running. Pushes flow; candidate frozen.", "lead_actions": "Record rules; release push_hold; build push gate; tell the validator origin may move; dispatch group A."},
+      {"when": "R59 recorded to about T+5.5", "C": "Builder slot: 3 to 4 lanes, up to 6 live targets. Plan R prune first on C:, about when R59 records, before bundled runs.", "D": "5 builders; Plan R D: rows at background rate only when its queue is short.", "lanes_at_once": "8 peak", "review": "Same. At most 4 readers at once.", "rounds": "None, unless a HIGH fix needs one. If media-markers fails a third time, park per the authority member, with no round for it.", "lead_actions": "Read R59 against the audit's machine-state index. Trunk check after every 3 landings or 2 hours. Wait reading every 2 hours."},
+      {"when": "T+5.5 to T+8 (R60 runs on to about T+10.5)", "C": "Canary (about 2 h if healthy), then R60 FULL (about 2.5 to 3 h, ESTIMATE). Measure C: tree first; commit free recorded.", "D": "5 to 6 builders. C: lanes that are not done move to code-only.", "lanes_at_once": "6", "review": "Same.", "rounds": "R60 candidate freezes before its canary (CX-VAL-010), so a lane must be READY on origin by T+5.5 to be in it. Later landings wait for R61.", "lead_actions": "Freeze only on green trunk check. Everything READY by freeze goes in."}
+    ],
+    "stop_doing": [
+      "Per-sha on every commit, and per-sha after a disjoint rebase",
+      "Holding pushes for a running round, and the lead's single push slot",
+      "Whole harness and harness-view suites in lanes that do not edit them",
+      "`-E binary(...)` or lane-check `--tests` as if they narrowed a build",
+      "Separate cargo calls that each queue, when one hold would do",
+      "Rounds for one claim, unless a HIGH finding needs it",
+      "A second review pass with no HIGH finding",
+      "Editing lane-check.sh or studio-env.sh while lanes run, including GOV-LANE-CHECK-LOCK-1 tonight",
+      "Python or shell walks over the artifact tree on D: during builds, including this kind of audit",
+      "Short lane_watch ticks: read the lock's held and queue records instead of forking git and python per lane",
+      "MT and record paperwork per slice; keep commits and `next` current for restart safety, and do the rest at READY"
+    ],
+    "operator_morning_items_one_at_a_time": [
+      "Defender and Search exclusions for C:/HandshakeBuild and the artifact root. A security setting, so Operator only; audit estimates 0.15 to 0.6 h per round.",
+      "If the wait target is missed: may cargo check class commands run beside a holder on C: (CX-984-002)?",
+      "Optional purchase: an NVMe drive for targets, with a CX-984-014 grant. A free M.2 slot is UNVERIFIED. Expected the largest hardware gain, since builds are disk-bound; not measured here."
+    ]
+  },
+  "needs_from_other_members": [
+    "Authority member: I oppose GOV-LANE-CHECK-LOCK-1 tonight. You noted the split inside a bundled hold was not measured; it is now: test execution is 4.7% of builder lock time (0.98 of 20.7 h on 11-05 and 11-06). Also confirm my reading of CX-VAL-001 that pushes during a round are allowed, and that no record requires the hold.",
+    "Shell architect and Vulkan engineer: your plans name different new crates (hsk-studio-ui, -ui-text, -ui-vk, -gui-host against hsk-studio-vulkan, -native-host, -gpu-port, -view-render). The lead must reconcile them before SMB-GUI-STEWARD-1, which should be the only landing that touches root files. All dependency versions should land in it, before R60.",
+    "Shell architect: `egui-test-host round unit` in SMB-GUI-STEWARD-1 adds to the matrix; say which harness unit it replaces, so it does not undo the 5-unit drop.",
+    "Cargo research owner: confirm the V3-only probe still answers your gates, and whether debug = 0 changes fingerprints enough to force each target to rebuild on first use, which is my reason for deferring adoption.",
+    "Red team: attack the disjoint push rule hardest. A semantic break with no dependency path between the changed crates is the case I rate negligible; build-script, feature unification and schema-file couplings are what I did not test.",
+    "R59 validator (via the lead): the R59 heavy10 mean against the audit's index, because it decides whether cut 1 is needed. No measure of a bundled run under the new rules exists yet."
+  ]
+}

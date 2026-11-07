@@ -1,0 +1,68 @@
+{
+  "lane": "SMB-PR-ROUTING-REPAIR-1",
+  "tip": "e76bfe0f216e9df97813e14b631c5a5cc8fda90f",
+  "verdict": "FIX_FIRST",
+  "verdict_reason": "No compile error found in e76bfe0f and no existing test expected to fail. F1 and F2 are session-crate edits of a few lines; made after the bundled run they would force another session and dependents run, so make them before it. F3 and F4 are lead decisions and do not hold the build.",
+  "findings": [
+    {
+      "id": "F1",
+      "certainty": "READ",
+      "where": "crates/hsk-studio-session/src/sequence_records_step.rs:285",
+      "what": "The option A guard treats a cancel as stale records. `validate_multicam_records(&records, document, budget, cancel).is_err()` returns Ok(()) on Code::Canceled, so the guard passes without checking the successor. Nothing after it in submit_inner checks the token before publish (session.rs:1417 routing_takeovers parses only when a sequence is added; session.rs:1480 publishes).",
+      "scenario": "A timeline step removes a video track of a declared source and the host's cancel lands after the proposal and before or during this first validate (folio tick checks the token on every record). The step commits, Applied.cancel_too_late is true, the valid records are now invalid, and the whole multicam set refuses on read: the state option A forbids. keep_entry_valid at session.rs:1858 handles this correctly. The lane widened this call from Remove-only to every sequence-changing commit.",
+      "smallest_fix": "Match as keep_entry_valid does: Ok(()) continue; Err(d) if d.code == Code::Canceled => return Err(SessionError::Canceled); Err(_) => return Ok(()). A direct in-crate test with a canceled token is about 6 lines."
+    },
+    {
+      "id": "F2",
+      "certainty": "READ",
+      "where": "crates/hsk-studio-session/src/lib.rs:57 (DESCRIPTOR string)",
+      "what": "The model-facing manual still says 'multicam angle_order still goes invalid when its track is removed, read by index'. This lane refuses that commit folio_rejected on every path (tests/routing_repair.rs no_commit_path_changes_the_video_tracks_of_a_declared_source). The same edit updated the string nearby and left this clause.",
+      "scenario": "A no-context model reading --descriptor expects a commit that goes unreadable and gets a refusal.",
+      "smallest_fix": "Replace the clause with: a commit that would make a valid multicam record set invalid is refused folio_rejected; a file already stale refuses the whole set on read."
+    },
+    {
+      "id": "F3",
+      "certainty": "READ",
+      "where": "crates/hsk-studio-folio/src/audio_routing.rs:304 and :317, reached from crates/hsk-studio-harness-view/src/view/mixer.rs:440 and :445",
+      "what": "The inert rule also removed the refusal on a NEW authored target. MixerEdit::Output and MixerEdit::AddSend rely on validate_audio_routing to refuse a bad bus. A well-formed STRK id the sequence does not hold now returns Ok and adds one undo step, and the audio plays to the master or the send does nothing.",
+      "scenario": "v.mixer_edit(MixerEdit::AddSend { track_id, target: <typo or stale STRK id>, level: 1.0, pre_fader: false }) is Ok. Before this lane it was an error. The UI offers only held buses (mixer.rs:706, :731), so the reach is programmatic callers and parallel model paths. No existing test pins it (harness tests/audio_mixer.rs:188 uses a held audio track, still refused).",
+      "smallest_fix": "Lead decision, mixer.rs is outside the lane's owned paths: in mixer_edit_inner, refuse Output and AddSend when the target is not a track of the sequence (about 3 lines). Reading and sequence commits stay inert as ruled. set_audio_routing stays as is: viewer_inert_routing.rs pins that the Viewer's own write is not refused."
+    },
+    {
+      "id": "F4",
+      "certainty": "READ",
+      "where": "crates/hsk-studio-harness-core/src/harness.rs:1890 (history_step commits the sequence inverse, then swaps the entry) with crates/hsk-studio-session/src/session.rs:1396",
+      "what": "An undo the guard makes permanently refused. It is the same sequence-before-entry order the lead cited for not refusing a bus removal at commit, so that reason also applies to this ruling; it holds today only because no production caller passes the multicam token.",
+      "scenario": "Live records R1 do not declare seq-a. run.submit_sequence_and_entry(op, seq-a plus video track V3, \"multicam\", R2 declaring seq-a with V3) commits: the guard passes on R1, then R2 validates. Undo: the timeline inverse removes V3 while R2 is live and valid, the guard answers folio_rejected, restore puts the step back, and every undo attempt refuses, blocking all history under it. At base this undo worked. git grep: the Viewer passes only ROUTING_ENTRY to these calls; only viewer_mint_skips_inert.rs passes multicam.",
+      "smallest_fix": "No edit needed for this build. Name it next to undo_corner in the lane notes. If a host ever carries the multicam token, either refuse that token in sequence_and_entry_step, or swap the entry first on undo."
+    }
+  ],
+  "builder_questions": {
+    "1_undo_by_value": "Not wrong for a real undo in one session. Remove inverses carry the live value (multicam_step.rs:165) and every removal passes publish (session.rs:1480, reconcile at :2146), so the digest matches. A real undo reports a takeover only past 128 removals (named), or if a host quoted expect with -0.0 against a live 0.0 (PartialEq equal, JSON digest differs; report only). A real takeover can be missed in two ways: the identical value re-inserted (named), and a set unreadable against the LIVE document that the same step repairs while inserting the sequence (sequence_records.rs:225-228 parses against current only). The second needs a stale file plus a step doing both; report only; not listed as a finding.",
+    "2_guard_blocks": "No Viewer path is blocked: no Viewer command changes a video track of a sequence or the source of a moded clip outside the multicam step, and razor, trim, move, mute, rename and removing a moded clip all pass (a_step_that_leaves_the_declared_video_tracks_alone_commits_and_undoes). Harness undo is LIFO, so an entry-only step between steps is undone first. The exception is F4, plus the named undo_corner.",
+    "3_guard_cost": "One call per commit that changes sequences (session.rs:1396), one at resync. Not per clip, not in a planner loop: Viewer razor and nest plan first and commit once. The most frequent caller is a mixer fader drag (mixer.rs:672, Slider changed -> MixerEdit::Volume -> submit_sequence), one commit per changed frame, already a commit, and only on a file with a parseable multicam entry. ReservedIds::of parses once per razor, move, nest, subsequence or source edit, not per mint. The validator is linear (owners BTreeMap, folio multicam.rs:263).",
+    "4_takeover_not_surfaced": "Confirmed: git grep finds no routing_takeovers in harness-core, harness-view or harness. The Run op record omits it, so at the harness boundary a takeover through Run::submit_sequence_edits is still silent. Viewer mints no longer reach it. It is correct to keep this as a candidate for the host surface; F-R57-3 is closed at the Session API only.",
+    "5_wrong_kind": "Confirmed as listed and pinned. Not reachable from a Viewer mint: ReservedIds covers every id-bearing field of StudioAudioRouting (routes, output, sends, bus_effects, track_automation, clip_gains, clip_pans). Reach is a direct commit or a file.",
+    "test_an_entry_that_does_not_parse_reserves_nothing": "Asserts its words only as a control. Damaged bytes name no id, so razor_clip(1) is minted with or without the fix, and the test passes on the code before e76bfe0f once the fixture opens. It goes red only if ReservedIds::of or the commit refuses or panics on a damaged entry. Expected green at the tip: the guard's parse fails to Ok, and open_multitrack does not read multicam.",
+    "test_harness_path": "Asserts what it claims. Without the guard, submit_sequence_and_entry would commit the track removal and then accept the rewritten records, so the first assert goes red. The second assert (submit_sequence_edits_and_entry) is refused by multicam_step validating the live records, which held at base too, so it pins existing behaviour. The sequence and entry byte asserts are real."
+  },
+  "checked": [
+    "Compile of e76bfe0f by reading: crate::harness::Run is hsk_studio_harness_core::Run (harness-view lib.rs:9, harness-core lib.rs:25); Viewer.run is private but reachable from child modules; envelopes is pub(super) and ROUTING_ENTRY pub(in crate::view); pub(in crate::view) on ReservedIds and its fields reaches source_monitor and timeline/nest; every field used in ReservedIds::of exists with an owned type and partial moves are legal; document_entry returns Option<&[u8]>; temporary in plan_source_edit's argument lives past the call and the result borrows nothing; reserved is owned, so no borrow of self crosses timeline_commit or timeline_plan; nest and envelopes are not feature gated, so no dead field in lower feature units",
+    "Callers of mint_clip_ids, mint_track_ids, ids_for, plan_move, plan_razor, plan_source_edit: all in harness-view src and all updated; no test or other crate calls them",
+    "Clippy: plan_move and ids_for have exactly 7 arguments (lint fires above 7); plan_source_edit keeps its allow; no new arithmetic under deny(arithmetic_side_effects)",
+    "Other crates: no literal of session Applied or DivergenceReport outside session.rs; no match on StudioInertRoutingKind outside folio; LiveEntries.multicam has no other user",
+    "Existing suites that have not run on this lane, by reading: session multicam_entry, multicam_commit, sequence_records_commit and track_display commit nothing the guard refuses; harness audio_session.rs:210 and audio_mixer.rs:188 use a held non-bus and stay refused; viewer_timeline_nest and nest_2 pre-seed no nest id in a routing through the Viewer and no test pins a minted id literal",
+    "viewer_mint_skips_inert.rs expected results at the tip, including the razor test's MoveClip tail, never exercised at green, and the nest and subsequence tests",
+    "Folio routing: absent target inert for live routes, held non-bus refused, cycle edges only over held targets, listing uses sets, no new unbounded walk",
+    "Pulse bus_mix: output and send are the only route readers in pulse; harness-view reads them only in mixer.rs",
+    "Takeover: added computed from the live document, computed before the commit port so pending drafts and keyed replays carry it; removal memory bounded at MAX_SEQUENCES*2 with digests only; resync reports and does not note removals",
+    "Lead ruling on angle_order: consistent with the code as a refusal at commit; its limit is F4"
+  ],
+  "not_checked": [
+    "Nothing was compiled or run (method). Green at e76bfe0f is NOT PROVEN",
+    "plan_nest track id mapping beyond the test's first-id expectation",
+    "hsk-studio-harness and kernel-bindings suites beyond the grep above",
+    "design and motion handling of a stale layer id (lane notes already say NOT_INSPECTED)",
+    "Pulse tests/inert_routing_mix.rs fixture internals beyond the assertions"
+  ]
+}

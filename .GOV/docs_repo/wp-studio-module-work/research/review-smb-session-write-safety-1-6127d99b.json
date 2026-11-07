@@ -1,0 +1,88 @@
+{
+  "lane": "SMB-SESSION-WRITE-SAFETY-1",
+  "tip": "6127d99b",
+  "verdict": "FIX_FIRST",
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "fails_a_test",
+      "certainty": "READ",
+      "where": "crates/hsk-studio-session/tests/session_contract.rs:2050 (test lazy_failures_are_typed_cancel_reads_nothing_and_memory_sessions_work, not edited by this lane), against crates/hsk-studio-session/src/save_guard.rs refusal_for and session.rs save_inner map_err",
+      "what": "The existing test flips one byte of the asset in fixture.path in place, calls session.save and asserts hash_mismatch. At the tip the session compares its origin: the writer fails hash_mismatch, refusal_for runs check_content, the digest differs, and the save returns destination_changed. The lane's own new test a_file_overwritten_in_place_is_named_as_changed asserts exactly that, so the two tests contradict each other. The session suite fails on the first full run.",
+      "scenario": "cargo test -p hsk-studio-session --test session_contract lazy_failures",
+      "fix": "Line 2050: expect destination_changed and correct the comment above it; the Validation outcome at 2051-2054 still holds. The save_to(&elsewhere) assert at 2063 stays hash_mismatch (Expect::Anything). Name the changed test in the lane report, as the brief requires."
+    },
+    {
+      "id": "F2",
+      "severity": "wrong_answer",
+      "certainty": "READ",
+      "where": "crates/hsk-studio-session/src/session.rs:2722-2749",
+      "what": "The rename has landed, but origin and origin_disk are only updated after the reopen. Any exit in between (File::open error, PackageReader::open error or Canceled at 2727, VerifyMismatch at 2731) leaves origin_disk holding the old fingerprint. The next save over that file refuses this session's own landed save as destination_changed, and SessionError::recovery says nothing was written. No edit is lost: save_replacing or another path still works.",
+      "scenario": "Cancel the token after the rename while the reopen runs. The caller retries with a fresh token: destination_changed against its own file, with text saying nothing was written.",
+      "fix": "Directly after the map_err at 2717, before retain_replaced_assets: self.origin = Some(path.to_path_buf()); self.origin_disk = guard.landed.take(); and drop the two lines at 2748-2749. Keep drop(guard) where it is."
+    },
+    {
+      "id": "F7",
+      "severity": "wrong_answer",
+      "certainty": "READ",
+      "where": "crates/hsk-studio-harness/src/cli.rs:1082 edit_flow; crates/hsk-studio-chronicle/src/lib.rs:1051 (no_change); crates/hsk-studio-session/src/session.rs:1326 (expected != current)",
+      "what": "'Every edit advances it by one' is false for an edit that writes the value the document already holds: chronicle returns no_change and the revision stays. The next edit then expects N+1 against N and is refused stale_revision. The caller reads the revision, gets N again, and the same command fails the same way every time.",
+      "scenario": "On the fixture at revision 9, where L1 is visible: edit PKG --provider chronicle.patch --expect-revision 9 --visible L1 true --rename L1 x --save PKG --overwrite. set_visible is ok at revision 9, rename expects 10, stale_revision expected 10 current 9, exit 1, nothing saved.",
+      "fix": "Only the first edit carries the expectation: let expect = if advanced == 0 { parsed.expect_revision } else { None }; within one process nothing else can move the session between edits. Update the --expect-revision text in manual.rs:37 and the edit summary and harness DESCRIPTOR, which say it advances per edit, and add this command line to expect_revision_covers_every_edit_of_one_command_line."
+    },
+    {
+      "id": "F3",
+      "severity": "wrong_answer",
+      "certainty": "READ",
+      "where": "crates/hsk-studio-session/src/save_guard.rs:276-281 before_rename",
+      "what": "The temp is hashed after the compare and before the rename. That puts one full hash pass of the new package into the window the module docs admit for non-Studio writers, and into the lock hold every Studio waiter sits behind. A foreign replace during that pass is lost silently, for seconds on a large package when it could be a few syscalls.",
+      "scenario": "A 512 MiB package: an external tool renames its file over the destination while lines 279-280 hash the temp. The compare already passed, the rename overwrites it, nothing refuses.",
+      "fix": "Hash the temp first: move lines 279-280 above line 277. The rest of the function is unchanged."
+    },
+    {
+      "id": "F4",
+      "severity": "wrong_answer",
+      "certainty": "READ for the code; the filesystem case is not run",
+      "where": "crates/hsk-studio-session/src/save_guard.rs:160 and :181",
+      "what": "DENIED_WAIT is measured from the start of acquire, not from the first denied open. A waiter that sat behind a holder for over 1 s refuses destination_read_only on its first denied open, with no retry. The module docs say a delete-pending open is retried. Reachable on a filesystem without POSIX delete, where the sidecar stays delete-pending while another waiter's handle is open (Windows delete-pending semantics on FAT, exFAT or an SMB share). NTFS on a current Windows drops the name at once, which is why the soak would not show this. The recovery text then tells the caller to make the file writable.",
+      "scenario": "Two waiters queued 5 s behind a save on an exFAT or SMB folder. The holder releases, waiter 1 holds its handle for a moment, waiter 2's open is denied: destination_read_only on a writable folder.",
+      "fix": "Track let mut denied_since: Option<Instant>; set it on the first denied open, clear it on any other outcome, and compare denied_since.elapsed() to DENIED_WAIT.min(wait)."
+    },
+    {
+      "id": "F5",
+      "severity": "overstated_claim",
+      "certainty": "READ",
+      "where": "crates/hsk-studio-session/src/save_guard.rs:24-25 (module docs), :144-149 (stamp), :128 (Drop), and the save_safety text in crates/hsk-studio-session/src/lib.rs DESCRIPTOR",
+      "what": "'Exactly one save from a revision lands' is not closed in two cases, and brief item 3 says to state a remaining race plainly. (a) Stamp collision: an orphan holder W (lock on the removed file) and the live holder C (new file at the name) compare equal when length and modified time both match. Length is 1 + (pid*31 + counter*131 + subsec_nanos) mod 65536. On NTFS (100 ns) the two clock reads must share a tick, the nanos then cancel, and pid_a*31+c_a*131 must equal pid_b*31+c_b*131 mod 65536: practically nil. On a filesystem with 1-2 s modified times (FAT, some network targets), or where set_modified fails (the ignored result at :145), time matches and the odds are 1 in 65536 per orphan race. Then W runs as a holder beside C, and W's Drop at :128 removes C's name, so a third process can also enter. (b) A filesystem whose try_lock returns Ok without sharing the lock across machines (local-only flock on an NFS nolock mount or a FUSE mount) gives two holders. Only the Unsupported case is documented.",
+      "scenario": "(a) Contended saves to a FAT-formatted folder. (b) Two machines saving one package on a nolock NFS mount.",
+      "fix": "Text only: add both cases to the 'what it does not close' paragraph and the DESCRIPTOR. The stamp itself is acceptable: std has no stable file identity on Windows."
+    },
+    {
+      "id": "F6",
+      "severity": "wrong_answer, outside the lane's owned paths; for the lead to rule",
+      "certainty": "READ",
+      "where": "crates/hsk-studio-harness-core/src/batch.rs:1028",
+      "what": "The batch writer checks the Skip and Rename policies with taken() and then calls run.save_to on a session opened from bytes (Expect::Anything). Two batch processes choosing the same free name both report written and one output is silently replaced: the failure this lane targets, on a path it did not change.",
+      "scenario": "Two batch runs with overwrite_policy Rename over one output folder.",
+      "fix": "Call run.save_new unless the policy is Overwrite; map destination_exists to the existing skipped or next-name result. Or record it as a follow-up, since batch.rs is not in this lane's owned paths."
+    }
+  ],
+  "checked": {
+    "lock": "Traced holder, orphan waiter, two waiters plus a remover, crash leftover, Unsupported arm. Only a SaveLock drop removes the name, a mismatch drops the plain File without removing, and the proof holds except as F5 states. Windows delete-pending is handled at the metadata call, with the bound problem in F4.",
+    "compare_then_rename": "Temp lifetime is sound: a refusal in replace returns Err, save_atomic_streaming_with calls fs_port.remove, which removes the temp and releases the owner marker. The temp's read handle closes before the rename. Reopen failure is F2. The lock is released on every return path by the guard's drop.",
+    "ways_out": "save_new, save_to elsewhere, save_replacing and CLI rerun all keep the edits; no path loses them. save_replacing has no caller outside tests, so it cannot be hit by accident. The accidental route is different: after destination_changed a caller saves elsewhere as the recovery text suggests, origin moves, and a later save_to of the first path is Expect::Anything (session.rs:2502-2505), so that file is replaced with no compare. The docs and manual state this as caller-named replacement; it is not listed as a finding. In the Viewer that path needs the overwrite tick.",
+    "cli": "edit in place requires --overwrite and --expect-revision. Per-edit advance is correct for a changing edit and wrong for a no-op edit (F7). Existing callers: harness_headless.rs:212, :226, :279, :283, import_psd.rs:307, :317, import_affinity.rs:66 all still hold (fresh pid-named scratch; fixture is revision 9). No script or doc outside the tests uses these flags.",
+    "viewer": "open_inner is the only Viewer route to run.open_bytes or open_import; fig and vector imports write the package and go through open. open_audio_bytes opens no session. A package opened then saved then re-saved compares against the landed fingerprint. For an import, expect_on_disk sets origin to the source file: Session::save and Session::externals are the only consumers of origin with an effect, neither is called from the Viewer or harness, so this changes nothing today.",
+    "bounds": "One 256 KiB buffer, cancel check per chunk, compare capped at remembered length plus one, length mismatch refused unread, open hashes after load_parts accepted the file. Session memory-bound tests (session_contract.rs:1677, :1693, :1716, :1802-1806) stay within limits with the extra buffer; source_bytes_read is unaffected because the fingerprint uses its own handles. The Viewer's bytes.clone() doubles a transient copy, bounded by MAX_SOURCE_BYTES.",
+    "wrapper": "GuardedFs delegates all six port methods to StdFs and the traits have no default methods to miss, so sync_all, read-back verify, owner marker, rename backoff and directory sync are unchanged. The sidecar name is outside what sweep_stale_temps touches.",
+    "shared_cursor": "fingerprint_file moves the OS cursor shared with the source handle; source.rs Handle seeks before every read (line 75), so this is safe.",
+    "compile_by_reading": "No break found across harness, harness-core, harness-view and session features. SessionConfig has no struct literal outside session.rs, so the new field breaks nothing. No exhaustive SessionError match outside error.rs (code and outcome both extended). hsk-studio-package exports AtomicFs, StdFs, StreamingFs, save_atomic_streaming_with. Option::unzip, TryLockError, set_modified, IsADirectory exist on the toolchain the package crate already requires. audio_import.rs keeps its PathBuf use at line 960. MonitorFail is pub in pub mod monitor, so pub write_atomically has no private-interface warning. tests/atomic_writer_processes.rs is gated on viewer and its audio module on media; both modules are pub under those features. multi_process_save.rs uses only normal dependencies of the harness and gates its Viewer test on viewer. Borrows in save_inner: guard's mutable borrow ends at the call return; assets does not borrow guard.",
+    "other_tests": "Scanned every session, harness, harness-core, harness-view and kernel-bindings test or source function that opens and then saves with a file mutation or a second open. Only F1 breaks. tests/audio_batch.rs:49 still matches the new temp names by suffix."
+  },
+  "not_checked": [
+    "No cargo, build or test was run; compile findings are from reading only.",
+    "Whether the round runs cargo doc or clippy with deny on tests: cli.rs module docs link the private save_package, and save_guard.rs tests use arithmetic under deny(clippy::arithmetic_side_effects). Only matters if step 0 includes them; lane-check.sh was not found under builders/.",
+    "Bridge lease (brief item 5) and MT rows: not in this review's aim.",
+    "The delete-pending filesystem behaviour in F4 and the coarse-time case in F5 rest on documented filesystem behaviour, not a run."
+  ]
+}

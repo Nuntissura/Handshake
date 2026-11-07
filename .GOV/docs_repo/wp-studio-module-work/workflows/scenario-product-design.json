@@ -1,0 +1,3895 @@
+{
+ "schema": "hsk.studio.workflow_scenario@1",
+ "id": "product-design",
+ "title": "Larkspur Tasks: mobile app design system, screens, prototype and developer handoff",
+ "domain": "Product UI design",
+ "vendor_parity_targets": [
+  "Figma Design",
+  "Figma Dev Mode"
+ ],
+ "deliverable": "One native design file holding a themed design system (Light and Dark), a Button component set and four more component families, four auto-layout mobile screens plus one tablet layout, a clickable prototype with an overlay and smart animate, and a developer handoff: ready-for-dev sections, annotations, measurements, per-frame and icon exports, token files and code snippets.",
+ "input_assets": [
+  "None proprietary. All artwork is drawn in the file; the product and its copy are fictional.",
+  "Font: Inter from hsk-studio-harness/tests/fixtures (OFL, license file beside it)",
+  "Bridge fixture for what only works from import: hsk-studio-interop-fig/tests/fixtures/fig-components-autolayout.fig (Operator-authored per the crate descriptor). It is used to exercise callable steps only and is not part of the deliverable."
+ ],
+ "workspace_or_layout_preset": "vector default Layout Preset (STU-SHL-086, line 32223) as the closest shipped profile; the spec defines no design-system preset, and STU-DS-160 and STU-WEB-031 forbid a persona toggle. Task Scope export_slices (STU-SHL-153) for the asset export step.",
+ "evidence_basis": {
+  "tree": "origin tip c4d06841, read via git grep and git show from worktree wt-studio-lanes/smb-type-authored-token-1; not checked out, nothing built or run",
+  "evidence_path_root": "handshake-studio-assets/",
+  "spec": "v02.229 spec-modules/14-studio-creative-suite.md",
+  "command_id_prefixes": {
+   "run:": "a RUN_COMMANDS id (hsk-studio-harness-core/src/action.rs:843)",
+   "cli:": "a subcommand of hsk-studio-harness/src/cli.rs",
+   "viewer_api:": "a public Rust method of the harness Viewer or PrototypePlay; callable from a Rust host or test, NOT from the CLI, no command id",
+   "crate_api:": "a public crate function with no host reaching it",
+   "spec:": "name the spec requires; not bound in code"
+  },
+  "harness_drive_note": "SMB-HARNESS-DRIVE-1 (state, command, undo, JSONL) is not at this tip: cli.rs dispatch at lines 270-416 has help, descriptors, providers, open, panel, edit, verify, import, export, develop, export-sequence, batch, action. If it lands with RUN_COMMANDS ids only, the viewer_api steps here still have no command id.",
+  "workflow_sources_public_docs_only": [
+   "https://help.figma.com/hc/en-us/articles/14506821864087-Overview-of-variables-collections-and-modes",
+   "https://help.figma.com/hc/en-us/articles/15343816063383-Modes-for-variables",
+   "https://help.figma.com/hc/en-us/articles/360056440594-Create-and-use-variants",
+   "https://help.figma.com/hc/en-us/articles/360040451373-Guide-to-auto-layout",
+   "https://help.figma.com/hc/en-us/articles/14506587589399-Use-variables-in-prototypes",
+   "https://help.figma.com/hc/en-us/articles/18888057155991-Create-an-onboarding-flow-with-advanced-prototyping",
+   "https://help.figma.com/hc/en-us/articles/15023124644247-Guide-to-Dev-Mode",
+   "https://help.figma.com/hc/en-us/articles/22012921621015-Guide-to-inspecting",
+   "https://www.figma.com/blog/the-designers-handbook-for-developer-handoff/"
+  ],
+  "workflow_sources_note": "Search result summaries were read, not the full pages; the step order is the author's professional reading and is UNVERIFIED against any single vendor tutorial. No vendor text, asset or source copied."
+ },
+ "scenes": [
+  {
+   "scene_id": "design-system",
+   "goal": "From an empty file to a themed token set, type and effect styles, an icon set and a Button component set with properties, published as a local library",
+   "steps": [
+    {
+     "n": 1,
+     "intent": "Create an empty document for the Larkspur design file",
+     "human": {
+      "panel": "FILE menu",
+      "tool": null,
+      "gesture": "FILE > New > Blank Document, pick a 390x844 mobile preset",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:studio.document.new",
+      "parameters": {
+       "preset": "blank",
+       "name": "Larkspur-Design-File"
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'studio.document.new|Blank Document|new_blank'; Viewer::open at crates/hsk-studio-harness-view/src/view/mod.rs:515 only opens an existing path; shell.rs:1590 blank_layout_doc is a LayoutDoc for the layout editor only"
+     },
+     "spec_clauses": [
+      "STU-SHL-023:31573"
+     ],
+     "mts": [
+      "MT-34444"
+     ],
+     "expected_state": "One native document with no layers, revision 0, unsaved",
+     "visual_check": {
+      "what_must_be_visible": "Empty canvas, zero-layer Layers panel with an empty-state hint, document name in the tab",
+      "layout_or_fit_concern": "Empty panels must not collapse or show raw ids"
+     },
+     "failure_a_professional_would_notice": "No New at all means a designer cannot begin without a file to open"
+    },
+    {
+     "n": 2,
+     "intent": "Set the workspace for design-system work",
+     "human": {
+      "panel": "WORKSPACE menu",
+      "tool": null,
+      "gesture": "WORKSPACE > Layout Presets > vector default",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:studio.workspace.layout_preset",
+      "parameters": {
+       "preset": "vector"
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'LayoutPreset|layout_preset'. Spec note: STU-SHL-084..090 ship no design-system preset; vector is the closest profile"
+     },
+     "spec_clauses": [
+      "STU-SHL-086:32223",
+      "STU-SHL-096:32274"
+     ],
+     "mts": [
+      "MT-34617",
+      "MT-34627"
+     ],
+     "expected_state": "Vector default layout active: Tool Rail left, Context Bar top, right groups with properties and layers",
+     "visual_check": {
+      "what_must_be_visible": "properties, swatches, layers, history, pages-artboards docked; canvas gets the most width",
+      "layout_or_fit_concern": "The vector preset has no home for variables or components: STU-DS-160 requires contextual binding, so these must appear in properties and library without a mode toggle"
+     },
+     "failure_a_professional_would_notice": "Variables reachable only through a menu dialog would feel bolted on"
+    },
+    {
+     "n": 3,
+     "intent": "Create pages Foundations, Components, Screens, Handoff",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": null,
+      "gesture": "Add page, rename each",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:DOCUMENT > Artboards > New Artboard (no command id in the menu clause)",
+      "parameters": {
+       "names": [
+        "Foundations",
+        "Components",
+        "Screens",
+        "Handoff"
+       ]
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'new_artboard|add_artboard|create_artboard' in harness crates; artboards reach the harness only through import (crates/hsk-studio-harness-view/src/view/vector/interop.rs:211, design/fig_import.rs)"
+     },
+     "spec_clauses": [
+      "STU-SHL-026:31634",
+      "STU-DS-047:20476"
+     ],
+     "mts": [
+      "MT-34447",
+      "MT-33204",
+      "MT-363"
+     ],
+     "expected_state": "Four named top-level containers in document order",
+     "visual_check": {
+      "what_must_be_visible": "Page list with active page highlighted",
+      "layout_or_fit_concern": "Long page names must truncate with a tooltip, not overlap the add button"
+     },
+     "failure_a_professional_would_notice": "A flat single canvas for system and screens is not how a shared file is organised"
+    },
+    {
+     "n": 4,
+     "intent": "Create the Primitives variable collection with one mode",
+     "human": {
+      "panel": "properties, contextual variable editor",
+      "tool": null,
+      "gesture": "Open the variable editor, New collection",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:variable_collection.create",
+      "parameters": {
+       "name": "Primitives",
+       "modes": [
+        "Value"
+       ]
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'variable_collection|variable\\.create|collection\\.create'. Record shape exists: crates/hsk-studio-folio/src/components.rs:246 StudioVariableCollection"
+     },
+     "spec_clauses": [
+      "STU-DS-122:20041",
+      "STU-DS-133:20068",
+      "STU-DS-160:20218"
+     ],
+     "mts": [
+      "MT-33078",
+      "MT-33089",
+      "MT-33116"
+     ],
+     "expected_state": "One SVCL collection, one mode, default_mode_id set",
+     "visual_check": {
+      "what_must_be_visible": "Collection list, mode column, New variable affordance",
+      "layout_or_fit_concern": "A variable table needs width: it cannot live in a 280px inspector without horizontal scroll; needs a dedicated wide surface that is not a whole-UI mode"
+     },
+     "failure_a_professional_would_notice": "No variables means no token system at all"
+    },
+    {
+     "n": 5,
+     "intent": "Add colour primitives: neutral and iris ramps, 11 steps each",
+     "human": {
+      "panel": "variable editor",
+      "tool": null,
+      "gesture": "Add colour variables with slash names color/neutral/50..950",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:variable.create",
+      "parameters": {
+       "collection": "Primitives",
+       "type": "COLOR",
+       "count": 22,
+       "name_pattern": "color/<ramp>/<step>"
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'variable\\.create|create_variable'; record crates/hsk-studio-folio/src/components.rs:265 StudioVariable; no writer outside import (interop-fig-native/src/native.rs)"
+     },
+     "spec_clauses": [
+      "STU-DS-121:20025",
+      "STU-DS-125:20047",
+      "STU-DS-133:20068"
+     ],
+     "mts": [
+      "MT-33077",
+      "MT-33081",
+      "MT-33089"
+     ],
+     "expected_state": "22 SVAR records, slash paths render as nested groups",
+     "visual_check": {
+      "what_must_be_visible": "Nested groups, colour chips beside hex values, sorted by step",
+      "layout_or_fit_concern": "Chip and value columns must align; group rows must collapse"
+     },
+     "failure_a_professional_would_notice": "Flat unsorted list, or chips that do not show alpha"
+    },
+    {
+     "n": 6,
+     "intent": "Add number primitives: space/1..12 on a 4 grid and radius/sm, md, lg, full",
+     "human": {
+      "panel": "variable editor",
+      "tool": null,
+      "gesture": "Add number variables",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:variable.create",
+      "parameters": {
+       "collection": "Primitives",
+       "type": "FLOAT",
+       "names": [
+        "space/*",
+        "radius/*"
+       ]
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'variable\\.create'; VariableType stored per crates/hsk-studio-folio/src/components.rs:265"
+     },
+     "spec_clauses": [
+      "STU-DS-121:20025",
+      "STU-DS-125:20047"
+     ],
+     "mts": [
+      "MT-33077",
+      "MT-33081"
+     ],
+     "expected_state": "Number variables stored with unit-free values",
+     "visual_check": {
+      "what_must_be_visible": "Numeric column right aligned",
+      "layout_or_fit_concern": "Scrub on value cell must use the shared numeric gesture"
+     },
+     "failure_a_professional_would_notice": "Number tokens that cannot be bound to padding later"
+    },
+    {
+     "n": 7,
+     "intent": "Create the Semantic collection with Light and Dark modes",
+     "human": {
+      "panel": "variable editor",
+      "tool": null,
+      "gesture": "New collection, add a mode column",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:variable_collection.add_mode",
+      "parameters": {
+       "name": "Semantic",
+       "modes": [
+        "Light",
+        "Dark"
+       ]
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'add_mode|variable_collection\\.'; StudioMode record crates/hsk-studio-folio/src/components.rs:237"
+     },
+     "spec_clauses": [
+      "STU-DS-023:20399",
+      "STU-DS-123:20043",
+      "STU-DS-133:20068"
+     ],
+     "mts": [
+      "MT-33171",
+      "MT-347",
+      "MT-353",
+      "MT-33079",
+      "MT-33089"
+     ],
+     "expected_state": "Two modes, Light default; every variable must have a value per mode",
+     "visual_check": {
+      "what_must_be_visible": "Two value columns side by side with mode names in the header",
+      "layout_or_fit_concern": "Column header must not scroll away; adding modes must not push the name column off screen"
+     },
+     "failure_a_professional_would_notice": "A theme system that cannot show Light beside Dark"
+    },
+    {
+     "n": 8,
+     "intent": "Alias semantic tokens to primitives (surface/primary to neutral/50 in Light, neutral/950 in Dark)",
+     "human": {
+      "panel": "variable editor",
+      "tool": null,
+      "gesture": "Cell picker, choose a variable rather than a literal",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:variable.create_alias",
+      "parameters": {
+       "variable": "color/surface/primary",
+       "Light": "alias:color/neutral/50",
+       "Dark": "alias:color/neutral/950"
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'create_alias'. Alias chains resolve in the engine (crates/hsk-studio-components/src/instance_resolution.rs:178) but nothing writes one outside import"
+     },
+     "spec_clauses": [
+      "STU-DS-026:20407",
+      "STU-DS-127:20051",
+      "STU-DS-133:20068"
+     ],
+     "mts": [
+      "MT-33175",
+      "MT-351",
+      "MT-33083",
+      "MT-33089"
+     ],
+     "expected_state": "Semantic values store VARIABLE_ALIAS, resolved live",
+     "visual_check": {
+      "what_must_be_visible": "Alias chip with the target name, resolved colour swatch",
+      "layout_or_fit_concern": "Alias name truncation must keep the last path segment visible"
+     },
+     "failure_a_professional_would_notice": "Hard-coded values in semantic tokens defeat theming"
+    },
+    {
+     "n": 9,
+     "intent": "Restrict scopes: surface tokens to fills, text tokens to text fill, space tokens to gap and padding",
+     "human": {
+      "panel": "variable editor",
+      "tool": null,
+      "gesture": "Edit variable, tick scopes",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:variable.update scopes (no named command in STU-DS-133; the field is on the record)",
+      "parameters": {
+       "scopes": [
+        "FRAME_FILL",
+        "TEXT_FILL",
+        "GAP"
+       ]
+      },
+      "status": "missing",
+      "evidence": "crates/hsk-studio-folio/src/components.rs:265 scopes field; components.rs header says legality per type is not enforced; no writer command found by git grep for 'scopes' in harness-view (UNVERIFIED beyond the design folder)"
+     },
+     "spec_clauses": [
+      "STU-DS-025:20405",
+      "STU-DS-128:20053"
+     ],
+     "mts": [
+      "MT-33174",
+      "MT-350",
+      "MT-33084"
+     ],
+     "expected_state": "Pickers offer only in-scope tokens",
+     "visual_check": {
+      "what_must_be_visible": "Scope checklist grouped by kind",
+      "layout_or_fit_concern": "22 scopes need grouping, not one long list"
+     },
+     "failure_a_professional_would_notice": "Text colours offered for frame fills clutter every picker"
+    },
+    {
+     "n": 10,
+     "intent": "Set code syntax for WEB, ANDROID and iOS on every semantic token",
+     "human": {
+      "panel": "variable editor",
+      "tool": null,
+      "gesture": "Edit variable, Code syntax",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:variable.set_code_syntax",
+      "parameters": {
+       "WEB": "--color-surface-primary",
+       "ANDROID": "colorSurfacePrimary",
+       "iOS": "surfacePrimary"
+      },
+      "status": "missing",
+      "evidence": "crates/hsk-studio-folio/src/components.rs:280 field and components.rs:542 validation exist; git grep over crates at c4d06841 returned no non-test hit for 'set_code_syntax'"
+     },
+     "spec_clauses": [
+      "STU-DS-129:20055",
+      "STU-DS-133:20068"
+     ],
+     "mts": [
+      "MT-33085",
+      "MT-33089"
+     ],
+     "expected_state": "code_syntax stored per platform",
+     "visual_check": {
+      "what_must_be_visible": "Three platform rows with monospace names",
+      "layout_or_fit_concern": "Monospace values must not wrap mid token"
+     },
+     "failure_a_professional_would_notice": "Developers receive invented names in handoff"
+    },
+    {
+     "n": 11,
+     "intent": "Read a resolved value as a consumer in Dark",
+     "human": {
+      "panel": "variable editor or command console",
+      "tool": null,
+      "gesture": "Preview mode switch on a sample frame",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "crate_api:hsk_studio_components::resolve_variable (spec variable.resolve_for_consumer)",
+      "parameters": {
+       "variable": "color/surface/primary",
+       "modes": {
+        "Semantic": "Dark"
+       }
+      },
+      "status": "engine_only",
+      "evidence": "crates/hsk-studio-components/src/instance_resolution.rs:178, called only inside the crate (:555,:590,:637,:649); no command or Viewer method exposes it"
+     },
+     "spec_clauses": [
+      "STU-DS-116:20011",
+      "STU-DS-133:20068",
+      "STU-DS-164:20226"
+     ],
+     "mts": [
+      "MT-33072",
+      "MT-33089",
+      "MT-33120"
+     ],
+     "expected_state": "Returns the neutral/950 colour plus the alias chain",
+     "visual_check": {
+      "what_must_be_visible": "Resolved value and chain shown on demand",
+      "layout_or_fit_concern": "Chain must be readable, not a nested dump"
+     },
+     "failure_a_professional_would_notice": "A token whose final value cannot be traced"
+    },
+    {
+     "n": 12,
+     "intent": "Prove the alias-cycle refusal: alias A to B and B to A",
+     "human": {
+      "panel": "variable editor",
+      "tool": null,
+      "gesture": "Try to pick a variable that would close a loop",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "crate_api:hsk_studio_folio::validate_design_records",
+      "parameters": {
+       "expect_error": "variable_alias_cycle"
+      },
+      "status": "engine_only",
+      "evidence": "crates/hsk-studio-folio/src/records.rs:616; crates/hsk-studio-components/src/instance_resolution.rs:195 AliasCycle; lib.rs:133 maps the code. No authoring command means a person cannot trigger it"
+     },
+     "spec_clauses": [
+      "STU-DS-175:20288",
+      "STU-DS-165:20228"
+     ],
+     "mts": [
+      "MT-33126",
+      "MT-33121"
+     ],
+     "expected_state": "Typed refusal, nothing changes",
+     "visual_check": {
+      "what_must_be_visible": "Inline error beside the cell, cycle target disabled in the picker",
+      "layout_or_fit_concern": "Error must not be a modal"
+     },
+     "failure_a_professional_would_notice": "Silent loop or a freeze"
+    },
+    {
+     "n": 13,
+     "intent": "Define text styles: display/32, title/22, body/16, label/13, each bound to Inter",
+     "human": {
+      "panel": "text-styles",
+      "tool": null,
+      "gesture": "Select text, Create style, name it",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:studio style create (STU-DS-138 verbs, kind TEXT)",
+      "parameters": {
+       "styles": [
+        [
+         "display",
+         32,
+         40
+        ],
+        [
+         "title",
+         22,
+         28
+        ],
+        [
+         "body",
+         16,
+         24
+        ],
+        [
+         "label",
+         13,
+         16
+        ]
+       ]
+      },
+      "status": "missing",
+      "evidence": "No text-style or font-size setter on the Viewer for vector-document text: crates/hsk-studio-harness-view/src/view/text.rs:689 place_text has no size or style input, text.rs:346 only reads font_size. crates/hsk-studio-harness-view/src/layout_ui/styles.rs has a style surface for the LayoutDoc editor; its depth was NOT_INSPECTED"
+     },
+     "spec_clauses": [
+      "STU-DS-029:20417",
+      "STU-DS-134:20074",
+      "STU-DS-135:20076",
+      "STU-DS-138:20082"
+     ],
+     "mts": [
+      "MT-33178",
+      "MT-33179",
+      "MT-354",
+      "MT-33090",
+      "MT-33091",
+      "MT-33094"
+     ],
+     "expected_state": "Four TEXT styles usable by any text layer",
+     "visual_check": {
+      "what_must_be_visible": "Style rows rendered in their own type at a capped size",
+      "layout_or_fit_concern": "A 32pt row must not break the row height of the list"
+     },
+     "failure_a_professional_would_notice": "No type scale means every text layer is hand-set"
+    },
+    {
+     "n": 14,
+     "intent": "Define effect styles: elevation/sheet and elevation/card",
+     "human": {
+      "panel": "graphic-styles",
+      "tool": null,
+      "gesture": "Add drop shadow in effect-controls, create style",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:studio effect style (kind EFFECT)",
+      "parameters": {
+       "styles": [
+        "elevation/sheet",
+        "elevation/card"
+       ]
+      },
+      "status": "missing",
+      "evidence": "git grep 'DropShadow|drop_shadow|StudioEffect\\b' in crates/hsk-studio-harness-view/src/view/ returned nothing; effects reach the window only from import records (crates/hsk-studio-harness-view/src/view/design/fig_import.rs header)"
+     },
+     "spec_clauses": [
+      "STU-DS-134:20074",
+      "STU-DS-136:20078"
+     ],
+     "mts": [
+      "MT-33090",
+      "MT-33092"
+     ],
+     "expected_state": "Two EFFECT styles",
+     "visual_check": {
+      "what_must_be_visible": "Shadow thumbnail on a neutral chip",
+      "layout_or_fit_concern": "Thumbnail must show the shadow, so chip needs padding"
+     },
+     "failure_a_professional_would_notice": "Cards with no elevation look unfinished"
+    },
+    {
+     "n": 15,
+     "intent": "Create a brand gradient as a reusable paint style",
+     "human": {
+      "panel": "graphic-styles",
+      "tool": "rectangle",
+      "gesture": "Draw swatch shape, set gradient fill, Add style",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:Viewer::add_graphic_style",
+      "parameters": {
+       "name": "brand/hero",
+       "layer": "<rect>"
+      },
+      "status": "callable",
+      "evidence": "crates/hsk-studio-harness-view/src/view/vector/style.rs:450 add_graphic_style, :411 set_fill, :473 apply; read"
+     },
+     "spec_clauses": [
+      "STU-DS-034a:20428",
+      "STU-DS-138:20082"
+     ],
+     "mts": [
+      "MT-33185",
+      "MT-357",
+      "MT-33094"
+     ],
+     "expected_state": "Named style with apply, merge, break-link and redefine available",
+     "visual_check": {
+      "what_must_be_visible": "Style row with gradient preview",
+      "layout_or_fit_concern": "Graphic-styles sits in a different group from swatches; a designer looks in one place for paints"
+     },
+     "failure_a_professional_would_notice": "Style edits not propagating to bound layers"
+    },
+    {
+     "n": 16,
+     "intent": "Define a mobile column grid style: 4 columns, 16 margin, 16 gutter",
+     "human": {
+      "panel": "guides-grid",
+      "tool": null,
+      "gesture": "OBJECT > Layout Grid > Columns, Save Grid Style",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:OBJECT > Layout Grid > Add Layout Grid",
+      "parameters": {
+       "pattern": "COLUMNS",
+       "count": 4,
+       "gutter_size": 16,
+       "offset": 16
+      },
+      "status": "missing",
+      "evidence": "crates/hsk-studio-folio/src/layout_grids.rs is the InDesign-class STU-LAY record, not STU-DS-153; git grep 'layout_grids|StudioLayoutGrid' in harness crates returned nothing"
+     },
+     "spec_clauses": [
+      "STU-DS-047:20476",
+      "STU-DS-153:20196",
+      "STU-DS-155:20200",
+      "STU-DS-156:20202"
+     ],
+     "mts": [
+      "MT-33204",
+      "MT-363",
+      "MT-33109",
+      "MT-33111",
+      "MT-33112"
+     ],
+     "expected_state": "Named grid style applied to frames",
+     "visual_check": {
+      "what_must_be_visible": "Translucent columns over the frame, toggle in VIEW",
+      "layout_or_fit_concern": "Grid colour must read over both modes"
+     },
+     "failure_a_professional_would_notice": "Designers cannot align screens to columns"
+    },
+    {
+     "n": 17,
+     "intent": "Draw the icon set: check, plus, chevron, close, calendar, on a 24 grid",
+     "human": {
+      "panel": "tools, pathfinder",
+      "tool": "pen",
+      "gesture": "Pen and shape tools, unite with pathfinder",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:Viewer::pen_point + Viewer::draw_shape + Viewer::pathfinder_layers",
+      "parameters": {
+       "icons": 5,
+       "artboard": 24
+      },
+      "status": "callable",
+      "evidence": "crates/hsk-studio-harness-view/src/view/vector.rs:1970 pen_point, :2598 draw_shape, :2653 pathfinder_layers; read"
+     },
+     "spec_clauses": [
+      "STU-VEC-006:3217"
+     ],
+     "mts": [
+      "MT-30400",
+      "MT-35674",
+      "MT-085"
+     ],
+     "expected_state": "Five vector layers on whole-pixel coordinates",
+     "visual_check": {
+      "what_must_be_visible": "Pixel grid when zoomed, anchors and handles visible",
+      "layout_or_fit_concern": "Anchor handles must stay a constant screen size at 800 percent"
+     },
+     "failure_a_professional_would_notice": "Blurry icons from non-integer anchors"
+    },
+    {
+     "n": 18,
+     "intent": "Make each icon a component named icon/<name>",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "OBJECT > Component > Create Component, or one per selection",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:component.create_one_per_top_level_node",
+      "parameters": {
+       "prefix": "icon/"
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'create_from_selection|component\\.create|create_one_per'; truth-check-20261105-mt-video-audio-design-web.json design_systems: authoring commands missing"
+     },
+     "spec_clauses": [
+      "STU-DS-002:20320",
+      "STU-DS-005:20330",
+      "STU-DS-107:19964"
+     ],
+     "mts": [
+      "MT-33140",
+      "MT-323",
+      "MT-33144",
+      "MT-324",
+      "MT-328",
+      "MT-33062"
+     ],
+     "expected_state": "Five SCMP components",
+     "visual_check": {
+      "what_must_be_visible": "Component marker on the layer row and canvas outline in a distinct colour",
+      "layout_or_fit_concern": "Component colour must be distinct from selection blue"
+     },
+     "failure_a_professional_would_notice": "Icons cannot be swapped later"
+    },
+    {
+     "n": 19,
+     "intent": "Build the button base: rounded rectangle, label text, icon slot",
+     "human": {
+      "panel": "tools, layers",
+      "tool": "rounded_rectangle",
+      "gesture": "Draw, type, group into a frame",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:Viewer::draw_shape + Viewer::place_text_with_font + Viewer::group_layers",
+      "parameters": {
+       "kind": "RoundedRectangle",
+       "text": "Add task",
+       "font": "Inter"
+      },
+      "status": "callable",
+      "evidence": "crates/hsk-studio-harness-view/src/view/vector.rs:2598; text.rs:698; layers.rs:237; a group is the frame per design/auto_layout.rs header lines 16-23"
+     },
+     "spec_clauses": [
+      "STU-DS-035:20436",
+      "STU-DS-102:19912",
+      "STU-SHL-033:31767"
+     ],
+     "mts": [
+      "MT-33187",
+      "MT-35761",
+      "MT-35762",
+      "MT-33056",
+      "MT-34454"
+     ],
+     "expected_state": "Group with background rectangle, text, icon",
+     "visual_check": {
+      "what_must_be_visible": "Layer tree nested and named",
+      "layout_or_fit_concern": "Spec has INSERT > Layer > Frame (STU-SHL-033); the crop_frame tool rows read at spec lines 32892-32907 show picture, ellipse and polygon frames only. A group acting as frame is not what a designer reaches for"
+     },
+     "failure_a_professional_would_notice": "A frame that is secretly a group with no clip"
+    },
+    {
+     "n": 20,
+     "intent": "Apply horizontal auto layout to the button with its text inside",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "OBJECT > Auto Layout > Add Auto Layout",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:Viewer::set_auto_layout_mode",
+      "parameters": {
+       "mode": "HORIZONTAL",
+       "subtree_contains_text": true
+      },
+      "status": "missing",
+      "evidence": "The command exists but refuses this case: crates/hsk-studio-harness-view/src/view/design/auto_layout.rs header line 19 `auto_layout_text_layer_unsupported:<id>`; set_auto_layout_mode at :465. Text in a container is the normal case for every UI component"
+     },
+     "spec_clauses": [
+      "STU-DS-035:20436",
+      "STU-DS-144:20102"
+     ],
+     "mts": [
+      "MT-33187",
+      "MT-35761",
+      "MT-35762",
+      "MT-33100"
+     ],
+     "expected_state": "Button hugs its label; child order drives position",
+     "visual_check": {
+      "what_must_be_visible": "Direction, gap and padding controls appear in properties; canvas shows padding on hover",
+      "layout_or_fit_concern": "Padding overlay must not hide the label"
+     },
+     "failure_a_professional_would_notice": "The most common control in UI design cannot be built"
+    },
+    {
+     "n": 21,
+     "intent": "Set literal gap 8 and padding 12/24 on an auto-layout frame",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Type into gap and padding fields, scrub",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:Viewer::set_auto_layout_spacing",
+      "parameters": {
+       "item_spacing": 8,
+       "padding": [
+        12,
+        24,
+        12,
+        24
+       ]
+      },
+      "status": "callable",
+      "evidence": "crates/hsk-studio-harness-view/src/view/design/auto_layout.rs:516 and :731 auto_layout_control with widget ids at :60-:90; works for vector-only children"
+     },
+     "spec_clauses": [
+      "STU-DS-144:20102",
+      "STU-DS-145:20126"
+     ],
+     "mts": [
+      "MT-33100",
+      "MT-33101"
+     ],
+     "expected_state": "Children re-solved, one undo step",
+     "visual_check": {
+      "what_must_be_visible": "Four padding fields and a linked toggle",
+      "layout_or_fit_concern": "Per-side and per-axis entry (STU-DS-040) needs a compact control, not four full rows"
+     },
+     "failure_a_professional_would_notice": "Padding typed but no reflow"
+    },
+    {
+     "n": 22,
+     "intent": "Bind gap, padding and radius to number variables",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Variable icon in the field, pick space/3",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:bind_variable_for_node_field",
+      "parameters": {
+       "field": "item_spacing",
+       "variable": "space/2"
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'bind_variable'. crates/hsk-studio-components/src/lib.rs header: variable bindings have no Folio home and live only in LocalContent, so a binding cannot persist in the document"
+     },
+     "spec_clauses": [
+      "STU-DS-024a:20403",
+      "STU-DS-130:20057",
+      "STU-DS-133:20068"
+     ],
+     "mts": [
+      "MT-33173",
+      "MT-327",
+      "MT-349",
+      "MT-33086",
+      "MT-33089"
+     ],
+     "expected_state": "Field shows a token chip, value follows mode",
+     "visual_check": {
+      "what_must_be_visible": "Chip replaces the number with a detach affordance",
+      "layout_or_fit_concern": "Chip must fit the narrow field"
+     },
+     "failure_a_professional_would_notice": "Tokens exist but nothing uses them"
+    },
+    {
+     "n": 23,
+     "intent": "Bind fill and text colours to semantic tokens",
+     "human": {
+      "panel": "properties, colour",
+      "tool": null,
+      "gesture": "Fill row, Libraries picker, pick color/action/primary",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:bind_variable_for_paint",
+      "parameters": {
+       "variable": "color/action/primary"
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'bind_variable_for_paint'; apply_swatch at crates/hsk-studio-harness-view/src/view/vector/swatch.rs:324 is a swatch link, not a mode-aware variable"
+     },
+     "spec_clauses": [
+      "STU-DS-024a:20403",
+      "STU-DS-130:20057"
+     ],
+     "mts": [
+      "MT-33173",
+      "MT-327",
+      "MT-349",
+      "MT-33086"
+     ],
+     "expected_state": "Paint resolves per mode",
+     "visual_check": {
+      "what_must_be_visible": "Fill row shows token name and resolved chip",
+      "layout_or_fit_concern": "Swatches and variables must not appear as two competing pickers"
+     },
+     "failure_a_professional_would_notice": "A theme switch that leaves bright fills in dark mode"
+    },
+    {
+     "n": 24,
+     "intent": "Create the Button component",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "OBJECT > Component > Create Component",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:component.create_from_selection",
+      "parameters": {
+       "name": "Button"
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'create_from_selection'; MT-33140 missing per truth check"
+     },
+     "spec_clauses": [
+      "STU-DS-002:20320",
+      "STU-DS-103:19923",
+      "STU-DS-107:19964"
+     ],
+     "mts": [
+      "MT-33140",
+      "MT-323",
+      "MT-33057",
+      "MT-33062"
+     ],
+     "expected_state": "SCMP component with layer_id",
+     "visual_check": {
+      "what_must_be_visible": "Component section in properties",
+      "layout_or_fit_concern": "Section order must stay stable when the selection kind changes"
+     },
+     "failure_a_professional_would_notice": "No component means no system"
+    },
+    {
+     "n": 25,
+     "intent": "Add variants: Type primary, secondary, ghost; Size sm, md; State default, hover, pressed, disabled",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Add Variant, set property values, duplicate across the matrix",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:component_set.combine_as_variants",
+      "parameters": {
+       "properties": {
+        "Type": 3,
+        "Size": 2,
+        "State": 4
+       },
+       "members": 24
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'combine_as_variants|component_set\\.'; record crates/hsk-studio-folio/src/components.rs:181; MT-33147 missing per truth check"
+     },
+     "spec_clauses": [
+      "STU-DS-006a:20340",
+      "STU-DS-104:19936",
+      "STU-DS-107:19964",
+      "STU-DS-108:19974"
+     ],
+     "mts": [
+      "MT-33147",
+      "MT-330",
+      "MT-33058",
+      "MT-33062",
+      "MT-33063"
+     ],
+     "expected_state": "Component set with 24 members and a default",
+     "visual_check": {
+      "what_must_be_visible": "Dashed set boundary, matrix laid out on a grid, property editor with ordered values",
+      "layout_or_fit_concern": "A 24-member matrix needs a usable overview; variant property rows must not push other properties below the fold"
+     },
+     "failure_a_professional_would_notice": "Hand-placed variants with no matrix view"
+    },
+    {
+     "n": 26,
+     "intent": "Prove the duplicate-variant refusal",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Give two members identical values",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "crate_api:hsk_studio_components::ComponentsError::VariantAssignmentDuplicate",
+      "parameters": {
+       "expect_error": "variant_assignment_duplicate"
+      },
+      "status": "engine_only",
+      "evidence": "crates/hsk-studio-components/src/lib.rs:80-82,:152-153; raised on validation (lib.rs:133 maps Folio codes; exact call path past Design::new at design.rs:91 UNVERIFIED), no host authoring path"
+     },
+     "spec_clauses": [
+      "STU-DS-109:19976",
+      "STU-DS-174:20286"
+     ],
+     "mts": [
+      "MT-33064",
+      "MT-33125"
+     ],
+     "expected_state": "Typed error names both members",
+     "visual_check": {
+      "what_must_be_visible": "Conflict badge on the members",
+      "layout_or_fit_concern": "Badge visible without opening each member"
+     },
+     "failure_a_professional_would_notice": "Instances resolve to an arbitrary member"
+    },
+    {
+     "n": 27,
+     "intent": "Add component properties: label TEXT, showIcon BOOLEAN, icon INSTANCE_SWAP with preferred values",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Component properties, plus",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:component.add_property",
+      "parameters": {
+       "props": [
+        [
+         "label",
+         "TEXT"
+        ],
+        [
+         "showIcon",
+         "BOOLEAN"
+        ],
+        [
+         "icon",
+         "INSTANCE_SWAP"
+        ]
+       ]
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'add_property'; crates/hsk-studio-folio/src/components.rs:151 record; MT-33068 missing per truth check"
+     },
+     "spec_clauses": [
+      "STU-DS-110:19985",
+      "STU-DS-111:19995",
+      "STU-DS-112:19997",
+      "STU-DS-114:20001"
+     ],
+     "mts": [
+      "MT-33065",
+      "MT-33066",
+      "MT-33067",
+      "MT-33068",
+      "MT-33070"
+     ],
+     "expected_state": "Three property definitions with defaults",
+     "visual_check": {
+      "what_must_be_visible": "Property list above overrides",
+      "layout_or_fit_concern": "Purple-style property chips need a distinct token colour"
+     },
+     "failure_a_professional_would_notice": "Every label edit becomes a raw override"
+    },
+    {
+     "n": 28,
+     "intent": "Link child layers to the properties",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Select child, field link icon, pick property",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:component_property_references write",
+      "parameters": {
+       "child": "label-text",
+       "characters": "label"
+      },
+      "status": "missing",
+      "evidence": "crates/hsk-studio-folio/src/records.rs field component_property_references stored; no writer command found; STU-DS-113 reference spelling not parsed per components.rs header"
+     },
+     "spec_clauses": [
+      "STU-DS-113:19999",
+      "STU-DS-180:20298"
+     ],
+     "mts": [
+      "MT-33069",
+      "MT-33131"
+     ],
+     "expected_state": "Editing the instance property edits the child",
+     "visual_check": {
+      "what_must_be_visible": "Link chip on the child field",
+      "layout_or_fit_concern": "Chip must fit in the character panel row"
+     },
+     "failure_a_professional_would_notice": "Properties that do nothing"
+    },
+    {
+     "n": 29,
+     "intent": "Build Input, Checkbox, TaskRow and TabBar components; expose nested instances",
+     "human": {
+      "panel": "properties, layers",
+      "tool": null,
+      "gesture": "Same sequence per component; TaskRow nests Checkbox",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:component.create_from_selection + is_exposed_instance",
+      "parameters": {
+       "components": [
+        "Input",
+        "Checkbox",
+        "TaskRow",
+        "TabBar"
+       ]
+      },
+      "status": "missing",
+      "evidence": "As steps above; crates/hsk-studio-folio/src/components.rs header: exposed_instance_ids is a projection, is_exposed_instance has no writer found"
+     },
+     "spec_clauses": [
+      "STU-DS-107:19964",
+      "STU-DS-118:20015"
+     ],
+     "mts": [
+      "MT-33062",
+      "MT-33074"
+     ],
+     "expected_state": "Five component families, nested properties surfaced",
+     "visual_check": {
+      "what_must_be_visible": "Nested instance properties grouped under the child's name",
+      "layout_or_fit_concern": "Nesting two levels must not produce an endless inspector"
+     },
+     "failure_a_professional_would_notice": "Consumers must dig into layers to change a checkbox"
+    },
+    {
+     "n": 30,
+     "intent": "Add description and documentation link to each component",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Edit description",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:publishing fields write",
+      "parameters": {
+       "description": "Primary action",
+       "documentation_links": [
+        "https://example.test/button"
+       ]
+      },
+      "status": "missing",
+      "evidence": "crates/hsk-studio-folio/src/values.rs:117-118 StudioPublishing fields exist; no writer command found"
+     },
+     "spec_clauses": [
+      "STU-DS-004:20328",
+      "STU-DS-141:20092"
+     ],
+     "mts": [
+      "MT-33143",
+      "MT-327",
+      "MT-33097"
+     ],
+     "expected_state": "Fields stored",
+     "visual_check": {
+      "what_must_be_visible": "Markdown description with links",
+      "layout_or_fit_concern": "Long text must collapse"
+     },
+     "failure_a_professional_would_notice": "Handoff has no usage notes"
+    },
+    {
+     "n": 31,
+     "intent": "Publish as a local library and review the change list",
+     "human": {
+      "panel": "library",
+      "tool": null,
+      "gesture": "OBJECT > Component > Publish to Library",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:library publish (STU-DS-019)",
+      "parameters": {
+       "notes": "v1"
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'library\\.publish|publish_status|UNPUBLISHED'"
+     },
+     "spec_clauses": [
+      "STU-DS-019:20376",
+      "STU-DS-140:20090",
+      "STU-DS-143:20096"
+     ],
+     "mts": [
+      "MT-33160",
+      "MT-342",
+      "MT-33096",
+      "MT-33099"
+     ],
+     "expected_state": "Items CURRENT, library enabled for a consumer document",
+     "visual_check": {
+      "what_must_be_visible": "Per-item change list",
+      "layout_or_fit_concern": "The library panel is a Browse Dock item, collapsed by default in the vector preset; publishing must not need hunting"
+     },
+     "failure_a_professional_would_notice": "No way to share the system between files"
+    },
+    {
+     "n": 32,
+     "intent": "Prove instance inheritance: change Button radius, every instance follows",
+     "human": {
+      "panel": "canvas",
+      "tool": null,
+      "gesture": "Edit main, watch instances",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:component.create_instance then resolve",
+      "parameters": {
+       "edit": "corner_radius"
+      },
+      "status": "missing",
+      "evidence": "Engine resolves inheritance (crates/hsk-studio-components/src/instance_resolution.rs:565 resolve_instance) but definition field values have no Folio home (crates/hsk-studio-folio/src/components.rs header) and the window redraw is a copy from the import receipt (crates/hsk-studio-harness-view/src/view/design/instance.rs header)"
+     },
+     "spec_clauses": [
+      "STU-DS-016:20366",
+      "STU-DS-107:19964",
+      "STU-DS-116:20011"
+     ],
+     "mts": [
+      "MT-33157",
+      "MT-33162",
+      "MT-339",
+      "MT-33062",
+      "MT-33072"
+     ],
+     "expected_state": "All instances updated without overrides lost",
+     "visual_check": {
+      "what_must_be_visible": "Live update across the canvas",
+      "layout_or_fit_concern": "Propagation must not flash or reflow the viewport"
+     },
+     "failure_a_professional_would_notice": "The defining promise of components failing"
+    }
+   ]
+  },
+  {
+   "scene_id": "screens",
+   "goal": "Compose four mobile screens and one tablet layout from the system with auto layout, grids, overrides and theme previews, then save and reopen",
+   "steps": [
+    {
+     "n": 33,
+     "intent": "Create screen frames: Sign-in, Home, Task detail at 390x844, Home-tablet at 768x1024",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": null,
+      "gesture": "INSERT > Layer > Artboard, choose device size",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:DOCUMENT > Artboards > New Artboard",
+      "parameters": {
+       "boards": [
+        [
+         "Sign-in",
+         390,
+         844
+        ],
+        [
+         "Home",
+         390,
+         844
+        ],
+        [
+         "Task-detail",
+         390,
+         844
+        ],
+        [
+         "Home-tablet",
+         768,
+         1024
+        ]
+       ]
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'new_artboard|add_artboard|create_artboard' in the harness crates"
+     },
+     "spec_clauses": [
+      "STU-SHL-026:31634",
+      "STU-SHL-033:31767"
+     ],
+     "mts": [
+      "MT-34447",
+      "MT-34454"
+     ],
+     "expected_state": "Four top-level frames on the Screens page, spaced by a consistent gap",
+     "visual_check": {
+      "what_must_be_visible": "Frame names above each frame, fit-all view shows all four",
+      "layout_or_fit_concern": "Frame labels must stay legible and constant size at low zoom"
+     },
+     "failure_a_professional_would_notice": "Screens as loose groups cannot be flow targets or export units"
+    },
+    {
+     "n": 34,
+     "intent": "Apply the 4-column grid style to the phone frames",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Layout grid section, pick grid style",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:OBJECT > Layout Grid > Add Layout Grid",
+      "parameters": {
+       "style": "grid/mobile-4"
+      },
+      "status": "missing",
+      "evidence": "See step in scene design-system; no grid in the harness: git grep 'layout_grids|StudioLayoutGrid' empty in harness crates"
+     },
+     "spec_clauses": [
+      "STU-DS-156:20202",
+      "STU-DS-047:20476"
+     ],
+     "mts": [
+      "MT-33112",
+      "MT-33204",
+      "MT-363"
+     ],
+     "expected_state": "Grid drawn on all phone frames",
+     "visual_check": {
+      "what_must_be_visible": "Column overlay",
+      "layout_or_fit_concern": "Overlay must sit under selection handles"
+     },
+     "failure_a_professional_would_notice": "No column alignment"
+    },
+    {
+     "n": 35,
+     "intent": "Build the Sign-in layout as a vertical stack: logo, title, two inputs, primary button, link",
+     "human": {
+      "panel": "layers, properties",
+      "tool": null,
+      "gesture": "Select items, OBJECT > Auto Layout > Add Auto Layout, Direction: Vertical",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:Viewer::set_auto_layout_mode",
+      "parameters": {
+       "mode": "VERTICAL",
+       "subtree_contains_text": true
+      },
+      "status": "missing",
+      "evidence": "Refused: crates/hsk-studio-harness-view/src/view/design/auto_layout.rs header line 19 auto_layout_text_layer_unsupported; every child here holds text"
+     },
+     "spec_clauses": [
+      "STU-DS-144:20102",
+      "STU-DS-036:20438"
+     ],
+     "mts": [
+      "MT-33100",
+      "MT-33188",
+      "MT-358"
+     ],
+     "expected_state": "Children stacked in layer order with spacing",
+     "visual_check": {
+      "what_must_be_visible": "Stack order matches Layers order",
+      "layout_or_fit_concern": "Reverse paint order in Layers versus stack order is a known confusion: top of stack must be top of the list, or say so"
+     },
+     "failure_a_professional_would_notice": "A form that cannot use auto layout"
+    },
+    {
+     "n": 36,
+     "intent": "Insert Input and Button instances from the library",
+     "human": {
+      "panel": "library",
+      "tool": null,
+      "gesture": "Drag from library to frame; drop indicator between stack children",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:component.create_instance",
+      "parameters": {
+       "component": "Input",
+       "count": 2
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'create_instance'; crates/hsk-studio-folio/src/components.rs:218 record only"
+     },
+     "spec_clauses": [
+      "STU-DS-005:20330",
+      "STU-DS-107:19964"
+     ],
+     "mts": [
+      "MT-33144",
+      "MT-324",
+      "MT-328",
+      "MT-33062"
+     ],
+     "expected_state": "Live instances in the stack",
+     "visual_check": {
+      "what_must_be_visible": "Search with thumbnails, slash-path folders, insertion line in the stack",
+      "layout_or_fit_concern": "library is in the Browse Dock, collapsed in the vector preset: inserting a component is the most frequent action and must not take two clicks to reveal"
+     },
+     "failure_a_professional_would_notice": "Copy-paste instead of instances"
+    },
+    {
+     "n": 37,
+     "intent": "Set a child rectangle width to Fill inside its stack (a real Input instance would be refused)",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Resizing dropdowns per axis",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:Viewer::set_child_sizing",
+      "parameters": {
+       "horizontal": "FILL",
+       "vertical": "FIXED"
+      },
+      "status": "callable",
+      "evidence": "crates/hsk-studio-harness-view/src/view/design/auto_layout.rs:571; applies size change only to rectangles, else auto_layout_resize_unsupported (header lines 26-33). Frame-level hug: header line 34 says new frames get FIXED on both axes and no command for primary or counter sizing mode is listed at :465-:610, so a frame cannot be set to Hug"
+     },
+     "spec_clauses": [
+      "STU-DS-042:20452",
+      "STU-DS-148:20158"
+     ],
+     "mts": [
+      "MT-33195",
+      "MT-33209",
+      "MT-360",
+      "MT-33104"
+     ],
+     "expected_state": "Child stretches with its parent",
+     "visual_check": {
+      "what_must_be_visible": "Fixed, Hug, Fill choices per axis in properties",
+      "layout_or_fit_concern": "Three-way choice needs a compact control beside W and H fields"
+     },
+     "failure_a_professional_would_notice": "Fill that only works on plain rectangles breaks on any component"
+    },
+    {
+     "n": 38,
+     "intent": "Set frame-level Hug on the stack and clamp input min-width 200, max-width 480",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Resizing dropdown, Add min/max",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:frame sizing mode + StudioSizeClamps write",
+      "parameters": {
+       "primary_axis": "AUTO",
+       "min_width": 200,
+       "max_width": 480
+      },
+      "status": "missing",
+      "evidence": "crates/hsk-studio-folio/src/records.rs StudioNodeDesign.size_clamps stored; no setter among crates/hsk-studio-harness-view/src/view/design/auto_layout.rs public methods :465-:731"
+     },
+     "spec_clauses": [
+      "STU-DS-043:20454",
+      "STU-DS-144:20102",
+      "STU-DS-149:20170"
+     ],
+     "mts": [
+      "MT-33196",
+      "MT-360",
+      "MT-33100",
+      "MT-33105"
+     ],
+     "expected_state": "Content resizes frame; clamps honoured",
+     "visual_check": {
+      "what_must_be_visible": "Min and max rows appear only when set",
+      "layout_or_fit_concern": "Do not reserve empty rows"
+     },
+     "failure_a_professional_would_notice": "Layouts that overflow on tablet"
+    },
+    {
+     "n": 39,
+     "intent": "Align children: counter axis stretch, text baseline alignment in rows",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Nine-position alignment box, baseline toggle",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:OBJECT > Auto Layout > Alignment…",
+      "parameters": {
+       "primary": "MIN",
+       "counter": "CENTER"
+      },
+      "status": "missing",
+      "evidence": "Widget list crates/hsk-studio-harness-view/src/view/design/auto_layout.rs:60-:90 has mode, spacing, padding, grid and child fields, no alignment; StudioAutoLayout record carries it (crates/hsk-studio-folio/src/autolayout.rs:113, fields not all read)"
+     },
+     "spec_clauses": [
+      "STU-DS-041:20448",
+      "STU-DS-041a:20450"
+     ],
+     "mts": [
+      "MT-33193",
+      "MT-360",
+      "MT-33194"
+     ],
+     "expected_state": "Items aligned",
+     "visual_check": {
+      "what_must_be_visible": "Nine-dot box reflects current state",
+      "layout_or_fit_concern": "Box must read at 20px row height"
+     },
+     "failure_a_professional_would_notice": "A designer cannot centre a label"
+    },
+    {
+     "n": 40,
+     "intent": "Home: wrap the filter chips, pin the Add button absolute in the corner",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Direction: Wrap; child Absolute Position",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:OBJECT > Auto Layout > Direction: Wrap + Absolute Position",
+      "parameters": {
+       "layout_wrap": "WRAP",
+       "child": "fab",
+       "layout_positioning": "ABSOLUTE"
+      },
+      "status": "missing",
+      "evidence": "No wrap or positioning control among the widgets at crates/hsk-studio-harness-view/src/view/design/auto_layout.rs:60-:90; ChildPositioning::Absolute only appears as solver input for backgrounds at :666; solver handles wrap per crates/hsk-studio-components/src/auto_layout.rs (header, UNVERIFIED by test read)"
+     },
+     "spec_clauses": [
+      "STU-DS-037:20440",
+      "STU-DS-044:20456",
+      "STU-DS-148:20158"
+     ],
+     "mts": [
+      "MT-33189",
+      "MT-359",
+      "MT-33197",
+      "MT-361",
+      "MT-33104"
+     ],
+     "expected_state": "Chips flow to two rows; button stays in place",
+     "visual_check": {
+      "what_must_be_visible": "Absolute child marked in Layers",
+      "layout_or_fit_concern": "Absolute marker must be visible without selecting"
+     },
+     "failure_a_professional_would_notice": "No floating action button without manual math"
+    },
+    {
+     "n": 41,
+     "intent": "Build a placeholder stats row on Home-tablet with GRID layout: 3 FLEX columns, 2 rows, gap 16",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Direction: Grid, set tracks",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:Viewer::set_auto_layout_mode + Viewer::set_grid_tracks + Viewer::set_grid_gaps",
+      "parameters": {
+       "mode": "GRID",
+       "columns": [
+        "FLEX",
+        "FLEX",
+        "FLEX"
+       ],
+       "gap": 16,
+       "children": "rectangles only"
+      },
+      "status": "callable",
+      "evidence": "crates/hsk-studio-harness-view/src/view/design/auto_layout.rs:465,:527,:539; solver crates/hsk-studio-components/src/auto_layout/grid.rs; text in the subtree still refused"
+     },
+     "spec_clauses": [
+      "STU-DS-146:20141",
+      "STU-DS-147:20156"
+     ],
+     "mts": [
+      "MT-33102",
+      "MT-33103"
+     ],
+     "expected_state": "Rectangles placed by track",
+     "visual_check": {
+      "what_must_be_visible": "Track editors and overlay on the frame",
+      "layout_or_fit_concern": "A long track list needs its own collapsible region; SECTION_TRACKS allows 64 rows in an inspector"
+     },
+     "failure_a_professional_would_notice": "Grid only works with empty cards"
+    },
+    {
+     "n": 42,
+     "intent": "Span the summary card across 2 columns and reorder a row",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Child row, column and span fields; drag track",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:Viewer::set_grid_child + Viewer::grid_reorder_rows + Viewer::grid_append_child_at",
+      "parameters": {
+       "column_span": 2
+      },
+      "status": "callable",
+      "evidence": "crates/hsk-studio-harness-view/src/view/design/auto_layout.rs:559,:591,:605"
+     },
+     "spec_clauses": [
+      "STU-DS-146:20141",
+      "STU-DS-150:20172",
+      "STU-DS-185:20308"
+     ],
+     "mts": [
+      "MT-33102",
+      "MT-33106",
+      "MT-33136"
+     ],
+     "expected_state": "Span applied, over-span refused as grid_span_exceeds_tracks",
+     "visual_check": {
+      "what_must_be_visible": "Span handles on the cell",
+      "layout_or_fit_concern": "Handles must not collide with resize handles"
+     },
+     "failure_a_professional_would_notice": "Span silently clipped"
+    },
+    {
+     "n": 43,
+     "intent": "Compose TaskRow instances on Home and override label text",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Double-click into the label, or edit the label property",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:Viewer::design_command SetOverride / SetProperty",
+      "parameters": {
+       "node": "<label>",
+       "field": "characters",
+       "value": "Book the vet"
+      },
+      "status": "callable",
+      "evidence": "crates/hsk-studio-harness-view/src/view/design/instance.rs:400 and :76; fields characters, visible, opacity; only for instances listed in a .fig import receipt (header lines 4-6), so only the bridge fixture exercises it"
+     },
+     "spec_clauses": [
+      "STU-DS-009:20350",
+      "STU-DS-115:20007",
+      "STU-DS-117:20013"
+     ],
+     "mts": [
+      "MT-33150",
+      "MT-333",
+      "MT-334",
+      "MT-33071",
+      "MT-33073"
+     ],
+     "expected_state": "Override stored, one undo step",
+     "visual_check": {
+      "what_must_be_visible": "Override dot on the field and a Reset row",
+      "layout_or_fit_concern": "Fills, strokes and effects are overridable by spec (STU-DS-115) but values cannot be carried yet: the inspector must not offer them"
+     },
+     "failure_a_professional_would_notice": "Overrides lost on reopen"
+    },
+    {
+     "n": 44,
+     "intent": "Switch instance variant and swap its icon",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Variant dropdowns, swap picker",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:Viewer::design_command SwitchVariant / Swap",
+      "parameters": {
+       "property": "Type",
+       "value": "secondary"
+      },
+      "status": "callable",
+      "evidence": "crates/hsk-studio-harness-view/src/view/design/instance.rs:76-:90; engine crates/hsk-studio-components/src/instance_resolution.rs:746,:763; no searchable picker per truth check MT-33159"
+     },
+     "spec_clauses": [
+      "STU-DS-008:20344",
+      "STU-DS-017:20368",
+      "STU-DS-119:20017"
+     ],
+     "mts": [
+      "MT-33149",
+      "MT-332",
+      "MT-33158",
+      "MT-340",
+      "MT-384",
+      "MT-33075"
+     ],
+     "expected_state": "Member changes, compatible overrides kept, dropped ones reported",
+     "visual_check": {
+      "what_must_be_visible": "Variant dropdowns at the top of the section",
+      "layout_or_fit_concern": "Dropped overrides must be reported visibly, not only in a result"
+     },
+     "failure_a_professional_would_notice": "Text overrides vanish on variant switch"
+    },
+    {
+     "n": 45,
+     "intent": "Reset one override, then reset all",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Reset row, OBJECT > Component > Reset All Overrides",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:Viewer::design_command ResetOverride / ResetAll",
+      "parameters": {},
+      "status": "callable",
+      "evidence": "crates/hsk-studio-harness-view/src/view/design/instance.rs:76-:90"
+     },
+     "spec_clauses": [
+      "STU-DS-017:20368",
+      "STU-DS-120:20019"
+     ],
+     "mts": [
+      "MT-33158",
+      "MT-340",
+      "MT-384",
+      "MT-33076"
+     ],
+     "expected_state": "Values back to the main component",
+     "visual_check": {
+      "what_must_be_visible": "Dots clear",
+      "layout_or_fit_concern": "None beyond the override marker"
+     },
+     "failure_a_professional_would_notice": "Reset clearing more than asked"
+    },
+    {
+     "n": 46,
+     "intent": "Detach one instance for a one-off empty state",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "OBJECT > Component > Detach Instance",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:instance.detach",
+      "parameters": {},
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'detach' in crates/hsk-studio-harness-view/src/view/design"
+     },
+     "spec_clauses": [
+      "STU-DS-107:19964",
+      "STU-DS-142:20094"
+     ],
+     "mts": [
+      "MT-33062",
+      "MT-33098"
+     ],
+     "expected_state": "Plain frame, detach source recorded",
+     "visual_check": {
+      "what_must_be_visible": "Frame icon replaces instance icon",
+      "layout_or_fit_concern": "None"
+     },
+     "failure_a_professional_would_notice": "Stuck with the instance"
+    },
+    {
+     "n": 47,
+     "intent": "Arrange: align and distribute icons in the tab bar, nudge, rename layers",
+     "human": {
+      "panel": "align-distribute, layers",
+      "tool": "move",
+      "gesture": "Align buttons, rename inline",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:Viewer::align_layers + Viewer::distribute_layers + run:layer.rename",
+      "parameters": {
+       "how": "center"
+      },
+      "status": "callable",
+      "evidence": "crates/hsk-studio-harness-view/src/view/vector/arrange.rs:89,:99; layers.rs:230; crates/hsk-studio-harness-core/src/action.rs:844 layer.rename"
+     },
+     "spec_clauses": [
+      "STU-SHL-028:31668"
+     ],
+     "mts": [
+      "MT-34449"
+     ],
+     "expected_state": "Even spacing, meaningful names",
+     "visual_check": {
+      "what_must_be_visible": "Align buttons, smart guides",
+      "layout_or_fit_concern": "Smart guides during drag: no snap code reached in the harness (UNVERIFIED beyond a name grep)"
+     },
+     "failure_a_professional_would_notice": "Layer names staying Rectangle 12"
+    },
+    {
+     "n": 48,
+     "intent": "Preview a frame in Dark and mark Home-tablet as Comfortable density",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Appearance section, mode dropdown per collection",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:set explicit_variable_modes",
+      "parameters": {
+       "node": "Home",
+       "Semantic": "Dark"
+      },
+      "status": "missing",
+      "evidence": "crates/hsk-studio-folio/src/records.rs:83 stored and :592 validated; no writer in harness crates; no renderer reads variable bindings because bindings have no Folio home"
+     },
+     "spec_clauses": [
+      "STU-DS-024:20401",
+      "STU-DS-132:20066"
+     ],
+     "mts": [
+      "MT-33172",
+      "MT-348",
+      "MT-353",
+      "MT-33088"
+     ],
+     "expected_state": "Frame repaints in Dark; children inherit",
+     "visual_check": {
+      "what_must_be_visible": "Mode control visible per frame; two frames side by side in different modes",
+      "layout_or_fit_concern": "Both modes on one canvas is the check itself"
+     },
+     "failure_a_professional_would_notice": "The dark theme can never be seen"
+    },
+    {
+     "n": 49,
+     "intent": "Set constraints on the tablet header: left and right stretch, bottom pin",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Constraint widget",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:OBJECT > Constraints",
+      "parameters": {
+       "horizontal": "STRETCH",
+       "vertical": "MAX"
+      },
+      "status": "missing",
+      "evidence": "Record crates/hsk-studio-folio/src/autolayout.rs:357; no setter: git grep in harness-view shows StudioConstraint only as solver input (design/auto_layout.rs:667) and import (fig_import.rs:359)"
+     },
+     "spec_clauses": [
+      "STU-DS-046:20464",
+      "STU-DS-151:20178",
+      "STU-DS-152:20190"
+     ],
+     "mts": [
+      "MT-33197",
+      "MT-33199",
+      "MT-362",
+      "MT-33107",
+      "MT-33108"
+     ],
+     "expected_state": "Children respond on frame resize",
+     "visual_check": {
+      "what_must_be_visible": "Constraint diagram in properties",
+      "layout_or_fit_concern": "Hide when the parent uses auto layout, unless the child is absolute"
+     },
+     "failure_a_professional_would_notice": "Tablet resize wrecks the layout"
+    },
+    {
+     "n": 50,
+     "intent": "Resize the frame from 390 to 768 and check reflow",
+     "human": {
+      "panel": "canvas",
+      "tool": "scale",
+      "gesture": "Drag frame edge; hold the modifier to suspend constraints",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "crate_api:hsk_studio_components::resize_component",
+      "parameters": {
+       "new_width": 768
+      },
+      "status": "engine_only",
+      "evidence": "crates/hsk-studio-components/src/constraints.rs:88 and :62; only solver-internal callers (crates/hsk-studio-components/src/auto_layout.rs:721); no host resize of a frame through constraints"
+     },
+     "spec_clauses": [
+      "STU-DS-048:20488",
+      "STU-DS-046d:20472"
+     ],
+     "mts": [
+      "MT-33209",
+      "MT-362",
+      "MT-33203"
+     ],
+     "expected_state": "Children reflow live",
+     "visual_check": {
+      "what_must_be_visible": "Live reflow during drag with dimensions badge",
+      "layout_or_fit_concern": "Must not lag on a 4-frame page"
+     },
+     "failure_a_professional_would_notice": "Resize that leaves children in place"
+    },
+    {
+     "n": 51,
+     "intent": "Set the scroll container on Home and fix the tab bar",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Overflow dropdown; Fix position when scrolling",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:frame.set_overflow_direction + frame.set_number_of_fixed_children",
+      "parameters": {
+       "overflow_direction": "VERTICAL",
+       "number_of_fixed_children": 1
+      },
+      "status": "missing",
+      "evidence": "crates/hsk-studio-folio/src/prototype.rs:49 enum exists; no command; git grep 'fixed_children' empty outside spec"
+     },
+     "spec_clauses": [
+      "STU-PRO-125:20694",
+      "STU-PRO-126:20696",
+      "STU-PRO-138:20746"
+     ],
+     "mts": [
+      "MT-33240",
+      "MT-33241",
+      "MT-33254"
+     ],
+     "expected_state": "Frame declares scrolling",
+     "visual_check": {
+      "what_must_be_visible": "Scroll badge on the frame",
+      "layout_or_fit_concern": "None"
+     },
+     "failure_a_professional_would_notice": "Long lists clipped in the prototype"
+    },
+    {
+     "n": 52,
+     "intent": "Save, reopen and verify the file",
+     "human": {
+      "panel": "FILE menu",
+      "tool": null,
+      "gesture": "FILE > Save As, FILE > Open, compare",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:Viewer::save; cli:verify",
+      "parameters": {
+       "path": "<artifact-root>/Larkspur-Design-File.handshake"
+      },
+      "status": "callable",
+      "evidence": "crates/hsk-studio-harness-view/src/view/mod.rs:716 save; crates/hsk-studio-harness-core/src/action.rs document.save, document.verify; crates/hsk-studio-harness/src/cli.rs:284 open, panel, edit, verify"
+     },
+     "spec_clauses": [
+      "STU-IO-006:21544"
+     ],
+     "mts": [
+      "MT-33444",
+      "MT-33445",
+      "MT-35822"
+     ],
+     "expected_state": "Reopened document byte-stable in layers, auto layout records in the vector entry, instance states in the design entry",
+     "visual_check": {
+      "what_must_be_visible": "No dirty mark after save; same view on reopen",
+      "layout_or_fit_concern": "None"
+     },
+     "failure_a_professional_would_notice": "Auto layout gone after reopen"
+    },
+    {
+     "n": 53,
+     "intent": "Render the composite to PNG for self-review of contrast, spacing and hierarchy (one image, not per frame)",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "Export selection as PNG",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:Viewer::export",
+      "parameters": {
+       "format": "Png"
+      },
+      "status": "callable",
+      "evidence": "crates/hsk-studio-harness-view/src/view/mod.rs:672 exports the whole composite, not one frame; export.rs:27 Png and Jpeg"
+     },
+     "spec_clauses": [
+      "STU-AUT-166:21958",
+      "STU-CON-007:22896"
+     ],
+     "mts": [
+      "MT-33517",
+      "MT-33505",
+      "MT-33673",
+      "MT-35668"
+     ],
+     "expected_state": "One PNG of the whole document",
+     "visual_check": {
+      "what_must_be_visible": "Result opens without a foreground window for a model",
+      "layout_or_fit_concern": "Per-frame selection render missing: inspect.render_selection absent by git grep"
+     },
+     "failure_a_professional_would_notice": "A review image that cannot isolate a screen"
+    }
+   ]
+  },
+  {
+   "scene_id": "prototype",
+   "goal": "Wire the screens into a clickable flow with an overlay, interactive components, runtime variables and smart animate; test it by hand and headlessly",
+   "steps": [
+    {
+     "n": 54,
+     "intent": "Add flow starting point Onboarding at Sign-in",
+     "human": {
+      "panel": "interactions",
+      "tool": null,
+      "gesture": "Select frame, MOTION > Prototype > Flows, add starting point",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:flow.add_starting_point",
+      "parameters": {
+       "node": "Sign-in",
+       "name": "Onboarding"
+      },
+      "status": "missing",
+      "evidence": "crates/hsk-studio-folio/src/prototype.rs:28 StudioFlowStart stored; only writer is the import path (interop-fig-native/src/native.rs:3617); no command"
+     },
+     "spec_clauses": [
+      "STU-PRO-002:20893",
+      "STU-PRO-128:20704",
+      "STU-PRO-138:20746"
+     ],
+     "mts": [
+      "MT-33279",
+      "MT-373",
+      "MT-33243",
+      "MT-33254"
+     ],
+     "expected_state": "Flow listed, named, ordered",
+     "visual_check": {
+      "what_must_be_visible": "Flow badge on the frame; flow list in the page section of properties",
+      "layout_or_fit_concern": "interactions is listed for web, layout and composition, not vector (spec line 32135): the panel would not surface in the vector profile"
+     },
+     "failure_a_professional_would_notice": "No way to start the prototype"
+    },
+    {
+     "n": 55,
+     "intent": "Connect Button primary on Sign-in to Home: On click, Navigate, Smart animate 300ms ease-out",
+     "human": {
+      "panel": "interactions, canvas",
+      "tool": null,
+      "gesture": "Drag a connection from the hotspot node to the frame",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:reaction.set",
+      "parameters": {
+       "node": "<button>",
+       "trigger": "ON_CLICK",
+       "action": {
+        "type": "NODE",
+        "navigation": "NAVIGATE",
+        "destination": "Home",
+        "transition": {
+         "type": "SMART_ANIMATE",
+         "duration": 0.3
+        }
+       }
+      },
+      "status": "missing",
+      "evidence": "crates/hsk-studio-folio/src/reactions.rs:215 record; StudioNodeDesign.reactions stored; git grep over crates at c4d06841 returned no non-test hit for 'reaction\\.set'; truth check: reactions only imported from .fig, no reaction editor"
+     },
+     "spec_clauses": [
+      "STU-PRO-102:20530",
+      "STU-PRO-103:20532",
+      "STU-PRO-111:20608",
+      "STU-PRO-117:20651",
+      "STU-PRO-138:20746"
+     ],
+     "mts": [
+      "MT-33213",
+      "MT-33214",
+      "MT-33224",
+      "MT-33231",
+      "MT-33254"
+     ],
+     "expected_state": "Reaction stored on the node",
+     "visual_check": {
+      "what_must_be_visible": "Editable arrow on canvas, reaction row in the inspector",
+      "layout_or_fit_concern": "Arrows over a four-frame page must not hide content: show only for selection by default, per STU-PRO-002a"
+     },
+     "failure_a_professional_would_notice": "Wiring by typing ids instead of dragging"
+    },
+    {
+     "n": 56,
+     "intent": "Connect TaskRow to Task detail with Slide in from right; Back on the header chevron",
+     "human": {
+      "panel": "interactions",
+      "tool": null,
+      "gesture": "Connection, direction picker",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:reaction.set",
+      "parameters": {
+       "actions": [
+        {
+         "navigation": "NAVIGATE",
+         "transition": {
+          "type": "SLIDE_IN",
+          "direction": "LEFT"
+         }
+        },
+        {
+         "type": "BACK"
+        }
+       ]
+      },
+      "status": "missing",
+      "evidence": "As reaction.set above; transition records exist crates/hsk-studio-folio/src/reactions.rs"
+     },
+     "spec_clauses": [
+      "STU-PRO-110:20606",
+      "STU-PRO-118:20653",
+      "STU-PRO-119:20655",
+      "STU-PRO-131:20716"
+     ],
+     "mts": [
+      "MT-33223",
+      "MT-33232",
+      "MT-33233",
+      "MT-33247"
+     ],
+     "expected_state": "Two reactions; back stack defined",
+     "visual_check": {
+      "what_must_be_visible": "Direction arrows and easing curve preview",
+      "layout_or_fit_concern": "Easing preview must fit the inspector width"
+     },
+     "failure_a_professional_would_notice": "Back not returning to the scroll position"
+    },
+    {
+     "n": 57,
+     "intent": "Configure New-task sheet as a bottom overlay with dim background, close on outside click",
+     "human": {
+      "panel": "interactions",
+      "tool": null,
+      "gesture": "Open overlay action; overlay section",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:overlay.configure",
+      "parameters": {
+       "overlay_position_type": "BOTTOM_CENTER",
+       "background": {
+        "type": "SOLID_COLOR",
+        "opacity": 0.5
+       },
+       "close_on_click_outside": true
+      },
+      "status": "missing",
+      "evidence": "crates/hsk-studio-folio/src/prototype.rs:10 frame_overlay stored; engine reads it (crates/hsk-studio-components/src/player.rs:515 overlay_placement); no command"
+     },
+     "spec_clauses": [
+      "STU-PRO-122:20684",
+      "STU-PRO-123:20686",
+      "STU-PRO-124:20688",
+      "STU-PRO-138:20746"
+     ],
+     "mts": [
+      "MT-33237",
+      "MT-33238",
+      "MT-33239",
+      "MT-33254"
+     ],
+     "expected_state": "Overlay fields on the frame",
+     "visual_check": {
+      "what_must_be_visible": "Nine-position picker, opacity field",
+      "layout_or_fit_concern": "Picker must match the alignment box visually"
+     },
+     "failure_a_professional_would_notice": "Sheet positioned by hand"
+    },
+    {
+     "n": 58,
+     "intent": "Make Checkbox interactive: On click, Change to checked, inside the component set",
+     "human": {
+      "panel": "interactions",
+      "tool": null,
+      "gesture": "Connect variant to variant",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:reaction.set on a member with CHANGE_TO",
+      "parameters": {
+       "navigation": "CHANGE_TO",
+       "destination": "<checked member>"
+      },
+      "status": "missing",
+      "evidence": "Engine records CHANGE_TO in runtime state (crates/hsk-studio-components/src/player.rs:97 variants); authoring absent; variant target validator variant_target_not_sibling absent by git grep"
+     },
+     "spec_clauses": [
+      "STU-PRO-027:20992",
+      "STU-PRO-133:20724",
+      "STU-PRO-162:20836"
+     ],
+     "mts": [
+      "MT-33325",
+      "MT-390",
+      "MT-33249",
+      "MT-33273"
+     ],
+     "expected_state": "All Checkbox instances interactive",
+     "visual_check": {
+      "what_must_be_visible": "Arrows inside the set boundary",
+      "layout_or_fit_concern": "Dense matrix of arrows needs filtering"
+     },
+     "failure_a_professional_would_notice": "Every use must be rewired by hand"
+    },
+    {
+     "n": 59,
+     "intent": "Add a runtime variable: taskCount, incremented on save with Set variable",
+     "human": {
+      "panel": "interactions",
+      "tool": null,
+      "gesture": "Set variable action, expression field",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:reaction.set with SET_VARIABLE",
+      "parameters": {
+       "variable": "taskCount",
+       "expression": "taskCount + 1"
+      },
+      "status": "missing",
+      "evidence": "Literal SET_VARIABLE plays (crates/hsk-studio-components/src/player.rs:366); folio components.rs header: EXPRESSION values not modelled; truth check MT-33326 no expression evaluator"
+     },
+     "spec_clauses": [
+      "STU-PRO-113:20631",
+      "STU-DS-131:20064",
+      "STU-DS-028:20411"
+     ],
+     "mts": [
+      "MT-33227",
+      "MT-33087",
+      "MT-33177",
+      "MT-380"
+     ],
+     "expected_state": "Count rises at runtime, document unchanged",
+     "visual_check": {
+      "what_must_be_visible": "Expression field with token chips",
+      "layout_or_fit_concern": "Field needs validation inline"
+     },
+     "failure_a_professional_would_notice": "A counter that cannot count"
+    },
+    {
+     "n": 60,
+     "intent": "Add a conditional: empty list shows Empty state, else Home",
+     "human": {
+      "panel": "interactions",
+      "tool": null,
+      "gesture": "Conditional action with if and else blocks",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:reaction.set with CONDITIONAL",
+      "parameters": {
+       "condition": "taskCount == 0"
+      },
+      "status": "missing",
+      "evidence": "crates/hsk-studio-folio/src/reactions.rs header lines 6-7: CONDITIONAL not modelled; absent even as a record"
+     },
+     "spec_clauses": [
+      "STU-PRO-115:20639",
+      "STU-PRO-160:20832"
+     ],
+     "mts": [
+      "MT-33229",
+      "MT-33271"
+     ],
+     "expected_state": "Branch at runtime",
+     "visual_check": {
+      "what_must_be_visible": "Indented blocks in the action list",
+      "layout_or_fit_concern": "Nested blocks in a narrow inspector need clear indentation"
+     },
+     "failure_a_professional_would_notice": "Static happy path only"
+    },
+    {
+     "n": 61,
+     "intent": "Set theme switch in Settings: Set variable mode to Dark",
+     "human": {
+      "panel": "interactions",
+      "tool": null,
+      "gesture": "Set variable mode action",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "crate_api:hsk_studio_components::PlayerSession::dispatch (SetVariableMode)",
+      "parameters": {
+       "collection": "Semantic",
+       "mode": "Dark"
+      },
+      "status": "engine_only",
+      "evidence": "crates/hsk-studio-components/src/player.rs:370 emits an event only; no repaint because crates/hsk-studio-harness-view/src/view/prototype.rs renders .fig frames with no mode input"
+     },
+     "spec_clauses": [
+      "STU-PRO-113:20631",
+      "STU-DS-132:20066"
+     ],
+     "mts": [
+      "MT-33227",
+      "MT-33088"
+     ],
+     "expected_state": "Whole prototype repaints in Dark",
+     "visual_check": {
+      "what_must_be_visible": "Instant recolour",
+      "layout_or_fit_concern": "None"
+     },
+     "failure_a_professional_would_notice": "Toggle that does nothing visible"
+    },
+    {
+     "n": 62,
+     "intent": "Validate the flow: unreachable frames, dead links",
+     "human": {
+      "panel": "preflight",
+      "tool": null,
+      "gesture": "Run flow check",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "crate_api:hsk_studio_components::validate_flow",
+      "parameters": {},
+      "status": "engine_only",
+      "evidence": "crates/hsk-studio-components/src/prototype.rs:59; git grep 'validate_flow(' finds only the definition, so no host calls it. Named validators action_destination_unresolvable, flow_starting_point_duplicate absent by git grep"
+     },
+     "spec_clauses": [
+      "STU-PRO-143:20756",
+      "STU-PRO-153:20818",
+      "STU-PRO-164:20840"
+     ],
+     "mts": [
+      "MT-33259",
+      "MT-33264",
+      "MT-33275"
+     ],
+     "expected_state": "Warnings listed with node links",
+     "visual_check": {
+      "what_must_be_visible": "Warnings in the bottom dock; click selects the node",
+      "layout_or_fit_concern": "Must be readable with the bottom dock at its collapsed default"
+     },
+     "failure_a_professional_would_notice": "Broken link found only during a live demo"
+    },
+    {
+     "n": 63,
+     "intent": "Open the prototype in the in-editor player",
+     "human": {
+      "panel": "Prototype Player panel (harness panel id prototype_player; no spec panel id)",
+      "tool": null,
+      "gesture": "WORKSPACE > Panels; harness shortcut F12 is not spec-defined",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:Viewer::open_prototype",
+      "parameters": {
+       "fig_bytes": "bridge fixture"
+      },
+      "status": "callable",
+      "evidence": "crates/hsk-studio-harness-view/src/view/mod.rs:395; shell.rs:104,:1267. Only a decoded .fig opens: crates/hsk-studio-harness-view/src/view/prototype.rs:525,:539 and mod.rs:395 take .fig bytes or a FigDocument, so a native document cannot play"
+     },
+     "spec_clauses": [
+      "STU-PRO-024a:20982",
+      "STU-PRO-132:20718",
+      "STU-PRO-141:20752"
+     ],
+     "mts": [
+      "MT-33322",
+      "MT-388",
+      "MT-33248",
+      "MT-33257"
+     ],
+     "expected_state": "Player at the first flow start",
+     "visual_check": {
+      "what_must_be_visible": "Screen image, Restart, state line",
+      "layout_or_fit_concern": "Player must dock beside the canvas without resizing the document view unexpectedly; the spec names no panel for it (no prototype panel id in the table at lines 32095-32184)"
+     },
+     "failure_a_professional_would_notice": "Cannot preview what was just wired"
+    },
+    {
+     "n": 64,
+     "intent": "Start a headless session on the native document",
+     "human": {
+      "panel": "none (model path)",
+      "tool": null,
+      "gesture": "None",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "crate_api:hsk_studio_components::PlayerSession::start (spec prototype.start_session)",
+      "parameters": {
+       "start": "Sign-in"
+      },
+      "status": "engine_only",
+      "evidence": "crates/hsk-studio-components/src/player.rs:181 takes a Folio document and design records; host reaches it only through the .fig route in crates/hsk-studio-harness-view/src/view/prototype.rs; no session id"
+     },
+     "spec_clauses": [
+      "STU-PRO-138:20746",
+      "STU-PRO-139:20748"
+     ],
+     "mts": [
+      "MT-33254",
+      "MT-33255"
+     ],
+     "expected_state": "Addressable session; parallel sessions per lane",
+     "visual_check": {
+      "what_must_be_visible": "No window at all",
+      "layout_or_fit_concern": "None"
+     },
+     "failure_a_professional_would_notice": "Two model lanes colliding on one player"
+    },
+    {
+     "n": 65,
+     "intent": "Click through: Sign-in, Home, Task detail, Back",
+     "human": {
+      "panel": "Prototype Player",
+      "tool": null,
+      "gesture": "Click hotspots",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:PrototypePlay::click (spec prototype.dispatch_trigger is unbound)",
+      "parameters": {
+       "x": 195,
+       "y": 640
+      },
+      "status": "callable",
+      "evidence": "crates/hsk-studio-harness-view/src/view/prototype.rs:710; hit test :683; click takes coordinates, not a node id; dispatch by node is crates/hsk-studio-components/src/player.rs:279 with PlayerInput at :46"
+     },
+     "spec_clauses": [
+      "STU-PRO-105:20540",
+      "STU-PRO-131:20716",
+      "STU-PRO-139:20748"
+     ],
+     "mts": [
+      "MT-33216",
+      "MT-33247",
+      "MT-33255"
+     ],
+     "expected_state": "state_json screen changes; history_depth 2 then 1",
+     "visual_check": {
+      "what_must_be_visible": "Clear hotspot hint on a miss",
+      "layout_or_fit_concern": "Hotspot hinting required by STU-PRO-024b is absent"
+     },
+     "failure_a_professional_would_notice": "Blue flash absent, a user cannot find hotspots"
+    },
+    {
+     "n": 66,
+     "intent": "Hover the button and see the hover variant while hovered",
+     "human": {
+      "panel": "Prototype Player",
+      "tool": null,
+      "gesture": "Hover",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:PrototypePlay::hover",
+      "parameters": {
+       "x": 195,
+       "y": 640
+      },
+      "status": "callable",
+      "evidence": "crates/hsk-studio-harness-view/src/view/prototype.rs:728; player.rs:46 HoverEnter/HoverLeave; truth check: hover inert reporting only, so visual change UNVERIFIED"
+     },
+     "spec_clauses": [
+      "STU-PRO-105:20540"
+     ],
+     "mts": [
+      "MT-33216"
+     ],
+     "expected_state": "Variant changes, reverts on leave",
+     "visual_check": {
+      "what_must_be_visible": "State changes without lag",
+      "layout_or_fit_concern": "None"
+     },
+     "failure_a_professional_would_notice": "Hover that sticks"
+    },
+    {
+     "n": 67,
+     "intent": "Advance a virtual clock through the 300ms smart animate and capture mid-frame",
+     "human": {
+      "panel": "none (model path)",
+      "tool": null,
+      "gesture": "None",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:PrototypePlay::advance + PrototypePlay::render",
+      "parameters": {
+       "ms": 150
+      },
+      "status": "callable",
+      "evidence": "crates/hsk-studio-harness-view/src/view/prototype.rs:745,:838; smart tween :777; crates/hsk-studio-components/src/smart_animate.rs:265,:457"
+     },
+     "spec_clauses": [
+      "STU-PRO-117:20651",
+      "STU-PRO-140:20750",
+      "STU-PRO-139:20748"
+     ],
+     "mts": [
+      "MT-33231",
+      "MT-33256",
+      "MT-33255"
+     ],
+     "expected_state": "Eased progress reported; layers interpolated; byte-identical on replay",
+     "visual_check": {
+      "what_must_be_visible": "Matched layers visibly tween",
+      "layout_or_fit_concern": "Figma parity UNVERIFIED (D5) per module header"
+     },
+     "failure_a_professional_would_notice": "Layers popping rather than morphing"
+    },
+    {
+     "n": 68,
+     "intent": "Open and dismiss the New-task overlay; read runtime variables",
+     "human": {
+      "panel": "Prototype Player",
+      "tool": null,
+      "gesture": "Click FAB, click outside",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:PrototypePlay::click + PrototypePlay::session().state()",
+      "parameters": {},
+      "status": "callable",
+      "evidence": "crates/hsk-studio-components/src/player.rs:456 click_outside, :229 state with variables at :97; note crates/hsk-studio-harness-view/src/view/prototype.rs:883 state_json omits variables and variants"
+     },
+     "spec_clauses": [
+      "STU-PRO-020:20958",
+      "STU-PRO-122:20684",
+      "STU-PRO-138:20746"
+     ],
+     "mts": [
+      "MT-35340",
+      "MT-386",
+      "MT-33237",
+      "MT-33254"
+     ],
+     "expected_state": "Overlay list empties",
+     "visual_check": {
+      "what_must_be_visible": "Dim background, sheet at the bottom",
+      "layout_or_fit_concern": "state_json must add variables for a screenshot-free check"
+     },
+     "failure_a_professional_would_notice": "Overlay stuck open"
+    },
+    {
+     "n": 69,
+     "intent": "Drag the sheet down to dismiss; type in the input with a key trigger",
+     "human": {
+      "panel": "Prototype Player",
+      "tool": null,
+      "gesture": "Drag; key press",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:prototype.dispatch_trigger ON_DRAG, ON_KEY_DOWN",
+      "parameters": {},
+      "status": "missing",
+      "evidence": "crates/hsk-studio-components/src/player.rs:46-:53 PlayerInput has click, hover, mouse down and up and press only; truth check MT-33285, MT-33288"
+     },
+     "spec_clauses": [
+      "STU-PRO-105:20540",
+      "STU-PRO-109:20600"
+     ],
+     "mts": [
+      "MT-33216",
+      "MT-33222"
+     ],
+     "expected_state": "Sheet dismisses",
+     "visual_check": {
+      "what_must_be_visible": "Finger-following drag",
+      "layout_or_fit_concern": "None"
+     },
+     "failure_a_professional_would_notice": "Mobile gestures cannot be demonstrated"
+    },
+    {
+     "n": 70,
+     "intent": "Scroll the task list with the tab bar fixed",
+     "human": {
+      "panel": "Prototype Player",
+      "tool": null,
+      "gesture": "Wheel over the list",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:prototype scroll runtime",
+      "parameters": {},
+      "status": "missing",
+      "evidence": "Truth check MT-33299: SCROLL_TO recorded in state, no scrolling; PlayerInput has no scroll; overflow not rendered in crates/hsk-studio-harness-view/src/view/prototype.rs (state_json scroll_target only)"
+     },
+     "spec_clauses": [
+      "STU-PRO-125:20694",
+      "STU-PRO-126:20696",
+      "STU-PRO-127:20698"
+     ],
+     "mts": [
+      "MT-33240",
+      "MT-33241",
+      "MT-33242"
+     ],
+     "expected_state": "List moves under a fixed bar",
+     "visual_check": {
+      "what_must_be_visible": "Smooth scroll, clipped frame",
+      "layout_or_fit_concern": "None"
+     },
+     "failure_a_professional_would_notice": "A phone prototype with no scrolling"
+    },
+    {
+     "n": 71,
+     "intent": "Present full-screen in a phone device frame",
+     "human": {
+      "panel": "VIEW menu",
+      "tool": null,
+      "gesture": "Present, pick device, fit",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:presentation view (STU-PRO-024b)",
+      "parameters": {
+       "device": "phone",
+       "fit": "fit"
+      },
+      "status": "missing",
+      "evidence": "git grep 'device_frame' empty in harness-view, components and controls; crates/hsk-studio-harness-view/src/view/prototype.rs:899 panel draws Restart and the screen image"
+     },
+     "spec_clauses": [
+      "STU-PRO-024:20980",
+      "STU-PRO-024b:20984"
+     ],
+     "mts": [
+      "MT-33321",
+      "MT-388",
+      "MT-33323",
+      "MT-389"
+     ],
+     "expected_state": "Chrome-less presentation",
+     "visual_check": {
+      "what_must_be_visible": "Device frame, hotspot hints toggle",
+      "layout_or_fit_concern": "Must not steal focus in model runs (QUIET)"
+     },
+     "failure_a_professional_would_notice": "No client demo"
+    },
+    {
+     "n": 72,
+     "intent": "Export the prototype as a shareable local HTML",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "FILE > Export > HTML",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:StudioExportRecipe html (STU-PRO-144, STU-WEB-120)",
+      "parameters": {},
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'to_html|STU-WEB-120' in export code; web crates have no dependent crate per truth check"
+     },
+     "spec_clauses": [
+      "STU-PRO-144:20758",
+      "STU-WEB-120:31115"
+     ],
+     "mts": [
+      "MT-33260",
+      "MT-34348"
+     ],
+     "expected_state": "Self-contained folder plays in a browser",
+     "visual_check": {
+      "what_must_be_visible": "Export dialog summary",
+      "layout_or_fit_concern": "None"
+     },
+     "failure_a_professional_would_notice": "Stakeholders need Studio to see it"
+    }
+   ]
+  },
+  {
+   "scene_id": "handoff",
+   "goal": "Hand the release to developers: statuses, annotations, measurements, inspect and code, per-node exports, tokens and a verified file",
+   "steps": [
+    {
+     "n": 73,
+     "intent": "Group the final screens in a section named Release 1",
+     "human": {
+      "panel": "pages-artboards, canvas",
+      "tool": null,
+      "gesture": "INSERT > Whiteboard Object > Section, drag around frames",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:section node",
+      "parameters": {
+       "name": "Release-1",
+       "members": 4
+      },
+      "status": "missing",
+      "evidence": "Truth check: whiteboard absent (0 of 65 MTs), no section node kind; dev status clause STU-DS-159 needs section-kind nodes"
+     },
+     "spec_clauses": [
+      "STU-DS-159:20212",
+      "STU-SHL-033:31767"
+     ],
+     "mts": [
+      "MT-33115",
+      "MT-34454"
+     ],
+     "expected_state": "Section holds the screens",
+     "visual_check": {
+      "what_must_be_visible": "Section title and bounds",
+      "layout_or_fit_concern": "None"
+     },
+     "failure_a_professional_would_notice": "No unit to mark ready"
+    },
+    {
+     "n": 74,
+     "intent": "Mark the section and each component Ready for dev",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Status dropdown",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:dev status write",
+      "parameters": {
+       "value": "READY_FOR_DEV"
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'dev_status|READY_FOR_DEV|DevStatus'"
+     },
+     "spec_clauses": [
+      "STU-DS-159:20212",
+      "STU-AUT-024:22243",
+      "STU-AUT-167:21960"
+     ],
+     "mts": [
+      "MT-33115",
+      "MT-33573",
+      "MT-516",
+      "MT-33518"
+     ],
+     "expected_state": "Status on nodes; listed in a ready view",
+     "visual_check": {
+      "what_must_be_visible": "Badge on the section, ready list filter",
+      "layout_or_fit_concern": "The ready view has no panel id in the spec table (lines 32095-32184): pick a home, else it hides"
+     },
+     "failure_a_professional_would_notice": "Developers guess which frames are final"
+    },
+    {
+     "n": 75,
+     "intent": "Annotate the primary button: pin fills, padding, cornerRadius, with a behaviour note",
+     "human": {
+      "panel": "properties (no spec panel id for annotations)",
+      "tool": "measure",
+      "gesture": "Annotate tool, tick properties",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:annotation write",
+      "parameters": {
+       "label": "Disabled until both inputs are valid",
+       "properties": [
+        "fills",
+        "padding",
+        "cornerRadius"
+       ],
+       "category_id": "blue"
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'annotation' other than PDF import text (harness-core/src/import/pdf.rs:63)"
+     },
+     "spec_clauses": [
+      "STU-DS-157:20208",
+      "STU-DS-158:20210",
+      "STU-AUT-167:21960"
+     ],
+     "mts": [
+      "MT-33113",
+      "MT-33114",
+      "MT-33518"
+     ],
+     "expected_state": "Live-value note attached",
+     "visual_check": {
+      "what_must_be_visible": "Callout leader on canvas with live values",
+      "layout_or_fit_concern": "Callouts must avoid overlap and hide in presentation"
+     },
+     "failure_a_professional_would_notice": "Notes that go stale"
+    },
+    {
+     "n": 76,
+     "intent": "Add measurements between header and first row, and side padding",
+     "human": {
+      "panel": "canvas",
+      "tool": "measure",
+      "gesture": "Measure tool from edge to edge",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:measurement write",
+      "parameters": {
+       "start": {
+        "node": "header",
+        "side": "BOTTOM"
+       },
+       "end": {
+        "node": "row-1",
+        "side": "TOP"
+       },
+       "offset": "OUTER"
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'measurement_id'"
+     },
+     "spec_clauses": [
+      "STU-AUT-167:21960"
+     ],
+     "mts": [
+      "MT-33518"
+     ],
+     "expected_state": "Measurement follows geometry; broken state reported when a node is deleted",
+     "visual_check": {
+      "what_must_be_visible": "Red line and value label",
+      "layout_or_fit_concern": "Label must stay readable at any zoom"
+     },
+     "failure_a_professional_would_notice": "Spacing questions in chat"
+    },
+    {
+     "n": 77,
+     "intent": "Hover-measure between two objects",
+     "human": {
+      "panel": "canvas",
+      "tool": "move",
+      "gesture": "Hold the measure modifier and hover",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:Viewer::layer_bounds",
+      "parameters": {
+       "layers": [
+        "header",
+        "row-1"
+       ]
+      },
+      "status": "callable",
+      "evidence": "crates/hsk-studio-harness-view/src/view/vector/arrange.rs:83 gives bounds; a model can compute the distance; no on-canvas readout found (UNVERIFIED beyond a name grep)"
+     },
+     "spec_clauses": [
+      "STU-VEC-057:4664",
+      "STU-AUT-021:22226"
+     ],
+     "mts": [
+      "MT-30590",
+      "MT-121",
+      "MT-33570",
+      "MT-35869",
+      "MT-514"
+     ],
+     "expected_state": "Distance derivable",
+     "visual_check": {
+      "what_must_be_visible": "Distances drawn on hover",
+      "layout_or_fit_concern": "None"
+     },
+     "failure_a_professional_would_notice": "Developers measure by screenshot"
+    },
+    {
+     "n": 78,
+     "intent": "Link the ticket and repo to the frame as dev resources",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Add dev resource",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:dev resource link",
+      "parameters": {
+       "name": "TASK-12",
+       "url": "https://example.test/TASK-12"
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'dev_resource'"
+     },
+     "spec_clauses": [
+      "STU-AUT-167:21960"
+     ],
+     "mts": [
+      "MT-33518"
+     ],
+     "expected_state": "Link inherited by children",
+     "visual_check": {
+      "what_must_be_visible": "Link row",
+      "layout_or_fit_concern": "None"
+     },
+     "failure_a_professional_would_notice": "Ticket lost in chat"
+    },
+    {
+     "n": 79,
+     "intent": "Inspect a selected button: size, spacing, typography, fills with token names",
+     "human": {
+      "panel": "properties or css-designer",
+      "tool": null,
+      "gesture": "Select; read the inspect section",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:Viewer::state_json + Viewer::auto_layout_json + Viewer::design_json + Viewer::vector_json",
+      "parameters": {},
+      "status": "callable",
+      "evidence": "crates/hsk-studio-harness-view/src/view/mod.rs:837; design/auto_layout.rs:451; design/instance.rs:802; vector.rs:2982. Raw structure for a model; token names absent because bindings do not persist; no developer-facing section exists"
+     },
+     "spec_clauses": [
+      "STU-AUT-021:22226",
+      "STU-AUT-163:21952",
+      "STU-DS-160:20218"
+     ],
+     "mts": [
+      "MT-33570",
+      "MT-35869",
+      "MT-514",
+      "MT-35352",
+      "MT-33116"
+     ],
+     "expected_state": "Values readable",
+     "visual_check": {
+      "what_must_be_visible": "Read-only values copy on click, in the unit the developer picked, with token names first",
+      "layout_or_fit_concern": "css-designer is web-profile only (spec line 32113), and STU-DS-160 and STU-WEB-031 forbid a Dev mode toggle: inspect needs a contextual binding that does not double the design inspector"
+     },
+     "failure_a_professional_would_notice": "A developer-facing view with no token names"
+    },
+    {
+     "n": 80,
+     "intent": "Generate CSS and SwiftUI snippets for the selection in PIXEL and SCALED units",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Language dropdown, copy",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:codegen (STU-AUT-164, STU-AUT-165)",
+      "parameters": {
+       "language": "CSS",
+       "unit": "PIXEL"
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'codegen|render_selection'"
+     },
+     "spec_clauses": [
+      "STU-AUT-022:22228",
+      "STU-AUT-164:21954",
+      "STU-AUT-165:21956"
+     ],
+     "mts": [
+      "MT-33571",
+      "MT-35869",
+      "MT-514",
+      "MT-33515",
+      "MT-33516"
+     ],
+     "expected_state": "Snippet declares language and unit; uses code_syntax names",
+     "visual_check": {
+      "what_must_be_visible": "Monospace block with copy button",
+      "layout_or_fit_concern": "Long lines scroll inside the block, never widen the inspector"
+     },
+     "failure_a_professional_would_notice": "Developers retype every value"
+    },
+    {
+     "n": 81,
+     "intent": "Check instance-versus-main drift across the file",
+     "human": {
+      "panel": "properties or preflight",
+      "tool": null,
+      "gesture": "Run drift report",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:drift report (STU-AUT-168)",
+      "parameters": {},
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'drift' in Studio design code; per-instance state only at crates/hsk-studio-harness-view/src/view/design/instance.rs:802 design_json"
+     },
+     "spec_clauses": [
+      "STU-AUT-168:21967",
+      "STU-DS-166:20230"
+     ],
+     "mts": [
+      "MT-33519",
+      "MT-33122"
+     ],
+     "expected_state": "Overrides and detaches listed per instance",
+     "visual_check": {
+      "what_must_be_visible": "Table with jump-to-node",
+      "layout_or_fit_concern": "None"
+     },
+     "failure_a_professional_would_notice": "Unknown divergence from the system"
+    },
+    {
+     "n": 82,
+     "intent": "Mark icons and hero as exportable: SVG, and PNG at 1x, 2x, 3x",
+     "human": {
+      "panel": "export",
+      "tool": "slice",
+      "gesture": "Export section, add settings; enter Task Scope export_slices",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:per-node export settings",
+      "parameters": {
+       "settings": [
+        [
+         "SVG",
+         1
+        ],
+        [
+         "PNG",
+         1
+        ],
+        [
+         "PNG",
+         2
+        ],
+        [
+         "PNG",
+         3
+        ]
+       ]
+      },
+      "status": "missing",
+      "evidence": "git grep 'task_scope' empty in harness-view, components and controls; the only export_settings hit in the harness is a clear at crates/hsk-studio-harness-view/src/view/prototype.rs:382"
+     },
+     "spec_clauses": [
+      "STU-IO-114:21207",
+      "STU-SHL-153:32643"
+     ],
+     "mts": [
+      "MT-33381",
+      "MT-34682"
+     ],
+     "expected_state": "Settings stored per node",
+     "visual_check": {
+      "what_must_be_visible": "Stacked export rows, Task Scope with a visible exit",
+      "layout_or_fit_concern": "The export panel is Inspect Dock task_episodic: must not displace properties in its group"
+     },
+     "failure_a_professional_would_notice": "Slices drawn by hand"
+    },
+    {
+     "n": 83,
+     "intent": "Export the whole document as PNG",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "FILE > Export > PNG",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:Viewer::export",
+      "parameters": {
+       "format": "Png"
+      },
+      "status": "callable",
+      "evidence": "crates/hsk-studio-harness-view/src/view/mod.rs:672; shell.rs FILE entries per RUN-UI.md; cli:export also exists (cli.rs:308) for --png, --jpeg, --tiff, --dng"
+     },
+     "spec_clauses": [
+      "STU-IO-014:21669"
+     ],
+     "mts": [
+      "MT-33452",
+      "MT-35840",
+      "MT-35841"
+     ],
+     "expected_state": "PNG on disk, report with size and revision",
+     "visual_check": {
+      "what_must_be_visible": "Report line",
+      "layout_or_fit_concern": "Whole composite only"
+     },
+     "failure_a_professional_would_notice": "Hero cannot be exported alone"
+    },
+    {
+     "n": 84,
+     "intent": "Export the document as SVG and PDF, read the loss list",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "FILE > Export",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "viewer_api:Viewer::export_vector_svg + Viewer::export_vector_pdf",
+      "parameters": {
+       "overwrite": false
+      },
+      "status": "callable",
+      "evidence": "crates/hsk-studio-harness-view/src/view/vector/interop.rs:605; vector/pdf_export.rs:364; SVG frames the first artboard only (interop.rs:587), and text and effect losses are typed"
+     },
+     "spec_clauses": [
+      "STU-IO-006:21544",
+      "STU-IO-012:21649"
+     ],
+     "mts": [
+      "MT-33444",
+      "MT-33445",
+      "MT-35822",
+      "MT-33450",
+      "MT-35819",
+      "MT-35820"
+     ],
+     "expected_state": "Files plus typed losses",
+     "visual_check": {
+      "what_must_be_visible": "Loss list before committing",
+      "layout_or_fit_concern": "Losses must be visible, not status-line only"
+     },
+     "failure_a_professional_would_notice": "Silent missing text"
+    },
+    {
+     "n": 85,
+     "intent": "Batch export each icon by its name with a scale suffix",
+     "human": {
+      "panel": "AUTOMATE menu",
+      "tool": null,
+      "gesture": "AUTOMATE > Batch > Batch Export",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cli:batch",
+      "parameters": {
+       "source": "selection_within_document",
+       "filename": [
+        "original_filename",
+        "scale_suffix"
+       ]
+      },
+      "status": "missing",
+      "evidence": "cli.rs:410 batch and crates/hsk-studio-harness-core/src/batch.rs:101 selection_within_document and :320 scale_suffix exist for document batches; no selection-to-node export target read; marked missing for icons, batch internals not fully read"
+     },
+     "spec_clauses": [
+      "STU-AUT-147:21905",
+      "STU-IO-014:21669"
+     ],
+     "mts": [
+      "MT-33500",
+      "MT-33452",
+      "MT-35840",
+      "MT-35841"
+     ],
+     "expected_state": "One file per icon",
+     "visual_check": {
+      "what_must_be_visible": "Queue progress",
+      "layout_or_fit_concern": "Progress must live in jobs, not block the canvas"
+     },
+     "failure_a_professional_would_notice": "Forty manual exports"
+    },
+    {
+     "n": 86,
+     "intent": "Export tokens as CSS custom properties and JSON",
+     "human": {
+      "panel": "CODE menu",
+      "tool": null,
+      "gesture": "CODE > Style Sheets > Export Styles as CSS",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:token export (STU-IO-006 row 46)",
+      "parameters": {
+       "formats": [
+        "css",
+        "json"
+       ],
+       "modes": [
+        "Light",
+        "Dark"
+       ]
+      },
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'css_tokens|tokens_json'; no token source exists because variables cannot be authored"
+     },
+     "spec_clauses": [
+      "STU-IO-006:21544",
+      "STU-DS-129:20055"
+     ],
+     "mts": [
+      "MT-33444",
+      "MT-33445",
+      "MT-35822",
+      "MT-33085"
+     ],
+     "expected_state": "tokens.css with :root and dark block; tokens.json",
+     "visual_check": {
+      "what_must_be_visible": "Preview before writing",
+      "layout_or_fit_concern": "None"
+     },
+     "failure_a_professional_would_notice": "Theme values copied by hand"
+    },
+    {
+     "n": 87,
+     "intent": "Export .fig local copy for a partner on the vendor tool",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "FILE > Export > .fig",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:.fig writer (STU-IO-006 row 35, line 21582: I, EP, X, RT)",
+      "parameters": {},
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'write_fig|export_fig|to_fig'; interop-fig-native export.rs:753,:839 exports frames to PDF and raster only"
+     },
+     "spec_clauses": [
+      "STU-IO-006:21544"
+     ],
+     "mts": [
+      "MT-33444",
+      "MT-33445",
+      "MT-35822"
+     ],
+     "expected_state": "Round-trip file with loss receipt",
+     "visual_check": {
+      "what_must_be_visible": "Loss receipt",
+      "layout_or_fit_concern": "None"
+     },
+     "failure_a_professional_would_notice": "One-way interop"
+    },
+    {
+     "n": 88,
+     "intent": "Compare with the previous version before handing off",
+     "human": {
+      "panel": "history",
+      "tool": null,
+      "gesture": "FILE > Version History > Compare Versions",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:studio.history.version",
+      "parameters": {},
+      "status": "missing",
+      "evidence": "git grep over crates at c4d06841 returned no non-test hit for 'compare_versions|named_version|restore_version'"
+     },
+     "spec_clauses": [
+      "STU-SHL-023:31573"
+     ],
+     "mts": [
+      "MT-34444"
+     ],
+     "expected_state": "Changed nodes listed",
+     "visual_check": {
+      "what_must_be_visible": "Before and after view",
+      "layout_or_fit_concern": "None"
+     },
+     "failure_a_professional_would_notice": "Developer rebuilds what did not change"
+    },
+    {
+     "n": 89,
+     "intent": "Read usage analytics: component and token adoption, detach rate",
+     "human": {
+      "panel": "library",
+      "tool": null,
+      "gesture": "Library analytics",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "spec:design-system analytics (STU-DS-050)",
+      "parameters": {},
+      "status": "missing",
+      "evidence": "git grep 'analytics' empty in harness-view, components and controls"
+     },
+     "spec_clauses": [
+      "STU-DS-050:20496",
+      "STU-DS-166:20230"
+     ],
+     "mts": [
+      "MT-33211",
+      "MT-365",
+      "MT-33122"
+     ],
+     "expected_state": "Report per entity",
+     "visual_check": {
+      "what_must_be_visible": "Table sorted by usage",
+      "layout_or_fit_concern": "None"
+     },
+     "failure_a_professional_would_notice": "Cannot prove the system is used"
+    },
+    {
+     "n": 90,
+     "intent": "Write the handoff manifest: file hash, exports, tokens, flows, status",
+     "human": {
+      "panel": "AUTOMATE menu",
+      "tool": null,
+      "gesture": "Save as a receipt",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "cli:verify + cli:descriptors",
+      "parameters": {},
+      "status": "callable",
+      "evidence": "cli.rs:271 descriptors, :284 verify; checks the package, no handoff manifest exists; a runner would assemble it"
+     },
+     "spec_clauses": [
+      "STU-AUT-147:21905",
+      "STU-CON-007:22896"
+     ],
+     "mts": [
+      "MT-33500",
+      "MT-33505",
+      "MT-33673",
+      "MT-35668"
+     ],
+     "expected_state": "Package verified; a runner-built manifest",
+     "visual_check": {
+      "what_must_be_visible": "None",
+      "layout_or_fit_concern": "None"
+     },
+     "failure_a_professional_would_notice": "Developer gets a stale file"
+    }
+   ]
+  }
+ ],
+ "gui_review": {
+  "panels_and_tools_needed_together": [
+   "layers",
+   "pages-artboards",
+   "properties (holding the contextual design sections)",
+   "library",
+   "swatches",
+   "text-styles",
+   "graphic-styles",
+   "history",
+   "export",
+   "tools: move, rectangle, rounded_rectangle, ellipse, pen, text, hand, zoom, measure, slice"
+  ],
+  "reachable_without_hunting": [
+   "Insert an instance from library: the most frequent action; it sits collapsed in the Browse Dock icon rail in the vector default (STU-SHL-086 gives no left dock, STU-SHL-084 rule 5)",
+   "Auto-layout direction, gap, padding, alignment and sizing at the top of properties for any frame",
+   "Variable picker from any bindable field, the same picker for colour and number",
+   "Variant and component property controls first when an instance is selected",
+   "Reaction and connection editing from the selected node, with arrows on canvas",
+   "Mode preview per frame"
+  ],
+  "workspace_switches": [
+   "None should be required. STU-WEB-031 and STU-DS-160 forbid a Design, Prototype or Dev persona toggle, whereas the parity targets are organised around exactly such tabs. So three jobs share one contextual inspector: properties must order design, interaction and inspect sections by selection without growing to unusable length. Spec-level tension to decide.",
+   "Task Scope export_slices is the only temporary scope, and it must keep a visible exit (STU-SHL-096)"
+  ],
+  "would_feel_incoherent": [
+   "Three separate paint concepts in three places: swatches, graphic styles and variables, with no statement of which to pick",
+   "Prototype Player panel exists in the harness, with no spec panel id, and interactions is not listed for the vector profile (spec line 32135): where the arrows are drawn and where they are edited must be one story",
+   "A frame that is a group with a background rectangle by convention (design/auto_layout.rs header lines 22-25): moving or deleting the rectangle changes behaviour with no visible reason",
+   "Controls that appear and then refuse: auto layout offered on a frame whose text child makes it fail with auto_layout_text_layer_unsupported",
+   "Instance inspector turning to state unknown after an ordinary layer edit (design/instance.rs header lines 15-18)",
+   "Variable table needs width, and no docked inspector offers it; the spec names no panel id for variables, components or a ready-for-dev list in lines 32095-32184",
+   "Player works from a .fig only, so the file you just edited cannot be played"
+  ],
+  "not_judged": "Nothing was rendered. The GUI is being rebuilt in Vulkan, no screenshot was taken, so all visual_check entries are requirements for a later check, not verdicts."
+ },
+ "gaps": [
+  {
+   "what": "New blank design document with frames and artboards as authored objects",
+   "status": "missing",
+   "blocks_steps": [
+    1,
+    3,
+    33
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-core",
+    "hsk-studio-harness-view",
+    "hsk-studio-folio"
+   ],
+   "spec_clauses": [
+    "STU-SHL-023:31573",
+    "STU-SHL-026:31634",
+    "STU-SHL-033:31767"
+   ],
+   "mts": [
+    "MT-34444",
+    "MT-34447",
+    "MT-34454"
+   ],
+   "size": "small",
+   "why_it_ranks_here": "Nothing else in the project can begin; cheap, and every other design scenario needs it"
+  },
+  {
+   "what": "Text inside auto layout: text layers as measured layout children, plus resize beyond plain rectangles",
+   "status": "missing",
+   "blocks_steps": [
+    20,
+    35
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-components",
+    "hsk-studio-type"
+   ],
+   "spec_clauses": [
+    "STU-DS-035:20436",
+    "STU-DS-144:20102",
+    "STU-DS-148:20158"
+   ],
+   "mts": [
+    "MT-33187",
+    "MT-35761",
+    "MT-35762",
+    "MT-33100",
+    "MT-33104"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "The solver and grid work exist but refuse the normal UI case, so a button cannot be built. Highest return on existing code. It also limits callable steps 21, 37, 41 and 42 to text-free frames"
+  },
+  {
+   "what": "Component authoring commands: create, combine variants, add and edit property, create instance, detach, plus a Folio home for definition field values",
+   "status": "missing",
+   "blocks_steps": [
+    18,
+    24,
+    25,
+    27,
+    28,
+    29,
+    30,
+    32,
+    36,
+    46
+   ],
+   "crates_likely": [
+    "hsk-studio-folio",
+    "hsk-studio-components",
+    "hsk-studio-harness-core"
+   ],
+   "spec_clauses": [
+    "STU-DS-107:19964",
+    "STU-DS-112:19997",
+    "STU-DS-113:19999",
+    "STU-DS-108:19974"
+   ],
+   "mts": [
+    "MT-33062",
+    "MT-33068",
+    "MT-33069",
+    "MT-33063"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "Components are the product of a design system; today they arrive only through .fig import, which is why steps 43 to 45 need a bridge file"
+  },
+  {
+   "what": "Variable authoring and bindings: collections, modes, aliases, scopes, code syntax, bind to paint and field, persisted bindings, render by mode",
+   "status": "missing",
+   "blocks_steps": [
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    22,
+    23,
+    48
+   ],
+   "crates_likely": [
+    "hsk-studio-folio",
+    "hsk-studio-components",
+    "hsk-studio-composite"
+   ],
+   "spec_clauses": [
+    "STU-DS-133:20068",
+    "STU-DS-130:20057",
+    "STU-DS-132:20066",
+    "STU-DS-126:20049"
+   ],
+   "mts": [
+    "MT-33089",
+    "MT-33086",
+    "MT-33088",
+    "MT-33082"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "Theme switching and handoff tokens depend on it; bindings have no Folio home, so this starts with a record change"
+  },
+  {
+   "what": "Reaction, flow and overlay authoring, and playing a native document",
+   "status": "missing",
+   "blocks_steps": [
+    54,
+    55,
+    56,
+    57,
+    58,
+    64
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-components",
+    "hsk-studio-folio"
+   ],
+   "spec_clauses": [
+    "STU-PRO-138:20746",
+    "STU-PRO-102:20530",
+    "STU-PRO-002a:20895",
+    "STU-PRO-128:20704"
+   ],
+   "mts": [
+    "MT-33254",
+    "MT-33213",
+    "MT-33280",
+    "MT-374",
+    "MT-33243"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "PlayerSession already takes a Folio document (player.rs:181), so the runtime exists; missing are authoring and routing the player to native rendering. Steps 63 and 65 to 68 play only a .fig"
+  },
+  {
+   "what": "One typed command surface over Viewer operations, with prototype.dispatch_trigger, prototype.capture_frame and inspect.render_selection",
+   "status": "missing",
+   "blocks_steps": [
+    15,
+    17,
+    19,
+    21,
+    37,
+    41,
+    42,
+    43,
+    44,
+    45,
+    47,
+    52,
+    53,
+    63,
+    65,
+    66,
+    67,
+    68,
+    77,
+    79,
+    83,
+    84
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-core",
+    "hsk-studio-harness",
+    "hsk-studio-kernel-bindings"
+   ],
+   "spec_clauses": [
+    "STU-AUT-147:21905",
+    "STU-CON-007:22896",
+    "STU-PRO-139:20748",
+    "STU-AUT-166:21958"
+   ],
+   "mts": [
+    "MT-33500",
+    "MT-33505",
+    "MT-33673",
+    "MT-35668",
+    "MT-33255",
+    "MT-33517"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "RUN_COMMANDS has 28 entries and no design verb; these steps work only from a Rust host, so a script runner cannot do them. Ranked after the features because SMB-HARNESS-DRIVE-1 is already moving on it, and its id set must be extended to the Viewer for this to close"
+  },
+  {
+   "what": "Per-node export settings and selection render at scale",
+   "status": "missing",
+   "blocks_steps": [
+    53,
+    82,
+    85
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-interop-vector-svg"
+   ],
+   "spec_clauses": [
+    "STU-IO-114:21207",
+    "STU-AUT-166:21958",
+    "STU-SHL-153:32643"
+   ],
+   "mts": [
+    "MT-33381",
+    "MT-33517",
+    "MT-34682"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Export is whole-composite only; developers need assets per frame and icon, and reviewers need per-frame renders"
+  },
+  {
+   "what": "Auto-layout controls: frame Hug, alignment box, wrap, absolute child, clamps; constraints setter; layout grids on frames; overflow and fixed children",
+   "status": "missing",
+   "blocks_steps": [
+    16,
+    34,
+    38,
+    39,
+    40,
+    49,
+    51
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-folio"
+   ],
+   "spec_clauses": [
+    "STU-DS-041:20448",
+    "STU-DS-043:20454",
+    "STU-DS-044:20456",
+    "STU-DS-151:20178",
+    "STU-DS-153:20196"
+   ],
+   "mts": [
+    "MT-33193",
+    "MT-360",
+    "MT-33196",
+    "MT-33197",
+    "MT-361",
+    "MT-33107",
+    "MT-33109"
+   ],
+   "size": "small",
+   "why_it_ranks_here": "Records and solver mostly exist; control work that should travel with the text fix"
+  },
+  {
+   "what": "Dev handoff records and surfaces: dev status, annotations, measurements, dev resources, section nodes, contextual inspect section",
+   "status": "missing",
+   "blocks_steps": [
+    73,
+    74,
+    75,
+    76,
+    78,
+    79
+   ],
+   "crates_likely": [
+    "hsk-studio-folio",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-DS-157:20208",
+    "STU-DS-159:20212",
+    "STU-AUT-167:21960",
+    "STU-AUT-163:21952"
+   ],
+   "mts": [
+    "MT-33113",
+    "MT-33115",
+    "MT-33518",
+    "MT-35352"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "The Dev Mode parity target is nearly absent, but it has value only once the design data exists"
+  },
+  {
+   "what": "Text and effect styles on design documents, including a font-size setter for a text layer",
+   "status": "missing",
+   "blocks_steps": [
+    13,
+    14
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-type"
+   ],
+   "spec_clauses": [
+    "STU-DS-134:20074",
+    "STU-DS-138:20082"
+   ],
+   "mts": [
+    "MT-33090",
+    "MT-33094"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "A type scale is basic; text layers cannot be sized today"
+  },
+  {
+   "what": "Codegen, token export and drift report",
+   "status": "missing",
+   "blocks_steps": [
+    80,
+    81,
+    86
+   ],
+   "crates_likely": [
+    "hsk-studio-components",
+    "hsk-studio-web-core"
+   ],
+   "spec_clauses": [
+    "STU-AUT-164:21954",
+    "STU-AUT-165:21956",
+    "STU-AUT-168:21967",
+    "STU-IO-006:21544"
+   ],
+   "mts": [
+    "MT-33515",
+    "MT-33516",
+    "MT-33519",
+    "MT-33444",
+    "MT-33445",
+    "MT-35822"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Depends on variables and code syntax; turns the file into something developers use"
+  },
+  {
+   "what": "Reach engine logic from a host: variable resolve, validators, constraint resize, flow validation",
+   "status": "engine_only",
+   "blocks_steps": [
+    11,
+    12,
+    26,
+    50,
+    61,
+    62
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-core",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-DS-133:20068",
+    "STU-DS-165:20228",
+    "STU-PRO-143:20756",
+    "STU-DS-048:20488"
+   ],
+   "mts": [
+    "MT-33089",
+    "MT-33121",
+    "MT-33259",
+    "MT-33209",
+    "MT-362"
+   ],
+   "size": "small",
+   "why_it_ranks_here": "Cheap wiring of tested engine code; most of it needs the authoring gaps above before it can be seen working"
+  },
+  {
+   "what": "Panel homes and Layout Preset: a design-system preset decision, and homes for the variable table, ready-for-dev list and prototype player",
+   "status": "missing",
+   "blocks_steps": [
+    2,
+    4,
+    63,
+    74
+   ],
+   "crates_likely": [
+    "hsk-studio-controls",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-SHL-086:32223",
+    "STU-DS-160:20218",
+    "STU-WEB-031:30609",
+    "STU-SHL-078:32066"
+   ],
+   "mts": [
+    "MT-34617",
+    "MT-33116",
+    "MT-34249",
+    "MT-34514"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "The spec names none of them as panels; the Vulkan shell rebuild will otherwise settle this by accident. Spec decision needed from the Operator"
+  },
+  {
+   "what": "Player runtime: drag, key and scroll triggers, conditionals, expressions, presentation, HTML export",
+   "status": "missing",
+   "blocks_steps": [
+    59,
+    60,
+    69,
+    70,
+    71,
+    72
+   ],
+   "crates_likely": [
+    "hsk-studio-components",
+    "hsk-studio-folio",
+    "hsk-studio-web"
+   ],
+   "spec_clauses": [
+    "STU-PRO-105:20540",
+    "STU-PRO-115:20639",
+    "STU-PRO-125:20694",
+    "STU-PRO-024b:20984",
+    "STU-PRO-144:20758"
+   ],
+   "mts": [
+    "MT-33216",
+    "MT-33229",
+    "MT-33240",
+    "MT-33323",
+    "MT-389",
+    "MT-33260"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "Phone prototypes need scroll first; conditionals and export come later"
+  },
+  {
+   "what": "Library publish, update review, analytics, version compare, .fig export",
+   "status": "missing",
+   "blocks_steps": [
+    31,
+    87,
+    88,
+    89
+   ],
+   "crates_likely": [
+    "hsk-studio-folio",
+    "hsk-studio-interop-fig-native",
+    "hsk-studio-chronicle"
+   ],
+   "spec_clauses": [
+    "STU-DS-019:20376",
+    "STU-DS-143:20096",
+    "STU-DS-050:20496",
+    "STU-IO-006:21544"
+   ],
+   "mts": [
+    "MT-33160",
+    "MT-342",
+    "MT-33099",
+    "MT-33211",
+    "MT-365",
+    "MT-33444",
+    "MT-33445",
+    "MT-35822"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "Multi-file and round-trip value, only after single-file authoring works"
+  }
+ ],
+ "runner_notes": {
+  "fixtures": [
+   "Generated start document: until studio.document.new exists, a runner must open an existing package. hsk-studio-harness/tests/fixtures/demo.handshake exists; its content (artboard, size) is NOT_INSPECTED",
+   "Bridge .fig: hsk-studio-interop-fig/tests/fixtures/fig-components-autolayout.fig for instance, variant and player steps",
+   "Font: Inter from hsk-studio-harness/tests/fixtures",
+   "Token and copy data are inline in step parameters; no external assets"
+  ],
+  "determinism": [
+   "Use PrototypePlay::advance as the virtual clock, never wall time (STU-PRO-140)",
+   "Layer ids are minted: bind steps by a runner map from names returned by each call, never by hard-coded id",
+   "Use a fixed --cpu render path for image comparison; GPU parity is a separate check",
+   "Assert one undo step per command through history state"
+  ],
+  "how_to_compare": [
+   "State first: compare state_json, auto_layout_json, design_json and vector_json against expected_state",
+   "Solved rects: compare with an epsilon of 1e-6 px against values worked out by hand for each auto-layout frame",
+   "Images: one PNG per step under the Handshake_Artifacts root; there are no reference images, the first accepted run after review becomes the baseline. Vendor comparison is an Operator oracle (D5), UNVERIFIED",
+   "Refusals are results: steps naming a typed error must assert that exact code and an unchanged revision"
+  ],
+  "execution_order": "Steps run in order. A missing step stops its dependants; the runner records blocked rather than skipping silently. Steps listed in coverage.callable_steps_needing_a_predecessor_that_is_missing must run against the bridge document and be labelled as such.",
+  "today": "Rust host only, in the style of hsk-studio-harness/tests/viewer_prototype.rs (headless, no window). The CLI reaches open, panel, edit, verify, import, export and batch, which do not touch design records. No cargo was run for this scenario; none of these calls was executed."
+ },
+ "coverage": {
+  "total_steps": 90,
+  "by_status": {
+   "missing": 60,
+   "engine_only": 7,
+   "callable": 23
+  },
+  "per_scene": {
+   "design-system": {
+    "callable": 4,
+    "engine_only": 3,
+    "missing": 25
+   },
+   "screens": {
+    "callable": 9,
+    "engine_only": 1,
+    "missing": 11
+   },
+   "prototype": {
+    "callable": 5,
+    "engine_only": 3,
+    "missing": 11
+   },
+   "handoff": {
+    "callable": 5,
+    "engine_only": 0,
+    "missing": 13
+   }
+  },
+  "callable_by_reach": {
+   "viewer_api": 22,
+   "cli": 1
+  },
+  "callable_steps_needing_a_predecessor_that_is_missing": [
+   15,
+   17,
+   19,
+   21,
+   37,
+   41,
+   42,
+   43,
+   44,
+   45,
+   47,
+   52,
+   53,
+   63,
+   65,
+   66,
+   67,
+   68,
+   77,
+   79,
+   83,
+   84,
+   90
+  ],
+  "callable_share_of_steps": 0.256,
+  "share_runnable_today_in_order_from_empty_project": 0.0,
+  "share_callable_by_code_reading_with_bridge_fixture_not_executed": 0.256,
+  "share_reachable_by_a_command_id_or_cli": 0.011,
+  "reading": "Step 1 (new document) is missing, so the project as written cannot start: 0 of it runs in order. The callable share counts each step as an isolated operation against a bridge document (an opened fixture); those steps do not add up to the deliverable, because nothing they produce is a component, a token binding or a reaction. Only the cli and run steps are reachable without writing Rust."
+ }
+}

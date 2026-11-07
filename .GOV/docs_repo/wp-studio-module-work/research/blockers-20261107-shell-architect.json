@@ -1,0 +1,760 @@
+{
+ "member": "shell-architect",
+ "generated_at": "2026-11-07",
+ "scope": "Handshake (Product): Studio GUI architecture. Repo Governance: NONE changed (this file only).",
+ "path_legend": {
+  "P": "crates at product tip c4d06841 (handshake-studio-assets/crates), read with git show",
+  "KUM": "Kumihimo at e75e34ff (origin/codex/handpick, same repo Nuntissura/assets), read with git show",
+  "SPEC14": "K/.GOV/spec/master-spec-v02.229/spec-modules/14-studio-creative-suite.md",
+  "SPEC15": "K/.GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md",
+  "REG": "local cargo registry cache, locked crate sources"
+ },
+ "naming_note": "Crate and lane names below are proposals. No canonical name is verified for them (GLOBAL-NAMING-003); the Operator or lead may rename. Region, panel and widget names are the spec's.",
+ "read": {
+  "files": [
+   "S/HANDOFF.md topics what-studio-is, this-wp, truth-check, vulkan-gui-pivot, workflow, next-work",
+   "S/research/truth-check-20261105-vulkan-pivot.json (all)",
+   "S/research/integration-refactor-inventory-20261030.json refactor_items",
+   "S/ledger.json direction (d1, d6, d7, d8, stu_shl_130, operator_direction_20261107)",
+   "S/builders/briefs/lane-smb-harness-drive-1.md, lane-smb-controls-egui-gate-1.md, S/builders/WORKSPACE_RULES.md",
+   "SPEC15 whole; SPEC14 STU-ARC-014, 023..033; STU-MDL-001..006, 100..109; STU-QUIET-001..005; STU-CON-007; STU-SHL-001..009, 055, 063..078, 093..112, 130, 152",
+   "P hsk-studio-controls (manifest, lib.rs, descriptor.rs, menu.rs head); hsk-studio-harness-view (manifest, lib.rs, view/mod.rs, hosted.rs, shell.rs, edit.rs, render.rs, text.rs); hsk-studio-harness bin; hsk-studio-type (manifest, lib.rs, contract.rs, outline.rs, raster.rs, validate.rs, descriptor.rs); tools/workspace-probe.rs DESIGNATED",
+   "KUM kumihimo-core (lib.rs, model.rs, layout.rs, geometry.rs, docking.rs, command.rs, tools.rs, core.rs), kumihimo-egui lib.rs, product/Cargo.toml, README.md, assets-index.yaml",
+   "REG accesskit-0.21.1 lib.rs, accesskit_winit-0.29.2 lib.rs, winit-0.30.13 Windows event loop"
+  ],
+  "sources": [
+   {
+    "url": "https://docs.rs/gpui/latest/gpui/",
+    "licence": "Apache-2.0 (crate page; only the docs were read)",
+    "finding": "Hybrid: state in retained entities, a view's render builds an element tree each frame; layout by Taffy; custom elements for large lists and editors."
+   },
+   {
+    "url": "https://zed.dev/blog/videogame",
+    "finding": "A small fixed primitive set: rectangles by SDF, shadows, glyphs, icons, images. Shaped text cached per text and font. Alpha-only glyph atlas with up to 16 subpixel variants. Icons are CPU-rastered alpha masks. Layers and stacking contexts give z-order."
+   },
+   {
+    "url": "https://raw.githubusercontent.com/linebender/xilem/main/masonry/README.md",
+    "licence": "Apache-2.0",
+    "finding": "A persistent widget tree with central focus, pointer and AccessKit handling, and a test harness on the tree; user-facing paradigm is built on top. Its renderer is wgpu, so architecture only, no reuse."
+   },
+   {
+    "url": "https://docs.godotengine.org/en/stable/classes/class_control.html",
+    "licence": "Godot is MIT",
+    "finding": "Retained Control tree, one focused control, event routing with accept_event and mouse_filter, cascading theme, accessibility_name on nodes."
+   },
+   {
+    "url": "https://godotengine.org/releases/4.5/",
+    "finding": "Godot added screen reader support to Control nodes through AccessKit; editor coverage incomplete, classified experimental by press. A pro-class editor UI retrofitted AccessKit onto a retained tree."
+   },
+   {
+    "url": "https://docs.godotengine.org/zh-tw/4.x/classes/class_editordock.html",
+    "finding": "Editor docks: fixed dock slots, layout_key, saved per-dock layout, positions remembered. Same shape as STU-SHL-063 regions."
+   },
+   {
+    "url": "https://raw.githubusercontent.com/ocornut/imgui/master/docs/FAQ.md",
+    "licence": "MIT",
+    "finding": "IDs are hashed from the widget path; keeps minimal retained data; FAQ never mentions accessibility; docking in a branch; IME needs the HWND on the main viewport."
+   },
+   {
+    "url": "https://raw.githubusercontent.com/ocornut/imgui/master/backends/imgui_impl_vulkan.h",
+    "licence": "MIT",
+    "finding": "The Vulkan backend takes Instance, PhysicalDevice, Device, Queue from the host and never creates a device, window or surface; it owns its pipeline, font atlas and texture descriptors; supports dynamic rendering. This is the O4 renderer contract."
+   },
+   {
+    "url": "https://docs.rs/winit/0.30.13/winit/window/struct.Window.html",
+    "licence": "Apache-2.0 (REG Cargo.toml)",
+    "finding": "IME off by default; set_ime_allowed, set_ime_cursor_area; set_ime_purpose has no effect on Windows; set_cursor_visible hides only within the window on Windows; focus_window steals focus and must only be used when expected."
+   },
+   {
+    "url": "https://docs.rs/winit/0.30.13/winit/window/struct.WindowAttributes.html",
+    "finding": "with_active and with_visible exist; no Windows note on with_active."
+   },
+   {
+    "url": "https://docs.rs/accesskit/latest/accesskit/struct.Node.html",
+    "finding": "Current 0.25.2 has set_author_id and numeric setters, no custom-property API. Locked 0.21.1 has them too (REG lib.rs:1755,1804)."
+   },
+   {
+    "url": "https://docs.rs/taffy/latest/taffy/",
+    "licence": "MIT",
+    "finding": "0.15.1. Flexbox, Grid, Block. Low-level API for embedding with own storage; all dependencies optional. GPUI pins Taffy."
+   },
+   {
+    "url": "https://docs.rs/gpu-allocator/latest/gpu_allocator/",
+    "licence": "MIT OR Apache-2.0",
+    "finding": "Allocator takes host instance, device, physical_device; latest 0.28.0, lock pins 0.27.0."
+   },
+   {
+    "url": "https://docs.rs/etagere/latest/etagere/",
+    "licence": "MIT OR Apache-2.0",
+    "finding": "Shelf atlas with deallocation. Rejected, see text position."
+   },
+   {
+    "url": "https://freetype.org/freetype2/docs/hinting/text-rendering-general.html",
+    "finding": "Gamma correction thins small glyphs; stem darkening only with linear blending and gamma correction, otherwise heavy and fuzzy."
+   }
+  ],
+  "not_read_on_purpose": "Blender, Krita, GIMP, Inkscape, Qt, Slint, FLTK, JUCE sources: GPL, LGPL, AGPL or similar. Zed's app crates are GPL, so GPUI was read through docs only. Unreal Slate: not permissive.",
+  "not_verified": [
+   "UNVERIFIED: any compile, frame time or memory figure. No cargo was run. Thresholds in proven_wrong_if are my targets, not measurements.",
+   "UNVERIFIED: cost of Type's per-call SHA-256 in the debug profile. Read from code, not timed.",
+   "UNVERIFIED: that raw DeviceEvent::MouseMotion keeps arriving past the screen edge during a captured press on Windows. winit does SetCapture on press (REG winit-0.30.13 windows/event_loop.rs:980).",
+   "UNVERIFIED: Kumihimo solver behaviour for a seven-region layout; API read, not exercised. Taffy 0.15.1 not read beyond the docs page.",
+   "NOT_INSPECTED: size of the assets repo clone; a du on the git dir did not finish within 2 minutes. Handshake shell at cbce875e beyond the truth check's account."
+  ]
+ },
+ "positions": [
+  {
+   "blocker": "O4: boundary between the shell's UI layer and Kumihimo's renderer",
+   "decision": "Three layers, owner per concern. (A) Controls and UI model, toolkit-free, Kumihimo-owned: widget semantics, widget drawing as a display list, layout inside panels, focus order, gesture arbitration, text-edit state including IME preedit and caret, semantic tree. (B) Vulkan renderer, Kumihimo-owned: display list to Vulkan commands on a host-supplied instance, device, queue and target; owns its pipeline, glyph atlas and texture slots; never creates a device, window or surface. (C) Host platform layer, Handshake's shell in the product and a thin asset-local host in standalone Studio: window, event pump, surface and swapchain, device ownership, DPI source, OS IME calls, the AccessKit platform adapter, pop-out windows, recovery. Text: shaping and rasterisation stay in hsk-studio-type behind a text port defined by (A), atlas in (B), so Kumihimo never depends on a Studio crate. IME: OS binding in (C), composition state in (A). AccessKit: node production in (A), platform adapter in (C). Widget drawing: (A) decides, (B) executes.",
+   "why": "It gives each concern one owner and matches the only field-proven split for a toolkit that must live inside someone else's Vulkan device: Dear ImGui's Vulkan backend receives device and queue and creates neither window nor device. GUI-DESKTOP-025 and GUI-DESKTOP-037 require that a window not be its own GPU authority, so (B) cannot own a device. STU-ARC-023 makes Kumihimo the renderer owner, HANDOFF blocker 3 makes Handshake the owner of window, focus, IME, DPI: this split honours both and resolves their overlap on text, IME and AccessKit, which neither record settled.",
+   "evidence": [
+    "SPEC15:76,84,102",
+    "SPEC14:257,261",
+    "S/HANDOFF.md:214-215",
+    "https://raw.githubusercontent.com/ocornut/imgui/master/backends/imgui_impl_vulkan.h",
+    "P hsk-studio-type/src/raster.rs:80,97; outline.rs:184"
+   ],
+   "risk": "Handshake's future shell might want its own text or control drawing, which would duplicate (A); WP-KERNEL-012 stays on eframe (O1) and cannot host (B).",
+   "control": "(C) is a small named port set: device grant, target image, input event stream, IME commands, semantic-tree sink. Standalone host implements it now and proves the port is enough. O1 is untouched and does not gate Studio. A CPU painter of the same display list keeps a last-resort embed path (image in any host), UNVERIFIED for that use.",
+   "proven_wrong_if": "A port change is needed in (B) to implement IME, resize, device loss or pop-out; or (A) has to import winit, ash or accesskit platform types; or the display list cannot express a surface the 25 panels need without a host callback.",
+   "unblocks": "O5, O6, every lane below; gives MT-197 and MT-203 owners a concrete client shape."
+  },
+  {
+   "blocker": "O5: where the control mechanic lives",
+   "decision": "D8 stands: Kumihimo is the owner. Physical sequence: the mechanic stays in hsk-studio-controls and the new UI crates are born in the Studio workspace, with a mechanical rule that they depend on no Studio engine crate. At a named gate (spine gate passed, or before any Handshake adoption, whichever comes first) one lift lane moves them to Kumihimo/product beside kumihimo-egui, renames them kumihimo-*, updates assets-index.yaml, and Studio consumes the lifted tree by exact tree hash. What stays in Studio after the lift: Studio's descriptor tables, report.rs (Observe frames), harness-core panel routes, panel view functions. RF-05 starts now in hsk-studio-controls and does not wait.",
+   "why": "STU-ARC-023 calls Kumihimo owner, yet kumihimo-core has no control kinds; ControlRecord is an egui-adapter report struct with id, label, bounds, target, enabled. All working mechanic (descriptors, value legality, undo-friendly store, availability, menu audit) is in hsk-studio-controls, 2,715 lines, on another branch from Kumihimo. Moving first means every widget change lands twice: Kumihimo first, re-read, then a Studio pin bump, against an unsettled API, with a dozen parallel lanes and an Operator asking for rapid code. Nothing is forked, since no Kumihimo control mechanic exists to diverge from. Field: GPUI lives in its app's repo and co-evolves with it; toolkits are extracted once an API has met a real app.",
+   "evidence": [
+    "SPEC14:223,257",
+    "KUM kumihimo-egui/src/lib.rs:293-299; kumihimo-core/src/lib.rs:1-34; assets-index.yaml capabilities list no controls",
+    "P hsk-studio-controls/src/descriptor.rs:1-16; menu.rs:1-20; lib.rs:14",
+    "S/research/truth-check-20261105-vulkan-pivot.json q4 controls, q5 kumihimo",
+    "https://docs.rs/gpui/latest/gpui/"
+   ],
+   "risk": "Direct tension with CX-MODULE-LIFECYCLE-002 and HBR-MODULE-LIFECYCLE-007 (land first in the module's canonical source) and STU-ARC-023's exact-pin wording. The repo is the same, Nuntissura/assets, but the branch and path differ. A red team will rightly call this a recorded deviation. Second risk: the lift never happens; third: Studio-only assumptions leak (controls uses accord ActorContext in store.rs and egui_adapter.rs, observe in report.rs).",
+   "control": "Record the deviation in direction.blocker_decisions_20261107 with its end condition; spec text stays unchanged because it is still true after the lift. Probe rule: the new crates may depend only on hsk-studio-controls, kumihimo-core and listed crates.io crates, and name no accord or observe type in the UI crate. The lift lane is on the plan with a depends_on, not a note. Handshake adoption is forbidden before it. In controls, replace ActorContext with a generic actor parameter during RF-05.",
+   "proven_wrong_if": "The UI crates cannot drop to zero Studio dependencies without behaviour change; or the lift takes more than path moves, renames and one pin line; or the lead reads CX-MODULE-LIFECYCLE-002 as a hard stop, in which case build beside kumihimo-egui on codex/handpick and accept the two-step landing per change.",
+   "unblocks": "RF-05 and its 774 CONTROLS MT exposure; SMB-HARNESS-DRIVE-1's 'build nothing that decides O5' clause; D8 renderer work."
+  },
+  {
+   "blocker": "O6: what to do until the host layer exists",
+   "decision": "Build now: a non-egui Vulkan host in the asset, and treat it as the standalone Studio application, not as a throwaway test host. It is the (C) layer of O4 over winit 0.30.13, accesskit_winit 0.29.2, ash 0.38 and gpu-allocator 0.27, all already pinned. It implements the device through the transient adapter clause of STU-ARC-024 and labels its evidence asset-local under STU-ARC-032. Do not wait, and do not limit to window-free lanes.",
+   "why": "Waiting depends on O1, MT-197 and MT-203, all NOT_STARTED with no owner movement, and the Operator wants a working coherent GUI now with Studio standalone. Window-free only cannot show a coherent GUI. D1 forbids new egui, so the frozen window cannot host new surfaces. Every crate needed is permissive and already in Cargo.lock, so licence and pin risk is nil.",
+   "evidence": [
+    "P Cargo.lock:22,84,98,284,1610,4066,5846",
+    "SPEC14:259,275",
+    "S/research/truth-check-20261105-vulkan-pivot.json restart_prerequisites order 2,3,7",
+    "S/ledger.json direction.operator_direction_20261107",
+    "REG winit-0.30.13, accesskit_winit-0.29.2 licences"
+   ],
+   "risk": "Two Vulkan device owners in one process until RF-12: this host's ash device and render-gpu's wgpu device. A later reader may take asset-local evidence for GUI-DESKTOP-024 acceptance. SMB-CONTROLS-EGUI-GATE-1's gate lists winit as blocked, and the native policy allows -sys/FFI only in named crates, so the host fails the gate as briefed.",
+   "control": "Canvas pixels cross as RGBA8 through the existing read-back Frame path, so no handle interop and no new wgpu line. Device creation sits behind one port shaped like GpuClientPort, so the Handshake owner replaces it. Every proof row says asset-local. Tell the egui-gate builder now: allow list gets the new host crate for winit and accesskit, the renderer and host for ash.",
+   "proven_wrong_if": "Two devices cause instability on the RTX 3090 that a single device would not; or read-back makes a normal canvas edit unusable at document sizes the workflow scenarios need, in which case RF-12 moves ahead of panel fan-out.",
+   "unblocks": "All paused GUI lanes: SMB-FIG-GRID-3, SMB-AE-KEYFRAME-TIMELINE-1, RF-02, the 2,266 vulkan_shell_client MTs' path to proof."
+  },
+  {
+   "blocker": "RF-01: moving egui out of public signatures and Viewer fields",
+   "decision": "Ruling: allowed and first. It moves toolkit code and adds none, and the 2026-11-07 direction replaced the GUI pause. Scope is narrow and mechanical: plain geometry, key and modifier types in place of the 18 harness-view pub signatures and the Viewer fields; every draw function gets #[cfg(feature = \"egui-test-host\")] in place, with no file moves; the viewer feature loses dep:egui. Keep the 47 egui-naming test files running under that feature, unchanged. A test file converts only when its panel lands on the new tree. Add one item nobody listed: view/text.rs takes the default document font from egui::FontDefinitions, so logic has a real egui dependency. Ship Ubuntu-Light as a resource of the crate, byte-identical, so content hashes in documents and tests do not move.",
+   "why": "Measured at c4d06841 with a function scan: 5,256 draw lines of 44,322 (11.9%) in 35 files, 20 pub signatures naming egui (18 harness-view, 2 controls), matching the truth check's order of magnitude. Cfg in place keeps rebase surface small for lanes in the same files; moving files would collide with everything. Rewriting tests first is busy work and loses proof if done blind.",
+   "evidence": [
+    "P hsk-studio-harness-view/src/view/mod.rs:180,215,233,285,879",
+    "P hsk-studio-harness-view/src/view/hosted.rs:151,157; shell.rs:181,217; timeline.rs:395,401,408,912; timeline/audio_ui.rs:27,34; monitor.rs:125,692; source_monitor.rs:465; file_dialog.rs:387; prototype.rs:899; layout_ui.rs:555",
+    "P hsk-studio-harness-view/src/view/text.rs:14,42,188-190",
+    "P hsk-studio-harness-view/Cargo.toml features viewer, layout-ui",
+    "P hsk-studio-harness-view/src/view/render.rs GpuDisplay and Frame.texture name egui::TextureId"
+   ],
+   "risk": "A round unit that loses egui-feature tests silently loses proof (the egui-gate brief's item 3). Logic helpers that use imported egui geometry escape the heuristic. A Cargo.toml edge in harness-view rebuilds all dependents once (F-R46-8: 146.3 GiB after a harness dev-dependency change).",
+   "control": "Count tests per feature set before and after; .config/round-features.toml gains an egui-test-host unit through the steward. cargo tree proves no egui in the viewer closure. Land the harness-view manifest change once, before panel lanes fork, and run the cargo disk check first.",
+   "proven_wrong_if": "viewer cannot compile without egui after this lane because logic is entangled beyond type swaps, for example canvas_ui's tool dispatch in view/mod.rs:1178. That part then needs its extraction lane first.",
+   "unblocks": "Egui-free closure for the new host; ends rebase pressure from Viewer lanes; RF-11 retirement list."
+  },
+  {
+   "blocker": "RF-02: docking, multiwindow, IME, DPI, AccessKit, truthful states; route",
+   "decision": "Rewrite the RF-02 target: remove egui_tiles and PopOutManager as stated means. Docking uses kumihimo-core as the arrangement model: one Core with one root workspace per region of STU-SHL-003, so a cross-region panel move is one Core command and therefore one transaction. Edge rails, seams and slots are drawn by the dock layer in (A). IME, DPI, pop-out are host (C) over winit. Empty, loading, error, denied and recovery are first-class node states in the tree. Limits: Limits::unbounded() opts in for the centre tree, the edge cap of 4 is enforced by the dock layer.",
+   "why": "kumihimo-core already holds frames, views, tabs, groups, nested split and grid plans, docking intents with preview and snap candidates, float and redock, persistence and restore, std-only, forbid(unsafe), with 29 owning adapter tests in its record. STU-SHL-063 wants one tree per region, which Godot's fixed dock slots also show. GUI-DESKTOP-007's no-gap rule is the Core default: GeometryContext gap 0. It is the one existing piece of D8 that truly fits.",
+   "evidence": [
+    "KUM kumihimo-core/src/layout.rs:44-63,66-88; model.rs:8-49; docking.rs:6-40,87,438; command.rs:5-60; README.md topic purpose-and-boundaries",
+    "SPEC14:31993,32009,32021,32025",
+    "SPEC15:36,40",
+    "S/research/truth-check-20261105-vulkan-pivot.json q1 record_drift RF-02"
+   ],
+   "risk": "STU-SHL-070 says StudioPanelRegistry owns the truth and trees are rebuilt from it, while Kumihimo says adapters must not keep a competing canonical arrangement. Kumihimo's egui chrome and input (108 KiB) has to be redone, and tab-drag feel lives there. Its Core envelope (identity, actor, operation id, expected generation) adds call ceremony.",
+   "control": "StudioPanelRegistry keeps panel records (binding, instance, state) keyed to Core view ids; Core holds placement. This satisfies the one-transaction intent of STU-SHL-070; send it as a spec-owner reading, not a silent change. Reuse chrome.rs and input.rs logic by reading, since it is our own asset. A helper wraps envelopes.",
+   "proven_wrong_if": "A panel state of STU-SHL-068 or the seven-region layout cannot be represented without a Kumihimo source change; or the seam, 32px icon rail or clamp rules of STU-SHL-064 and 069 fight the solver. Then extend Kumihimo, per GUI-DESKTOP-003, before any Studio-side tree.",
+   "unblocks": "Layout Presets, Task Scope exit surface, seven-region shell, GUI-DESKTOP-007..009."
+  },
+  {
+   "blocker": "RF-05: one descriptor source",
+   "decision": "Start now in hsk-studio-controls. Add UiDescriptor as the spec names it: author_id, aliases[], role, label, tooltip, optional ControlSpec or ParamSpec, availability clause, command_id, manual anchor. Registry is the one source. Generate entries from what already enumerates things: Tool::ALL, Panel::ALL, ShellCommand, harness-core COMMANDS, the widget modules. All 380 string ids become aliases[] of grammar ids of STU-MDL-100, using the rename rule of STU-MDL-103 item 4. A node in the new tree can only be built from a registered id, which makes the dead-control audit and the manual generation automatic. Width lanes add descriptors to tables, never a new vocabulary.",
+   "why": "Four audits rank this first and five vocabularies are the root of two ids for save. The spec's closed vocabulary already names the type. Building the tree on descriptors from day one avoids converting panels twice. The control Registry's audit and projections exist and only feed menus today.",
+   "evidence": [
+    "SPEC14:31480,32334-32347",
+    "S/HANDOFF.md:137",
+    "S/research/integration-refactor-inventory-20261030.json RF-05",
+    "P hsk-studio-controls/src/menu.rs:1-20; hsk-studio-harness-core/src/manual.rs:1-30; hsk-studio-harness-view/src/view/mod.rs:119-178; hosted.rs widget module"
+   ],
+   "risk": "STU-SHL-016 forbids a parallel command registry beside the shell's, and standalone Studio has no shell. The alias table is one big shared file. Descriptor mapping work can become paperwork.",
+   "control": "When Studio embeds, this registry feeds the widened shell record of SHL-P-08 through an adapter; note it for the spec owner. Alias table is generated and split per surface, so lanes own separate files. Descriptors enter with the panel that draws them; only the seed lane does bulk mapping.",
+   "proven_wrong_if": "A panel needs a control that cannot be expressed as a descriptor without a parallel id; or alias lookup misses an existing test id.",
+   "unblocks": "STU-MDL-002 and 104, STU-ARC-030 id bridge, manual generation, Argus targets, tool width lanes."
+  },
+  {
+   "blocker": "Route for 25 panels and 33 tools",
+   "decision": "Port, do not rewrite. Each panel gets a pure view function in a new file, view/panels/<key>.rs in harness-view: fn view(&self, b: &mut TreeBuilder), with clicks declared as data, the existing PanelAction style, executed by the existing Viewer methods through hosted_action. So logic stays; only draw lines translate, roughly one to one, using helper calls with the same shape as today's button(ui, drawn, name, label, enabled). The 33 tools come from Tool::ALL into the Tool Rail; canvas_ui's pointer code becomes Viewer::canvas_event(doc_pos, pressure, modifiers, phase), which is the single riskiest extraction. Old egui draw code stays frozen until its panel lands, then goes in that panel's lane along with test conversion.",
+   "why": "hosted.rs already has the shape: PanelView is a view model, panel_ui pushes PanelAction values, hosted_action runs them headlessly, drawn lists ids. Widget vocabulary at tip is small (push_id 174, label 114, add 95, horizontal 76, button 55, checkbox 45, DragValue 39, Slider 36, selectable 62, ComboBox 32, TextEdit 21), so about 15 widgets cover the port. 13 of 25 panels are hosted.rs forms. The measured split lets one builder own one file group.",
+   "evidence": [
+    "P hsk-studio-harness-view/src/view/hosted.rs:1-30,544,564,681,1348",
+    "P hsk-studio-harness-view/src/view/mod.rs:837,1104,1178,1382,1473",
+    "P hsk-studio-harness-view/src/view/edit.rs Tool::ALL",
+    "Draw lines per file at c4d06841 by function scan: mod 785, hosted 667, timeline_ui 539, layout_ui family 723, shell 261, vector 236, mixer 200, timeline 195, info 181, waveform 154, proof 152, develop family 424, monitors and prototype 257"
+   ],
+   "risk": "Fan-out before the gesture rules are proven violates STU-SHL-109 and SHL-P-22, and bad widgets get copied 25 times. Timeline, canvas, mixer and waveform are custom paint with pointer semantics, not forms. egui's implicit memory (ui.data, push_id state) hides widget state that needs an explicit home.",
+   "control": "Spine gate first (see the ordering position). Custom surfaces use a canvas node: paint into display-list layers, hit test by own ids. Widget state goes to the retained store keyed by author_id. Each panel lane converts its own test files to invoke-by-id, replacing pointer tests that aim by egui layout.",
+   "proven_wrong_if": "The 13 hosted panels port at more than about 1.5 new lines per old draw line, or need Viewer logic changes beyond declaring actions. Then the view-function shape is wrong for them.",
+   "unblocks": "SMB-FIG-GRID-3, SMB-AE-KEYFRAME-TIMELINE-1, then the remaining 65 panel identities and the tool registry as width lanes on the same recipe."
+  },
+  {
+   "blocker": "Retained or immediate mode",
+   "decision": "Retained node arena, rebuilt per panel by a pure view function when that panel's state revision changes. Authoring reads like immediate mode; no closures hold &mut Viewer; every widget declares its action as data; nodes are keyed by author_id; scroll, caret, hover and active gesture live in a store keyed by the same id. No frame is rendered while nothing changes.",
+   "why": "Requirements decide this: an AccessKit tree and a model-readable state tree with stable ids (STU-MDL-002, 105, 106) that exist without a frame; set_value through the same path as a drag (STU-SHL-107); parallel headless clients; idle quiet. Field: GPUI builds elements per frame over retained entities; Masonry and Godot hold retained trees and both connect AccessKit centrally, and Godot is doing it on a pro editor. Dear ImGui is the pure-immediate benchmark and its FAQ does not mention accessibility. A view function also gives the Elm split that hosted.rs already approximates, which makes the operator path and the model path one code path.",
+   "evidence": [
+    "SPEC14:32351-32377,32312",
+    "https://docs.rs/gpui/latest/gpui/",
+    "https://raw.githubusercontent.com/linebender/xilem/main/masonry/README.md",
+    "https://godotengine.org/releases/4.5/",
+    "https://raw.githubusercontent.com/ocornut/imgui/master/docs/FAQ.md",
+    "P hsk-studio-harness-view/src/view/hosted.rs:544-564"
+   ],
+   "risk": "Over-rebuild of large lists (layers, swatches, timeline rows); action-as-data adds an enum variant for each new control; panels with local edit buffers need explicit state.",
+   "control": "Virtualised list node with a row callback by index; custom canvas node for timeline. Panel-local buffers keep their existing state structs (HostedState). Dirty scope is per panel, so a timeline tick does not rebuild the Inspect Dock.",
+   "proven_wrong_if": "Target, on the dev box in release: rebuild, layout and display list for a 300-node Inspect Dock exceed 8 ms; or idle shows any queue submission. Both are read from gui frame stats.",
+   "unblocks": "Tree crate API, all panel lanes, model driving."
+  },
+  {
+   "blocker": "Architecture: crates",
+   "decision": "Five units with one-way deps, none of them new in engines. hsk-studio-controls (existing: descriptors, values, gesture maths, availability, menu). hsk-studio-ui (new, no unsafe, no GPU, no window: node arena and builder, widgets, Taffy layout, theme tokens from JSON, input model, focus, gesture arbiter, text-edit state, dock layer over kumihimo-core, display list, hit test, semantic tree, CPU painter). hsk-studio-ui-text (new: text port over hsk-studio-type, caches, bundled UI fonts). hsk-studio-ui-vk (new, unsafe allowed and isolated here: display list on host-supplied ash device). hsk-studio-gui-host (new binary crate: winit, accesskit_winit, swapchain, transient device, the application loop). harness-view gains only the hsk-studio-ui edge; winit and ash never enter its closure. kumihimo-core comes in as an exact vendored tree, see the pin position.",
+   "why": "Keeps Viewer's 80+ test binaries from rebuilding when window or Vulkan code changes, gives builders small crates with fast checks and few shared files, and leaves a clean lift. The CPU painter is the key parallelism move: panel builders and the designer see real pixels with no Vulkan, no window and no GPU lease, and STU-QUIET-005 asks for render-to-buffer proof; the Vulkan team and the panel teams stop blocking each other.",
+   "evidence": [
+    "SPEC14:22603,31509",
+    "P hsk-studio-harness-view/Cargo.toml dependencies; hsk-studio-render-gpu lib.rs:16 forbid(unsafe) per truth check q3",
+    "S/START_LOG.md:638 F-R46-8 via truth check q7",
+    "S/builders/WORKSPACE_RULES.md path-deps, crates-io-deps",
+    "P tools/workspace-probe.rs DESIGNATED"
+   ],
+   "risk": "CPU and Vulkan painters drift. Steward load: new crates, edges and probe rules are all shared files. Taffy is not in the registry cache, so one network fetch is needed.",
+   "control": "Display list stays tiny (rounded rect, glyph run, image, polyline, clip, layer); a fixture set compares the two painters with a stated tolerance. One steward lane does all shared-file work at once before lanes fork. Taffy goes through dep-requests.jsonl with this file as the research reference.",
+   "proven_wrong_if": "The display list grows past about 10 primitive kinds, or a painter pair fixture cannot converge.",
+   "unblocks": "Parallel lanes; designer's gui-design work on real output; workflow scenario runs."
+  },
+  {
+   "blocker": "Kumihimo pin mechanism (needed by O5 and RF-02)",
+   "decision": "Consume kumihimo-core as the exact git tree of e75e34ff placed at handshake-studio-assets/vendor/kumihimo-core, a path dependency, not a cargo git dependency. The pin is mechanical: git rev-parse HEAD:handshake-studio-assets/vendor/kumihimo-core must equal 6c39c240347c0ee7aa94a00f590f5cde6344780d, the tree id of e75e34ff:Kumihimo/product/kumihimo-core. Same object, so no divergence is possible while the check passes. Same mechanism for third-party/accesskit_windows-0.29.2, tree 6d8c4f6242dc7396ef65c11ed0a54211711cb69a, whose quiet UIA patch matches the locked accesskit_windows 0.29.2, applied through root [patch.crates-io].",
+   "why": "Crate manifests forbid git deps under the probe; a git dep clones the whole assets repo into cargo's git db; rounds run offline from exports that carry only handshake-studio-assets. A shared tree object is a stronger pin than a version label and needs no network. Serde pin already matches (=1.0.229). The accesskit patch is why Kumihimo proved hidden, non-activating windows under UIA, and a consumer must add it itself, per Kumihimo's README.",
+   "evidence": [
+    "S/builders/WORKSPACE_RULES.md crate manifest rule",
+    "KUM kumihimo-core/Cargo.toml; product/Cargo.toml [patch.crates-io]; README.md desktop-adapter topic",
+    "git rev-parse e75e34ff:Kumihimo/product/kumihimo-core and .../third-party/accesskit_windows-0.29.2",
+    "P Cargo.lock:84-85"
+   ],
+   "risk": "It reads as a copy and GLOBAL-ASSETS-002 warns against divergent copies. kumihimo-core has no licence field; the licence gate may refuse. Probe naming rules assume hsk-studio-*.",
+   "control": "Probe check fails on any tree id mismatch, and a provenance file names source revision and path. Add licence metadata upstream or a gate exception for own assets. Steward lane handles it.",
+   "proven_wrong_if": "The lead requires a real cargo git pin; then accept the clone and offline fetch cost.",
+   "unblocks": "Dock layer lane without waiting on Kumihimo publication."
+  },
+  {
+   "blocker": "Layout and docking: Layout Presets, Task Scope, Context Bar",
+   "decision": "Two layout levels. Regions and centre tree: kumihimo-core plans. Inside panels: Taffy flex and grid through its low-level API, using STU-SHL-072's numbers as theme tokens (row pitch 28, field 72x24, Inspect Dock 300 and 260). Layout Preset is a data file of dock arrangement, Tool Rail order and search bias, the only three things STU-SHL-093 lets it hold. Task Scope is a clause kind in the availability predicate, never a layout. Context Bar is a two-zone node at region top whose Tool Zone resolves from the active tool's descriptor set or the active Task Scope, and Selection Zone from the slot resolver.",
+   "why": "The spec already fixes the mechanisms and forbids merging preset and scope. Data-file presets let the GUI designer own arrangement with no code, and a proof that a preset gates nothing is two state-tree string reads. Taffy is what GPUI embeds.",
+   "evidence": [
+    "SPEC14:31473-31483,31941,31999-32005,32035-32041,32260-32274,32635",
+    "https://docs.rs/taffy/latest/taffy/",
+    "https://docs.rs/gpui/latest/gpui/"
+   ],
+   "risk": "STU-SHL-007 wants SurrealDB for durable layouts, and standalone Studio has none. The preset count is an open Operator item (STU-SHL-095).",
+   "control": "Layout persistence behind a port; standalone writes a JSON file through kumihimo-layout-json, marked asset-local, no other database. Ship presets as data so the count can change freely.",
+   "proven_wrong_if": "A dense panel cannot meet STU-SHL-072/073's compact form under Taffy without per-panel special cases.",
+   "unblocks": "Designer lanes, default layouts per profile (SPEC14 section 4.5), Task Scope lanes."
+  },
+  {
+   "blocker": "Layer-based compositing (STU-SHL-130) as it reaches the GUI",
+   "decision": "Correct the framing: STU-SHL-130 decides the document model, not the UI compositor. For the GUI it means Layers panel and keyframe-timeline rows read the layer tree, comp-flowchart stays a read-only projection, and no node editor is built. Separately, the GUI's own frame is an ordered set of display-list layers: canvas image, canvas overlay (gizmos, marching ants, guides), dock chrome and panels, floating panels, popups and menus, tooltip, drag preview. Canvas image is a texture updated from Frame.rgba8. Layers repaint independently, so a canvas change does not rebuild panels. Swapchain is UNORM with sRGB nonlinear colour space, so sRGB-encoded frame bytes pass through unchanged; panels blend in gamma space.",
+   "why": "The clause text says it plainly. Treating it as UI compositing would mislead lanes. Field: GPUI's layers and stacking give z-order the same way. Frame already provides the read-back bytes with backend named.",
+   "evidence": [
+    "SPEC14:32428-32442",
+    "P hsk-studio-harness-view/src/view/render.rs Frame: rgba8, backend, revision",
+    "https://zed.dev/blog/videogame"
+   ],
+   "risk": "Full-frame upload per edit on large documents. No display colour management yet, and proof preview tolerance depends on it.",
+   "control": "Dirty-rect upload as a later small change once render reports rects; display profile stays a named gap, and the view reports it in state.",
+   "proven_wrong_if": "Gamma-space panel blending is rejected by the designer on real shots; switch panels to a linear pass and keep the canvas exact.",
+   "unblocks": "SHL-P-14 consumer surfaces, canvas lane."
+  },
+  {
+   "blocker": "Text through hsk-studio-type plus an atlas",
+   "decision": "Use Type for shaping and raster, with a cache layer and one small Type addition. hsk-studio-ui-text reuses the Request and Ports plumbing already in view/text.rs and caches shaped lines by (text, font stack, size) and glyph coverage by (font hash, glyph id, px size, 1/4 px x-offset). Add a verified-font session to Type: hash once, then outlines and shaping skip re-hashing, same results. Atlas lives in the renderer: alpha-only page, own shelf allocator of about 100 lines, whole-page reset on full. Rejected etagere, since no per-glyph deallocation is needed and it is one more fetch. UI fonts: static Inter plus Noto SC fallback, already fixtures in the repo, moved to a resource with licence files. A coverage contrast LUT is a theme token. No stem darkening in v1.",
+   "why": "Brief and spec want the existing stack, and it has real shaping (complex scripts, bidi) that an egui-style stack lacked. But Type is built for documents: glyph_outlines and shaping hash full inputs per call with soft SHA-256, and each call carries about 20 request fields, so uncached use at UI rates is not viable (reading of code; UNVERIFIED by timing). GPUI's design shows the cache keys and alpha atlas work. FreeType's note says stem darkening without linear blending goes fuzzy, so do not enable it.",
+   "evidence": [
+    "P hsk-studio-type/src/outline.rs:184-225; validate.rs:40-47,135; contract.rs Request; Cargo.toml sha2 force-soft; descriptor.rs:11 raster parity note",
+    "P hsk-studio-harness-view/src/view/text.rs",
+    "P hsk-studio-type/tests/fixtures/fonts/Inter-Regular.ttf, NotoSansSC-Regular.otf",
+    "https://zed.dev/blog/videogame",
+    "https://freetype.org/freetype2/docs/hinting/text-rendering-general.html"
+   ],
+   "risk": "Top visual risk: unhinted greyscale is lighter at small sizes per Type's own descriptor, on a 96 dpi screen at 11-12 px, in a dense pro UI. Outlines refuse CFF2, colour and variable axes. No emoji.",
+   "control": "Designer judges real shots at 100%, 150%, 200% in the first text commit. Tune LUT and baseline pixel snap. If still rejected, add a raster-only hinter through a permissive crate behind the text port, without touching shaping. Refused fonts are typed outcomes with fallback to the bundled stack.",
+   "proven_wrong_if": "Designer rejects 11-12 px text at 96 dpi after LUT and snap; or the cache misses cost more than a frame in normal panel use.",
+   "unblocks": "Every panel; IME preedit display; the text tool's font default after RF-01."
+  },
+  {
+   "blocker": "Input, focus, DPI, IME, AccessKit",
+   "decision": "Host maps winit events to a platform-free input stream into hsk-studio-ui; nothing else sees winit. Pointer: arbiter implements STU-SHL-101..108 claim-at-press, with an observable studio.gesture.active. winit's SetCapture on press gives tracking past the window; raw motion gives deltas. Never warp. Focus: one owner per window, tab order from tree order, explicit focus scopes per region. DPI: logical units in the tree, physical at paint, rebuild on scale change, atlas keyed by px size. IME: set_ime_allowed only while a text field holds focus, set_ime_cursor_area from the caret rect, preedit drawn by the field. AccessKit: accesskit_winit adapter fed from the semantic tree, node id hashed from author_id per STU-MDL-104, actions routed to the same dispatcher as model invoke. Semantic node takes the shape STU-MDL-105 gives: id, author_id, node_id, role, label, value, disabled, actions, bounds, children plus numeric and temporal fields, and availability fields of STU-MDL-107, which AccessKit cannot carry as custom properties and which therefore also ship in the state tree. Keep accesskit at the locked 0.21.1, with the Kumihimo accesskit_windows patch for non-activating roots.",
+   "why": "egui's scrub and gesture logic in egui_adapter.rs is the costliest part to lose; moving it to renderer-free code makes it testable. Winit docs give every IME and cursor call needed; ImGui's FAQ shows HWND-bound IME is a known hazard that winit handles. All required AccessKit setters exist at the locked version.",
+   "evidence": [
+    "SPEC14:32300-32324,32349-32377",
+    "SPEC15:70,112",
+    "P hsk-studio-controls/src/egui_adapter.rs:5-8,37 per truth check q4",
+    "REG accesskit-0.21.1/src/lib.rs:1755,1804; accesskit_winit-0.29.2/src/lib.rs:149,252,262; winit-0.30.13 windows/event_loop.rs:980",
+    "https://docs.rs/winit/0.30.13/winit/window/struct.Window.html"
+   ],
+   "risk": "STU-SHL-104 asks for a hidden cursor at a screen edge with continued delta and restore at the press point, yet forbids warping, and restoring at the press point is itself a cursor move; set_cursor_visible hides only inside the window on Windows. IME behaviour needs a real Japanese or Chinese IME session. Physical assistive hardware unproven, as at Kumihimo.",
+   "control": "Host lane proves drag past edge with raw motion; if hiding outside the window fails, report the exact limit and keep delta accumulation. Scripted IME event tests plus one Operator manual check, listed in operator-items.",
+   "proven_wrong_if": "Raw motion stops at the screen edge during capture, or accesskit_winit cannot run with the renderer's windows hidden and non-activated.",
+   "unblocks": "GUI-DESKTOP-022, 041; SHL-P-04, SHL-P-09; STU-SHL-109 acceptance."
+  },
+  {
+   "blocker": "Model use: ids, state tree, process-level drive",
+   "decision": "Extend SMB-HARNESS-DRIVE-1's JSONL loop, with no second protocol. Add gui.tree (semantic tree JSON, explicit truncation per STU-MDL-108), gui.invoke {author_id, action, value} (the same dispatcher as AccessKit ActionRequest), gui.shot {out, scale, dpi} (CPU painter PNG; Vulkan offscreen with a flag), gui.resize, gui.input (synthetic stream into the UI layer, never the OS, for gesture tests), plus --actor and --session. No window opens for any of them. Observability nodes studio.dock.state, studio.slot.<slot>.resolved, studio.gesture.active appear in gui.tree. Parallel models run one process each with their own Viewer, so agent view, selection and navigation are isolated by construction; saves rest on SMB-SESSION-WRITE-SAFETY-1. Workflow scenarios in S/workflows run as these JSONL scripts. Manual gets the rows from the same table.",
+   "why": "STU-MDL-109 allows two paths, typed commands and the accessibility tree by author_id; gui.invoke is the second one with no platform in the way. STU-QUIET-001 and 002 require headless and no OS input. A separate process per model is the cheapest honest answer to STU-ARC-014 and GUI-DESKTOP-045, while Viewer has one selection field. It turns the workflow agents' scenarios into runnable GUI checks, as HANDOFF workflow item 14 wants.",
+   "evidence": [
+    "SPEC14:22527,22531,22535,22595-22603,22896,32369-32381",
+    "S/builders/briefs/lane-smb-harness-drive-1.md target items 2-5",
+    "P hsk-studio-harness-view/src/view/mod.rs:837 state_json; hosted.rs:1348 hosted_action",
+    "S/HANDOFF.md:134,268"
+   ],
+   "risk": "No model path into a live operator window yet except UIA. One Viewer per process means a model and the operator on one file only meet at the session layer, and presence and pending proposals (14.21) are not covered. Tree JSON can be large.",
+   "control": "A later --control-pipe on the window host uses the same JSONL with a per-client view state; do not start it until scenarios need it. Bounded tree with a subtree query by author_id prefix.",
+   "proven_wrong_if": "A workflow scenario step can be done by pointer but not by gui.invoke, or a gui.* call opens a window or takes focus (negative test).",
+   "unblocks": "STU-CON-007 visual verifiability; designer and workflow agents; GUI-tests without pixel diffs."
+  },
+  {
+   "blocker": "Order: spec chain versus 'show a panel now'",
+   "decision": "Follow STU-SHL-110 with two readings to record. SHL-P-01 and 02 are Handshake shell steps, not applicable to the standalone host, and stay owed at embedding. 'Passed acceptance' before fan-out means the seven STU-SHL-109 tests and the byte-identical reselect test are green at the lane tip, since rounds now run in batches; READY stays unjudged. The eight-panel spine ships first and includes Layers, so the first real panel is inside the law, not ahead of it. Fan-out lanes start only after this spine gate.",
+   "why": "STU-SHL-109 says the tests 'MUST exist and MUST pass before any further panel is authored', and the spec names SHL-P-03, 09 and 12 as where the risk sits. Skipping them to look fast means repairing 25 panels. It costs little: those tests are headless string reads in the new crate.",
+   "evidence": [
+    "SPEC14:32066,32186,32316-32324,32387-32405",
+    "S/HANDOFF.md:265 workflow item 11"
+   ],
+   "risk": "Colour and History panels do not exist in the Viewer, so the spine needs new logic. The gate holds up visible breadth, against the Operator's taste for width.",
+   "control": "Engine and width lanes keep running on Viewer methods and descriptors meanwhile, so no team idles; their view functions wait. History can read the chronicle's existing op list.",
+   "proven_wrong_if": "The gate blocks fan-out over more than the toolkit lanes' own commits with no failing test to show for it. Then open fan-out on hosted forms only.",
+   "unblocks": "Lane order below."
+  }
+ ],
+ "plan": {
+  "first_real_panel": "SMB-GUI-SPINE-1 is the first lane that shows a real panel on a real document: Layers plus Canvas on a real PSD or .handshake opened through Viewer::open, select and visibility committed to the document, revision visible in gui.tree. Pixels through gui.shot once SMB-UI-TREE-1, SMB-UI-TEXT-1 and SMB-GUI-DRIVE-2 land; a real window once SMB-UI-VK-1 and SMB-GUI-HOST-1 land.",
+  "shared_files_rule": "Only SMB-GUI-STEWARD-1 and later steward syncs touch root Cargo.toml, Cargo.lock, tools/, .config/. Panel lanes own only view/panels/<key>.rs, their old draw functions and their test files; one registration table line per panel is the only shared line.",
+  "lanes": [
+   {
+    "lane_id_suggestion": "SMB-CONTROLS-EGUI-GATE-1",
+    "crates": [
+     "controls",
+     "harness-core",
+     "tools/workspace-probe.rs"
+    ],
+    "what": "IN FLIGHT. Amend brief now: allow list admits the new host and renderer crates for winit, accesskit, ash, gpu-allocator.",
+    "depends_on": [],
+    "parallel_with": [
+     "SMB-HARNESS-DRIVE-1"
+    ],
+    "size": "as briefed"
+   },
+   {
+    "lane_id_suggestion": "SMB-HARNESS-DRIVE-1",
+    "crates": [
+     "harness",
+     "harness-core"
+    ],
+    "what": "IN FLIGHT. Remove the O5 caveat; keep scope.",
+    "depends_on": [],
+    "parallel_with": [
+     "SMB-CONTROLS-EGUI-GATE-1"
+    ],
+    "size": "as briefed"
+   },
+   {
+    "lane_id_suggestion": "SMB-GUI-STEWARD-1",
+    "crates": [
+     "root manifest",
+     "Cargo.lock",
+     "tools/workspace-probe.rs",
+     ".config/round-features.toml",
+     "vendor/kumihimo-core",
+     "vendor/accesskit_windows",
+     "new crate skeletons"
+    ],
+    "what": "One shared-file landing: empty crates hsk-studio-ui, -ui-text, -ui-vk, -gui-host; edges; harness-view to ui edge; dep-requests (taffy new; ash, gpu-allocator, winit, accesskit, accesskit_winit, raw-window-handle at lock pins); tree-id pin check; native policy line; egui-test-host round unit. Cargo disk check first (F-R46-8).",
+    "depends_on": [
+     "SMB-CONTROLS-EGUI-GATE-1"
+    ],
+    "parallel_with": [],
+    "size": 2
+   },
+   {
+    "lane_id_suggestion": "SMB-VIEW-EGUI-FREE-1",
+    "crates": [
+     "harness-view",
+     "harness (feature lines)"
+    ],
+    "what": "RF-01: plain types in 18 signatures and Viewer fields, cfg on draw functions, viewer without egui, Ubuntu-Light as byte-identical resource, test counts per feature set.",
+    "depends_on": [
+     "SMB-GUI-STEWARD-1"
+    ],
+    "parallel_with": [
+     "SMB-UI-TREE-1",
+     "SMB-UI-TEXT-1",
+     "SMB-UI-VK-1",
+     "SMB-GUI-HOST-1"
+    ],
+    "size": 5
+   },
+   {
+    "lane_id_suggestion": "SMB-UI-TREE-1",
+    "crates": [
+     "hsk-studio-ui"
+    ],
+    "what": "Node arena, builder, author_id grammar, theme tokens from JSON, Taffy layout, display list with layers, hit test, semantic tree, CPU painter, text port trait with a stub.",
+    "depends_on": [
+     "SMB-GUI-STEWARD-1"
+    ],
+    "parallel_with": [
+     "SMB-VIEW-EGUI-FREE-1",
+     "SMB-UI-TEXT-1",
+     "SMB-UI-VK-1",
+     "SMB-GUI-HOST-1"
+    ],
+    "size": 6
+   },
+   {
+    "lane_id_suggestion": "SMB-UI-TEXT-1",
+    "crates": [
+     "hsk-studio-ui-text",
+     "hsk-studio-type (verified-font session, additive)"
+    ],
+    "what": "Text port over Type, shaped-line and coverage caches, UI fonts with licences, contrast LUT, designer shots at three scales.",
+    "depends_on": [
+     "SMB-GUI-STEWARD-1"
+    ],
+    "parallel_with": [
+     "SMB-UI-TREE-1",
+     "SMB-UI-VK-1",
+     "SMB-GUI-HOST-1",
+     "SMB-VIEW-EGUI-FREE-1"
+    ],
+    "size": 4
+   },
+   {
+    "lane_id_suggestion": "SMB-UI-VK-1",
+    "crates": [
+     "hsk-studio-ui-vk"
+    ],
+    "what": "Display list on a host-supplied ash device with dynamic rendering: SDF rect, glyph, image, polyline pipelines; alpha atlas; texture slots; offscreen capture first, compare to CPU painter. Display-list types come from SMB-UI-TREE-1's first commit.",
+    "depends_on": [
+     "SMB-GUI-STEWARD-1",
+     "SMB-UI-TREE-1 first commit"
+    ],
+    "parallel_with": [
+     "SMB-UI-TEXT-1",
+     "SMB-GUI-HOST-1",
+     "SMB-VIEW-EGUI-FREE-1"
+    ],
+    "size": 6
+   },
+   {
+    "lane_id_suggestion": "SMB-GUI-HOST-1",
+    "crates": [
+     "hsk-studio-gui-host"
+    ],
+    "what": "Window, swapchain, resize, minimize, device loss, DPI, event mapping, IME, cursor and capture, AccessKit adapter, transient device behind a port, idle no-render loop, help without a window. Hidden non-activated proof mode.",
+    "depends_on": [
+     "SMB-GUI-STEWARD-1",
+     "SMB-UI-VK-1 API"
+    ],
+    "parallel_with": [
+     "SMB-UI-TREE-1",
+     "SMB-UI-TEXT-1",
+     "SMB-VIEW-EGUI-FREE-1"
+    ],
+    "size": 6
+   },
+   {
+    "lane_id_suggestion": "SMB-UI-INTERACT-1",
+    "crates": [
+     "hsk-studio-ui",
+     "hsk-studio-controls (gesture out of egui_adapter)"
+    ],
+    "what": "Gesture arbiter, widgets (label, button, toggle, choice, ScrubValue, slider, swatch, list, scroll, text field with IME), focus, studio.gesture.active, the seven STU-SHL-109 tests.",
+    "depends_on": [
+     "SMB-UI-TREE-1"
+    ],
+    "parallel_with": [
+     "SMB-UI-DOCK-1",
+     "SMB-UI-DESCRIPTOR-1",
+     "SMB-GUI-DRIVE-2"
+    ],
+    "size": 5
+   },
+   {
+    "lane_id_suggestion": "SMB-UI-DOCK-1",
+    "crates": [
+     "hsk-studio-ui (dock module)"
+    ],
+    "what": "Seven regions on one Core, tab strips, splitters with spec hit sizes, seams, icon rails, float, StudioPanelRegistry, Layout Preset data files, studio.dock.state, JSON persistence port.",
+    "depends_on": [
+     "SMB-UI-TREE-1"
+    ],
+    "parallel_with": [
+     "SMB-UI-INTERACT-1",
+     "SMB-UI-DESCRIPTOR-1",
+     "SMB-GUI-DRIVE-2"
+    ],
+    "size": 6
+   },
+   {
+    "lane_id_suggestion": "SMB-UI-DESCRIPTOR-1",
+    "crates": [
+     "hsk-studio-controls",
+     "harness-core manual.rs",
+     "harness-view descriptor tables"
+    ],
+    "what": "RF-05: UiDescriptor, generated seed from existing enumerations, alias tables per surface, availability predicate with task_scope clause, slot resolver, menu projected to tree, manual generation.",
+    "depends_on": [
+     "SMB-GUI-STEWARD-1"
+    ],
+    "parallel_with": [
+     "SMB-UI-TREE-1",
+     "SMB-UI-INTERACT-1",
+     "SMB-UI-DOCK-1"
+    ],
+    "size": 6
+   },
+   {
+    "lane_id_suggestion": "SMB-GUI-DRIVE-2",
+    "crates": [
+     "hsk-studio-harness cli",
+     "harness-view binding"
+    ],
+    "what": "gui.tree, gui.invoke, gui.shot, gui.resize, gui.input in the DRIVE-1 loop; negative no-window test; manual rows.",
+    "depends_on": [
+     "SMB-HARNESS-DRIVE-1",
+     "SMB-UI-TREE-1"
+    ],
+    "parallel_with": [
+     "SMB-UI-INTERACT-1",
+     "SMB-UI-DOCK-1",
+     "SMB-UI-DESCRIPTOR-1"
+    ],
+    "size": 3
+   },
+   {
+    "lane_id_suggestion": "SMB-GUI-SPINE-1",
+    "crates": [
+     "harness-view view/panels/layers.rs, canvas.rs",
+     "view/mod.rs canvas extraction"
+    ],
+    "what": "FIRST REAL PANEL. Layers and Canvas on a real document; Viewer::canvas_event extraction, menu File Open and Save, status.",
+    "depends_on": [
+     "SMB-UI-TREE-1",
+     "SMB-UI-TEXT-1",
+     "SMB-GUI-DRIVE-2",
+     "SMB-VIEW-EGUI-FREE-1 (same canvas code in view/mod.rs)"
+    ],
+    "parallel_with": [
+     "SMB-UI-INTERACT-1",
+     "SMB-UI-DOCK-1",
+     "SMB-UI-VK-1",
+     "SMB-GUI-HOST-1"
+    ],
+    "size": 6
+   },
+   {
+    "lane_id_suggestion": "SMB-GUI-SPINE-2",
+    "crates": [
+     "harness-view view/panels/{tools,context_bar,properties,colour,swatches,history,info}.rs"
+    ],
+    "what": "Rest of the eight-panel spine, 33 tools on the Tool Rail, Context Bar zones. Ends with the spine gate: STU-SHL-109 tests and byte-identical reselect test green at tip through gui.tree.",
+    "depends_on": [
+     "SMB-GUI-SPINE-1",
+     "SMB-UI-INTERACT-1",
+     "SMB-UI-DOCK-1",
+     "SMB-UI-DESCRIPTOR-1"
+    ],
+    "parallel_with": [],
+    "size": 8
+   },
+   {
+    "lane_id_suggestion": "SMB-GUI-PANELS-HOSTED-1",
+    "crates": [
+     "harness-view hosted.rs, view/panels/*"
+    ],
+    "what": "12 hosted panels remaining after Swatches: Appearance, Stroke, Graphic Styles, Align, Transform, Path Operations, Masks, Envelope, Brushes, Vector Export, Import, Audio Batch. Their test files.",
+    "depends_on": [
+     "SMB-GUI-SPINE-2"
+    ],
+    "parallel_with": [
+     "all fan-out lanes"
+    ],
+    "size": 5
+   },
+   {
+    "lane_id_suggestion": "SMB-GUI-PANELS-LAYOUT-1",
+    "crates": [
+     "harness-view layout_ui family"
+    ],
+    "what": "Layout Editor, pages, tables, styles, threads, find, preflight (723 draw lines).",
+    "depends_on": [
+     "SMB-GUI-SPINE-2"
+    ],
+    "parallel_with": [
+     "all fan-out lanes"
+    ],
+    "size": 5
+   },
+   {
+    "lane_id_suggestion": "SMB-GUI-PANELS-TIMELINE-1",
+    "crates": [
+     "harness-view timeline_ui, timeline, timeline/audio_ui"
+    ],
+    "what": "Timeline custom paint (744 draw lines), then re-brief SMB-AE-KEYFRAME-TIMELINE-1 on it.",
+    "depends_on": [
+     "SMB-GUI-SPINE-2"
+    ],
+    "parallel_with": [
+     "all fan-out lanes"
+    ],
+    "size": 5
+   },
+   {
+    "lane_id_suggestion": "SMB-GUI-PANELS-DEVELOP-1",
+    "crates": [
+     "harness-view develop, develop/export_dialog, develop/spot"
+    ],
+    "what": "Develop panel, export dialog, spot tool (424 draw lines).",
+    "depends_on": [
+     "SMB-GUI-SPINE-2"
+    ],
+    "parallel_with": [
+     "all fan-out lanes"
+    ],
+    "size": 3
+   },
+   {
+    "lane_id_suggestion": "SMB-GUI-PANELS-MEDIA-1",
+    "crates": [
+     "harness-view monitor, source_monitor, prototype"
+    ],
+    "what": "Program and Source Monitor, Prototype Player.",
+    "depends_on": [
+     "SMB-GUI-SPINE-2"
+    ],
+    "parallel_with": [
+     "all fan-out lanes"
+    ],
+    "size": 3
+   },
+   {
+    "lane_id_suggestion": "SMB-GUI-PANELS-AUDIO-1",
+    "crates": [
+     "harness-view mixer, waveform, spectral_display, audio_import"
+    ],
+    "what": "Mixer, Waveform Editor, Spectral Display, audio import.",
+    "depends_on": [
+     "SMB-GUI-SPINE-2"
+    ],
+    "parallel_with": [
+     "all fan-out lanes"
+    ],
+    "size": 4
+   },
+   {
+    "lane_id_suggestion": "SMB-GUI-PANELS-MISC-1",
+    "crates": [
+     "harness-view proof, file_dialog, shell help windows, vector tool options, select_liquify, fill_tools, design"
+    ],
+    "what": "Proof window, file dialog, Help pages, tool options, design controls; SMB-FIG-GRID-3 re-brief.",
+    "depends_on": [
+     "SMB-GUI-SPINE-2"
+    ],
+    "parallel_with": [
+     "all fan-out lanes"
+    ],
+    "size": 5
+   },
+   {
+    "lane_id_suggestion": "SMB-GUI-WIDTH-n",
+    "crates": [
+     "harness-view view/panels/*",
+     "controls descriptor tables"
+    ],
+    "what": "Remaining panel identities of STU-SHL-113 and the tool registry, chosen by workflow scenario gap lists, same recipe, one builder per family.",
+    "depends_on": [
+     "SMB-GUI-SPINE-2"
+    ],
+    "parallel_with": [
+     "all fan-out lanes"
+    ],
+    "size": "per family"
+   },
+   {
+    "lane_id_suggestion": "SMB-GUI-POPOUT-1",
+    "crates": [
+     "hsk-studio-gui-host",
+     "hsk-studio-ui dock"
+    ],
+    "what": "Multiwindow pop-outs, merge-back, geometry clamping, per-window swapchain on one device.",
+    "depends_on": [
+     "SMB-UI-DOCK-1",
+     "SMB-GUI-HOST-1"
+    ],
+    "parallel_with": [
+     "all fan-out lanes"
+    ],
+    "size": 3
+   },
+   {
+    "lane_id_suggestion": "SMB-KUMIHIMO-LIFT-1",
+    "crates": [
+     "Kumihimo/product on the canonical branch",
+     "Studio vendor pins"
+    ],
+    "what": "End of the O5 deviation: move, rename, catalog entry, independent re-read, tree-id pin. Must precede any Handshake adoption.",
+    "depends_on": [
+     "SMB-GUI-SPINE-2"
+    ],
+    "parallel_with": [],
+    "size": 3
+   },
+   {
+    "lane_id_suggestion": "SMB-EGUI-RETIRE-1",
+    "crates": [
+     "harness-view",
+     "harness",
+     "controls",
+     "root manifest"
+    ],
+    "what": "Remove egui, eframe and the frozen window after the last panel landed; RF-11 test list closed; probe allow list emptied. Lead confirms the exact removal list first.",
+    "depends_on": [
+     "all SMB-GUI-PANELS lanes"
+    ],
+    "parallel_with": [],
+    "size": 2
+   }
+  ]
+ },
+ "needs_from_other_members": [
+  "Vulkan binding and shader member (O2, O3): my renderer assumes ash 0.38 and gpu-allocator 0.27. Also needed: a shader tool. No glslang, glslc or dxc is on this machine and VULKAN_SDK is empty (where.exe), only vulkan-1.dll. GUI needs one vertex and one fragment shader of about 150 lines. Proposal to confirm or refuse: GLSL source compiled to SPIR-V by a dev-only tool, naga glsl-in or an installed glslang, with .spv and source committed and a hash check; no compiler in the product closure.",
+  "GPU owner member (O1, O7, RF-12): confirm the host's transient device may coexist with render-gpu's wgpu device under the read-back path until RF-12, and give the shape of the device grant so the host port matches GpuClientPort. Say whether Vulkan 1.3 dynamic rendering can be required; I assume yes on the RTX 3090, UNVERIFIED on anything else (O8).",
+  "Lead or workspace steward: rule on the O5 deviation from CX-MODULE-LIFECYCLE-002, on the vendored tree pin, on non hsk-studio crate paths, and on the egui-gate brief amendment, before SMB-GUI-STEWARD-1.",
+  "GUI designer: owns theme token JSON, Layout Preset data files, icon set with a permissive licence, and the verdict on small text at 96 dpi on real shots from SMB-UI-TEXT-1.",
+  "Workflow agents: write scenarios so each step is a gui.invoke or command call by author_id, so they run as JSONL once SMB-GUI-DRIVE-2 lands.",
+  "Spec owner items to record, none blocking: STU-SHL-070 registry truth versus Kumihimo canonical arrangement; STU-SHL-016 standalone registry; STU-SHL-104 hide-at-edge on Windows; SHL-P-01 and 02 not applicable standalone; RF-02 target text; STU-SHL-007 layout persistence on standalone JSON."
+ ]
+}

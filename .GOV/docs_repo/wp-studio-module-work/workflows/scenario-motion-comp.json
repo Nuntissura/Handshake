@@ -1,0 +1,4556 @@
+{
+ "schema": "hsk.studio.workflow_scenario@1",
+ "id": "motion-comp",
+ "evidence_tree": "origin tip c4d06841 (read with git grep/show from wt-studio-lanes/smb-type-authored-token-1, nothing checked out)",
+ "status_rule": "callable = a RUN_COMMANDS id, CLI verb, timeline key, or a public session/harness/harness-view API reaches it and its effect reaches the saved document or the output (reach says which). record_rewrite = serialise the whole Folio record and replace it; there is no per-operation command, so a step marked callable with record_rewrite achieves the state, not the spec's typed command. engine_only = logic exists in an engine crate and no command or host calls it. missing = looked and not found; evidence says where. No cargo was run: nothing here is a runtime claim.",
+ "title": "NORTHLIGHT: a 12 s title sequence and a 6 s screen-replacement VFX shot",
+ "domain": "motion graphics and compositing",
+ "vendor_parity_targets": [
+  "After Effects"
+ ],
+ "workflow_basis": {
+  "sources": [
+   "https://helpx.adobe.com/after-effects/using/workflows.html",
+   "https://helpx.adobe.com/after-effects/using/basics-rendering-exporting.html",
+   "https://helpx.adobe.com/after-effects/desktop/work-with-footage-items/import-and-interpret-footage-items/importing-interpreting-footage-items.html",
+   "https://www.schoolofmotion.com/blog/screen-replacement-after-effects-how-to",
+   "https://blog.motionarray.com/learn/after-effects/screen-replacement-after-effects/",
+   "https://www.premiumbeat.com/blog/screen-replacements-in-after-effects/"
+  ],
+  "taken_from_sources": "Order of work (import, organise, layers, animate, effects, preview, render); render item with render settings and several output modules; Perspective Corner Pin track; corner pin disturbed when a hand crosses the screen, planar tracking preferred then.",
+  "not_sourced_in_this_pass": "Roto Brush, keying pipeline and grain matching steps follow spec clauses STU-CMP-032..034 and general practice; the searches returned little on them, so their ordering is UNVERIFIED against vendor documentation. Search summaries were read, not the full pages. No vendor text or assets copied."
+ },
+ "deliverable": "From one project: T01_MAIN as 1920x1080 25 fps MOV DNxHR master with music, a half-size review proxy, a title pass with alpha, a PNG frame sequence; V02_SCREEN as a finished comp with replaced screen, keyed and rotoscoped hand, matched colour, blur and grain, 3D-tracked lower third; a collected relocatable bundle.",
+ "input_assets": [
+  {
+   "id": "plate",
+   "kind": "generated image sequence",
+   "spec": "150 frames, 1920x1080: a tablet quad with a green screen and four dots under a known homography path, a moving hand-shaped occluder, added noise",
+   "why": "Ground truth for track, solve and key accuracy"
+  },
+  {
+   "id": "logo.svg",
+   "kind": "generated vector",
+   "spec": "star and ring"
+  },
+  {
+   "id": "bg.png, tex.png",
+   "kind": "generated raster",
+   "spec": "gradient and noise texture"
+  },
+  {
+   "id": "music.wav",
+   "kind": "generated audio",
+   "spec": "12 s tone bed with transients at 2.0, 5.5, 9.0 s"
+  },
+  {
+   "id": "font",
+   "kind": "repo or OFL fixture",
+   "spec": "Which font fixture is usable: UNVERIFIED"
+  }
+ ],
+ "workspace_or_layout_preset": {
+  "profile_default": "composition, STU-SHL-089 (spec line 32233)",
+  "layout_presets": {
+   "s1 and s2": "Composite, Animate",
+   "s3": "Track, Composite",
+   "s4": "Composite"
+  },
+  "note": "Composite, Animate and Track are the proposed names of STU-SHL-095 (spec line 32272), final names an open Operator decision. No shipped Task Scope of STU-SHL-153 covers motion work; none is used."
+ },
+ "scenes": [
+  {
+   "scene_id": "s1-project-setup",
+   "goal": "Empty project to a structured project: colour settings, ingest of plate, stills, logo and music, the master compositions, work area and markers. Ends with a saved, reopenable project.",
+   "steps": [
+    {
+     "n": 1,
+     "intent": "Create an empty project",
+     "human": {
+      "panel": "Studio tab strip",
+      "tool": null,
+      "gesture": "File > New Project; project opens as a tab",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.open",
+      "spec_command_label": null,
+      "parameters": {
+       "bytes": "package made by hsk_studio_package::write_package from a minimal hsk.studio.document@1 (no New command)"
+      },
+      "status": "callable",
+      "reach": "rust_api",
+      "evidence": "hsk-studio-harness-core/src/harness.rs:905 open_bytes; write_package used by hsk-studio-harness/tests/motion_records_session.rs:19,174. No new-document verb: git grep new_document|blank_document|create_document finds no constructor in session or harness; imports are the only document creator (harness-core/src/import.rs:297)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-001",
+       "line": 23617
+      },
+      {
+       "clause": "STU-SHL-097",
+       "line": 32280
+      }
+     ],
+     "mts": [
+      "MT-33848",
+      "MT-34628"
+     ],
+     "expected_state": "One open document at revision 0 with empty composition and motion entries.",
+     "visual_check": {
+      "what_must_be_visible": "Project tab with a clear untitled name; empty project-bin with a visible import prompt, not a blank pane.",
+      "layout_or_fit_concern": "A first-run empty workspace must still show where to import."
+     },
+     "failure_a_professional_would_notice": "Forced to import a file just to get a project."
+    },
+    {
+     "n": 2,
+     "intent": "Apply the Composite Layout Preset for the composition profile",
+     "human": {
+      "panel": "WORKSPACE > Layout Presets",
+      "tool": null,
+      "gesture": "Pick Composite from the workspace menu",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "preset": "Composite"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "git grep Layout.?Preset|layout_preset|task_scope over harness-view/view and harness-core: 0 hits. panel id absent: git grep for keyframe-timeline, effect-controls, effects-browser, expression-editor, keyframe-assistant, comp-flowchart, preview-render, project-bin returned 0 hits under crates/; hsk-studio-harness-view/src/view/shell.rs:139-146 lists Layers, Properties, Info, Develop, LayoutEditor, ProgramMonitor, SourceMonitor, Timeline, Mixer, WaveformEditor, SpectralDisplay, PrototypePlayer"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-SHL-089",
+       "line": 32233
+      },
+      {
+       "clause": "STU-SHL-093",
+       "line": 32260
+      },
+      {
+       "clause": "STU-SHL-095",
+       "line": 32272
+      }
+     ],
+     "mts": [
+      "MT-34620",
+      "MT-34624",
+      "MT-34626"
+     ],
+     "expected_state": "Dock arrangement matches the composition default; document state untouched.",
+     "visual_check": {
+      "what_must_be_visible": "Centre composition viewer; left 260px project-bin + effect-controls tabs; right preview-render, properties group, layers group; bottom 300px keyframe-timeline active with timeline tab; rail icons for tracker, keyframe-assistant, expression-editor, render-queue.",
+      "layout_or_fit_concern": "effect-controls left and effects-browser right is the measured default of STU-SHL-089; do not move them for symmetry with the sequence profile."
+     },
+     "failure_a_professional_would_notice": "Keyframe timeline starts collapsed or shares height with a list panel, so animation work starts with a re-dock."
+    },
+    {
+     "n": 3,
+     "intent": "Set project bit depth and working colour space: 16 bpc, Rec.709 working space",
+     "human": {
+      "panel": "project-bin footer / Project Settings",
+      "tool": null,
+      "gesture": "Open project settings, pick depth and working space",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "bits_per_channel": 16,
+       "working_space_rgb": "SCPF id"
+      },
+      "status": "callable",
+      "reach": "rust_api",
+      "evidence": "Only as fields of the document JSON at creation (hsk-studio-harness/tests/render_queue_records.rs:52 shows working_space_* and blending_space). No command changes them after creation: RUN_COMMANDS has none. render_queue.rs:132 render_settings reads document bits_per_channel"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-010",
+       "line": 29501
+      },
+      {
+       "clause": "STU-MOT-004",
+       "line": 25915
+      }
+     ],
+     "mts": [
+      "MT-33849",
+      "MT-33850",
+      "MT-34072"
+     ],
+     "expected_state": "Document records 16 bpc and the profile ids; later renders read them.",
+     "visual_check": {
+      "what_must_be_visible": "Depth and working space readable in one line in the project-bin footer, and clicking it opens the settings.",
+      "layout_or_fit_concern": "Depth belongs where the compositor can see it while working, not only in a dialog."
+     },
+     "failure_a_professional_would_notice": "Banding in the gradient background found only at final render."
+    },
+    {
+     "n": 4,
+     "intent": "Import the synthetic logo as a vector layer into this project",
+     "human": {
+      "panel": "project-bin",
+      "tool": null,
+      "gesture": "Ctrl+I, pick logo.svg, import as footage",
+      "shortcut_if_spec_defines_one": "Ctrl+I (Import File, L28549)"
+     },
+     "agent_call": {
+      "command_id": "layer.restructure_and_entry",
+      "spec_command_label": null,
+      "parameters": {
+       "create": "Payload::Vector layer",
+       "then": "layer.set_vector_paths"
+      },
+      "status": "callable",
+      "reach": "rust_api",
+      "evidence": "harness.rs:1400 restructure_and_entry and RUN_COMMANDS layer.set_vector_paths (action.rs:843 list). document.import (harness.rs:919 open_import) opens a NEW document, so importing INTO a project needs the path data converted by the caller. temporal/composition.rs:953 accepts Payload::Vector in a composition. Cross-document place: UNVERIFIED"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-005",
+       "line": 25959
+      },
+      {
+       "clause": "STU-IO-001",
+       "line": 21506
+      }
+     ],
+     "mts": [
+      "MT-33439",
+      "MT-33852",
+      "MT-33853",
+      "MT-35810"
+     ],
+     "expected_state": "Logo exists as a document layer, usable in one composition.",
+     "visual_check": {
+      "what_must_be_visible": "New bin item with a vector thumbnail, dimensions and source file name.",
+      "layout_or_fit_concern": "Bin rows need name, type, size and duration columns at once at 260px; collapse columns before truncating names."
+     },
+     "failure_a_professional_would_notice": "Import opens a new tab and leaves the current project unchanged."
+    },
+    {
+     "n": 5,
+     "intent": "Import the background still and texture PNGs into the project",
+     "human": {
+      "panel": "project-bin",
+      "tool": null,
+      "gesture": "Ctrl+I, multi-select PNG files",
+      "shortcut_if_spec_defines_one": "Ctrl+I (Import File, L28549)"
+     },
+     "agent_call": {
+      "command_id": "document.stage_tile",
+      "spec_command_label": null,
+      "parameters": {
+       "then": "layer.restructure_and_entry with Payload::Raster, layer.set_tiles"
+      },
+      "status": "callable",
+      "reach": "rust_api",
+      "evidence": "harness.rs:1822 stage_tile, RUN_COMMANDS layer.set_tiles; decode from hsk-studio-interop-raster by the caller. CLI import makes a separate document only (cli.rs:293)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-005",
+       "line": 25959
+      }
+     ],
+     "mts": [
+      "MT-33852",
+      "MT-33853"
+     ],
+     "expected_state": "Two raster document layers with staged tiles.",
+     "visual_check": {
+      "what_must_be_visible": "Thumbnails in project-bin; no modal per file.",
+      "layout_or_fit_concern": "Multi-file import must batch into one progress line in Jobs."
+     },
+     "failure_a_professional_would_notice": "One modal per imported file."
+    },
+    {
+     "n": 6,
+     "intent": "Import the plate as footage: a video file or numbered image sequence, 150 frames",
+     "human": {
+      "panel": "project-bin",
+      "tool": null,
+      "gesture": "Ctrl+I, tick Image Sequence",
+      "shortcut_if_spec_defines_one": "Ctrl+I (Import File, L28549)"
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "source": "plate_0001.png..plate_0150.png or plate.mov",
+       "kind": "footage"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "StudioCompositionLayer (hsk-studio-folio/src/composition.rs:273) has no media source field; adapter content is raster tiles, vector, text, group, adjustment or precomp (hsk-studio-composite/src/temporal/composition.rs:934-977). git grep -i footage|video in temporal/composition.rs: 0 hits. ClipSource::Media exists for sequence clips only (folio/src/timeline.rs:346). Spec kind footage is not implemented for compositions"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-005",
+       "line": 25959
+      },
+      {
+       "clause": "STU-MOT-006",
+       "line": 25980
+      }
+     ],
+     "mts": [
+      "MT-33852",
+      "MT-33853",
+      "MT-33854"
+     ],
+     "expected_state": "A footage item in the bin with frame rate, duration, alpha and colour interpretation.",
+     "visual_check": {
+      "what_must_be_visible": "Bin row shows 150 frames, 25 fps, a poster frame and a scrub-on-hover thumbnail.",
+      "layout_or_fit_concern": "Sequences must read as one item, never 150 rows."
+     },
+     "failure_a_professional_would_notice": "The core input of any VFX shot cannot enter a composition; every plate workaround costs a layer per frame."
+    },
+    {
+     "n": 7,
+     "intent": "Interpret the plate: frame rate, field order, alpha mode, colour profile",
+     "human": {
+      "panel": "project-bin > Interpret Footage",
+      "tool": null,
+      "gesture": "Select footage, open Interpret Footage, set 25 fps, straight alpha",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "frame_rate": "25/1",
+       "alpha": "straight"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "Depends on footage kind (previous step). git grep -i interpret in folio/src, harness-view/src and composite/src/temporal: only unrelated comment hits, no interpretation record. Alpha typing law exists only as text at STU-CMP-022"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-022",
+       "line": 29608
+      },
+      {
+       "clause": "STU-MOT-006",
+       "line": 25980
+      }
+     ],
+     "mts": [
+      "MT-33854",
+      "MT-34084"
+     ],
+     "expected_state": "Interpretation stored on the source and honoured by every layer using it.",
+     "visual_check": {
+      "what_must_be_visible": "Interpretation summary visible in the bin details row.",
+      "layout_or_fit_concern": "Dialog must show the file's detected values next to the override."
+     },
+     "failure_a_professional_would_notice": "Mis-guessed alpha gives dark halos on every comp."
+    },
+    {
+     "n": 8,
+     "intent": "Import the music bed for the title sequence",
+     "human": {
+      "panel": "project-bin",
+      "tool": null,
+      "gesture": "Ctrl+I, pick music.wav",
+      "shortcut_if_spec_defines_one": "Ctrl+I (Import File, L28549)"
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": null,
+      "parameters": {
+       "token": "motion",
+       "record": "composition_audio StudioAudioLayer"
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/motion_records.rs:439,447 StudioAudioLayer and StudioCompositionAudio; hsk-studio-session/src/motion.rs:98 set_motion_records (whole-record replace); samples are decoded by the caller and passed as CompositionAudioLayer (harness-view/src/view/timeline_export/composition.rs:77)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-005",
+       "line": 25959
+      },
+      {
+       "clause": "STU-MOT-124",
+       "line": 28302
+      }
+     ],
+     "mts": [
+      "MT-33852",
+      "MT-33853",
+      "MT-34027"
+     ],
+     "expected_state": "Motion records name the audio layer on the title composition.",
+     "visual_check": {
+      "what_must_be_visible": "Waveform thumbnail in the bin, and duration.",
+      "layout_or_fit_concern": "Audio bin row has to look distinct from silent footage."
+     },
+     "failure_a_professional_would_notice": "Music plays only at render with no way to audition it in the comp."
+    },
+    {
+     "n": 9,
+     "intent": "Organise the bin into folders 01_comps, 02_footage, 03_audio, 04_gfx",
+     "human": {
+      "panel": "project-bin",
+      "tool": null,
+      "gesture": "New Folder, drag items in",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "folders": [
+        "01_comps",
+        "02_footage",
+        "03_audio",
+        "04_gfx"
+       ]
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "project-bin string: 0 hits; StudioComposition has no folder field (folio/src/composition.rs:767) though STU-MOT-004 row name says unique within its parent folder"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-004",
+       "line": 25915
+      },
+      {
+       "clause": "STU-SHL-113",
+       "line": 32091
+      }
+     ],
+     "mts": [
+      "MT-33849",
+      "MT-33850",
+      "MT-34517",
+      "MT-34518"
+     ],
+     "expected_state": "Folder tree persisted in the project.",
+     "visual_check": {
+      "what_must_be_visible": "Tree with disclosure arrows, drop highlight, per-folder item counts.",
+      "layout_or_fit_concern": "Keep folder rows visually distinct from item rows at dense row height."
+     },
+     "failure_a_professional_would_notice": "A 40-asset project becomes a flat list."
+    },
+    {
+     "n": 10,
+     "intent": "Create the master title composition T01_MAIN: 1920x1080, square pixels, 25 fps, 12 s, black background",
+     "human": {
+      "panel": "Composition Settings",
+      "tool": null,
+      "gesture": "Ctrl+N, fill the form, OK",
+      "shortcut_if_spec_defines_one": "Ctrl+N (New Composition, L28566)"
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": "New Composition",
+      "parameters": {
+       "token": "composition",
+       "record": {
+        "name": "T01_MAIN",
+        "width": 1920,
+        "height": 1080,
+        "frame_rate": "25/1",
+        "duration_ticks": "12 s at 254016000000 ticks/s",
+        "background": [
+         0,
+         0,
+         0,
+         1
+        ]
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/composition.rs:767 StudioComposition; hsk-studio-session/src/motion.rs:54 set_composition_records (validated, whole-record replace) or hsk-studio-harness-core/src/harness.rs:1500 Run::set_document_entry token composition; harness.rs:1400 restructure_and_entry makes it one undo step. No STUDIO_COMPOSITION_*/STUDIO_KEYFRAME_* command: git grep in harness, harness-core, harness-view at c4d06841 finds no such id; RUN_COMMANDS (harness-core/src/action.rs:843) has no composition entry; CLI verbs at hsk-studio-harness/src/cli.rs:270-416 are help, descriptors, providers, open, panel, edit, verify, import, export, develop, export-sequence, batch, action"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-001",
+       "line": 23617
+      },
+      {
+       "clause": "STU-MOT-004",
+       "line": 25915
+      },
+      {
+       "clause": "STU-MOT-130",
+       "line": 28326
+      }
+     ],
+     "mts": [
+      "MT-33848",
+      "MT-33849",
+      "MT-33850",
+      "MT-34030"
+     ],
+     "expected_state": "Composition record present and validated; id SCOM-*.",
+     "visual_check": {
+      "what_must_be_visible": "Composition tab opens in the viewer; a keyframe-timeline tab appears with its name; a dropdown of presets above width and height.",
+      "layout_or_fit_concern": "Settings form is field-dense: two aligned columns, not a scrolling list."
+     },
+     "failure_a_professional_would_notice": "A new comp does not open anywhere so you hunt for it."
+    },
+    {
+     "n": 11,
+     "intent": "Create the VFX composition V02_SCREEN and the sub-comps T02_TEXT and T03_LOGO",
+     "human": {
+      "panel": "Composition Settings",
+      "tool": null,
+      "gesture": "Ctrl+N three times",
+      "shortcut_if_spec_defines_one": "Ctrl+N (New Composition, L28566)"
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": "New Composition",
+      "parameters": {
+       "token": "composition",
+       "record": "append three StudioComposition"
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/composition.rs:801 StudioCompositionRecords.compositions; hsk-studio-session/src/motion.rs:54 set_composition_records (validated, whole-record replace) or hsk-studio-harness-core/src/harness.rs:1500 Run::set_document_entry token composition; harness.rs:1400 restructure_and_entry makes it one undo step"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-001",
+       "line": 23617
+      },
+      {
+       "clause": "STU-MOT-004",
+       "line": 25915
+      }
+     ],
+     "mts": [
+      "MT-33848",
+      "MT-33849",
+      "MT-33850"
+     ],
+     "expected_state": "Four compositions in one record set.",
+     "visual_check": {
+      "what_must_be_visible": "Each comp has a tab in the viewer tab strip and a timeline tab, kept in step.",
+      "layout_or_fit_concern": "Viewer tab and timeline tab order must match or navigation feels broken."
+     },
+     "failure_a_professional_would_notice": "Tabs out of sync: viewer shows one comp and timeline another."
+    },
+    {
+     "n": 12,
+     "intent": "Set the remaining composition settings: start timecode, drop-frame display, preview resolution, nested flags, renderer",
+     "human": {
+      "panel": "Composition Settings",
+      "tool": null,
+      "gesture": "Ctrl+K, Advanced and 3D Renderer tabs",
+      "shortcut_if_spec_defines_one": "Ctrl+K (Composition Settings, L28533)"
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "start_timecode": "01:00:00:00",
+       "resolution": "half",
+       "preserve_frame_rate_when_nested": true,
+       "renderer": "planar"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "folio/src/composition.rs:24-27 module docs: not stored are resolution divisor, renderer, nested-rate flags; StudioComposition at :767 has no start_timecode or drop_frame. Shutter and samples do exist: folio/src/motion_records.rs:624"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-004",
+       "line": 25915
+      },
+      {
+       "clause": "STU-CMP-060",
+       "line": 29977
+      }
+     ],
+     "mts": [
+      "MT-33849",
+      "MT-33850",
+      "MT-34154"
+     ],
+     "expected_state": "All STU-MOT-004 rows stored on the composition.",
+     "visual_check": {
+      "what_must_be_visible": "Bounds shown per row; hard limits refuse rather than clamp.",
+      "layout_or_fit_concern": "Do not split one record across two dialogs because storage splits it."
+     },
+     "failure_a_professional_would_notice": "Timeline counts from 0 when delivery requires hour-one timecode."
+    },
+    {
+     "n": 13,
+     "intent": "Set the work area to 0-10 s",
+     "human": {
+      "panel": "Keyframe Timeline",
+      "tool": null,
+      "gesture": "Drag the work-area bar, or B and N at the playhead",
+      "shortcut_if_spec_defines_one": "B and N (Set Work Area Start/End, L29166, L29165)"
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": "Set Work Area Start",
+      "parameters": {
+       "token": "motion",
+       "record": {
+        "composition_work_areas": [
+         {
+          "start_tick": 0,
+          "end_tick": "10 s"
+         }
+        ]
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/motion_records.rs:647 StudioCompositionWorkArea; honoured by render_queue.rs:84 item_span; hsk-studio-session/src/motion.rs:98 set_motion_records (whole-record replace)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-020",
+       "line": 27552
+      },
+      {
+       "clause": "STU-MOT-121",
+       "line": 28251
+      }
+     ],
+     "mts": [
+      "MT-33867",
+      "MT-34021",
+      "MT-34022"
+     ],
+     "expected_state": "Work area stored; queue time_span work_area_only renders it.",
+     "visual_check": {
+      "what_must_be_visible": "Bright work-area bar above the ruler; dimmed outside; drag handles reachable above the layer rows.",
+      "layout_or_fit_concern": "Ruler, work area and cache bar stacked must stay legible in 300px."
+     },
+     "failure_a_professional_would_notice": "B and N do nothing because no time surface owns focus."
+    },
+    {
+     "n": 14,
+     "intent": "Add composition markers for the music hits at 2.0, 5.5 and 9.0 s",
+     "human": {
+      "panel": "Keyframe Timeline / markers",
+      "tool": null,
+      "gesture": "Press * with no layer selected at each hit",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "markers": [
+        2.0,
+        5.5,
+        9.0
+       ]
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "folio/src/composition.rs:24-27: markers not stored; StudioMarker (folio/src/timeline.rs:152) is on sequences only. timeline.marker_add acts on the sequence (harness-view/src/view/timeline.rs:803)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-020",
+       "line": 27552
+      },
+      {
+       "clause": "STU-SHL-113",
+       "line": 32091
+      }
+     ],
+     "mts": [
+      "MT-33867",
+      "MT-34517",
+      "MT-34518"
+     ],
+     "expected_state": "Markers stored on the composition.",
+     "visual_check": {
+      "what_must_be_visible": "Marker flags on the ruler with names, snap target for keyframes.",
+      "layout_or_fit_concern": "Marker labels must not collide with the work-area bar."
+     },
+     "failure_a_professional_would_notice": "Hits are retyped as numbers because no marker carries them."
+    },
+    {
+     "n": 15,
+     "intent": "Save the project and reopen it, confirming the records survive",
+     "human": {
+      "panel": "File menu",
+      "tool": null,
+      "gesture": "Ctrl+S, close, reopen",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.save",
+      "spec_command_label": null,
+      "parameters": {
+       "path": "motion-comp.hskpkg",
+       "then": [
+        "document.reopen",
+        "document.verify"
+       ]
+      },
+      "status": "callable",
+      "reach": "run_command",
+      "evidence": "action.rs entries document.save, document.reopen, document.verify; CLI edit --save and verify (cli.rs:284); session/src/motion.rs:1-13 entries written by every save and held on reopen"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-003",
+       "line": 25896
+      }
+     ],
+     "mts": [],
+     "expected_state": "Reopened document returns identical composition and motion records.",
+     "visual_check": {
+      "what_must_be_visible": "Title bar clears the dirty mark; tab keeps its view state.",
+      "layout_or_fit_concern": "Dirty mark must show on record-only edits too."
+     },
+     "failure_a_professional_would_notice": "Saved file loses animation silently."
+    }
+   ]
+  },
+  {
+   "scene_id": "s2-title-sequence",
+   "goal": "Build the 12 s title NORTHLIGHT: gradient background, animated type, procedural logo reveal, controller null with expressions, precomps, track matte, masks, glow, 3D layers, camera, light, motion blur, synced to the music.",
+   "steps": [
+    {
+     "n": 16,
+     "intent": "Add a full-frame solid as the background carrier",
+     "human": {
+      "panel": "Keyframe Timeline",
+      "tool": null,
+      "gesture": "Ctrl+Y, name BG, comp size, deep navy",
+      "shortcut_if_spec_defines_one": "Ctrl+Y (New Solid Layer, L28572)"
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": "New Solid Layer",
+      "parameters": {
+       "kind": "solid",
+       "size": [
+        1920,
+        1080
+       ],
+       "rgba": [
+        0.02,
+        0.04,
+        0.1,
+        1
+       ]
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "Spec kind solid: git grep -i solid in composite/src/temporal/composition.rs: 0 hits; no solid payload on StudioCompositionLayer (folio/src/composition.rs:273). Workaround used by later steps: a one-tile raster layer or a shape layer Rect (folio/src/motion_records.rs:156)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-005",
+       "line": 25959
+      }
+     ],
+     "mts": [
+      "MT-33852",
+      "MT-33853"
+     ],
+     "expected_state": "Layer of kind solid in the stack; its colour stays editable.",
+     "visual_check": {
+      "what_must_be_visible": "New row in keyframe-timeline; colour chip in the source column; viewer fills.",
+      "layout_or_fit_concern": "Layer rows need a type icon readable at row height."
+     },
+     "failure_a_professional_would_notice": "Colour change requires regenerating pixels."
+    },
+    {
+     "n": 17,
+     "intent": "Search the Effects Browser for Gradient Ramp and drop it on BG",
+     "human": {
+      "panel": "effects-browser",
+      "tool": null,
+      "gesture": "Type ramp in the search field, drag result to the layer",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "query": "ramp"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "panel id absent: git grep for keyframe-timeline, effect-controls, effects-browser, expression-editor, keyframe-assistant, comp-flowchart, preview-render, project-bin returned 0 hits under crates/; hsk-studio-harness-view/src/view/shell.rs:139-146 lists Layers, Properties, Info, Develop, LayoutEditor, ProgramMonitor, SourceMonitor, Timeline, Mixer, WaveformEditor, SpectralDisplay, PrototypePlayer. Catalogue actually implemented is 20 kinds in folio/src/composition/effects.rs:237-256: Twirl, Spherize, Offset, Polar Coordinates, Gradient Ramp, Circle, Checkerboard, Gaussian Blur, Fast Box Blur, Directional Blur, Radial Blur, Glow, Find Edges, Color Balance, Exposure, Hue/Saturation, Levels, Tint, Tritone, Invert"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-130",
+       "line": 13163
+      },
+      {
+       "clause": "STU-SHL-089",
+       "line": 32233
+      }
+     ],
+     "mts": [
+      "MT-31502",
+      "MT-31503",
+      "MT-34620"
+     ],
+     "expected_state": "Effect added to the layer's stack; effect-controls opens on it.",
+     "visual_check": {
+      "what_must_be_visible": "Result rows grouped by category with search hits highlighted; drop highlight on the target row.",
+      "layout_or_fit_concern": "Browser is docked right per STU-SHL-089 while the controls open left: the eye must follow; flash the new entry."
+     },
+     "failure_a_professional_would_notice": "Search finds nothing because names differ from what a compositor types."
+    },
+    {
+     "n": 18,
+     "intent": "Set the Gradient Ramp values and keyframe its end point for a slow drift",
+     "human": {
+      "panel": "effect-controls",
+      "tool": null,
+      "gesture": "Scrub Start/End values, click the stopwatch on End of Ramp",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": null,
+      "parameters": {
+       "token": "composition",
+       "record": {
+        "effects": [
+         {
+          "filter_kind": "gradient_ramp",
+          "values": "end_of_ramp keyed 0 s to 12 s"
+         }
+        ]
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/composition.rs:273 effects; composite/src/temporal/composition/effects.rs:1-30 lowering samples each value per frame; composition/effect_stack.rs:1-55 kernels; hsk-studio-session/src/motion.rs:54 set_composition_records (validated, whole-record replace) or hsk-studio-harness-core/src/harness.rs:1500 Run::set_document_entry token composition; harness.rs:1400 restructure_and_entry makes it one undo step"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-002",
+       "line": 19395
+      },
+      {
+       "clause": "STU-FX-003",
+       "line": 19397
+      },
+      {
+       "clause": "STU-CMP-010",
+       "line": 29501
+      }
+     ],
+     "mts": [
+      "MT-261",
+      "MT-32790",
+      "MT-32791",
+      "MT-34072"
+     ],
+     "expected_state": "Effect value stream has two keys; ramp moves when rendered.",
+     "visual_check": {
+      "what_must_be_visible": "Two-column label and value rows; stopwatch per property; on-canvas handles for the two points in the viewer.",
+      "layout_or_fit_concern": "Effect-controls is field-dense, keep it to the left tab group and give it the full 260px; wheel scroll lane per STU-SHL-105."
+     },
+     "failure_a_professional_would_notice": "A point parameter stored as a fraction displays as 0.5 instead of pixels."
+    },
+    {
+     "n": 19,
+     "intent": "Create the title text layer NORTHLIGHT with the Type tool",
+     "human": {
+      "panel": "composition viewer",
+      "tool": "type (horizontal)",
+      "gesture": "Click in the viewer, type, Ctrl+Enter",
+      "shortcut_if_spec_defines_one": "Ctrl+Alt+Shift+T (New Text Layer, L28573)"
+     },
+     "agent_call": {
+      "command_id": "layer.restructure_and_entry",
+      "spec_command_label": "New Text Layer",
+      "parameters": {
+       "create": "Payload::Text layer",
+       "token": "text"
+      },
+      "status": "callable",
+      "reach": "rust_api",
+      "evidence": "harness.rs:1400; composite/src/temporal/composition.rs:953 Payload::Text in a composition; harness-view/src/view/text.rs:484 prepares glyphs for with_motion_records. On-canvas entry missing: No composition viewer: CompositionTemporalSource is built only in hsk-studio-harness-view/src/view/timeline_export/render_queue.rs:402 (export path); monitor.rs:529,643 builds SceneComposition for sequence frames only"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-005",
+       "line": 25959
+      },
+      {
+       "clause": "STU-MOT-131",
+       "line": 28353
+      }
+     ],
+     "mts": [
+      "MT-33852",
+      "MT-33853",
+      "MT-34032",
+      "MT-34033"
+     ],
+     "expected_state": "A text layer in T02_TEXT with the story stored.",
+     "visual_check": {
+      "what_must_be_visible": "Caret on canvas in the viewer, context bar switches to character fields.",
+      "layout_or_fit_concern": "On-canvas editing must not steal keys bound to timeline shortcuts."
+     },
+     "failure_a_professional_would_notice": "Single-letter shortcuts fire while typing."
+    },
+    {
+     "n": 20,
+     "intent": "Style the type: font, 96 pt, tracking, fill",
+     "human": {
+      "panel": "character",
+      "tool": null,
+      "gesture": "Edit character panel fields",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": null,
+      "parameters": {
+       "token": "text",
+       "font": "fixture OFL font",
+       "size_pt": 96,
+       "tracking": 200
+      },
+      "status": "callable",
+      "reach": "rust_api",
+      "evidence": "harness.rs:1500 doc comment names entry text; harness-view/src/view/text.rs:484 styled glyph preparation. Exact field set for each control UNVERIFIED: text.rs was read at the glyph function only"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-TYP-008",
+       "line": 9630
+      }
+     ],
+     "mts": [
+      "MT-198",
+      "MT-31116"
+     ],
+     "expected_state": "Type shaped by Studio's shaping stack and stored.",
+     "visual_check": {
+      "what_must_be_visible": "Character panel tab beside properties; live update in viewer.",
+      "layout_or_fit_concern": "`character` is not in the STU-SHL-089 default right groups; opening it must not push out properties."
+     },
+     "failure_a_professional_would_notice": "Font missing is silently substituted."
+    },
+    {
+     "n": 21,
+     "intent": "Add a text animator: per-character opacity 0 and Y position offset, with a Range selector",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": "text animator",
+      "gesture": "Layer outline, Text > Animate > Opacity, Add Position",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": null,
+      "parameters": {
+       "token": "motion",
+       "record": {
+        "text_animators": [
+         {
+          "selector": "range",
+          "based_on": "characters",
+          "properties": {
+           "opacity": 0,
+           "position": [
+            0,
+            60
+           ]
+          }
+         }
+        ]
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/motion_records.rs:316,358,375,428; composite/src/text/animate.rs; composite/src/temporal/motion_records.rs:1-16,580 with_motion_records; hsk-studio-session/src/motion.rs:98 set_motion_records (whole-record replace). Coverage of the 99 animator properties not counted here: UNVERIFIED"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-090",
+       "line": 28015
+      },
+      {
+       "clause": "STU-MOT-091",
+       "line": 28028
+      },
+      {
+       "clause": "STU-MOT-092",
+       "line": 28036
+      }
+     ],
+     "mts": [
+      "MT-33941",
+      "MT-33942",
+      "MT-33943"
+     ],
+     "expected_state": "Animator group in the record; glyphs at their offset state.",
+     "visual_check": {
+      "what_must_be_visible": "Outline shows Animator 1 > Range Selector 1 under Text, expanded, with filter box.",
+      "layout_or_fit_concern": "Deep property tree: the outline needs a filter box, otherwise 100+ rows scroll past."
+     },
+     "failure_a_professional_would_notice": "Animator rows hidden in a menu rather than the outline."
+    },
+    {
+     "n": 22,
+     "intent": "Keyframe the Range Selector Offset from -100% to 100% across 1.5 s, starting at the 2.0 s marker",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": null,
+      "gesture": "Move playhead, stopwatch on Offset, move, change value",
+      "shortcut_if_spec_defines_one": "J and K move between keys (L29057, L29055)"
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": "Add/Delete keyframe at current time",
+      "parameters": {
+       "token": "motion",
+       "record": "StudioTextStream offset keyed"
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/motion_records.rs:386 StudioTextParam, :416 StudioTextStream; hsk-studio-session/src/motion.rs:98 set_motion_records (whole-record replace)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-091",
+       "line": 28028
+      },
+      {
+       "clause": "STU-MOT-038",
+       "line": 27695
+      }
+     ],
+     "mts": [
+      "MT-33884",
+      "MT-33885",
+      "MT-33942"
+     ],
+     "expected_state": "Letters reveal left to right when rendered.",
+     "visual_check": {
+      "what_must_be_visible": "Diamonds in the row, a value readout, playhead snapping to the marker.",
+      "layout_or_fit_concern": "Diamond strip and values must align vertically with outline rows under any zoom."
+     },
+     "failure_a_professional_would_notice": "Playhead will not snap to a marker."
+    },
+    {
+     "n": 23,
+     "intent": "Apply a saved text-reveal preset to the second credit line",
+     "human": {
+      "panel": "preset-library",
+      "tool": null,
+      "gesture": "Double-click the preset with the layer selected",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "preset": "fixture .hsk motion preset"
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "composite/src/temporal/motion_preset.rs:166 apply_preset_record and motion/src/preset.rs:226 apply_preset write a PropertyStore; no caller outside the owning crate and its tests (git grep, excluding tests and examples); no bridge from PropertyStore back to Folio composition streams found in temporal/motion_preset.rs:1-10 docs"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-110",
+       "line": 28173
+      },
+      {
+       "clause": "STU-MOT-111",
+       "line": 28180
+      }
+     ],
+     "mts": [
+      "MT-33973",
+      "MT-33974"
+     ],
+     "expected_state": "Preset keys appear on the layer; mismatch fails loudly with PRESET_TARGET_INCOMPATIBLE.",
+     "visual_check": {
+      "what_must_be_visible": "Preset list with a hover animation preview.",
+      "layout_or_fit_concern": "Preset preview must not take focus from the timeline."
+     },
+     "failure_a_professional_would_notice": "A preset applied to the wrong layer type silently does nothing."
+    },
+    {
+     "n": 24,
+     "intent": "Draw the logo as a shape layer: polystar plus stroked ellipse, in one group",
+     "human": {
+      "panel": "composition viewer",
+      "tool": "shape tools",
+      "gesture": "Q to the tool, drag on canvas, Fill and Stroke in the context bar",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": "New Shape Layer",
+      "parameters": {
+       "token": "motion",
+       "record": {
+        "shape_layers": [
+         {
+          "items": [
+           "Polystar",
+           "Ellipse",
+           "Stroke",
+           "Fill"
+          ]
+         }
+        ]
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/motion_records.rs:156 StudioShapeItem (Rect, Ellipse, Polystar, Path, Fill, Stroke, GradientFill, GradientStroke, Trim, Offset, Merge, PuckerBloat, RoundCorners, Twist, WigglePaths, ZigZag, WiggleTransform, Repeater, Group), :286 StudioShapeLayer; composite/src/vector_nib/shape_layer.rs; tested in hsk-studio-harness/tests/render_queue_records.rs:1-5. Drawing on canvas missing: No composition viewer: CompositionTemporalSource is built only in hsk-studio-harness-view/src/view/timeline_export/render_queue.rs:402 (export path); monitor.rs:529,643 builds SceneComposition for sequence frames only"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-100",
+       "line": 28135
+      },
+      {
+       "clause": "STU-MOT-102",
+       "line": 28153
+      },
+      {
+       "clause": "STU-MOT-131",
+       "line": 28353
+      }
+     ],
+     "mts": [
+      "MT-33968",
+      "MT-33970",
+      "MT-34032",
+      "MT-34033"
+     ],
+     "expected_state": "Procedural shape layer evaluates every frame.",
+     "visual_check": {
+      "what_must_be_visible": "Handles on canvas; outline shows Contents > Group 1 with operators in order.",
+      "layout_or_fit_concern": "Tool Rail shape group shares a key and cycles (STU-MOT-131): show which is active."
+     },
+     "failure_a_professional_would_notice": "Order changes on reorder without a visible change in the outline."
+    },
+    {
+     "n": 25,
+     "intent": "Reveal the logo stroke with Trim Paths End 0 to 100, then Repeater copies with offset rotation",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": "shape operators",
+      "gesture": "Add > Trim Paths, Add > Repeater, key End",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": null,
+      "parameters": {
+       "token": "motion",
+       "record": "Trim and Repeater after Stroke; StudioShapeStream end keyed"
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/motion_records.rs:156 Trim, Repeater; :238 StudioShapeField; :277 StudioShapeStream; hsk-studio-session/src/motion.rs:98 set_motion_records (whole-record replace)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-102",
+       "line": 28153
+      },
+      {
+       "clause": "STU-MOT-103",
+       "line": 28158
+      }
+     ],
+     "mts": [
+      "MT-33970",
+      "MT-33971"
+     ],
+     "expected_state": "Stroke draws on across 1 s; six rotated copies appear.",
+     "visual_check": {
+      "what_must_be_visible": "Add menu in the outline row, operators listed in semantic order, drag to reorder.",
+      "layout_or_fit_concern": "Operator order is semantic: reordering must be obvious and undoable."
+     },
+     "failure_a_professional_would_notice": "Repeater applied to the wrong sub-group because the outline hides group scope."
+    },
+    {
+     "n": 26,
+     "intent": "Keyframe the title block: position push-in, scale 110 to 100, opacity 0 to 100",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": null,
+      "gesture": "Press P, S, T to reveal, stopwatches, drag values",
+      "shortcut_if_spec_defines_one": "Alt+Shift+P, Alt+Shift+S, Alt+Shift+T (L29048, L29050, L29047)"
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": "Add/Delete Position Keyframe at Current Time",
+      "parameters": {
+       "token": "composition",
+       "record": {
+        "streams": [
+         "position",
+         "scale",
+         "opacity"
+        ]
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/composition.rs:186 StudioCompositionKeyframe, :235 StudioPropertyStream, :201 only anchor, position, scale, rotation, opacity; hsk-studio-session/src/motion.rs:54 set_composition_records (validated, whole-record replace) or hsk-studio-harness-core/src/harness.rs:1500 Run::set_document_entry token composition; harness.rs:1400 restructure_and_entry makes it one undo step; sampled by composite/src/temporal/composition.rs:1441 scene_at. No STUDIO_COMPOSITION_*/STUDIO_KEYFRAME_* command: git grep in harness, harness-core, harness-view at c4d06841 finds no such id; RUN_COMMANDS (harness-core/src/action.rs:843) has no composition entry; CLI verbs at hsk-studio-harness/src/cli.rs:270-416 are help, descriptors, providers, open, panel, edit, verify, import, export, develop, export-sequence, batch, action"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-030",
+       "line": 27579
+      },
+      {
+       "clause": "STU-MOT-038",
+       "line": 27695
+      }
+     ],
+     "mts": [
+      "MT-33871",
+      "MT-33884",
+      "MT-33885"
+     ],
+     "expected_state": "Three keyed streams; adding a key leaves the render unchanged.",
+     "visual_check": {
+      "what_must_be_visible": "Diamonds at the playhead, numeric values follow scrubbing, one undo entry per gesture.",
+      "layout_or_fit_concern": "Scrub fields inside rows must not start a panel drag (STU-SHL-101)."
+     },
+     "failure_a_professional_would_notice": "Adding a key at the current time jumps the value."
+    },
+    {
+     "n": 27,
+     "intent": "Set a static opacity on the texture layer and rename it through the plain layer commands",
+     "human": {
+      "panel": "layers",
+      "tool": null,
+      "gesture": "Scrub opacity, double-click name",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "layer.set_opacity",
+      "spec_command_label": null,
+      "parameters": {
+       "layer": "tex",
+       "opacity": 35,
+       "then": {
+        "command": "layer.rename",
+        "name": "tex_grain"
+       }
+      },
+      "status": "callable",
+      "reach": "run_command",
+      "evidence": "action.rs:843 RUN_COMMANDS CMD_SET_OPACITY and CMD_RENAME, recordable; temporal/composition.rs:1-10 authored appearance opacity times the opacity stream"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-006",
+       "line": 25980
+      }
+     ],
+     "mts": [
+      "MT-33854"
+     ],
+     "expected_state": "Document layer updated, one recorded step each.",
+     "visual_check": {
+      "what_must_be_visible": "layers panel row and keyframe-timeline row show the same name and value.",
+      "layout_or_fit_concern": "Layers panel and timeline outline duplicate one stack; they must select in sync."
+     },
+     "failure_a_professional_would_notice": "Rename in one panel not reflected in the other until a refresh."
+    },
+    {
+     "n": 28,
+     "intent": "Apply Easy Ease to the keys",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": "keyframe-assistant",
+      "gesture": "Select keys, F9",
+      "shortcut_if_spec_defines_one": "F9, Shift+F9, Ctrl+Shift+F9 (L28634-28636)"
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": "Set Keyframe to Easy Ease",
+      "parameters": {
+       "selection": "title block keys"
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "motion/src/assistants.rs:64 ease works on a motion Property; no caller outside the owning crate and its tests (git grep, excluding tests and examples). Equivalent tangent values can be written by hand into StudioCompositionKeyframe (folio/src/composition.rs:177,186). No Folio adapter runs the assistant"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-037",
+       "line": 27680
+      },
+      {
+       "clause": "STU-MOT-038",
+       "line": 27695
+      }
+     ],
+     "mts": [
+      "MT-33883",
+      "MT-33884",
+      "MT-33885"
+     ],
+     "expected_state": "Keys change to ease-marked diamonds, default influence 0.16666666666 per spec.",
+     "visual_check": {
+      "what_must_be_visible": "Diamond icons change shape to show interpolation.",
+      "layout_or_fit_concern": "Key shapes must be distinct at small zoom."
+     },
+     "failure_a_professional_would_notice": "F9 fires no effect and no refusal message."
+    },
+    {
+     "n": 29,
+     "intent": "Open the Graph Editor and shape the speed curve of scale; fit view to the selection",
+     "human": {
+      "panel": "keyframe-timeline (graph mode)",
+      "tool": null,
+      "gesture": "Shift+F3, switch to Speed Graph, drag influence handles",
+      "shortcut_if_spec_defines_one": "Shift+F3 (Show/Hide Graph Editor, L29105)"
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": "Show/Hide Graph Editor",
+      "parameters": {
+       "property": "scale",
+       "graph": "speed"
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "motion/src/graph.rs:68 speed_at, :115 graph, :159 fit_range, :294 velocity_record, :321 set_velocity; no caller outside the owning crate and its tests (git grep, excluding tests and examples). panel id absent: git grep for keyframe-timeline, effect-controls, effects-browser, expression-editor, keyframe-assistant, comp-flowchart, preview-render, project-bin returned 0 hits under crates/; hsk-studio-harness-view/src/view/shell.rs:139-146 lists Layers, Properties, Info, Develop, LayoutEditor, ProgramMonitor, SourceMonitor, Timeline, Mixer, WaveformEditor, SpectralDisplay, PrototypePlayer"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-050",
+       "line": 27726
+      },
+      {
+       "clause": "STU-MOT-051",
+       "line": 27732
+      },
+      {
+       "clause": "STU-MOT-052",
+       "line": 27744
+      },
+      {
+       "clause": "STU-MOT-053",
+       "line": 27752
+      },
+      {
+       "clause": "STU-SHL-080",
+       "line": 32076
+      }
+     ],
+     "mts": [
+      "MT-33901",
+      "MT-33902",
+      "MT-33903",
+      "MT-33904",
+      "MT-34516"
+     ],
+     "expected_state": "Curve edits are ordinary key edits; undo is one step per drag.",
+     "visual_check": {
+      "what_must_be_visible": "Graph replaces the diamonds in place, same property outline left, same ruler above; value and speed units on the vertical axis.",
+      "layout_or_fit_concern": "Graph needs most of the 300px bottom band; maximise-panel must be one key."
+     },
+     "failure_a_professional_would_notice": "Graph opens in a separate window or loses the selected properties."
+    },
+    {
+     "n": 30,
+     "intent": "Enter exact velocity for one key",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": null,
+      "gesture": "Ctrl+Shift+K, edit influence and speed fields",
+      "shortcut_if_spec_defines_one": "Ctrl+Shift+K (Keyframe Velocity, L28555)"
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": "Keyframe Velocity (Edit in Dialog Box)",
+      "parameters": {
+       "key_index": 1,
+       "in": {
+        "speed": 0,
+        "influence": 75
+       }
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "motion/src/graph.rs:285,294,321 VelocityRecord; no caller outside the owning crate and its tests (git grep, excluding tests and examples)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-038",
+       "line": 27695
+      },
+      {
+       "clause": "STU-MOT-052",
+       "line": 27744
+      }
+     ],
+     "mts": [
+      "MT-33884",
+      "MT-33885",
+      "MT-33903"
+     ],
+     "expected_state": "Tangents match the typed values, per spec one history step.",
+     "visual_check": {
+      "what_must_be_visible": "Small modal with incoming and outgoing columns in the property's units.",
+      "layout_or_fit_concern": "Modal should open near the selected key and accept Enter/Escape."
+     },
+     "failure_a_professional_would_notice": "Fields use a different unit from the graph."
+    },
+    {
+     "n": 31,
+     "intent": "Separate dimensions on position so X and Y ease differently",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": null,
+      "gesture": "Right-click Position > Separate Dimensions",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "property": "position"
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "motion/src/graph.rs:179 separate_dimensions, :216 join_dimensions; no caller outside the owning crate and its tests (git grep, excluding tests and examples). Folio stream Position is 2 components in one stream (folio/src/composition.rs:201), and no record holds separated streams"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-039",
+       "line": 27718
+      },
+      {
+       "clause": "STU-MOT-052",
+       "line": 27744
+      }
+     ],
+     "mts": [
+      "MT-33900",
+      "MT-33903"
+     ],
+     "expected_state": "X and Y rows replace Position, render identical until edited.",
+     "visual_check": {
+      "what_must_be_visible": "Two rows with axis-coloured labels.",
+      "layout_or_fit_concern": "Row count changes must not scroll the selection off screen."
+     },
+     "failure_a_professional_would_notice": "Separating changes the existing motion."
+    },
+    {
+     "n": 32,
+     "intent": "Curve the motion path in the viewer with Bezier handles",
+     "human": {
+      "panel": "composition viewer",
+      "tool": "selection, pen convert vertex",
+      "gesture": "Drag spatial tangent handles on the path",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "property": "position",
+       "spatial_tangents": "per key"
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "motion/src/spatial.rs:35 SpatialTangents, :209 spatial_auto_bezier, motion/src/property.rs:116; folio/src/composition.rs:24-27 module docs: spatial tangents not stored; no caller outside the owning crate and its tests (git grep, excluding tests and examples). No composition viewer: CompositionTemporalSource is built only in hsk-studio-harness-view/src/view/timeline_export/render_queue.rs:402 (export path); monitor.rs:529,643 builds SceneComposition for sequence frames only"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-030",
+       "line": 27579
+      },
+      {
+       "clause": "STU-MOT-131",
+       "line": 28353
+      }
+     ],
+     "mts": [
+      "MT-33871",
+      "MT-34032",
+      "MT-34033"
+     ],
+     "expected_state": "Path curves; the layer follows it at the same timing.",
+     "visual_check": {
+      "what_must_be_visible": "Motion path dots per frame in the viewer, handles at keys.",
+      "layout_or_fit_concern": "Path overlay must have a toggle and not hide the subject."
+     },
+     "failure_a_professional_would_notice": "Every position animation runs in straight segments."
+    },
+    {
+     "n": 33,
+     "intent": "Add a null CTRL and parent the title, logo and rule layers to it",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": null,
+      "gesture": "Ctrl+Alt+Shift+Y, drag pick-whip in the Parent column",
+      "shortcut_if_spec_defines_one": "Ctrl+Alt+Shift+Y (New Null Object, L28570); Shift+F4 Parent column (L29112)"
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": "New Null Object",
+      "parameters": {
+       "token": "composition",
+       "record": {
+        "null": "Payload::Group layer",
+        "parent": "layer id on each child"
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/composition.rs:273 parent; temporal/composition.rs:1-20 parent chain, null is a group layer with group payload; temporal/composition.rs:975; hsk-studio-session/src/motion.rs:54 set_composition_records (validated, whole-record replace) or hsk-studio-harness-core/src/harness.rs:1500 Run::set_document_entry token composition; harness.rs:1400 restructure_and_entry makes it one undo step"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-008",
+       "line": 26024
+      }
+     ],
+     "mts": [
+      "MT-33857"
+     ],
+     "expected_state": "Moving CTRL moves children; opacity is not inherited.",
+     "visual_check": {
+      "what_must_be_visible": "Parent column shows the parent name; pick-whip draws a live line to the target row.",
+      "layout_or_fit_concern": "Parent column appears only on Shift+F4: must be discoverable from a column header menu."
+     },
+     "failure_a_professional_would_notice": "Parenting jumps the child because compensation is not applied."
+    },
+    {
+     "n": 34,
+     "intent": "Add wiggle(2, 12) as a position expression on CTRL",
+     "human": {
+      "panel": "keyframe-timeline / expression-editor",
+      "tool": null,
+      "gesture": "Alt-click Position stopwatch, type expression",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "property": "position",
+       "expression": "wiggle(2, 12)"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "motion/src/expr_catalogue.rs:10-14: lead decision G1 keeps ease, easeIn, easeOut, random, gaussRandom, noise, wiggle unavailable (binding returns SourceFunctionBindingUnavailable); motion-js/src/prelude.rs:150 asserts wiggle is in the unavailable list; StudioPropertyStream has no expression field (folio/src/composition.rs:235)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-070",
+       "line": 27799
+      },
+      {
+       "clause": "STU-MOT-073",
+       "line": 27860
+      },
+      {
+       "clause": "STU-MOT-074",
+       "line": 27934
+      }
+     ],
+     "mts": [
+      "MT-35301",
+      "MT-33934",
+      "MT-35297",
+      "MT-35298"
+     ],
+     "expected_state": "Position shows the expression state and a drifting value.",
+     "visual_check": {
+      "what_must_be_visible": "Value text colour marks the expression state; expression source row below the property.",
+      "layout_or_fit_concern": "A bright expression editor must not take a permanent 200px from the bottom band."
+     },
+     "failure_a_professional_would_notice": "The most used expression in the field is refused."
+    },
+    {
+     "n": 35,
+     "intent": "Add a Slider Control on CTRL and link the glow intensity to it with the pick-whip",
+     "human": {
+      "panel": "effect-controls + keyframe-timeline",
+      "tool": "pick-whip",
+      "gesture": "Add Expression Control > Slider; drag pick-whip to the slider",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "expression": "thisComp.layer(\"CTRL\").effect(\"Glow Amt\")(\"Slider\")"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "Expression control effects absent: folio/src/composition/effects.rs:237-256 has no slider, checkbox, point or layer control. git grep -i pick.?whip under crates/: 0 hits. STU-MOT-082 stable path unbuilt"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-080",
+       "line": 27986
+      },
+      {
+       "clause": "STU-MOT-082",
+       "line": 28006
+      }
+     ],
+     "mts": [
+      "MT-33938",
+      "MT-35378"
+     ],
+     "expected_state": "Glow amount follows the slider; inserted reference is a stable path.",
+     "visual_check": {
+      "what_must_be_visible": "Pick-whip line from property to target; inserted text in the expression field.",
+      "layout_or_fit_concern": "Pick-whip across panels needs both panels visible at once."
+     },
+     "failure_a_professional_would_notice": "Renaming a layer breaks the link."
+    },
+    {
+     "n": 36,
+     "intent": "Add a time-based expression on rule rotation and verify it evaluates deterministically",
+     "human": {
+      "panel": "expression-editor",
+      "tool": null,
+      "gesture": "Type time*12 in the property's expression",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "expression": "time*12"
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "motion/src/property.rs:300 set_expression, :403 evaluate_with; motion/src/store.rs:169 evaluate_tick; motion-js/src/provider.rs MotionJsProvider, quickjs_worker. temporal/motion.rs:2 says expressions are not evaluated here; folio/src/composition.rs:24-27 expressions not stored. Engine works in tests only: no caller outside the owning crate and its tests (git grep, excluding tests and examples)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-070",
+       "line": 27799
+      },
+      {
+       "clause": "STU-MOT-076",
+       "line": 27959
+      },
+      {
+       "clause": "STU-MOT-079",
+       "line": 27977
+      },
+      {
+       "clause": "STU-MOT-142",
+       "line": 29260
+      }
+     ],
+     "mts": [
+      "MT-33907",
+      "MT-33934",
+      "MT-33937"
+     ],
+     "expected_state": "Same frame gives the same bits on every render.",
+     "visual_check": {
+      "what_must_be_visible": "Rotation value updates while scrubbing, in expression colour.",
+      "layout_or_fit_concern": "Graph must show the expression's curve as a post-expression overlay."
+     },
+     "failure_a_professional_would_notice": "Expression applies in preview but not in a render."
+    },
+    {
+     "n": 37,
+     "intent": "Force a typo and read the error",
+     "human": {
+      "panel": "expression-editor",
+      "tool": null,
+      "gesture": "Type thisComp.layerx(1)",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "expression": "thisComp.layerx(1)"
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "motion/src/property.rs:202 disabled_by_error, motion/src/expression.rs:10 ExprErrorCode, :40 SourceSpan; no caller outside the owning crate and its tests (git grep, excluding tests and examples). expression-editor panel: panel id absent: git grep for keyframe-timeline, effect-controls, effects-browser, expression-editor, keyframe-assistant, comp-flowchart, preview-render, project-bin returned 0 hits under crates/; hsk-studio-harness-view/src/view/shell.rs:139-146 lists Layers, Properties, Info, Develop, LayoutEditor, ProgramMonitor, SourceMonitor, Timeline, Mixer, WaveformEditor, SpectralDisplay, PrototypePlayer"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-078",
+       "line": 27971
+      },
+      {
+       "clause": "STU-MOT-081",
+       "line": 27996
+      }
+     ],
+     "mts": [
+      "MT-33936",
+      "MT-33939"
+     ],
+     "expected_state": "Expression disabled and the reason stated; last good frame never rendered as an error image.",
+     "visual_check": {
+      "what_must_be_visible": "Error banner in the timeline with the line and column, a jump to source, and a re-enable button.",
+      "layout_or_fit_concern": "Banner must overlay rather than resize the panels."
+     },
+     "failure_a_professional_would_notice": "A modal error dialog per frame during scrubbing."
+    },
+    {
+     "n": 38,
+     "intent": "Pre-compose title, rule and CTRL into T02_TEXT with attributes moved inside",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": null,
+      "gesture": "Select layers, Ctrl+Shift+C, Move All Attributes",
+      "shortcut_if_spec_defines_one": "Ctrl+Shift+C (Pre-compose, L28583)"
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": "Pre-compose",
+      "parameters": {
+       "token": "composition",
+       "record": "new StudioComposition + group-payload layer with precomp source"
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/composition.rs:246 StudioPrecompSource; temporal/composition.rs:1-40; hsk-studio-session/src/motion.rs:54 set_composition_records (validated, whole-record replace) or hsk-studio-harness-core/src/harness.rs:1500 Run::set_document_entry token composition; harness.rs:1400 restructure_and_entry makes it one undo step. The operation itself is the caller's: git grep pre.?compose under crates/ hits only unrelated text code. No STUDIO_COMPOSITION_*/STUDIO_KEYFRAME_* command: git grep in harness, harness-core, harness-view at c4d06841 finds no such id; RUN_COMMANDS (harness-core/src/action.rs:843) has no composition entry; CLI verbs at hsk-studio-harness/src/cli.rs:270-416 are help, descriptors, providers, open, panel, edit, verify, import, export, develop, export-sequence, batch, action"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-005",
+       "line": 29485
+      }
+     ],
+     "mts": [
+      "MT-34071"
+     ],
+     "expected_state": "Stack shrinks to one precomp layer; render unchanged.",
+     "visual_check": {
+      "what_must_be_visible": "New comp in the bin, opens in a tab on double-click; breadcrumb up to parent.",
+      "layout_or_fit_concern": "Mini-flowchart breadcrumb belongs above the timeline."
+     },
+     "failure_a_professional_would_notice": "Pre-compose shifts timing when layers start at non-zero."
+    },
+    {
+     "n": 39,
+     "intent": "Enable collapse transformations on the logo precomp so its vectors stay sharp in 3D",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": null,
+      "gesture": "Click the collapse switch",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": null,
+      "parameters": {
+       "token": "composition",
+       "record": {
+        "precomp": {
+         "collapse_transformations": true
+        }
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/composition.rs:246; temporal/composition.rs:32-37; constants COMPOSITION_COLLAPSE_BLEND, COMPOSITION_COLLAPSE_MATTE at :134-135 refuse some combinations"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-006",
+       "line": 25980
+      },
+      {
+       "clause": "STU-CMP-016",
+       "line": 29547
+      }
+     ],
+     "mts": [
+      "MT-33854",
+      "MT-34076"
+     ],
+     "expected_state": "Nested layers join the outer stack; refusal code if a blend or matte conflicts.",
+     "visual_check": {
+      "what_must_be_visible": "Switch column shows the star state.",
+      "layout_or_fit_concern": "Switch column icons need tooltips; meaning differs by layer kind (STU-CMP-016)."
+     },
+     "failure_a_professional_would_notice": "Switch silently ignored on a refused combination."
+    },
+    {
+     "n": 40,
+     "intent": "Use the logo as an alpha matte over a moving texture",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": null,
+      "gesture": "Track Matte column pick-whip, set Alpha",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": null,
+      "parameters": {
+       "token": "composition",
+       "record": {
+        "track_matte": {
+         "source_layer_id": "logo",
+         "mode": "alpha",
+         "inverted": false
+        }
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/composition.rs:255,264; temporal/composition.rs:25-29; tested via composite/tests/composition_adapter.rs (not rerun here)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-030",
+       "line": 29650
+      },
+      {
+       "clause": "STU-CMP-031",
+       "line": 29665
+      }
+     ],
+     "mts": [
+      "MT-34089",
+      "MT-34091"
+     ],
+     "expected_state": "Texture visible only inside the logo; matte layer does not render.",
+     "visual_check": {
+      "what_must_be_visible": "Matte column shows source and mode; a matte layer row marked hidden.",
+      "layout_or_fit_concern": "Matte modes need an icon readable beside the source name."
+     },
+     "failure_a_professional_would_notice": "Moving the matte layer in the stack changes the result."
+    },
+    {
+     "n": 41,
+     "intent": "Draw and animate a feathered mask on the light streak",
+     "human": {
+      "panel": "composition viewer",
+      "tool": "pen",
+      "gesture": "G, click vertices, F to reveal feather, key Mask Path",
+      "shortcut_if_spec_defines_one": "G (Pen/Mask Feather cycle, L29217); Ctrl+Shift+N New Mask (L28569)"
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": "New Mask",
+      "parameters": {
+       "token": "composition",
+       "record": {
+        "masks": [
+         {
+          "mode": "add",
+          "closed": true,
+          "static_value": "6 numbers per vertex",
+          "feather": [
+           40,
+           40
+          ]
+         }
+        ]
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/composition.rs:627,653; composite/src/mask_paths.rs:116,288; effects.rs docs: masks folded before effects. Drawing missing: No composition viewer: CompositionTemporalSource is built only in hsk-studio-harness-view/src/view/timeline_export/render_queue.rs:402 (export path); monitor.rs:529,643 builds SceneComposition for sequence frames only"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-025",
+       "line": 29619
+      },
+      {
+       "clause": "STU-CMP-026",
+       "line": 29634
+      },
+      {
+       "clause": "STU-MOT-131",
+       "line": 28353
+      }
+     ],
+     "mts": [
+      "MT-34032",
+      "MT-34033",
+      "MT-34085",
+      "MT-34087"
+     ],
+     "expected_state": "Mask limits alpha; soft edge; path keys animate.",
+     "visual_check": {
+      "what_must_be_visible": "Mask outline in a per-mask colour on the canvas, feather outer line, vertices draggable; masks panel lists mode and inversion.",
+      "layout_or_fit_concern": "Pen key cycles four tools: the rail must show which is active."
+     },
+     "failure_a_professional_would_notice": "Mask opacity displayed as 0-1 instead of percent (STU-CMP-026)."
+    },
+    {
+     "n": 42,
+     "intent": "Set the streak's blend mode to Add",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": null,
+      "gesture": "Pick from the Mode column",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "layer.set_blend_mode",
+      "spec_command_label": null,
+      "parameters": {
+       "layer": "streak",
+       "blend_mode": "StudioBlendMode discriminant"
+      },
+      "status": "callable",
+      "reach": "run_command",
+      "evidence": "action.rs:843 CMD_SET_BLEND_MODE recordable, numeric discriminant only (comment at the entry: no name source)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-020",
+       "line": 29524
+      }
+     ],
+     "mts": [
+      "MT-34078"
+     ],
+     "expected_state": "Streak adds to the layers below.",
+     "visual_check": {
+      "what_must_be_visible": "Mode dropdown with hover preview in the viewer.",
+      "layout_or_fit_concern": "Mode column width must fit the longest mode name."
+     },
+     "failure_a_professional_would_notice": "Agent must know a number; names are not exposed by the command."
+    },
+    {
+     "n": 43,
+     "intent": "Add Glow to the logo and Gaussian Blur to the streak",
+     "human": {
+      "panel": "effect-controls",
+      "tool": null,
+      "gesture": "Effects Browser double-click, set threshold, radius, blurriness",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": null,
+      "parameters": {
+       "token": "composition",
+       "record": {
+        "effects": [
+         "glow",
+         "gaussian_blur"
+        ]
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/composition/effects.rs:237-256; composite/src/temporal/composition/effects.rs:32-60 (Glow operations None, Dissolve and others refused); a stack on a null, adjustment or collapsed precomp is refused at effects.rs:1-12. Glow on shape content UNVERIFIED: static content path read, not exercised"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-002",
+       "line": 19395
+      },
+      {
+       "clause": "STU-FX-003",
+       "line": 19397
+      },
+      {
+       "clause": "STU-CMP-010",
+       "line": 29501
+      }
+     ],
+     "mts": [
+      "MT-261",
+      "MT-32790",
+      "MT-32791",
+      "MT-34072"
+     ],
+     "expected_state": "Effects run after masks and before the transform.",
+     "visual_check": {
+      "what_must_be_visible": "Stack in effect-controls, drag to reorder, per-entry enable switch, Glow options summarised.",
+      "layout_or_fit_concern": "Long effect stacks need collapse-all and a per-effect reset."
+     },
+     "failure_a_professional_would_notice": "Blur clips at the layer bounds with no option to grow (effect_stack.rs:60 notes the output is clipped to the content rect)."
+    },
+    {
+     "n": 44,
+     "intent": "Add an adjustment layer with Levels and Tint over the whole title for the grade",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": null,
+      "gesture": "Ctrl+Alt+Y, apply effects",
+      "shortcut_if_spec_defines_one": "Ctrl+Alt+Y (New Adjustment Layer, L28563)"
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": "New Adjustment Layer",
+      "parameters": {
+       "effects": [
+        "levels",
+        "tint"
+       ]
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "composite/src/temporal/composition/effects.rs:1-12: a stack on an adjustment layer is refused COMPOSITION_EFFECT_CONTENT, adjustment-layer effects not in the lane. temporal/composition.rs:966 only lowers a Pigment AdjustmentOp from the primitive record"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-015",
+       "line": 29538
+      }
+     ],
+     "mts": [
+      "MT-34075"
+     ],
+     "expected_state": "Effects grade everything below; stack order decides what is graded.",
+     "visual_check": {
+      "what_must_be_visible": "Adjustment row with its half-tone icon; viewer changes as the layer moves.",
+      "layout_or_fit_concern": "None beyond the switch column."
+     },
+     "failure_a_professional_would_notice": "The first thing a finisher does on a master comp is refused."
+    },
+    {
+     "n": 45,
+     "intent": "Promote title elements to 3D: z positions and Y rotation",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": null,
+      "gesture": "Click 3D switch, R for rotation, set Z",
+      "shortcut_if_spec_defines_one": "Alt+Shift+C toggles casts shadows (L28675)"
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": null,
+      "parameters": {
+       "token": "composition",
+       "record": {
+        "three_d": {
+         "position_z": "keyed",
+         "rotation_y": "keyed"
+        }
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/composition.rs:348 StudioLayer3d; composite/src/three_d.rs, temporal/composition.rs:2023 three_d_planes_at. Render-queue path with 3D layers not exercised by a harness test (git grep three_d|camera on render_queue tests: no hit), so UNVERIFIED end to end"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-035",
+       "line": 29816
+      },
+      {
+       "clause": "STU-CMP-060",
+       "line": 29977
+      }
+     ],
+     "mts": [
+      "MT-34111",
+      "MT-34154"
+     ],
+     "expected_state": "Layers sit in depth; a 2D layer between 3D layers breaks the run.",
+     "visual_check": {
+      "what_must_be_visible": "Axis gizmo in the viewer; Z and X/Y rotation rows appear.",
+      "layout_or_fit_concern": "Run breaks should be flagged at the row (three_d_run_breaks exists at temporal/composition.rs:2213)."
+     },
+     "failure_a_professional_would_notice": "Hidden intersection or sort popping with no warning."
+    },
+    {
+     "n": 46,
+     "intent": "Add a camera, keyframe a dolly and rack focus",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": null,
+      "gesture": "Ctrl+Alt+Shift+C, set zoom, key Z and focus distance",
+      "shortcut_if_spec_defines_one": "Ctrl+Alt+Shift+C (New Camera Layer, L28564)"
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": "New Camera Layer",
+      "parameters": {
+       "token": "composition",
+       "record": {
+        "camera": "StudioCameraOptions",
+        "three_d": "position, rotation"
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/composition.rs:471 StudioCameraOptions, :450 iris; composite/src/three_d.rs:345,362,401; hsk-studio-session/src/motion.rs:54 set_composition_records (validated, whole-record replace) or hsk-studio-harness-core/src/harness.rs:1500 Run::set_document_entry token composition; harness.rs:1400 restructure_and_entry makes it one undo step"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-040",
+       "line": 29833
+      },
+      {
+       "clause": "STU-CMP-046",
+       "line": 29894
+      }
+     ],
+     "mts": [
+      "MT-34113",
+      "MT-34114",
+      "MT-34120"
+     ],
+     "expected_state": "Scene renders through the camera with depth of field.",
+     "visual_check": {
+      "what_must_be_visible": "Camera in the row list with an icon; viewer label names the active camera.",
+      "layout_or_fit_concern": "Viewer needs an active-camera dropdown without a menu dive."
+     },
+     "failure_a_professional_would_notice": "Depth of field parameters in unexplained units."
+    },
+    {
+     "n": 47,
+     "intent": "Frame the shot with the orbit and track tools and check from the top view",
+     "human": {
+      "panel": "composition viewer",
+      "tool": "orbit, track XY, track Z",
+      "gesture": "1 to cycle camera tools, drag; F10-F12 for custom views",
+      "shortcut_if_spec_defines_one": "1 (Orbit Camera, L29209); F10, F11, F12 (L28666-28668)"
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "view": "top"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "No composition viewer: CompositionTemporalSource is built only in hsk-studio-harness-view/src/view/timeline_export/render_queue.rs:402 (export path); monitor.rs:529,643 builds SceneComposition for sequence frames only. git grep orbit under harness-view/src: not found in a composition surface. Tool ids and shared-key cycling unbuilt"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-131",
+       "line": 28353
+      },
+      {
+       "clause": "STU-CMP-040",
+       "line": 29833
+      }
+     ],
+     "mts": [
+      "MT-34032",
+      "MT-34033",
+      "MT-34113",
+      "MT-34114"
+     ],
+     "expected_state": "Camera keys change only when the active view is the camera.",
+     "visual_check": {
+      "what_must_be_visible": "1-up/2-up layout with top view; wireframe layers; camera frustum.",
+      "layout_or_fit_concern": "Multiple views cost resolution: expose 1, 2, 4 view layouts in the viewer footer."
+     },
+     "failure_a_professional_would_notice": "Orbit in a custom view edits the camera."
+    },
+    {
+     "n": 48,
+     "intent": "Add a spot light casting shadows through the logo",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": null,
+      "gesture": "Ctrl+Alt+Shift+L, set cone, shadow on",
+      "shortcut_if_spec_defines_one": "Ctrl+Alt+Shift+L (New Light Layer, L28568)"
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": "New Light Layer",
+      "parameters": {
+       "token": "composition",
+       "record": {
+        "light": "StudioLightOptions",
+        "material": "StudioMaterialOptions"
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/composition.rs:501,510,524,398; temporal/composition.rs:2155 three_d_shadow_diagnostics; falloff enum declared gap at spec STU-CMP-105"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-045",
+       "line": 29867
+      },
+      {
+       "clause": "STU-CMP-046",
+       "line": 29894
+      },
+      {
+       "clause": "STU-CMP-105",
+       "line": 30244
+      }
+     ],
+     "mts": [
+      "MT-34117",
+      "MT-34118",
+      "MT-34120",
+      "MT-34216"
+     ],
+     "expected_state": "Layers lit; shadow falls on a 3D layer behind.",
+     "visual_check": {
+      "what_must_be_visible": "Light gizmo; cone preview on canvas.",
+      "layout_or_fit_concern": "Light rows should show type and colour chip."
+     },
+     "failure_a_professional_would_notice": "Shadows silently off because the renderer does not honour them; PLANAR_RENDERER inactive list must surface."
+    },
+    {
+     "n": 49,
+     "intent": "Turn on motion blur for the title block and logo, 180 degree shutter, 16 samples",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": null,
+      "gesture": "Layer MB switch, comp master MB",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": null,
+      "parameters": {
+       "token": "motion",
+       "record": {
+        "composition_settings": [
+         {
+          "motion_blur": true,
+          "shutter_angle": 180,
+          "shutter_phase": 0,
+          "samples_per_frame": 16,
+          "motion_blur_layers": [
+           "..."
+          ]
+         }
+        ]
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/motion_records.rs:624; temporal/composition.rs:859 with_motion_blur; render_queue.rs:176 item_motion_blur; hsk-studio-harness/tests/motion_records_session.rs:1-5 says motion blur samples the shutter window. Adaptive limit stored not built (motion_records.rs:624 block)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-004",
+       "line": 25915
+      }
+     ],
+     "mts": [
+      "MT-33849",
+      "MT-33850"
+     ],
+     "expected_state": "Fast moves blur at the stated samples.",
+     "visual_check": {
+      "what_must_be_visible": "Master switch in the timeline header; layer switch column.",
+      "layout_or_fit_concern": "Master and layer switch must be visibly separate states."
+     },
+     "failure_a_professional_would_notice": "Blur preview off, on in render, surprising the operator."
+    },
+    {
+     "n": 50,
+     "intent": "Stagger the five credit cards end to end with an overlap",
+     "human": {
+      "panel": "keyframe-assistant",
+      "tool": null,
+      "gesture": "Select layers top to bottom, Sequence Layers, overlap 12 frames, cross dissolve",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": "Sequence Layers",
+      "parameters": {
+       "overlap_frames": 12,
+       "transition": "dissolve"
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "motion/src/assistants.rs:251-272 LayerSpan, SequenceTransition, sequence_layers; no caller outside the owning crate and its tests (git grep, excluding tests and examples)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-038",
+       "line": 27695
+      },
+      {
+       "clause": "STU-SHL-079",
+       "line": 32074
+      }
+     ],
+     "mts": [
+      "MT-33884",
+      "MT-33885",
+      "MT-34515"
+     ],
+     "expected_state": "Layer in points staggered; undo as one step.",
+     "visual_check": {
+      "what_must_be_visible": "Bars in the timeline form a staircase.",
+      "layout_or_fit_concern": "keyframe-assistant is a rail icon per STU-SHL-089; do not open it as a modal."
+     },
+     "failure_a_professional_would_notice": "Selection order ignored."
+    },
+    {
+     "n": 51,
+     "intent": "Convert the music to keyframes and drive the streak's scale from the beat",
+     "human": {
+      "panel": "keyframe-assistant",
+      "tool": null,
+      "gesture": "Animation > Keyframe Assistant > Convert Audio to Keyframes",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "source": "music.wav",
+       "channel": "both_channels"
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "motion/src/audio_amplitude.rs:23-59 insert_audio_amplitude; no caller outside the owning crate and its tests (git grep, excluding tests and examples). Link from slider to scale also needs an expression (steps above)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-080",
+       "line": 27986
+      },
+      {
+       "clause": "STU-MOT-073",
+       "line": 27860
+      }
+     ],
+     "mts": [
+      "MT-33911",
+      "MT-33938"
+     ],
+     "expected_state": "An Audio Amplitude null with three slider streams.",
+     "visual_check": {
+      "what_must_be_visible": "A new null row with dense keys.",
+      "layout_or_fit_concern": "Dense keys must not slow timeline drawing."
+     },
+     "failure_a_professional_would_notice": "Keys sampled at the wrong rate after a comp fps change."
+    },
+    {
+     "n": 52,
+     "intent": "Time-remap the logo precomp so the reveal holds on the second hit",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": null,
+      "gesture": "Ctrl+Alt+T, add keys, drag",
+      "shortcut_if_spec_defines_one": "Ctrl+Alt+T (Enable Time Remapping, L28544)"
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": "Enable Time Remapping",
+      "parameters": {
+       "token": "composition",
+       "record": {
+        "time_remap": "StudioKeyedValue seconds per tick"
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/composition.rs:273 time_remap; temporal/composition.rs:57-72 and :1390. Only on a precomp: any other source refused COMPOSITION_TIME_SOURCE; footage not possible (see footage step)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-045",
+       "line": 23805
+      }
+     ],
+     "mts": [
+      "MT-33906"
+     ],
+     "expected_state": "Precomp frames follow the remap curve.",
+     "visual_check": {
+      "what_must_be_visible": "Time Remap row with value in timecode, a graph available.",
+      "layout_or_fit_concern": "Refusal must say that only precomps can be remapped today."
+     },
+     "failure_a_professional_would_notice": "Remap extends past source and the layer goes empty silently."
+    },
+    {
+     "n": 53,
+     "intent": "Preview the work area with audio, cached to memory",
+     "human": {
+      "panel": "preview-render",
+      "tool": null,
+      "gesture": "Space, or numpad 0 for a full cached preview",
+      "shortcut_if_spec_defines_one": "Space (Preview, L28862); Pad0 (L28877); Esc (L28873)"
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": "Preview",
+      "parameters": {
+       "range": "work area",
+       "skip": 0,
+       "resolution": "half"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "No composition viewer: CompositionTemporalSource is built only in hsk-studio-harness-view/src/view/timeline_export/render_queue.rs:402 (export path); monitor.rs:529,643 builds SceneComposition for sequence frames only. git grep -i ram.?preview|preview_cache|cache.?work.?area under crates/: 0 hits; preview_gate.rs exists for the sequence monitor. No playhead for compositions: STU-SHL-091 one-time-model absent"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-SHL-091",
+       "line": 32252
+      },
+      {
+       "clause": "STU-MOT-020",
+       "line": 27552
+      }
+     ],
+     "mts": [
+      "MT-33867",
+      "MT-34622"
+     ],
+     "expected_state": "Green cached bar grows; realtime or a stated fps; audio in sync.",
+     "visual_check": {
+      "what_must_be_visible": "Cache bar in the ruler; fps readout; preview-render group shows skip, resolution and range.",
+      "layout_or_fit_concern": "preview-render at share 0.14 is small: fits only if its controls are icon rows."
+     },
+     "failure_a_professional_would_notice": "No preview means every timing decision needs a render."
+    },
+    {
+     "n": 54,
+     "intent": "Inspect one frame at full quality at 5.5 s and keep it as a snapshot for comparison",
+     "human": {
+      "panel": "composition viewer",
+      "tool": null,
+      "gesture": "Alt+Shift+J to the time, Shift+F5, later F5",
+      "shortcut_if_spec_defines_one": "Alt+Shift+J (Go to Time, L28546); Shift+F5, F5 (L28442, L28424)"
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": "Go to Time",
+      "parameters": {
+       "tick": "5.5 s",
+       "api": "FrameRenderer::frame_at"
+      },
+      "status": "callable",
+      "reach": "rust_api",
+      "evidence": "harness-view/src/view/timeline_export/composition.rs:197,274 FrameRenderer::frame_at renders a composition frame with no GUI. Snapshot store: git grep Snapshot under harness-view found no comparison surface in this path; the still works, the snapshot does not"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-020",
+       "line": 27552
+      },
+      {
+       "clause": "STU-CMP-110",
+       "line": 30253
+      }
+     ],
+     "mts": [
+      "MT-33867",
+      "MT-34217"
+     ],
+     "expected_state": "A deterministic frame buffer at the requested tick.",
+     "visual_check": {
+      "what_must_be_visible": "Viewer shows the frame; snapshot toggles under a held key.",
+      "layout_or_fit_concern": "Footer shows resolution, time, channel, exposure; do not wrap at narrow widths."
+     },
+     "failure_a_professional_would_notice": "Frame shown differs from the render."
+    }
+   ]
+  },
+  {
+   "scene_id": "s3-vfx-screen-replacement",
+   "goal": "A 6 s handheld shot of a tablet with a green screen and four tracking dots, a hand crossing it. Replace the screen with the title render, key and roto the hand, match colour, blur and grain, and add a 3D-tracked lower third.",
+   "steps": [
+    {
+     "n": 55,
+     "intent": "Build the plate as a nested composition, one raster layer per frame, because footage layers do not exist",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": null,
+      "gesture": "Not a human workflow: runner workaround only",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": null,
+      "parameters": {
+       "token": "composition",
+       "record": "PLATE comp with 150 raster layers, each one frame long"
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "Folio: each document layer belongs to at most one composition (folio/src/composition.rs:20-24); layer timing at :126; precomp frame sampling at temporal/composition.rs:57-72; composite/tests/composition_roto.rs:1-5 nests a frame fixture the same way. Limits on 150 tiles at 1080p UNVERIFIED: not run"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-005",
+       "line": 25959
+      },
+      {
+       "clause": "STU-CMP-005",
+       "line": 29485
+      }
+     ],
+     "mts": [
+      "MT-33852",
+      "MT-33853",
+      "MT-34071"
+     ],
+     "expected_state": "Precomp plays the plate at frame rate.",
+     "visual_check": {
+      "what_must_be_visible": "Would be one footage row; today is 150 rows inside the precomp.",
+      "layout_or_fit_concern": "A professional would reject a 150-row stack; this exists only to let later steps run."
+     },
+     "failure_a_professional_would_notice": "This step exists at all."
+    },
+    {
+     "n": 56,
+     "intent": "Open the plate in the layer viewer and set the in and out bar",
+     "human": {
+      "panel": "source-viewer (Layer)",
+      "tool": null,
+      "gesture": "Enter on the layer",
+      "shortcut_if_spec_defines_one": "Enter (Open Layer Source in Layer Panel, L29160)"
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "layer": "plate"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "No composition viewer: CompositionTemporalSource is built only in hsk-studio-harness-view/src/view/timeline_export/render_queue.rs:402 (export path); monitor.rs:529,643 builds SceneComposition for sequence frames only. SourceMonitor (harness-view/src/view/source_monitor.rs) is for media of sequence clips; no composition layer source mode found"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-SHL-089",
+       "line": 32233
+      },
+      {
+       "clause": "STU-MOT-005",
+       "line": 25959
+      }
+     ],
+     "mts": [
+      "MT-33852",
+      "MT-33853",
+      "MT-34620"
+     ],
+     "expected_state": "Composition and layer viewers side by side as sibling editor groups.",
+     "visual_check": {
+      "what_must_be_visible": "Split centre: composition left, layer right, same time.",
+      "layout_or_fit_concern": "Splits must be sibling editor groups (STU-SHL-089), not floating windows."
+     },
+     "failure_a_professional_would_notice": "Time differs between the two viewers."
+    },
+    {
+     "n": 57,
+     "intent": "Switch to the Track Layout Preset and start a 4-point corner pin track",
+     "human": {
+      "panel": "tracker",
+      "tool": null,
+      "gesture": "Open Tracker, Track Motion, type Perspective corner pin, place four points on the dots",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": "Track Motion",
+      "parameters": {
+       "preset": "Track",
+       "points": 4
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "composite/src/tracker.rs:1-20,109 TrackerSession and typed TrackerCommand; pigment/src/track_math.rs:1262; no caller outside the owning crate and its tests (git grep, excluding tests and examples). Tracker panel and Track preset absent (git grep tracker panel id: 0 hits). composite/tests/tracker_commands.rs exercises it"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-065",
+       "line": 30002
+      },
+      {
+       "clause": "STU-CMP-065a",
+       "line": 30017
+      },
+      {
+       "clause": "STU-SHL-079",
+       "line": 32074
+      },
+      {
+       "clause": "STU-SHL-095",
+       "line": 32272
+      }
+     ],
+     "mts": [
+      "MT-34155",
+      "MT-34156",
+      "MT-34157",
+      "MT-34158"
+     ],
+     "expected_state": "Four track points with feature and search regions on the first frame.",
+     "visual_check": {
+      "what_must_be_visible": "Point regions on the layer viewer; tracker panel lists points, channel, attach point.",
+      "layout_or_fit_concern": "tracker is a right rail icon in STU-SHL-089; it should be opened by default in Track."
+     },
+     "failure_a_professional_would_notice": "Points placed in the composition viewer rather than the layer viewer behave differently."
+    },
+    {
+     "n": 58,
+     "intent": "Analyse forward across the shot, watching confidence",
+     "human": {
+      "panel": "tracker",
+      "tool": null,
+      "gesture": "Analyze Forward; Esc to cancel",
+      "shortcut_if_spec_defines_one": "Arrow keys nudge, Alt+[ and Alt+] the points bar (L28815, L28816)"
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "direction": "forward",
+       "frames": 150
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "pigment/src/track_math.rs:388 track_points, tracker.rs:1-20 analysis with cancel and determinate progress; needs LumaFrame inputs from the plate (track_math.rs:144,160), no host supplies them; no caller outside the owning crate and its tests (git grep, excluding tests and examples)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-065a",
+       "line": 30017
+      },
+      {
+       "clause": "STU-CMP-065b",
+       "line": 30022
+      }
+     ],
+     "mts": [
+      "MT-34162",
+      "MT-34163"
+     ],
+     "expected_state": "Per-frame samples; cancellable; never opens a foreground window.",
+     "visual_check": {
+      "what_must_be_visible": "Live point movement, frame counter, determinate progress in Jobs.",
+      "layout_or_fit_concern": "Analysis must not block scrubbing elsewhere."
+     },
+     "failure_a_professional_would_notice": "Analysis locks the app with no cancel."
+    },
+    {
+     "n": 59,
+     "intent": "Fix the drifting point where the hand crosses, and re-analyse from there",
+     "human": {
+      "panel": "tracker",
+      "tool": null,
+      "gesture": "Go to the frame, drag the point, Analyze Forward",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "frame": 72,
+       "point": 3
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "composite/src/tracker.rs:1-20 place a point on a frame, re-analyse from a corrected frame; no caller outside the owning crate and its tests (git grep, excluding tests and examples)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-065",
+       "line": 30002
+      }
+     ],
+     "mts": [
+      "MT-34155",
+      "MT-34156"
+     ],
+     "expected_state": "Earlier samples kept; later samples replaced.",
+     "visual_check": {
+      "what_must_be_visible": "Track-path dots with correction marks; confidence shown per frame.",
+      "layout_or_fit_concern": "Paths for four points must be tellable apart: per-point colours."
+     },
+     "failure_a_professional_would_notice": "Re-analysis overwrites the frames before the correction."
+    },
+    {
+     "n": 60,
+     "intent": "Apply the track to the screen insert as a corner pin",
+     "human": {
+      "panel": "tracker",
+      "tool": null,
+      "gesture": "Edit Target, Apply",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "target": "SCREEN_INSERT",
+       "api": "corner_frames_from_tracks + apply_corner_pin"
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "composite/src/track_apply.rs:330 corner_frames_from_tracks, :361 apply_corner_pin, :215 apply_track; pigment/src/track_math.rs:904 solve_corner_pin; no caller outside the owning crate and its tests (git grep, excluding tests and examples). Output is a Folio layer record, so a host would only have to store it"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-065",
+       "line": 30002
+      }
+     ],
+     "mts": [
+      "MT-34155",
+      "MT-34156"
+     ],
+     "expected_state": "Ordinary keyframes on the corner pin; normal undo.",
+     "visual_check": {
+      "what_must_be_visible": "Keys appear in the outline; the insert sits on the screen in the viewer.",
+      "layout_or_fit_concern": "Apply dialog must state which properties are written."
+     },
+     "failure_a_professional_would_notice": "Apply changes the layer's existing transform."
+    },
+    {
+     "n": 61,
+     "intent": "Place the title master on the tablet using the stored corner pin",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": null,
+      "gesture": "Drag T01_MAIN to the timeline, Effect > Corner Pin keys in place",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": null,
+      "parameters": {
+       "token": "composition",
+       "record": {
+        "corner_pin": {
+         "from": "quad",
+         "to": "8 component stream"
+        },
+        "precomp": "T01_MAIN"
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/composition.rs:690 StudioCornerPin; composite/src/track_apply.rs:395,405; constants COMPOSITION_CORNER_PIN, _CONTENT at track_apply.rs:52,55 refuse unsupported content; precomp plus corner pin combination UNVERIFIED"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-065",
+       "line": 30002
+      }
+     ],
+     "mts": [
+      "MT-34155",
+      "MT-34156"
+     ],
+     "expected_state": "Insert matches the screen on every frame.",
+     "visual_check": {
+      "what_must_be_visible": "Corner handles on canvas.",
+      "layout_or_fit_concern": "Handles must stay above the footage at any zoom."
+     },
+     "failure_a_professional_would_notice": "Swim of more than a fraction of a pixel, the main thing a VFX lead checks."
+    },
+    {
+     "n": 62,
+     "intent": "Track a planar surface on the tablet back for a logo decal",
+     "human": {
+      "panel": "tracker",
+      "tool": null,
+      "gesture": "Mask the region, Track Mask forward",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "api": "track_planar",
+       "mask": "decal region"
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "pigment/src/track_math.rs:1118 track_planar; composite/src/track_apply.rs:349 corner_frames_from_planar; composite/tests/mask_track_reapply.rs; no caller outside the owning crate and its tests (git grep, excluding tests and examples)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-065",
+       "line": 30002
+      }
+     ],
+     "mts": [
+      "MT-34155",
+      "MT-34156"
+     ],
+     "expected_state": "An animated mask path follows the surface.",
+     "visual_check": {
+      "what_must_be_visible": "Mask moves with a progress readout.",
+      "layout_or_fit_concern": "Mask tools and tracker must both be reachable: masks panel is an Inspect tab, tracker a rail icon."
+     },
+     "failure_a_professional_would_notice": "Mask vertex count changes between keys."
+    },
+    {
+     "n": 63,
+     "intent": "Stabilise a copy of the plate for clean-plate paint",
+     "human": {
+      "panel": "tracker",
+      "tool": null,
+      "gesture": "Stabilize Motion, axes X Y Rotation, smoothing 0",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "axes": [
+        "x",
+        "y",
+        "rotation"
+       ],
+       "smoothing_frames": 0
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "composite/src/track_apply.rs:272 stabilize, :63 MAX_SMOOTHING_FRAMES, :181 TrackAxes; no caller outside the owning crate and its tests (git grep, excluding tests and examples)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-065",
+       "line": 30002
+      }
+     ],
+     "mts": [
+      "MT-34155",
+      "MT-34156"
+     ],
+     "expected_state": "Feature holds still; writes keys inverse to the track.",
+     "visual_check": {
+      "what_must_be_visible": "Plate moves, the tracked feature is pinned.",
+      "layout_or_fit_concern": "Black edges show: a one-click review on the transparency grid."
+     },
+     "failure_a_professional_would_notice": "Stabilising alters the source layer rather than a copy."
+    },
+    {
+     "n": 64,
+     "intent": "Key the green screen with the Chroma key, keeping a screen-matte view",
+     "human": {
+      "panel": "effect-controls",
+      "tool": null,
+      "gesture": "Apply the Chroma key, sample the screen colour, view Screen Matte",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "filter_kind": "chroma_key",
+       "screen_colour": [
+        0.1,
+        0.8,
+        0.2
+       ]
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "pigment/src/keying.rs:95-392 ChromaKey, KeyStage, KeyKind; pigment/src/render_plan/extensions.rs:28,172,225 with_keys; render-cpu plan_sink runs it. Not reachable from a composition: no key kind in folio/src/composition/effects.rs:237-256 and git grep keying|KeyStage in composite/src: 0 hits"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-032",
+       "line": 29674
+      },
+      {
+       "clause": "STU-CMP-033",
+       "line": 29705
+      }
+     ],
+     "mts": [
+      "MT-34092",
+      "MT-34093",
+      "MT-34094",
+      "MT-34109"
+     ],
+     "expected_state": "Hand opaque, screen transparent, edge visible in the matte view.",
+     "visual_check": {
+      "what_must_be_visible": "Eyedropper on canvas; output view dropdown: final, screen matte, status.",
+      "layout_or_fit_concern": "Keying needs a matte view toggle one key away."
+     },
+     "failure_a_professional_would_notice": "A single opaque key with no way to look at the matte."
+    },
+    {
+     "n": 65,
+     "intent": "Refine the matte: choke, feather, despill, as separate stack entries",
+     "human": {
+      "panel": "effect-controls",
+      "tool": null,
+      "gesture": "Add Matte Choker and Spill Suppressor after the key, reorder",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "pipeline": [
+        "key",
+        "choke",
+        "feather",
+        "despill"
+       ]
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "pigment/src/keying.rs:218-231 Despill, SpillScreen, :341 KeyCleaner, :241 MatteCombine; pigment/src/render_plan/extensions.rs:135-138 refuses keys combined with an adjustment layer or effects (KeyCombination), which contradicts the visible-stack pipeline of STU-CMP-033"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-033",
+       "line": 29705
+      }
+     ],
+     "mts": [
+      "MT-34109"
+     ],
+     "expected_state": "Each stage is a visible, reorderable, maskable entry.",
+     "visual_check": {
+      "what_must_be_visible": "Stack shows pre-process, extract, refine, despill rows in order.",
+      "layout_or_fit_concern": "Stack reorder drag starts only at the entry header (STU-SHL-102)."
+     },
+     "failure_a_professional_would_notice": "Green fringe on hair and motion-blurred fingers."
+    },
+    {
+     "n": 66,
+     "intent": "Add a garbage mask around the tablet to clean the key",
+     "human": {
+      "panel": "composition viewer",
+      "tool": "pen",
+      "gesture": "G, draw, mode Subtract, invert",
+      "shortcut_if_spec_defines_one": "G (L29217)"
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": null,
+      "parameters": {
+       "token": "composition",
+       "record": {
+        "masks": [
+         {
+          "mode": "subtract",
+          "inverted": true
+         }
+        ]
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/composition.rs:627,653; composite/src/mask_paths.rs:102 combine modes. Refused on the document-graph path: mask_paths.rs:406; the scene path renders it"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-025",
+       "line": 29619
+      }
+     ],
+     "mts": [
+      "MT-34085"
+     ],
+     "expected_state": "Everything outside the tablet area removed.",
+     "visual_check": {
+      "what_must_be_visible": "Mask outline, mode in the masks panel.",
+      "layout_or_fit_concern": "None beyond the mask overlay."
+     },
+     "failure_a_professional_would_notice": "Mask ordering relative to the key is hidden: masks run before effects (STU-CMP-010)."
+    },
+    {
+     "n": 67,
+     "intent": "Roto Brush the hand: foreground strokes on the base frame",
+     "human": {
+      "panel": "source-viewer (Layer)",
+      "tool": "roto brush",
+      "gesture": "Draw strokes in the layer viewer; Alt for background",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": "Roto Brush",
+      "parameters": {
+       "token": "composition",
+       "record": {
+        "roto": {
+         "strokes": "StudioRotoStroke list",
+         "spans": "StudioRotoSpan"
+        }
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/composition/roto.rs:147,178,254 records store strokes; stroke entry on canvas missing: No composition viewer: CompositionTemporalSource is built only in hsk-studio-harness-view/src/view/timeline_export/render_queue.rs:402 (export path); monitor.rs:529,643 builds SceneComposition for sequence frames only"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-034",
+       "line": 29713
+      }
+     ],
+     "mts": [
+      "MT-34110",
+      "MT-36263"
+     ],
+     "expected_state": "Strokes in the roto record; base-frame segmentation visible once propagated.",
+     "visual_check": {
+      "what_must_be_visible": "Pink boundary on the layer viewer; green and red strokes; span bar under the view.",
+      "layout_or_fit_concern": "Strokes need the layer viewer; forcing them in the composition viewer breaks the mental model."
+     },
+     "failure_a_professional_would_notice": "Strokes drawn at a preview resolution stored wrong."
+    },
+    {
+     "n": 68,
+     "intent": "Propagate over the span; fix the frames where the boundary is lost",
+     "human": {
+      "panel": "source-viewer (Layer)",
+      "tool": "roto brush",
+      "gesture": "PageDown to step, add corrective strokes",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "api": "propagate_roto",
+       "engine": "classic"
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "composite/src/temporal/composition/roto.rs:344 propagate_roto, :642 with_roto, lost frames at :89,:200; engine learned refused model_unavailable; no caller outside the owning crate and its tests (git grep, excluding tests and examples): render path refuses COMPOSITION_ROTO_NOT_PROPAGATED because no host attaches mattes. Source must be a precomp"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-034",
+       "line": 29713
+      }
+     ],
+     "mts": [
+      "MT-34110",
+      "MT-36263"
+     ],
+     "expected_state": "Per-frame matte; lost frames listed; corrections carry on in the direction of travel.",
+     "visual_check": {
+      "what_must_be_visible": "Span bar coloured by frame state; a list of lost frames to jump to.",
+      "layout_or_fit_concern": "Long computation runs in Jobs; viewer stays responsive."
+     },
+     "failure_a_professional_would_notice": "A lost frame silently filled."
+    },
+    {
+     "n": 69,
+     "intent": "Refine the roto edge and freeze the result",
+     "human": {
+      "panel": "effect-controls",
+      "tool": null,
+      "gesture": "Refine edge strokes around fingers, Freeze",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "refine_edge_base_radius": 3,
+       "freeze": true
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "composite/src/temporal/composition/roto.rs:1-60 matte and refine stages, freeze; folio/src/composition/roto.rs:227,350; no caller outside the owning crate and its tests (git grep, excluding tests and examples)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-034",
+       "line": 29713
+      }
+     ],
+     "mts": [
+      "MT-34110",
+      "MT-36263"
+     ],
+     "expected_state": "Soft hair and motion edges; frozen frames stop recomputing.",
+     "visual_check": {
+      "what_must_be_visible": "Controls with a before and after view; freeze progress in Jobs.",
+      "layout_or_fit_concern": "Freeze state must show on the layer row."
+     },
+     "failure_a_professional_would_notice": "Refine destroys chatter reduction with no preview."
+    },
+    {
+     "n": 70,
+     "intent": "Solve the 3D camera from the plate and add a target for the lower third",
+     "human": {
+      "panel": "tracker",
+      "tool": null,
+      "gesture": "Track Camera; pick a ground plane; Create Text and Camera",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "api": "solve_camera + camera_layer + target_layer",
+       "zoom": "fixture focal"
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "composite/src/camera_solve.rs:425 solve_camera, :588 camera_layer, :635 target_layer; needs point tracks from the tracker session and returns StudioCompositionLayer records; no caller outside the owning crate and its tests (git grep, excluding tests and examples)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-065",
+       "line": 30002
+      }
+     ],
+     "mts": [
+      "MT-34155",
+      "MT-34156"
+     ],
+     "expected_state": "A camera layer plus a 3D target locked to the scene.",
+     "visual_check": {
+      "what_must_be_visible": "Point cloud overlaid on the viewer, ground plane hint.",
+      "layout_or_fit_concern": "Solve error figure must be visible; spec declares the metric as a gap (STU-CMP-065b)."
+     },
+     "failure_a_professional_would_notice": "Solve reports success while the target swims."
+    },
+    {
+     "n": 71,
+     "intent": "Lay the lower third onto the solved plane as a 3D text layer",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": null,
+      "gesture": "Parent the text to the target and set Z 0",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": null,
+      "parameters": {
+       "token": "composition",
+       "record": {
+        "three_d": "planar",
+        "parent": "target"
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/composition.rs:273,348; temporal/composition.rs:2023; text layer through the static path. Combination untested: UNVERIFIED"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-035",
+       "line": 29816
+      },
+      {
+       "clause": "STU-MOT-008",
+       "line": 26024
+      }
+     ],
+     "mts": [
+      "MT-33857",
+      "MT-34111"
+     ],
+     "expected_state": "Text sits on the surface in every frame.",
+     "visual_check": {
+      "what_must_be_visible": "3D axis gizmo aligned to the plane.",
+      "layout_or_fit_concern": "Do not hide the plate behind gizmos at low zoom."
+     },
+     "failure_a_professional_would_notice": "Text faces the camera rather than lying on the plane."
+    },
+    {
+     "n": 72,
+     "intent": "Match the insert to the plate: Levels, Color Balance, Exposure",
+     "human": {
+      "panel": "effect-controls + scopes",
+      "tool": null,
+      "gesture": "Adjust while reading scopes",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": null,
+      "parameters": {
+       "token": "composition",
+       "record": {
+        "effects": [
+         "levels",
+         "color_balance",
+         "exposure"
+        ]
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/composition/effects.rs:237-256; composite/src/temporal/composition/effects.rs:49-60. Scopes for a composition: scopes panel id not reached from any composition view: UNVERIFIED"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-002",
+       "line": 19395
+      },
+      {
+       "clause": "STU-SHL-089",
+       "line": 32233
+      }
+     ],
+     "mts": [
+      "MT-261",
+      "MT-32790",
+      "MT-34620"
+     ],
+     "expected_state": "Insert blacks and whites match the plate.",
+     "visual_check": {
+      "what_must_be_visible": "Scopes docked with layers in the third right group, live for the viewer frame.",
+      "layout_or_fit_concern": "Scopes sharing a tab with layers means you cannot see both; promote scopes to its own group in this preset."
+     },
+     "failure_a_professional_would_notice": "Scopes read the wrong colour space."
+    },
+    {
+     "n": 73,
+     "intent": "Add edge light wrap using a blurred precomp of the plate over the insert",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": null,
+      "gesture": "Duplicate, blur, matte to the insert edge, blend Add",
+      "shortcut_if_spec_defines_one": "Ctrl+D (Duplicate, L28541)"
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": null,
+      "parameters": {
+       "token": "composition",
+       "record": "duplicate precomp, gaussian_blur, track_matte; then layer.set_blend_mode"
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/composition.rs:255-264; effect stack on a precomp layer: effects.rs:1-12 refuses a collapsed one, a non-collapsed precomp is not listed as refused. Reading only; not run. One document layer per composition rule (composition.rs:20-24) means duplicate is a new layer id"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-030",
+       "line": 29650
+      },
+      {
+       "clause": "STU-FX-002",
+       "line": 19395
+      }
+     ],
+     "mts": [
+      "MT-261",
+      "MT-32790",
+      "MT-34089"
+     ],
+     "expected_state": "Bright plate edges bleed onto the insert.",
+     "visual_check": {
+      "what_must_be_visible": "Soft halo on edges at 200%.",
+      "layout_or_fit_concern": "Viewer needs a zoom and channel control in its footer."
+     },
+     "failure_a_professional_would_notice": "Blur clipped to the layer rect leaves a hard border."
+    },
+    {
+     "n": 74,
+     "intent": "Match grain with the plate's measured grain",
+     "human": {
+      "panel": "effect-controls",
+      "tool": null,
+      "gesture": "Apply Match Grain, pick plate as source",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "filter_kind": "match_grain"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "git grep -i -E match.?grain|add.?grain|fractal.?noise under crates/: only composite/src/three_d/immersive.rs:53 name; folio/src/composition/effects.rs:237-256 has no noise and grain family. Pigment add_noise exists (pigment/src/filter_math.rs:27) but not as a composition effect"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-130",
+       "line": 13163
+      }
+     ],
+     "mts": [
+      "MT-31502",
+      "MT-31503"
+     ],
+     "expected_state": "Insert grain indistinguishable from the plate.",
+     "visual_check": {
+      "what_must_be_visible": "Sampling box on canvas; a 100% before and after.",
+      "layout_or_fit_concern": "Grain must be checked at 100%: zoom shortcut in the viewer."
+     },
+     "failure_a_professional_would_notice": "Clean insert in a noisy plate is the first giveaway of a comp."
+    },
+    {
+     "n": 75,
+     "intent": "Add motion blur on the corner-pinned insert to match the shot's shutter",
+     "human": {
+      "panel": "keyframe-timeline",
+      "tool": null,
+      "gesture": "MB switch on the insert",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": null,
+      "parameters": {
+       "token": "motion",
+       "record": {
+        "motion_blur_layers": [
+         "insert"
+        ],
+        "shutter_angle": 172.8
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/motion_records.rs:624; temporal/composition.rs:472-478 COMPOSITION_MOTION_BLUR_LAYER and BLEND refuse some cases; corner-pin stream sampled per shutter sample: UNVERIFIED"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-004",
+       "line": 25915
+      }
+     ],
+     "mts": [
+      "MT-33849",
+      "MT-33850"
+     ],
+     "expected_state": "Insert blur matches the plate's on the fast pan.",
+     "visual_check": {
+      "what_must_be_visible": "Switch state, and the blurred frame at the pan.",
+      "layout_or_fit_concern": "Shutter sits in Composition Settings: show the comp value in the master switch's tooltip."
+     },
+     "failure_a_professional_would_notice": "Insert razor sharp against a blurred plate."
+    },
+    {
+     "n": 76,
+     "intent": "Add sparks where the hand touches the screen",
+     "human": {
+      "panel": "effect-controls",
+      "tool": null,
+      "gesture": "Apply the particle effect, emit on a layer, key birth rate",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "api": "composite particles"
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "composite/src/particles.rs (:166-371 scene-level types); composite/src/simulations.rs; git grep particle|simulations:: in temporal/composition.rs and temporal/composition/effects.rs: 0 hits, so no composition layer reaches it from a record"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-075",
+       "line": 30058
+      }
+     ],
+     "mts": [
+      "MT-34175",
+      "MT-34176"
+     ],
+     "expected_state": "Stateful simulation, deterministic per seed.",
+     "visual_check": {
+      "what_must_be_visible": "Preview cached; a seed field visible.",
+      "layout_or_fit_concern": "Particle parameter lists are very long: filter box in effect-controls."
+     },
+     "failure_a_professional_would_notice": "Sim differs after a mid-frame scrub."
+    },
+    {
+     "n": 77,
+     "intent": "Read the render graph for one frame to prove masks, key, matte and 3D ran in order",
+     "human": {
+      "panel": "Visual Debugger",
+      "tool": null,
+      "gesture": "Open the diagnostic on the frame",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "tick": "3 s"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "Spec requires per-layer stage report. Found only three_d_run_breaks (temporal/composition.rs:2213), three_d_shadow_diagnostics (:2155). git grep comp_flowchart, flowchart: 0 hits; no per-stage report"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-110",
+       "line": 30253
+      },
+      {
+       "clause": "STU-CMP-010",
+       "line": 29501
+      }
+     ],
+     "mts": [
+      "MT-34072",
+      "MT-34217"
+     ],
+     "expected_state": "Structured per-layer record of stages.",
+     "visual_check": {
+      "what_must_be_visible": "Tree beside the frame, each stage toggled in the viewer.",
+      "layout_or_fit_concern": "This is the only fast way to explain a bad comp to a no-context agent."
+     },
+     "failure_a_professional_would_notice": "A wrong frame has no structured diagnosis."
+    }
+   ]
+  },
+  {
+   "scene_id": "s4-review-and-output",
+   "goal": "Check the dependency tree, queue both deliverables with several outputs from one evaluation, render headless, verify by decoding back, collect the project.",
+   "steps": [
+    {
+     "n": 78,
+     "intent": "Review the project structure in the Composition Flowchart",
+     "human": {
+      "panel": "comp-flowchart",
+      "tool": null,
+      "gesture": "Open the flowchart from the comp breadcrumb",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "root": "V02_SCREEN"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "git grep -i flowchart under crates/: 0 hits. Data exists: StudioCompositionRecords precomp and parent links (folio/src/composition.rs:246,801)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-SHL-079",
+       "line": 32074
+      },
+      {
+       "clause": "STU-SHL-113",
+       "line": 32091
+      }
+     ],
+     "mts": [
+      "MT-34515",
+      "MT-34517",
+      "MT-34518"
+     ],
+     "expected_state": "Nodes for comps, layers, effects; matches the actual render dependencies.",
+     "visual_check": {
+      "what_must_be_visible": "Flow graph in the viewport; click a node to open it.",
+      "layout_or_fit_concern": "Must open as a sibling group and not replace the viewer."
+     },
+     "failure_a_professional_would_notice": "Orphan assets invisible until collect."
+    },
+    {
+     "n": 79,
+     "intent": "Open the Render Queue and add both comps",
+     "human": {
+      "panel": "render-queue",
+      "tool": null,
+      "gesture": "Ctrl+M with T01_MAIN then V02_SCREEN selected",
+      "shortcut_if_spec_defines_one": "Ctrl+M (Add Comp to Render Queue, L28520); Ctrl+Alt+0 panel (L28663)"
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": "Add Comp to Render Queue",
+      "parameters": {
+       "token": "motion",
+       "record": {
+        "render_queue": [
+         {
+          "item_id": "rq-title",
+          "composition_id": "T01_MAIN"
+         },
+         {
+          "item_id": "rq-vfx",
+          "composition_id": "V02_SCREEN"
+         }
+        ]
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/motion_records.rs:613 StudioRenderQueueItem; hsk-studio-session/src/motion.rs:98 set_motion_records (whole-record replace). render-queue panel id: only comments and test text (git grep render-queue); no panel"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-120",
+       "line": 28245
+      },
+      {
+       "clause": "STU-SHL-092",
+       "line": 32254
+      },
+      {
+       "clause": "STU-SHL-113",
+       "line": 32091
+      }
+     ],
+     "mts": [
+      "MT-34020",
+      "MT-34517",
+      "MT-34518",
+      "MT-34623"
+     ],
+     "expected_state": "Two queued items; panel owns configuration, Jobs owns execution.",
+     "visual_check": {
+      "what_must_be_visible": "Bottom tab Render Queue; rows with status, render settings summary, output summary, comp name.",
+      "layout_or_fit_concern": "render-queue shares the bottom band with the timeline as an icon; a long queue wants full width."
+     },
+     "failure_a_professional_would_notice": "Queue hides the timeline with no quick way back."
+    },
+    {
+     "n": 80,
+     "intent": "Set render settings: best quality, full resolution, 16 bpc, work area, motion blur on checked, frame blending per layer",
+     "human": {
+      "panel": "render-queue",
+      "tool": null,
+      "gesture": "Click the settings link, fill the form",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": null,
+      "parameters": {
+       "token": "motion",
+       "record": {
+        "quality": "best",
+        "resolution": "full",
+        "color_depth": "16_bits_per_channel",
+        "time_span": "work_area_only",
+        "motion_blur": "on_for_checked_layers",
+        "frame_blending": "on_for_checked_layers"
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/motion_records.rs:467-520 StudioRenderSettings; harness-view/src/view/timeline_export/render_queue.rs:132 render_settings, :176 item_motion_blur. harness-view/src/view/timeline_export/render_queue.rs:1-36 module docs list honoured and refused members. draft renders as best with a note; other frame rates, wireframe, effects all off, fields and pulldown are refused"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-121",
+       "line": 28251
+      },
+      {
+       "clause": "STU-MOT-121a",
+       "line": 28274
+      }
+     ],
+     "mts": [
+      "MT-34021",
+      "MT-34022",
+      "MT-34023"
+     ],
+     "expected_state": "current_settings kept distinct from an explicit value; refusals before rendering.",
+     "visual_check": {
+      "what_must_be_visible": "Each row shows options; current_settings tagged as tracking the comp.",
+      "layout_or_fit_concern": "104 controls per spec: group by quality, time, switches, no flat scroll."
+     },
+     "failure_a_professional_would_notice": "A setting is ignored, and you discover it after a 40 minute render."
+    },
+    {
+     "n": 81,
+     "intent": "Output module 1: master MOV DNxHR HQX",
+     "human": {
+      "panel": "render-queue",
+      "tool": null,
+      "gesture": "Click Output Module, format MOV, codec VC-3, audio on",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": null,
+      "parameters": {
+       "token": "motion",
+       "record": {
+        "format": "MovVc3",
+        "codec_option": "DNxHR profile",
+        "channels": "rgb",
+        "depth": 10,
+        "output_color_space": "rec709",
+        "audio": "on"
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "folio/src/motion_records.rs:542,587 StudioOutputModule; render_queue.rs:222 MovVc3; hsk-studio-harness/tests/render_queue_settings.rs"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-122",
+       "line": 28279
+      },
+      {
+       "clause": "STU-MOT-124",
+       "line": 28302
+      }
+     ],
+     "mts": [
+      "MT-34024",
+      "MT-34027"
+     ],
+     "expected_state": "Module validated against the item.",
+     "visual_check": {
+      "what_must_be_visible": "Summary line: format, codec, size, channels.",
+      "layout_or_fit_concern": "Output path shown in full, and a relative-root warning."
+     },
+     "failure_a_professional_would_notice": "File name template absent, so names are typed by hand per comp."
+    },
+    {
+     "n": 82,
+     "intent": "Output module 2: half-size review proxy in MP4 from the same evaluation",
+     "human": {
+      "panel": "render-queue",
+      "tool": null,
+      "gesture": "+ next to Output To, resize 50%",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": null,
+      "parameters": {
+       "token": "motion",
+       "record": {
+        "format": "Mp4Av1",
+        "resize": {
+         "width": 960,
+         "height": 540
+        }
+       }
+      },
+      "status": "callable",
+      "reach": "record_rewrite",
+      "evidence": "render_queue.rs:233-235 Mp4Av1; :1-10 rendered once for all modules (SharedFrames, composition.rs:345); hsk-studio-harness/tests/motion_records_session.rs:1-5. H.264 exists in reel (reel/src/export.rs:83) but StudioOutputFormat offers only MovVc3, MovAv1, Mp4Av1 (motion_records.rs:542)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-120",
+       "line": 28245
+      },
+      {
+       "clause": "STU-MOT-122",
+       "line": 28279
+      },
+      {
+       "clause": "STU-MOT-124",
+       "line": 28302
+      }
+     ],
+     "mts": [
+      "MT-34020",
+      "MT-34024",
+      "MT-34027"
+     ],
+     "expected_state": "Two outputs from one evaluation, one receipt per module.",
+     "visual_check": {
+      "what_must_be_visible": "Item expands to two module rows.",
+      "layout_or_fit_concern": "Row expansion: LeftArrow, RightArrow (L28922-28923)."
+     },
+     "failure_a_professional_would_notice": "Review delivery wants H.264, the only offer is AV1."
+    },
+    {
+     "n": 83,
+     "intent": "Output module 3: title with alpha for the editor, RGB+Alpha straight",
+     "human": {
+      "panel": "render-queue",
+      "tool": null,
+      "gesture": "Channels RGB+Alpha, codec with alpha",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "channels": "rgb_alpha",
+       "color": "straight"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "render_queue.rs:1-36: rgb_alpha refused output_alpha_codec, no reel encoder carries alpha. Channels alpha (grey matte) alone works as a separate pass"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-122",
+       "line": 28279
+      },
+      {
+       "clause": "STU-MOT-124",
+       "line": 28302
+      }
+     ],
+     "mts": [
+      "MT-34024",
+      "MT-34027"
+     ],
+     "expected_state": "File decodes with alpha.",
+     "visual_check": {
+      "what_must_be_visible": "Channel dropdown and a warning when the codec has no alpha.",
+      "layout_or_fit_concern": "Refusal must appear at the row before render starts."
+     },
+     "failure_a_professional_would_notice": "A title for an editor needs alpha; a two-file workaround costs a conform."
+    },
+    {
+     "n": 84,
+     "intent": "Output module 4: still sequence, PNG with the comp frame number",
+     "human": {
+      "panel": "render-queue",
+      "tool": null,
+      "gesture": "Format PNG Sequence, starting # uses comp frame",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "format": "png_sequence",
+       "use_comp_frame_number": true
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "StudioOutputFormat has three members (folio/src/motion_records.rs:542): MovVc3, MovAv1, Mp4Av1. STU-MOT-124 lists png, tif, dpx. PNG exists as single-frame export only (cli.rs:725 export)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-122",
+       "line": 28279
+      },
+      {
+       "clause": "STU-MOT-124",
+       "line": 28302
+      }
+     ],
+     "mts": [
+      "MT-34024",
+      "MT-34027"
+     ],
+     "expected_state": "One file per frame, numbered.",
+     "visual_check": {
+      "what_must_be_visible": "Name template field with a [####] token preview.",
+      "layout_or_fit_concern": "None beyond the template field."
+     },
+     "failure_a_professional_would_notice": "VFX delivery by frame sequence is impossible."
+    },
+    {
+     "n": 85,
+     "intent": "Confirm the colour mismatch warning appears before the render starts",
+     "human": {
+      "panel": "render-queue",
+      "tool": null,
+      "gesture": "Choose a non-matching output space and read the item",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.set_document_entry",
+      "spec_command_label": null,
+      "parameters": {
+       "token": "motion",
+       "record": {
+        "output_color_space": "display_p3"
+       }
+      },
+      "status": "callable",
+      "reach": "rust_api",
+      "evidence": "render_queue.rs:1-36 refused before rendering: any other output colour space (STU-MOT-122a before the render); returned as MonitorFail through session_render_queue_build :381. A warning surface on the row does not exist, only the refusal"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-122a",
+       "line": 28292
+      }
+     ],
+     "mts": [
+      "MT-34025"
+     ],
+     "expected_state": "Typed refusal before any frame renders.",
+     "visual_check": {
+      "what_must_be_visible": "Warning icon and text on the item row.",
+      "layout_or_fit_concern": "Warnings need a filter in a long queue."
+     },
+     "failure_a_professional_would_notice": "Warning found only after the render."
+    },
+    {
+     "n": 86,
+     "intent": "Reorder, duplicate items and apply saved templates and a post-render action",
+     "human": {
+      "panel": "render-queue",
+      "tool": null,
+      "gesture": "Drag rows, Ctrl+D, Settings Templates, Post-Render Action",
+      "shortcut_if_spec_defines_one": "Ctrl+D (Duplicate, L28541)"
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "template": "Master DNxHR",
+       "post_render_action": "import"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "Order is the list in the record (reorder by rewrite only). No template record: git grep -i OutputModuleTemplate|render_settings_template|output_module_template|RenderTemplate under crates/ excluding tests: 0 hits. Post-render actions refused: render_queue.rs:1-36; settings_enum at motion_records.rs:541 only stores them"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-125",
+       "line": 28310
+      }
+     ],
+     "mts": [
+      "MT-34028"
+     ],
+     "expected_state": "Commands are typed and headless.",
+     "visual_check": {
+      "what_must_be_visible": "Template dropdown on each row.",
+      "layout_or_fit_concern": "Row drag grips separate from selection clicks."
+     },
+     "failure_a_professional_would_notice": "Retyping a ten-field module for each of 20 versions."
+    },
+    {
+     "n": 87,
+     "intent": "Start the queue headless and watch progress in Jobs",
+     "human": {
+      "panel": "Jobs (shell pane)",
+      "tool": null,
+      "gesture": "Render button; or typed command from a script",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "session_render_queue_jobs",
+      "spec_command_label": "Start Render",
+      "parameters": {
+       "session": "the open Session",
+       "item_id": "rq-title",
+       "then": "reel ExportQueue::submit"
+      },
+      "status": "callable",
+      "reach": "rust_api",
+      "evidence": "harness-view/src/view/timeline_export/render_queue.rs:361,381; reel/src/export.rs:351,371 ExportQueue, submit; hsk-studio-harness/tests/motion_records_session.rs:1-5. No CLI verb: cli.rs grep render, composition, motion hits only image export. timeline.export_media_* is sequences only (timeline.rs:844 list)"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-120",
+       "line": 28245
+      },
+      {
+       "clause": "STU-MOT-125",
+       "line": 28310
+      },
+      {
+       "clause": "STU-SHL-092",
+       "line": 32254
+      }
+     ],
+     "mts": [
+      "MT-34020",
+      "MT-34028",
+      "MT-34623"
+     ],
+     "expected_state": "Each module writes a file; no foreground window opens.",
+     "visual_check": {
+      "what_must_be_visible": "Jobs lists queued, running, failed, artifact; per-item time remaining.",
+      "layout_or_fit_concern": "Jobs and render-queue are both bottom icons: starting a render should surface Jobs, without stealing focus."
+     },
+     "failure_a_professional_would_notice": "Rendering freezes the app."
+    },
+    {
+     "n": 88,
+     "intent": "Cancel the second item mid-render and read what the receipt names",
+     "human": {
+      "panel": "Jobs (shell pane)",
+      "tool": null,
+      "gesture": "Stop with the option Stop Now",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "api": "reel ExportHandle cancel"
+      },
+      "status": "callable",
+      "reach": "rust_api",
+      "evidence": "reel/src/export.rs:255-258 cancel: a queued item never starts, a running item stops at the next frame. Partial output named in a receipt per STU-MOT-125: git grep -i partial in reel/src/export.rs shows only derive lines, so UNVERIFIED and likely absent. Stop options list not found in render_queue.rs"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-125",
+       "line": 28310
+      }
+     ],
+     "mts": [
+      "MT-34028"
+     ],
+     "expected_state": "Partial output named in the receipt.",
+     "visual_check": {
+      "what_must_be_visible": "Row turns Stopped; a link to the partial file.",
+      "layout_or_fit_concern": "Stop Now and Stop After Current need separate controls."
+     },
+     "failure_a_professional_would_notice": "A half file left looking finished."
+    },
+    {
+     "n": 89,
+     "intent": "Verify the outputs by decoding them back: frame count, sample frames, audio placement",
+     "human": {
+      "panel": "Media Browser",
+      "tool": null,
+      "gesture": "Double-click outputs and scrub",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "reel decode",
+      "spec_command_label": null,
+      "parameters": {
+       "expect": {
+        "frames": 250,
+        "fps": 25,
+        "size": [
+         1920,
+         1080
+        ]
+       }
+      },
+      "status": "callable",
+      "reach": "rust_api",
+      "evidence": "hsk-studio-harness/tests/render_queue_records.rs:1-5 decodes both files back: frame times, colours at points, placed PCM"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-120",
+       "line": 28245
+      },
+      {
+       "clause": "STU-CMP-110",
+       "line": 30253
+      }
+     ],
+     "mts": [
+      "MT-34020",
+      "MT-34217"
+     ],
+     "expected_state": "Measured frames and colours match the expected.",
+     "visual_check": {
+      "what_must_be_visible": "Source viewer plays the output; report beside it.",
+      "layout_or_fit_concern": "Open output from the Jobs artifact link."
+     },
+     "failure_a_professional_would_notice": "Output differs from the frame shown in the viewer."
+    },
+    {
+     "n": 90,
+     "intent": "Place the finished comp as a clip in a sequence for the editor",
+     "human": {
+      "panel": "timeline",
+      "tool": null,
+      "gesture": "Drag comp from the bin into a sequence",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "source": "ClipSource::Primitive composition"
+      },
+      "status": "NOT_INSPECTED",
+      "reach": "none",
+      "evidence": "folio/src/timeline.rs:346 ClipSource::Primitive says a composition resolved by its owner; harness-view/src/view/timeline.rs:285 reads object_id. Whether any sequence render resolves a composition was not traced: NOT_INSPECTED"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-CMP-004",
+       "line": 29471
+      },
+      {
+       "clause": "STU-MOT-001",
+       "line": 23617
+      }
+     ],
+     "mts": [
+      "MT-33848",
+      "MT-34070",
+      "MT-35946"
+     ],
+     "expected_state": "Clip plays the live composition; edits update it.",
+     "visual_check": {
+      "what_must_be_visible": "Clip labelled with the comp's name and icon.",
+      "layout_or_fit_concern": "Switching timeline tabs per STU-SHL-091 keeps one playhead."
+     },
+     "failure_a_professional_would_notice": "A change in the comp does not reach the sequence."
+    },
+    {
+     "n": 91,
+     "intent": "Collect Files into a relocatable bundle and reopen it from another folder",
+     "human": {
+      "panel": "File menu",
+      "tool": null,
+      "gesture": "File > Dependencies > Collect Files",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "spec_command_label": null,
+      "parameters": {
+       "out": "bundle folder"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "git grep -i collect.?files under crates/: only hsk-studio-press-read filespec helpers; truth-check family Composition render and output says Collect files hit only in PDF text. Package itself is self-contained for embedded tiles, so a package copy partially serves: hsk-studio-package externals.rs:22-298"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-126",
+       "line": 28316
+      }
+     ],
+     "mts": [
+      "MT-34029"
+     ],
+     "expected_state": "Bundle opens with no absolute path, or a report of what could not be gathered.",
+     "visual_check": {
+      "what_must_be_visible": "Progress plus a report listing every asset.",
+      "layout_or_fit_concern": "Report opens in Problems, not a modal."
+     },
+     "failure_a_professional_would_notice": "Missing fonts discovered at the client's machine."
+    },
+    {
+     "n": 92,
+     "intent": "Undo the last record edit and confirm the frame reverts",
+     "human": {
+      "panel": "history",
+      "tool": null,
+      "gesture": "Ctrl+Z, watch the viewer",
+      "shortcut_if_spec_defines_one": "Ctrl+Z (L28398)"
+     },
+     "agent_call": {
+      "command_id": "history.undo",
+      "spec_command_label": null,
+      "parameters": {},
+      "status": "callable",
+      "reach": "run_command",
+      "evidence": "action.rs history.undo; harness.rs:1837; only entries written through restructure_and_entry or set_tiles_and_entry are one undo step (harness.rs:1400,1522). harness.rs:1500 set_document_entry alone says no record, and Session set_composition_records has no history. So a bare record write cannot be undone"
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-038",
+       "line": 27695
+      },
+      {
+       "clause": "STU-SHL-107",
+       "line": 32312
+      }
+     ],
+     "mts": [
+      "MT-33884",
+      "MT-33885",
+      "MT-34638"
+     ],
+     "expected_state": "History shows named steps; the render reverts.",
+     "visual_check": {
+      "what_must_be_visible": "history tab lists Add Keyframe, not Set Entry.",
+      "layout_or_fit_concern": "Names come from typed commands, so this depends on the command surface."
+     },
+     "failure_a_professional_would_notice": "Entry-level history names every edit the same, so undo is a blind walk."
+    }
+   ]
+  }
+ ],
+ "gui_review": {
+  "panels_needed_together": {
+   "animating": [
+    "composition viewer",
+    "keyframe-timeline",
+    "effect-controls",
+    "properties",
+    "preview-render",
+    "history"
+   ],
+   "tracking and roto": [
+    "composition viewer",
+    "source-viewer (layer mode) as a sibling editor group",
+    "tracker",
+    "keyframe-timeline",
+    "Jobs"
+   ],
+   "keying and finishing": [
+    "composition viewer with channel view",
+    "effect-controls",
+    "effects-browser",
+    "scopes",
+    "masks"
+   ],
+   "output": [
+    "render-queue",
+    "Jobs",
+    "Problems",
+    "source-viewer for outputs"
+   ]
+  },
+  "must_be_reachable_without_hunting": [
+   "Playhead time and go-to-time in every time surface, one shared time model (STU-SHL-091)",
+   "Property reveal keys and an outline filter box: the recovered property tree is too deep to scroll",
+   "Stopwatch, expression toggle and pick-whip on each property row",
+   "Graph mode toggle with Shift+F3, and maximise-panel for the 300px bottom band",
+   "Viewer footer: zoom, resolution, channel and alpha view, active camera, 3D view layout, snapshot",
+   "Master motion blur, draft 3D and live update switches in the timeline header",
+   "Layer switch columns with discoverable names, since meaning differs by layer kind (STU-CMP-016)",
+   "Add to render queue from the comp tab context, with refusals on the item row before start"
+  ],
+  "workspace_switches": [
+   "Composite to Animate: only dock arrangement, Tool Rail order and search bias change (STU-SHL-094); selection, playhead and history stay.",
+   "Composite to Track: tracker opens from a rail icon; layer viewer splits next to the composition viewer as a sibling group.",
+   "Composite to output: render-queue is a bottom rail icon; starting a render surfaces Jobs without stealing focus."
+  ],
+  "would_feel_incoherent": [
+   "layers panel and keyframe-timeline outline showing one stack with different selection or names: the composition default keeps both, so they must be one selection.",
+   "scopes tabbed with layers in the third right group (STU-SHL-089): both are wanted at once while grading; the operator must promote one in a single drag.",
+   "Stopwatch keys in effect-controls but graph only in the timeline: a key added on one must flash on the other.",
+   "A mask drawn in the composition viewer but roto strokes only in the layer viewer, with no hint in the Tool Rail.",
+   "History reading Set Entry for every edit, which is what document entry writes produce today.",
+   "Refusal codes such as COMPOSITION_EFFECT_CONTENT reaching the operator raw; they need a sentence naming the layer and the fix.",
+   "Two time rulers with different fps display after opening a precomp."
+  ],
+  "worst_concern": "There is no composition surface to judge: viewer, keyframe-timeline, graph, effect-controls, tracker and expression-editor have no panel id at c4d06841, so no layout or fit check in this scenario can run until the Vulkan GUI has them. On the specified layout itself, the 300px bottom band must hold outline, diamond strip, graph, ruler, work area and cache bar, and it will feel cramped unless maximise is one key."
+ },
+ "gaps": [
+  {
+   "rank": 1,
+   "what": "Typed composition, property, keyframe and expression commands (STUDIO_COMPOSITION_*, STUDIO_PROPERTY_*, STUDIO_KEYFRAME_*, STUDIO_EXPRESSION_*) in the corpus, each one named undo step, including add key at current value, new layer kinds, pre-compose, parent, switches.",
+   "status": "missing",
+   "blocks_steps": [
+    8,
+    10,
+    11,
+    13,
+    18,
+    21,
+    22,
+    24,
+    25,
+    26,
+    33,
+    38,
+    39,
+    40,
+    41,
+    43,
+    45,
+    46,
+    48,
+    49,
+    52,
+    55,
+    61,
+    66,
+    67,
+    71,
+    72,
+    73,
+    75,
+    79,
+    80,
+    81,
+    82
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-core",
+    "hsk-studio-session",
+    "hsk-studio-folio"
+   ],
+   "spec_clauses": [
+    "STU-MOT-130",
+    "STU-MOT-038",
+    "STU-CMP-110"
+   ],
+   "mts": [
+    "MT-33884",
+    "MT-33885",
+    "MT-34030",
+    "MT-34217"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Records, validation and the evaluator already exist, so this converts the most steps per unit of work. Script runs and every future panel dispatch through it; without it history is unnamed and a model must rewrite whole records."
+  },
+  {
+   "rank": 2,
+   "what": "Composition viewer, keyframe-timeline with the shared time model, graph mode, effect-controls, and playback with cached preview, on the Vulkan GUI.",
+   "status": "missing",
+   "blocks_steps": [
+    2,
+    29,
+    32,
+    47,
+    53,
+    54,
+    56
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "new Vulkan shell lane"
+   ],
+   "spec_clauses": [
+    "STU-SHL-089",
+    "STU-SHL-091",
+    "STU-MOT-050",
+    "STU-CMP-110"
+   ],
+   "mts": [
+    "MT-33901",
+    "MT-34217",
+    "MT-34620",
+    "MT-34622"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "Operator direction of 2026-11-07 puts a working Vulkan GUI first and this is that GUI for this domain. Ranked second only because the panels need the commands above to dispatch. No human half of any step works without it."
+  },
+  {
+   "rank": 3,
+   "what": "Footage layer kind: video or image sequence as a composition layer source, interpretation, frame access at source time.",
+   "status": "missing",
+   "blocks_steps": [
+    6,
+    7,
+    55
+   ],
+   "crates_likely": [
+    "hsk-studio-folio",
+    "hsk-studio-composite",
+    "hsk-studio-reel"
+   ],
+   "spec_clauses": [
+    "STU-MOT-005",
+    "STU-CMP-022"
+   ],
+   "mts": [
+    "MT-33852",
+    "MT-33853",
+    "MT-34084"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Every VFX shot starts here and tracker, key, roto and time remap all want it. The one-layer-per-frame workaround is not usable by people."
+  },
+  {
+   "rank": 4,
+   "what": "Host the tracking engines: tracker session on real frames, apply to records, stabilise, planar, camera solve, with a tracker panel and Jobs progress.",
+   "status": "engine_only",
+   "blocks_steps": [
+    57,
+    58,
+    59,
+    60,
+    62,
+    63,
+    70
+   ],
+   "crates_likely": [
+    "hsk-studio-composite",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-CMP-065",
+    "STU-CMP-065a"
+   ],
+   "mts": [
+    "MT-34155",
+    "MT-34156",
+    "MT-34162"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Engine and record output exist and are tested, so this is high return wiring; depends on footage for real frames."
+  },
+  {
+   "rank": 5,
+   "what": "Keying in the composition effect stack as visible stages, resolving the render-plan refusal of keys combined with effects; host roto propagation and matte attachment.",
+   "status": "engine_only",
+   "blocks_steps": [
+    64,
+    65,
+    68,
+    69
+   ],
+   "crates_likely": [
+    "hsk-studio-pigment",
+    "hsk-studio-folio",
+    "hsk-studio-composite"
+   ],
+   "spec_clauses": [
+    "STU-CMP-032",
+    "STU-CMP-033",
+    "STU-CMP-034"
+   ],
+   "mts": [
+    "MT-34092",
+    "MT-34093",
+    "MT-34109",
+    "MT-34110",
+    "MT-36263"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Pigment keying.rs is rich but unreachable from a composition. The KeyCombination refusal conflicts with STU-CMP-033, so this needs a design decision first."
+  },
+  {
+   "rank": 6,
+   "what": "Expressions end to end: expression field on Folio streams, evaluation in the composition adapter, slider and other control effects, editor, pick-whip with stable paths, and the G1 decision on wiggle, ease, random and noise.",
+   "status": "engine_only",
+   "blocks_steps": [
+    34,
+    35,
+    36,
+    37,
+    51
+   ],
+   "crates_likely": [
+    "hsk-studio-folio",
+    "hsk-studio-composite",
+    "hsk-studio-motion",
+    "hsk-studio-motion-js"
+   ],
+   "spec_clauses": [
+    "STU-MOT-070",
+    "STU-MOT-073",
+    "STU-MOT-080",
+    "STU-MOT-081",
+    "STU-MOT-082"
+   ],
+   "mts": [
+    "MT-33907",
+    "MT-33911",
+    "MT-33938",
+    "MT-33939",
+    "MT-35378"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "Motion graphics rigs depend on it and wiggle is the most used function. The engine is sandboxed and tested, but the catalogue decision blocks the key functions."
+  },
+  {
+   "rank": 7,
+   "what": "Render queue reach and formats: CLI and command verbs, RGB+alpha codec, image sequence output, H.264 module, templates, post-render actions, partial-output receipt, Collect Files.",
+   "status": "missing",
+   "blocks_steps": [
+    83,
+    84,
+    86,
+    87,
+    88,
+    91
+   ],
+   "crates_likely": [
+    "hsk-studio-harness",
+    "hsk-studio-folio",
+    "hsk-studio-reel",
+    "hsk-studio-package"
+   ],
+   "spec_clauses": [
+    "STU-MOT-122",
+    "STU-MOT-124",
+    "STU-MOT-125",
+    "STU-MOT-126"
+   ],
+   "mts": [
+    "MT-34024",
+    "MT-34027",
+    "MT-34028",
+    "MT-34029"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Render core works and has one-evaluation multi-output; these are the delivery blockers a client sees."
+  },
+  {
+   "rank": 8,
+   "what": "Keyframe assistants and Motion APIs bound to Folio records, plus stored spatial tangents and separated dimensions: Easy Ease, velocity, sequence layers, presets.",
+   "status": "engine_only",
+   "blocks_steps": [
+    23,
+    28,
+    30,
+    31,
+    32,
+    50
+   ],
+   "crates_likely": [
+    "hsk-studio-motion",
+    "hsk-studio-composite",
+    "hsk-studio-folio"
+   ],
+   "spec_clauses": [
+    "STU-MOT-037",
+    "STU-MOT-038",
+    "STU-MOT-052",
+    "STU-MOT-110"
+   ],
+   "mts": [
+    "MT-33883",
+    "MT-33884",
+    "MT-33885",
+    "MT-33903",
+    "MT-33973"
+   ],
+   "size": "small",
+   "why_it_ranks_here": "Logic exists; a small adapter between motion Property and Folio streams would serve all of them. Spatial tangents need a record field."
+  },
+  {
+   "rank": 9,
+   "what": "Missing layer kinds and effect catalogue: solid, adjustment-layer effect stacks, grain, wider catalogue (20 kinds implemented), particle and simulation effects reachable from records.",
+   "status": "missing",
+   "blocks_steps": [
+    16,
+    17,
+    44,
+    74,
+    76
+   ],
+   "crates_likely": [
+    "hsk-studio-folio",
+    "hsk-studio-composite",
+    "hsk-studio-pigment"
+   ],
+   "spec_clauses": [
+    "STU-MOT-005",
+    "STU-CMP-015",
+    "STU-FX-130",
+    "STU-CMP-075"
+   ],
+   "mts": [
+    "MT-31502",
+    "MT-31503",
+    "MT-33852",
+    "MT-33853",
+    "MT-34075",
+    "MT-34175",
+    "MT-34176"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "Solid and adjustment effects are small and urgent; the catalogue is long. Split when planned."
+  },
+  {
+   "rank": 10,
+   "what": "Composition record completeness: start timecode, drop frame, resolution, nested flags, renderer, markers; project-bin with folders; project settings after creation; New Project.",
+   "status": "missing",
+   "blocks_steps": [
+    1,
+    3,
+    9,
+    12,
+    14
+   ],
+   "crates_likely": [
+    "hsk-studio-folio",
+    "hsk-studio-session",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-MOT-004",
+    "STU-SHL-113"
+   ],
+   "mts": [
+    "MT-33849",
+    "MT-33850",
+    "MT-34517",
+    "MT-34518"
+   ],
+   "size": "small",
+   "why_it_ranks_here": "Cheap record fields, but mostly invisible until a GUI shows them."
+  },
+  {
+   "rank": 11,
+   "what": "Layout Presets for the composition profile, Composition Flowchart and per-layer render graph diagnostics.",
+   "status": "missing",
+   "blocks_steps": [
+    2,
+    77,
+    78
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-composite"
+   ],
+   "spec_clauses": [
+    "STU-SHL-093",
+    "STU-SHL-095",
+    "STU-SHL-079",
+    "STU-CMP-110"
+   ],
+   "mts": [
+    "MT-34217",
+    "MT-34515",
+    "MT-34624",
+    "MT-34626"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Follows the shell work; the render graph report is worth pulling forward for agents because it explains bad frames without a GUI."
+  }
+ ],
+ "coverage": {
+  "steps_total": 92,
+  "by_status": {
+   "callable": 48,
+   "missing": 21,
+   "engine_only": 22,
+   "NOT_INSPECTED": 1
+  },
+  "by_reach": {
+   "rust_api": 11,
+   "none": 22,
+   "record_rewrite": 33,
+   "run_command": 4,
+   "crate_api_unhosted": 22
+  },
+  "per_scene": {
+   "s1-project-setup": {
+    "callable": 9,
+    "missing": 6
+   },
+   "s2-title-sequence": {
+    "missing": 7,
+    "callable": 22,
+    "engine_only": 10
+   },
+   "s3-vfx-screen-replacement": {
+    "callable": 8,
+    "missing": 3,
+    "engine_only": 12
+   },
+   "s4-review-and-output": {
+    "missing": 5,
+    "callable": 9,
+    "NOT_INSPECTED": 1
+   }
+  },
+  "share_callable": 0.522,
+  "share_callable_by_script_alone": 0.043,
+  "share_callable_by_typed_operation_or_rust_host_excluding_record_rewrite": 0.163,
+  "share_engine_only": 0.239,
+  "share_missing": 0.228,
+  "share_project_runnable_today": "Script alone (RUN_COMMANDS, CLI): 4 of 92 steps, and none creates or animates a composition. A Rust program can reach every callable step: a reduced title (no expressions, easing assistants, graph, solid or adjustment effects) can be authored as records and rendered to DNxHR and AV1; this resembles existing harness tests but was not run, so it is UNVERIFIED. The VFX shot cannot reach its deliverable: footage, tracker host, key, roto and grain block it. A human can do none of this: no composition panel exists."
+ },
+ "runner_notes": {
+  "fixtures": "Generate the input_assets by script with a fixed seed; keep the plate's homography, the matte of the hand and the music transient times as ground truth files beside them. No proprietary material.",
+  "today_path": "Rust test-style driver with feature media: write_package, Run::open_bytes, Session::set_composition_records and set_motion_records, FrameRenderer::frame_at for stills, session_render_queue_jobs plus reel ExportQueue for files. Steps with status engine_only or missing are recorded as skipped with their gap, never faked.",
+  "after_drive": "When SMB-HARNESS-DRIVE-1 lands, command_id values here are its ids. Steps with command_id document.set_document_entry should move to STUDIO_* ids once they exist; spec_command_label names the spec row to bind.",
+  "determinism": "Fixed ticks (254016000000 per second, 25 fps = 10160640000 ticks per frame, as in hsk-studio-harness/tests/render_queue_records.rs:20-21). CPU backend for digests; the effect kernels state byte stability per platform and backend (composition/effect_stack.rs:20-23). Motion-JS: fixed Date profile and seed per STU-MOT-256.",
+  "comparison": {
+   "frames": "Decode outputs, compare to analytic expectations at chosen points, then a digest per platform for regressions.",
+   "track": "Corner error against the plate homography, in pixels per frame, threshold set before the run.",
+   "key and roto": "Matte against ground truth by mean absolute error, with worst frame reported.",
+   "records": "After save and reopen, composition and motion entries are byte-identical.",
+   "gui": "Argus or screenshot review against each visual_check; GUI build is pure Vulkan so selectors must be stable author ids; attach STU-SHL-108 gesture node reads for drag checks."
+  },
+  "cautions": [
+   "A 150-layer plate is a workaround: time and memory unmeasured.",
+   "Whole-record rewrites have no undo unless sent through restructure_and_entry or set_tiles_and_entry.",
+   "Rendering is long: run through the project's cargo and artifact rules; this scenario authored nothing of that kind."
+  ]
+ }
+}

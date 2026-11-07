@@ -1,0 +1,5558 @@
+{
+ "schema": "hsk.studio.workflow_scenario@1",
+ "id": "board-slides-web",
+ "title": "Harbour Lights Night Market 2027: campaign run from workshop to published site",
+ "domain": "campaign design: whiteboard, presentation, marketing assets, web",
+ "vendor_parity_targets": [
+  "FigJam",
+  "Figma Slides",
+  "Figma Buzz",
+  "Figma Sites",
+  "Figma Make"
+ ],
+ "deliverable": "One campaign, four linked deliverables: a workshop board with votes and a CSV of decisions; a 14-slide 16:9 launch deck as PDF; a marketing set of 4 formats by 6 stallholders (24 PNG files, a logo SVG and a poster PDF); and a responsive 2-page landing site published as static files to a local target folder.",
+ "code_revision": "c4d06841",
+ "spec_revision": "v02.229",
+ "status_rule": "callable = a RUN_COMMANDS id, CLI verb or public Viewer or LayoutEditor method that was read and can be called now. engine_only = public crate logic exists and was read, but no command or host reaches it. missing = searched and not found; evidence names each search, and the build of this file re-ran it with git grep at the revision and required zero hits. Every file:line was resolved at that revision by the same build; every clause line was resolved in the spec file. Nothing was built or run: callable is present and read, not proven working. agent_call.reach separates corpus or CLI from a Rust-only method. runs_only_on_stand_in marks a callable step whose real target does not exist yet.",
+ "workflow_basis": {
+  "method": "Step order paraphrased from public vendor help articles, found by search on 2026-11-07; search summaries were read, not every full article. No vendor text or asset was copied. Names in this file are the spec's. The help pages may be dated.",
+  "sources": [
+   "https://help.figma.com/hc/en-us/articles/8538436879767-Run-meetings-in-FigJam",
+   "https://help.figma.com/hc/en-us/articles/9359912208663-Run-voting-sessions-in-FigJam",
+   "https://help.figma.com/hc/en-us/articles/4939765379351-Organize-your-FigJam-board-with-sections",
+   "https://help.figma.com/hc/en-us/articles/24245848829847-Add-and-view-presenter-notes",
+   "https://help.figma.com/hc/en-us/articles/24338209202327-Present-a-slide-deck",
+   "https://help.figma.com/hc/en-us/articles/24244588378007-Use-slide-transitions",
+   "https://help.figma.com/hc/en-us/articles/24848334599447-Export-from-Figma-Slides",
+   "https://help.figma.com/hc/en-us/articles/31271824185623-Bulk-create-assets-in-Figma-Buzz",
+   "https://help.figma.com/hc/en-us/articles/34324344840855-Resize-assets-in-Figma-Buzz",
+   "https://help.figma.com/hc/en-us/articles/31271832936343-Export-assets-from-Figma-Buzz",
+   "https://help.figma.com/hc/en-us/articles/31242797809815-Add-or-delete-breakpoints-in-a-webpage",
+   "https://help.figma.com/hc/en-us/articles/33257143505175-Tips-for-creating-a-responsive-webpage-in-Figma-Sites"
+  ],
+  "unverified": [
+   "Figma Make prompt-to-app flow (step 87): the search returned nothing on it, so the step is UNVERIFIED against that product.",
+   "Publishing here is deliberately a static export to the operator's own target (STU-WEB-006), which differs from the vendor's hosted publishing."
+  ],
+  "parity_points_that_exceed_the_spec": [
+   "The vendor's presenter notes and notes-plus-audience presenting (steps 41, 53) have no clause in module 14.",
+   "The vendor's bulk create also sets asset size per row; this project covers sizes in steps 70 and 76."
+  ]
+ },
+ "input_assets": [
+  {
+   "name": "ideas.csv",
+   "kind": "synthetic",
+   "note": "40 rows of generated workshop ideas, with author and theme"
+  },
+  {
+   "name": "stallholders.csv",
+   "kind": "synthetic",
+   "note": "6 rows: name, tagline, @photo, #qr_url"
+  },
+  {
+   "name": "prior-campaign.jam",
+   "kind": "synthetic",
+   "note": "must be generated; no fixture exists. Marked as a blocker in runner_notes"
+  },
+  {
+   "name": "base.psd or base.ai",
+   "kind": "synthetic",
+   "note": "a generated solid-colour document, needed because no blank vector document can be created"
+  },
+  {
+   "name": "brand fonts",
+   "kind": "generated OFL-style test font",
+   "note": "regular and bold; none proprietary"
+  },
+  {
+   "name": "mood.png, stall-1..6.png",
+   "kind": "generated",
+   "note": "flat generated images with known pixel values, for comparison"
+  }
+ ],
+ "workspace_or_layout_preset": {
+  "primary_by_scene": {
+   "S1-workshop-board": null,
+   "S2-slide-deck": "Layout",
+   "S3-marketing-assets": "Illustrate",
+   "S4-landing-site": "Web"
+  },
+  "task_scopes": [],
+  "note": "Preset names are the proposed set of STU-SHL-095, operator decision OD-4 still open. None exists in code at this revision. The spec defines no preset, named signature or default layout for a board, and no slide-specific preset."
+ },
+ "scenes": [
+  {
+   "scene_id": "S1-workshop-board",
+   "goal": "Run the campaign kick-off workshop on a board: brief, stickies, clustering, dot voting, a priority matrix and a flow diagram, then hand the decisions to the deck.",
+   "steps": [
+    {
+     "n": 1,
+     "intent": "Create the campaign workshop file as a board document.",
+     "human": {
+      "panel": "board viewer (STU-SHL-066)",
+      "tool": null,
+      "gesture": "FILE > New > Blank Document, board profile",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "studio.document.new",
+      "parameters": {
+       "profile": "board"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'StudioBoard|board_node|BoardNode|whiteboard' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits",
+       "crates/hsk-studio-folio/src/lib.rs:172 `PageSpread,` (NodeKind ends at Layer, Artboard, PageSpread)",
+       "truth-check-20261105-mt-video-audio-design-web: whiteboard does not exist, 0 of 65 MTs have code"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-001:22461",
+      "STU-DOC-001:281",
+      "STU-SHL-047:31889"
+     ],
+     "mts": [
+      "MT-521",
+      "MT-33623",
+      "MT-35875",
+      "MT-002",
+      "MT-487",
+      "MT-519"
+     ],
+     "expected_state": "One document with a board container, empty unbounded surface, revision 0.",
+     "visual_check": {
+      "what_must_be_visible": "Document tab, an empty board with a visible origin and zoom readout; board object tools already offered.",
+      "layout_or_fit_concern": "New-document dialog must offer board first-class beside vector and layout, not as a template hidden under layout."
+     },
+     "failure_a_professional_would_notice": "The file opens with a fixed page or artboard edge: a board that has a border is not a board."
+    },
+    {
+     "n": 2,
+     "intent": "Arrange the workspace for facilitation.",
+     "human": {
+      "panel": "WORKSPACE > Layout Presets",
+      "tool": null,
+      "gesture": "WORKSPACE > Layout Presets, pick a job preset",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "studio.workspace.layout_preset",
+      "parameters": {
+       "preset": null
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'layout_preset|LayoutPreset' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits",
+       "Spec gap: STU-SHL-095 proposes twelve presets and none is for a board; STU-SHL-054 has no named signature for {board}; STU-SHL-084 to 092 give no board default layout. OD-4 is still open."
+      ]
+     },
+     "spec_clauses": [
+      "STU-SHL-095:32272",
+      "STU-SHL-054:31927",
+      "STU-SHL-093:32260"
+     ],
+     "mts": [
+      "MT-34626",
+      "MT-34489",
+      "MT-34624"
+     ],
+     "expected_state": "Effective layout resolved for the board profile signature.",
+     "visual_check": {
+      "what_must_be_visible": "Navigator, board object tools, the contextual board inspector and a results area for tallies.",
+      "layout_or_fit_concern": "Without a defined default, a board inherits a raster or vector layout full of irrelevant panels."
+     },
+     "failure_a_professional_would_notice": "Switching presets or profile hides a tool: STU-SHL-055 forbids presets from gating."
+    },
+    {
+     "n": 3,
+     "intent": "Add three boards: Brief, Affinity, Plan.",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": null,
+      "gesture": "Navigator, add board, rename",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "names": [
+        "Brief",
+        "Affinity",
+        "Plan"
+       ]
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'add_board|new_board|StudioBoard' over every crate's src at c4d06841: 0 hits",
+       "PageEdit::InsertPage exists for layout pages only; a board is a page-kind container in STU-WB-120 but no such container exists."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-002:22463",
+      "STU-WB-120:22334"
+     ],
+     "mts": [
+      "MT-522",
+      "MT-33624",
+      "MT-35360"
+     ],
+     "expected_state": "Three named boards in one document; each keeps its own viewport.",
+     "visual_check": {
+      "what_must_be_visible": "Navigator rows with names and thumbnails; the active board marked.",
+      "layout_or_fit_concern": "Must reuse the shared navigator, not a board-private one."
+     },
+     "failure_a_professional_would_notice": "Switching board resets zoom, or a new file is needed per exercise."
+    },
+    {
+     "n": 4,
+     "intent": "Bring in last campaign's board from a synthetic local copy.",
+     "human": {
+      "panel": "FILE > Open",
+      "tool": null,
+      "gesture": "FILE > Open a .jam fixture",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.import",
+      "parameters": {
+       "path": "fixtures/prior-campaign.jam"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-interop-fig-base/src/container.rs:10 `//! chunks, no trailing bytes (test: real_fig_fixtures_container_facts). The `fig-jam.` an` (the prelude is recognised as a kind; the chunk layout is not observed)",
+       "crates/hsk-studio-harness-view/src/view/design/fig_import.rs:52 `pub fn is_design_file(path: &Path) -> bool {`",
+       "No board node kind exists to map into, so the import has no target."
+      ]
+     },
+     "spec_clauses": [
+      "STU-IO-006 row 36:21583",
+      "STU-WB-127:22357",
+      "STU-IO-005:21535"
+     ],
+     "mts": [
+      "MT-443",
+      "MT-446",
+      "MT-447",
+      "MT-33601",
+      "MT-442",
+      "MT-456"
+     ],
+     "expected_state": "Board nodes imported with a receipt listing every loss.",
+     "visual_check": {
+      "what_must_be_visible": "Import receipt with counts per node kind and any loss.",
+      "layout_or_fit_concern": "Losses must be readable in a results panel, not a transient toast."
+     },
+     "failure_a_professional_would_notice": "Stickies come in as flat rectangles with loose text."
+    },
+    {
+     "n": 5,
+     "intent": "Start the Brief board from a local brainstorm template.",
+     "human": {
+      "panel": "library",
+      "tool": null,
+      "gesture": "FILE > New > From Template, or drag from the template gallery",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "template": "brainstorm"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'board_template|template_gallery' over every crate's src at c4d06841: 0 hits",
+       "Layout parent pages are the only template-like records and do not apply here."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-005:22487",
+      "STU-WB-124:22351"
+     ],
+     "mts": [
+      "MT-534",
+      "MT-33627",
+      "MT-35881",
+      "MT-33598"
+     ],
+     "expected_state": "Template nodes stamped as one undo step.",
+     "visual_check": {
+      "what_must_be_visible": "Gallery with CKC preview thumbnails, name and description; local templates listed first.",
+      "layout_or_fit_concern": "Gallery must not require network or an account (STU-AUT-020)."
+     },
+     "failure_a_professional_would_notice": "A template insert takes many undo steps, or offers a marketplace login."
+    },
+    {
+     "n": 6,
+     "intent": "Create named sections: Goals, Audience, Constraints, Parking Lot.",
+     "human": {
+      "panel": "board viewer + section inspector",
+      "tool": "Section (INSERT > Whiteboard Object)",
+      "gesture": "Drag a region, type the name",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "names": [
+        "Goals",
+        "Audience",
+        "Constraints",
+        "Parking Lot"
+       ]
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'section_contents_hidden|BoardSection' over every crate's src at c4d06841: 0 hits",
+       "Spec menu path: INSERT > Whiteboard Object, STU-SHL-033 line 31778."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-115:22315",
+      "STU-WB-133:22373"
+     ],
+     "mts": [
+      "MT-33590",
+      "MT-33607"
+     ],
+     "expected_state": "Four sections, each an addressable container and voting target.",
+     "visual_check": {
+      "what_must_be_visible": "Name tab on each section; inspector with fill, stroke, radius and collapsed state.",
+      "layout_or_fit_concern": "Section title must stay legible when zoomed far out."
+     },
+     "failure_a_professional_would_notice": "Moving a section leaves its contents behind."
+    },
+    {
+     "n": 7,
+     "intent": "Load 40 participant ideas from CSV as stickies.",
+     "human": {
+      "panel": "data-merge or import receipt",
+      "tool": null,
+      "gesture": "FILE > Import, map a column to sticky text",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "path": "fixtures/ideas.csv",
+       "column": "idea"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-interop-layout/src/data_merge.rs:137 `pub fn parse_delimited(bytes: &[u8], delimiter: char) -> Result<DataSource, MergeError> {` (reusable RFC 4180 parser, unreachable from any host and bound to stories)",
+       "looked: git grep -iE 'import_stickies|sticky_from_row' over every crate's src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-010:22510",
+      "STU-WB-127:22357",
+      "STU-WB-104:22285"
+     ],
+     "mts": [
+      "MT-539",
+      "MT-33632",
+      "MT-33601",
+      "MT-33579"
+     ],
+     "expected_state": "40 sticky nodes as one batch, laid out in a grid inside a section.",
+     "visual_check": {
+      "what_must_be_visible": "A tidy grid of stickies, each sized to its text.",
+      "layout_or_fit_concern": "Text must fit; stickies auto-size with no clipped lines."
+     },
+     "failure_a_professional_would_notice": "Rows arrive stacked on one coordinate, or as 40 undo steps."
+    },
+    {
+     "n": 8,
+     "intent": "Add a sticky by hand with the author shown.",
+     "human": {
+      "panel": "board viewer + sticky inspector",
+      "tool": "Sticky Note",
+      "gesture": "Press the tool, click, type",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "text": "Night-time parking is the blocker",
+       "author_visible": true,
+       "is_wide_width": false
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'author_visible|is_wide_width|sticky_note|StudioSticky' over every crate's src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-104:22285",
+      "STU-WB-134:22375"
+     ],
+     "mts": [
+      "MT-33579",
+      "MT-33608"
+     ],
+     "expected_state": "One sticky whose text is an ordinary text sublayer.",
+     "visual_check": {
+      "what_must_be_visible": "Sticky with colour, author name and live text caret.",
+      "layout_or_fit_concern": "Type immediately after click without another click."
+     },
+     "failure_a_professional_would_notice": "Sticky text uses a private text model: styles and find do not reach it."
+    },
+    {
+     "n": 9,
+     "intent": "Widen one sticky and recolour a theme group.",
+     "human": {
+      "panel": "sticky inspector",
+      "tool": "Selection",
+      "gesture": "Toggle wide, pick swatch",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "is_wide_width": true
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'is_wide_width' over every crate's src at c4d06841: 0 hits",
+       "crates/hsk-studio-harness-view/src/view/hosted.rs:219 `SetFill(Option<[u8; 3]>),` (fill exists for vector layers; no sticky to apply it to)"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-104:22285",
+      "STU-WB-102:22281"
+     ],
+     "mts": [
+      "MT-33579",
+      "MT-33577"
+     ],
+     "expected_state": "Wide variant set; fills linked to the shared swatches.",
+     "visual_check": {
+      "what_must_be_visible": "Swatch row in the inspector, matching the document swatches.",
+      "layout_or_fit_concern": "Sticky colours should not be a separate palette."
+     },
+     "failure_a_professional_would_notice": "Board colours cannot be changed from Swatches."
+    },
+    {
+     "n": 10,
+     "intent": "Draw a shape-with-text flow: Discover, Visit, Share.",
+     "human": {
+      "panel": "board viewer + shape inspector",
+      "tool": "Shape with text",
+      "gesture": "Pick a diagram shape, click, type",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "shape_type": "studio_declared:rectangle",
+       "text": "Discover"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'shape_with_text|shape_type_token' over every crate's src at c4d06841: 0 hits",
+       "crates/hsk-studio-harness-view/src/view/vector.rs:2598 `pub fn draw_shape(&mut self, kind: ShapeKind, a: [f64; 2], b: [f64; 2], constrain: bool) -` (a vector shape has no attached text that resizes it)"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-105:22287",
+      "STU-WB-129:22365"
+     ],
+     "mts": [
+      "MT-33580",
+      "MT-33603"
+     ],
+     "expected_state": "Three shapes that resize around their text.",
+     "visual_check": {
+      "what_must_be_visible": "Shape picker with native shapes; text centred inside.",
+      "layout_or_fit_concern": "The shape vocabulary (30 source tokens plus 12 native) needs search, not one long row."
+     },
+     "failure_a_professional_would_notice": "Longer text overflows the shape."
+    },
+    {
+     "n": 11,
+     "intent": "Connect the shapes with elbowed arrows attached to magnets.",
+     "human": {
+      "panel": "board viewer + connector inspector",
+      "tool": "Connector",
+      "gesture": "Drag from a shape edge to another shape",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "connector_line_type": "ELBOWED",
+       "connector_start": {
+        "endpoint_node_id": "shape-1",
+        "magnet": "RIGHT"
+       },
+       "connector_end": {
+        "endpoint_node_id": "shape-2",
+        "magnet": "AUTO"
+       },
+       "connector_end_stroke_cap": "ARROW_EQUILATERAL"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'connector_line_type|connector_start|endpoint_node_id' over every crate's src at c4d06841: 0 hits",
+       "crates/hsk-studio-folio/src/vector_markers.rs:16 `//! [`DEFAULT_MARKER_SCALE`] (100) is `studio_declared`, used by [`StudioStrokeMarkers::ne` (stroke arrowheads exist for vector strokes; ERD caps and magnets do not)"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-106:22289",
+      "STU-WB-107:22291",
+      "STU-WB-108:22293",
+      "STU-WB-109:22303",
+      "STU-WB-134:22375"
+     ],
+     "mts": [
+      "MT-33581",
+      "MT-33582",
+      "MT-33583",
+      "MT-33584",
+      "MT-33608"
+     ],
+     "expected_state": "Two connectors whose ends follow their nodes.",
+     "visual_check": {
+      "what_must_be_visible": "Magnet points on hover; the routed elbow line; the cap at the end.",
+      "layout_or_fit_concern": "Magnets must not clutter a dense board: show them only near the pointer."
+     },
+     "failure_a_professional_would_notice": "Dragging near a shape does not snap to a magnet, so the arrow floats."
+    },
+    {
+     "n": 12,
+     "intent": "Move a shape and confirm connectors reroute; read the geometry back.",
+     "human": {
+      "panel": "board viewer",
+      "tool": "Selection",
+      "gesture": "Drag the shape",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "read": "connector.resolved_geometry"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'reroute|resolved_geometry' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits",
+       "No connector router in any crate reachable from a board."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-108:22293",
+      "STU-WB-134:22375"
+     ],
+     "mts": [
+      "MT-33583",
+      "MT-33608"
+     ],
+     "expected_state": "Connector resolved geometry changes; endpoint record unchanged.",
+     "visual_check": {
+      "what_must_be_visible": "Line reroutes live during the drag.",
+      "layout_or_fit_concern": "Reroute must be stable: no zig-zag flips while dragging."
+     },
+     "failure_a_professional_would_notice": "Arrow stays at the old position until release, or jumps sides each frame."
+    },
+    {
+     "n": 13,
+     "intent": "Delete a target shape and check the connector breaks visibly.",
+     "human": {
+      "panel": "board viewer + problems",
+      "tool": "Selection",
+      "gesture": "Delete the shape",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {},
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'connector_endpoint_node_unresolvable' over every crate's src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-108:22293",
+      "STU-WB-142:22433"
+     ],
+     "mts": [
+      "MT-33583",
+      "MT-33611"
+     ],
+     "expected_state": "Connector in a broken state at its last known position; warning reported.",
+     "visual_check": {
+      "what_must_be_visible": "Broken end marked on the canvas; a row in problems naming connector and endpoint.",
+      "layout_or_fit_concern": "The broken mark must be findable after zooming out."
+     },
+     "failure_a_professional_would_notice": "The connector silently disappears."
+    },
+    {
+     "n": 14,
+     "intent": "Sketch over the flow with marker and highlighter ink.",
+     "human": {
+      "panel": "board viewer + stroke",
+      "tool": "Marker / Highlighter",
+      "gesture": "Draw on the board",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "tool": "highlighter",
+       "blend_mode": "multiply"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/view/edit.rs:56 `Pencil,` (a vector pencil tool exists; there is no ink profile)",
+       "looked: git grep -iE 'ink_profile|highlighter' over every crate's src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-117:22324"
+     ],
+     "mts": [
+      "MT-33592"
+     ],
+     "expected_state": "Vector paths carrying an ink profile; highlighter overlaps read as ink.",
+     "visual_check": {
+      "what_must_be_visible": "Smooth stroke following the pen; multiply overlap on the highlighter.",
+      "layout_or_fit_concern": "Ink tools must be one press away, not under a 21-member draw family."
+     },
+     "failure_a_professional_would_notice": "Highlighter hides text under it."
+    },
+    {
+     "n": 15,
+     "intent": "Cluster the stickies: select a group, align and distribute it.",
+     "human": {
+      "panel": "align-distribute",
+      "tool": "Selection",
+      "gesture": "Marquee, Align, Distribute",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "Viewer::hosted_action(Align, Distribute)",
+      "parameters": {
+       "to": "selection"
+      },
+      "status": "callable",
+      "reach": "rust_viewer_method",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/view/vector/arrange.rs:89 `pub fn align_layers(&mut self, layers: &[String], to: &AlignTarget, how: Align) -> Result<`",
+       "crates/hsk-studio-harness-view/src/view/vector/arrange.rs:99 `pub fn distribute_layers(&mut self, layers: &[String], to: &AlignTarget, how: Distribute) `",
+       "crates/hsk-studio-harness-view/src/view/hosted.rs:239 `Align { layers: Vec<String>, to: AlignTarget, how: Align },`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-102:22281",
+      "STU-UNI-003:22617"
+     ],
+     "mts": [
+      "MT-33577",
+      "MT-010",
+      "MT-490",
+      "MT-551"
+     ],
+     "expected_state": "Selected nodes aligned on one line with equal gaps, in one undo step.",
+     "visual_check": {
+      "what_must_be_visible": "Live smart guides and equal-gap marks.",
+      "layout_or_fit_concern": "Tidy-up should be a single gesture on a board, without opening a panel."
+     },
+     "failure_a_professional_would_notice": "Tidy reorders stickies or breaks section membership.",
+     "runs_only_on_stand_in": "Runs on vector layers only; no sticky exists. Shared-surface law STU-WB-102 is why it counts."
+    },
+    {
+     "n": 16,
+     "intent": "Start a 5 minute silent-ideation timer.",
+     "human": {
+      "panel": "facilitation surface",
+      "tool": "Timer Widget",
+      "gesture": "Set a duration and start",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "duration": 300,
+       "audio_enabled": false
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'timer_start|timer_done|FacilitationTimer' over every crate's src at c4d06841: 0 hits",
+       "Session state, never document authority, per STU-WB-121."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-121:22336",
+      "STU-WB-122:22343"
+     ],
+     "mts": [
+      "MT-33595",
+      "MT-33596"
+     ],
+     "expected_state": "Timer state running; events on the shared event surface.",
+     "visual_check": {
+      "what_must_be_visible": "Countdown visible to all participants without covering the board.",
+      "layout_or_fit_concern": "Timer placement must not float over content being worked on."
+     },
+     "failure_a_professional_would_notice": "The countdown drifts per participant, or stops when the timer panel closes."
+    },
+    {
+     "n": 17,
+     "intent": "Use spotlight and cursor chat with a second session attached.",
+     "human": {
+      "panel": "facilitation surface",
+      "tool": null,
+      "gesture": "Start spotlight; type on a cursor",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "presenter_actor": "facilitator",
+       "followers": [
+        "lane-2"
+       ]
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'spotlight|cursor_chat|follow_presenter' over every crate's src at c4d06841: 0 hits",
+       "looked: git grep -iE 'crdt' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits (no collaboration substrate at the host)"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-007:22493",
+      "STU-WB-121:22336",
+      "STU-WB-003:22465",
+      "STU-WB-123:22345"
+     ],
+     "mts": [
+      "MT-536",
+      "MT-537",
+      "MT-33629",
+      "MT-33595",
+      "MT-523",
+      "MT-33625"
+     ],
+     "expected_state": "Followers track the presenter viewport; chat is transient and unsaved.",
+     "visual_check": {
+      "what_must_be_visible": "Actor-named cursors; an exit-follow affordance on the follower side.",
+      "layout_or_fit_concern": "A follower must always be able to break out with one obvious control."
+     },
+     "failure_a_professional_would_notice": "Cursor chat text appears in the saved file."
+    },
+    {
+     "n": 18,
+     "intent": "Open a dot-vote: 3 votes each, anonymous, over the Affinity section.",
+     "human": {
+      "panel": "facilitation surface",
+      "tool": "Vote Marker",
+      "gesture": "Start voting, set allowance and scope",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "target_scope": "section:affinity",
+       "votes_per_participant": 3,
+       "anonymous": true
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'votes_per_participant|voting_session' over every crate's src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-121:22336",
+      "STU-WB-149:22447",
+      "STU-WB-150:22449"
+     ],
+     "mts": [
+      "MT-33595",
+      "MT-33618",
+      "MT-33619"
+     ],
+     "expected_state": "Open session; a fourth vote is refused with a typed error.",
+     "visual_check": {
+      "what_must_be_visible": "Remaining votes for the participant; scope highlighted.",
+      "layout_or_fit_concern": "The vote count must be always visible while voting."
+     },
+     "failure_a_professional_would_notice": "A participant can over-vote, or anonymous votes show a name."
+    },
+    {
+     "n": 19,
+     "intent": "Place vote stamps that stick to their stickies, then rearrange.",
+     "human": {
+      "panel": "board viewer",
+      "tool": "Stamp",
+      "gesture": "Click a sticky with the stamp tool, drag the sticky",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "stuck_to_node_id": "sticky-12"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'stuck_to_node_id' over every crate's src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-110:22305",
+      "STU-WB-118:22326",
+      "STU-WB-144:22437"
+     ],
+     "mts": [
+      "MT-33585",
+      "MT-33593",
+      "MT-33613"
+     ],
+     "expected_state": "Stamps move with their sticky; a resolved attribution remains queryable.",
+     "visual_check": {
+      "what_must_be_visible": "Stamp visibly attached; it follows during the drag.",
+      "layout_or_fit_concern": "Stamps on small stickies must remain countable at overview zoom."
+     },
+     "failure_a_professional_would_notice": "Stamps stay behind after the sticky moves."
+    },
+    {
+     "n": 20,
+     "intent": "Reveal and read the tally; capture it as structured data.",
+     "human": {
+      "panel": "facilitation surface + results",
+      "tool": null,
+      "gesture": "Reveal votes; sort by count",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "read": "voting.tally"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'voting_tally|vote_tally|tally_votes' over every crate's src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-121:22336",
+      "STU-WB-134:22375"
+     ],
+     "mts": [
+      "MT-33595",
+      "MT-33608"
+     ],
+     "expected_state": "Session revealed; tally is a derived read in the model surface.",
+     "visual_check": {
+      "what_must_be_visible": "Ranked list; clicking a row jumps to its sticky.",
+      "layout_or_fit_concern": "Results list and board must be visible together."
+     },
+     "failure_a_professional_would_notice": "A model cannot read the winner without parsing a screenshot."
+    },
+    {
+     "n": 21,
+     "intent": "Build the priority matrix as a board table: effort by impact.",
+     "human": {
+      "panel": "table inspector",
+      "tool": "Table",
+      "gesture": "Insert a 3 by 3 table, type cells",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "num_rows": 3,
+       "num_columns": 3,
+       "commands": [
+        "insert_row",
+        "resize_column",
+        "cell_at"
+       ]
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/tables.rs:51 `InsertTable { story: String, paragraph: usize, rows: u32, columns: u32, header_rows: u32 }` (the table editor exists only for a story in a layout document)",
+       "looked: git grep -iE 'table_index_out_of_range|board_table' over every crate's src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-113:22311",
+      "STU-WB-145:22439"
+     ],
+     "mts": [
+      "MT-33588",
+      "MT-33614"
+     ],
+     "expected_state": "A table node; stickies can be dragged near but are not cell content.",
+     "visual_check": {
+      "what_must_be_visible": "Row and column handles; cell fills.",
+      "layout_or_fit_concern": "Must feel like the layout table editing, not a second table model."
+     },
+     "failure_a_professional_would_notice": "Index errors crash or silently clamp."
+    },
+    {
+     "n": 22,
+     "intent": "Add reference material: a link and a mood image.",
+     "human": {
+      "panel": "media and link inspector",
+      "tool": "Link, Media",
+      "gesture": "Paste a URL; drop an image",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "link_unfurl": "https://example.test/market",
+       "media_embed": "fixtures/mood.png"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'link_unfurl|media_embed' over every crate's src at c4d06841: 0 hits",
+       "With no network a link renders as a plain link and says so (STU-WB-116, STU-WB-151)."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-116:22317",
+      "STU-WB-132:22371",
+      "STU-WB-151:22451"
+     ],
+     "mts": [
+      "MT-33591",
+      "MT-33606",
+      "MT-33620"
+     ],
+     "expected_state": "A link node and a CKC-linked media node.",
+     "visual_check": {
+      "what_must_be_visible": "Link card, or a plain link labelled as not unfurled.",
+      "layout_or_fit_concern": "No broken-image look when offline."
+     },
+     "failure_a_professional_would_notice": "Offline link shows an empty broken card."
+    },
+    {
+     "n": 23,
+     "intent": "Ask a model lane to draft the visitor-flow diagram from the winning stickies.",
+     "human": {
+      "panel": "proposal review",
+      "tool": "Diagram from Text",
+      "gesture": "INSERT > Whiteboard Object > Diagram from Text",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "source": "section:affinity",
+       "kind": "flowchart"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'StudioCommandBatch|command_builder|CommandBuilder' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits",
+       "looked: git grep -iE 'diagram_generation|generate_diagram' over every crate's src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-009:22506",
+      "STU-WB-125:22353",
+      "STU-WB-126:22355",
+      "STU-AUT-124:21828"
+     ],
+     "mts": [
+      "MT-538",
+      "MT-33631",
+      "MT-35889",
+      "MT-33599",
+      "MT-33600",
+      "MT-33477"
+     ],
+     "expected_state": "One proposal; accept applies it; 200 nodes undo in one step.",
+     "visual_check": {
+      "what_must_be_visible": "Ghost preview of the proposal with accept and reject; actor shown as a model.",
+      "layout_or_fit_concern": "The proposal must not land on top of live work without an offset."
+     },
+     "failure_a_professional_would_notice": "Generated nodes mutate the document before review."
+    },
+    {
+     "n": 24,
+     "intent": "Collapse finished sections and undo the last collapse.",
+     "human": {
+      "panel": "history",
+      "tool": "Selection",
+      "gesture": "Toggle collapse, EDIT > Undo",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "history.undo",
+      "parameters": {},
+      "status": "callable",
+      "reach": "corpus_or_cli",
+      "evidence": [
+       "crates/hsk-studio-harness-core/src/action.rs:873 `entry(\"history.undo\", \"undo\", \"Undo\", false, true, &[]),`",
+       "looked: git grep -iE 'section_contents_hidden' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits (collapse itself does not exist)"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-115:22315",
+      "STU-UNI-003:22617"
+     ],
+     "mts": [
+      "MT-33590",
+      "MT-010",
+      "MT-490",
+      "MT-551"
+     ],
+     "expected_state": "Undo restores the previous state.",
+     "visual_check": {
+      "what_must_be_visible": "History row named with the action and actor.",
+      "layout_or_fit_concern": "One history for board and everything else."
+     },
+     "failure_a_professional_would_notice": "Board edits do not appear in History.",
+     "runs_only_on_stand_in": "Undo is real; there is no board edit for it to act on."
+    },
+    {
+     "n": 25,
+     "intent": "Save the board and verify the reopened file.",
+     "human": {
+      "panel": "FILE",
+      "tool": null,
+      "gesture": "FILE > Save As, verify",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.save + document.verify",
+      "parameters": {
+       "path": "out/harbour-workshop.handshake"
+      },
+      "status": "callable",
+      "reach": "corpus_or_cli",
+      "evidence": [
+       "crates/hsk-studio-harness-core/src/action.rs:868 `entry(\"document.save\", \"save_to\", \"Save document\", false, false, &[]),`",
+       "crates/hsk-studio-harness-core/src/action.rs:870 `entry(\"document.verify\", \"verify_live / verify_reopened\", \"Verify document\", false, false,`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-001:22461",
+      "STU-IO-001:21506"
+     ],
+     "mts": [
+      "MT-521",
+      "MT-33623",
+      "MT-35875",
+      "MT-441",
+      "MT-33439",
+      "MT-35810"
+     ],
+     "expected_state": "A package that reverifies; board content survives.",
+     "visual_check": {
+      "what_must_be_visible": "Saved state in the tab; no asterisk.",
+      "layout_or_fit_concern": "Save needs no board-specific dialog."
+     },
+     "failure_a_professional_would_notice": "A reopened file loses votes or stuck stamps.",
+     "runs_only_on_stand_in": "Saves the document payload that exists today, which holds no board records."
+    },
+    {
+     "n": 26,
+     "intent": "Export the Plan board to PNG for the kit.",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "FILE > Export > PNG",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "export --png",
+      "parameters": {
+       "path": "out/plan-board.png"
+      },
+      "status": "callable",
+      "reach": "corpus_or_cli",
+      "evidence": [
+       "crates/hsk-studio-harness/src/cli.rs:152 `\"--png\" => p.png = true,`",
+       "crates/hsk-studio-harness/src/cli.rs:308 `\"export\" => {`",
+       "crates/hsk-studio-harness-view/src/view/export.rs:68 `pub fn encode_frame(frame: &Frame, format: ExportFormat) -> Result<Exported, &'static str>`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-010:22510",
+      "STU-WB-127:22357"
+     ],
+     "mts": [
+      "MT-539",
+      "MT-33632",
+      "MT-33601"
+     ],
+     "expected_state": "PNG of the board content bounds.",
+     "visual_check": {
+      "what_must_be_visible": "Export dialog with bounds choice: board, section or selection.",
+      "layout_or_fit_concern": "An unbounded surface needs an explicit bound choice."
+     },
+     "failure_a_professional_would_notice": "The export is empty, or clipped to an arbitrary canvas.",
+     "runs_only_on_stand_in": "Exports the whole composite of a raster or vector document; there is no board or section bound."
+    },
+    {
+     "n": 27,
+     "intent": "Export the decisions as CSV with a declared column mapping.",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "FILE > Export > CSV, confirm mapping",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "columns": [
+        "node_kind",
+        "node_id",
+        "text",
+        "section",
+        "author_name",
+        "colour",
+        "vote_tally"
+       ]
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'board_export_column_mapping|column_mapping' over every crate's src at c4d06841: 0 hits",
+       "crates/hsk-studio-harness-view/src/view/timeline_export.rs:321 `pub recipe: ExportRecipe,` (the only export recipe in a host is on the timeline)"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-128:22359",
+      "STU-WB-153:22455"
+     ],
+     "mts": [
+      "MT-33602",
+      "MT-33622"
+     ],
+     "expected_state": "CSV with the declared columns.",
+     "visual_check": {
+      "what_must_be_visible": "Mapping table with a row preview.",
+      "layout_or_fit_concern": "A hidden mapping would be a validation error."
+     },
+     "failure_a_professional_would_notice": "Vote counts are missing, or a column order differs per run."
+    }
+   ]
+  },
+  {
+   "scene_id": "S2-slide-deck",
+   "goal": "Turn the workshop decisions into a 14-slide 16:9 launch deck: theme, parent slides, content, transitions, rehearsal, PDF.",
+   "steps": [
+    {
+     "n": 28,
+     "intent": "Create the deck document at 1920 by 1080.",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": null,
+      "gesture": "FILE > New > From Document Preset, slide 16:9",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEditor::new(hand-built LayoutDoc)",
+      "parameters": {
+       "page_width": 1920,
+       "page_height": 1080,
+       "unit": "px"
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/view/shell.rs:1590 `pub fn blank_layout_doc() -> LayoutDoc {` (the only host document is fixed at 595 by 842 pt)",
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:312 `pub fn new(doc: LayoutDoc) -> Self {`",
+       "crates/hsk-studio-layout/src/adjust_layout.rs:1 `//! Adjust layout (lane SMB-ID-LIQUID-LAYOUT-1; STU-LAY-010, STU-LAY-112): a discrete, und` (adjust layout engine, no host command)",
+       "looked: git grep -iE 'set_page_size|ResizePage' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-009:5572",
+      "STU-LAY-010:5606",
+      "STU-PRO-167:20871",
+      "STU-DOC-001:281"
+     ],
+     "mts": [
+      "MT-146",
+      "MT-30671",
+      "MT-30675",
+      "MT-36234",
+      "MT-002",
+      "MT-487"
+     ],
+     "expected_state": "One 16:9 page at the requested size.",
+     "visual_check": {
+      "what_must_be_visible": "Deck tab; the page fitted to the viewer at 16:9.",
+      "layout_or_fit_concern": "No print-only fields such as bleed and facing pages up front for a deck."
+     },
+     "failure_a_professional_would_notice": "A deck starts as A4 with no way to change it."
+    },
+    {
+     "n": 29,
+     "intent": "Mark pages as slides so the document has a presentation order.",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": null,
+      "gesture": "Automatic from the slide preset",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "role": "slide"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'is_skipped_slide|SlideRole|slide_role|SLIDE_GRID|SlideNode' over every crate's src at c4d06841: 0 hits",
+       "crates/hsk-studio-interop-fig-base/src/container.rs:46 `/// `fig-deck` has community-only evidence (no installed-app or file evidence). Anything e` (the kind is named only)"
+      ]
+     },
+     "spec_clauses": [
+      "STU-PRO-167:20871",
+      "STU-PRO-168:20873",
+      "STU-PRO-169:20875",
+      "STU-WB-130:22367"
+     ],
+     "mts": [
+      "MT-36234",
+      "MT-36235",
+      "MT-36236",
+      "MT-33604"
+     ],
+     "expected_state": "Slide role on ordinary frames in the shared graph; no separate document model.",
+     "visual_check": {
+      "what_must_be_visible": "Slide thumbnails with numbers.",
+      "layout_or_fit_concern": "A slide must not feel like a different product from a page."
+     },
+     "failure_a_professional_would_notice": "Copying a slide to the layout scene loses its role or creates a separate object kind."
+    },
+    {
+     "n": 30,
+     "intent": "Load the brand fonts.",
+     "human": {
+      "panel": "character",
+      "tool": null,
+      "gesture": "FontManager, add files",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "Viewer::add_font",
+      "parameters": {
+       "paths": [
+        "fixtures/brand-regular.ttf",
+        "fixtures/brand-bold.ttf"
+       ]
+      },
+      "status": "callable",
+      "reach": "rust_viewer_method",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/view/text.rs:655 `pub fn add_font(&mut self, family: &str, bytes: Vec<u8>) {`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-TYP-008:9630"
+     ],
+     "mts": [
+      "MT-198",
+      "MT-30894",
+      "MT-31116"
+     ],
+     "expected_state": "Fonts available to text.",
+     "visual_check": {
+      "what_must_be_visible": "Font names in the character panel.",
+      "layout_or_fit_concern": "One font list across all scenes."
+     },
+     "failure_a_professional_would_notice": "A font loaded for the deck is unknown to the export.",
+     "runs_only_on_stand_in": "Reaches Viewer text; LayoutEditor composes with placeholder metrics and does not use it."
+    },
+    {
+     "n": 31,
+     "intent": "Define the deck theme tokens: colours in light and dark mode, sizes.",
+     "human": {
+      "panel": "library, swatches",
+      "tool": null,
+      "gesture": "Create a variable collection with two modes",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_folio::StudioVariableCollection",
+      "parameters": {
+       "modes": [
+        "light",
+        "dark"
+       ]
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-folio/src/components.rs:246 `pub struct StudioVariableCollection {`",
+       "crates/hsk-studio-components/src/instance_resolution.rs:178 `pub fn resolve_variable(`",
+       "looked: git grep -iE 'set_variable|create_variable|add_variable_mode' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-DS-129:20055",
+      "STU-DS-132:20066"
+     ],
+     "mts": [
+      "MT-33085",
+      "MT-33088"
+     ],
+     "expected_state": "A collection with two modes; layers bound to variables.",
+     "visual_check": {
+      "what_must_be_visible": "Variable table with mode columns.",
+      "layout_or_fit_concern": "Tokens must be one edit away from the deck and the assets."
+     },
+     "failure_a_professional_would_notice": "Theme change requires manual recolouring of 14 slides."
+    },
+    {
+     "n": 32,
+     "intent": "Create brand swatches.",
+     "human": {
+      "panel": "swatches",
+      "tool": null,
+      "gesture": "Add swatch",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "Viewer::add_folio_swatch",
+      "parameters": {
+       "name": "Harbour Blue",
+       "colour": [
+        18,
+        58,
+        92
+       ]
+      },
+      "status": "callable",
+      "reach": "rust_viewer_method",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/view/vector/swatch.rs:271 `pub fn add_folio_swatch(&mut self, name: &str, spec: &SwatchSpec) -> Result<String, String`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-UNI-003:22617"
+     ],
+     "mts": [
+      "MT-010",
+      "MT-490",
+      "MT-551"
+     ],
+     "expected_state": "Global swatch in the document.",
+     "visual_check": {
+      "what_must_be_visible": "Swatch tile with name; linked uses marked.",
+      "layout_or_fit_concern": "One swatch system across scenes."
+     },
+     "failure_a_professional_would_notice": "Layout style fills cannot use the swatch.",
+     "runs_only_on_stand_in": "Writes the vector entry only; nothing in LayoutEditor reads it."
+    },
+    {
+     "n": 33,
+     "intent": "Create parent slides: Title, Section, Content, Quote.",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": null,
+      "gesture": "New parent page, four times",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::Page(PageEdit::NewParent)",
+      "parameters": {
+       "names": [
+        "Title",
+        "Section",
+        "Content",
+        "Quote"
+       ]
+      },
+      "status": "callable",
+      "reach": "rust_layout_editor",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/pages.rs:40 `NewParent { name: String, based_on: Option<String> },`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-006:5541",
+      "STU-PRO-167:20871"
+     ],
+     "mts": [
+      "MT-144",
+      "MT-30667",
+      "MT-36234"
+     ],
+     "expected_state": "Four parents, with Content based on Title if wanted.",
+     "visual_check": {
+      "what_must_be_visible": "Parents listed apart from slides, with a preview of each.",
+      "layout_or_fit_concern": "Parents must be labelled for slides, not as print masters only."
+     },
+     "failure_a_professional_would_notice": "Editing a parent does not visibly update its slides."
+    },
+    {
+     "n": 34,
+     "intent": "Draw placeholder frames and promote them to parent items.",
+     "human": {
+      "panel": "page viewer",
+      "tool": "Frame",
+      "gesture": "Draw on the parent",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::DrawFrame then PageEdit::AddParentItem",
+      "parameters": {},
+      "status": "callable",
+      "reach": "rust_layout_editor",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:148 `DrawFrame { page_id: String, x: f64, y: f64, w: f64, h: f64 },`",
+       "crates/hsk-studio-harness-view/src/layout_ui/pages.rs:45 `AddParentItem { parent: String, frame: String },`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-007:5556",
+      "STU-LAY-110:5547"
+     ],
+     "mts": [
+      "MT-145",
+      "MT-30669",
+      "MT-30668"
+     ],
+     "expected_state": "Frames inherited on every slide applying the parent.",
+     "visual_check": {
+      "what_must_be_visible": "Placeholder prompts visible on empty slides, absent from output.",
+      "layout_or_fit_concern": "Frames are drawn on a page then promoted: no direct edit-parent mode."
+     },
+     "failure_a_professional_would_notice": "Placeholder prompt text appears in the PDF."
+    },
+    {
+     "n": 35,
+     "intent": "Define paragraph styles: Title, Lead, Bullet, Caption.",
+     "human": {
+      "panel": "paragraph",
+      "tool": null,
+      "gesture": "New style",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::Style(StyleEdit::NewStyle)",
+      "parameters": {
+       "names": [
+        "Title",
+        "Lead",
+        "Bullet",
+        "Caption"
+       ]
+      },
+      "status": "callable",
+      "reach": "rust_layout_editor",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/styles.rs:45 `NewStyle { scope: TypeStyleScope, name: String, based_on: Option<String> },`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-036:6457"
+     ],
+     "mts": [
+      "MT-168",
+      "MT-173",
+      "MT-30756"
+     ],
+     "expected_state": "Named styles available.",
+     "visual_check": {
+      "what_must_be_visible": "Style list with live preview.",
+      "layout_or_fit_concern": "A deck needs few styles shown large, not a print-length list."
+     },
+     "failure_a_professional_would_notice": "Style font size cannot be set for screen units."
+    },
+    {
+     "n": 36,
+     "intent": "Insert 13 more slides with parents assigned.",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": null,
+      "gesture": "Add slide from parent",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::Page(PageEdit::InsertPage)",
+      "parameters": {
+       "count": 13,
+       "parent": "Content"
+      },
+      "status": "callable",
+      "reach": "rust_layout_editor",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/pages.rs:32 `InsertPage { after: String, new_spread: bool, parent: Option<String> },`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-001:5394",
+      "STU-PRO-167:20871"
+     ],
+     "mts": [
+      "MT-141",
+      "MT-30656",
+      "MT-35680",
+      "MT-36234"
+     ],
+     "expected_state": "14 pages; one undo step per insert.",
+     "visual_check": {
+      "what_must_be_visible": "Thumbnails appear in order and the new slide is selected.",
+      "layout_or_fit_concern": "Adding a slide should be one press at the end of the strip."
+     },
+     "failure_a_professional_would_notice": "13 inserts cost 13 undos and there is no batch form."
+    },
+    {
+     "n": 37,
+     "intent": "Change the parent on the section openers.",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": null,
+      "gesture": "Drop a parent on the thumbnail",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::Page(PageEdit::ApplyParent)",
+      "parameters": {
+       "pages": [
+        3,
+        8
+       ],
+       "parent": "Section"
+      },
+      "status": "callable",
+      "reach": "rust_layout_editor",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/pages.rs:43 `ApplyParent { pages: Vec<String>, parent: Option<String> },`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-007:5556"
+     ],
+     "mts": [
+      "MT-145",
+      "MT-30669"
+     ],
+     "expected_state": "Pages use the new parent; overrides cleared.",
+     "visual_check": {
+      "what_must_be_visible": "Parent letter on each thumbnail.",
+      "layout_or_fit_concern": "Warn before clearing overrides."
+     },
+     "failure_a_professional_would_notice": "Overrides vanish with no warning."
+    },
+    {
+     "n": 38,
+     "intent": "Copy the winning stickies from the board into slide 4 as editable text.",
+     "human": {
+      "panel": "page viewer",
+      "tool": null,
+      "gesture": "Copy on board, paste on slide",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "studio.clipboard.copy_as",
+      "parameters": {
+       "from": "section:affinity"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'studio\\.clipboard\\.(copy|paste)' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits",
+       "looked: git grep -iE 'StudioBoard|board_node|BoardNode|whiteboard' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits (there is no board source)"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-104:22285",
+      "STU-UNI-001:22613"
+     ],
+     "mts": [
+      "MT-33579",
+      "MT-009",
+      "MT-551",
+      "MT-33658"
+     ],
+     "expected_state": "Text arrives as live text with the sticky author dropped or kept by choice.",
+     "visual_check": {
+      "what_must_be_visible": "Pasted bullets in the Bullet style.",
+      "layout_or_fit_concern": "Paste between viewer kinds must not produce an image."
+     },
+     "failure_a_professional_would_notice": "Pasted content arrives as a picture."
+    },
+    {
+     "n": 39,
+     "intent": "Write the slide copy into the frames.",
+     "human": {
+      "panel": "page viewer",
+      "tool": "Type",
+      "gesture": "Click a frame, type",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::ReplaceText",
+      "parameters": {
+       "story": "s4",
+       "start": 0,
+       "end": 0,
+       "text": "Six hundred stalls, one night."
+      },
+      "status": "callable",
+      "reach": "rust_layout_editor",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:154 `ReplaceText { story: String, start: u64, end: u64, text: String },`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-017:5751"
+     ],
+     "mts": [
+      "MT-152",
+      "MT-30685"
+     ],
+     "expected_state": "Story text set, one undo step.",
+     "visual_check": {
+      "what_must_be_visible": "Text in the frame; overset marker if it does not fit.",
+      "layout_or_fit_concern": "Edit in place, not in a story window, for a deck."
+     },
+     "failure_a_professional_would_notice": "Fit on screen is measured with placeholder metrics, so overset in the PDF goes unseen."
+    },
+    {
+     "n": 40,
+     "intent": "Apply the styles down the deck.",
+     "human": {
+      "panel": "paragraph",
+      "tool": null,
+      "gesture": "Click a style",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::ApplyParagraphStyle",
+      "parameters": {
+       "style": "Bullet"
+      },
+      "status": "callable",
+      "reach": "rust_layout_editor",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:156 `ApplyParagraphStyle { story: String, paragraph: usize, style: Option<String> },`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-036:6457"
+     ],
+     "mts": [
+      "MT-168",
+      "MT-173",
+      "MT-30756"
+     ],
+     "expected_state": "Paragraphs carry the style.",
+     "visual_check": {
+      "what_must_be_visible": "Active style highlighted for the selection.",
+      "layout_or_fit_concern": "Style list stays visible beside the slide."
+     },
+     "failure_a_professional_would_notice": "An applied style does not change the rendered look."
+    },
+    {
+     "n": 41,
+     "intent": "Write speaker notes per slide.",
+     "human": {
+      "panel": "speaker notes area",
+      "tool": null,
+      "gesture": "Type under the slide",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "slide": 4,
+       "notes": "Open with the visitor number."
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'speaker_notes|speaker notes' over every crate's src at c4d06841: 0 hits",
+       "Spec gap: a search of module 14 for 'speaker notes' and 'presenter' finds no clause; STU-PRO-167 to 174 do not cover notes. Needs an Operator decision and a clause."
+      ]
+     },
+     "spec_clauses": [
+      "STU-PRO-167:20871"
+     ],
+     "mts": [
+      "MT-36234"
+     ],
+     "expected_state": "Notes stored with the slide, absent from slide output.",
+     "visual_check": {
+      "what_must_be_visible": "A notes area under the slide; resizable.",
+      "layout_or_fit_concern": "Notes must not steal height from small screens."
+     },
+     "failure_a_professional_would_notice": "No place to keep the talk track."
+    },
+    {
+     "n": 42,
+     "intent": "Place the mood image in a full-bleed frame and fit it.",
+     "human": {
+      "panel": "links-placements",
+      "tool": "Frame",
+      "gesture": "Drop image on the frame",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_layout::place_graphic + fit_content",
+      "parameters": {
+       "path": "fixtures/mood.png",
+       "fit": "fill_proportional"
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-layout/src/fitting.rs:198 `pub fn place_graphic(`",
+       "crates/hsk-studio-layout/src/fitting.rs:81 `pub fn fit_content(`",
+       "looked: git grep -iE 'place_graphic|fit_content' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-028:6093",
+      "STU-LAY-029:6132",
+      "STU-ASSET-005:31320"
+     ],
+     "mts": [
+      "MT-161",
+      "MT-30721",
+      "MT-30722",
+      "MT-162",
+      "MT-170",
+      "MT-30730"
+     ],
+     "expected_state": "A CKC-linked graphic in the frame, filling it.",
+     "visual_check": {
+      "what_must_be_visible": "Image on the slide; link status in links-placements.",
+      "layout_or_fit_concern": "Crop gesture must be obvious."
+     },
+     "failure_a_professional_would_notice": "Image cannot be placed from the GUI at all."
+    },
+    {
+     "n": 43,
+     "intent": "Insert the stall count table.",
+     "human": {
+      "panel": "tables",
+      "tool": "Table",
+      "gesture": "Insert a table",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::Table(TableEdit::InsertTable)",
+      "parameters": {
+       "rows": 4,
+       "columns": 3
+      },
+      "status": "callable",
+      "reach": "rust_layout_editor",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/tables.rs:51 `InsertTable { story: String, paragraph: usize, rows: u32, columns: u32, header_rows: u32 }`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-035:6364"
+     ],
+     "mts": [
+      "MT-166",
+      "MT-167",
+      "MT-30750"
+     ],
+     "expected_state": "A table in the story.",
+     "visual_check": {
+      "what_must_be_visible": "Table large enough for the room.",
+      "layout_or_fit_concern": "Table styles need to suit a slide, not a page of body text."
+     },
+     "failure_a_professional_would_notice": "Table rules and tints cannot be set."
+    },
+    {
+     "n": 44,
+     "intent": "Add a visitor-growth chart from a small data table.",
+     "human": {
+      "panel": "data and graph tools",
+      "tool": "Chart (data_graph family)",
+      "gesture": "Draw a chart, enter data",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "kind": "bar",
+       "values": [
+        12,
+        19,
+        31
+       ]
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'pub fn [a-z_]*chart[a-z_]*|data_graph' over every crate's src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-SHL-141:32565"
+     ],
+     "mts": [
+      "MT-34669",
+      "MT-34670"
+     ],
+     "expected_state": "A chart tied to its data; editing data updates it.",
+     "visual_check": {
+      "what_must_be_visible": "Bars with labels in brand colours.",
+      "layout_or_fit_concern": "Data entry must not need a separate file."
+     },
+     "failure_a_professional_would_notice": "The designer has to draw bars by hand."
+    },
+    {
+     "n": 45,
+     "intent": "Reorder slides by drag.",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": null,
+      "gesture": "Drag a thumbnail",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::Page(PageEdit::MovePage)",
+      "parameters": {
+       "page": "p9",
+       "spread": 4,
+       "index": 0
+      },
+      "status": "callable",
+      "reach": "rust_layout_editor",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/pages.rs:38 `MovePage { page: String, spread: usize, index: usize },`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-001:5394"
+     ],
+     "mts": [
+      "MT-141",
+      "MT-30656",
+      "MT-35680"
+     ],
+     "expected_state": "Pages in the new order.",
+     "visual_check": {
+      "what_must_be_visible": "A drop marker between thumbnails.",
+      "layout_or_fit_concern": "Facing-page spreads must not impose themselves on slides."
+     },
+     "failure_a_professional_would_notice": "Moving a slide leaves a spread gap."
+    },
+    {
+     "n": 46,
+     "intent": "Group slides into rows in a grid view for the story overview.",
+     "human": {
+      "panel": "slide grid view",
+      "tool": null,
+      "gesture": "Open grid; drag slides between rows",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "rows": [
+        "Why",
+        "What",
+        "How"
+       ]
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'SLIDE_ROW|slide_grid|SlideGrid' over every crate's src at c4d06841: 0 hits",
+       "STU-PRO-168 and 169 require ordered containers; PageEdit has spreads only."
+      ]
+     },
+     "spec_clauses": [
+      "STU-PRO-168:20873",
+      "STU-PRO-169:20875"
+     ],
+     "mts": [
+      "MT-36235",
+      "MT-36236"
+     ],
+     "expected_state": "Rows as ordered containers, with provenance kept for imports.",
+     "visual_check": {
+      "what_must_be_visible": "All slides at a glance, in labelled rows.",
+      "layout_or_fit_concern": "Grid view must keep selection and allow multi-select actions."
+     },
+     "failure_a_professional_would_notice": "No overview: a strip of 14 is the only view."
+    },
+    {
+     "n": 47,
+     "intent": "Skip a backup slide in the running order.",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": null,
+      "gesture": "Toggle skip on the thumbnail",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "is_skipped_slide": true
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'is_skipped' over every crate's src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-PRO-167:20871"
+     ],
+     "mts": [
+      "MT-36234"
+     ],
+     "expected_state": "Skipped in presentation, retained in the file.",
+     "visual_check": {
+      "what_must_be_visible": "Skip marker on the thumbnail.",
+      "layout_or_fit_concern": "Export must state whether skipped slides are included."
+     },
+     "failure_a_professional_would_notice": "The backup slide appears in the show."
+    },
+    {
+     "n": 48,
+     "intent": "Set a slide transition with duration and curve.",
+     "human": {
+      "panel": "interactions",
+      "tool": null,
+      "gesture": "Pick a style, 0.4 s, EASE_IN_AND_OUT",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_components::directional_frame",
+      "parameters": {
+       "style": "PUSH_FROM_RIGHT",
+       "duration": 0.4,
+       "curve": "EASE_IN_AND_OUT"
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-components/src/transition.rs:90 `pub fn directional_frame(kind: TransitionType, direction: TransitionDirection, e: f64, w: `",
+       "crates/hsk-studio-folio/src/reactions.rs:127 `SlideIn,`",
+       "looked: git grep -iE 'SlideTransition|set_slide_transition' over every crate's src at c4d06841: 0 hits (evaluators exist for prototype transitions; a slide-level record does not)"
+      ]
+     },
+     "spec_clauses": [
+      "STU-PRO-171:20879",
+      "STU-PRO-172:20881",
+      "STU-PRO-173:20883"
+     ],
+     "mts": [
+      "MT-36238",
+      "MT-36239",
+      "MT-36240"
+     ],
+     "expected_state": "A slide transition record; native playback through the existing evaluators.",
+     "visual_check": {
+      "what_must_be_visible": "Small live preview of the transition.",
+      "layout_or_fit_concern": "23 style tokens need a browsable visual picker."
+     },
+     "failure_a_professional_would_notice": "A preview plays at a different speed from the show."
+    },
+    {
+     "n": 49,
+     "intent": "Set timing: on click, and an auto-advance slide.",
+     "human": {
+      "panel": "interactions",
+      "tool": null,
+      "gesture": "Choose On Click or After Delay",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "type": "AFTER_DELAY",
+       "delay": 8
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'ON_CLICK|SlideTiming|slide_timing' over every crate's src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-PRO-174:20885"
+     ],
+     "mts": [
+      "MT-36241"
+     ],
+     "expected_state": "Timing stored in ticks with raw seconds retained; absent differs from zero.",
+     "visual_check": {
+      "what_must_be_visible": "Timing shown on the thumbnail.",
+      "layout_or_fit_concern": "Delay field accepts seconds with a clear unit."
+     },
+     "failure_a_professional_would_notice": "A zero delay and no delay behave alike."
+    },
+    {
+     "n": 50,
+     "intent": "Build a smart-animate step between two slides with matched layers.",
+     "human": {
+      "panel": "interactions",
+      "tool": null,
+      "gesture": "Duplicate slide, move layers, set the smart style",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_components::match_layers + smart_animate_frame",
+      "parameters": {
+       "style": "SMART_ANIMATE"
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/view/prototype.rs:8 `//! Smart animate (lane SMB-FIG-SMART-ANIMATE, STU-PRO-117/118): a transition whose layers`",
+       "crates/hsk-studio-components/src/lib.rs:50 `DirectionalFrame, MAX_SPRING_SETTLE_MS, SLIDE_PARALLAX, directional_frame, spring_displace`",
+       "Host route exists only through a .fig document; no slide reaches it."
+      ]
+     },
+     "spec_clauses": [
+      "STU-PRO-172:20881",
+      "STU-PRO-117:20651"
+     ],
+     "mts": [
+      "MT-36239",
+      "MT-33231"
+     ],
+     "expected_state": "A tween between matched layers.",
+     "visual_check": {
+      "what_must_be_visible": "Layers move rather than cut.",
+      "layout_or_fit_concern": "Mismatch must be diagnosable by layer name."
+     },
+     "failure_a_professional_would_notice": "Layers dissolve instead of moving because names differ, with no explanation."
+    },
+    {
+     "n": 51,
+     "intent": "Add a live poll element on the closing slide.",
+     "human": {
+      "panel": "interactions",
+      "tool": null,
+      "gesture": "Insert interactive element",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "interactive_slide_element_type": "POLL"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'INTERACTIVE_SLIDE_ELEMENT|interactive_slide' over every crate's src at c4d06841: 0 hits",
+       "STU-PRO-170: declaration does not specify poll payloads; first acceptance criterion resolves that."
+      ]
+     },
+     "spec_clauses": [
+      "STU-PRO-170:20877"
+     ],
+     "mts": [
+      "MT-36237"
+     ],
+     "expected_state": "An interactive role on an ordinary layer; state stated plainly offline.",
+     "visual_check": {
+      "what_must_be_visible": "Poll placeholder with its capability state.",
+      "layout_or_fit_concern": "Must say plainly when it cannot run offline."
+     },
+     "failure_a_professional_would_notice": "A blank box on the slide during the talk."
+    },
+    {
+     "n": 52,
+     "intent": "Run the deck in the presentation view from slide 1.",
+     "human": {
+      "panel": "presentation view",
+      "tool": null,
+      "gesture": "Present; arrows to advance",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "prototype.start_session",
+      "parameters": {
+       "zoom": "FIT",
+       "start": "slide-1"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/view/mod.rs:395 `pub fn open_prototype(&mut self, fig: &[u8]) -> Result<(), prototype::PlayFail> {` (takes .fig bytes only)",
+       "crates/hsk-studio-components/src/player.rs:181 `pub fn start(doc: &StudioDocument, design: &StudioDesignRecords, start: &str) -> Option<Se` (the player takes design-record frames, and slides do not exist)",
+       "looked: git grep -iE 'prototype\\.start_session|present_slides' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-PRO-024b:20984",
+      "STU-PRO-132:20718",
+      "STU-PRO-138:20746"
+     ],
+     "mts": [
+      "MT-33248",
+      "MT-33254"
+     ],
+     "expected_state": "Fullscreen playback in order, honouring skip and timing; exit returns to the slide.",
+     "visual_check": {
+      "what_must_be_visible": "Only the slide; nothing of the editor.",
+      "layout_or_fit_concern": "Must go to the second display, without stealing focus for automated runs."
+     },
+     "failure_a_professional_would_notice": "There is no way to show the deck from the app."
+    },
+    {
+     "n": 53,
+     "intent": "Rehearse with a presenter view: notes, next slide, timer.",
+     "human": {
+      "panel": "presenter view",
+      "tool": null,
+      "gesture": "Present with notes",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {},
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'presenter_view|rehearse' over every crate's src at c4d06841: 0 hits",
+       "Spec gap with no clause; the hits for 'presenter' in pulse are the video frame presenter and not this."
+      ]
+     },
+     "spec_clauses": [
+      "STU-PRO-024b:20984"
+     ],
+     "mts": [],
+     "expected_state": "Notes, next slide and elapsed time on one screen; slide alone on the other.",
+     "visual_check": {
+      "what_must_be_visible": "Large notes, current and next slide, timer.",
+      "layout_or_fit_concern": "Readable at arm's length."
+     },
+     "failure_a_professional_would_notice": "Presenting from a printout."
+    },
+    {
+     "n": 54,
+     "intent": "Run preflight for missing fonts and overset text.",
+     "human": {
+      "panel": "preflight",
+      "tool": null,
+      "gesture": "Status light, open the list",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEditor::preflight",
+      "parameters": {},
+      "status": "callable",
+      "reach": "rust_layout_editor",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/preflight.rs:35 `pub fn preflight_profile(&self) -> &PreflightProfile {`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-055:6982",
+      "STU-LAY-057:7021"
+     ],
+     "mts": [
+      "MT-182",
+      "MT-30804",
+      "MT-35693",
+      "MT-154",
+      "MT-163",
+      "MT-176"
+     ],
+     "expected_state": "A findings list with a route to each frame.",
+     "visual_check": {
+      "what_must_be_visible": "Status light; rows selectable.",
+      "layout_or_fit_concern": "Print-only rules should not nag a screen deck."
+     },
+     "failure_a_professional_would_notice": "Bleed warnings on a screen deck."
+    },
+    {
+     "n": 55,
+     "intent": "Export the deck as PDF with fonts embedded.",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "FILE > Export > PDF, all slides",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_interop_layout::export_pdf_with",
+      "parameters": {
+       "pages": "all",
+       "skip_skipped": true
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-interop-layout/src/pdf_export.rs:294 `pub fn export_pdf_with(input: &PdfExportInput<'_>, longdoc: &PdfLongDoc<'_>, cancel: &Canc`",
+       "crates/hsk-studio-interop-layout/src/pdf_export.rs:1362 `pub fn pdf_glyphs_from_type(paragraph: &hsk_studio_type::ParagraphResult<'_>, fonts: &[Pdf`",
+       "looked: git grep -iE 'hsk.studio.interop.layout|hsk_studio_interop_layout' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits (no host dependency)"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-054:6959",
+      "STU-PRO-043a:21082"
+     ],
+     "mts": [
+      "MT-181",
+      "MT-184",
+      "MT-185"
+     ],
+     "expected_state": "A PDF of 13 pages with the backup skipped; text selectable.",
+     "visual_check": {
+      "what_must_be_visible": "Export dialog and a Jobs row; a receipt.",
+      "layout_or_fit_concern": "A screen preset without press options up front."
+     },
+     "failure_a_professional_would_notice": "It is the deliverable, and no host writes it."
+    },
+    {
+     "n": 56,
+     "intent": "Export the deck as .pptx for a partner.",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "FILE > Export > PowerPoint-compatible",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "path": "out/launch.pptx"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'pptx' over every crate's src at c4d06841: 0 hits",
+       "Matrix row 47 requires I and X; the crates hold no reader or writer."
+      ]
+     },
+     "spec_clauses": [
+      "STU-IO-006 row 47:21594"
+     ],
+     "mts": [
+      "MT-443",
+      "MT-446",
+      "MT-447"
+     ],
+     "expected_state": "A .pptx with slides as editable shapes and a loss receipt.",
+     "visual_check": {
+      "what_must_be_visible": "Losses listed before writing.",
+      "layout_or_fit_concern": "The dialog must be honest about what will flatten."
+     },
+     "failure_a_professional_would_notice": "A partner cannot open or edit the deck."
+    },
+    {
+     "n": 57,
+     "intent": "Render every slide to an image and check it against the page viewer.",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "Export each slide as PNG",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_press_write::render_page",
+      "parameters": {
+       "dpi": 144
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-press-write/src/export.rs:40 `pub use render::{RenderedPage, render_page};`",
+       "looked: git grep -iE 'hsk_studio_press_write' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits (no host reaches it)"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-063:7431"
+     ],
+     "mts": [
+      "MT-165",
+      "MT-189",
+      "MT-30850"
+     ],
+     "expected_state": "One image per slide; compare with the viewer.",
+     "visual_check": {
+      "what_must_be_visible": "Contact sheet of 13 slides.",
+      "layout_or_fit_concern": "Viewer and PDF differ because of placeholder composition."
+     },
+     "failure_a_professional_would_notice": "Line breaks in the PDF differ from those on screen."
+    },
+    {
+     "n": 58,
+     "intent": "Inspect the deck state as a no-context model.",
+     "human": {
+      "panel": "layers",
+      "tool": null,
+      "gesture": "Not a human step",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEditor::state_json",
+      "parameters": {},
+      "status": "callable",
+      "reach": "rust_layout_editor",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:494 `pub fn state_json(&self) -> Value {`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-136:22379",
+      "STU-PRO-145:20760"
+     ],
+     "mts": [
+      "MT-33610",
+      "MT-33261"
+     ],
+     "expected_state": "Pages, frames, stories and styles as JSON.",
+     "visual_check": {
+      "what_must_be_visible": "Not applicable to the GUI.",
+      "layout_or_fit_concern": "State shape must name slides once the role exists."
+     },
+     "failure_a_professional_would_notice": "A model can only see pages, not slide order or timing."
+    }
+   ]
+  },
+  {
+   "scene_id": "S3-marketing-assets",
+   "goal": "Design one master promo in 4 formats and bulk-produce 24 stallholder variants from data, plus a logo SVG and a poster PDF.",
+   "steps": [
+    {
+     "n": 59,
+     "intent": "Open a base design document for the promo.",
+     "human": {
+      "panel": "canvas viewer",
+      "tool": null,
+      "gesture": "FILE > New > Blank Document, or open a base file",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.open",
+      "parameters": {
+       "path": "fixtures/base.psd"
+      },
+      "status": "callable",
+      "reach": "corpus_or_cli",
+      "evidence": [
+       "crates/hsk-studio-harness-core/src/action.rs:865 `entry(\"document.open\", \"open_path / open_bytes\", \"Open document\", false, false, &[]),`",
+       "looked: git grep -iE 'studio\\.document\\.new' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits (no blank document)"
+      ]
+     },
+     "spec_clauses": [
+      "STU-SHL-023:31573",
+      "STU-DOC-001:281"
+     ],
+     "mts": [
+      "MT-34444",
+      "MT-002",
+      "MT-487",
+      "MT-519"
+     ],
+     "expected_state": "An open document with a stand-in raster layer.",
+     "visual_check": {
+      "what_must_be_visible": "Document tab and canvas.",
+      "layout_or_fit_concern": "A stand-in layer the designer never asked for sits in the stack."
+     },
+     "failure_a_professional_would_notice": "Every promo starts from a dummy file.",
+     "runs_only_on_stand_in": "Opens a generated base file, because no blank vector document exists."
+    },
+    {
+     "n": 60,
+     "intent": "Add four artboards: 1080x1080, 1080x1920, 1200x628, A3 poster.",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": "Artboard",
+      "gesture": "Create from size presets",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "sizes": [
+        [
+         1080,
+         1080
+        ],
+        [
+         1080,
+         1920
+        ],
+        [
+         1200,
+         628
+        ],
+        [
+         842,
+         1191
+        ]
+       ]
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'add_artboard|new_artboard|create_artboard|ArtboardEdit' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits",
+       "crates/hsk-studio-harness-view/src/view/shell.rs:1608 `artboards: vec![],` (the blank document has none, and there is no edit)"
+      ]
+     },
+     "spec_clauses": [
+      "STU-DOC-002:283",
+      "STU-SHL-141:32565"
+     ],
+     "mts": [
+      "MT-002",
+      "MT-411",
+      "MT-441",
+      "MT-34669",
+      "MT-34670"
+     ],
+     "expected_state": "Four named artboards side by side.",
+     "visual_check": {
+      "what_must_be_visible": "All four visible when zoomed to fit, with labels and sizes.",
+      "layout_or_fit_concern": "Size presets for social formats should be one list."
+     },
+     "failure_a_professional_would_notice": "Only one canvas: every format is a separate file."
+    },
+    {
+     "n": 61,
+     "intent": "Draw the background panel.",
+     "human": {
+      "panel": "canvas viewer",
+      "tool": "Rectangle",
+      "gesture": "Drag a rectangle",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "Viewer::draw_shape",
+      "parameters": {
+       "shape": "rectangle"
+      },
+      "status": "callable",
+      "reach": "rust_viewer_method",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/view/vector.rs:2598 `pub fn draw_shape(&mut self, kind: ShapeKind, a: [f64; 2], b: [f64; 2], constrain: bool) -`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-DOC-002:283"
+     ],
+     "mts": [
+      "MT-002",
+      "MT-411",
+      "MT-441"
+     ],
+     "expected_state": "A live rectangle layer.",
+     "visual_check": {
+      "what_must_be_visible": "Handles and dimensions while drawing.",
+      "layout_or_fit_concern": "Numeric entry beside the drag."
+     },
+     "failure_a_professional_would_notice": "The shape cannot be bound to the artboard."
+    },
+    {
+     "n": 62,
+     "intent": "Fill it with a brand gradient.",
+     "human": {
+      "panel": "appearance",
+      "tool": "Gradient",
+      "gesture": "Set the paint",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "Viewer::set_fill",
+      "parameters": {
+       "gradient_kind": "linear"
+      },
+      "status": "callable",
+      "reach": "rust_viewer_method",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/view/vector/style.rs:411 `pub fn set_fill(&mut self, layer_id: &str, paint: Option<&PaintSpec>) -> Result<String, St`",
+       "crates/hsk-studio-harness-view/src/view/vector/style.rs:31 `/// Most gradient stops of one paint.`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-UNI-003:22617"
+     ],
+     "mts": [
+      "MT-010",
+      "MT-490",
+      "MT-551"
+     ],
+     "expected_state": "Layer fill with two stops.",
+     "visual_check": {
+      "what_must_be_visible": "On-canvas gradient handles.",
+      "layout_or_fit_concern": "Handles scale with the frame."
+     },
+     "failure_a_professional_would_notice": "A gradient cannot use the brand swatches."
+    },
+    {
+     "n": 63,
+     "intent": "Set the headline and CTA text.",
+     "human": {
+      "panel": "character",
+      "tool": "Type",
+      "gesture": "Click, type",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "Viewer::place_text_with_font",
+      "parameters": {
+       "text": "Harbour Lights Night Market",
+       "family": "Brand"
+      },
+      "status": "callable",
+      "reach": "rust_viewer_method",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/view/text.rs:698 `pub fn place_text_with_font(&mut self, x: f64, y: f64, text: &str, family: &str) -> Result`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-TYP-008:9630"
+     ],
+     "mts": [
+      "MT-198",
+      "MT-30894",
+      "MT-31116"
+     ],
+     "expected_state": "A live text layer.",
+     "visual_check": {
+      "what_must_be_visible": "Live text at the actual font.",
+      "layout_or_fit_concern": "No separate text dialog."
+     },
+     "failure_a_professional_would_notice": "Text that does not fit gets no warning."
+    },
+    {
+     "n": 64,
+     "intent": "Place the stall photo as a linked asset.",
+     "human": {
+      "panel": "links-placements",
+      "tool": "Frame",
+      "gesture": "Drop the file on a frame",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "path": "fixtures/stall-1.png"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'place_image|place_linked|place_file' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits",
+       "crates/hsk-studio-harness-view/src/view/fill_tools.rs:401 `if record.is_some_and(|r| r.placed_asset.is_some()) {` (the record field exists and refuses paint; no place command was found)",
+       "crates/hsk-studio-harness-core/src/action.rs:855 `entry(\"layer.set_tiles\", \"set_tiles\", \"Replace raster tiles\", false, true, &[]),` (the workaround: write pixels into a new raster layer, not a link)"
+      ]
+     },
+     "spec_clauses": [
+      "STU-ASSET-005:31320",
+      "STU-WEB-134:31162"
+     ],
+     "mts": [
+      "MT-34396",
+      "MT-34363"
+     ],
+     "expected_state": "A placed-asset link, with status in links-placements.",
+     "visual_check": {
+      "what_must_be_visible": "Image in frame; link status.",
+      "layout_or_fit_concern": "Swapping an image must keep the crop."
+     },
+     "failure_a_professional_would_notice": "Pictures are copied in, so one update means redoing every file."
+    },
+    {
+     "n": 65,
+     "intent": "Clip the photo to a rounded shape.",
+     "human": {
+      "panel": "layers, masks",
+      "tool": null,
+      "gesture": "Make clipping mask",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "Viewer::hosted_action(MakeClip)",
+      "parameters": {
+       "source": "shape-1",
+       "even_odd": false
+      },
+      "status": "callable",
+      "reach": "rust_viewer_method",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/view/hosted.rs:257 `MakeClip { source: String, even_odd: bool },`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-UNI-003:22617"
+     ],
+     "mts": [
+      "MT-010",
+      "MT-490",
+      "MT-551"
+     ],
+     "expected_state": "Layer clipped; one undo step.",
+     "visual_check": {
+      "what_must_be_visible": "Mask link icon in layers.",
+      "layout_or_fit_concern": "Panel-free clip gesture wanted."
+     },
+     "failure_a_professional_would_notice": "A mask breaks after the format is resized."
+    },
+    {
+     "n": 66,
+     "intent": "Make the CTA button a component with default and hover variants.",
+     "human": {
+      "panel": "library, properties",
+      "tool": null,
+      "gesture": "Create component, combine as a set",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_folio::StudioComponent",
+      "parameters": {
+       "variants": [
+        "default",
+        "hover"
+       ]
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-folio/src/components.rs:164 `pub struct StudioComponent {`",
+       "crates/hsk-studio-components/src/instance_resolution.rs:763 `pub fn switch_variant(`",
+       "looked: git grep -iE 'create_component|make_component|new_component|combine_as_variants' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-DS-001:20318",
+      "STU-DS-005:20330"
+     ],
+     "mts": [
+      "MT-321",
+      "MT-323",
+      "MT-33139",
+      "MT-324",
+      "MT-328",
+      "MT-33144"
+     ],
+     "expected_state": "A component set; every format holds instances.",
+     "visual_check": {
+      "what_must_be_visible": "Component marked in layers; set in the asset browser.",
+      "layout_or_fit_concern": "Create and switch without a separate design mode."
+     },
+     "failure_a_professional_would_notice": "Button changes must be made 24 times."
+    },
+    {
+     "n": 67,
+     "intent": "Switch an instance to a variant and override its label.",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Variant picker in the instance section",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "Viewer::design_command(SwitchVariant, SetOverride)",
+      "parameters": {
+       "property": "state",
+       "value": "hover"
+      },
+      "status": "callable",
+      "reach": "rust_viewer_method",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/view/design/instance.rs:400 `pub fn design_command(&mut self, layer_id: &str, command: DesignCommand) -> Result<Value, `",
+       "crates/hsk-studio-harness-view/src/view/design/instance.rs:78 `SwitchVariant { property: String, value: String },`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-DS-008:20344",
+      "STU-DS-016:20366",
+      "STU-DS-017:20368"
+     ],
+     "mts": [
+      "MT-332",
+      "MT-33149",
+      "MT-339",
+      "MT-33157",
+      "MT-33162",
+      "MT-340"
+     ],
+     "expected_state": "Instance with override; resets are per field.",
+     "visual_check": {
+      "what_must_be_visible": "Instance inspector.",
+      "layout_or_fit_concern": "Overrides marked and resettable."
+     },
+     "failure_a_professional_would_notice": "Overrides lost after a master change.",
+     "runs_only_on_stand_in": "Works on instances from an imported .fig; no native way to create one."
+    },
+    {
+     "n": 68,
+     "intent": "Stack the text and button with auto layout.",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Set Auto Layout on the frame; spacing and padding",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "Viewer::set_auto_layout_mode + set_auto_layout_spacing",
+      "parameters": {
+       "mode": "VERTICAL",
+       "item_spacing": 24,
+       "padding": [
+        40,
+        40,
+        40,
+        40
+       ]
+      },
+      "status": "callable",
+      "reach": "rust_viewer_method",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/view/design/auto_layout.rs:465 `pub fn set_auto_layout_mode(&mut self, node: &str, mode: LayoutMode) -> Result<(), String>`",
+       "crates/hsk-studio-harness-view/src/view/design/auto_layout.rs:516 `pub fn set_auto_layout_spacing(&mut self, node: &str, item_spacing: f64, padding: [f64; 4]`",
+       "crates/hsk-studio-harness-view/src/view/design/auto_layout.rs:571 `pub fn set_child_sizing(&mut self, node: &str, horizontal: ChildSizing, vertical: ChildSiz`",
+       "crates/hsk-studio-harness-view/src/view/design/auto_layout.rs:423 `let records = entry.design.clone().unwrap_or_else(|| StudioDesignRecords::new(doc.document`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-DS-144:20102",
+      "STU-DS-148:20158"
+     ],
+     "mts": [
+      "MT-33100",
+      "MT-33104"
+     ],
+     "expected_state": "A group frame with solved child positions.",
+     "visual_check": {
+      "what_must_be_visible": "Spacing and padding fields, and hover overlays.",
+      "layout_or_fit_concern": "The section is drawn only when design records already exist, so the first use has no visible entry point."
+     },
+     "failure_a_professional_would_notice": "The panel does not appear on a fresh document."
+    },
+    {
+     "n": 69,
+     "intent": "Pin layers with constraints so formats can adapt.",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Set left, right, top and scale constraints",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_components::apply_constraints",
+      "parameters": {
+       "horizontal": "SCALE"
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-components/src/constraints.rs:62 `pub fn apply_constraints(`",
+       "crates/hsk-studio-folio/src/autolayout.rs:357 `pub struct StudioConstraint {`",
+       "looked: git grep -iE 'apply_constraints|set_constraint' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-DS-144:20102"
+     ],
+     "mts": [
+      "MT-33100"
+     ],
+     "expected_state": "Constraints stored and evaluated when a frame resizes.",
+     "visual_check": {
+      "what_must_be_visible": "A pin diagram in the inspector.",
+      "layout_or_fit_concern": "Pins must be visible with the selected layer."
+     },
+     "failure_a_professional_would_notice": "Resizing a frame distorts its contents."
+    },
+    {
+     "n": 70,
+     "intent": "Adapt the master to the other three formats.",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": null,
+      "gesture": "Duplicate artboard, set the size",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_components::resize_component",
+      "parameters": {
+       "targets": [
+        "1080x1920",
+        "1200x628",
+        "A3"
+       ]
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-components/src/constraints.rs:88 `pub fn resize_component(`",
+       "crates/hsk-studio-layout/src/alternate.rs:140 `pub fn create_alternate_layout(` (the layout counterpart)",
+       "looked: git grep -iE 'create_alternate_layout|resize_component' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-011:5613",
+      "STU-DOC-004:287"
+     ],
+     "mts": [
+      "MT-147",
+      "MT-30676",
+      "MT-081",
+      "MT-082",
+      "MT-083"
+     ],
+     "expected_state": "Four linked formats; the shared content stays linked.",
+     "visual_check": {
+      "what_must_be_visible": "All formats side by side, with overflow marked.",
+      "layout_or_fit_concern": "Formats should be reviewable together."
+     },
+     "failure_a_professional_would_notice": "Formats drift apart because they were duplicated by hand."
+    },
+    {
+     "n": 71,
+     "intent": "Bind colours to the theme and flip to the evening mode.",
+     "human": {
+      "panel": "library",
+      "tool": null,
+      "gesture": "Bind fills; switch mode on the frame",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_components::resolve_variable",
+      "parameters": {
+       "mode": "dark"
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-components/src/instance_resolution.rs:178 `pub fn resolve_variable(`",
+       "looked: git grep -iE 'bind_variable|set_explicit_variable_mode' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-DS-132:20066"
+     ],
+     "mts": [
+      "MT-33088"
+     ],
+     "expected_state": "Each frame resolves the selected mode.",
+     "visual_check": {
+      "what_must_be_visible": "Mode chip on the frame.",
+      "layout_or_fit_concern": "Binding state must be seen on the colour control."
+     },
+     "failure_a_professional_would_notice": "No evening variant without redoing colours."
+    },
+    {
+     "n": 72,
+     "intent": "Attach the stallholder data source.",
+     "human": {
+      "panel": "data-merge",
+      "tool": null,
+      "gesture": "Pick the CSV, review fields",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_interop_layout::parse_delimited",
+      "parameters": {
+       "path": "fixtures/stallholders.csv",
+       "delimiter": ","
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-interop-layout/src/data_merge.rs:137 `pub fn parse_delimited(bytes: &[u8], delimiter: char) -> Result<DataSource, MergeError> {`",
+       "looked: git grep -iE 'data_merge|parse_delimited' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-163:7453"
+     ],
+     "mts": [
+      "MT-30853",
+      "MT-30854"
+     ],
+     "expected_state": "Typed fields: text, @image and #qr.",
+     "visual_check": {
+      "what_must_be_visible": "Field list with a record preview.",
+      "layout_or_fit_concern": "Mapping must be visible beside the design."
+     },
+     "failure_a_professional_would_notice": "Errors in the data only show after the bulk run."
+    },
+    {
+     "n": 73,
+     "intent": "Bind headline and tagline to fields and step through records.",
+     "human": {
+      "panel": "data-merge",
+      "tool": null,
+      "gesture": "Insert fields; next and previous record",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_interop_layout::merge_story",
+      "parameters": {
+       "placeholder": "<<name>>",
+       "record": 2
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-interop-layout/src/data_merge.rs:299 `pub fn merge_story(story: &StudioTextStory, text: &str, src: &DataSource, index: usize, re`",
+       "crates/hsk-studio-interop-layout/src/data_merge.rs:257 `pub fn find_placeholders(text: &str) -> Vec<Placeholder> {`",
+       "Layout stories only: vector text layers on artboards have no merge route."
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-163:7453"
+     ],
+     "mts": [
+      "MT-30853",
+      "MT-30854"
+     ],
+     "expected_state": "Fields replaced per record; a missing field is a typed error.",
+     "visual_check": {
+      "what_must_be_visible": "Live record preview on all formats.",
+      "layout_or_fit_concern": "A long name must flag overflow while stepping."
+     },
+     "failure_a_professional_would_notice": "A long name overflows in file 17, and nobody sees it."
+    },
+    {
+     "n": 74,
+     "intent": "Bind the photo field per record.",
+     "human": {
+      "panel": "data-merge",
+      "tool": null,
+      "gesture": "Field on the image frame",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "field": "@photo"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-interop-layout/src/data_merge.rs:22 `//! Not implemented (gaps): image and QR placement into frames (fields are typed and retur` (typed and returned, never placed)"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-163:7453",
+      "STU-ASSET-005:31320"
+     ],
+     "mts": [
+      "MT-30853",
+      "MT-30854",
+      "MT-34396"
+     ],
+     "expected_state": "Each record shows its own linked photo, with fit preserved.",
+     "visual_check": {
+      "what_must_be_visible": "The right photo per record.",
+      "layout_or_fit_concern": "Fit rules must apply per record."
+     },
+     "failure_a_professional_would_notice": "Everyone gets the same photo."
+    },
+    {
+     "n": 75,
+     "intent": "Generate a QR code per record.",
+     "human": {
+      "panel": "data-merge",
+      "tool": null,
+      "gesture": "QR field",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "field": "#qr_url"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-interop-layout/src/data_merge.rs:75 `QrCode,` (the field kind only)",
+       "looked: git grep -iE 'qr_encode|generate_qr|QrEncoder' over every crate's src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-163:7453"
+     ],
+     "mts": [
+      "MT-30853",
+      "MT-30854"
+     ],
+     "expected_state": "A vector QR per record.",
+     "visual_check": {
+      "what_must_be_visible": "QR in place; scannable size checked.",
+      "layout_or_fit_concern": "Warn below a scannable size."
+     },
+     "failure_a_professional_would_notice": "QR codes pasted one at a time."
+    },
+    {
+     "n": 76,
+     "intent": "Bulk generate all 24 variants.",
+     "human": {
+      "panel": "data-merge, jobs",
+      "tool": null,
+      "gesture": "Generate; watch the Jobs row",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_interop_layout::select_records + arrange_records",
+      "parameters": {
+       "selection": "all",
+       "formats": 4
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-interop-layout/src/data_merge.rs:362 `pub fn select_records(sel: &RecordSelection, count: usize) -> Result<Vec<usize>, MergeErro`",
+       "crates/hsk-studio-interop-layout/src/data_merge.rs:413 `pub fn arrange_records(` (records per page, not one file per format and record)",
+       "Direct merge to output is a declared gap of data_merge.rs."
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-163:7453",
+      "STU-AUT-004:22086"
+     ],
+     "mts": [
+      "MT-30853",
+      "MT-30854",
+      "MT-482",
+      "MT-501",
+      "MT-33550"
+     ],
+     "expected_state": "24 variants, one batch, one report; each failure names record and format.",
+     "visual_check": {
+      "what_must_be_visible": "Grid of results; failed ones marked.",
+      "layout_or_fit_concern": "Review 24 at a glance without opening each."
+     },
+     "failure_a_professional_would_notice": "A failure in one record aborts all with no report."
+    },
+    {
+     "n": 77,
+     "intent": "Check legibility with colour-vision and contrast proofing.",
+     "human": {
+      "panel": "proof",
+      "tool": null,
+      "gesture": "VIEW > Proof",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "Viewer::proof_command(SelectColourVision)",
+      "parameters": {
+       "vision": "deuteranopia"
+      },
+      "status": "callable",
+      "reach": "rust_viewer_method",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/view/proof.rs:389 `pub fn proof_command(&mut self, command: ProofCommand) -> Result<(), String> {`",
+       "crates/hsk-studio-harness-view/src/view/proof.rs:233 `SelectColourVision(ProofColourVision),`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-UNI-003:22617"
+     ],
+     "mts": [
+      "MT-010",
+      "MT-490",
+      "MT-551"
+     ],
+     "expected_state": "Proof view on; document unchanged.",
+     "visual_check": {
+      "what_must_be_visible": "A clear proof-on banner.",
+      "layout_or_fit_concern": "The proof state must be obvious."
+     },
+     "failure_a_professional_would_notice": "Proof state leaks into export."
+    },
+    {
+     "n": 78,
+     "intent": "Collect review comments from the marketing lead on the master.",
+     "human": {
+      "panel": "comments",
+      "tool": null,
+      "gesture": "Pin a comment on the frame",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "text": "Bigger date, please"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'StudioComment|comment_thread|review_comment' over every crate's src at c4d06841: 0 hits",
+       "STU-WB-007 makes comments a substrate of 14.17; no such surface exists."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WB-007:22493",
+      "STU-UNI-004:22619"
+     ],
+     "mts": [
+      "MT-536",
+      "MT-537",
+      "MT-33629",
+      "MT-33661"
+     ],
+     "expected_state": "Attributed, resolvable comments pinned to nodes.",
+     "visual_check": {
+      "what_must_be_visible": "Comment pin; a list with resolve.",
+      "layout_or_fit_concern": "Comments should not ship in export."
+     },
+     "failure_a_professional_would_notice": "Feedback lives outside the file."
+    },
+    {
+     "n": 79,
+     "intent": "Export every variant as a named PNG per artboard and record.",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "FILE > Export > marked slices",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "pattern": "{format}_{stall}.png",
+       "count": 24
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'export_slice|artboard_export|export_artboard' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits",
+       "crates/hsk-studio-harness-view/src/view/shell.rs:561 `Self::ExportPng => \"studio.interop.export.png\".into(),` (whole-document export only)",
+       "looked: git grep -i artboard over hsk-studio-harness/src/cli.rs at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-IO-136:21292",
+      "STU-DOC-004:287",
+      "STU-LAY-063:7431"
+     ],
+     "mts": [
+      "MT-33398",
+      "MT-33399",
+      "MT-081",
+      "MT-082",
+      "MT-083",
+      "MT-165"
+     ],
+     "expected_state": "24 files with exact sizes and names.",
+     "visual_check": {
+      "what_must_be_visible": "Export panel listing each output with size; a Jobs row.",
+      "layout_or_fit_concern": "Output naming must be previewed before writing."
+     },
+     "failure_a_professional_would_notice": "One file per export, by hand."
+    },
+    {
+     "n": 80,
+     "intent": "Export one composed master as PNG and JPEG for the deck.",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "FILE > Export > PNG or JPEG",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "export --png / --jpeg",
+      "parameters": {
+       "path": "out/master.png",
+       "quality": 90
+      },
+      "status": "callable",
+      "reach": "corpus_or_cli",
+      "evidence": [
+       "crates/hsk-studio-harness/src/cli.rs:152 `\"--png\" => p.png = true,`",
+       "crates/hsk-studio-harness/src/cli.rs:153 `\"--jpeg\" => p.jpeg = true,`",
+       "crates/hsk-studio-harness-view/src/view/export.rs:68 `pub fn encode_frame(frame: &Frame, format: ExportFormat) -> Result<Exported, &'static str>`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-IO-136:21292",
+      "STU-IO-006 row 5:21552"
+     ],
+     "mts": [
+      "MT-33398",
+      "MT-33399",
+      "MT-443",
+      "MT-446",
+      "MT-447"
+     ],
+     "expected_state": "Files decoded back and verified before writing.",
+     "visual_check": {
+      "what_must_be_visible": "A receipt in the status log.",
+      "layout_or_fit_concern": "No colour tag in PNG (note srgb_untagged)."
+     },
+     "failure_a_professional_would_notice": "Colours shift in a browser because the file is untagged."
+    },
+    {
+     "n": 81,
+     "intent": "Export WebP versions for the site.",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "FILE > Export > WebP",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "quality": 80
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-interop-raster/src/lib.rs:52 `Some(RasterFormat::Webp) => Err(RasterError::Unsupported(\"webp_decoder_unavailable\")),` (decode refuses, and no encoder)",
+       "crates/hsk-studio-harness-view/src/view/export.rs:27 `pub enum ExportFormat {` (PNG and JPEG only)",
+       "looked: git grep -iE 'webp_encoder|encode_webp|ExportFormat::Webp' over every crate's src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-IO-006 row 7:21554"
+     ],
+     "mts": [
+      "MT-443",
+      "MT-446",
+      "MT-447"
+     ],
+     "expected_state": "WebP files at the set quality.",
+     "visual_check": {
+      "what_must_be_visible": "Quality with a size estimate.",
+      "layout_or_fit_concern": "Web-ready formats belong in the same dialog."
+     },
+     "failure_a_professional_would_notice": "The site ships heavy PNG files."
+    },
+    {
+     "n": 82,
+     "intent": "Export the logo as SVG.",
+     "human": {
+      "panel": "vector export",
+      "tool": null,
+      "gesture": "FILE > Export > SVG",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "Viewer::export_vector_svg",
+      "parameters": {
+       "path": "out/logo.svg"
+      },
+      "status": "callable",
+      "reach": "rust_viewer_method",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/view/vector/interop.rs:605 `pub fn export_vector_svg(&mut self, path: &Path, overwrite: bool) -> Result<Vec<String>, S`",
+       "crates/hsk-studio-interop-vector-svg/src/svg_export.rs:1089 `pub fn export_svg(`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-075:30946",
+      "STU-IO-006 row 46:21593"
+     ],
+     "mts": [
+      "MT-34298",
+      "MT-443",
+      "MT-446",
+      "MT-447"
+     ],
+     "expected_state": "An SVG file and a loss list.",
+     "visual_check": {
+      "what_must_be_visible": "Losses listed.",
+      "layout_or_fit_concern": "Trim to art bounds default, per STU-WEB-075."
+     },
+     "failure_a_professional_would_notice": "An untrimmed canvas ships in the SVG."
+    },
+    {
+     "n": 83,
+     "intent": "Export the poster as PDF.",
+     "human": {
+      "panel": "vector export",
+      "tool": null,
+      "gesture": "FILE > Export > PDF",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "Viewer::export_vector_pdf",
+      "parameters": {
+       "path": "out/poster.pdf"
+      },
+      "status": "callable",
+      "reach": "rust_viewer_method",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/view/vector/pdf_export.rs:364 `pub fn export_vector_pdf(&mut self, path: &Path, overwrite: bool) -> Result<Vec<String>, S`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-054:6959"
+     ],
+     "mts": [
+      "MT-181",
+      "MT-184",
+      "MT-185"
+     ],
+     "expected_state": "A vector PDF.",
+     "visual_check": {
+      "what_must_be_visible": "Receipt with page size.",
+      "layout_or_fit_concern": "Whole document only, with no artboard selection."
+     },
+     "failure_a_professional_would_notice": "All formats land on one page."
+    },
+    {
+     "n": 84,
+     "intent": "Save and verify the asset master.",
+     "human": {
+      "panel": "FILE",
+      "tool": null,
+      "gesture": "FILE > Save",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.save + document.verify",
+      "parameters": {
+       "path": "out/promo.handshake"
+      },
+      "status": "callable",
+      "reach": "corpus_or_cli",
+      "evidence": [
+       "crates/hsk-studio-harness-core/src/action.rs:868 `entry(\"document.save\", \"save_to\", \"Save document\", false, false, &[]),`",
+       "crates/hsk-studio-harness/src/cli.rs:284 `\"open\" | \"panel\" | \"edit\" | \"verify\" => {`"
+      ]
+     },
+     "spec_clauses": [
+      "STU-IO-001:21506"
+     ],
+     "mts": [
+      "MT-441",
+      "MT-33439",
+      "MT-35810"
+     ],
+     "expected_state": "Package reverifies, with the design entry saved.",
+     "visual_check": {
+      "what_must_be_visible": "Saved state in the tab.",
+      "layout_or_fit_concern": "No extra dialog."
+     },
+     "failure_a_professional_would_notice": "Design records drop on reopen."
+    }
+   ]
+  },
+  {
+   "scene_id": "S4-landing-site",
+   "goal": "Build, check and publish a responsive 2-page landing site as static files, with a late campaign change flowing through.",
+   "steps": [
+    {
+     "n": 85,
+     "intent": "Define the site: local root, images folder and link base.",
+     "human": {
+      "panel": "site-deploy",
+      "tool": null,
+      "gesture": "FILE > Site Management > New Site",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "studio.web.site",
+      "parameters": {
+       "display_name": "harbour-lights",
+       "local_root": "out/site",
+       "site_relative_link_base": "site_root"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'studio\\.web\\.|site_record|StudioSite|local_root' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits",
+       "hsk-studio-web, web-core and web-assets have no dependent crate outside themselves at c4d06841 (Cargo.toml search), so no host or command reaches them."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-113:31101",
+      "STU-WEB-007:30437",
+      "STU-WEB-139:31179"
+     ],
+     "mts": [
+      "MT-34341",
+      "MT-34223",
+      "MT-34368"
+     ],
+     "expected_state": "A site record with a resource-scoped authority row.",
+     "visual_check": {
+      "what_must_be_visible": "Site name in the site-tree header.",
+      "layout_or_fit_concern": "Setup needs only a root at first; server fields are optional."
+     },
+     "failure_a_professional_would_notice": "Forced server setup for a static site."
+    },
+    {
+     "n": 86,
+     "intent": "Enter the Web arrangement: site tree, related files, code view and CSS panel.",
+     "human": {
+      "panel": "WORKSPACE > Layout Presets",
+      "tool": null,
+      "gesture": "Pick the Web preset",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "studio.workspace.layout_preset",
+      "parameters": {
+       "preset": "Web"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'layout_preset|site_tree|site-tree' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-SHL-088:32231",
+      "STU-SHL-095:32272",
+      "STU-WEB-140:31181"
+     ],
+     "mts": [
+      "MT-34619",
+      "MT-34626",
+      "MT-34369"
+     ],
+     "expected_state": "The web default layout on the profile signature {artboard, site_tree}.",
+     "visual_check": {
+      "what_must_be_visible": "site-tree, related-files, code-view and css-designer in their docks.",
+      "layout_or_fit_concern": "Code view and live view need enough width together at a laptop size."
+     },
+     "failure_a_professional_would_notice": "Code squeezed into a narrow dock."
+    },
+    {
+     "n": 87,
+     "intent": "Generate a first page from a prompt as a reviewable proposal.",
+     "human": {
+      "panel": "proposal review",
+      "tool": null,
+      "gesture": "Describe the page to a model lane",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "prompt": "landing page for a harbour night market; hero, stalls, map, signup"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'model_lane|prompt_to|generate_page' over every crate's src at c4d06841: 0 hits",
+       "STU-WEB-010: any model assistance here is a Studio model-lane capability, not a vendor port; the parity target is Figma Make. Matrix row 40 alone covers only the local-copy file.",
+       "Spec gap: no clause states a prompt-to-page workflow."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-010:30443",
+      "STU-CON-007:22896",
+      "STU-IO-006 row 40:21587"
+     ],
+     "mts": [
+      "MT-34226",
+      "MT-067",
+      "MT-556",
+      "MT-557",
+      "MT-443",
+      "MT-446"
+     ],
+     "expected_state": "A proposal the operator reviews; applying it writes source text with one undo.",
+     "visual_check": {
+      "what_must_be_visible": "Side-by-side proposal; accept or reject.",
+      "layout_or_fit_concern": "Generated source must land in the same code view."
+     },
+     "failure_a_professional_would_notice": "Generated code sits in a sandbox that cannot be edited with the other tools."
+    },
+    {
+     "n": 88,
+     "intent": "Generate the hero and stall card from the design components.",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "Convert a design selection to web",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "source": "promo.handshake",
+       "components": [
+        "cta",
+        "stall-card"
+       ]
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'design_to_web|generate_html|to_html|web_export' over every crate's src at c4d06841: 0 hits",
+       "STU-WEB-135 mapping: components to library items, variables to CSS custom properties, auto layout to flex or grid, with a receipt for anything unmapped."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-135:31164",
+      "STU-WEB-136:31173",
+      "STU-WEB-088:31031"
+     ],
+     "mts": [
+      "MT-34364",
+      "MT-34365",
+      "MT-34315"
+     ],
+     "expected_state": "A web document with a generation receipt listing unmapped constructs.",
+     "visual_check": {
+      "what_must_be_visible": "Receipt beside the generated code.",
+      "layout_or_fit_concern": "One-way only, stated plainly."
+     },
+     "failure_a_professional_would_notice": "A design change means rebuilding by hand; approximations are silent."
+    },
+    {
+     "n": 89,
+     "intent": "Open the source as a web document in HTML 5 mode.",
+     "human": {
+      "panel": "code-view",
+      "tool": null,
+      "gesture": "FILE > New > HTML 5",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_web::parse",
+      "parameters": {
+       "doctype": "html_5",
+       "source": "index.html"
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-web-core/src/dom.rs:384 `pub fn parse(`",
+       "crates/hsk-studio-web-core/src/lib.rs:44 `pub const DESCRIPTOR: &str = r#\"{\"schema\":\"hsk.studio.web.descriptor@1\",\"crate\":\"hsk-studi` (subset declared: explicit end tags only)",
+       "looked: git grep -iE 'hsk_studio_web' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits",
+       "hsk-studio-web, web-core and web-assets have no dependent crate outside themselves at c4d06841 (Cargo.toml search), so no host or command reaches them."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-003:30429",
+      "STU-WEB-004:30431",
+      "STU-WEB-015:30501"
+     ],
+     "mts": [
+      "MT-34220",
+      "MT-34221",
+      "MT-34232"
+     ],
+     "expected_state": "A WebDoc over source bytes; text remains authority.",
+     "visual_check": {
+      "what_must_be_visible": "Line numbers and the source exactly as typed.",
+      "layout_or_fit_concern": "Byte-exact: quoting and indentation preserved."
+     },
+     "failure_a_professional_would_notice": "Opening and saving reformats the file."
+    },
+    {
+     "n": 90,
+     "intent": "Switch between code, split, live and inspect views.",
+     "human": {
+      "panel": "code-view",
+      "tool": null,
+      "gesture": "View switcher",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "studio.web.preview",
+      "parameters": {
+       "view": "split"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'view_mode|live_view|split_view' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits",
+       "Spec: views must not alter document bytes."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-128:31146",
+      "STU-WEB-129:31148",
+      "STU-WEB-130:31150"
+     ],
+     "mts": [
+      "MT-34357",
+      "MT-34358",
+      "MT-34359"
+     ],
+     "expected_state": "Same bytes across all views.",
+     "visual_check": {
+      "what_must_be_visible": "A segmented control at the top of the code viewer.",
+      "layout_or_fit_concern": "The split must hold orientation per site."
+     },
+     "failure_a_professional_would_notice": "Switching view changes bytes."
+    },
+    {
+     "n": 91,
+     "intent": "Type code with colouring and hints.",
+     "human": {
+      "panel": "code-view",
+      "tool": null,
+      "gesture": "Type a tag; accept a hint",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "language": "html"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'code_hint|colouring_scheme|syntax_highlight' over every crate's src at c4d06841: 0 hits",
+       "Spec shipped baselines: 33 schemes and 4,811 hints."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-045:30696",
+      "STU-WEB-050:30706",
+      "STU-WEB-059:30817"
+     ],
+     "mts": [
+      "MT-34263",
+      "MT-34268",
+      "MT-34278"
+     ],
+     "expected_state": "Coloured code; a hint list at the caret.",
+     "visual_check": {
+      "what_must_be_visible": "Colouring in the theme; a hint popup next to the caret.",
+      "layout_or_fit_concern": "The popup must not cover the line being typed."
+     },
+     "failure_a_professional_would_notice": "Plain unstyled text in a code editor."
+    },
+    {
+     "n": 92,
+     "intent": "Insert the page sections: header, hero, stalls, map, signup, footer.",
+     "human": {
+      "panel": "insert",
+      "tool": null,
+      "gesture": "Insert catalogue, click entries",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_web::insert_element",
+      "parameters": {
+       "parent": "body",
+       "tag": "section",
+       "attrs": [
+        [
+         "id",
+         "hero"
+        ]
+       ]
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-web-core/src/source_dom_patch.rs:511 `pub fn insert_element(`",
+       "crates/hsk-studio-web-core/src/source_dom_patch.rs:485 `pub fn insert_fragment(`",
+       "looked: git grep -iE 'insert\\.object|insert_catalogue' over every crate's src at c4d06841: 0 hits",
+       "hsk-studio-web, web-core and web-assets have no dependent crate outside themselves at c4d06841 (Cargo.toml search), so no host or command reaches them."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-100:31071",
+      "STU-WEB-112:31095",
+      "STU-WEB-003:30429"
+     ],
+     "mts": [
+      "MT-34328",
+      "MT-34340",
+      "MT-34220"
+     ],
+     "expected_state": "Elements written back as text patches; the tree stays a projection.",
+     "visual_check": {
+      "what_must_be_visible": "Insert catalogue by category; result seen in code and live.",
+      "layout_or_fit_concern": "Twelve categories must not be flat."
+     },
+     "failure_a_professional_would_notice": "An insert breaks indentation."
+    },
+    {
+     "n": 93,
+     "intent": "Set copy and attributes in place.",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Edit text in live; set attributes in the tag inspector",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_web::set_text + set_attribute",
+      "parameters": {
+       "key": "hero/h1",
+       "text": "One night. Six hundred stalls."
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-web-core/src/source_dom_patch.rs:316 `pub fn set_text(doc: &WebDoc, key: &NodeKey, text: &str) -> Result<SourcePatch, WebError> `",
+       "crates/hsk-studio-web-core/src/source_dom_patch.rs:218 `pub fn set_attribute(`",
+       "crates/hsk-studio-web-core/src/dom.rs:1367 `pub fn key_of(&self, id: NodeId) -> Option<NodeKey> {`",
+       "hsk-studio-web, web-core and web-assets have no dependent crate outside themselves at c4d06841 (Cargo.toml search), so no host or command reaches them."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-129:31148",
+      "STU-WEB-019:30539",
+      "STU-WEB-026:30595"
+     ],
+     "mts": [
+      "MT-34358",
+      "MT-34236",
+      "MT-34244"
+     ],
+     "expected_state": "One source patch per edit, with the same receipt from live and code.",
+     "visual_check": {
+      "what_must_be_visible": "Live edit caret; tag inspector values.",
+      "layout_or_fit_concern": "Tag inspector should show only relevant attributes."
+     },
+     "failure_a_professional_would_notice": "Edits in live and code use separate paths."
+    },
+    {
+     "n": 94,
+     "intent": "Write the stylesheet with brand tokens as custom properties.",
+     "human": {
+      "panel": "css-designer, code-view",
+      "tool": null,
+      "gesture": "Add source, selector and properties",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_web::insert_element(style)",
+      "parameters": {
+       "tag": "style"
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-web-core/src/css.rs:1 `//! Bounded CSS helpers for the subset the web module understands: a flat rule scanner wit` (flat rule scanner, no cascade or layout)",
+       "crates/hsk-studio-web-core/src/dom.rs:1527 `pub fn sheet(&self, id: NodeId) -> Option<Sheet> {`",
+       "Only an embedded style body is reached; external sheet resolution and tokens from design are not implemented.",
+       "hsk-studio-web, web-core and web-assets have no dependent crate outside themselves at c4d06841 (Cargo.toml search), so no host or command reaches them."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-060:30823",
+      "STU-WEB-135:31164"
+     ],
+     "mts": [
+      "MT-34279",
+      "MT-34364"
+     ],
+     "expected_state": "Rules parsed with @media contexts; tokens match brand variables.",
+     "visual_check": {
+      "what_must_be_visible": "SOURCE, MEDIA, SELECTOR and PROPERTIES levels.",
+      "layout_or_fit_concern": "All four levels must be visible together."
+     },
+     "failure_a_professional_would_notice": "Brand colours retyped into CSS by hand."
+    },
+    {
+     "n": 95,
+     "intent": "Edit properties with the CSS Designer controls.",
+     "human": {
+      "panel": "css-designer",
+      "tool": null,
+      "gesture": "Scrub a property; pick a unit",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "property": "padding",
+       "value": "24",
+       "unit": "px"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'css_designer|CssDesigner|control_type' over every crate's src at c4d06841: 0 hits",
+       "82 curated properties and 14 control types are specified."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-061:30825",
+      "STU-WEB-062:30837",
+      "STU-WEB-063:30839",
+      "STU-WEB-064:30841"
+     ],
+     "mts": [
+      "MT-34280",
+      "MT-34281",
+      "MT-34282",
+      "MT-34283"
+     ],
+     "expected_state": "Writes declarations to the source of the selected rule.",
+     "visual_check": {
+      "what_must_be_visible": "Grouped controls with fifteen units.",
+      "layout_or_fit_concern": "Scrubbing writes to the right rule; show which one."
+     },
+     "failure_a_professional_would_notice": "A control writes a new rule rather than editing the winning one."
+    },
+    {
+     "n": 96,
+     "intent": "Add the viewport meta.",
+     "human": {
+      "panel": "head inspector",
+      "tool": null,
+      "gesture": "Viewport inspector",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_web::insert_element(meta)",
+      "parameters": {
+       "name": "viewport",
+       "content": "width=device-width, initial-scale=1"
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-web-core/src/source_dom_patch.rs:511 `pub fn insert_element(`",
+       "crates/hsk-studio-web-core/src/preview.rs:301 `pub fn preview_tree(` (reads meta only as a node; dedicated inspector is missing)",
+       "hsk-studio-web, web-core and web-assets have no dependent crate outside themselves at c4d06841 (Cargo.toml search), so no host or command reaches them."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-089:31033",
+      "STU-WEB-037:30667"
+     ],
+     "mts": [
+      "MT-34316",
+      "MT-34255"
+     ],
+     "expected_state": "One viewport meta.",
+     "visual_check": {
+      "what_must_be_visible": "Dedicated inspector when the meta is selected.",
+      "layout_or_fit_concern": "Warn when absent."
+     },
+     "failure_a_professional_would_notice": "The mobile view is wrong because the meta is missing."
+    },
+    {
+     "n": 97,
+     "intent": "Declare the breakpoints: min-width 768 and 1200.",
+     "human": {
+      "panel": "breakpoint ruler",
+      "tool": null,
+      "gesture": "Add on the ruler",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_web::responsive::parse_media_query",
+      "parameters": {
+       "queries": [
+        "(min-width: 768px)",
+        "(min-width: 1200px)"
+       ]
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-web-core/src/responsive.rs:173 `pub fn parse_media_query(query: &str) -> Result<Vec<Breakpoint>, WebError> {`",
+       "crates/hsk-studio-web-core/src/responsive.rs:353 `pub fn document_media_blocks(`",
+       "crates/hsk-studio-web-core/src/responsive.rs:1 `//! Responsive breakpoint descriptors: CSS `@media` min-width/max-width in px for the docu` (min and max width in px only; anything else is a typed refusal)",
+       "hsk-studio-web, web-core and web-assets have no dependent crate outside themselves at c4d06841 (Cargo.toml search), so no host or command reaches them."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-076:30952",
+      "STU-WEB-081:31002",
+      "STU-WEB-156:31259"
+     ],
+     "mts": [
+      "MT-34299",
+      "MT-34307",
+      "MT-34380"
+     ],
+     "expected_state": "Media blocks in source with typed breakpoints.",
+     "visual_check": {
+      "what_must_be_visible": "Blocks listed per query.",
+      "layout_or_fit_concern": "Refused query kinds must be seen, not hidden."
+     },
+     "failure_a_professional_would_notice": "A rem-based query is refused with no way forward."
+    },
+    {
+     "n": 98,
+     "intent": "Use the visual breakpoint ruler to drag widths.",
+     "human": {
+      "panel": "breakpoint ruler",
+      "tool": null,
+      "gesture": "Drag the live view width",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "min_content_width": 80
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'breakpoint_ruler|BreakpointRuler|add_guide_width' over every crate's src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-079:30970",
+      "STU-WEB-080:30988",
+      "STU-WEB-087:31029"
+     ],
+     "mts": [
+      "MT-34303",
+      "MT-34304",
+      "MT-34305",
+      "MT-34306",
+      "MT-34314"
+     ],
+     "expected_state": "Width changes with the active queries highlighted.",
+     "visual_check": {
+      "what_must_be_visible": "Ruler band of 16 px over the live view, with handles.",
+      "layout_or_fit_concern": "Ruler must stay usable at every zoom."
+     },
+     "failure_a_professional_would_notice": "No way to see where the design breaks."
+    },
+    {
+     "n": 99,
+     "intent": "Check the structure at 360, 768 and 1280 wide.",
+     "human": {
+      "panel": "live view",
+      "tool": null,
+      "gesture": "Width presets",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_web::preview_tree",
+      "parameters": {
+       "viewport_width_px": [
+        360,
+        768,
+        1280
+       ]
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-web-core/src/preview.rs:301 `pub fn preview_tree(`",
+       "crates/hsk-studio-web-core/src/preview.rs:54 `pub struct ActiveRule {`",
+       "crates/hsk-studio-web-core/src/preview.rs:28 `pub enum HiddenReason {`",
+       "hsk-studio-web, web-core and web-assets have no dependent crate outside themselves at c4d06841 (Cargo.toml search), so no host or command reaches them."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-087:31029",
+      "STU-WEB-130:31150"
+     ],
+     "mts": [
+      "MT-34314",
+      "MT-34359"
+     ],
+     "expected_state": "Rendered and hidden nodes, and active rules, per width.",
+     "visual_check": {
+      "what_must_be_visible": "Active queries at the set width.",
+      "layout_or_fit_concern": "Today this is a tree with no pixels."
+     },
+     "failure_a_professional_would_notice": "A pass on tree data says nothing about how it looks."
+    },
+    {
+     "n": 100,
+     "intent": "Capture the rendered page at each width without a foreground window.",
+     "human": {
+      "panel": "live view",
+      "tool": null,
+      "gesture": "Not a human step",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "web.capture_view",
+      "parameters": {
+       "width": 1280,
+       "height": 800
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'capture_view' over every crate's src at c4d06841: 0 hits",
+       "crates/hsk-studio-web-core/src/css.rs:3 `//! evaluates layout or the full cascade; whatever falls outside the subset is reported, n` (no layout or paint engine in the web crates)",
+       "Spec requires it for visual verification; a rendering engine decision is open: the web crates evaluate no layout, and Studio holds no browser."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-131:31152",
+      "STU-WEB-087:31029",
+      "STU-WEB-128:31146"
+     ],
+     "mts": [
+      "MT-34360",
+      "MT-34314",
+      "MT-34357"
+     ],
+     "expected_state": "Image bytes per width, quietly.",
+     "visual_check": {
+      "what_must_be_visible": "Page rendered at the requested width.",
+      "layout_or_fit_concern": "Without it no live view can exist: this blocks live, split and inspect views."
+     },
+     "failure_a_professional_would_notice": "No one can see the page inside Studio."
+    },
+    {
+     "n": 101,
+     "intent": "Place the campaign images with responsive sources.",
+     "human": {
+      "panel": "links-placements",
+      "tool": null,
+      "gesture": "Drop images; set srcset",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_web::collect_assets",
+      "parameters": {
+       "srcset": [
+        "hero-768.png 768w",
+        "hero-1280.png 1280w"
+       ]
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-web-assets/src/assets.rs:1233 `pub fn collect_assets(`",
+       "crates/hsk-studio-web-assets/src/carriers.rs:686 `names: &[\"srcset\"],`",
+       "crates/hsk-studio-web-assets/src/assets.rs:66 `pub trait AssetPort: Send + Sync {`",
+       "The port is defined; no CKC binding exists.",
+       "hsk-studio-web, web-core and web-assets have no dependent crate outside themselves at c4d06841 (Cargo.toml search), so no host or command reaches them."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-134:31162",
+      "STU-ASSET-005:31320"
+     ],
+     "mts": [
+      "MT-34363",
+      "MT-34396"
+     ],
+     "expected_state": "References listed and gated; each resolved as a placed-asset link.",
+     "visual_check": {
+      "what_must_be_visible": "Images in links-placements with status.",
+      "layout_or_fit_concern": "Web and print links use one panel."
+     },
+     "failure_a_professional_would_notice": "A missing image is found only after publishing."
+    },
+    {
+     "n": 102,
+     "intent": "Add the signup form as static markup; no server.",
+     "human": {
+      "panel": "insert",
+      "tool": null,
+      "gesture": "Insert a form",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_web::insert_fragment",
+      "parameters": {
+       "fragment": "<form action=\"https://example.test/signup\" method=\"post\">...</form>"
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-web-core/src/source_dom_patch.rs:485 `pub fn insert_fragment(`",
+       "crates/hsk-studio-web-core/src/source_dom_patch.rs:483 `/// before the close tag). The fragment must itself parse inside the subset, so a patch ca` (a fragment that does not parse is refused)",
+       "hsk-studio-web, web-core and web-assets have no dependent crate outside themselves at c4d06841 (Cargo.toml search), so no host or command reaches them."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-002:30427",
+      "STU-WEB-101:31073"
+     ],
+     "mts": [
+      "MT-34219",
+      "MT-34329"
+     ],
+     "expected_state": "Form markup inserted; Studio runs no backend.",
+     "visual_check": {
+      "what_must_be_visible": "Form inspector with action and method.",
+      "layout_or_fit_concern": "State plainly that submission needs an outside endpoint."
+     },
+     "failure_a_professional_would_notice": "A form that silently goes nowhere."
+    },
+    {
+     "n": 103,
+     "intent": "Add a hover transition and a scroll-to behaviour.",
+     "human": {
+      "panel": "interactions",
+      "tool": null,
+      "gesture": "Add a behaviour; pick an event",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "insert.object",
+      "parameters": {
+       "behavior": "scroll",
+       "event": "onClick"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'behavior_id|event_handler_template|safe_in_templates' over every crate's src at c4d06841: 0 hits",
+       "STU-WEB-112 commands; the event model holds 79 element rows."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-073:30937",
+      "STU-WEB-105:31081",
+      "STU-WEB-110:31091",
+      "STU-WEB-112:31095"
+     ],
+     "mts": [
+      "MT-34296",
+      "MT-34333",
+      "MT-34338",
+      "MT-34340"
+     ],
+     "expected_state": "Transition declarations and a behaviour with one shared helper.",
+     "visual_check": {
+      "what_must_be_visible": "Behaviour list per element with its event.",
+      "layout_or_fit_concern": "Unsupported event flagged per the event model."
+     },
+     "failure_a_professional_would_notice": "Script duplicated per instance."
+    },
+    {
+     "n": 104,
+     "intent": "Extract the nav and footer into library items, used by both pages.",
+     "human": {
+      "panel": "library",
+      "tool": null,
+      "gesture": "Create a library item from a selection",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "items": [
+        "nav",
+        "footer"
+       ]
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'library_item|update_template_instances|TemplateInstance' over every crate's src at c4d06841: 0 hits",
+       "Template and snippet records of 14.28.6 do not exist either."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-096:31059",
+      "STU-WEB-090:31039",
+      "STU-WEB-093:31053"
+     ],
+     "mts": [
+      "MT-34324",
+      "MT-34317",
+      "MT-34321"
+     ],
+     "expected_state": "Items referenced; editing one updates all with a receipt.",
+     "visual_check": {
+      "what_must_be_visible": "Item highlighted in code; locked in pages.",
+      "layout_or_fit_concern": "Locked regions must be visible in code view."
+     },
+     "failure_a_professional_would_notice": "A footer fix is done twice."
+    },
+    {
+     "n": 105,
+     "intent": "Create thanks.html and link it; move a file and let links update.",
+     "human": {
+      "panel": "site-tree",
+      "tool": null,
+      "gesture": "New file; drag to a folder",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "move": "thanks.html -> pages/thanks.html"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'link_graph|update_links_on_move|broken_link' over every crate's src at c4d06841: 0 hits (no site-wide link graph)"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-118:31111",
+      "STU-WEB-163:31273"
+     ],
+     "mts": [
+      "MT-34346",
+      "MT-34387"
+     ],
+     "expected_state": "One transaction rewrites the referring documents, with a receipt.",
+     "visual_check": {
+      "what_must_be_visible": "Site tree with the move; a list of rewritten links.",
+      "layout_or_fit_concern": "Confirm before rewriting across files."
+     },
+     "failure_a_professional_would_notice": "A moved file breaks links silently."
+    },
+    {
+     "n": 106,
+     "intent": "Undo a code edit, then redo it.",
+     "human": {
+      "panel": "history",
+      "tool": null,
+      "gesture": "EDIT > Undo",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_web::apply + refresh",
+      "parameters": {},
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-web-core/src/source_dom_patch.rs:71 `pub fn apply(doc: &WebDoc, patch: &SourcePatch) -> Result<Applied, WebError> {`",
+       "crates/hsk-studio-web-core/src/refresh.rs:211 `pub fn refresh(`",
+       "crates/hsk-studio-web-core/src/refresh.rs:156 `pub fn key_map(old: &WebDoc, new: &WebDoc, cancel: &CancellationToken) -> Result<KeyMap, W`",
+       "Patches are invertible by construction only if a host keeps them; no web history exists.",
+       "looked: git grep -iE 'web_history|WebHistory' over every crate's src at c4d06841: 0 hits",
+       "hsk-studio-web, web-core and web-assets have no dependent crate outside themselves at c4d06841 (Cargo.toml search), so no host or command reaches them."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-129:31148",
+      "STU-UNI-003:22617"
+     ],
+     "mts": [
+      "MT-34358",
+      "MT-010",
+      "MT-490",
+      "MT-551"
+     ],
+     "expected_state": "Bytes restored; node keys remapped.",
+     "visual_check": {
+      "what_must_be_visible": "One history row with the action.",
+      "layout_or_fit_concern": "One undo stack with design edits."
+     },
+     "failure_a_professional_would_notice": "Undo in a code editor differs from undo everywhere else."
+    },
+    {
+     "n": 107,
+     "intent": "Format the source.",
+     "human": {
+      "panel": "code-view",
+      "tool": null,
+      "gesture": "EDIT > Format",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "web.format_source",
+      "parameters": {
+       "indent": 2
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'format_source' over every crate's src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-028:30599",
+      "STU-WEB-020:30541"
+     ],
+     "mts": [
+      "MT-34246",
+      "MT-34237"
+     ],
+     "expected_state": "Deterministic formatting by declared rules.",
+     "visual_check": {
+      "what_must_be_visible": "A diff if the change is large.",
+      "layout_or_fit_concern": "Selection-only option."
+     },
+     "failure_a_professional_would_notice": "Formatting rewrites unrelated regions."
+    },
+    {
+     "n": 108,
+     "intent": "Validate the markup.",
+     "human": {
+      "panel": "problems",
+      "tool": null,
+      "gesture": "Run validation",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "rule_set": "html_5"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-web-core/src/dom.rs:1275 `pub fn loss(&self) -> &LossReport {`",
+       "looked: git grep -iE 'rule_set_id|tag_context_violation' over every crate's src at c4d06841: 0 hits",
+       "A parse loss report exists; spec-required typed validation does not."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-052:30710",
+      "STU-WEB-055:30729",
+      "STU-WEB-147:31241"
+     ],
+     "mts": [
+      "MT-34270",
+      "MT-34271",
+      "MT-34274",
+      "MT-34371"
+     ],
+     "expected_state": "Typed diagnostics with byte range and element path; never a rewrite.",
+     "visual_check": {
+      "what_must_be_visible": "Problems rows that jump to the line.",
+      "layout_or_fit_concern": "Keep them in the shared Problems pane."
+     },
+     "failure_a_professional_would_notice": "Errors appear only in the browser."
+    },
+    {
+     "n": 109,
+     "intent": "Lint CSS and script with site rules.",
+     "human": {
+      "panel": "problems",
+      "tool": null,
+      "gesture": "Run lint on the site",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "scope": "site"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'lint_rule|linter' over every crate's src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-056:30731",
+      "STU-WEB-058:30815"
+     ],
+     "mts": [
+      "MT-34275",
+      "MT-34277"
+     ],
+     "expected_state": "Lint results as a bounded batch job.",
+     "visual_check": {
+      "what_must_be_visible": "Rows grouped by file.",
+      "layout_or_fit_concern": "A long run stays in Jobs."
+     },
+     "failure_a_professional_would_notice": "No lint before publishing."
+    },
+    {
+     "n": 110,
+     "intent": "Audit accessibility: headings, names, focus order and alt text.",
+     "human": {
+      "panel": "problems",
+      "tool": null,
+      "gesture": "Site Reports",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_web::preview_tree (partial)",
+      "parameters": {
+       "viewport_width_px": 360
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-web-core/src/preview.rs:43 `pub heading_level: Option<u8>,`",
+       "crates/hsk-studio-web-core/src/preview.rs:45 `pub tab_index: Option<i32>,`",
+       "crates/hsk-studio-web-core/src/preview.rs:50 `pub a11y_hidden: bool,`",
+       "looked: git grep -iE 'missing_alt|site_report' over every crate's src at c4d06841: 0 hits (the report itself is missing)",
+       "hsk-studio-web, web-core and web-assets have no dependent crate outside themselves at c4d06841 (Cargo.toml search), so no host or command reaches them."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-121:31117",
+      "STU-WEB-130:31150"
+     ],
+     "mts": [
+      "MT-34349",
+      "MT-34359"
+     ],
+     "expected_state": "Roles, names and headings read; missing alt reported.",
+     "visual_check": {
+      "what_must_be_visible": "A report with per-file rows.",
+      "layout_or_fit_concern": "Each row jumps to its element."
+     },
+     "failure_a_professional_would_notice": "An image without alt text ships."
+    },
+    {
+     "n": 111,
+     "intent": "Run the broken-link and orphan check.",
+     "human": {
+      "panel": "problems",
+      "tool": null,
+      "gesture": "Check Links Sitewide",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "studio.web.site",
+      "parameters": {
+       "action": "check_links"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'link_broken|file_orphaned' over every crate's src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-118:31111",
+      "STU-WEB-163:31273",
+      "STU-WEB-164:31275"
+     ],
+     "mts": [
+      "MT-34346",
+      "MT-34387",
+      "MT-34388"
+     ],
+     "expected_state": "Typed results; orphaned stall images listed.",
+     "visual_check": {
+      "what_must_be_visible": "Report with referring file and target.",
+      "layout_or_fit_concern": "Fix-all offered with a review."
+     },
+     "failure_a_professional_would_notice": "A 404 on launch day."
+    },
+    {
+     "n": 112,
+     "intent": "Late change: the market date moves; update board, deck, assets and site.",
+     "human": {
+      "panel": "library",
+      "tool": null,
+      "gesture": "Edit the shared token once",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "token": "campaign.date",
+       "value": "2027-06-19"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'cross_document|linked_token|shared_library' over every crate's src at c4d06841: 0 hits",
+       "No shared token path crosses document kinds. Each deliverable has its own text today.",
+       "Spec gap: STU-WEB-093 and STU-DS bind within kinds; no clause names a campaign-wide token."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-093:31053",
+      "STU-DOC-004:287",
+      "STU-UNI-001:22613",
+      "STU-WEB-135:31164"
+     ],
+     "mts": [
+      "MT-34321",
+      "MT-081",
+      "MT-082",
+      "MT-083",
+      "MT-009",
+      "MT-551"
+     ],
+     "expected_state": "One edit; each deliverable updates or is flagged stale, with a receipt.",
+     "visual_check": {
+      "what_must_be_visible": "A list of everything affected.",
+      "layout_or_fit_concern": "This is the test of the one-document claim."
+     },
+     "failure_a_professional_would_notice": "The old date stays on one asset and it goes public."
+    },
+    {
+     "n": 113,
+     "intent": "Define the export recipe: minify, source maps and rewritten asset paths.",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "Export Site",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "output_root": "out/publish",
+       "minify": true,
+       "emit_source_maps": false,
+       "link_base": "site_root"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'minify' over every crate's src at c4d06841: 0 hits",
+       "crates/hsk-studio-harness-view/src/view/timeline_export.rs:321 `pub recipe: ExportRecipe,` (the only recipe in a host is on the timeline)",
+       "STU-WEB-120: never a web-private writer."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-120:31115",
+      "STU-IO-006 row 46:21593",
+      "STU-IO-110:21191"
+     ],
+     "mts": [
+      "MT-34348",
+      "MT-443",
+      "MT-446",
+      "MT-447",
+      "MT-33377"
+     ],
+     "expected_state": "A static tree and a receipt, purely from bytes and configuration.",
+     "visual_check": {
+      "what_must_be_visible": "Recipe form, file count and size.",
+      "layout_or_fit_concern": "Recipe reused across runs."
+     },
+     "failure_a_professional_would_notice": "Exports differ across runs."
+    },
+    {
+     "n": 114,
+     "intent": "Set a remote target: a local folder, with an SFTP target configured by reference only.",
+     "human": {
+      "panel": "site-deploy",
+      "tool": null,
+      "gesture": "Server Setup",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "studio.web.site",
+      "parameters": {
+       "transport": "local_or_network",
+       "root_path": "out/target",
+       "credentials_ref": null
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'remote_target|credentials_ref|local_or_network' over every crate's src at c4d06841: 0 hits",
+       "STU-WEB-167 rejects inline secrets; STU-WEB-006 allows only the operator's own target, with no vendor host."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-114:31103",
+      "STU-WEB-115:31105",
+      "STU-WEB-167:31281",
+      "STU-WEB-006:30435"
+     ],
+     "mts": [
+      "MT-34342",
+      "MT-34343",
+      "MT-34391",
+      "MT-34222"
+     ],
+     "expected_state": "Target stored; secrets only by reference.",
+     "visual_check": {
+      "what_must_be_visible": "Connection test with a typed result.",
+      "layout_or_fit_concern": "No field invites a stored password."
+     },
+     "failure_a_professional_would_notice": "A password in the site record."
+    },
+    {
+     "n": 115,
+     "intent": "Synchronise as a dry run and review the action list.",
+     "human": {
+      "panel": "site-deploy",
+      "tool": null,
+      "gesture": "Synchronize Sitewide, preview",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "studio.web.publish",
+      "parameters": {
+       "dry_run": true
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'synchronise|synchronize_site|sync_action' over every crate's src at c4d06841: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-119:31113",
+      "STU-WEB-117:31109"
+     ],
+     "mts": [
+      "MT-34347",
+      "MT-34345"
+     ],
+     "expected_state": "Per-file actions listed; nothing transferred.",
+     "visual_check": {
+      "what_must_be_visible": "Action table with reasons.",
+      "layout_or_fit_concern": "Conflicts stand out."
+     },
+     "failure_a_professional_would_notice": "No preview before overwriting a live site."
+    },
+    {
+     "n": 116,
+     "intent": "Publish and collect the receipt.",
+     "human": {
+      "panel": "site-deploy, jobs",
+      "tool": null,
+      "gesture": "Publish Site",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "studio.web.publish",
+      "parameters": {
+       "target": "local"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'publish_receipt|web_publish|studio\\.web\\.publish' over every crate's src at c4d06841: 0 hits",
+       "Matrix row 39 keeps hosted publishing as an optional adapter; the local route has to exist."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-119:31113",
+      "STU-WEB-127:31140",
+      "STU-IO-006 row 39:21586"
+     ],
+     "mts": [
+      "MT-34347",
+      "MT-34356",
+      "MT-443",
+      "MT-446",
+      "MT-447"
+     ],
+     "expected_state": "Files in the target; a receipt with per-file outcome.",
+     "visual_check": {
+      "what_must_be_visible": "Jobs row and a receipt view.",
+      "layout_or_fit_concern": "A failed file does not hide among the passes."
+     },
+     "failure_a_professional_would_notice": "A partial upload reads as done."
+    },
+    {
+     "n": 117,
+     "intent": "Verify the published folder: re-parse, hash and compare with the export.",
+     "human": {
+      "panel": "problems",
+      "tool": null,
+      "gesture": "Not a human step",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_web::parse + sha256_hex",
+      "parameters": {
+       "path": "out/target/index.html"
+      },
+      "status": "engine_only",
+      "reach": null,
+      "evidence": [
+       "crates/hsk-studio-web-core/src/dom.rs:384 `pub fn parse(`",
+       "crates/hsk-studio-web-core/src/dom.rs:372 `pub fn sha256_hex(bytes: &[u8]) -> String {`",
+       "crates/hsk-studio-web-core/src/report.rs:20 `pub fn report<T>(`",
+       "hsk-studio-web, web-core and web-assets have no dependent crate outside themselves at c4d06841 (Cargo.toml search), so no host or command reaches them."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-127:31140",
+      "STU-WEB-131:31152"
+     ],
+     "mts": [
+      "MT-34356",
+      "MT-34360"
+     ],
+     "expected_state": "Hashes match the receipt; parse reports no loss.",
+     "visual_check": {
+      "what_must_be_visible": "Receipt marked verified.",
+      "layout_or_fit_concern": "Shown in the same receipt."
+     },
+     "failure_a_professional_would_notice": "Published files differ from what was reviewed."
+    },
+    {
+     "n": 118,
+     "intent": "Commit the site to a repository for the record.",
+     "human": {
+      "panel": "site-deploy",
+      "tool": null,
+      "gesture": "Check In",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "message": "launch"
+      },
+      "status": "missing",
+      "reach": null,
+      "evidence": [
+       "looked: git grep -iE 'version_control|git_commit|repo_binding' over hsk-studio-harness, harness-core, harness-view src at c4d06841: 0 hits",
+       "Handshake source-control pane is a reused shell pane in the spec; not reached from Studio here."
+      ]
+     },
+     "spec_clauses": [
+      "STU-WEB-122:31119"
+     ],
+     "mts": [
+      "MT-34350"
+     ],
+     "expected_state": "A commit bound to the site.",
+     "visual_check": {
+      "what_must_be_visible": "Status in the site tree.",
+      "layout_or_fit_concern": "Uses the shared SourceControl pane."
+     },
+     "failure_a_professional_would_notice": "No record of what went live."
+    }
+   ]
+  }
+ ],
+ "gui_review": {
+  "panels_needed_together": {
+   "S1_board": {
+    "browse": [
+     "pages-artboards",
+     "library"
+    ],
+    "inspect": [
+     "contextual board inspector (STU-WB-133)",
+     "swatches",
+     "layers",
+     "history"
+    ],
+    "results": [
+     "problems",
+     "voting tally results"
+    ],
+    "center": "board viewer"
+   },
+   "S2_deck": {
+    "browse": [
+     "pages-artboards",
+     "library",
+     "links-placements"
+    ],
+    "inspect": [
+     "properties",
+     "character",
+     "paragraph",
+     "swatches",
+     "interactions"
+    ],
+    "results": [
+     "preflight",
+     "speaker notes"
+    ],
+    "center": "page viewer, plus a slide grid view"
+   },
+   "S3_assets": {
+    "browse": [
+     "pages-artboards",
+     "library",
+     "data-merge",
+     "links-placements"
+    ],
+    "inspect": [
+     "properties",
+     "layers",
+     "align-distribute",
+     "transform",
+     "swatches",
+     "export"
+    ],
+    "results": [
+     "problems",
+     "jobs"
+    ],
+    "center": "canvas viewer showing all formats at once"
+   },
+   "S4_site": {
+    "browse": [
+     "site-tree",
+     "related-files",
+     "code-view",
+     "insert",
+     "site-deploy",
+     "library"
+    ],
+    "inspect": [
+     "css-designer",
+     "properties",
+     "interactions"
+    ],
+    "results": [
+     "problems",
+     "find-replace",
+     "jobs"
+    ],
+    "center": "code viewer split with live view, breakpoint ruler above it"
+   },
+   "source": "STU-SHL-075 panel identities, STU-SHL-087, STU-SHL-088; the board and deck rows are this project's own need because the spec names no default for them"
+  },
+  "reachable_without_hunting": [
+   "Sticky, section, connector and stamp: one press from the board, not via WORKSPACE > Tools or INSERT > Whiteboard Object.",
+   "Votes remaining and the running timer, always visible during a session.",
+   "Slide grid view and add-slide-from-parent, one click from the page viewer.",
+   "Speaker notes under the slide being edited.",
+   "Presentation start from the current slide.",
+   "Format switcher across the 4 marketing sizes, and record stepper for the 6 stallholders.",
+   "Width presets with the breakpoint ruler; active media queries visible at the current width.",
+   "Publish status and the last receipt, from the site-deploy panel and the status bar."
+  ],
+  "workspace_switches": [
+   "S1 to S2: board to page viewer, the same document or a linked one. Selected stickies must carry over by copy and paste as editable text.",
+   "S2 to S3: page viewer to canvas viewer. Parent pages and frames do not convert to artboards; this boundary is currently a wall.",
+   "S3 to S4: canvas viewer to code viewer, where design-to-web conversion crosses the document kinds.",
+   "Every switch must keep selection, history and swatches shared (STU-UNI-003), and no Layout Preset may gate a tool (STU-SHL-055)."
+  ],
+  "what_would_feel_incoherent": [
+   "Three parallel editing surfaces: Viewer methods for vector, LayoutEditor for layout with a document that does not sync to the Run document, and a future web surface with no shared history. One campaign would have three undo stacks.",
+   "Tool taxonomy with no home: STU-SHL-141 closes the families at 22 and none holds board objects, so sticky and connector have a menu entry (line 31778) but no family for WORKSPACE > Tools or the Tool Rail.",
+   "A slide that looks like a page but plays like a frame: the player runs frames from a design document while slides are folded into Layout by STU-PRO-167. Presentation needs a single owner.",
+   "Two text systems: layout composition with placeholder metrics versus Type shaping in export; a deck can fit on screen and overflow in the PDF.",
+   "Swatches and tokens that live per document kind: brand colours edited for assets would not reach the deck or site.",
+   "A prototype played only from a .fig file, while native documents have no play route.",
+   "Board inspector, CSS Designer and Properties each drawing their own colour control instead of one shared control."
+  ],
+  "worst_concern": "The campaign crosses four surfaces with no shared document, history or token path. Even if each is built, a late date change has to be retyped in four places, and the GUI shape (one tool surface per STU-UNI-001) cannot be judged until a board and a web document can be open beside a layout document.",
+  "pure_vulkan_note": "All of this describes required behaviour for the rebuilt GUI; the board's unbounded pan and zoom over thousands of nodes and text-heavy code editing are the two surfaces with no existing drawing path."
+ },
+ "runner_notes": {
+  "today": "Only a small part can run. corpus_or_cli steps go through RUN_COMMANDS, the CLI or the JSONL loop of SMB-HARNESS-DRIVE-1. rust_viewer_method steps need a Rust program linking hsk_studio_harness with feature viewer, or layout-ui for LayoutEditor. engine_only steps need a hand-written Rust program over the engine crates. The web crates have no dependent crate at all, so S4 engine_only steps must link hsk-studio-web directly.",
+  "ordering": "Steps are sequential and later scenes consume earlier outputs. Do not skip a failed step silently: mark it blocked, carry on where state allows, and report each step as passed, failed, blocked or not_run.",
+  "fixtures": [
+   "Generate every input listed in input_assets; commit none that are proprietary.",
+   "No .jam local-copy fixture can be generated today: only the prelude kind is known and the chunk layout is not observed (interop-fig-base container.rs). Step 4 stays not_run until one exists.",
+   "A base document must stand in for a blank vector document until studio.document.new exists.",
+   "Publish target: a temp local folder through transport local_or_network; no network, no credentials."
+  ],
+  "determinism": [
+   "Fix the actor ids, seeds, clock and font set.",
+   "Model-lane steps (step 23 and the prompt-to-page step) are not deterministic by design (STU-WB-126): capture the proposal once, then assert that applying the same proposal to the same revision twice gives identical state.",
+   "Web export must be a pure function of bytes and declared configuration (STU-WEB-131)."
+  ],
+  "comparison": {
+   "board": "Read node records and tally as JSON; compare the CSV byte for byte; compare PNG by pixel values against a stored expected render.",
+   "deck": "Compare page count and text extracted from the PDF, then render each page to an image and compare at a set tolerance. A screen fit does not prove a PDF fit.",
+   "assets": "24 files with exact names and pixel sizes; decode each and compare the field text regions; compare SVG by parse, not bytes.",
+   "site": "Compare published bytes by sha256 against the export; re-parse with hsk_studio_web::parse and assert an empty loss report; preview_tree at 360, 768 and 1280 asserts which elements render and which rules are active; pixel comparison waits for web.capture_view."
+  },
+  "gui_check": "For each step use visual_check with a quiet capture at a fixed window size; a screenshot reviewer judges overlap, hunting and readability. No GUI capture applies until the Vulkan rebuild draws these surfaces.",
+  "limits_of_this_file": "No code was run. The Figma Make basis is UNVERIFIED. spec_clauses and mts name authority for the behaviour, not delivered work; nearly every MT cited is PENDING. shortcut_if_spec_defines_one is null throughout: module 14 defines no chord for board, slide or web steps that was found by search for these names, and generic undo chords appear only in captured source tables."
+ },
+ "gaps": [
+  {
+   "rank": 1,
+   "what": "No web document reaches any host, and there is no static output. About 25000 lines in hsk-studio-web, web-core and web-assets have no dependent crate. Missing: a web document in the harness with open, patch, undo and save over source text, an export recipe that writes a static tree, a local_or_network publish with a receipt, and commands for all of it.",
+   "status": "engine_only and missing",
+   "blocks_steps": [
+    85,
+    89,
+    92,
+    93,
+    94,
+    96,
+    97,
+    99,
+    101,
+    102,
+    106,
+    113,
+    114,
+    116,
+    117
+   ],
+   "crates_likely": [
+    "hsk-studio-harness",
+    "hsk-studio-harness-core",
+    "hsk-studio-harness-view",
+    "hsk-studio-web"
+   ],
+   "spec_clauses": [
+    "STU-WEB-003:30429",
+    "STU-WEB-113:31101",
+    "STU-WEB-115:31105",
+    "STU-WEB-120:31115",
+    "STU-WEB-127:31140",
+    "STU-WEB-131:31152"
+   ],
+   "mts": [
+    "MT-34220",
+    "MT-34341",
+    "MT-34343",
+    "MT-34348",
+    "MT-34356",
+    "MT-34360"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "The cheapest route from nothing to a published deliverable. The engine is tested but stranded, static publishing to a folder needs no server or network, and a model can already judge output by source, preview_tree and hashes before any pixels exist."
+  },
+  {
+   "rank": 2,
+   "what": "No way to start or structure a design job: no blank document command, no artboard creation, and export covers only the whole document. Twenty-four named outputs cannot exist.",
+   "status": "missing",
+   "blocks_steps": [
+    1,
+    28,
+    59,
+    60,
+    79
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-core",
+    "hsk-studio-harness-view",
+    "hsk-studio-folio"
+   ],
+   "spec_clauses": [
+    "STU-SHL-023:31573",
+    "STU-DOC-002:283",
+    "STU-IO-136:21292",
+    "STU-DOC-004:287"
+   ],
+   "mts": [
+    "MT-34444",
+    "MT-002",
+    "MT-411",
+    "MT-441",
+    "MT-33398",
+    "MT-33399"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Every scene's first step depends on it, and it unlocks the marketing set, whose drawing tools already work. It shares a root with the vector, print and web scenarios, so one fix pays several times."
+  },
+  {
+   "rank": 3,
+   "what": "The deck stops short of a PDF and of being a deck: fixed A4 pages, no image placing, no PDF export from a host, and no slide role, skip, timing, grid or slide transition binding. Layout editing itself is reachable.",
+   "status": "engine_only and missing",
+   "blocks_steps": [
+    28,
+    29,
+    42,
+    46,
+    47,
+    48,
+    49,
+    50,
+    55,
+    57
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-interop-layout",
+    "hsk-studio-layout",
+    "hsk-studio-folio",
+    "hsk-studio-components",
+    "hsk-studio-pulse"
+   ],
+   "spec_clauses": [
+    "STU-PRO-167:20871",
+    "STU-PRO-168:20873",
+    "STU-PRO-169:20875",
+    "STU-PRO-171:20879",
+    "STU-PRO-174:20885",
+    "STU-LAY-054:6959"
+   ],
+   "mts": [
+    "MT-36234",
+    "MT-36235",
+    "MT-36236",
+    "MT-36238",
+    "MT-36241",
+    "MT-181"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "13 of 31 steps already call, and the engines for size, placement, PDF and transitions exist. Host wiring plus one role record yields a real exported deck."
+  },
+  {
+   "rank": 4,
+   "what": "Board mode does not exist: no node kind beyond Layer, Artboard and PageSpread, no record, no viewer, no router, no command, no export. All twelve node kinds and connectors are absent. The whole workshop is blocked.",
+   "status": "missing",
+   "blocks_steps": [
+    1,
+    3,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    19,
+    21,
+    22,
+    24,
+    25,
+    26,
+    27,
+    38
+   ],
+   "crates_likely": [
+    "hsk-studio-folio",
+    "hsk-studio-components",
+    "hsk-studio-harness-core",
+    "hsk-studio-harness-view",
+    "hsk-studio-controls"
+   ],
+   "spec_clauses": [
+    "STU-WB-001:22461",
+    "STU-WB-102:22281",
+    "STU-WB-103:22283",
+    "STU-WB-104:22285",
+    "STU-WB-106:22289",
+    "STU-WB-108:22293",
+    "STU-WB-134:22375"
+   ],
+   "mts": [
+    "MT-521",
+    "MT-33623",
+    "MT-35875",
+    "MT-33577",
+    "MT-33578",
+    "MT-33579"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "It blocks the most steps, and one whole deliverable; a mechanical count would put it first. It sits fourth because nothing can be reused toward an end result, and STU-WB-101 itself calls this the lowest-priority parity domain. Sticky, section and connector alone would be a usable first slice."
+  },
+  {
+   "rank": 5,
+   "what": "No web rendering. The web crates evaluate no layout and paint nothing, so web.capture_view, the live, split and inspect views and the breakpoint ruler all have nothing beneath them. Needs a decision: own a layout and paint engine for the subset, or another route. The spec requires it and forbids nothing here, but names no engine.",
+   "status": "missing",
+   "blocks_steps": [
+    90,
+    98,
+    100
+   ],
+   "crates_likely": [
+    "hsk-studio-web-core",
+    "hsk-studio-render-gpu",
+    "hsk-studio-type"
+   ],
+   "spec_clauses": [
+    "STU-WEB-087:31029",
+    "STU-WEB-128:31146",
+    "STU-WEB-130:31150",
+    "STU-WEB-131:31152"
+   ],
+   "mts": [
+    "MT-34314",
+    "MT-34357",
+    "MT-34359",
+    "MT-34360"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "Few steps, but it is the visual proof for the whole site and for the responsive claim. A person cannot judge the page in Studio without it. It ranks below the source-level route only because that route ships a site first and proves more of the workflow."
+  },
+  {
+   "rank": 6,
+   "what": "Most callable steps are Rust methods. Only 6 of 29 callable steps are a corpus or CLI command; slides, layout and vector drawing have no command_id. The drive loop will not reach them.",
+   "status": "callable but Rust-only",
+   "blocks_steps": [
+    15,
+    30,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    39,
+    40,
+    43,
+    45,
+    54,
+    58,
+    61,
+    62,
+    63,
+    65,
+    67,
+    68,
+    77,
+    82,
+    83
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-core",
+    "hsk-studio-harness",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-AUT-147:21905",
+    "STU-AUT-001:22080",
+    "STU-CON-007:22896"
+   ],
+   "mts": [
+    "MT-33500",
+    "MT-481",
+    "MT-482",
+    "MT-488",
+    "MT-067",
+    "MT-556"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "It decides whether a model can run this project as a script. Lower than the deliverable gaps because a Rust runner can bridge it for now."
+  },
+  {
+   "rank": 7,
+   "what": "No batch or proposal path at the host: StudioCommandBatch and the command builder do not reach the harness, so a generated diagram, a prompt-made page, and a bulk run cannot be one reviewable undo.",
+   "status": "missing",
+   "blocks_steps": [
+    7,
+    23,
+    36,
+    76,
+    87
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-core",
+    "hsk-studio-session"
+   ],
+   "spec_clauses": [
+    "STU-AUT-004:22086",
+    "STU-AUT-124:21828",
+    "STU-WB-125:22353",
+    "STU-WB-126:22355"
+   ],
+   "mts": [
+    "MT-482",
+    "MT-501",
+    "MT-33550",
+    "MT-33477",
+    "MT-33599",
+    "MT-33600"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "This is the base for both the diagram generation and the prompt-to-page parity target. Without it those features would write directly to authority."
+  },
+  {
+   "rank": 8,
+   "what": "Data merge reaches only layout stories, with image and QR placement undone, and no output of one file per record and format. No vector artboard route, and no photo place command either.",
+   "status": "engine_only and missing",
+   "blocks_steps": [
+    64,
+    72,
+    73,
+    74,
+    75,
+    76
+   ],
+   "crates_likely": [
+    "hsk-studio-interop-layout",
+    "hsk-studio-harness-view",
+    "hsk-studio-layout"
+   ],
+   "spec_clauses": [
+    "STU-LAY-163:7453",
+    "STU-ASSET-005:31320"
+   ],
+   "mts": [
+    "MT-30853",
+    "MT-30854",
+    "MT-34396"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "This is the bulk promise of the marketing target. The parser and merge exist, so the work is mainly placing and output."
+  },
+  {
+   "rank": 9,
+   "what": "Components, tokens and resize have no creation path. Instances can be edited only after a .fig import; variables, constraints and adaptation are engine only.",
+   "status": "engine_only",
+   "blocks_steps": [
+    31,
+    66,
+    69,
+    70,
+    71
+   ],
+   "crates_likely": [
+    "hsk-studio-components",
+    "hsk-studio-harness-view",
+    "hsk-studio-folio"
+   ],
+   "spec_clauses": [
+    "STU-DS-001:20318",
+    "STU-DS-005:20330",
+    "STU-DS-132:20066"
+   ],
+   "mts": [
+    "MT-321",
+    "MT-323",
+    "MT-33139",
+    "MT-324",
+    "MT-328",
+    "MT-33144"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Native design systems feed the assets and are the input to design-to-web. Cheap relative to their reach because resolvers exist."
+  },
+  {
+   "rank": 10,
+   "what": "Presentation has no native route: the player opens only .fig. No presentation view for a native document, no presenter view, no speaker notes. Notes and presenter view have no clause: a spec gap needing an Operator decision.",
+   "status": "missing",
+   "blocks_steps": [
+    41,
+    51,
+    52,
+    53
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-components",
+    "hsk-studio-folio"
+   ],
+   "spec_clauses": [
+    "STU-PRO-024b:20984",
+    "STU-PRO-132:20718",
+    "STU-PRO-138:20746",
+    "STU-PRO-167:20871",
+    "STU-PRO-170:20877"
+   ],
+   "mts": [
+    "MT-33248",
+    "MT-33254",
+    "MT-36234",
+    "MT-36237"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "A deck that cannot be shown is not parity. It ranks below PDF because a PDF already serves the meeting."
+  },
+  {
+   "rank": 11,
+   "what": "Design-to-web generation is absent, so the design work does not reach the site; every section gets rebuilt in code.",
+   "status": "missing",
+   "blocks_steps": [
+    88
+   ],
+   "crates_likely": [
+    "hsk-studio-web",
+    "hsk-studio-components",
+    "hsk-studio-interop-fig-native"
+   ],
+   "spec_clauses": [
+    "STU-WEB-135:31164",
+    "STU-WEB-136:31173",
+    "STU-WEB-088:31031",
+    "STU-WEB-120:31115"
+   ],
+   "mts": [
+    "MT-34364",
+    "MT-34365",
+    "MT-34315",
+    "MT-34348"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "Central to the parity targets for site building, though one step here. It depends on native components, tokens and web output first."
+  },
+  {
+   "rank": 12,
+   "what": "Facilitation and collaboration: timer, voting, stamps, spotlight, cursor chat and comments. No collaboration substrate reaches a host.",
+   "status": "missing",
+   "blocks_steps": [
+    16,
+    17,
+    18,
+    19,
+    20,
+    78
+   ],
+   "crates_likely": [
+    "hsk-studio-session",
+    "hsk-studio-harness-view",
+    "hsk-studio-folio"
+   ],
+   "spec_clauses": [
+    "STU-WB-003:22465",
+    "STU-WB-007:22493",
+    "STU-WB-121:22336",
+    "STU-WB-123:22345"
+   ],
+   "mts": [
+    "MT-523",
+    "MT-33625",
+    "MT-35878",
+    "MT-536",
+    "MT-537",
+    "MT-33629"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "Voting records can be local-first first; the live multi-user part depends on a substrate far beyond this domain."
+  },
+  {
+   "rank": 13,
+   "what": "Code surface: code view with colouring and hints, view modes, CSS Designer, format, insert catalogue.",
+   "status": "missing",
+   "blocks_steps": [
+    86,
+    90,
+    91,
+    92,
+    95,
+    107
+   ],
+   "crates_likely": [
+    "hsk-studio-web-core",
+    "hsk-studio-harness-view",
+    "hsk-studio-controls"
+   ],
+   "spec_clauses": [
+    "STU-WEB-045:30696",
+    "STU-WEB-050:30706",
+    "STU-WEB-061:30825",
+    "STU-WEB-063:30839",
+    "STU-WEB-100:31071",
+    "STU-WEB-028:30599"
+   ],
+   "mts": [
+    "MT-34263",
+    "MT-34268",
+    "MT-34280",
+    "MT-34282",
+    "MT-34328",
+    "MT-34246"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "What a person needs in order to author. It needs the Vulkan text surface, and models can work on source without it."
+  },
+  {
+   "rank": 14,
+   "what": "Site quality checks: markup validator, linter, link graph, broken links and orphans, site reports.",
+   "status": "missing",
+   "blocks_steps": [
+    105,
+    108,
+    109,
+    110,
+    111
+   ],
+   "crates_likely": [
+    "hsk-studio-web-core",
+    "hsk-studio-web-assets"
+   ],
+   "spec_clauses": [
+    "STU-WEB-052:30710",
+    "STU-WEB-055:30729",
+    "STU-WEB-056:30731",
+    "STU-WEB-118:31111",
+    "STU-WEB-121:31117"
+   ],
+   "mts": [
+    "MT-34270",
+    "MT-34271",
+    "MT-34274",
+    "MT-34275",
+    "MT-34346",
+    "MT-34349"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Prevents public mistakes, and asset carriers already find the references. It follows a working publish."
+  },
+  {
+   "rank": 15,
+   "what": "Reuse and interactions on the site: library items, templates, behaviours, event model.",
+   "status": "missing",
+   "blocks_steps": [
+    103,
+    104
+   ],
+   "crates_likely": [
+    "hsk-studio-web-core"
+   ],
+   "spec_clauses": [
+    "STU-WEB-090:31039",
+    "STU-WEB-093:31053",
+    "STU-WEB-096:31059",
+    "STU-WEB-105:31081",
+    "STU-WEB-112:31095"
+   ],
+   "mts": [
+    "MT-34317",
+    "MT-34321",
+    "MT-34324",
+    "MT-34333",
+    "MT-34340"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Needed for sites of many pages. A 2-page site survives without it."
+  },
+  {
+   "rank": 16,
+   "what": "Remote publishing beyond a folder: transports, sync with review, version-control binding. Local-first means no vendor host is involved.",
+   "status": "missing",
+   "blocks_steps": [
+    114,
+    115,
+    118
+   ],
+   "crates_likely": [
+    "hsk-studio-web"
+   ],
+   "spec_clauses": [
+    "STU-WEB-114:31103",
+    "STU-WEB-115:31105",
+    "STU-WEB-119:31113",
+    "STU-WEB-122:31119",
+    "STU-WEB-167:31281"
+   ],
+   "mts": [
+    "MT-34342",
+    "MT-34343",
+    "MT-34347",
+    "MT-34350",
+    "MT-34391"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Adds network, credential and safety scope. The folder target proves the flow first."
+  },
+  {
+   "rank": 17,
+   "what": "Cross-document campaign link: nothing lets one token or copy edit reach board, deck, assets and site, or flags them stale. No clause states it for documents of different kinds.",
+   "status": "missing",
+   "blocks_steps": [
+    38,
+    112
+   ],
+   "crates_likely": [
+    "hsk-studio-folio",
+    "hsk-studio-components",
+    "hsk-studio-session"
+   ],
+   "spec_clauses": [
+    "STU-UNI-001:22613",
+    "STU-DOC-004:287",
+    "STU-WEB-093:31053"
+   ],
+   "mts": [
+    "MT-009",
+    "MT-551",
+    "MT-33658",
+    "MT-081",
+    "MT-082",
+    "MT-083"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "The largest gap in coherence, and what would make this one product. It ranks low only because each deliverable must exist first; decide the shape early to avoid rework."
+  },
+  {
+   "rank": 18,
+   "what": "Spec gaps in the shell for boards and decks: no named signature, default layout or Layout Preset for a board; no tool family for board tools (22 families are closed); no presentation job preset; the prompt-to-page workflow has no clause.",
+   "status": "missing",
+   "blocks_steps": [
+    2,
+    86,
+    87
+   ],
+   "crates_likely": [],
+   "spec_clauses": [
+    "STU-SHL-054:31927",
+    "STU-SHL-095:32272",
+    "STU-SHL-136:32473",
+    "STU-SHL-141:32565",
+    "STU-WEB-010:30443"
+   ],
+   "mts": [
+    "MT-34489",
+    "MT-34626",
+    "MT-34664",
+    "MT-34669",
+    "MT-34670",
+    "MT-34226"
+   ],
+   "size": "small",
+   "why_it_ranks_here": "Cheap paperwork, and needed before Vulkan layout work on those surfaces. OD-4 is the Operator's decision."
+  },
+  {
+   "rank": 19,
+   "what": "Formats: .pptx, WebP, and the local-copy kinds .jam, .deck, .buzz, .site and .make. Prelude kinds are named for jam and deck only, with layouts unobserved.",
+   "status": "missing",
+   "blocks_steps": [
+    4,
+    56,
+    81
+   ],
+   "crates_likely": [
+    "hsk-studio-interop-raster",
+    "hsk-studio-interop-fig-base",
+    "hsk-studio-interop-fig-native"
+   ],
+   "spec_clauses": [
+    "STU-IO-006 row 7:21554",
+    "STU-IO-006 row 36:21583",
+    "STU-IO-006 row 37:21584",
+    "STU-IO-006 row 38:21585",
+    "STU-IO-006 row 39:21586",
+    "STU-IO-006 row 40:21587",
+    "STU-IO-006 row 47:21594"
+   ],
+   "mts": [
+    "MT-443",
+    "MT-446",
+    "MT-447"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "Interchange matters later. WebP encode is the small one and matters to the site; the rest need fixtures that do not exist."
+  },
+  {
+   "rank": 20,
+   "what": "Charts and board templates: no chart or data_graph tool, no template gallery.",
+   "status": "missing",
+   "blocks_steps": [
+    5,
+    44
+   ],
+   "crates_likely": [
+    "hsk-studio-nib",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-SHL-141:32565",
+    "STU-WB-005:22487",
+    "STU-WB-124:22351"
+   ],
+   "mts": [
+    "MT-34669",
+    "MT-34670",
+    "MT-534",
+    "MT-33627",
+    "MT-35881",
+    "MT-33598"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Useful and expected, and easy to work around for one campaign."
+  }
+ ],
+ "coverage": {
+  "steps_total": 118,
+  "by_status": {
+   "callable": 29,
+   "engine_only": 26,
+   "missing": 63,
+   "NOT_INSPECTED": 0
+  },
+  "by_scene": {
+   "S1-workshop-board": {
+    "callable": 4,
+    "engine_only": 0,
+    "missing": 23
+   },
+   "S2-slide-deck": {
+    "callable": 13,
+    "engine_only": 7,
+    "missing": 11
+   },
+   "S3-marketing-assets": {
+    "callable": 12,
+    "engine_only": 7,
+    "missing": 7
+   },
+   "S4-landing-site": {
+    "callable": 0,
+    "engine_only": 12,
+    "missing": 22
+   }
+  },
+  "share_of_project_that_could_run_today": {
+   "step_share_callable": 0.246,
+   "step_share_callable_on_real_campaign_content": 0.178,
+   "end_to_end_share": 0.0,
+   "end_to_end_reason": "No scene reaches its deliverable: no board node exists, no slide role or deck export is reachable, no artboard can be created, and no web document reaches any host. Scene 3 can produce a whole-document PNG, JPEG, SVG or PDF of one composition, not the asset set."
+  },
+  "share_callable": 0.246,
+  "share_engine_only": 0.22,
+  "share_missing": 0.534,
+  "callable_through_corpus_or_cli": 6,
+  "callable_through_rust_api_only": 23,
+  "callable_but_only_on_a_stand_in": 8,
+  "note": "Callable means present and read, not proven working: no code was built or run. Most callable steps are Rust methods, which the JSONL loop of SMB-HARNESS-DRIVE-1 does not reach."
+ }
+}

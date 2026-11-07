@@ -1,0 +1,482 @@
+{
+  "schema": "hsk.studio_blocker_position@1",
+  "member": "authority-and-spec",
+  "lane": "Handshake (Product): working readings on spec items for GUI and feature lanes. Repo Governance: rule readings, records, MT recipe. Nothing edited except this file.",
+  "generated_at": "2026-11-07",
+  "path_legend": {
+    "K": "wt-gov-kernel",
+    "S": "K/.GOV/docs_repo/wp-studio-module-work",
+    "CX": "K/.GOV/codex/Handshake_Codex_v1.4.md",
+    "ROOT": "K/CLAUDE.md (AGENTS.md carries the same line numbers for HSK-ART)",
+    "SP14": "K/.GOV/spec/master-spec-v02.229/spec-modules/14-studio-creative-suite.md",
+    "SP15": "K/.GOV/spec/master-spec-v02.229/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md",
+    "W12": "K/.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1 (records read only)",
+    "T": "K/.GOV/task_packets/WP-KERNEL-STUDIO"
+  },
+  "read": [
+    "S/HANDOFF.md topics truth-check, vulkan-gui-pivot, workflow, state, next-work, operator-items",
+    "S/ledger.json direction: d1, d6, d7, d8, cleanup_pending_operator_approval, next_lane_candidates (46 rows), workflow_20261107, operator_direction_20261107, after_r57_20261106, after_r58_20261106",
+    "S/research/truth-check-20261105-vulkan-pivot.json q5, q6, restart_prerequisites, open_operator_decisions",
+    "S/research/integration-refactor-inventory-20261030.json decisions_for_operator",
+    "S/research/cargo-cleanup-plan-20261107-R.json",
+    "S/spec-enrichment/STUDIO-ENRICHMENT-20261101-D7-VULKAN-ALIGNMENT.json open items D7A-01..17",
+    "S/spec-enrichment/STUDIO-ENRICHMENT-20261030-HOST-INTEGRATION.json open items SD-31..73",
+    "CX clauses CX-021, CX-107, CX-GIT-001, CX-GIT-001A, CX-VERIFY-001..003, CX-EXEC-003, 003A, 013, 014, 015, CX-VAL-001, 002, 005..011, CX-STATUS-001..003, CX-984-001..014, CX-GOV-PIN-001..004, CX-SPEC-TRUTH-001, CX-UNIT-001, CX-LANE-001, CX-MODULE-LIFECYCLE-001, 002",
+    "ROOT HSK-START-006, 009, HSK-ART-001..005",
+    "K/.GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md KB-PREP-001..005, KB-OUT-008",
+    "S/builders/DISPATCH_TEMPLATES.md V4 rules, validator step 6; S/builders/studio-env.sh; S/tools/lane-check.sh header; S/tools/disk-build-lock.sh header; S/tools/round-select.py header; S/builders/briefs/wave-parity-2-common.md; S/workflow/workflow-v3.json; S/workflow/workflow.json",
+    "S/START_LOG.md lines 63, 65, 192, 209, 210, 322, 323, 528",
+    "S/validation/round-R55.json F-R55-3, round-R56.json F-R56-13, round-R57.json F-R57-13, F-R57-14, round-R58.json mt_judgments",
+    "SP15 GUI-DESKTOP-003, 004, 022..029; SP14 STU-ARC-014, 018, 023..033, line 15454",
+    "W12 MT-197, MT-198, MT-203, packet.json lifecycle and workflow, phase02 successor handoff v8 (records only, no edit, no run)",
+    "T packet.json lines 44, 420, 421, 293527, 293528, 300431, 300436; _MT_INDEX.json; MT-36263, MT-36250, MT-36242; K/.GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json",
+    "S/tools/lead/lanegen.py, S/tools/mt-host-amendments.py, S/tools/mt-regenerate-derived.py, S/tools/spec-idmap-backfill.py; K/.GOV/reference/studio_app_feature_research/_tools/greenroom/spec-derive-microtasks.py:613-642",
+    "K/.GOV/roles_shared/records/TASK_BOARD.md lines 18-22, 60, 103-106, 170-175; BUILD_ORDER.md head and lines 71, 356; wp_traceability_registry.json; SPEC_DEBT_REGISTRY.md head",
+    "Disk lock event logs: C:/HandshakeBuild/.disk-build-lock/events.log and Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock/events.log (read only)",
+    "git ls-tree c4d06841 in T tree (top level of the product branch); git status of D:/Projects/LLM projects/.assets/assets; git ls-remote origin refs/heads/*012*",
+    "Local cargo registry manifests: ash-0.38.0+1.3.281, naga-27.0.3, gpu-allocator-0.25.0, exr-1.74.x (licence lines)",
+    "https://nexte.st/docs/ci-features/archiving/ (build and run in separate steps)",
+    "https://github.com/ash-rs/ash (gh api: latest release 0.38.0, 2024-04-01; repo pushed 2026-11-04)",
+    "https://community.adobe.com/t5/premiere-pro-discussions/why-is-nudge-affecting-the-adjacent-clip/m-p/14671192/highlight/true and https://community.adobe.com/t5/premiere-pro-discussions/is-there-a-way-to-not-overwrite-a-clip-when-nudging-up-down-a-track/m-p/12597232/highlight/true (forum, secondhand)",
+    "https://www.manualsdir.com/manuals/753846/adobe-after-effects-cs4.html?page=589 and https://www.manualsdir.com/manuals/753844/adobe-after-effects.html?page=583 (old After Effects manuals via search result text; helpx.adobe.com returned 403)"
+  ],
+  "not_verified": [
+    "UNVERIFIED: Glow Color Phase behaviour in After Effects. helpx returned 403 and the search found nothing on it.",
+    "UNVERIFIED: units of Wave World pre-roll, producer position, amplitude, frequency. Old manuals describe their purpose, not a unit the lead can rely on.",
+    "UNVERIFIED: Premiere nudge behaviour at an occupied destination is forum-level only; no vendor oracle exists (D5).",
+    "UNVERIFIED: `cargo nextest list` compiles the test binaries so that a following `cargo nextest run` with the same arguments compiles nothing. The nexte.st page confirms archive and binaries-metadata only. No cargo was run. One measurement settles it.",
+    "UNVERIFIED: whether a newer ash exists on crates.io; crates.io gave no text. GitHub's latest release is 0.38.0.",
+    "NOT_INSPECTED: WP-012 progress after remote tip cbce875e; tracking ref in K is stale. The tip itself was re-confirmed by git ls-remote.",
+    "NOT_INSPECTED: any automated reader of TASK_BOARD or BUILD_ORDER outside tracked files. git grep over *.py, *.mjs, *.js, *.sh and justfile finds no reader of the packet STUB labels."
+  ],
+  "positions": [
+    {
+      "blocker": "O1, D7A-17: WP-KERNEL-012's shell (eframe, egui-wgpu, kumihimo-egui) conflicts with D7",
+      "decision": "Studio takes no dependency on WP-012: no code, branch, shell, MT or ruling. Studio follows spec v02.229. WP-012 stays judged on its pin and nobody asks it to change tonight. Studio's GUI proves on an asset-local Vulkan host behind the existing GPU client port, as asset-local evidence only. The host-adoption MTs that mount in handshake_native (MT-36231, MT-36249, MT-36250, MT-36251, the host side of MT-36248) stay unclaimed and name this item in blocked_on. The conflict is recorded in three surfaces that are not WP-012's files: (1) ledger direction.blocker_decisions_20261107.wp012_conflict; (2) one row in .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md, DEBT_ID SPECDEBT-STUDIO-D7A-17, WP_ID WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1, STATUS OPEN, BLOCKING NO, naming GUI-DESKTOP-003 against MT-198 renderer_capability, the still-empty MT-197 design_result.renderer_decision as the natural decision point, and Studio's client requirements for MT-203 (MT-36248 port; lease gap at render-gpu client.rs:604 and plan_sink.rs:1329); (3) one FYI line to the Operator, not a question, in the next report.",
+      "why": "The two authorities do not collide inside Studio. CX-SPEC-TRUTH-001 makes the spec the sole product truth for new work, and CX-GOV-PIN-001 lawfully keeps WP-012 on its own pin. They collide only where a Studio pane mounts in the WP-012 shell, and Studio is not being integrated. WP-012's own renderer decision is still open by its records (MT-197 design_result.status NOT_STARTED, renderer_decision null), even though MT-198 records a verified eframe path, so there is a clean place for its owner to decide later. Studio's seam is the same in both futures: a toolkit-free port. The Operator's words 'i think this is also the direction we are going for wp kernel' stay UNVERIFIED against WP-012's records, so Studio must not build on them either way.",
+      "evidence": [
+        "CX:13 'The Master Spec is the sole product truth.'",
+        "CX:262 'Every in-flight WP is pinned to the governance commit it was activated under and is judged under that pin.'",
+        "ROOT HSK-START-009 'preserve in-flight WP pins'",
+        "SP15:26 'a toolkit or backend built on wgpu, egui or eframe does not fulfil it (v02.227)'",
+        "SP14:259 'A transient in-process adapter behind the same port MAY serve asset-local proof only, bounded by [STU-ARC-032].'",
+        "SP14:275 'asset-local evidence and never host acceptance'",
+        "W12/MT-198.json renderer_capability status VERIFIED_SCOPED_CANONICAL_SOURCE, API includes native::EframeNativeCoordinator; limits say host adoption and runtime acceptance remain pending",
+        "W12/MT-197.json design_result: status NOT_STARTED, renderer_decision null",
+        "W12/MT-203.json lifecycle PENDING, code_boundary canonical_owner_status UNKNOWN_PENDING_DESIGN",
+        "S/spec-enrichment/STUDIO-ENRICHMENT-20261101-D7-VULKAN-ALIGNMENT.json:96 and :353 'a decision for WP-KERNEL-012's owner and the Operator'",
+        "git ls-remote: refs/heads/feat/WP-KERNEL-012 at cbce875e"
+      ],
+      "risk": "WP-012 hardens on eframe while Studio hardens on pure Vulkan, so integration later means two device owners (GUI-DESKTOP-025) or a shell move on the WP-012 side. The cost grows the longer nobody decides.",
+      "control": "Keep every Studio GUI type behind the port and the host seam, with no WP-012 type and no eframe type. The mechanical quarantine gate of SMB-CONTROLS-EGUI-GATE-1 enforces it. The FYI line makes the Operator aware without holding work. Any Kumihimo renderer goes in a new crate beside kumihimo-egui, so WP-012's exact pin at 8a97b9ae is untouched.",
+      "proven_wrong_if": "A Studio GUI lane needs a WP-012 symbol or MT-203 output to reach a working window; or the Operator says Studio must render inside the WP-012 shell now; or a Studio commit changes kumihimo-egui.",
+      "unblocks": "Every GUI lane paused on 'Everything above assumes yes' (HANDOFF:224), including the test host, SMB-FIG-GRID-3, SMB-AE-KEYFRAME-TIMELINE-1, the 25 panels."
+    },
+    {
+      "blocker": "O9: D3 never answered by the Operator",
+      "decision": "Closed, no working decision needed. STU-ARC-024 has made D3's reading spec text since v02.226: Studio holds no device ownership, render-gpu exposes the typed port, the GPU owner names the binding. Mark O9 superseded by that clause. Two limits stay declared: the port's handle type, admission, budget fields and compute-without-surface are settled with the owner, so Studio's port shape is provisional until then.",
+      "why": "The question was who defines the client contract while MT-203 is NOT_STARTED. The current spec answers it, and the Operator approved the batch that put it there (D5, SD-02).",
+      "evidence": [
+        "SP14:259 'Studio holds no GPU device ownership. The render-gpu asset crate MUST expose a typed GPU client port'",
+        "SP14:259 'the Vulkan binding crate is named by the GPU owner, not by Studio'",
+        "S/research/integration-refactor-inventory-20261030.json:423 D3 lead_reading and note_after_d7",
+        "S/spec-enrichment/STUDIO-ENRICHMENT-20261030-HOST-INTEGRATION.json SD-02 status APPLIED v02.226"
+      ],
+      "risk": "Studio's port shape may differ from what MT-203 later wants.",
+      "control": "Port takes opaque handles; the binding crate appears only inside the transient adapter. Send the gaps with the O1 record.",
+      "proven_wrong_if": "An ash type appears in a public signature of the port.",
+      "unblocks": "RF-12 and the test host's GPU path can name their contract without an Operator answer."
+    },
+    {
+      "blocker": "O10: D7A-01..17",
+      "decision": "Six items get working decisions because a GUI lane touches them (D7A-01, 02, 04, 05, 06 with 07, 10). D7A-17 is handled by the O1 position. The other nine are Tailor (Section 13) text or a module 01 table row, and block nothing in Studio. See spec_items.d7a.",
+      "why": "D7A-03, 08, 09, 11, 12, 13, 14, 15 anchor only Section 13 Tailor clauses and D7A-16 a row in module 01. No Studio GUI or feature lane reads them.",
+      "evidence": [
+        "S/spec-enrichment/STUDIO-ENRICHMENT-20261101-D7-VULKAN-ALIGNMENT.json open_items_for_spec_owner (module field per item)",
+        "SP15:78 GUI-DESKTOP-026 'Platform/device limitations MUST remain explicit'",
+        "SP14:259 'the Vulkan binding crate is named by the GPU owner, not by Studio'"
+      ],
+      "risk": "The owner later names a different binding, so the transient adapter is rewritten.",
+      "control": "The adapter is the only file set that names ash. It is meant to be replaced (STU-ARC-024).",
+      "proven_wrong_if": "The vulkan member shows ash 0.38 or naga spv-out cannot do what the host needs (see needs_from_other_members).",
+      "unblocks": "Binding, shader path and platform scope stop being open questions for the first GUI lanes."
+    },
+    {
+      "blocker": "O10: SD-31..73 (43 items, all PROPOSED; HANDOFF still says SD-31..52)",
+      "decision": "Eleven items get a working decision the lead records: SD-39, 40, 41 (feature blockers) and SD-45, 46, 48, 50, 57, 58, 59, 60 (GUI blockers). Thirty-two items are not blocking: the reading in code stands. See spec_items.sd. No spec version is cut tonight. Each decision goes into the enrichment item as a new field working_decision with date and 'reversible', and into the lane brief as a quoted spec_basis. One batch to the spec after the first GUI wave settles.",
+      "why": "A spec cut costs a version bump, round trip and MT regeneration and moves nothing tonight. CX-SPEC-TRUTH-001 accepts a quoted spec_basis for a contract, and Studio already runs on overrulable lead readings with the same labelling (HANDOFF:326). The rule that makes them truth stays: only enrichment writes spec.",
+      "evidence": [
+        "CX:13 'Research, prototypes, refinement findings and Operator ideas become truth only when enrichment writes them into it'; 'resolves to a spec anchor or a quoted `spec_basis`'",
+        "S/research/integration-refactor-inventory-20261030.json D5 decision 'SD-26 onward stay proposed until reviewed'",
+        "SP14:15454 Color Phase row: ANGLE, default 0.003906, unit degrees",
+        "HANDOFF:267 'Do not hold work on a question to the Operator when a recorded decision can be reversed later.'"
+      ],
+      "risk": "Spec drift grows while GUI behaviour lands on readings. A later vendor oracle overturns SD-39, 40 or 59.",
+      "control": "Each reading is listed in one place, marked UNVERIFIED (D5) where no vendor proof exists, and goes through the validator as a claim to break. Apply the batch after the first GUI wave so the drift has an end.",
+      "proven_wrong_if": "A validator finds a working decision contradicts a clause already in v02.229; or an Operator oracle session shows other behaviour.",
+      "unblocks": "Glow and Wave World parameters, OpenEXR channels, timeline panel defaults, keyboard nudges, sequence settings dialog."
+    },
+    {
+      "blocker": "HANDOFF operator-items topic: what really waits for the Operator",
+      "decision": "Nothing that blocks GUI or feature work waits for the Operator. Rewrite the topic as the table in operator_items: 13 entries DECIDED, 8 NOT_BLOCKING, 7 NEEDS_OPERATOR, each with a default that holds until they speak. The 7, plus the WP-012 half of O1, are things only a person can do or approve: oracle sessions at the apps, exact-list deletions, GitHub branch deletion, Defender and Search exclusions, the os-encode legal check, the HSK-ART-005 edit, one retroactive waiver, and WP-012's eventual path.",
+      "why": "The Operator: 'resolve all blockers on your own'. CX-021 makes that govern over conflicting repo procedure. What stays are authority limits the words do not name: exact-target deletion (CX-107, HSK-ART-005), Operator-only system settings, and physical access to vendor apps.",
+      "evidence": [
+        "CX:15 'Explicit Operator instructions govern repo scope and supersede conflicting repo procedures.'",
+        "CX:93 'Destructive filesystem operations require same-turn Operator authorization for the exact targets and consequences'",
+        "ROOT:111 'still needs the Operator's approval of that exact list under CX-107'",
+        "S/ledger.json direction.operator_direction_20261107 (ledger.json:21660)",
+        "HANDOFF:494-524"
+      ],
+      "risk": "The lead over-reads the delegation and treats a deletion or a PASS as decided.",
+      "control": "Delegation covers decisions that a later instruction can reverse. Deletions are not reversible and PASS is not the lead's to give, so both stay out, by name, in the table.",
+      "proven_wrong_if": "The Operator, on reading the table, reclaims an item marked DECIDED.",
+      "unblocks": "The session report shrinks to FYIs and one optional question at a time (HANDOFF:259)."
+    },
+    {
+      "blocker": "ledger direction.next_lane_candidates (46 rows)",
+      "decision": "None needs the Operator. 46 rows are 38 distinct items (duplicates listed). Five are decided now without a lane (F-R56-8 closed, read_package loss reading documented, harfrust stays a v1 spike, comment and pub(crate) tidy-ups ride the next touch). The rest sort into: feature width, feeds a GUI lane, covered by a running lane, or parked fix. See next_lane_dispositions. Two parked fixes go first when fixes resume, because they give silently wrong output: F-R56-10 EDL hold, and F-R57-5 export frame grid.",
+      "why": "HANDOFF:263 'open no new edge-case lanes while feature work waits'. None of the rows asks anything a person must answer: F-R55-13, plan_move and SD-59 have defaults.",
+      "evidence": [
+        "S/ledger.json:21040 direction.next_lane_candidates",
+        "S/validation/round-R57.json F-R57-5",
+        "HANDOFF:114 'Silent wrong output'"
+      ],
+      "risk": "Parked silent-wrong-output items reach a user through the new GUI.",
+      "control": "When a GUI lane exposes a parked path (export dialog, EDL), the lane brief names the finding and it must show a typed limit or carry the fix.",
+      "proven_wrong_if": "A workflow scenario's gap list shows a parked row stops a professional project end to end; then it moves up.",
+      "unblocks": "The candidate list stops reading as a queue of open questions."
+    },
+    {
+      "blocker": "Waivers: F-R57-14 and the GLOBAL-SCOPE-005 list",
+      "decision": "Forward: from 2026-11-07T06:11:48Z 'you are allowed to expand scope' covers new paths outside a brief. Lanes keep listing notes.paths_beyond_brief, and no new waiver question is raised. Backward: do not claim a waiver. Merge F-R57-14's items missing from the HANDOFF list into one list (folio Code variant, media markers session tests beyond the brief including entry_references.rs, the entry references and nudge items now landed), mark it WAIVER_ASKED_NOT_GIVEN, and ask once in the next-step box when it is the only question left. Default if never answered: nothing changes.",
+      "why": "The global rule asks for a waiver at task end and names no gate on it. The validator rated it INFO and said none is a defect. All these lanes already hold verdicts. The Operator's words are forward-looking, so counting them for past work would be a false claim.",
+      "evidence": [
+        "CLAUDE global GLOBAL-SCOPE-005 'ask the operator for a waiver and explicitly state the why and full list of what was touched'",
+        "S/validation/round-R57.json F-R57-14 severity INFO 'None of them is a defect.'",
+        "S/ledger.json direction.operator_direction_20261107 operator_words 'you are allowed to expand scope, create extra mt'",
+        "HANDOFF:285, :506-515"
+      ],
+      "risk": "A lane uses 'expand scope' to wander into another lane's files.",
+      "control": "One builder per lane with disjoint files stays (HANDOFF:255). The pre-review agents report paths beyond the brief.",
+      "proven_wrong_if": "The Operator says the words did not reach path scope.",
+      "unblocks": "Removes the item from the open list. It blocked nothing."
+    },
+    {
+      "blocker": "Studio packet and task board read STUB",
+      "decision": "One governance commit, no Operator question, no fake activation. (1) TASK_BOARD: move the row from '## Stub Backlog (Not Activated)' to '## In Progress' as '- **[WP-KERNEL-STUDIO]** - [IN_PROGRESS]'. (2) packet.json lifecycle: status 'In Progress', plus activation_status 'OPERATOR_AUTHORIZED_ACTIVATION_UNBOUND' and operator_execution_order {at_utc, order, ref S/START_LOG.md:63, ledger direction.operator_direction_20261107}; change execution_authority from NON_EXECUTION_STUB to the same words. (3) wp_traceability_registry.json active_packet_path to the packet. Leave activation_binding.status 'unbound', ACTIVATION_READINESS untouched, MT lifecycle untouched, the stub file kept as history. BUILD_ORDER lines 71 and 356 are a derived display whose upkeep is binding: update those two cells by hand in the same commit and say so.",
+      "why": "The label is false today: S/START_LOG:63 records the Operator's 2026-10-11 authorization of implementation while the record says STUB. The full truth has two halves: work is authorized, and the activation binding never happened. Flipping to ACTIVATED would assert the second falsely. The field precedent exists on WP-012 (lifecycle.status 'In Progress', operator_execution_order). The lifecycle is not an obligation change, so it needs no new contract revision or renewed activation.",
+      "evidence": [
+        "T/packet.json:44 'STUB (NOT READY FOR DEV)'; :300431 'NON_EXECUTION_STUB'; :300436 'NEXT_SESSION_ONLY'; :293527 'on_contract_change'",
+        "S/START_LOG.md:63 'Operator 2026-10-11 authorizes implementation (this log)'",
+        "K/.GOV/roles_shared/records/TASK_BOARD.md:18 'rows are edited by hand'; :19 In Progress format; :103; :106",
+        "K/.GOV/roles_shared/records/BUILD_ORDER.md:71, :356; head 'File upkeep IS binding'",
+        "wp_traceability_registry.json WP-KERNEL-STUDIO active_packet_path .GOV/task_packets/stubs/WP-KERNEL-STUDIO.contract.json",
+        "W12/packet.json lifecycle.status 'In Progress', lifecycle.operator_execution_order",
+        "git grep: no tracked *.py, *.mjs, *.js, *.sh or justfile reads NON_EXECUTION_STUB or 'STUB (NOT READY'"
+      ],
+      "risk": "The activation_status value is a new word; a governance tool or validator expects a fixed set.",
+      "control": "CX-STATUS-001's closed set is for MT status, not WP lifecycle; WP-012's 'ACTIVATED_IN_PROGRESS' is a free field. If a reader appears, keep the note and revert the label.",
+      "proven_wrong_if": "A script or role protocol keys on the row or the label in a way git grep did not find; or an Operator-stated reason exists for keeping STUB.",
+      "unblocks": "Removes a standing contradiction that every no-context reader hits. Does not change any build."
+    },
+    {
+      "blocker": "Older cleanup list in operator-items and direction.cleanup_pending_operator_approval",
+      "decision": "Retire it as a list and treat it as stale. Plan R (approved, to run after R59 with fresh inspection, whole-target removals none) is the only live removal. Everything on the old list becomes reuse inventory first (HSK-ART-005). Keep the registered scratch worktree smb-type-sentinels-registry-1/rw, the four validator probe trees, the -red target and the local ref as a short exact list; present it only when C: passes the 330 GiB alert or when the tree count gets in the way, in one question, regenerated by target_report.py. PASS lane worktrees reusable by GUI and feature lanes stay. GitHub backup branches stay until the Operator deletes them. CX-GIT-001A does not reach any of these: it covers only worktrees made under it.",
+      "why": "It blocks nothing: C: tree 314.3 GiB at last record against alert 330 and cap 360, a D: fallback exists, and Plan R's totals_gib reads 645.3 (C: 35.0, D: 610.3), mostly on D:. Approval attaches to an exact list, so a list from 2026-11-05 is not worth approving: it would need re-inspection anyway.",
+      "evidence": [
+        "ROOT:111 'A PASS or abandoned lane's target (HSK-ART-003) is a reuse candidate first.'",
+        "CX:107 'for those worktrees and their local lane branches only'; 'Remote branches and all other worktrees are not covered.'",
+        "S/research/cargo-cleanup-plan-20261107-R.json status, whole_target_removals, totals_gib, before_execution",
+        "S/builders/studio-env.sh:146 fallback order at the cap",
+        "S/ledger.json direction.after_r58_20261106.c_tree_gib 314.267",
+        "HANDOFF:257 'The roughly 100 older worktrees are not covered: list them for the Operator.'; :517"
+      ],
+      "risk": "GUI lanes add new targets; C: reaches its cap during a round, and builders get status 77.",
+      "control": "Measure before a round (CX-984-014). Move new lanes to D: first; ask with the fresh list if D: is not enough.",
+      "proven_wrong_if": "Fresh disk readings show C: above 330 GiB and D: short of room with Plan R done.",
+      "unblocks": "Removes an item the Operator was asked to judge on stale data."
+    },
+    {
+      "blocker": "Rules that could slow the Operator's priority",
+      "decision": "All seven named rules stand as rules. None blocks width and GUI work once the habits around them are separated. Three changes follow, all to habits: (a) lane-check holds the disk lock for compile only, with test execution outside it; (b) WF3-007's 8-hour freeze is dropped, and rounds run when a wave has landed; (c) GUI dependencies come in at versions already in Cargo.lock so that the first GUI crate does not force a full round. Details per rule in rule_readings.",
+      "why": "The Operator's words change what is habit and leave standing what they do not name. CX-VERIFY-001 already favours less proof work. Disk rule text says 'build', while studio-env.sh and lane-check extend the lock over test runs. Of 57 logged overruns of the 900 s hold, 36 are bundled holds and 17 per-sha holds (split inside a bundled hold not measured). Per-sha was already cut to the tip (HANDOFF:265), so the bundled hold is the next thing to shorten.",
+      "evidence": [
+        "CX:236 'Run at most one build per physical disk at a time.'",
+        "S/builders/studio-env.sh:90-99, :232 the wrapper takes the lock for nextest",
+        "S/tools/lane-check.sh:2-3 'ONE disk-lock hold runs clippy ... then the one test run'",
+        "lock event logs: C: 27 overruns (19 bundled, 7 per-sha, 1 nextest), D: 30 overruns (17 bundled, 10 per-sha, 1 nextest, 1 round, 1 other), 2026-10-16..2026-11-06",
+        "S/tools/round-select.py:9 lock dependency set is (name, version, source); truth-check q2 lockfile: ash 0.38.0 already present",
+        "S/workflow/workflow-v3.json:25 WF3-007"
+      ],
+      "risk": "Test runs now overlap another lane's compile: wall-clock tests fail under load (candidate row 3), and memory pressure rises with Chrome open.",
+      "control": "Builder runs only. Rounds keep their checked-in entrypoint and lock (CX-VAL-007), so verdicts are unaffected. A failed wall-clock test on a builder is rerun alone before counting. Keep CARGO_BUILD_JOBS=2 under 40 GB commit free (HANDOFF:260). GPU test lock unchanged.",
+      "proven_wrong_if": "One measured run shows `cargo nextest run` recompiles after `list`; or lock wait does not drop; or builder false failures cost more than the wait saved. Then restore the bundled hold.",
+      "unblocks": "More parallel lanes on two disks without touching CX-984-002."
+    },
+    {
+      "blocker": "Fix budget at its limit (CX-EXEC-015(1)), SMB-PR-MEDIA-MARKERS-1 at 2 of 3 when R59 reads",
+      "decision": "On a third FAIL: record fix_budget_exhausted and park it. Record no new claim on those MTs, and move on: no question to the Operator, nothing else waits. Reopen only if a GUI or feature lane truly needs the MT, and then the lead records the decision under direction.operator_direction_20261107, labelled 'lead under Operator delegation, reversible', with a one-line FYI. A new lane id on the same MT does not reset the count.",
+      "why": "The rule stops the claim, not the team. Parking fits 'then fix what is broken'. The Operator's delegation can serve as the recorded decision the clause needs, but only when something needs it; precedent at START_LOG:65 shows the shape of such a decision.",
+      "evidence": [
+        "CX:171 'record a `fix_budget_exhausted` blocker and escalate; no new claim until an Operator decision is recorded'",
+        "CX:137 'changing the executor does not reset the count'; 'it never authorizes PASS, reduced acceptance'",
+        "S/START_LOG.md:65 MT-35536 'operator_decision recorded 2026-10-11: changed approach + one fix round APPROVED'",
+        "S/builders/lanes/hsk-studio-pr-media-markers-1.json:1388"
+      ],
+      "risk": "Red team reading: a general delegation is not 'an Operator decision' for a specific MT.",
+      "control": "Default is park, which needs no decision. The delegation is used only on a named need, with the Operator told. If the reading is rejected, the lane stays parked and one question goes up.",
+      "proven_wrong_if": "The Operator rejects delegated use of the clause.",
+      "unblocks": "A failed edge case cannot hold the team."
+    },
+    {
+      "blocker": "New MTs for GUI and workflow work: real, without busy work",
+      "decision": "Create MT rows only at lane dispatch, in the same step as the brief and lane file, by extending S/tools/lead/lanegen.py with an mts list. No new public script. One lane gets 1 to 6 MT rows, only for work no MT owns; existing MTs (2,266 vulkan_shell_client among them) are claimed in the lane's closes rather than re-authored. Writing a scenario file in workflows/ is not an MT. Turning a scenario into a product test with a runner is one. Full recipe in new_mt_recipe.",
+      "why": "The packet forbids check-only MTs and accepts one MT where one is enough. The past defect was proof text that names targets that do not exist (about 5,400 of 6,220); a row whose command is written when the lane is named and whose target arrives in the lane's first commit cannot repeat it. CX-VERIFY-003 sends new scope through the contract path, and the Operator's 'create extra mt' authorizes it.",
+      "evidence": [
+        "T/packet.json:420 microtasks_are_work_units_not_checks; :421 format_build_test_or_diff_review_only_microtasks_forbidden",
+        "CX:57 'every MT binds exactly one owning module'",
+        "CX:65 'carries a gui-lane MT naming its backend MT and the shared surface'",
+        "CX:59 'a generic checklist does not author an MT'",
+        "K/.GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md:25 KB-PREP-002",
+        "S/validation/round-R57.json F-R57-13; round-R56.json F-R56-13; round-R55.json F-R55-3",
+        "HANDOFF:147, :263",
+        "spec-derive-microtasks.py:613-642 live folder is an id floor when --existing-mts is passed",
+        "T/packet.json contains no MT-36250: microtasks.contract_glob governs, so no packet edit is needed per MT"
+      ],
+      "risk": "The new rows stay status null because no round names them met, and MT status again says nothing about progress.",
+      "control": "Small acceptance sets with test names per row make a round's step 6 able to write PASS. The validator's MT-STATUS-SYNC rule is unchanged: nothing becomes PASS by lead or builder.",
+      "proven_wrong_if": "A round's validator cannot map a new row to a test without asking the lead; or lanegen rows drift from the template so CX-TPL-001 refuses them.",
+      "unblocks": "GUI lanes have citeable scope and acceptance from day one, at about one generated file per row."
+    }
+  ],
+  "rule_readings": [
+    {
+      "rule": "CX-VAL-005",
+      "text_ref": "CX:181",
+      "requires": "A round 'starts when the implementer's fixes for the open failures are pushed, and covers all READY_FOR_VALIDATION MTs'. Canary first; canary failure is infrastructure. Build only the round's test targets; on a broken round build, rebuild without the offending commits and fail that MT. No fail-fast, per-test timeout, map results from structured output, clean outputs after verdicts; non-zero runner exit is a result. Other-build proofs go in one extra build at WP end.",
+      "operator_words_change": "'minimal testing and no busy work': nothing in the clause sets a clock. Reading: 'starts when' is a precondition (no round before the fixes are pushed), so the lead chooses when a wave is ready. Overrulable reading; validator may challenge it.",
+      "stands": "Canary, covers all READY, no fail-fast, independent verdict, broken-build rule.",
+      "habit_not_rule": "WF3-007 '8 or more lanes are READY or 8 hours' is a workflow record, not Codex. Drop the 8-hour half. Keep 8 lanes or a landed wave. Leaving READY work unjudged while a wave builds is accepted: READY means unjudged (HANDOFF:265)."
+    },
+    {
+      "rule": "CX-VAL-011",
+      "text_ref": "CX:193; opt-in S/workflow/workflow-v3.json:24 WF3-006",
+      "requires": "Scoped rounds allowed: changed crates plus reverse-dependency closure; others reuse under CX-VAL-002. 'A full-scope round runs at least every third round and whenever the toolchain, the lockfile dependency set or the test entrypoint changes.' Selection computed mechanically.",
+      "operator_words_change": "Nothing in the text. Fewer rounds means a full round less often in time, which is the whole gain (HANDOFF:265).",
+      "stands": "R57 full, so R60 is due full. Same triggers.",
+      "habit_not_rule": "None to drop. Planning point: round-select.py:9 keys on external (name, version, source), so depending on ash 0.38.0+1.3.281, naga 27.0.3 and other versions already in Cargo.lock adds no full trigger, UNVERIFIED until the lock diff is read. A dependency added in a crate's own Cargo.toml avoids round-select.py:87 (root Cargo.toml outside metadata and members). If a new version is needed, land it in the wave R60 judges, since R60 is full anyway. Any new tools/ or .config/ file also forces full (round-select.py:14)."
+    },
+    {
+      "rule": "CX-EXEC-015",
+      "text_ref": "CX:171",
+      "requires": "After each round or verdict, first counter at its limit acts: (1) 3 failed verdicts on the MT: blocker, no new claim until an Operator decision is recorded; (2) 2 consecutive failures on a class with no new diagnosis: NEEDS_NEW_APPROACH; (3) rounds_without_output 2; (4) same infrastructure class in two rounds: no round until a pushed config commit; (5) other: CX-EXEC-003.",
+      "operator_words_change": "'resolve all blockers on your own' can supply the recorded decision under (1), used only on a named need (position above). HANDOFF:261 already keeps other lanes moving.",
+      "stands": "All five counters; values derived from records; no PASS from them.",
+      "habit_not_rule": "Text counts per MT; Studio counts per lane because rounds judge lanes. Keep that reading, it is the stricter. The stop of the team during a loop was habit, already dropped."
+    },
+    {
+      "rule": "V4-13",
+      "text_ref": "S/builders/DISPATCH_TEMPLATES.md:60",
+      "requires": "Lead procedure: 'a lane with 2 failed verdicts gets a read-only adversarial PRE-REVIEW of its diff since the last FAIL before it enters a round'; FIX_FIRST goes back; only SAFE_TO_JUDGE is offered.",
+      "operator_words_change": "'use red team and code check sub agents to inspect work before expensive cargo builds' generalizes it: every lane gets a read before its bundled run (HANDOFF:264). V4-13 is now the special case.",
+      "stands": "The two-FAIL gate on entering a round. SAFE_TO_JUDGE is not a verdict.",
+      "habit_not_rule": "This whole rule is a lead-adopted workflow rule, not Codex; the lead may amend it. Three reads on one lane (media markers) was practice, not text. Default cap: two FIX_FIRST reads, then park the lane instead of a third, unless the approach changed under CX-EXEC-003."
+    },
+    {
+      "rule": "KB-PREP-004",
+      "text_ref": "K/.GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md:29",
+      "requires": "Verify the declared branch and worktree and direct kernel path; 'do not create diverging worktrees for the same WP. Sub-agents may not create or switch worktrees.' No governance junction.",
+      "operator_words_change": "Already done: CX-GIT-001A 'overrides KB-PREP-004's single worktree for these lanes', on 'worktrees are allowed only if you merge en remove them after completion'. 'expand scope' adds nothing here.",
+      "stands": "Sub-agents never create or switch worktrees: CX:107 'The Studio lead, never a sub-agent, test or tool'. The lead makes the switch before dispatch. No junctions. Remote branches and other worktrees are not covered. Merge-then-remove through lane_close.sh.",
+      "habit_not_rule": "Reuse of a completed lane's tree is HSK-ART-005 (rule) for targets; picking the tree by crate overlap is method. Gap: CX-GIT-001A's condition is merge 'to the product branch', and Kumihimo is not on it (see needs_from_other_members)."
+    },
+    {
+      "rule": "P1",
+      "text_ref": "ROOT:109 'no incremental state (P1)'; S/builders/studio-env.sh:60-64; CX:238 for validation builds",
+      "requires": "CARGO_INCREMENTAL=0 for lanes.",
+      "operator_words_change": "None. 'manage cargo better' argues for it: incremental was the largest regrowing class (268.5 GiB on D: plus 19.3 on C:).",
+      "stands": "Root rule. HANDOFF:258 'incremental stays off'.",
+      "habit_not_rule": "studio-env.sh:63 still offers STUDIO_INCREMENTAL=1 'lead approval only'. That knob predates the root line, so do not use it without the Operator changing ROOT. New GUI crates are small, so a whole-crate recompile is cheap; harness-view is the slow case."
+    },
+    {
+      "rule": "P2",
+      "text_ref": "ROOT:109 'a lane's target is listed for deletion when the lane is PASS or abandoned'; ROOT:111; HANDOFF:442",
+      "requires": "List at PASS or abandonment; removal needs approval of an exact list after inspection.",
+      "operator_words_change": "'reuse when posible' (recorded as HSK-ART-005): reuse candidate first. 'manage asigned diskpace/folders' is not acted on: the lead's edit to ROOT was refused by the permission check (HANDOFF:258), so the Operator's approval stays.",
+      "stands": "HSK-ART-005 exact-list approval; Plan R is approved.",
+      "habit_not_rule": "Listing each PASS lane immediately. List only when disk readings call for it."
+    },
+    {
+      "rule": "P3",
+      "text_ref": "ROOT:109 'at most 6 live lane targets per disk (P3)'; HANDOFF:393",
+      "requires": "6 live per disk, so 12 on C: and D:.",
+      "operator_words_change": "'use parallel agents where posible' fits inside it. Today about 7 lanes are live.",
+      "stands": "The cap. 'Live' read as not yet PASS is a lead reading: PASS targets kept for reuse do not count.",
+      "habit_not_rule": "WF3-002 'At most 5 builders' (workflow-v3.json:20) and START_LOG:528 '~5 builders' are habits sized to the old queue. Raise by what commit free and lock wait allow, up to 12 live targets; set no new number from reasoning alone."
+    },
+    {
+      "rule": "CX-984-002",
+      "text_ref": "CX:236; KB-OUT-008 at KERNEL_BUILDER_PROTOCOL.md:142",
+      "requires": "WP subfolder; owner-scoped output; 'Concurrent owners must not share mutable output. Run at most one build per physical disk at a time.'",
+      "operator_words_change": "Nothing explicit. The waiver asked on 2026-10-11 (START_LOG:323, workflow.json D2) was never granted, and START_LOG:209-210 records the rule as kept and the harm when it was not. Do not read 'rapid' or 'parallel' as a waiver. With two disks, two builds at a time.",
+      "stands": "One build per disk; no shared mutable output. Rounds stay on their lock. Folder shape below the WP is governed for Studio by ROOT HSK-ART-002/003: one owner per lane, per-MT folders hold no compiler cache. New MTs set artifact_isolation.owner_dir to the lane owner.",
+      "habit_not_rule": "The rule says build. Three things are habit: the lock over test execution (studio-env.sh:232, lane-check.sh:2), one bundled hold (lead strategy, START_LOG:528, though the Operator did say 'bundle checks and tests', START_LOG:192, which does not name the lock), and `cargo check` counting as a build (keep: it compiles and writes). Change only the first: clippy and test compile under the lock, then the run outside it. Edit S/tools/lane-check.sh only, not tools/disk-build-lock.sh, which is byte-identical to the product's and is a full-round trigger."
+    },
+    {
+      "rule": "CX-EXEC-014 (not in the brief's list, same class)",
+      "text_ref": "CX:169; S/START_LOG.md:192, :322",
+      "requires": "'implementers, including the kernel builder, run compile and static checks only.' Only the MT's named proof commands run, once per candidate.",
+      "operator_words_change": "Builder tests are a lead adoption under CX-021 that the Operator never confirmed (START_LOG:322). 'minimal testing' supports fewer, and HANDOFF:265 keeps a red test and focused tests.",
+      "stands": "Independent verdict from the validator's run only. Builder results are not proof.",
+      "habit_not_rule": "Rule 4a, the whole suites of changed crates before READY (WF3-004), is habit. Keep it: at 2 to 4 hours a round, one avoidable FAIL costs more than a crate's suite. New GUI crates have short suites anyway."
+    }
+  ],
+  "spec_items": {
+    "d7a": [
+      {"id": "D7A-01", "state": "WORKING_DECISION", "text": "ash =0.38.0+1.3.281 (MIT OR Apache-2.0; already in Cargo.lock through wgpu-hal), direct dependency of the transient adapter and asset-local host only. Not named as the owner's choice: goes to MT-203 as a proposal. Depends on vulkan member's confirmation."},
+      {"id": "D7A-02", "state": "WORKING_DECISION", "text": "Keep WGSL as source; compile with naga 27.0.3 (MIT OR Apache-2.0) wgsl-in to spv-out; embed SPIR-V. Reads D7 as 'no wgpu', not 'no naga'; TECH-WGSL retirement names no language. Also closes O3. Vulkan member owns the check that naga SPIR-V output runs correctly and how runtime-generated bodies fare."},
+      {"id": "D7A-03", "state": "NOT_BLOCKING", "text": "Tailor code samples; TAI-VK-003 keeps them normative as legacy notation."},
+      {"id": "D7A-04", "state": "WORKING_DECISION", "text": "With O8: Windows on Vulkan only. macOS and machines without a usable Vulkan driver give a typed refusal naming the limitation (GUI-DESKTOP-023, 026). No DX12 or Metal result counts as Vulkan. CPU canvas stays available if the vulkan member builds it."},
+      {"id": "D7A-05", "state": "WORKING_DECISION", "text": "Asset-local adapter prefers the discrete device and reports the one it took; adapter selection moves to the owner later (GUI-DESKTOP-027, 028)."},
+      {"id": "D7A-06", "state": "WORKING_DECISION", "text": "Together with D7A-07: the port returns a typed device error with a closed code set and the Vulkan result code as data; no ash type in the signature."},
+      {"id": "D7A-07", "state": "WORKING_DECISION", "text": "See D7A-06."},
+      {"id": "D7A-08", "state": "NOT_BLOCKING", "text": "Tailor process sandbox; no Studio caller."},
+      {"id": "D7A-09", "state": "NOT_BLOCKING", "text": "Tailor geometry shader rule."},
+      {"id": "D7A-10", "state": "WORKING_DECISION", "text": "Adopt for Studio's own Vulkan code: explicit pipeline barriers between dependent passes. It is plain Vulkan correctness."},
+      {"id": "D7A-11", "state": "NOT_BLOCKING", "text": "encase is a Tailor dependency."},
+      {"id": "D7A-12", "state": "NOT_BLOCKING", "text": "Tailor Bevy testbed."},
+      {"id": "D7A-13", "state": "NOT_BLOCKING", "text": "Tailor bounds."},
+      {"id": "D7A-14", "state": "NOT_BLOCKING", "text": "Tailor comment."},
+      {"id": "D7A-15", "state": "NOT_BLOCKING", "text": "Topic id kept."},
+      {"id": "D7A-16", "state": "NOT_BLOCKING", "text": "Module 01 row; WP-011 spike NOT_INSPECTED; STU-ARC-025 governs Studio."},
+      {"id": "D7A-17", "state": "HANDLED", "text": "Position O1. Spec-owner and WP-012 owner item, open, blocking nothing in Studio."}
+    ],
+    "sd": {
+      "working_decisions": [
+        {"id": "SD-39", "blocks": "feature: Glow refuses any non-default phase (composite temporal/composition/effects.rs:620-623)", "text": "Phase is degrees (SP14:15454). 360 degrees is one full A & B colour loop: loop position t becomes frac(t + phase/360). Keep the captured default 0.003906 stored. Remove the refusal. UNVERIFIED (D5): no vendor source found."},
+        {"id": "SD-40", "blocks": "feature: Wave World rows unmapped", "text": "Studio-declared: preroll seconds; producer position layer pixels; amplitude in the engine's height-field unit; frequency cycles per second. Rows carry provenance studio_declared. UNVERIFIED (D5); old manuals give purpose only."},
+        {"id": "SD-41", "blocks": "feature: EXR channels, MT-30095 EXR row", "text": "Implement, do not limit. Use the exr crate (BSD-3-Clause, pure Rust). Channel names as layer.channel per OpenEXR convention. 8-bit channels widen to HALF, recorded as a typed loss note. Owning crate: extend the crate holding TIFF channel interchange (SMB-TIFF-CHANNELS-1), feature lane to confirm. composite three_d/exr.rs stays until it can reuse it."},
+        {"id": "SD-45", "blocks": "GUI: time display in a 48 fps sequence", "text": "Existing reading stands: frames plus warning time_display_code_113."},
+        {"id": "SD-46", "blocks": "GUI: new-sequence dialog", "text": "Preset list ships with no editing-mode binding; mode is a separate control defaulting to custom. Three defaulted fields stay Studio readings."},
+        {"id": "SD-48", "blocks": "GUI: sequence settings dialog", "text": "Keep apply as coded (writes the rate, no re-time). Dialog states that clips keep their ticks and may leave the frame grid. Vendor parity UNVERIFIED (D5)."},
+        {"id": "SD-50", "blocks": "GUI: timeline panel track display", "text": "The declared_readings in builders/lanes/hsk-studio-pr-track-display-1.json are the defaults. Designer may change presentation only; a change of value updates the reading."},
+        {"id": "SD-57", "blocks": "GUI: settings", "text": "Multi-frame step is a per-user preference in the Studio Settings tab when a settings store lands; per open document until then (rows 17, 24)."},
+        {"id": "SD-58", "blocks": "GUI: key map", "text": "Builder's reading stands: ids that say five stay five; many variants are the frame nudges and follow the preference."},
+        {"id": "SD-59", "blocks": "GUI: nudge; MT-33738 row unclaimed", "text": "Keep the built behaviour: left and right overwrite, up and down refuse. Amend the MT-33738 row by contract revision, naming SD-59. Forum sources suggest moves overwrite neighbours in Premiere; UNVERIFIED (D5). Same default for a drag onto a clip in plan_move (row 9)."},
+        {"id": "SD-60", "blocks": "GUI: nudge with links", "text": "Builder's reading stands."}
+      ],
+      "not_blocking_reading_stands": ["SD-31", "SD-32", "SD-33", "SD-34", "SD-35", "SD-36", "SD-37", "SD-38", "SD-42", "SD-43", "SD-44", "SD-47", "SD-49", "SD-51", "SD-52", "SD-53", "SD-54", "SD-55", "SD-56", "SD-61", "SD-62", "SD-63", "SD-64", "SD-65", "SD-66", "SD-67", "SD-68", "SD-69", "SD-70", "SD-71", "SD-72", "SD-73"],
+      "notes": "SD-64, 65, 67 are being answered inside SMB-PR-ROUTING-REPAIR-1 (F-R57-2, F-R57-3; angle_order options first). SD-73 waits on STUDIO-R59. HANDOFF:116 and :233, :519 say SD-31..52; the real open range is SD-31..73 with 43 PROPOSED, so correct that text. Spec-side declared gaps STU-ARC-029 (settings namespace) and STU-ARC-023 against the code (O5) are for the GUI and controls members."
+    }
+  },
+  "operator_items": [
+    {"item": "O1 WP-012 and eframe", "state": "DECIDED for Studio; NEEDS_OPERATOR for WP-012's own path, not blocking", "default": "Position O1. FYI line only."},
+    {"item": "O2 binding crate", "state": "DECIDED, working", "default": "ash in the adapter only; proposal to MT-203 (D7A-01)."},
+    {"item": "O3 does D7 reach naga and WGSL", "state": "DECIDED, working", "default": "wgpu only (D7A-02). Vulkan member verifies."},
+    {"item": "O4 shell layer and Kumihimo renderer boundary", "state": "NOT_BLOCKING for Studio's own host; default from GUI and controls members", "default": "Leave to those members; Handshake's shell is not being built here."},
+    {"item": "O5 control mechanic home", "state": "NOT_BLOCKING tonight; default from controls member", "default": "STU-ARC-023 stays law; hsk-studio-controls continues as existing code, recorded as a declared gap, no new near-duplicate."},
+    {"item": "O6 how GUI work proceeds", "state": "DECIDED", "default": "Non-egui asset-local Vulkan host. Supersedes the lead's 'window-free only' pick (HANDOFF:285) because the Operator now puts a working GUI first."},
+    {"item": "O7 render-gpu behind its port", "state": "DECIDED, working", "default": "Allowed when it reduces wgpu surface and adds no new wgpu API use; D7 forbids new wgpu code, not moving it. New GPU work is on the pure-Vulkan client."},
+    {"item": "O8 platform scope", "state": "DECIDED, working", "default": "D7A-04."},
+    {"item": "O9 D3", "state": "DECIDED", "default": "Superseded by STU-ARC-024."},
+    {"item": "O10 D7A and SD items", "state": "DECIDED, working; spec application later", "default": "spec_items."},
+    {"item": "Readings the lead took (state topic: token @3, SD-49, SD-52, audio_routing inert)", "state": "DECIDED, overrulable", "default": "Stand."},
+    {"item": "Lead decisions due: composer 2^25 cap, 8 justified rows, three entry-reference pins", "state": "DECIDED", "default": "Lanes passed R57. Keep typed cap; rows parked; pins accepted by verdict. No new lane now."},
+    {"item": "Durability (backup branches)", "state": "DECIDED", "default": "Done 2026-11-05."},
+    {"item": "Whiteboard and web authoring start (next-work item 7)", "state": "DECIDED", "default": "'width and depth in all' answers it: the lead starts them when gap lists rank them."},
+    {"item": "MT proof commands that name missing targets (F-R55-3, F-R56-13, F-R57-13)", "state": "NOT_BLOCKING", "default": "Validators already judge with real targets. No bulk repoint. A lane claiming such an MT repoints that MT's command by contract revision in lanegen. About 5,400 others are left alone."},
+    {"item": "STUDIO_MODULES.json, _MT_INDEX counts, records lag", "state": "NOT_BLOCKING", "default": "Touch only entries a new MT binds to."},
+    {"item": "Publication: handpick versus Studio branch, catalog", "state": "NOT_BLOCKING for builds", "default": "Blocks a Kumihimo adoption only; see needs_from_other_members."},
+    {"item": "Report-only: Chrome GPU slows GPU tests", "state": "NOT_BLOCKING", "default": "Chrome stays open (HANDOFF:260)."},
+    {"item": "Spec residue folders master-spec-v02.218, v02.220", "state": "NOT_BLOCKING", "default": "Leave."},
+    {"item": "Older lane branches and worktrees (about 100)", "state": "NOT_BLOCKING", "default": "Reuse inventory; list on need."},
+    {"item": "Studio packet STUB", "state": "DECIDED", "default": "Position above."},
+    {"item": "Oracle work at the apps: PS-C28, HSK-gamma-1.0, Affinity files, Figma fixtures, Acrobat PDF/X, InDesign held-out set, AE-02 tangents, Premiere, Audition", "state": "NEEDS_OPERATOR, not blocking", "default": "Code keeps UNVERIFIED (D5). Weakest truth in the product (HANDOFF:353), so ask once a GUI exists to compare."},
+    {"item": "Cleanup beyond Plan R", "state": "NEEDS_OPERATOR on need", "default": "Position above."},
+    {"item": "GitHub branch deletion (lane/smb-layout-ui-2-backup, backup branches)", "state": "NEEDS_OPERATOR, not blocking", "default": "Keep."},
+    {"item": "Windows Search and Defender exclusions for build roots", "state": "NEEDS_OPERATOR, not blocking", "default": "Report only: a system security setting, so not the lead's. Possibly high build-time return; effect not measured."},
+    {"item": "os-encode legal check before commercial release", "state": "NEEDS_OPERATOR at release", "default": "No release planned; carry."},
+    {"item": "HSK-ART-005 and 'manage asigned diskpace/folders'", "state": "NEEDS_OPERATOR, not blocking", "default": "Root rule stands; Operator edits ROOT if they want it relaxed."},
+    {"item": "Retroactive waiver list F-R57-14", "state": "NEEDS_OPERATOR, optional", "default": "WAIVER_ASKED_NOT_GIVEN; nothing depends on it."}
+  ],
+  "next_lane_dispositions": {
+    "duplicates": {"5": 40, "16": 26, "17": 24, "19": 36, "20": 35, "18": "27, 28, 34"},
+    "decided_no_lane": {
+      "8": "harfrust provider stays a v1 spike.",
+      "12": "F-R56-8 closed: defensive, not wrong.",
+      "15": "Documented reading: Session::loss() is the loss signal, one doc line with the next package touch.",
+      "30": "Comment fix rides the next touch of envelopes.rs.",
+      "31": "pub(crate) rides the next touch of folio timeline.rs."
+    },
+    "running_lane": {"18, 27, 28, 34": "SMB-PR-ROUTING-REPAIR-1 (F-R57-2, F-R57-3; angle_order options first)."},
+    "feature_width": {
+      "0": "Time remapping, pulse and motion.",
+      "1": "Group identity, MT-33726.",
+      "2": "Waveform sync, MT-33727, after Score's correlator.",
+      "4": "U+FFFC anchored object: use a host-supplied box as with resolved markers; type and layout lane.",
+      "20, 35": "Optical flow at 720p and up: admit before rendering, lower the estimate raster.",
+      "23": "Trim commands with the command registry work.",
+      "37": "Multichannel stretch with Score audio processors."
+    },
+    "feeds_gui_lane": {
+      "9": "plan_move, default overwrite per SD-59.",
+      "14": "Window command for the token upgrade.",
+      "17, 24": "Multi-frame step, SD-57.",
+      "22": "ClipTrackNudge keys Alt+Up and Alt+Down in the new host's key layer.",
+      "29": "Listing and prune of inert entries.",
+      "33": "Caller for the media marker read.",
+      "39": "F-R57-12: refuse the direct token write; upgrade command with drive and control lanes."
+    },
+    "parked_fix_order": ["10 F-R56-10 EDL hold, silent wrong output", "19, 36 F-R57-5 export frame grid, silent wrong output", "38 F-R57-11", "41 F-R58-6", "21", "42 F-R58-3 when a host adopts", "11 F-R56-12", "6", "7", "13", "32", "43 F-PR59-2", "44, 45 after R59, SD-73", "16, 26, 25 composer"],
+    "lead_watch": {"3": "Wall-clock tests, more likely to fail on builders if the lock narrows; recheck against V4-03 if they recur in a round."},
+    "contract": {"5, 40": "Repoint per claim, not in bulk (operator_items)."},
+    "needs_operator": []
+  },
+  "new_mt_recipe": {
+    "when": "At lane dispatch only, when the work has no existing MT row. Existing MTs go in the lane's closes.",
+    "not_an_mt": "Scenario files in S/workflows, gui-design documents, gap lists, build or test or review steps (T/packet.json:420-421). These are records. MT forbids .GOV writes anyway.",
+    "is_an_mt": ["A window, input, docking, text or control capability in a named crate", "A panel on the new host", "An executable replay of a scenario: runner plus fixture plus test target in the product workspace", "A feature found by a gap list where no MT exists"],
+    "file": {
+      "path": "T/MT-<n>.json, next id above the live folder's maximum (MT-36264 at this reading). spec-derive-microtasks.py must keep being run with --existing-mts, which floors allocation at the live folder; the id map is not touched.",
+      "schema_id": "hsk.microtask_contract@2 with the keys of MT-36242 or MT-36250: no generated_by or derivation block, since no spec derivation produced it.",
+      "keys_to_fill": {
+        "identity": "mt_id, wp_id, title, group STUDIO_ASSET_FEATURE, version 1, contract_revision 1",
+        "closure_unit": "outcome; requirement_refs; spec_basis_refs: spec anchor (GUI-DESKTOP-*, STU-SHL-*) or the quoted Operator sentence (CX:13); operator_decision_refs: D1, D7, D8 and direction.operator_direction_20261107; materialized_acceptance 1 to 6 rows, each observable",
+        "execution": "module_ref exactly one (CX:57); allowed_write_paths; depends_on; lane implementation; module_change_stage standalone_source; artifact_isolation.owner_dir the lane owner (ROOT:109); for a GUI MT the backend MT and shared surface (CX:65)",
+        "proof.checks": "one per row: check_id, kind test, claim_refs, command_or_method (below), expected, timeout from nextest config",
+        "proof.relevant_input_paths": "the crate paths, for CX-VAL-002 reuse and CX-VAL-009 re-open",
+        "context_capsule.current_hbr_assessment": "status PENDING_PER_RULE_ASSESSMENT_AT_ACTIVATION, assessed_rule_count 0, as MT-36263: no per-rule paperwork",
+        "host_integration": "gui_host asset_local_test_host_only, gpu per the port; refactor_exposure set",
+        "user_manual_obligation, red_team": "short, specific to the row, as MT-36250",
+        "lifecycle": "phase ready, status null, blocked_on null, no verdicts. Only a validator writes PASS (DISPATCH_TEMPLATES.md:101)"
+      },
+      "copy_verbatim": "rule_refs, instance_policy, attempt_budget, authority_files from the template MT."
+    },
+    "_MT_INDEX.json": "Append one entries row: mt_id, file, clause (title), spec_anchor, domain, unit_kind source_contribution, acceptance_criteria_count, status null, active_module_ref, activation_disposition PREPARATION_NOT_READY_NONEXECUTION, active_acceptance_count, module_change_stage standalone_source, materialized true. Then totals.microtasks = len(entries) and by_unit_kind recount, the same code as S/tools/mt-regenerate-derived.py. packet.json needs no edit: microtasks.contract_glob covers it and MT-36250 is already absent from it.",
+    "proof_command_rule": {
+      "form": "cargo nextest run -p <crate> --test <target> -E 'test(<name>)'; names written before coding",
+      "must_run": "The lane's first commit creates the target with a red test. At READY, record_ready.py reads the tree at the READY commit and refuses if a named target or test is absent (git ls-tree and git grep, no cargo).",
+      "never": "A generic 'contracts' target, 'NOT_IMPLEMENTED', 'bound at activation' or a crate that does not own the work: the class of F-R55-3, F-R56-13, F-R57-13.",
+      "window_rows": "Default offscreen on the asset-local host, under the GPU lock, quiet. A row that needs a real window or foreground prints NOT_PROVEN per V4-03 until a declared proof runs; it stays open rather than PASS. Asset-local only: SP14:275.",
+      "workflow_replay": "Drives through SMB-HARNESS-DRIVE-1's process-level path once it lands; test target asserts the scenario's expected state, not screenshots alone."
+    },
+    "tool": "Extend S/tools/lead/lanegen.py: mts=[{title, module_ref, spec_basis, rows:[{text, test}], depends_on}] writes files and index rows inside its existing step, refuses a test-only row and a row without a test name. Prefer this to a new script (ROOT governance surface minimization).",
+    "host_adoption": "Separate later MT per CX:61, never part of these rows.",
+    "cost": "About one generated file per row, written with the brief. No hand-kept counts."
+  },
+  "plan": [
+    {"lane_id_suggestion": "GOV-BLOCKER-RECORD-1", "crates": "none (kernel records)", "what": "direction.blocker_decisions_20261107; SPEC_DEBT row; working_decision fields in both enrichment files; HANDOFF operator-items rewrite and SD range fix; WF3-007 and V4-13 cap amendments; STUB correction across TASK_BOARD, packet lifecycle, traceability registry, BUILD_ORDER. No cargo.", "depends_on": [], "parallel_with": ["GOV-LANE-CHECK-LOCK-1", "GOV-MT-ADD-1"], "size": "2 governance commits on gov_kernel, on the lead's say"},
+    {"lane_id_suggestion": "GOV-LANE-CHECK-LOCK-1", "crates": "none (S/tools/lane-check.sh)", "what": "Clippy and test compile under the disk lock, test execution outside it, GPU lock unchanged. One measured run: confirm run compiles nothing and record lock_wait_s. Revert on failure.", "depends_on": [], "parallel_with": ["GOV-BLOCKER-RECORD-1", "GOV-MT-ADD-1"], "size": "1 governance commit plus 1 measure; steward agent, because lanes source this file while running"},
+    {"lane_id_suggestion": "GOV-MT-ADD-1", "crates": "none (S/tools/lead/lanegen.py, record_ready.py)", "what": "mts list in lanegen, index upkeep, READY-time target check.", "depends_on": [], "parallel_with": ["GOV-BLOCKER-RECORD-1", "GOV-LANE-CHECK-LOCK-1"], "size": "1 governance commit"},
+    {"lane_id_suggestion": "SMB-FX-GLOW-WAVE-UNITS-1", "crates": "composite, folio", "what": "SD-39 Color Phase, SD-40 Wave World rows on the working decisions.", "depends_on": ["GOV-BLOCKER-RECORD-1"], "parallel_with": ["SMB-EXR-CHANNELS-1", "first GUI lanes"], "size": "2 to 3 commits"},
+    {"lane_id_suggestion": "SMB-EXR-CHANNELS-1", "crates": "owner per SD-41; composite only at reuse", "what": "OpenEXR read and write with channel records; exr crate. A new external crate changes the lock set, so it forces a full round: land it in the wave R60 judges, or after.", "depends_on": ["GOV-BLOCKER-RECORD-1"], "parallel_with": ["SMB-FX-GLOW-WAVE-UNITS-1"], "size": "3 to 5 commits"},
+    {"lane_id_suggestion": "first GUI lanes (named by the GUI and vulkan members)", "crates": "by those members", "what": "Dependencies at versions already locked, per rule_readings CX-VAL-011; each lane's MTs through GOV-MT-ADD-1; SD-45..60 readings in briefs.", "depends_on": ["GOV-BLOCKER-RECORD-1", "GOV-MT-ADD-1", "SMB-CONTROLS-EGUI-GATE-1 gate allowing the named Vulkan crate"], "parallel_with": ["SMB-FX-GLOW-WAVE-UNITS-1"], "size": "by those members"}
+  ],
+  "needs_from_other_members": [
+    "Vulkan and GUI members: confirm or replace ash 0.38.0+1.3.281 and naga 27.0.3 wgsl-in to spv-out, including runtime-generated shader bodies. D7A-01, D7A-02 and O3 rest on it. Name the host crate so new MTs have a module_ref (I invent no product name). Check which versions of winit, gpu-allocator, accesskit are in Cargo.lock, since a new version forces a full round.",
+    "Controls member: O4 and O5, and a real gap in CX-GIT-001A: Kumihimo is not on the product branch (git ls-tree c4d06841 shows only handpick and handshake-studio-assets), its home is origin/codex/handpick, and CX-GIT-001A only covers a lane merged 'to the product branch'. The local checkout .assets/assets is on codex/handpick, 29 behind, with uncommitted files, so it is not a safe tree. A Kumihimo renderer lane has no covered worktree path today. Default if no better answer: build the renderer on the Studio branch against the toolkit-free kumihimo-core model only after the create-assets bootstrap says how, and treat publication as a separate step; GLOBAL-ASSETS-002 and CX:61 still apply. If this needs a worktree outside CX-GIT-001A, that is one more NEEDS_OPERATOR item.",
+    "Steward or tooling member: confirm that `cargo nextest list` builds what `cargo nextest run` then reuses, and that lane-check's nested lock token handling allows an unlocked run after release.",
+    "Red team: attack (1) 'starts when' in CX-VAL-005 as a precondition, not a trigger; (2) the delegation as the recorded decision under CX-EXEC-015(1); (3) test execution not being a 'build' under CX-984-002; (4) activation_status wording on the packet; (5) asset-local host owning a device under STU-ARC-024 and 032 against GUI-DESKTOP-025.",
+    "Workflow agents: scenario gap lists rank the parked and width rows; a row that stops a project end to end moves up."
+  ]
+}

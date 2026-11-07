@@ -1,0 +1,355 @@
+{
+ "schema": "hsk.studio.cargo_research@1",
+ "file_id": "CARGO-REUSE-RESEARCH-20261107",
+ "generated_at": "2026-11-07",
+ "status": "RESEARCH ONLY. Nothing built, deleted, configured or committed. A recommendation is not an approval; estimates are labelled.",
+ "authority": "Operator 2026-11-07: manage cargo better, reuse where possible. Rounds stay under CX-VAL-007 and CX-VAL-011.",
+ "method": "Read-only: git show at c4d06841, stat and fingerprint JSON reads in the targets named below, llvm-pdbutil on one existing PDB, round.json and build logs of R57 and R58, `cargo tree --locked --offline` in the clean tree smb-type-authored-token-1 (HEAD 1940292c, not c4d06841; still clean afterwards), --version and --help of the tools. No GPL, LGPL or MPL source read.",
+ "verified_environment": {
+  "toolchain_pinned": "rust-toolchain.toml 1.97.1, profile minimal. rustc 1.97.1 (8bab26f4f, LLVM 22.1.6), cargo 1.97.1, host x86_64-pc-windows-msvc. Shell default outside the workspace is an older toolchain and does not apply.",
+  "workspace_config": ".cargo/config.toml holds only [build] jobs = 8; no linker set, so link.exe. resolver = 3, edition 2024. Root profiles: only opt-level 3 for sha2, prism, interop-psd.",
+  "env": "studio-env.sh and run-round.sh both export CARGO_PROFILE_DEV_DEBUG and CARGO_PROFILE_TEST_DEBUG = line-tables-only and CARGO_INCREMENTAL=0. No debug setting is checked into Cargo.toml.",
+  "linkers_present": "rust-lld.exe 22.1.6 in the 1.97.1 sysroot lib/rustlib/x86_64-pc-windows-msvc/bin (ships with the minimal profile). System LLD 22.1.0 at Program Files/LLVM is not the pinned one.",
+  "tools_present": "cargo-nextest 0.9.148 (run has --timings), sccache installed, cargo-hakari NOT installed.",
+  "workspace_shape": "56 crates, 768 integration test targets at c4d06841 in 48 crates: harness 73, composite 58, folio 56, pigment 55, render-cpu 47, develop 39, layout 38, score 36, render-gpu 35, harness-view 32, others fewer. 7 src/bin."
+ },
+ "measured_findings": {
+  "copies_correction": {
+   "finding": "The 3 profile hashes do NOT multiply linked binaries. Of viewer_timeline's 10 fingerprints only 4 have an .exe and .pdb, all 4 under one profile hash. Across smb-pr-retime-output-1: 239 integration fingerprints with .exe, all profile 4303016...; 1837 without .exe under the other two hashes (1606 + 231). Those are metadata-only units.",
+   "what_they_are": "Metadata-only is measured. That they come from check and clippy --tests runs is inference: UNVERIFIED which hash is which and why two exist.",
+   "linked_copy_causes": "viewer_timeline 4 copies = 3 own feature sets of harness-view + 1 duplicate with identical own features and profile. The duplicate differs by dependency identity or a lockfile change between 11-05 17:09 and 11-06 02:37: UNVERIFIED which.",
+   "rlib": "46 packages have more than one rlib unit; 29 of those have one feature set, so dependency identity rather than their own features. Disk effect is small: rlibs 2.06 GiB, 1.31 GiB if one copy each."
+  },
+  "two_crates_dominate": {
+   "finding": "harness and harness-view (105 of 768 targets) are 88 to 98 percent of test-binary bytes in the big lane targets.",
+   "rows": [
+    {"target": "smb-pr-retime-output-1", "exe_pdb_gib": 47.02, "harness_view_gib": 30.50, "harness_gib": 15.64, "share_pct": 98},
+    {"target": "smb-type-authored-token-1", "exe_pdb_gib": 64.09, "harness_view_gib": 23.95, "harness_gib": 36.67, "share_pct": 95},
+    {"target": "smb-pr-entry-references-1", "exe_pdb_gib": 47.11, "harness_view_gib": 25.93, "harness_gib": 15.88, "share_pct": 89}
+   ],
+   "why_merging_works": "Five viewer test PDBs are each 278.0 to 278.8 MiB; the test crate's own module streams are 0.17 to 0.51 MiB of that. Each binary is almost entirely the same library closure relinked."
+  },
+  "round_time": {
+   "finding": "Linking of those two crates' tests is the likely main cost of a round. Time split is inference: logs give per-unit totals, not link time.",
+   "R57_full": "wall 13699 s; 53 nextest units; summed build 10342 s; harness + harness-view units 7635 s (74 percent). Default unit 1685 s.",
+   "R58_scoped": "summed build 10304 s; harness + harness-view units 8213 s (80 percent). Slowest harness feature units 584 to 784 s, nearly all compiling only 2 to 5 crates (viewer: 29; median 4 across the 18 units).",
+   "link_count_estimate": "R57: about 2752 integration binaries linked across units, of which 1524 in the harness pair. Estimate = targets x units, it ignores targets whose required-features exclude them."
+  },
+  "pdb_composition": {
+   "sample": "viewer_timeline-be4c2944b4cb7d96.pdb 278.1 MiB, exe 86.0 MiB",
+   "streams_mib": {"symbol_records": 115.0, "of_which_S_PUB32": 59.9, "of_which_S_PROCREF_and_LPROCREF": 55.2, "modules_workspace_libs": 77.6, "modules_third_party": 48.4, "DBI": 20.0, "TPI_IPI_types": 5.7, "symbol_hashes": 5.5, "modules_std_test_runtime": 2.0, "modules_test_crate_own": 0.2},
+   "meaning": "Types are already gone (2 percent), which is why line-tables-only stopped helping. What is left is symbol records and module line and procedure records.",
+   "compressibility": "zlib level 1 in memory on the first 64 MiB: PDB 4.67x, exe 2.65x. NTFS compression is weaker; not measured."
+  },
+  "failure_reports_today": "R57 and R58 junit.xml and run logs: 0 occurrences of `stack backtrace:`, 13 of the RUST_BACKTRACE=1 hint, 27 of `panicked at`. Round env_set has no RUST_BACKTRACE; 0 uses of RUST_BACKTRACE, backtrace APIs or .pdb in crates, tools, .config; 0 mentions in the Studio records. Failure reports carry panic locations, never frames.",
+  "selection_spread": "builders/lanes/*.json: 798 cargo command strings with 315 distinct (-p, --features) forms. Regex count, approximate."
+ },
+ "questions": [
+  {
+   "id": "Q1",
+   "topic": "Feature unification and workspace-hack",
+   "answer": "Neither stops most copies here: the copies are mainly workspace members' own feature sets, which the round matrix and lane proofs require.",
+   "options": [
+    {
+     "name": "resolver.feature-unification = \"workspace\"",
+     "status": "Not usable on the pinned toolchain. Verified: cargo 1.97.1 prints `warning: ignoring resolver.feature-unification without -Zfeature-unification`; -Z is refused on stable. Tracking issue open; partial stabilization of workspace mode proposed 2026-09-17; blockers listed 2026-07-22 include cargo tree output (#16583), --workspace --exclude behaviour, tests and the option's name. No release found that stabilizes it.",
+     "sources": ["https://doc.rust-lang.org/cargo/reference/unstable.html", "https://github.com/rust-lang/cargo/issues/14774", "https://github.com/rust-lang/rfcs/blob/master/text/3692-feature-unification.md"],
+     "expected_gain_here": "At most the dependency-identity duplicates: 1 of 4 linked viewer_timeline copies, plus part of 0.75 GiB of rlib copies per target. Measured via cargo tree: -p harness-view resolves 19 of 62 packages differently from --workspace (8 members, plus sha2, digest, syn, smallvec, zerocopy and others), so lane -p runs would stop differing from the round default unit.",
+     "selection_and_round_effect": "-p still builds only the selected packages, but with workspace-wide features: -p harness-view changes from ['default'] to ['asset-local-test-host','default']. Round feature units keep their --features differences, so they still multiply, and they would stop testing a crate under only its own unification. The round default unit gains nothing: F-R47-8 already builds --workspace, the stable equivalent.",
+     "proof_or_isolation_risk": "Changes what a -p lane proves. Forces a full round (CX-VAL-011). Field report: target-blind unification can enable native-only features (2026-09-26 comment).",
+     "probe": "None until it reaches stable. Recheck #14774 at each toolchain bump; then `cargo tree -f '{p}|{f}'` with and without the setting, no build needed.",
+     "verdict": "REJECTED now; recheck at toolchain bump."
+    },
+    {
+     "name": "cargo-hakari or a workspace-hack crate",
+     "status": "Maintained, version 0.9.39 on guppy main. Licence MIT OR Apache-2.0: permissive, passes.",
+     "sources": ["https://docs.rs/cargo-hakari/latest/cargo_hakari/about/index.html", "https://raw.githubusercontent.com/guppy-rs/guppy/main/tools/cargo-hakari/Cargo.toml"],
+     "expected_gain_here": "Reported up to 1.7x cumulative on workspaces with several hundred third-party dependencies. Here the docs describe third-party unification only; how it treats member features is not stated there (UNVERIFIED). Third-party rlibs are 1.3 to 1.8 GiB of a target, and test bytes follow member feature sets, so disk gain is near zero and build gain is limited to third-party rebuilds.",
+     "selection_and_round_effect": "-p selections would resolve dependencies the same way, per its stated goal (not confirmed for -p by the docs). Feature units unchanged for member features.",
+     "proof_or_isolation_risk": "Conflicts with WORKSPACE_RULES: a new edge from every crate, including accord (allowed = []); builders may not use workspace deps; the per-crate registry lists and native policy (-sys only in named crates) would see a union crate; crates can silently lose features they need (documented drawback). Would need lead decisions and a lockfile dependency-set change, hence a full round.",
+     "probe": "Not worth one. `cargo tree --duplicates` and the rlib table above already bound the gain.",
+     "verdict": "REJECTED."
+    },
+    {
+     "name": "One canonical selection per crate (no tool)",
+     "status": "Available now. Run-round's own form for the default unit since F-R47-8 (+11.0 GiB, 4948 files measured at R47 before the fix).",
+     "sources": ["tools/run-round.sh header at c4d06841", "builders/lanes/*.json"],
+     "expected_gain_here": "Stops the dependency-identity duplicates inside a reused target and cuts rebuilds when a tree is reused. UNVERIFIED size; likely under 25 percent of a lane target.",
+     "selection_and_round_effect": "None on rounds. Lanes reuse the exact -p and --features forms of .config/round-features.toml where they apply.",
+     "proof_or_isolation_risk": "None; narrower selections stay allowed where a lane genuinely needs them.",
+     "probe": "Rerun the copy count on one reused target after one lane using the rule.",
+     "verdict": "ADOPT as a brief rule; not ranked because it is free."
+    }
+   ]
+  },
+  {
+   "id": "Q2",
+   "topic": "Debug info on MSVC",
+   "answer": "A PDB is always written on MSVC. debug = 0 should cut this PDB by about two thirds; strip and split-debuginfo do nothing useful.",
+   "options": [
+    {
+     "name": "debug = 0 (builder lanes)",
+     "sources": ["https://raw.githubusercontent.com/rust-lang/rust/1.97.1/compiler/rustc_codegen_ssa/src/back/linker.rs", "https://doc.rust-lang.org/cargo/reference/profiles.html", "https://nnethercote.github.io/perf-book/build-configuration.html"],
+     "facts": "rustc 1.97.1 MsvcLinker::debuginfo takes `_strip`, never reads it, and always passes /DEBUG. Local proof: build scripts (cargo debug=false when possible) have .pdb files, median 1.5 MiB for a 0.25 MiB exe, and the clap-gain fixture built with debug=0 and strip=symbols has a 1.25 MiB PDB.",
+     "expected_gain_here": "ESTIMATE from streams: S_PUB32, DBI, public hash and std stay, about 85 to 90 MiB of 278, so PDB about -68 percent. Exe unchanged, so exe + pdb about -53 percent: a 47 GiB target to about 22 GiB. Link time should fall with the PDB; no number here. perf-book: dropping from full debug saves 20 to 40 percent and line-tables-only keeps most of that, so compile time gains little.",
+     "backtraces_and_reports": "Lost: file and line in frames, and names of local procedures (18233 S_LPROCREF here) may resolve to a wrong neighbouring symbol (UNVERIFIED). Kept: `panicked at file:line:col`, expected from compiled-in Location data (confirm in the probe), plus assert messages and junit output. Today's reports contain no frames at all, so they lose nothing measured. What a lane loses is on-demand RUST_BACKTRACE=1 and native-crash analysis; it can rebuild that one case at line-tables-only.",
+     "proof_or_isolation_risk": "Lane-only knob in studio-env.sh: no round proof changes. Profile is in unit_id, so each reused target rebuilds once. run-round overrides the two profile env vars itself, so it cannot leak into rounds.",
+     "probe": "Step 1 variant V2.",
+     "verdict": "ADOPT in lanes if the probe keeps panic locations."
+    },
+    {
+     "name": "debug = 0 for third-party only ([profile.dev.package.\"*\"])",
+     "sources": ["https://doc.rust-lang.org/cargo/reference/profiles.html", "https://github.com/toptopworks/toptopduck/pull/1466"],
+     "expected_gain_here": "ESTIMATE PDB about -25 percent (48.4 MiB modules plus their share of procedure refs). toptopduck saw about -30 percent going from full debug to line-tables-only on dependencies, at very similar binary sizes (EXE 70 to 95 MB, PDB 414 to 482 MB after).",
+     "proof_or_isolation_risk": "Requires root Cargo.toml, so a checked-in change that forces a full round. Keeps workspace line numbers, so it is the fallback if rounds refuse debug = 0.",
+     "probe": "Only if V2 is refused.",
+     "verdict": "FALLBACK."
+    },
+    {
+     "name": "line-tables-only (current)",
+     "facts": "Keep for rounds until a decision. Types are already 2 percent of the PDB, so there is nothing more to gain at this level.",
+     "verdict": "KEEP in rounds for now."
+    },
+    {
+     "name": "split-debuginfo",
+     "sources": ["https://doc.rust-lang.org/rustc/codegen-options/index.html"],
+     "facts": "On Windows MSVC only packed is supported, and it is already the default. off and unpacked need nightly -Z unstable-options.",
+     "verdict": "REJECTED: no-op."
+    },
+    {
+     "name": "strip",
+     "sources": ["https://doc.rust-lang.org/rustc/codegen-options/index.html", "rustc 1.97.1 linker.rs"],
+     "facts": "Unread by the MSVC linker path. The docs note that before 1.79 strip unintentionally disabled PDB generation; that is gone.",
+     "verdict": "REJECTED: no-op."
+    },
+    {
+     "name": "-Clink-arg=/DEBUG:NONE (no PDB at all)",
+     "expected_gain_here": "ESTIMATE exe + pdb -76 percent (364 to 86 MiB). Whether a later /DEBUG:NONE overrides rustc's /DEBUG is UNVERIFIED.",
+     "backtraces_and_reports": "Frames lose names as well as lines. Panic locations should stay.",
+     "proof_or_isolation_risk": "RUSTFLAGS enters unit_id and invalidates everything; no native-crash analysis.",
+     "probe": "Optional extra variant only if V2 is not enough.",
+     "verdict": "HOLD."
+    },
+    {
+     "name": "/DEBUG:FASTLINK",
+     "sources": ["https://github.com/rust-lang/rust/issues/71520 (comment 2026-11-06)"],
+     "facts": "Reported unsupported in link.exe 14.51 (LNK4315).",
+     "verdict": "REJECTED."
+    }
+   ]
+  },
+  {
+   "id": "Q3",
+   "topic": "Linker",
+   "answer": "The workspace uses link.exe. rust-lld is present in the pinned toolchain, used in real Windows configs, and likely faster for these binaries; the size of the gain varies widely and must be measured.",
+   "options": [
+    {
+     "name": "rust-lld via linker setting",
+     "sources": [
+      "https://github.com/rust-lang/rust/issues/71520",
+      "https://github.com/toptopworks/toptopduck/pull/1466",
+      "https://github.com/legend-of-alan/spookery/pull/181",
+      "https://raw.githubusercontent.com/bevyengine/bevy/main/.cargo/config_fast_builds.toml",
+      "https://nnethercote.github.io/perf-book/build-configuration.html"
+     ],
+     "field_numbers": [
+      "toptopduck, closest match (merged 2026-11-02): per-binary link about 16 s to about 2 s; batched cargo test --no-run 240.3 s to 121.9 s (-49 percent). Mixed with a dependency debuginfo cut, so not linker alone.",
+      "rust#71520 comment 2026-11-06, ripgrep, rustc 1.96, Dev Drive: run_linker 1020 ms to 712 ms (-30 percent); hello.rs 13 ms slower.",
+      "spookery (closed 2026-10-17, small project): test compile 64 s to 48 s, about 7 s saved overall at equal cache state; not worth it there.",
+      "Bevy enables rust-lld by default for Windows in its fast-builds config. perf-book: not default on Windows yet, should work for most use cases."
+     ],
+     "expected_gain_here": "ESTIMATE 25 to 85 percent of link time, large only if linking dominates as R57 suggests. PDB size effect UNVERIFIED. Applied to the harness pair units (7635 s in R57): perhaps 3800 to 5700 s after.",
+     "failure_modes": [
+      "#71520 still open, not default. Listed blockers (TLS alignment #72145, thin-LTO access violations #81408 and #111480, libtest undefined symbols #68647, manifestdependency .drectve #85642) were reported resolved in Dec 2024 except that bjorn3 notes platform-specific bugs will remain. Check #85642 for any binary that needs a manifest.",
+      "One-time rebuild of everything in a target when the setting changes (spookery +4 min, toptopduck 212 s). Costs one rebuild on each reused target.",
+      "Native objects: rav1e nasm output and rquickjs-sys C objects are linked in some feature units. Link them in the probe only if the probe crate reaches them; otherwise step 4's canary and full round are the proof. No /GL use is known, UNVERIFIED.",
+      "Parallelism: lld defaults to all hardware threads (verified in /? of 22.1.6). With jobs = 8 on the shared host that can oversubscribe; the 2026-10-24 OS error 1455 is a memory warning. Mitigate with -Clink-arg=/threads:4 only if the probe shows pressure.",
+      "Fixtures: run-round's clap-gain build inherits a checked-in linker setting. lld supports /Brepro (verified) but the library sha256 changes once; the corpus path is content-addressed. A lane `run-round --dev` that inherits a lane-only linker env could write a different sha and race a real round (exit 76).",
+      "Env leak: run-round does not clear CARGO_TARGET_*_LINKER. A round started from a shell that sourced studio-env.sh would use it, breaking CX-VAL-007. Have run-round unset or refuse it in step 0 before any lane adopts the knob."
+     ],
+     "proof_or_isolation_risk": "Lane-only: none for proof, with the env-leak guard. Rounds: a checked-in .cargo/config.toml change, full round required (CX-VAL-007, CX-VAL-011). Rounds would test binaries linked differently from link.exe; host product linking is decided separately.",
+     "probe": "Step 1 variant V1. Link phases can be read with lld /time.",
+     "verdict": "ADOPT in lanes if the probe passes; rounds in step 4."
+    },
+    {
+     "name": "System lld-link from Program Files/LLVM",
+     "facts": "Present at 22.1.0, but outside rust-toolchain.toml, so machine-local and unpinned.",
+     "verdict": "REJECTED: use rust-lld (portability, pinned toolchain)."
+    }
+   ]
+  },
+  {
+   "id": "Q4",
+   "topic": "Fewer test binaries",
+   "answer": "Biggest single gain, and most of it comes from two crates. nextest keeps one process per test, so the usual shared-process risk does not apply.",
+   "sources": ["https://matklad.github.io/2021/02/27/delete-cargo-integration-tests.html", "https://corrode.dev/blog/tips-for-faster-rust-compile-times/", "https://docs.rs/crate/playwright-rs/latest/source/tests/integration/main.rs", "https://nexte.st/docs/ci-features/archiving/"],
+   "field_numbers": "Cargo's own test suite: compile 3x faster, artifacts 5x smaller. corrode cites up to 50 percent. playwright-rs reports 53 binaries to 1 with nextest. No Windows measurement found.",
+   "counts": {
+    "all_crates": "768 targets to about 72: one per crate plus keep-outs (16 files with global_allocator in 11 crates, 13 [[test]] entries in 6 crates with required-features or special needs). Per-round estimate at R57: about 2752 links to about 180.",
+    "harness_pair_only": "105 targets to 3 (harness-view keeps 1 global_allocator file out). R57 and R58 links in the pair: 1524 to 24.",
+    "space_estimate": "One merged pair is about 0.37 to 0.45 GiB per own feature set, from the measured closure size plus own module streams. retime-output 46.1 to about 2.3 GiB; entry-references 41.8 to about 1.8 GiB; type-authored 60.6 to about 3.2 GiB; about -95 percent of those bytes. Full-round disk not measured: C: studio-round was left alone during R59.",
+    "time_estimate": "ESTIMATE: R57 pair units 7635 s to 1100 to 2500 s, saving 5000 to 6500 s of 13699 s wall (about 40 percent). Default unit also falls if all crates merge. Depends on link dominance: the probe measures it."
+   },
+   "risks": [
+    "Test identity: nextest binary ids and names change (hsk-studio-x::foo foo_test becomes hsk-studio-x::all foo::foo_test). 797 `--test NAME` occurrences in 206 files of the Studio records, and proof commands in live briefs, stop working or need `-E`. run-round derives filters from the list, so its code holds; verify comparisons across rounds and CX-VAL-002 reuse naming. Mitigate by recording an old-to-new map and checking equal test counts per unit.",
+    "Edit cost with incremental off: one test edit recompiles all modules of that merged crate instead of one file. Measured by V4. Mitigate by splitting by feature group if it hurts.",
+    "File-level cfg: 71 of 73 harness and 32 of 32 harness-view files use #![cfg(...)]. Inner cfg works on a module file, so per-feature behaviour stays; the merged binary simply shrinks per set. No longer-gated files need a check.",
+    "Blocking cases: global_allocator (16 files), any file with its own harness or crate-level attributes (62 files across crates with other inner attributes, 6 in the pair), shared helpers declared by `mod` in many files (53 and 28 in the pair) or #[path] (12), include paths relative to the file (15 in the pair), current_exe (4 in harness). `fn main` appears in viewer_timeline_nest_2; check whether it is a real entry point.",
+    "A compile error in one test file now blocks that crate's whole test binary; every test in that crate fails to build instead of one target.",
+    "Process isolation holds under nextest; doctests and any libtest use of the merged binary would share a process, and the workspace refuses plain cargo test already.",
+    "Round feature units: -p CRATE --features SET stays; round-features.toml only needs its comments naming test files updated. .config/machine-paths.toml pins counts per test file path, so keep files in place (autotests = false plus #[path] mod lines) or update it through the steward; a move would otherwise trip that policy check (exact step not traced)."
+   ],
+   "proof_or_isolation_risk": "Product test layout change, in the crates' own MTs. Not a toolchain, lockfile or entrypoint change, so not forced full by CX-VAL-011 on that ground, but those crates' closure is re-selected and a lead may want one full round for the identity change.",
+   "probe": "Step 1 variant V4.",
+   "verdict": "ADOPT for harness-view and harness after the probe; other crates only where a target shows it matters."
+  },
+  {
+   "id": "Q5",
+   "topic": "Other proven levers",
+   "options": [
+    {
+     "name": "cargo --timings / nextest run --timings",
+     "sources": ["https://doc.rust-lang.org/cargo/reference/timings.html", "local --help of cargo 1.97.1 and nextest 0.9.148"],
+     "expected_gain_here": "No gain itself; shows unit durations and codegen. It does not separate link time on the page; use lld /time or link.exe /TIME for that. Report location under target/cargo-timings.",
+     "proof_or_isolation_risk": "None in lanes. Not for rounds: a flag not in the entrypoint (CX-VAL-007).",
+     "verdict": "USE in the probe."
+    },
+    {
+     "name": "Routine prune of older copies",
+     "sources": ["research/cargo-cleanup-plan-20261107-R.json", "tools/lead/target_prune.py (untracked)"],
+     "expected_gain_here": "610 GiB once on D:; regrows with reuse. Since copies are mostly live feature sets, pruned ones relink on next use, as the plan's cost_if_wrong says. Fold into lane close.",
+     "verdict": "ALREADY APPROVED once; not re-ranked."
+    },
+    {
+     "name": "nextest archive",
+     "sources": ["https://nexte.st/docs/ci-features/archiving/"],
+     "expected_gain_here": "None for build time: it still builds. Archives are bound to one built tree and feature set; PDB handling is unspecified, so Windows frames may be lost. Could only move binaries between machines.",
+     "proof_or_isolation_risk": "A new entrypoint for rounds.",
+     "verdict": "REJECTED."
+    },
+    {
+     "name": "Thin-LTO off (lto = \"off\")",
+     "sources": ["https://doc.rust-lang.org/rustc/codegen-options/index.html"],
+     "expected_gain_here": "None for opt-level 0: docs state thin-local LTO is already disabled there. Would touch only the 3 opt-level 3 packages (sha2, prism, interop-psd), which are small compared to link cost.",
+     "verdict": "REJECTED."
+    },
+    {
+     "name": "codegen-units",
+     "sources": ["https://doc.rust-lang.org/cargo/reference/profiles.html", "PDB module names show cgu.00 to cgu.15"],
+     "expected_gain_here": "Currently 16 with incremental off (verified). No evidence that changing it shortens links. Own test crates are tiny, so 256 would not help them.",
+     "verdict": "REJECTED without evidence."
+    },
+    {
+     "name": "opt-level for dev dependencies",
+     "sources": ["https://doc.rust-lang.org/cargo/reference/profiles.html", "root Cargo.toml"],
+     "expected_gain_here": "A test-runtime lever, not a build lever: raises compile cost. The three overrides already exist for slow tests; R57 test run 236 s against 1685 s default build shows run time is not the bottleneck.",
+     "verdict": "REJECTED."
+    },
+    {
+     "name": "Shared target across worktrees with path remapping",
+     "sources": ["https://raw.githubusercontent.com/rust-lang/cargo/rust-1.97.0/src/cargo/core/compiler/fingerprint/mod.rs", "https://raw.githubusercontent.com/rust-lang/cargo/rust-1.97.0/src/cargo/core/compiler/build_runner/compilation_files.rs", "diagnostics/stale-artifacts.md M2 and M4"],
+     "facts": "Cause unchanged at 1.97: package id hashes relative to the workspace root, and the source path only enters the fingerprint relative to the workspace. --remap-path-prefix changes neither and also excludes RUSTFLAGS from unit_id, which is worse. Same stale-reuse failure as M2.",
+     "verdict": "REJECTED: keep one target per tree."
+    },
+    {
+     "name": "Cargo cross-workspace cache",
+     "sources": ["https://goals.rust-lang.org/2026/cargo-cross-workspace-cache.html", "https://github.com/rust-lang/cargo/pull/16807", "https://blog.rust-lang.org/2026/03/13/call-for-testing-build-dir-layout-v2"],
+     "facts": "2026 goal, accepted, nightly first, basic crates only (no build scripts or proc macros); stabilization not expected in the goal period. Build-dir layout v2 was reverted then re-proposed in Aug 2026; `build-dir-new-layout` is still nightly-only at 1.97.1 (verified in -Z help). Would not help test binaries in any case.",
+     "verdict": "WATCH at toolchain bumps."
+    },
+    {
+     "name": "sccache",
+     "sources": ["https://raw.githubusercontent.com/mozilla/sccache/main/docs/Rust.md", "START_LOG.md lines 532 and 547"],
+     "facts": "Not re-proposed. No evidence found that the out-dir key cause changed; not re-measured. Separately, its docs say crates that invoke the system linker cannot be cached, so test executables, 758 of 883 GiB here, were never in reach.",
+     "verdict": "REJECTED, stays out."
+    },
+    {
+     "name": "Merged doctests",
+     "sources": ["https://doc.rust-lang.org/edition-guide/rust-2024/rustdoc-doctests.html"],
+     "facts": "Already active: workspace edition is 2024. Nothing to do.",
+     "verdict": "NO ACTION."
+    },
+    {
+     "name": "Dev Drive and Defender",
+     "sources": ["https://learn.microsoft.com/en-us/windows/dev-drive/", "https://corrode.dev/blog/tips-for-faster-rust-compile-times/"],
+     "expected_gain_here": "corrode reports Microsoft's estimate of 20 to 30 percent. Current filesystem and Defender state UNVERIFIED: fsutil needs admin here. C: itself cannot be a Dev Drive, but a VHDX on it can, and D: is a spinning disk. Needs an admin-level Operator action, including an antivirus mode decision, so it is out of a builder's scope.",
+     "verdict": "OPERATOR OPTION; not ranked."
+    },
+    {
+     "name": "NTFS compression of debug/deps",
+     "expected_gain_here": "ESTIMATE about 2x or better on disk from the zlib sample; link time effect UNVERIFIED, HDD fragmentation possible. No field source found. D: free was 1653 GiB when recorded on 2026-10-24; current free space not checked.",
+     "verdict": "NOT RANKED; only if disk becomes the limit."
+    },
+    {
+     "name": "Dynamic linking of workspace crates in tests",
+     "sources": ["https://raw.githubusercontent.com/bevyengine/bevy/main/.cargo/config_fast_builds.toml"],
+     "facts": "Proposed by some fast-build guides; Bevy warns of the 65k symbol limit on Windows; S_PUB32 here is 279566 in one binary. Tests would no longer run the static link the product uses.",
+     "verdict": "REJECTED."
+    }
+   ]
+  }
+ ],
+ "probe_step_1": {
+  "crate": "hsk-studio-harness-view with --features viewer (R58 unit: 312 s, 136 tests, 32 targets). Chosen because it holds the largest copies and has a round baseline.",
+  "isolation": "A throwaway tree at the candidate SHA and one STUDIO_OWNER per variant (cargo-probe-v0 to v4), each its own target. Same disk for all variants, one at a time under the normal lock. Never push; never run during a round on the same disk. Delete only under normal approval.",
+  "commands": "source studio-env.sh after setting STUDIO_OWNER, then for each variant export its setting AFTER sourcing. Run A: cargo nextest run -p hsk-studio-harness-view --features viewer --no-run --timings. Run B: touch crates/hsk-studio-harness-view/src/lib.rs, repeat. Run C: touch one tests file, repeat. Then cargo nextest run with the same selection.",
+  "variants": [
+   {"id": "V0", "setting": "baseline: link.exe, line-tables-only"},
+   {"id": "V1", "setting": "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER=rust-lld"},
+   {"id": "V2", "setting": "CARGO_PROFILE_DEV_DEBUG=0, CARGO_PROFILE_TEST_DEBUG=0"},
+   {"id": "V3", "setting": "V1 + V2"},
+   {"id": "V4", "setting": "best of V0 to V3, plus one merged target: autotests = false, [[test]] name = all, tests/all.rs with #[path] mod lines, keep-outs listed. Probe tree only."}
+  ],
+  "record_for_each": "Seconds of A, B, C from the Finished line; GiB of exe and pdb in debug/deps; size of one viewer test exe and PDB; test count and pass count; cargo-timing.html path; any linker warning; whether the host showed OS error 1455.",
+  "failure_report_check": "In the throwaway tree only, one uncommitted tests/zz_probe_panic.rs that panics in a helper. Run it with and without RUST_BACKTRACE=1 in V0, V1, V2. Compare the `panicked at` line and the frames.",
+  "adoption_gates": {
+   "V1": "Run B at least 20 percent faster than V0, same tests pass, no new linker warning that matters, backtrace still symbolized at line-tables-only.",
+   "V2": "PDB at least 40 percent smaller, `panicked at` location unchanged.",
+   "V4": "exe + pdb at least 80 percent smaller, same test count and same names modulo the module prefix, Run B faster, Run C not more than Run B of V0."
+  },
+  "cost": "Each variant compiles the closure once (about 60 packages) and relinks 32 binaries twice. UNVERIFIED total; plan for a few hours of one disk slot. V4 needs a small test-layout edit in the probe tree."
+ },
+ "ranked_recommendation": [
+  {
+   "rank": 1,
+   "step": "Run the probe above on hsk-studio-harness-view.",
+   "expected_gain": "Replaces the estimates below with measured numbers. No lasting change.",
+   "owner": "one builder, throwaway tree"
+  },
+  {
+   "rank": 2,
+   "step": "If the gates pass: lane-only rust-lld and debug = 0 in studio-env.sh, with STUDIO_DEBUG to opt back to line-tables-only for a failure, and run-round step 0 unsetting or refusing CARGO_TARGET_*_LINKER. Apply to new targets, or to reused ones at their next natural invalidation, since each reused target rebuilds once.",
+   "expected_gain": "ESTIMATE link time -25 to -85 percent; test bytes about -50 percent in lanes. Round proof unchanged.",
+   "owner": "workspace steward, lead decision"
+  },
+  {
+   "rank": 3,
+   "step": "Merge integration tests of hsk-studio-harness-view and hsk-studio-harness into one binary each, with an old-to-new test name map; update briefs that use --test.",
+   "expected_gain": "ESTIMATE 105 targets to 3; about -95 percent of those crates' test bytes (46 GiB to about 2 GiB in a large lane); R57 pair links 1524 to 24, about 5000 to 6500 s off a 13699 s round.",
+   "owner": "the crates' lane, validated in a round"
+  },
+  {
+   "rank": 4,
+   "step": "Then take the checked-in decision for rounds: linker in .cargo/config.toml and optionally debug in the entrypoint, committed together, plus one full round (CX-VAL-007, CX-VAL-011). Merge other crates only if a target still shows them large.",
+   "expected_gain": "Round build time on top of step 3; size UNVERIFIED until step 1 and one canary. If debug = 0 is refused for rounds, fall back to third-party only (about -25 percent PDB).",
+   "owner": "lead and Operator decision"
+  }
+ ],
+ "free_now": [
+  "Lane briefs: one canonical -p and --features form per crate, using the round-features form where it applies.",
+  "Record in the cleanup findings that the 3 profile hashes are metadata-only units and do not add binaries; findings.why_copies_multiply in cargo-cleanup-plan-20261107-R.json is a lead reading that this file narrows."
+ ],
+ "unverified": [
+  "Link time as a share of build time: inferred from low Compiling counts and tiny test crates, not measured.",
+  "All gain figures marked ESTIMATE, in particular debug = 0 PDB size from stream composition, and merged binary size.",
+  "Why two metadata-only profile hashes exist, and which is check or clippy.",
+  "Why two viewer_timeline copies with the same own features differ (dependency identity or lockfile change).",
+  "Whether cargo-hakari unifies member features; the docs page describes third-party only.",
+  "Whether frames at debug = 0 resolve to correct names; whether /DEBUG:NONE overrides /DEBUG.",
+  "rust-lld with native objects of every feature unit, including rav1e nasm output and rquickjs-sys, and PDB size under rust-lld.",
+  "Whether a Dev Drive or a Defender exclusion exists on this machine; fsutil returned access denied.",
+  "Exact release of --timings stabilization: only presence in 1.97.1 and nextest 0.9.148 was verified.",
+  "goals page and #16807 re-stabilization state come from page summaries; the shipped state after 1.97 was not tested because the toolchain is pinned."
+ ],
+ "sources_note": "Fetched 2026-11-07. Issue and PR figures are as reported by their authors, not reproduced here. Local paths are relative to S or to handshake-studio-assets at c4d06841."
+}

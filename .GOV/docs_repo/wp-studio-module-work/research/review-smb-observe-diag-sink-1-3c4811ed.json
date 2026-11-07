@@ -1,0 +1,53 @@
+{
+  "lane": "SMB-OBSERVE-DIAG-SINK-1",
+  "tip": "3c4811ed72ab67e5dd6c276dfc6c01a693ef6995",
+  "verdict": "FIX_FIRST",
+  "verdict_note": "No build breaker and no failing test found. FIX_FIRST only because F1 breaks the brief's hostile-input bound and its fix is one line in harness-core/src/diag_sink.rs: doing it before the run avoids re-running harness-core and harness. observe is untouched by every finding, so nothing here forces the 38-crate rebuild. The lead may reasonably overrule to BUILD and take F1-F3 afterwards.",
+  "findings": [
+    {
+      "id": "F1",
+      "where": "crates/hsk-studio-harness-core/src/diag_sink.rs:455-478 (make_room), :732-735 (list_ours), :421 (create_dir_all); flag parsed at crates/hsk-studio-harness/src/cli.rs:153",
+      "sure": "READ",
+      "wrong": "A failed directory listing counts as an empty directory, so make_room returns true and nothing is pruned. The file bound stops holding, and health still answers active.",
+      "scenario": "`studio-harness providers --diag-dir \"$UNSET\"` passes an empty path. create_dir_all(\"\") returns Ok, read_dir(\"\") returns Err so list_ours gives an empty list, and \"\".join(name) opens the file in the current directory. Each run then leaves one more studio-diag file in the cwd, for example a repo root, with no limit and exit 0 from health. A directory that can be written but not listed (Unix mode 0300, a deny-list ACL) has the same unbounded growth. Brief: none of the hostile inputs may grow without bound.",
+      "fix": "At the top of make_room: `if fs::read_dir(&shared.dir).is_err() { return false; }`. Both cases then become stopped/prune_failed with no file written and health exit 4. Optional test: DiagSink::open(Path::new(\"\")) leaves no file and state is stopped."
+    },
+    {
+      "id": "F2",
+      "where": "crates/hsk-studio-harness/src/cli.rs:1056",
+      "sure": "READ",
+      "wrong": "`\"dir\": sink.dir()` inside json! calls to_value(..).unwrap(); Path's Serialize returns Err for a non-UTF-8 path, so health panics and exits 101 instead of 0 or a typed non-zero.",
+      "scenario": "STUDIO_DIAG_DIR, LOCALAPPDATA or HOME holding non-UTF-8 bytes reaches default_diag_dir through var_os (diag_sink.rs:821). The sink itself works on such a path. Only health fails. Not reachable through --diag-dir, because the example's env::args already panics on a non-Unicode argument.",
+      "fix": "`\"dir\": sink.dir().to_string_lossy()`."
+    },
+    {
+      "id": "F3",
+      "where": "crates/hsk-studio-harness-core/src/diag_sink.rs:713-718 (parse_ours number)",
+      "sure": "READ",
+      "wrong": "Rotation can remove a file whose name the sink never writes, against the module doc's 'only files with exactly our names'. The check is all digits, so leading zeros pass. Low impact.",
+      "scenario": "studio-diag-01-2-3-4.jsonl or studio-panic-007-2.jsonl parses as ours, sorts as oldest and is removed first. The foreign list in the rotation test has no such name.",
+      "fix": "In number: also return None when `text.len() > 1 && text.starts_with('0')`. Add one such name to the test's foreign list."
+    }
+  ],
+  "checked": [
+    "Public API of observe: additive only (RingBindRefusal, RingClock, RingWireState, ThreadRingBinding, bind_thread_ring). No signature or wire change. Only two glob importers (observe's own example and foundation_contract test) and no name collision. New DESCRIPTOR text is valid JSON by inspection, 'not wired' is gone, and no other test pins that phrase.",
+    "Feature sets of harness: the new cli.rs and diag_sink.rs code has no cfg. dispatch uses neither args nor rest (grep), so moving the match out of run is safe under viewer/media/import arms. bin/studio-harness.rs under desktop: harness-core is a normal dep, diag is not captured by the move closure, the result is returned after record_run_end, types line up. Harness has no struct literal outside harness.rs. DiagSink is Send+Sync+Debug+Clone, so the leaked &'static Harness in harness-view keeps its bounds. Compile checked by reading, not by cargo.",
+    "Source-scanning tests still pass by reading: harness_headless quiet_sources (no forbidden token in cli.rs, harness.rs, lib.rs or manual.rs; diag_sink.rs is not in its list), cli_export_sequence's scan region cli_audio_within..SharedCliAudio (lines 862-1013; health is at 1038), action_records run_pub_fns (with_diag and diag are in impl Harness, not impl Run), manual command-name and usage tests.",
+    "Step 0: the V4-03 regex run over all changed src and tests files gives zero hits (script run); V4-05 fingerprints are not matched (no Command::new in src).",
+    "Default location: start_process(None) is reached only by run_process and the desktop main. Only the example calls run_process. The only test spawning the example is diag_sink_process.rs, and every spawn sets LOCALAPPDATA, XDG_STATE_HOME and HOME to scratch or to the blocked file. harness-core child_entry always passes an explicit dir. No other crate test, A/tools or .config script spawns it. No test or library path reaches the real %LOCALAPPDATA%. Scratch removes on unwind (Drop).",
+    "Write failures: no panic or error path in Inner::record, write_line, put, rotate, open_segment or make_room. Full disk, a file standing in for the dir, a dir removed while running and an over-long line were traced through the code and their tests. The 8192-byte line limit holds; tokens are capped at 64 bytes. A failed write stops after 8 in a row.",
+    "Rotation test after the fix: lines() now keeps only names ending .jsonl with exactly 4 numbers, so all 5 foreign decoys are excluded (they hold non-JSON DECOY text, which is what broke the older filter). Traced with limits 32 KiB / 4 files: allowed 2, about 44 rotations at about 700 bytes a line, older_panic then older removed first, foreign files survive, ours stay <= 4, each file stays under the cap thanks to the 256-byte reserve, 2 kept segment_end lines, last line is a frame. It asserts the right thing and should pass.",
+    "Panic hook: previous(info) always runs. No lock is taken blocking: try_lock only, WouldBlock skips the stream line, poison handled, and the guard does not poison because panicking is already true at acquire. Nothing in it panics (source_tail slice uses saturating_sub; all json! values are infallible types). IN_HOOK guards re-entry, 64-record cap. The record holds file tail, line, column, payload kind and length, never the message.",
+    "Observe wiring: with no port, each outcome adds one relaxed atomic load and the rest of the path is unchanged; no lock or allocation. Harness with no sink: one if-let per frame and per op. Reentrancy: a port or clock that emits finds the RefCell taken and records nothing; a SinkPort that emits runs before offer, with the cell free; the diag sink emits nothing and takes its lock after the Frames guard is released.",
+    "decode_frame against the encoder in observe lib.rs for wire versions 1 to 5: field order, widths, flag bits and FailureCode wire values all match.",
+    "Side notes, not findings: on an unbound thread the first emit after any other thread has bound touches the thread-local, which registers its destructor once (SUSPECT: one std-internal allocation, not repeated). diag_sink.rs, harness-core lib.rs and the example are outside the brief's listed owned paths; that is the lead's call, not a defect."
+  ],
+  "not_checked": [
+    "Nothing was compiled or run; all of the above is by reading.",
+    "Clippy output for the new code, beyond arithmetic_side_effects by reading.",
+    "GUI-DESKTOP and HBR required field names against spec-modules/15-* (brief item 3).",
+    "The V4-06 sweep and MT claims in the builder's report (no report in the tree).",
+    "The emit cost numbers: emit_cost.rs is ignored and asserts nothing.",
+    "Whether the stack-overflow and abort children leave Windows Error Reporting entries (CX-GIT-003); other crates' fault tests do the same."
+  ]
+}

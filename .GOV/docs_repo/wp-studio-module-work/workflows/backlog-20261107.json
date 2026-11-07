@@ -1,0 +1,4945 @@
+{
+ "merged_gaps": [
+  {
+   "id": "G-REACH-AUDIO-DESIGN",
+   "tier": "foundation",
+   "title": "Thin command reach: audio, design, prototype, source edit",
+   "what": "Callable from Rust only, even after SMB-HARNESS-DRIVE-1: MixerEdit, WaveformEdit, AutomationCommand, DesignCommand, SpectralMaskOp, source edit, program media binding, prototype play.",
+   "size": "medium",
+   "steps_unblocked": 63,
+   "size_units": 2,
+   "cheap_high_value": false,
+   "steps_per_unit": 31.5,
+   "scenarios": {
+    "audio-post": 35,
+    "motion-comp": 3,
+    "product-design": 14,
+    "video-edit": 11
+   },
+   "steps": {
+    "audio-post": [
+     5,
+     11,
+     21,
+     22,
+     27,
+     33,
+     34,
+     35,
+     41,
+     42,
+     46,
+     47,
+     48,
+     49,
+     51,
+     53,
+     54,
+     55,
+     57,
+     58,
+     59,
+     64,
+     65,
+     66,
+     67,
+     69,
+     70,
+     71,
+     74,
+     77,
+     80,
+     81,
+     83,
+     91,
+     94
+    ],
+    "motion-comp": [
+     3,
+     54,
+     89
+    ],
+    "product-design": [
+     37,
+     43,
+     44,
+     45,
+     47,
+     52,
+     63,
+     65,
+     66,
+     67,
+     68,
+     77,
+     79,
+     90
+    ],
+    "video-edit": [
+     13,
+     15,
+     18,
+     19,
+     20,
+     76,
+     77,
+     78,
+     81,
+     82,
+     98
+    ]
+   },
+   "steps_by_status": {
+    "callable": 63
+   },
+   "crates": [
+    "hsk-studio-harness-core",
+    "hsk-studio-harness",
+    "hsk-studio-harness-view",
+    "hsk-studio-kernel-bindings"
+   ],
+   "spec_clauses": [
+    "STU-AUT-001",
+    "STU-AUT-109",
+    "STU-AUT-147",
+    "STU-AUT-154",
+    "STU-AUT-147:21905",
+    "STU-CON-007:22896",
+    "STU-PRO-139:20748",
+    "STU-AUT-166:21958"
+   ],
+   "spec_clauses_total": 8,
+   "mts": [
+    "MT-33500",
+    "MT-33507",
+    "MT-33462",
+    "MT-33505",
+    "MT-33673",
+    "MT-35668",
+    "MT-33255",
+    "MT-33517"
+   ],
+   "mts_total": 8,
+   "scenario_gaps_merged": [
+    "audio-post: 35 callable steps Rust-only after DRIVE-1; scenario gap listed 1",
+    "product-design: 14 callable steps Rust-only after DRIVE-1; scenario gap listed 22",
+    "video-edit: 11 callable steps Rust-only after DRIVE-1",
+    "motion-comp: 3 callable steps Rust-only after DRIVE-1"
+   ],
+   "lanes": [
+    "SMB-DRIVE-TYPED-2"
+   ],
+   "rank": 1,
+   "marginal_steps_in_rank_order": 63,
+   "cumulative_distinct_steps": 63
+  },
+  {
+   "id": "G-REACH-LAYOUT-VECTOR-PHOTO",
+   "tier": "foundation",
+   "title": "Thin command reach: layout, vector panels, proof, photo",
+   "what": "Callable from Rust only, even after SMB-HARNESS-DRIVE-1: LayoutEdit, PanelAction, ProofCommand and other typed-spec Viewer methods have no process row.",
+   "size": "large",
+   "steps_unblocked": 101,
+   "size_units": 4,
+   "cheap_high_value": false,
+   "steps_per_unit": 25.2,
+   "scenarios": {
+    "board-slides-web": 19,
+    "photo-retouch": 22,
+    "print-publication": 29,
+    "vector-brand": 31
+   },
+   "steps": {
+    "board-slides-web": [
+     15,
+     30,
+     32,
+     33,
+     34,
+     35,
+     36,
+     37,
+     39,
+     40,
+     43,
+     45,
+     54,
+     58,
+     63,
+     65,
+     67,
+     68,
+     77
+    ],
+    "photo-retouch": [
+     18,
+     20,
+     24,
+     27,
+     28,
+     29,
+     30,
+     32,
+     37,
+     40,
+     41,
+     43,
+     44,
+     51,
+     70,
+     73,
+     75,
+     90,
+     93,
+     99,
+     103,
+     104
+    ],
+    "print-publication": [
+     12,
+     13,
+     14,
+     15,
+     16,
+     21,
+     22,
+     23,
+     25,
+     26,
+     32,
+     34,
+     35,
+     36,
+     37,
+     38,
+     40,
+     44,
+     47,
+     61,
+     63,
+     64,
+     66,
+     67,
+     78,
+     80,
+     85,
+     86,
+     107
+    ],
+    "vector-brand": [
+     7,
+     9,
+     13,
+     15,
+     16,
+     19,
+     20,
+     23,
+     28,
+     29,
+     33,
+     34,
+     36,
+     38,
+     42,
+     43,
+     44,
+     47,
+     53,
+     60,
+     62,
+     76,
+     77,
+     81,
+     83,
+     95,
+     97,
+     99,
+     100,
+     102,
+     103
+    ]
+   },
+   "steps_by_status": {
+    "callable": 101
+   },
+   "crates": [
+    "hsk-studio-harness-core",
+    "hsk-studio-harness-view",
+    "hsk-studio-harness"
+   ],
+   "spec_clauses": [
+    "STU-AUT-147:21905",
+    "STU-RAW-018:2710",
+    "STU-SHL-137:32495",
+    "STU-AUT-152:21915",
+    "STU-CON-007:22896",
+    "STU-VEC-041:5097",
+    "STU-LAY-067:7620",
+    "STU-AUT-001:22080"
+   ],
+   "spec_clauses_total": 8,
+   "mts": [
+    "MT-33500",
+    "MT-414",
+    "MT-415",
+    "MT-34665",
+    "MT-33505",
+    "MT-067",
+    "MT-556",
+    "MT-081",
+    "MT-35670",
+    "MT-35680",
+    "MT-35681",
+    "MT-35682"
+   ],
+   "mts_total": 15,
+   "scenario_gaps_merged": [
+    "photo-retouch: 22 callable steps Rust-only after DRIVE-1; scenario gap listed 40",
+    "vector-brand: 31 callable steps Rust-only after DRIVE-1; scenario gap listed 47",
+    "print-publication: 29 callable steps Rust-only after DRIVE-1; scenario gap listed 30",
+    "board-slides-web: 19 callable steps Rust-only after DRIVE-1; scenario gap listed 23"
+   ],
+   "lanes": [
+    "SMB-DRIVE-TYPED-1"
+   ],
+   "rank": 2,
+   "marginal_steps_in_rank_order": 101,
+   "cumulative_distinct_steps": 164
+  },
+  {
+   "id": "G-MOTION-COMMANDS",
+   "tier": "foundation",
+   "title": "No typed composition, property, keyframe or expression commands",
+   "what": "Records, validation and the evaluator exist; a model must rewrite whole records and history is unnamed.",
+   "size": "medium",
+   "steps_unblocked": 33,
+   "size_units": 2,
+   "cheap_high_value": false,
+   "steps_per_unit": 16.5,
+   "scenarios": {
+    "motion-comp": 33
+   },
+   "steps": {
+    "motion-comp": [
+     8,
+     10,
+     11,
+     13,
+     18,
+     21,
+     22,
+     24,
+     25,
+     26,
+     33,
+     38,
+     39,
+     40,
+     41,
+     43,
+     45,
+     46,
+     48,
+     49,
+     52,
+     55,
+     61,
+     66,
+     67,
+     71,
+     72,
+     73,
+     75,
+     79,
+     80,
+     81,
+     82
+    ]
+   },
+   "steps_by_status": {
+    "callable": 33
+   },
+   "crates": [
+    "hsk-studio-harness-core",
+    "hsk-studio-session",
+    "hsk-studio-folio"
+   ],
+   "spec_clauses": [
+    "STU-MOT-130",
+    "STU-MOT-038",
+    "STU-CMP-110"
+   ],
+   "spec_clauses_total": 3,
+   "mts": [
+    "MT-33884",
+    "MT-33885",
+    "MT-34030",
+    "MT-34217"
+   ],
+   "mts_total": 4,
+   "scenario_gaps_merged": [
+    "motion-comp gap 0 (Typed composition, property, keyframe and expres), steps [8, 10, 11, 13, 18, 21, 22, 24, 25, 26, 33, 38, 39, 40, 41, 43, 45, 46, 48, 49, 52, 55, 61, 66, 67, 71, 72, 73, 75, 79, 80, 81, 82]"
+   ],
+   "lanes": [
+    "SMB-MOTION-COMMANDS-1"
+   ],
+   "rank": 3,
+   "marginal_steps_in_rank_order": 33,
+   "cumulative_distinct_steps": 197
+  },
+  {
+   "id": "G-LAYOUT-PERSIST",
+   "tier": "foundation",
+   "title": "Layout edits never reach the document",
+   "what": "LayoutEditor edits a private snapshot. Stories, flow, parents, long-document and style records never reach the package; no reopen.",
+   "size": "medium",
+   "steps_unblocked": 26,
+   "size_units": 2,
+   "cheap_high_value": false,
+   "steps_per_unit": 13.0,
+   "scenarios": {
+    "print-publication": 26
+   },
+   "steps": {
+    "print-publication": [
+     14,
+     15,
+     16,
+     21,
+     22,
+     23,
+     25,
+     26,
+     30,
+     32,
+     34,
+     35,
+     36,
+     37,
+     38,
+     40,
+     44,
+     47,
+     61,
+     63,
+     66,
+     67,
+     78,
+     79,
+     80,
+     107
+    ]
+   },
+   "steps_by_status": {
+    "callable": 25,
+    "missing": 1
+   },
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-harness-core",
+    "hsk-studio-package",
+    "hsk-studio-session"
+   ],
+   "spec_clauses": [
+    "STU-LAY-013:5659",
+    "STU-LAY-067:7620",
+    "STU-SDB-001:26"
+   ],
+   "spec_clauses_total": 3,
+   "mts": [
+    "MT-30679",
+    "MT-35680",
+    "MT-35681",
+    "MT-35682",
+    "MT-35684",
+    "MT-149"
+   ],
+   "mts_total": 6,
+   "scenario_gaps_merged": [
+    "print-publication gap 2 (Layout state is not persisted. LayoutEditor edit), steps [14, 15, 16, 21, 22, 23, 25, 26, 30, 32, 34, 35, 36, 37, 38, 40, 44, 47, 61, 63, 66, 67, 78, 79, 80, 107]"
+   ],
+   "lanes": [
+    "SMB-LAYOUT-PERSIST-1"
+   ],
+   "rank": 4,
+   "marginal_steps_in_rank_order": 2,
+   "cumulative_distinct_steps": 199
+  },
+  {
+   "id": "G-PROJECT-MEDIA",
+   "tier": "foundation",
+   "title": "No New Project, project bin, media items, tracks",
+   "what": "A sequence or composition project can start only as a package written by code. No project-bin record, typed import, sequence from preset, add track or source port built from the bin.",
+   "size": "large",
+   "steps_unblocked": 21,
+   "size_units": 4,
+   "cheap_high_value": false,
+   "steps_per_unit": 5.2,
+   "scenarios": {
+    "audio-post": 9,
+    "motion-comp": 5,
+    "video-edit": 7
+   },
+   "steps": {
+    "audio-post": [
+     1,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     19,
+     56
+    ],
+    "motion-comp": [
+     1,
+     3,
+     9,
+     12,
+     14
+    ],
+    "video-edit": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     25
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 3,
+    "missing": 9,
+    "callable": 9
+   },
+   "crates": [
+    "hsk-studio-session",
+    "hsk-studio-folio",
+    "hsk-studio-harness-view",
+    "hsk-studio-pulse"
+   ],
+   "spec_clauses": [
+    "STU-VID-010:22982",
+    "STU-VID-016:23091",
+    "STU-VID-050:24736",
+    "STU-VID-010",
+    "STU-VID-021",
+    "STU-VID-024",
+    "STU-VID-025",
+    "STU-VID-050",
+    "STU-VID-053",
+    "STU-MOT-004",
+    "STU-SHL-113"
+   ],
+   "spec_clauses_total": 11,
+   "mts": [
+    "MT-33685",
+    "MT-33695",
+    "MT-33696",
+    "MT-33761",
+    "MT-33762",
+    "MT-33706",
+    "MT-33710",
+    "MT-33711",
+    "MT-33765",
+    "MT-33849",
+    "MT-33850",
+    "MT-34517"
+   ],
+   "mts_total": 13,
+   "scenario_gaps_merged": [
+    "video-edit gap 0 (Project and media foundation: New Project, seque), steps [1, 2, 3, 4, 5, 6, 25]",
+    "audio-post gap 1 (Multitrack source binding in the product: new pr), steps [1, 6, 7, 8, 9, 10, 11, 19, 56]",
+    "motion-comp gap 9 (Composition record completeness: start timecode,), steps [1, 3, 9, 12, 14]"
+   ],
+   "lanes": [
+    "SMB-PROJECT-BIN-1"
+   ],
+   "rank": 5,
+   "marginal_steps_in_rank_order": 19,
+   "cumulative_distinct_steps": 218
+  },
+  {
+   "id": "G-DOC-NEW",
+   "tier": "foundation",
+   "title": "No New Document; no blank frames or artboards",
+   "what": "No blank document for any profile, no add, name or resize of an artboard or page. A runner starts from a PSD or a package written by code. Only a blank layout snapshot exists.",
+   "size": "medium",
+   "steps_unblocked": 10,
+   "size_units": 2,
+   "cheap_high_value": false,
+   "steps_per_unit": 5.0,
+   "scenarios": {
+    "board-slides-web": 4,
+    "product-design": 3,
+    "vector-brand": 3
+   },
+   "steps": {
+    "board-slides-web": [
+     1,
+     28,
+     59,
+     60
+    ],
+    "product-design": [
+     1,
+     3,
+     33
+    ],
+    "vector-brand": [
+     1,
+     3,
+     4
+    ]
+   },
+   "steps_by_status": {
+    "missing": 8,
+    "callable": 1,
+    "engine_only": 1
+   },
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-folio",
+    "hsk-studio-chronicle",
+    "hsk-studio-harness-core",
+    "hsk-studio-composite",
+    "hsk-studio-interop-layout",
+    "hsk-studio-layout",
+    "hsk-studio-components",
+    "hsk-studio-pulse"
+   ],
+   "spec_clauses": [
+    "STU-SHL-023:31573",
+    "STU-DOC-001:281",
+    "STU-VEC-028:4606",
+    "STU-VEC-165:4612",
+    "STU-VEC-166:4647",
+    "STU-SHL-026:31634",
+    "STU-SHL-033:31767",
+    "STU-DOC-002:283",
+    "STU-IO-136:21292",
+    "STU-DOC-004:287",
+    "STU-PRO-167:20871",
+    "STU-PRO-168:20873"
+   ],
+   "spec_clauses_total": 16,
+   "mts": [
+    "MT-34444",
+    "MT-002",
+    "MT-30020",
+    "MT-119",
+    "MT-30584",
+    "MT-30585",
+    "MT-30586",
+    "MT-30588",
+    "MT-30589",
+    "MT-34447",
+    "MT-34454",
+    "MT-411"
+   ],
+   "mts_total": 21,
+   "scenario_gaps_merged": [
+    "vector-brand gap 5 (Blank vector document.), steps [1]",
+    "vector-brand gap 1 (Artboards as working objects: add, name, resize,), steps [3, 4]",
+    "product-design gap 0 (New blank design document with frames and artboa), steps [1, 3, 33]",
+    "board-slides-web gap 1 (No way to start or structure a design job: no bl), steps [1, 28, 59, 60]",
+    "board-slides-web gap 2 (The deck stops short of a PDF and of being a dec), steps [28]"
+   ],
+   "lanes": [
+    "SMB-DOC-NEW-1"
+   ],
+   "rank": 6,
+   "marginal_steps_in_rank_order": 10,
+   "cumulative_distinct_steps": 228
+  },
+  {
+   "id": "G-WEB-HOST",
+   "tier": "deliverable_gate",
+   "title": "Engine with no host: web crates, no static output",
+   "what": "No crate depends on hsk-studio-web, -web-core or -web-assets. Needs a web document in the harness with open, patch, undo and save over source text, a static export recipe and a local publish receipt.",
+   "size": "medium",
+   "steps_unblocked": 15,
+   "size_units": 2,
+   "cheap_high_value": false,
+   "steps_per_unit": 7.5,
+   "scenarios": {
+    "board-slides-web": 15
+   },
+   "steps": {
+    "board-slides-web": [
+     85,
+     89,
+     92,
+     93,
+     94,
+     96,
+     97,
+     99,
+     101,
+     102,
+     106,
+     113,
+     114,
+     116,
+     117
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 11,
+    "missing": 4
+   },
+   "crates": [
+    "hsk-studio-harness",
+    "hsk-studio-harness-core",
+    "hsk-studio-harness-view",
+    "hsk-studio-web"
+   ],
+   "spec_clauses": [
+    "STU-WEB-003:30429",
+    "STU-WEB-113:31101",
+    "STU-WEB-115:31105",
+    "STU-WEB-120:31115",
+    "STU-WEB-127:31140",
+    "STU-WEB-131:31152"
+   ],
+   "spec_clauses_total": 6,
+   "mts": [
+    "MT-34220",
+    "MT-34341",
+    "MT-34343",
+    "MT-34348",
+    "MT-34356",
+    "MT-34360"
+   ],
+   "mts_total": 6,
+   "scenario_gaps_merged": [
+    "board-slides-web gap 0 (No web document reaches any host, and there is n), steps [85, 89, 92, 93, 94, 96, 97, 99, 101, 102, 106, 113, 114, 116, 117]"
+   ],
+   "lanes": [
+    "SMB-WEB-HOST-1"
+   ],
+   "rank": 7,
+   "marginal_steps_in_rank_order": 15,
+   "cumulative_distinct_steps": 243
+  },
+  {
+   "id": "G-LAYOUT-PDF",
+   "tier": "deliverable_gate",
+   "title": "Layout PDF and IDML export unreachable",
+   "what": "export_pdf_with is tested in its crate; no host manifest names hsk-studio-interop-layout.",
+   "size": "medium",
+   "steps_unblocked": 9,
+   "size_units": 2,
+   "cheap_high_value": false,
+   "steps_per_unit": 4.5,
+   "scenarios": {
+    "board-slides-web": 2,
+    "print-publication": 5,
+    "vector-brand": 2
+   },
+   "steps": {
+    "board-slides-web": [
+     55,
+     57
+    ],
+    "print-publication": [
+     92,
+     95,
+     97,
+     99,
+     105
+    ],
+    "vector-brand": [
+     99,
+     104
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 8,
+    "callable": 1
+   },
+   "crates": [
+    "hsk-studio-harness",
+    "hsk-studio-harness-view",
+    "hsk-studio-interop-layout",
+    "hsk-studio-type",
+    "hsk-studio-layout",
+    "hsk-studio-folio",
+    "hsk-studio-components",
+    "hsk-studio-pulse"
+   ],
+   "spec_clauses": [
+    "STU-LAY-054:6959",
+    "STU-LAY-061:7115",
+    "STU-LAY-158:7117",
+    "STU-LAY-130:6111",
+    "STU-LAY-159:7164",
+    "STU-DOC-001:281",
+    "STU-PRO-167:20871",
+    "STU-PRO-168:20873",
+    "STU-PRO-169:20875",
+    "STU-PRO-171:20879",
+    "STU-PRO-174:20885"
+   ],
+   "spec_clauses_total": 11,
+   "mts": [
+    "MT-30802",
+    "MT-30832",
+    "MT-30833",
+    "MT-30834",
+    "MT-30835",
+    "MT-35692",
+    "MT-35857",
+    "MT-171",
+    "MT-187",
+    "MT-30728",
+    "MT-30729",
+    "MT-30841"
+   ],
+   "mts_total": 19,
+   "scenario_gaps_merged": [
+    "print-publication gap 0 (No host reaches layout PDF export. export_pdf_wi), steps [92, 95, 97, 99, 105]",
+    "vector-brand gap 12 (Layout route for the guidelines: placed graphics), steps [99, 104]",
+    "board-slides-web gap 2 (The deck stops short of a PDF and of being a dec), steps [55, 57]"
+   ],
+   "lanes": [
+    "SMB-LAYOUT-PDF-HOST-1"
+   ],
+   "rank": 8,
+   "marginal_steps_in_rank_order": 8,
+   "cumulative_distinct_steps": 251
+  },
+  {
+   "id": "G-DOC-EXPORT",
+   "tier": "deliverable_gate",
+   "title": "Document export is PNG and JPEG only",
+   "what": "Writers for TIFF and PSD exist; Viewer::export offers Png and Jpeg. No resize, sharpening, CMYK conversion or watermark in one recipe; batch cannot write non-native formats.",
+   "size": "medium",
+   "steps_unblocked": 8,
+   "size_units": 2,
+   "cheap_high_value": false,
+   "steps_per_unit": 4.0,
+   "scenarios": {
+    "photo-retouch": 8
+   },
+   "steps": {
+    "photo-retouch": [
+     105,
+     106,
+     107,
+     108,
+     109,
+     110,
+     112,
+     116
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 6,
+    "missing": 2
+   },
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-harness-core",
+    "hsk-studio-harness",
+    "hsk-studio-interop-psd",
+    "hsk-studio-interop-tiff",
+    "hsk-studio-prism"
+   ],
+   "spec_clauses": [
+    "STU-RAS-042:1878",
+    "STU-RAS-043:1885",
+    "STU-IO-134:21288",
+    "STU-AUT-129:21842"
+   ],
+   "spec_clauses_total": 4,
+   "mts": [
+    "MT-063",
+    "MT-30300",
+    "MT-064",
+    "MT-30301",
+    "MT-33396"
+   ],
+   "mts_total": 5,
+   "scenario_gaps_merged": [
+    "photo-retouch gap 3 (A document-level export: 16-bit tagged TIFF, lay), steps [105, 106, 107, 108, 109, 110, 112, 116]"
+   ],
+   "lanes": [
+    "SMB-DOC-EXPORT-1"
+   ],
+   "rank": 9,
+   "marginal_steps_in_rank_order": 8,
+   "cumulative_distinct_steps": 259
+  },
+  {
+   "id": "G-AUDIO-PLAYBACK",
+   "tier": "deliverable_gate",
+   "title": "Written audio with no caller: AudioOut",
+   "what": "AudioOut is written and tested; no host constructs it, so nothing is heard and meters are not driven by what is heard.",
+   "size": "small",
+   "steps_unblocked": 4,
+   "size_units": 1,
+   "cheap_high_value": true,
+   "steps_per_unit": 4.0,
+   "scenarios": {
+    "audio-post": 4
+   },
+   "steps": {
+    "audio-post": [
+     24,
+     68,
+     69,
+     70
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 1,
+    "callable": 2,
+    "missing": 1
+   },
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-harness",
+    "hsk-studio-score-device"
+   ],
+   "spec_clauses": [
+    "STU-ARC-013",
+    "STU-VID-023"
+   ],
+   "spec_clauses_total": 2,
+   "mts": [
+    "MT-36030",
+    "MT-33709"
+   ],
+   "mts_total": 2,
+   "scenario_gaps_merged": [
+    "audio-post gap 0 (Audible playback in the host: wire AudioOut with), steps [24, 68, 69, 70]"
+   ],
+   "lanes": [
+    "SMB-AUDIO-OUT-MIX-1"
+   ],
+   "rank": 10,
+   "marginal_steps_in_rank_order": 2,
+   "cumulative_distinct_steps": 261
+  },
+  {
+   "id": "G-PLACE",
+   "tier": "deliverable_gate",
+   "title": "No place or import into a document",
+   "what": "No way to put a second picture into a raster, vector or layout document. Placed-asset rendering exists for raster; layout has no graphic frame in the editor or page view.",
+   "size": "large",
+   "steps_unblocked": 14,
+   "size_units": 4,
+   "cheap_high_value": false,
+   "steps_per_unit": 3.5,
+   "scenarios": {
+    "board-slides-web": 2,
+    "photo-retouch": 3,
+    "print-publication": 7,
+    "vector-brand": 2
+   },
+   "steps": {
+    "board-slides-web": [
+     42,
+     64
+    ],
+    "photo-retouch": [
+     83,
+     84,
+     86
+    ],
+    "print-publication": [
+     31,
+     48,
+     49,
+     50,
+     51,
+     54,
+     83
+    ],
+    "vector-brand": [
+     54,
+     101
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 7,
+    "missing": 7
+   },
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-harness-core",
+    "hsk-studio-folio",
+    "hsk-studio-composite",
+    "hsk-studio-layout",
+    "hsk-studio-interop-layout",
+    "hsk-studio-package",
+    "hsk-studio-pigment",
+    "hsk-studio-nib",
+    "hsk-studio-components"
+   ],
+   "spec_clauses": [
+    "STU-RAS-014:674",
+    "STU-ASSET-005:31320",
+    "STU-RAS-142:1589",
+    "STU-SHL-097:32280",
+    "STU-LAY-028:6093",
+    "STU-LAY-029:6132",
+    "STU-LAY-030:6162",
+    "STU-LAY-031:6202",
+    "STU-LAY-131:6137",
+    "STU-LAY-132:6168",
+    "STU-SHL-023:31573",
+    "STU-SHL-153:32643"
+   ],
+   "spec_clauses_total": 24,
+   "mts": [
+    "MT-029",
+    "MT-30059",
+    "MT-34396",
+    "MT-30233",
+    "MT-30234",
+    "MT-30721",
+    "MT-30722",
+    "MT-30723",
+    "MT-30730",
+    "MT-30731",
+    "MT-30732",
+    "MT-30733"
+   ],
+   "mts_total": 37,
+   "scenario_gaps_merged": [
+    "photo-retouch gap 1 (Put a second photograph in a document and move i), steps [83, 84, 86]",
+    "print-publication gap 3 (Placed graphics in layout: no place command, no ), steps [31, 48, 49, 50, 51, 54, 83]",
+    "vector-brand gap 14 (Place into document and Image Trace.), steps [54]",
+    "vector-brand gap 12 (Layout route for the guidelines: placed graphics), steps [101]",
+    "board-slides-web gap 2 (The deck stops short of a PDF and of being a dec), steps [42]",
+    "board-slides-web gap 7 (Data merge reaches only layout stories, with ima), steps [64]"
+   ],
+   "lanes": [
+    "SMB-PLACE-ASSET-1"
+   ],
+   "rank": 11,
+   "marginal_steps_in_rank_order": 14,
+   "cumulative_distinct_steps": 275
+  },
+  {
+   "id": "G-AUDIO-MIXDOWN",
+   "tier": "deliverable_gate",
+   "title": "No audio-only routed mixdown, stems or WAV path to the mix",
+   "what": "WAV, AIFF and FLAC encoders exist; MixFormat offers FLAC and AIFF for one open file. Repaired audio never reaches the mix.",
+   "size": "medium",
+   "steps_unblocked": 7,
+   "size_units": 2,
+   "cheap_high_value": false,
+   "steps_per_unit": 3.5,
+   "scenarios": {
+    "audio-post": 6,
+    "video-edit": 1
+   },
+   "steps": {
+    "audio-post": [
+     32,
+     52,
+     82,
+     84,
+     90,
+     91
+    ],
+    "video-edit": [
+     94
+    ]
+   },
+   "steps_by_status": {
+    "missing": 4,
+    "engine_only": 2,
+    "callable": 1
+   },
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-reel",
+    "hsk-studio-pulse",
+    "hsk-studio-folio"
+   ],
+   "spec_clauses": [
+    "STU-IO-101",
+    "STU-IO-141",
+    "STU-SHL-092",
+    "STU-FX-137",
+    "STU-FX-135",
+    "STU-OVR-015",
+    "STU-VID-061:24894",
+    "STU-VID-062:25503",
+    "STU-VID-063:25554",
+    "STU-VID-064:25560"
+   ],
+   "spec_clauses_total": 10,
+   "mts": [
+    "MT-33368",
+    "MT-33405",
+    "MT-34623",
+    "MT-32617",
+    "MT-32615",
+    "MT-33766",
+    "MT-33831"
+   ],
+   "mts_total": 7,
+   "scenario_gaps_merged": [
+    "audio-post gap 4 (Audio-only routed session mixdown, plus a WAV an), steps [82, 84, 90]",
+    "audio-post gap 7 (Stem printing and M&E: per-bus render items with), steps [90, 91]",
+    "audio-post gap 2 (Repaired audio must reach the mix: resolve a cli), steps [32, 52]",
+    "video-edit gap 4 (Delivery gaps: no AAC or any compressed audio en), steps [94]"
+   ],
+   "lanes": [
+    "SMB-AUDIO-OUT-MIX-1"
+   ],
+   "rank": 12,
+   "marginal_steps_in_rank_order": 6,
+   "cumulative_distinct_steps": 281
+  },
+  {
+   "id": "G-EXPORT-PER-OBJECT",
+   "tier": "deliverable_gate",
+   "title": "No per-object or per-artboard export; everything reads the first artboard",
+   "what": "Render, SVG, PDF, EPS, align and separations read artboards.first(). Export is one file per run at one size.",
+   "size": "large",
+   "steps_unblocked": 12,
+   "size_units": 4,
+   "cheap_high_value": false,
+   "steps_per_unit": 3.0,
+   "scenarios": {
+    "board-slides-web": 1,
+    "product-design": 3,
+    "vector-brand": 8
+   },
+   "steps": {
+    "board-slides-web": [
+     79
+    ],
+    "product-design": [
+     53,
+     82,
+     85
+    ],
+    "vector-brand": [
+     9,
+     26,
+     56,
+     85,
+     86,
+     88,
+     90,
+     109
+    ]
+   },
+   "steps_by_status": {
+    "missing": 8,
+    "callable": 4
+   },
+   "crates": [
+    "hsk-studio-folio",
+    "hsk-studio-chronicle",
+    "hsk-studio-harness-core",
+    "hsk-studio-harness-view",
+    "hsk-studio-composite",
+    "hsk-studio-interop-raster",
+    "hsk-studio-interop-vector-svg"
+   ],
+   "spec_clauses": [
+    "STU-VEC-028:4606",
+    "STU-VEC-165:4612",
+    "STU-VEC-166:4647",
+    "STU-IO-101:21135",
+    "STU-IO-111:21197",
+    "STU-IO-112:21199",
+    "STU-IO-113:21201",
+    "STU-IO-114:21207",
+    "STU-IO-010:21625",
+    "STU-AUT-166:21958",
+    "STU-SHL-153:32643",
+    "STU-SHL-023:31573"
+   ],
+   "spec_clauses_total": 15,
+   "mts": [
+    "MT-119",
+    "MT-30584",
+    "MT-30585",
+    "MT-30586",
+    "MT-30588",
+    "MT-30589",
+    "MT-33368",
+    "MT-33378",
+    "MT-33379",
+    "MT-33380",
+    "MT-33381",
+    "MT-477"
+   ],
+   "mts_total": 20,
+   "scenario_gaps_merged": [
+    "vector-brand gap 1 (Artboards as working objects: add, name, resize,), steps [9, 26, 56, 85, 88, 109]",
+    "vector-brand gap 2 (Still-export model: object-level render settings), steps [85, 86, 88, 90]",
+    "product-design gap 6 (Per-node export settings and selection render at), steps [53, 82, 85]",
+    "board-slides-web gap 1 (No way to start or structure a design job: no bl), steps [79]"
+   ],
+   "lanes": [
+    "SMB-ARTBOARD-EXPORT-1"
+   ],
+   "rank": 13,
+   "marginal_steps_in_rank_order": 11,
+   "cumulative_distinct_steps": 292
+  },
+  {
+   "id": "G-LONGDOC-HOST",
+   "tier": "score",
+   "title": "Engines with no host: long document",
+   "what": "TOC, index, sections, running heads, footnotes, cross-references and text variables have engines and Folio records but no LayoutEdit member.",
+   "size": "medium",
+   "steps_unblocked": 13,
+   "size_units": 2,
+   "cheap_high_value": false,
+   "steps_per_unit": 6.5,
+   "scenarios": {
+    "print-publication": 13
+   },
+   "steps": {
+    "print-publication": [
+     18,
+     19,
+     20,
+     59,
+     60,
+     68,
+     69,
+     70,
+     71,
+     72,
+     73,
+     74,
+     75
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 13
+   },
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-layout"
+   ],
+   "spec_clauses": [
+    "STU-LAY-014:5670",
+    "STU-LAY-015:5732",
+    "STU-LAY-016:5738",
+    "STU-LAY-044:6628",
+    "STU-LAY-045:6672",
+    "STU-LAY-046:6720",
+    "STU-LAY-047:6801",
+    "STU-LAY-048:6829",
+    "STU-LAY-148:6630",
+    "STU-LAY-149:6675"
+   ],
+   "spec_clauses_total": 10,
+   "mts": [
+    "MT-30680",
+    "MT-30683",
+    "MT-30684",
+    "MT-30776",
+    "MT-30777",
+    "MT-30778",
+    "MT-30779",
+    "MT-30780",
+    "MT-30785",
+    "MT-30787",
+    "MT-30788",
+    "MT-35685"
+   ],
+   "mts_total": 19,
+   "scenario_gaps_merged": [
+    "print-publication gap 6 (Long-document host: TOC, index, sections, runnin), steps [18, 19, 20, 59, 60, 68, 69, 70, 71, 72, 73, 74, 75]"
+   ],
+   "lanes": [],
+   "rank": 14,
+   "marginal_steps_in_rank_order": 13,
+   "cumulative_distinct_steps": 305
+  },
+  {
+   "id": "G-MOTION-ASSISTANTS",
+   "tier": "score",
+   "title": "Keyframe assistants not bound to Folio records",
+   "what": "Easy Ease, velocity, sequence layers, presets; stored spatial tangents and separated dimensions.",
+   "size": "small",
+   "steps_unblocked": 6,
+   "size_units": 1,
+   "cheap_high_value": true,
+   "steps_per_unit": 6.0,
+   "scenarios": {
+    "motion-comp": 6
+   },
+   "steps": {
+    "motion-comp": [
+     23,
+     28,
+     30,
+     31,
+     32,
+     50
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 6
+   },
+   "crates": [
+    "hsk-studio-motion",
+    "hsk-studio-composite",
+    "hsk-studio-folio"
+   ],
+   "spec_clauses": [
+    "STU-MOT-037",
+    "STU-MOT-038",
+    "STU-MOT-052",
+    "STU-MOT-110"
+   ],
+   "spec_clauses_total": 4,
+   "mts": [
+    "MT-33883",
+    "MT-33884",
+    "MT-33885",
+    "MT-33903",
+    "MT-33973"
+   ],
+   "mts_total": 5,
+   "scenario_gaps_merged": [
+    "motion-comp gap 7 (Keyframe assistants and Motion APIs bound to Fol), steps [23, 28, 30, 31, 32, 50]"
+   ],
+   "lanes": [],
+   "rank": 15,
+   "marginal_steps_in_rank_order": 6,
+   "cumulative_distinct_steps": 311
+  },
+  {
+   "id": "G-EDIT-COMMANDS",
+   "tier": "score",
+   "title": "Timeline edit commands an editor expects",
+   "what": "Lift and extract by range, ripple to playhead, match frame, marker naming, work area, EDL host.",
+   "size": "small",
+   "steps_unblocked": 6,
+   "size_units": 1,
+   "cheap_high_value": true,
+   "steps_per_unit": 6.0,
+   "scenarios": {
+    "video-edit": 6
+   },
+   "steps": {
+    "video-edit": [
+     14,
+     22,
+     39,
+     46,
+     84,
+     99
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 4,
+    "missing": 2
+   },
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-pulse"
+   ],
+   "spec_clauses": [
+    "STU-VID-041:23910",
+    "STU-VID-042:24722",
+    "STU-VID-034:23849"
+   ],
+   "spec_clauses_total": 3,
+   "mts": [
+    "MT-33744",
+    "MT-33736",
+    "MT-33737"
+   ],
+   "mts_total": 3,
+   "scenario_gaps_merged": [
+    "video-edit gap 11 (Edit commands an editor expects: lift and extrac), steps [14, 22, 39, 46, 84, 99]"
+   ],
+   "lanes": [],
+   "rank": 16,
+   "marginal_steps_in_rank_order": 6,
+   "cumulative_distinct_steps": 317
+  },
+  {
+   "id": "G-AUDIO-EFFECT-HOST",
+   "tier": "score",
+   "title": "Engines with no host: audio processors",
+   "what": "EffectSpec has four kinds and refuses every other filter_kind, so restoration and dynamics engines reach no document.",
+   "size": "medium",
+   "steps_unblocked": 11,
+   "size_units": 2,
+   "cheap_high_value": false,
+   "steps_per_unit": 5.5,
+   "scenarios": {
+    "audio-post": 9,
+    "video-edit": 2
+   },
+   "steps": {
+    "audio-post": [
+     36,
+     37,
+     39,
+     40,
+     50,
+     53,
+     61,
+     62,
+     63
+    ],
+    "video-edit": [
+     79,
+     80
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 10,
+    "callable": 1
+   },
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-folio",
+    "hsk-studio-score",
+    "hsk-studio-pulse"
+   ],
+   "spec_clauses": [
+    "STU-FX-134",
+    "STU-FX-134a",
+    "STU-FX-136",
+    "STU-VID-041:23910"
+   ],
+   "spec_clauses_total": 4,
+   "mts": [
+    "MT-32614",
+    "MT-32639",
+    "MT-32650",
+    "MT-32663",
+    "MT-32664",
+    "MT-32731",
+    "MT-32765",
+    "MT-33744"
+   ],
+   "mts_total": 8,
+   "scenario_gaps_merged": [
+    "audio-post gap 3 (Host the existing restoration and dynamics engin), steps [36, 37, 39, 40, 50, 53, 61, 62, 63]",
+    "video-edit gap 13 (Audio finishing on sequences: clip effect stacks), steps [79, 80]"
+   ],
+   "lanes": [
+    "SMB-SCORE-EFFECTS-6"
+   ],
+   "rank": 17,
+   "marginal_steps_in_rank_order": 10,
+   "cumulative_distinct_steps": 327
+  },
+  {
+   "id": "G-TRANSITIONS-AUDIO-EDIT",
+   "tier": "score",
+   "title": "Transitions, crossfades, sample-accurate audio edit",
+   "what": "No apply or default commands; any kind plays as a dissolve; frame-based audio edits.",
+   "size": "medium",
+   "steps_unblocked": 11,
+   "size_units": 2,
+   "cheap_high_value": false,
+   "steps_per_unit": 5.5,
+   "scenarios": {
+    "audio-post": 7,
+    "video-edit": 4
+   },
+   "steps": {
+    "audio-post": [
+     4,
+     13,
+     14,
+     15,
+     18,
+     20,
+     30
+    ],
+    "video-edit": [
+     53,
+     54,
+     55,
+     56
+    ]
+   },
+   "steps_by_status": {
+    "missing": 3,
+    "engine_only": 5,
+    "callable": 3
+   },
+   "crates": [
+    "hsk-studio-pulse",
+    "hsk-studio-harness-view",
+    "hsk-studio-composite",
+    "hsk-studio-score"
+   ],
+   "spec_clauses": [
+    "STU-VID-032:23810",
+    "STU-VID-032a:23819",
+    "STU-VID-032a",
+    "STU-VID-029a",
+    "STU-VID-026",
+    "STU-VID-025"
+   ],
+   "spec_clauses_total": 6,
+   "mts": [
+    "MT-33733",
+    "MT-33734",
+    "MT-33727",
+    "MT-33712",
+    "MT-33711"
+   ],
+   "mts_total": 5,
+   "scenario_gaps_merged": [
+    "video-edit gap 7 (Transitions: no apply or default commands, no pr), steps [53, 54, 55, 56]",
+    "audio-post gap 8 (Timeline audio editing precision: audio crossfad), steps [4, 13, 14, 15, 18, 20, 30]"
+   ],
+   "lanes": [],
+   "rank": 18,
+   "marginal_steps_in_rank_order": 11,
+   "cumulative_distinct_steps": 338
+  },
+  {
+   "id": "G-DEVELOP-HOST",
+   "tier": "score",
+   "title": "Develop must-haves not hosted",
+   "what": "Crop, white balance picker, point curves, clipping overlay, before and after, snapshots, presets, profile choice, Auto.",
+   "size": "medium",
+   "steps_unblocked": 10,
+   "size_units": 2,
+   "cheap_high_value": false,
+   "steps_per_unit": 5.0,
+   "scenarios": {
+    "photo-retouch": 10
+   },
+   "steps": {
+    "photo-retouch": [
+     21,
+     23,
+     25,
+     26,
+     31,
+     35,
+     47,
+     48,
+     49,
+     50
+    ]
+   },
+   "steps_by_status": {
+    "missing": 4,
+    "engine_only": 6
+   },
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-develop"
+   ],
+   "spec_clauses": [
+    "STU-RAW-015:2616",
+    "STU-RAW-131:2679",
+    "STU-RAW-004:2126",
+    "STU-RAW-105:2086",
+    "STU-RAW-128:2522",
+    "STU-RAW-113:2267",
+    "STU-RAW-125:2454",
+    "STU-RAW-005:2139"
+   ],
+   "spec_clauses_total": 8,
+   "mts": [
+    "MT-429",
+    "MT-30364",
+    "MT-30369",
+    "MT-413",
+    "MT-30319"
+   ],
+   "mts_total": 5,
+   "scenario_gaps_merged": [
+    "photo-retouch gap 7 (Develop must-haves: crop and straighten, white b), steps [21, 23, 25, 26, 31, 35, 47, 48, 49, 50]"
+   ],
+   "lanes": [],
+   "rank": 19,
+   "marginal_steps_in_rank_order": 10,
+   "cumulative_distinct_steps": 348
+  },
+  {
+   "id": "G-DS-AUTHORING",
+   "tier": "score",
+   "title": "Components and symbols have no creation path",
+   "what": "Records and resolvers exist; components arrive only through .fig import.",
+   "size": "large",
+   "steps_unblocked": 19,
+   "size_units": 4,
+   "cheap_high_value": false,
+   "steps_per_unit": 4.8,
+   "scenarios": {
+    "board-slides-web": 5,
+    "product-design": 10,
+    "vector-brand": 4
+   },
+   "steps": {
+    "board-slides-web": [
+     31,
+     66,
+     69,
+     70,
+     71
+    ],
+    "product-design": [
+     18,
+     24,
+     25,
+     27,
+     28,
+     29,
+     30,
+     32,
+     36,
+     46
+    ],
+    "vector-brand": [
+     25,
+     26,
+     82,
+     101
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 8,
+    "missing": 11
+   },
+   "crates": [
+    "hsk-studio-folio",
+    "hsk-studio-components",
+    "hsk-studio-harness-core",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-DS-107:19964",
+    "STU-DS-112:19997",
+    "STU-DS-113:19999",
+    "STU-DS-108:19974",
+    "STU-DS-102:19912",
+    "STU-VEC-058:4670",
+    "STU-VEC-167:4675",
+    "STU-DS-001:20318",
+    "STU-DS-005:20330",
+    "STU-DS-132:20066"
+   ],
+   "spec_clauses_total": 10,
+   "mts": [
+    "MT-33062",
+    "MT-33068",
+    "MT-33069",
+    "MT-33063",
+    "MT-33056",
+    "MT-122",
+    "MT-30591",
+    "MT-30592",
+    "MT-30593",
+    "MT-321",
+    "MT-323",
+    "MT-33139"
+   ],
+   "mts_total": 15,
+   "scenario_gaps_merged": [
+    "product-design gap 2 (Component authoring commands: create, combine va), steps [18, 24, 25, 27, 28, 29, 30, 32, 36, 46]",
+    "vector-brand gap 6 (Component and symbol authoring: create component), steps [25, 26, 82, 101]",
+    "board-slides-web gap 8 (Components, tokens and resize have no creation p), steps [31, 66, 69, 70, 71]"
+   ],
+   "lanes": [],
+   "rank": 20,
+   "marginal_steps_in_rank_order": 17,
+   "cumulative_distinct_steps": 365
+  },
+  {
+   "id": "G-MULTICAM-HOST",
+   "tier": "score",
+   "title": "Multicam output is silently wrong",
+   "what": "resolve_active_angle has no host caller, so the top angle shows and all angle audio sums; create, switch, flatten and the grid have no host.",
+   "size": "medium",
+   "steps_unblocked": 9,
+   "size_units": 2,
+   "cheap_high_value": false,
+   "steps_per_unit": 4.5,
+   "scenarios": {
+    "video-edit": 9
+   },
+   "steps": {
+    "video-edit": [
+     28,
+     29,
+     30,
+     31,
+     32,
+     33,
+     34,
+     35,
+     37
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 9
+   },
+   "crates": [
+    "hsk-studio-pulse",
+    "hsk-studio-harness-view",
+    "hsk-studio-harness-core"
+   ],
+   "spec_clauses": [
+    "STU-VID-033:23828"
+   ],
+   "spec_clauses_total": 1,
+   "mts": [
+    "MT-33735"
+   ],
+   "mts_total": 1,
+   "scenario_gaps_merged": [
+    "video-edit gap 2 (Multicam does not play its active angle. Confirm), steps [28, 29, 30, 31, 32, 33, 34, 35, 37]"
+   ],
+   "lanes": [],
+   "rank": 21,
+   "marginal_steps_in_rank_order": 9,
+   "cumulative_distinct_steps": 374
+  },
+  {
+   "id": "G-LAYOUT-SETUP",
+   "tier": "score",
+   "title": "Layout document setup",
+   "what": "Custom trim, facing, bleed, margins, slug, grids, guides and document layers.",
+   "size": "medium",
+   "steps_unblocked": 9,
+   "size_units": 2,
+   "cheap_high_value": false,
+   "steps_per_unit": 4.5,
+   "scenarios": {
+    "print-publication": 9
+   },
+   "steps": {
+    "print-publication": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 5,
+    "missing": 4
+   },
+   "crates": [
+    "hsk-studio-folio",
+    "hsk-studio-layout",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-LAY-002:5466",
+    "STU-LAY-005:5513",
+    "STU-LAY-050:6872",
+    "STU-LAY-105:5399",
+    "STU-LAY-106:5443",
+    "STU-LAY-109:5516",
+    "STU-LAY-113:5639",
+    "STU-LAY-114:6896"
+   ],
+   "spec_clauses_total": 8,
+   "mts": [
+    "MT-30657",
+    "MT-30658",
+    "MT-30659",
+    "MT-30660",
+    "MT-30661",
+    "MT-30665",
+    "MT-30666",
+    "MT-30678",
+    "MT-30791",
+    "MT-30794",
+    "MT-30795",
+    "MT-35680"
+   ],
+   "mts_total": 16,
+   "scenario_gaps_merged": [
+    "print-publication gap 7 (Document setup: custom trim and presets, facing ), steps [1, 2, 3, 4, 5, 6, 7, 8, 9]"
+   ],
+   "lanes": [],
+   "rank": 22,
+   "marginal_steps_in_rank_order": 9,
+   "cumulative_distinct_steps": 383
+  },
+  {
+   "id": "G-DS-AUTOLAYOUT",
+   "tier": "score",
+   "title": "Auto layout refuses text",
+   "what": "Text children are refused, and Hug, alignment, wrap, absolute and grid controls are absent. Limits callable steps 21, 37, 41, 42 to text-free frames.",
+   "size": "medium",
+   "steps_unblocked": 9,
+   "size_units": 2,
+   "cheap_high_value": false,
+   "steps_per_unit": 4.5,
+   "scenarios": {
+    "product-design": 9
+   },
+   "steps": {
+    "product-design": [
+     16,
+     20,
+     34,
+     35,
+     38,
+     39,
+     40,
+     49,
+     51
+    ]
+   },
+   "steps_by_status": {
+    "missing": 9
+   },
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-components",
+    "hsk-studio-type",
+    "hsk-studio-folio"
+   ],
+   "spec_clauses": [
+    "STU-DS-035:20436",
+    "STU-DS-144:20102",
+    "STU-DS-148:20158",
+    "STU-DS-041:20448",
+    "STU-DS-043:20454",
+    "STU-DS-044:20456",
+    "STU-DS-151:20178",
+    "STU-DS-153:20196"
+   ],
+   "spec_clauses_total": 8,
+   "mts": [
+    "MT-33187",
+    "MT-35761",
+    "MT-35762",
+    "MT-33100",
+    "MT-33104",
+    "MT-33193",
+    "MT-360",
+    "MT-33196",
+    "MT-33197",
+    "MT-361",
+    "MT-33107",
+    "MT-33109"
+   ],
+   "mts_total": 12,
+   "scenario_gaps_merged": [
+    "product-design gap 1 (Text inside auto layout: text layers as measured), steps [20, 35]",
+    "product-design gap 7 (Auto-layout controls: frame Hug, alignment box, ), steps [16, 34, 38, 39, 40, 49, 51]"
+   ],
+   "lanes": [],
+   "rank": 23,
+   "marginal_steps_in_rank_order": 9,
+   "cumulative_distinct_steps": 392
+  },
+  {
+   "id": "G-COLOUR-HOSTS",
+   "tier": "score",
+   "title": "Colour system hosts",
+   "what": "Picker, groups, harmony, contrast, books, recolour windows.",
+   "size": "medium",
+   "steps_unblocked": 9,
+   "size_units": 2,
+   "cheap_high_value": false,
+   "steps_per_unit": 4.5,
+   "scenarios": {
+    "vector-brand": 9
+   },
+   "steps": {
+    "vector-brand": [
+     35,
+     37,
+     39,
+     40,
+     41,
+     44,
+     45,
+     53,
+     81
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 3,
+    "callable": 3,
+    "missing": 3
+   },
+   "crates": [
+    "hsk-studio-prism",
+    "hsk-studio-folio",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-VEC-140:3896",
+    "STU-COL-177:10605",
+    "STU-COL-235:11236",
+    "STU-COL-246:11313",
+    "STU-COL-180:10621",
+    "STU-COL-183:10644",
+    "STU-COL-212:10843",
+    "STU-COL-236:11250"
+   ],
+   "spec_clauses_total": 8,
+   "mts": [
+    "MT-30502",
+    "MT-30503",
+    "MT-31239",
+    "MT-31334",
+    "MT-31335",
+    "MT-31344"
+   ],
+   "mts_total": 6,
+   "scenario_gaps_merged": [
+    "vector-brand gap 10 (Colour system hosts: unified picker, swatch grou), steps [35, 37, 39, 40, 41, 44, 45, 53, 81]"
+   ],
+   "lanes": [],
+   "rank": 24,
+   "marginal_steps_in_rank_order": 6,
+   "cumulative_distinct_steps": 398
+  },
+  {
+   "id": "G-CAPTIONS-HOST",
+   "tier": "score",
+   "title": "Captions: engine pieces with no seams",
+   "what": "No home in the session, no import host, burn-in and sidecars not called by export.",
+   "size": "medium",
+   "steps_unblocked": 8,
+   "size_units": 2,
+   "cheap_high_value": false,
+   "steps_per_unit": 4.0,
+   "scenarios": {
+    "video-edit": 8
+   },
+   "steps": {
+    "video-edit": [
+     70,
+     71,
+     72,
+     73,
+     74,
+     75,
+     91,
+     92
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 6,
+    "missing": 2
+   },
+   "crates": [
+    "hsk-studio-session",
+    "hsk-studio-harness-view",
+    "hsk-studio-interop-media"
+   ],
+   "spec_clauses": [
+    "STU-VID-037:23878",
+    "STU-VID-085:25704"
+   ],
+   "spec_clauses_total": 2,
+   "mts": [
+    "MT-33740"
+   ],
+   "mts_total": 1,
+   "scenario_gaps_merged": [
+    "video-edit gap 5 (Captions: no home in the session, no captions pa), steps [70, 71, 72, 73, 74, 75, 91, 92]"
+   ],
+   "lanes": [],
+   "rank": 25,
+   "marginal_steps_in_rank_order": 8,
+   "cumulative_distinct_steps": 406
+  },
+  {
+   "id": "G-CLIP-FINISH",
+   "tier": "score",
+   "title": "Edits that never reach render or export: clip finishing",
+   "what": "Colour grade, Transform, crop and effect records have no session entry and no monitor or export read.",
+   "size": "medium",
+   "steps_unblocked": 7,
+   "size_units": 2,
+   "cheap_high_value": false,
+   "steps_per_unit": 3.5,
+   "scenarios": {
+    "video-edit": 7
+   },
+   "steps": {
+    "video-edit": [
+     63,
+     64,
+     65,
+     66,
+     67,
+     68,
+     90
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 5,
+    "missing": 2
+   },
+   "crates": [
+    "hsk-studio-session",
+    "hsk-studio-harness-view",
+    "hsk-studio-composite"
+   ],
+   "spec_clauses": [
+    "STU-VID-020:23636",
+    "STU-COL-160:10481",
+    "STU-COL-220:10946"
+   ],
+   "spec_clauses_total": 3,
+   "mts": [
+    "MT-33707",
+    "MT-35944",
+    "MT-35945",
+    "MT-35946",
+    "MT-35947"
+   ],
+   "mts_total": 5,
+   "scenario_gaps_merged": [
+    "video-edit gap 1 (Clip finishing never reaches a picture: colour g), steps [63, 64, 65, 66, 67, 68, 90]"
+   ],
+   "lanes": [],
+   "rank": 26,
+   "marginal_steps_in_rank_order": 7,
+   "cumulative_distinct_steps": 413
+  },
+  {
+   "id": "G-DECK",
+   "tier": "score",
+   "title": "Slide role, skip, timing and transition binding",
+   "what": "A deck is fixed A4 pages with no slide role.",
+   "size": "medium",
+   "steps_unblocked": 6,
+   "size_units": 2,
+   "cheap_high_value": false,
+   "steps_per_unit": 3.0,
+   "scenarios": {
+    "board-slides-web": 6
+   },
+   "steps": {
+    "board-slides-web": [
+     29,
+     46,
+     47,
+     48,
+     49,
+     50
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 2,
+    "missing": 4
+   },
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-interop-layout",
+    "hsk-studio-layout",
+    "hsk-studio-folio",
+    "hsk-studio-components",
+    "hsk-studio-pulse"
+   ],
+   "spec_clauses": [
+    "STU-PRO-167:20871",
+    "STU-PRO-168:20873",
+    "STU-PRO-169:20875",
+    "STU-PRO-171:20879",
+    "STU-PRO-174:20885",
+    "STU-LAY-054:6959"
+   ],
+   "spec_clauses_total": 6,
+   "mts": [
+    "MT-36234",
+    "MT-36235",
+    "MT-36236",
+    "MT-36238",
+    "MT-36241",
+    "MT-181"
+   ],
+   "mts_total": 6,
+   "scenario_gaps_merged": [
+    "board-slides-web gap 2 (The deck stops short of a PDF and of being a dec), steps [29, 46, 47, 48, 49, 50]"
+   ],
+   "lanes": [],
+   "rank": 27,
+   "marginal_steps_in_rank_order": 6,
+   "cumulative_distinct_steps": 419
+  },
+  {
+   "id": "G-LOUDNESS",
+   "tier": "score",
+   "title": "Loudness delivery check unreachable",
+   "what": "Metering is sound; measure_loudness and loudness_normalize have no sequence host, and there is no named standard or QC report.",
+   "size": "medium",
+   "steps_unblocked": 6,
+   "size_units": 2,
+   "cheap_high_value": false,
+   "steps_per_unit": 3.0,
+   "scenarios": {
+    "audio-post": 5,
+    "video-edit": 1
+   },
+   "steps": {
+    "audio-post": [
+     72,
+     76,
+     78,
+     79,
+     95
+    ],
+    "video-edit": [
+     83
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 4,
+    "missing": 2
+   },
+   "crates": [
+    "hsk-studio-score",
+    "hsk-studio-harness-view",
+    "hsk-studio-pulse"
+   ],
+   "spec_clauses": [
+    "STU-FX-147",
+    "STU-FX-138a",
+    "STU-SHL-090",
+    "STU-VID-041:23910"
+   ],
+   "spec_clauses_total": 4,
+   "mts": [
+    "MT-32784",
+    "MT-32620",
+    "MT-34621",
+    "MT-32721",
+    "MT-33744"
+   ],
+   "mts_total": 5,
+   "scenario_gaps_merged": [
+    "audio-post gap 6 (Loudness tooling: the named standard enumeration), steps [72, 76, 78, 79, 95]",
+    "video-edit gap 13 (Audio finishing on sequences: clip effect stacks), steps [83]"
+   ],
+   "lanes": [],
+   "rank": 28,
+   "marginal_steps_in_rank_order": 6,
+   "cumulative_distinct_steps": 425
+  },
+  {
+   "id": "G-PATH-CLEANUP",
+   "tier": "score",
+   "title": "Path clean-up commands",
+   "what": "Simplify engine is ready; clean up and select by attribute.",
+   "size": "small",
+   "steps_unblocked": 3,
+   "size_units": 1,
+   "cheap_high_value": true,
+   "steps_per_unit": 3.0,
+   "scenarios": {
+    "vector-brand": 3
+   },
+   "steps": {
+    "vector-brand": [
+     17,
+     80,
+     84
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 1,
+    "missing": 2
+   },
+   "crates": [
+    "hsk-studio-nib",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-VEC-114:3240",
+    "STU-VEC-126:3485",
+    "STU-VEC-125:3466"
+   ],
+   "spec_clauses_total": 3,
+   "mts": [
+    "MT-30403",
+    "MT-30404",
+    "MT-30448",
+    "MT-30447"
+   ],
+   "mts_total": 4,
+   "scenario_gaps_merged": [
+    "vector-brand gap 15 (Path clean-up commands: simplify host, clean up,), steps [17, 80, 84]"
+   ],
+   "lanes": [],
+   "rank": 29,
+   "marginal_steps_in_rank_order": 3,
+   "cumulative_distinct_steps": 428
+  },
+  {
+   "id": "G-BOARD-MODE",
+   "tier": "score",
+   "title": "Whiteboard mode does not exist",
+   "what": "No node kind, record, viewer, router, command or export; facilitation; charts and templates.",
+   "size": "large",
+   "steps_unblocked": 26,
+   "size_units": 10,
+   "cheap_high_value": false,
+   "steps_per_unit": 2.6,
+   "scenarios": {
+    "board-slides-web": 26
+   },
+   "steps": {
+    "board-slides-web": [
+     1,
+     3,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     16,
+     17,
+     18,
+     19,
+     20,
+     21,
+     22,
+     24,
+     25,
+     26,
+     27,
+     38,
+     44,
+     78
+    ]
+   },
+   "steps_by_status": {
+    "missing": 23,
+    "callable": 3
+   },
+   "crates": [
+    "hsk-studio-folio",
+    "hsk-studio-components",
+    "hsk-studio-harness-core",
+    "hsk-studio-harness-view",
+    "hsk-studio-controls",
+    "hsk-studio-session",
+    "hsk-studio-nib"
+   ],
+   "spec_clauses": [
+    "STU-WB-001:22461",
+    "STU-WB-102:22281",
+    "STU-WB-103:22283",
+    "STU-WB-104:22285",
+    "STU-WB-106:22289",
+    "STU-WB-108:22293",
+    "STU-WB-134:22375",
+    "STU-WB-003:22465",
+    "STU-WB-007:22493",
+    "STU-WB-121:22336",
+    "STU-WB-123:22345",
+    "STU-SHL-141:32565"
+   ],
+   "spec_clauses_total": 14,
+   "mts": [
+    "MT-521",
+    "MT-33623",
+    "MT-35875",
+    "MT-33577",
+    "MT-33578",
+    "MT-33579",
+    "MT-523",
+    "MT-33625",
+    "MT-35878",
+    "MT-536",
+    "MT-537",
+    "MT-33629"
+   ],
+   "mts_total": 18,
+   "scenario_gaps_merged": [
+    "board-slides-web gap 3 (Board mode does not exist: no node kind beyond L), steps [1, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 19, 21, 22, 24, 25, 26, 27, 38]",
+    "board-slides-web gap 11 (Facilitation and collaboration: timer, voting, s), steps [16, 17, 18, 19, 20, 78]",
+    "board-slides-web gap 19 (Charts and board templates: no chart or data_gra), steps [5, 44]"
+   ],
+   "lanes": [],
+   "rank": 30,
+   "marginal_steps_in_rank_order": 25,
+   "cumulative_distinct_steps": 453
+  },
+  {
+   "id": "G-CATALOG",
+   "tier": "score",
+   "title": "Catalog surface and delivery",
+   "what": "No catalog bound to CKC; rights metadata and client delivery follow it.",
+   "size": "large",
+   "steps_unblocked": 15,
+   "size_units": 6,
+   "cheap_high_value": false,
+   "steps_per_unit": 2.5,
+   "scenarios": {
+    "photo-retouch": 15
+   },
+   "steps": {
+    "photo-retouch": [
+     2,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     16,
+     52,
+     117,
+     118,
+     119
+    ]
+   },
+   "steps_by_status": {
+    "missing": 12,
+    "engine_only": 3
+   },
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-kernel-bindings",
+    "hsk-studio-interop-lrcat",
+    "hsk-studio-interop-raster",
+    "hsk-studio-interop-tiff",
+    "hsk-studio-develop",
+    "hsk-studio-harness-core",
+    "hsk-studio-layout"
+   ],
+   "spec_clauses": [
+    "STU-ASSET-001:31295",
+    "STU-ASSET-004:31312",
+    "STU-ASSET-019:31390",
+    "STU-RAW-004:2126",
+    "STU-RAW-017:2696",
+    "STU-IO-136:21292",
+    "STU-AUT-134:21855",
+    "STU-ASSET-012:31372"
+   ],
+   "spec_clauses_total": 8,
+   "mts": [
+    "MT-34392",
+    "MT-34395",
+    "MT-34411",
+    "MT-413",
+    "MT-30319",
+    "MT-33398",
+    "MT-33399",
+    "MT-33487",
+    "MT-34404"
+   ],
+   "mts_total": 9,
+   "scenario_gaps_merged": [
+    "photo-retouch gap 6 (Catalog surface bound to CKC: import by copy, gr), steps [2, 6, 8, 9, 10, 11, 12, 13, 14, 16, 52]",
+    "photo-retouch gap 12 (Rights metadata: IPTC and XMP fields, templates,), steps [7, 117]",
+    "photo-retouch gap 13 (Client delivery: contact sheet, publish exports ), steps [118, 119]"
+   ],
+   "lanes": [],
+   "rank": 31,
+   "marginal_steps_in_rank_order": 15,
+   "cumulative_distinct_steps": 468
+  },
+  {
+   "id": "G-RASTER-LAYER-HOST",
+   "tier": "score",
+   "title": "Engines with no host: masks, adjustment layers, live filters",
+   "what": "Records render, and imported ones draw; nobody can create one.",
+   "size": "large",
+   "steps_unblocked": 10,
+   "size_units": 4,
+   "cheap_high_value": false,
+   "steps_per_unit": 2.5,
+   "scenarios": {
+    "photo-retouch": 10
+   },
+   "steps": {
+    "photo-retouch": [
+     69,
+     77,
+     78,
+     79,
+     80,
+     81,
+     88,
+     89,
+     92,
+     94
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 10
+   },
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-pigment",
+    "hsk-studio-composite",
+    "hsk-studio-harness-core",
+    "hsk-studio-controls"
+   ],
+   "spec_clauses": [
+    "STU-RAS-015:690",
+    "STU-RAS-016:703",
+    "STU-RAS-020:837",
+    "STU-RAS-170:1242",
+    "STU-RAS-035:1348",
+    "STU-RAS-037:1357",
+    "STU-RAS-041:1804"
+   ],
+   "spec_clauses_total": 7,
+   "mts": [
+    "MT-030",
+    "MT-30061",
+    "MT-031",
+    "MT-30067",
+    "MT-036",
+    "MT-054",
+    "MT-055",
+    "MT-059",
+    "MT-30170",
+    "MT-062"
+   ],
+   "mts_total": 10,
+   "scenario_gaps_merged": [
+    "photo-retouch gap 0 (Raster layer masks in the host: add from selecti), steps [77, 78, 79, 80, 81]",
+    "photo-retouch gap 2 (Adjustment layers and live filters in the host: ), steps [69, 88, 89, 92, 94]"
+   ],
+   "lanes": [],
+   "rank": 32,
+   "marginal_steps_in_rank_order": 10,
+   "cumulative_distinct_steps": 478
+  },
+  {
+   "id": "G-DATA-MERGE",
+   "tier": "score",
+   "title": "Data merge output",
+   "what": "Merge reaches layout stories only; no image or QR, no one file per record.",
+   "size": "medium",
+   "steps_unblocked": 5,
+   "size_units": 2,
+   "cheap_high_value": false,
+   "steps_per_unit": 2.5,
+   "scenarios": {
+    "board-slides-web": 5
+   },
+   "steps": {
+    "board-slides-web": [
+     72,
+     73,
+     74,
+     75,
+     76
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 3,
+    "missing": 2
+   },
+   "crates": [
+    "hsk-studio-interop-layout",
+    "hsk-studio-harness-view",
+    "hsk-studio-layout"
+   ],
+   "spec_clauses": [
+    "STU-LAY-163:7453",
+    "STU-ASSET-005:31320"
+   ],
+   "spec_clauses_total": 2,
+   "mts": [
+    "MT-30853",
+    "MT-30854",
+    "MT-34396"
+   ],
+   "mts_total": 3,
+   "scenario_gaps_merged": [
+    "board-slides-web gap 7 (Data merge reaches only layout stories, with ima), steps [72, 73, 74, 75, 76]"
+   ],
+   "lanes": [],
+   "rank": 33,
+   "marginal_steps_in_rank_order": 5,
+   "cumulative_distinct_steps": 483
+  },
+  {
+   "id": "G-BATCH-PROPOSAL",
+   "tier": "score",
+   "title": "Batch and proposal path at the host",
+   "what": "StudioCommandBatch and the command builder do not reach the harness.",
+   "size": "medium",
+   "steps_unblocked": 5,
+   "size_units": 2,
+   "cheap_high_value": false,
+   "steps_per_unit": 2.5,
+   "scenarios": {
+    "board-slides-web": 5
+   },
+   "steps": {
+    "board-slides-web": [
+     7,
+     23,
+     36,
+     76,
+     87
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 1,
+    "missing": 3,
+    "callable": 1
+   },
+   "crates": [
+    "hsk-studio-harness-core",
+    "hsk-studio-session"
+   ],
+   "spec_clauses": [
+    "STU-AUT-004:22086",
+    "STU-AUT-124:21828",
+    "STU-WB-125:22353",
+    "STU-WB-126:22355"
+   ],
+   "spec_clauses_total": 4,
+   "mts": [
+    "MT-482",
+    "MT-501",
+    "MT-33550",
+    "MT-33477",
+    "MT-33599",
+    "MT-33600"
+   ],
+   "mts_total": 6,
+   "scenario_gaps_merged": [
+    "board-slides-web gap 6 (No batch or proposal path at the host: StudioCom), steps [7, 23, 36, 76, 87]"
+   ],
+   "lanes": [],
+   "rank": 34,
+   "marginal_steps_in_rank_order": 2,
+   "cumulative_distinct_steps": 485
+  },
+  {
+   "id": "G-DS-VARIABLES",
+   "tier": "score",
+   "title": "Variables, bindings, tokens and codegen",
+   "what": "Bindings have no Folio home; constraint resize and validators are unhosted.",
+   "size": "large",
+   "steps_unblocked": 22,
+   "size_units": 9,
+   "cheap_high_value": false,
+   "steps_per_unit": 2.4,
+   "scenarios": {
+    "product-design": 19,
+    "vector-brand": 3
+   },
+   "steps": {
+    "product-design": [
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     22,
+     23,
+     26,
+     48,
+     50,
+     61,
+     62,
+     80,
+     81,
+     86
+    ],
+    "vector-brand": [
+     51,
+     52,
+     98
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 7,
+    "missing": 15
+   },
+   "crates": [
+    "hsk-studio-folio",
+    "hsk-studio-components",
+    "hsk-studio-composite",
+    "hsk-studio-harness-view",
+    "hsk-studio-web",
+    "hsk-studio-web-core",
+    "hsk-studio-harness-core"
+   ],
+   "spec_clauses": [
+    "STU-DS-133:20068",
+    "STU-DS-130:20057",
+    "STU-DS-132:20066",
+    "STU-DS-126:20049",
+    "STU-DS-122:20041",
+    "STU-TYP-204:9086",
+    "STU-AUT-164:21954",
+    "STU-AUT-165:21956",
+    "STU-AUT-168:21967",
+    "STU-IO-006:21544",
+    "STU-DS-165:20228",
+    "STU-PRO-143:20756"
+   ],
+   "spec_clauses_total": 13,
+   "mts": [
+    "MT-33089",
+    "MT-33086",
+    "MT-33088",
+    "MT-33082",
+    "MT-33078",
+    "MT-31002",
+    "MT-33515",
+    "MT-33516",
+    "MT-33519",
+    "MT-33444",
+    "MT-33445",
+    "MT-35822"
+   ],
+   "mts_total": 16,
+   "scenario_gaps_merged": [
+    "product-design gap 3 (Variable authoring and bindings: collections, mo), steps [4, 5, 6, 7, 8, 9, 10, 22, 23, 48]",
+    "vector-brand gap 7 (Variables: author collections and modes, bind ve), steps [51, 52, 98]",
+    "product-design gap 10 (Codegen, token export and drift report), steps [80, 81, 86]",
+    "product-design gap 11 (Reach engine logic from a host: variable resolve), steps [11, 12, 26, 50, 61, 62]"
+   ],
+   "lanes": [],
+   "rank": 35,
+   "marginal_steps_in_rank_order": 22,
+   "cumulative_distinct_steps": 507
+  },
+  {
+   "id": "G-MOTION-VFX-HOST",
+   "tier": "score",
+   "title": "Footage layers, tracking, keying, roto not reachable",
+   "what": "Footage layer kind is missing, and tracker, stabilise, camera solve, keying and roto have no host.",
+   "size": "large",
+   "steps_unblocked": 14,
+   "size_units": 6,
+   "cheap_high_value": false,
+   "steps_per_unit": 2.3,
+   "scenarios": {
+    "motion-comp": 14
+   },
+   "steps": {
+    "motion-comp": [
+     6,
+     7,
+     55,
+     57,
+     58,
+     59,
+     60,
+     62,
+     63,
+     64,
+     65,
+     68,
+     69,
+     70
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 11,
+    "missing": 2,
+    "callable": 1
+   },
+   "crates": [
+    "hsk-studio-folio",
+    "hsk-studio-composite",
+    "hsk-studio-reel",
+    "hsk-studio-harness-view",
+    "hsk-studio-pigment"
+   ],
+   "spec_clauses": [
+    "STU-MOT-005",
+    "STU-CMP-022",
+    "STU-CMP-065",
+    "STU-CMP-065a",
+    "STU-CMP-032",
+    "STU-CMP-033",
+    "STU-CMP-034"
+   ],
+   "spec_clauses_total": 7,
+   "mts": [
+    "MT-33852",
+    "MT-33853",
+    "MT-34084",
+    "MT-34155",
+    "MT-34156",
+    "MT-34162",
+    "MT-34092",
+    "MT-34093",
+    "MT-34109",
+    "MT-34110",
+    "MT-36263"
+   ],
+   "mts_total": 11,
+   "scenario_gaps_merged": [
+    "motion-comp gap 2 (Footage layer kind: video or image sequence as a), steps [6, 7, 55]",
+    "motion-comp gap 3 (Host the tracking engines: tracker session on re), steps [57, 58, 59, 60, 62, 63, 70]",
+    "motion-comp gap 4 (Keying in the composition effect stack as visibl), steps [64, 65, 68, 69]"
+   ],
+   "lanes": [],
+   "rank": 36,
+   "marginal_steps_in_rank_order": 13,
+   "cumulative_distinct_steps": 520
+  },
+  {
+   "id": "G-PHOTO-RETOUCH",
+   "tier": "score",
+   "title": "Retouch tools and finishing",
+   "what": "Clone, heal, patch, content-aware fill exist in pigment; the Tool enum has none. Dodge, burn, frequency separation, non-destructive liquify missing.",
+   "size": "large",
+   "steps_unblocked": 9,
+   "size_units": 4,
+   "cheap_high_value": false,
+   "steps_per_unit": 2.2,
+   "scenarios": {
+    "photo-retouch": 9
+   },
+   "steps": {
+    "photo-retouch": [
+     61,
+     62,
+     63,
+     64,
+     65,
+     68,
+     71,
+     87,
+     98
+    ]
+   },
+   "steps_by_status": {
+    "missing": 4,
+    "engine_only": 5
+   },
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-pigment"
+   ],
+   "spec_clauses": [
+    "STU-RAS-026:1177",
+    "STU-RAS-139:1209",
+    "STU-RAS-143:1614",
+    "STU-RAS-027:1194",
+    "STU-RAS-029:1560",
+    "STU-RAS-011:648"
+   ],
+   "spec_clauses_total": 6,
+   "mts": [
+    "MT-043",
+    "MT-044",
+    "MT-30145",
+    "MT-30146",
+    "MT-30235",
+    "MT-045",
+    "MT-30143",
+    "MT-047"
+   ],
+   "mts_total": 8,
+   "scenario_gaps_merged": [
+    "photo-retouch gap 5 (Raster retouch tools: clone, healing brush, blem), steps [61, 62, 63, 64]",
+    "photo-retouch gap 11 (Retouch finishing: Dodge and Burn tools, flow an), steps [65, 68, 71, 87, 98]"
+   ],
+   "lanes": [],
+   "rank": 37,
+   "marginal_steps_in_rank_order": 9,
+   "cumulative_distinct_steps": 529
+  },
+  {
+   "id": "G-PROTOTYPE-NATIVE",
+   "tier": "score",
+   "title": "Prototype and presentation on a native document",
+   "what": "Player opens only .fig. No reactions or flows, native playing, presenter view, or scroll, key and drag triggers.",
+   "size": "large",
+   "steps_unblocked": 16,
+   "size_units": 8,
+   "cheap_high_value": false,
+   "steps_per_unit": 2.0,
+   "scenarios": {
+    "board-slides-web": 4,
+    "product-design": 12
+   },
+   "steps": {
+    "board-slides-web": [
+     41,
+     51,
+     52,
+     53
+    ],
+    "product-design": [
+     54,
+     55,
+     56,
+     57,
+     58,
+     59,
+     60,
+     64,
+     69,
+     70,
+     71,
+     72
+    ]
+   },
+   "steps_by_status": {
+    "missing": 15,
+    "engine_only": 1
+   },
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-components",
+    "hsk-studio-folio",
+    "hsk-studio-web"
+   ],
+   "spec_clauses": [
+    "STU-PRO-138:20746",
+    "STU-PRO-102:20530",
+    "STU-PRO-002a:20895",
+    "STU-PRO-128:20704",
+    "STU-PRO-024b:20984",
+    "STU-PRO-132:20718",
+    "STU-PRO-167:20871",
+    "STU-PRO-170:20877",
+    "STU-PRO-105:20540",
+    "STU-PRO-115:20639",
+    "STU-PRO-125:20694",
+    "STU-PRO-144:20758"
+   ],
+   "spec_clauses_total": 12,
+   "mts": [
+    "MT-33254",
+    "MT-33213",
+    "MT-33280",
+    "MT-374",
+    "MT-33243",
+    "MT-33248",
+    "MT-36234",
+    "MT-36237",
+    "MT-33216",
+    "MT-33229",
+    "MT-33240",
+    "MT-33323"
+   ],
+   "mts_total": 14,
+   "scenario_gaps_merged": [
+    "product-design gap 4 (Reaction, flow and overlay authoring, and playin), steps [54, 55, 56, 57, 58, 64]",
+    "board-slides-web gap 9 (Presentation has no native route: the player ope), steps [41, 51, 52, 53]",
+    "product-design gap 13 (Player runtime: drag, key and scroll triggers, c), steps [59, 60, 69, 70, 71, 72]"
+   ],
+   "lanes": [],
+   "rank": 38,
+   "marginal_steps_in_rank_order": 16,
+   "cumulative_distinct_steps": 545
+  },
+  {
+   "id": "G-DS-HANDOFF-LIBRARY",
+   "tier": "score",
+   "title": "Dev handoff and libraries",
+   "what": "Dev status, annotations, measurements; library publish, version compare, .fig export.",
+   "size": "large",
+   "steps_unblocked": 10,
+   "size_units": 6,
+   "cheap_high_value": false,
+   "steps_per_unit": 1.7,
+   "scenarios": {
+    "product-design": 10
+   },
+   "steps": {
+    "product-design": [
+     31,
+     73,
+     74,
+     75,
+     76,
+     78,
+     79,
+     87,
+     88,
+     89
+    ]
+   },
+   "steps_by_status": {
+    "missing": 9,
+    "callable": 1
+   },
+   "crates": [
+    "hsk-studio-folio",
+    "hsk-studio-harness-view",
+    "hsk-studio-interop-fig-native",
+    "hsk-studio-chronicle"
+   ],
+   "spec_clauses": [
+    "STU-DS-157:20208",
+    "STU-DS-159:20212",
+    "STU-AUT-167:21960",
+    "STU-AUT-163:21952",
+    "STU-DS-019:20376",
+    "STU-DS-143:20096",
+    "STU-DS-050:20496",
+    "STU-IO-006:21544"
+   ],
+   "spec_clauses_total": 8,
+   "mts": [
+    "MT-33113",
+    "MT-33115",
+    "MT-33518",
+    "MT-35352",
+    "MT-33160",
+    "MT-342",
+    "MT-33099",
+    "MT-33211",
+    "MT-365",
+    "MT-33444",
+    "MT-33445",
+    "MT-35822"
+   ],
+   "mts_total": 12,
+   "scenario_gaps_merged": [
+    "product-design gap 8 (Dev handoff records and surfaces: dev status, an), steps [73, 74, 75, 76, 78, 79]",
+    "product-design gap 14 (Library publish, update review, analytics, versi), steps [31, 87, 88, 89]"
+   ],
+   "lanes": [],
+   "rank": 39,
+   "marginal_steps_in_rank_order": 9,
+   "cumulative_distinct_steps": 554
+  },
+  {
+   "id": "G-TYPE-ATTRIBUTES",
+   "tier": "score",
+   "title": "Type attributes and type on the vector canvas",
+   "what": "No per-range attributes or paragraph attribute model; font picker, kerning, OpenType and axes are not reachable.",
+   "size": "large",
+   "steps_unblocked": 13,
+   "size_units": 8,
+   "cheap_high_value": false,
+   "steps_per_unit": 1.6,
+   "scenarios": {
+    "print-publication": 5,
+    "product-design": 2,
+    "vector-brand": 6
+   },
+   "steps": {
+    "print-publication": [
+     24,
+     27,
+     39,
+     41,
+     43
+    ],
+    "product-design": [
+     13,
+     14
+    ],
+    "vector-brand": [
+     19,
+     20,
+     21,
+     48,
+     49,
+     50
+    ]
+   },
+   "steps_by_status": {
+    "missing": 7,
+    "engine_only": 4,
+    "callable": 2
+   },
+   "crates": [
+    "hsk-studio-folio",
+    "hsk-studio-layout",
+    "hsk-studio-type",
+    "hsk-studio-interop-layout",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-LAY-022:5971",
+    "STU-LAY-038:6522",
+    "STU-LAY-125:5896",
+    "STU-TYP-201:9064",
+    "STU-TYP-170:8544",
+    "STU-TYP-179:8764",
+    "STU-TYP-181:8787",
+    "STU-TYP-183:8814",
+    "STU-TYP-205:9096",
+    "STU-TYP-158:8383",
+    "STU-DS-134:20074",
+    "STU-DS-138:20082"
+   ],
+   "spec_clauses_total": 12,
+   "mts": [
+    "MT-30700",
+    "MT-30701",
+    "MT-30702",
+    "MT-30703",
+    "MT-30766",
+    "MT-30999",
+    "MT-155",
+    "MT-162",
+    "MT-169",
+    "MT-30955",
+    "MT-30964",
+    "MT-30965"
+   ],
+   "mts_total": 17,
+   "scenario_gaps_merged": [
+    "print-publication gap 4 (Character and paragraph attribute model: no per-), steps [24, 27, 39, 41, 43]",
+    "vector-brand gap 4 (Type on the vector canvas: font load path, font ), steps [19, 20, 21, 48, 49, 50]",
+    "product-design gap 9 (Text and effect styles on design documents, incl), steps [13, 14]"
+   ],
+   "lanes": [
+    "SMB-TYPE-INDENT-SPACING-1 (1 step only)"
+   ],
+   "rank": 40,
+   "marginal_steps_in_rank_order": 11,
+   "cumulative_distinct_steps": 565
+  },
+  {
+   "id": "G-DELIVERY-ENCODERS",
+   "tier": "score",
+   "title": "Encoders, recipes, render queue reach",
+   "what": "AAC and MP3, image sequences, RGB+alpha, recipes, rate override, reframe, batch; ICO, WebP.",
+   "size": "large",
+   "steps_unblocked": 16,
+   "size_units": 11,
+   "cheap_high_value": false,
+   "steps_per_unit": 1.5,
+   "scenarios": {
+    "audio-post": 4,
+    "motion-comp": 6,
+    "vector-brand": 1,
+    "video-edit": 5
+   },
+   "steps": {
+    "audio-post": [
+     85,
+     86,
+     87,
+     88
+    ],
+    "motion-comp": [
+     83,
+     84,
+     86,
+     87,
+     88,
+     91
+    ],
+    "vector-brand": [
+     91
+    ],
+    "video-edit": [
+     88,
+     90,
+     93,
+     95,
+     96
+    ]
+   },
+   "steps_by_status": {
+    "missing": 12,
+    "engine_only": 2,
+    "callable": 2
+   },
+   "crates": [
+    "hsk-studio-reel",
+    "hsk-studio-harness-view",
+    "hsk-studio-harness",
+    "hsk-studio-folio",
+    "hsk-studio-package",
+    "hsk-studio-interop-raster"
+   ],
+   "spec_clauses": [
+    "STU-VID-061:24894",
+    "STU-VID-062:25503",
+    "STU-VID-063:25554",
+    "STU-VID-064:25560",
+    "STU-IO-105",
+    "STU-IO-140",
+    "STU-IO-141",
+    "STU-VID-034",
+    "STU-MOT-122",
+    "STU-MOT-124",
+    "STU-MOT-125",
+    "STU-MOT-126"
+   ],
+   "spec_clauses_total": 13,
+   "mts": [
+    "MT-33766",
+    "MT-33831",
+    "MT-33372",
+    "MT-33404",
+    "MT-33405",
+    "MT-33736",
+    "MT-34024",
+    "MT-34027",
+    "MT-34028",
+    "MT-34029",
+    "MT-443",
+    "MT-446"
+   ],
+   "mts_total": 12,
+   "scenario_gaps_merged": [
+    "video-edit gap 4 (Delivery gaps: no AAC or any compressed audio en), steps [88, 90, 93, 95, 96]",
+    "audio-post gap 11 (Distribution outputs: MP3 and AAC audio, dither,), steps [85, 86, 87, 88]",
+    "motion-comp gap 6 (Render queue reach and formats: CLI and command ), steps [83, 84, 86, 87, 88, 91]",
+    "vector-brand gap 18 (ICO and WebP writers.), steps [91]"
+   ],
+   "lanes": [
+    "SMB-PR-EXPORT-RECIPE-1 (contract only, no writer)"
+   ],
+   "rank": 41,
+   "marginal_steps_in_rank_order": 15,
+   "cumulative_distinct_steps": 580
+  },
+  {
+   "id": "G-EDIT-LINK-SYNC-RETIME",
+   "tier": "score",
+   "title": "Linked picture and sound, sync, retime options",
+   "what": "Video-only source edit, no link group or patch, waveform sync, time remap.",
+   "size": "large",
+   "steps_unblocked": 9,
+   "size_units": 6,
+   "cheap_high_value": false,
+   "steps_per_unit": 1.5,
+   "scenarios": {
+    "video-edit": 9
+   },
+   "steps": {
+    "video-edit": [
+     11,
+     12,
+     16,
+     17,
+     21,
+     27,
+     50,
+     51,
+     52
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 4,
+    "missing": 5
+   },
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-pulse",
+    "hsk-studio-folio",
+    "hsk-studio-score"
+   ],
+   "spec_clauses": [
+    "STU-VID-025:23686",
+    "STU-VID-029:23758",
+    "STU-VID-031:23788",
+    "STU-VID-031a:23801",
+    "STU-VID-029a:23768",
+    "STU-VID-033:23828"
+   ],
+   "spec_clauses_total": 6,
+   "mts": [
+    "MT-33711",
+    "MT-33726",
+    "MT-33730",
+    "MT-33731",
+    "MT-33732",
+    "MT-33727"
+   ],
+   "mts_total": 6,
+   "scenario_gaps_merged": [
+    "video-edit gap 6 (Linked picture and sound editing: source edit is), steps [16, 17, 21]",
+    "video-edit gap 9 (Retime options: interpolation and pitch form, fr), steps [50, 51, 52]",
+    "video-edit gap 10 (Sync by waveform and a host for merge and synchr), steps [11, 12, 27]"
+   ],
+   "lanes": [],
+   "rank": 42,
+   "marginal_steps_in_rank_order": 9,
+   "cumulative_distinct_steps": 589
+  },
+  {
+   "id": "G-VECTOR-CONSTRUCTS",
+   "tier": "score",
+   "title": "Live constructs, live effects, drawing aids",
+   "what": "Live boolean, repeat, blend, pattern, appearance rows, live effects, guides, snapping, sculpt tools.",
+   "size": "large",
+   "steps_unblocked": 13,
+   "size_units": 10,
+   "cheap_high_value": false,
+   "steps_per_unit": 1.3,
+   "scenarios": {
+    "vector-brand": 13
+   },
+   "steps": {
+    "vector-brand": [
+     5,
+     11,
+     18,
+     27,
+     55,
+     65,
+     66,
+     68,
+     70,
+     71,
+     73,
+     74,
+     75
+    ]
+   },
+   "steps_by_status": {
+    "callable": 2,
+    "engine_only": 4,
+    "missing": 7
+   },
+   "crates": [
+    "hsk-studio-nib",
+    "hsk-studio-folio",
+    "hsk-studio-composite",
+    "hsk-studio-harness-view",
+    "hsk-studio-harness-core"
+   ],
+   "spec_clauses": [
+    "STU-VEC-013:3674",
+    "STU-VEC-031:4793",
+    "STU-VEC-032:4855",
+    "STU-VEC-017:3809",
+    "STU-VEC-022:4084",
+    "STU-VEC-154:4176",
+    "STU-VEC-029:4640",
+    "STU-VEC-057:4664",
+    "STU-VEC-117:3285",
+    "STU-VEC-072:3492",
+    "STU-VEC-121:3399",
+    "STU-VEC-124:3441"
+   ],
+   "spec_clauses_total": 17,
+   "mts": [
+    "MT-102",
+    "MT-30476",
+    "MT-125",
+    "MT-30611",
+    "MT-127",
+    "MT-30617",
+    "MT-120",
+    "MT-30587",
+    "MT-121",
+    "MT-30590",
+    "MT-30409",
+    "MT-097"
+   ],
+   "mts_total": 22,
+   "scenario_gaps_merged": [
+    "vector-brand gap 11 (Live constructs: live boolean, radial, grid and ), steps [11, 70, 71, 73, 74, 75]",
+    "vector-brand gap 9 (Construction aids on vector: rulers, grid, guide), steps [5, 18, 27]",
+    "vector-brand gap 16 (Vector eraser, sculpt and drawing modes; gradien), steps [65, 66, 68]",
+    "vector-brand gap 14 (Place into document and Image Trace.), steps [55]"
+   ],
+   "lanes": [
+    "SMB-AI-LIVE-EFFECTS-1 (step 73 only)"
+   ],
+   "rank": 43,
+   "marginal_steps_in_rank_order": 13,
+   "cumulative_distinct_steps": 602
+  },
+  {
+   "id": "G-LAYOUT-DEPTH",
+   "tier": "score",
+   "title": "Layout depth",
+   "what": "Autoflow, wrap, preflight rules, composition in the editor, package, tables, proofing, object styles, PDF navigation; vector delivery package.",
+   "size": "large",
+   "steps_unblocked": 26,
+   "size_units": 22,
+   "cheap_high_value": false,
+   "steps_per_unit": 1.2,
+   "scenarios": {
+    "print-publication": 23,
+    "vector-brand": 3
+   },
+   "steps": {
+    "print-publication": [
+     17,
+     28,
+     29,
+     33,
+     42,
+     45,
+     46,
+     52,
+     53,
+     55,
+     57,
+     62,
+     65,
+     76,
+     77,
+     81,
+     82,
+     84,
+     94,
+     101,
+     102,
+     103,
+     104
+    ],
+    "vector-brand": [
+     105,
+     106,
+     107
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 7,
+    "missing": 19
+   },
+   "crates": [
+    "hsk-studio-folio",
+    "hsk-studio-layout",
+    "hsk-studio-harness-view",
+    "hsk-studio-type",
+    "hsk-studio-render-gpu",
+    "hsk-studio-package",
+    "hsk-studio-press-write",
+    "hsk-studio-interop-layout"
+   ],
+   "spec_clauses": [
+    "STU-LAY-008:5564",
+    "STU-LAY-020:5851",
+    "STU-LAY-123:5855",
+    "STU-LAY-024:6039",
+    "STU-LAY-025:6041",
+    "STU-LAY-126:5981",
+    "STU-LAY-127:6013",
+    "STU-LAY-055:6982",
+    "STU-LAY-056:7016",
+    "STU-LAY-057:7021",
+    "STU-LAY-154:6986",
+    "STU-LAY-167:7599"
+   ],
+   "spec_clauses_total": 32,
+   "mts": [
+    "MT-30670",
+    "MT-30696",
+    "MT-30697",
+    "MT-30698",
+    "MT-145",
+    "MT-154",
+    "MT-30705",
+    "MT-30706",
+    "MT-30707",
+    "MT-30708",
+    "MT-30709",
+    "MT-30710"
+   ],
+   "mts_total": 64,
+   "scenario_gaps_merged": [
+    "print-publication gap 10 (Autoflow, smart text reflow and primary text fra), steps [17, 33]",
+    "print-publication gap 11 (Text wrap and anchored objects: reflow accepts o), steps [53, 55]",
+    "print-publication gap 12 (Preflight is 9 rules. No links, colour, ink, res), steps [81, 82]",
+    "print-publication gap 13 (Editor composition is a placeholder: fixed 0.5 e), steps [42, 52, 94]",
+    "print-publication gap 14 (Package and handoff: no collect-for-output, no f), steps [101, 102, 103, 104]",
+    "print-publication gap 15 (Tables beyond structure: no table or cell styles), steps [29, 62, 65]",
+    "print-publication gap 16 (Proofing: no spelling, no user dictionary, en-US), steps [45, 46, 84]",
+    "print-publication gap 17 (Object styles and object effects on frames: obje), steps [28, 57]",
+    "print-publication gap 19 (Navigation in the PDF: outlines exist in the eng), steps [76, 77]",
+    "vector-brand gap 13 (Delivery: vector preflight, sanitised copy, pack), steps [105, 106, 107]"
+   ],
+   "lanes": [],
+   "rank": 44,
+   "marginal_steps_in_rank_order": 26,
+   "cumulative_distinct_steps": 628
+  },
+  {
+   "id": "G-PRINT-COLOUR",
+   "tier": "score",
+   "title": "Print colour reaches no output",
+   "what": "Spot and overprint absent from the PDF writer, frames cannot bind swatches, no marks, no PDF/X presets, no separations on layout pages.",
+   "size": "large",
+   "steps_unblocked": 15,
+   "size_units": 13,
+   "cheap_high_value": false,
+   "steps_per_unit": 1.2,
+   "scenarios": {
+    "print-publication": 11,
+    "vector-brand": 4
+   },
+   "steps": {
+    "print-publication": [
+     10,
+     11,
+     56,
+     87,
+     88,
+     89,
+     90,
+     91,
+     93,
+     96,
+     98
+    ],
+    "vector-brand": [
+     92,
+     93,
+     94,
+     95
+    ]
+   },
+   "steps_by_status": {
+    "missing": 7,
+    "engine_only": 6,
+    "callable": 2
+   },
+   "crates": [
+    "hsk-studio-folio",
+    "hsk-studio-press-write",
+    "hsk-studio-interop-layout",
+    "hsk-studio-prism",
+    "hsk-studio-harness-view",
+    "hsk-studio-press",
+    "hsk-studio-layout"
+   ],
+   "spec_clauses": [
+    "STU-COL-127:10262",
+    "STU-COL-128:10268",
+    "STU-COL-130:10286",
+    "STU-COL-131:10291",
+    "STU-COL-173:10573",
+    "STU-COL-210:10831",
+    "STU-LAY-160:7206",
+    "STU-LAY-158:7117",
+    "STU-PDF-002:243",
+    "STU-IO-130:21276",
+    "STU-LAY-159:7164",
+    "STU-COL-211:10838"
+   ],
+   "spec_clauses_total": 17,
+   "mts": [
+    "MT-30844",
+    "MT-30845",
+    "MT-31187",
+    "MT-31188",
+    "MT-31190",
+    "MT-31191",
+    "MT-31233",
+    "MT-31234",
+    "MT-31276",
+    "MT-30833",
+    "MT-30834",
+    "MT-30835"
+   ],
+   "mts_total": 28,
+   "scenario_gaps_merged": [
+    "print-publication gap 5 (Print colour on layout: type styles hold StudioR), steps [10, 11, 56, 89]",
+    "vector-brand gap 3 (Print colour in output: CMYK solids and PDF/X op), steps [92, 93, 94, 95]",
+    "print-publication gap 8 (PDF output options for press: stock PDF/X preset), steps [91, 93, 96]",
+    "print-publication gap 18 (Separations, ink coverage, overprint preview and), steps [87, 88, 90]",
+    "print-publication gap 9 (No independent PDF/X oracle. check_pdfx4 is the ), steps [98]"
+   ],
+   "lanes": [],
+   "rank": 45,
+   "marginal_steps_in_rank_order": 14,
+   "cumulative_distinct_steps": 642
+  },
+  {
+   "id": "G-MOTION-EXPRESSIONS",
+   "tier": "score",
+   "title": "Expressions end to end",
+   "what": "Sandboxed engine is unhosted; catalogue decision blocks wiggle, ease, random, noise.",
+   "size": "large",
+   "steps_unblocked": 5,
+   "size_units": 4,
+   "cheap_high_value": false,
+   "steps_per_unit": 1.2,
+   "scenarios": {
+    "motion-comp": 5
+   },
+   "steps": {
+    "motion-comp": [
+     34,
+     35,
+     36,
+     37,
+     51
+    ]
+   },
+   "steps_by_status": {
+    "engine_only": 3,
+    "missing": 2
+   },
+   "crates": [
+    "hsk-studio-folio",
+    "hsk-studio-composite",
+    "hsk-studio-motion",
+    "hsk-studio-motion-js"
+   ],
+   "spec_clauses": [
+    "STU-MOT-070",
+    "STU-MOT-073",
+    "STU-MOT-080",
+    "STU-MOT-081",
+    "STU-MOT-082"
+   ],
+   "spec_clauses_total": 5,
+   "mts": [
+    "MT-33907",
+    "MT-33911",
+    "MT-33938",
+    "MT-33939",
+    "MT-35378"
+   ],
+   "mts_total": 5,
+   "scenario_gaps_merged": [
+    "motion-comp gap 5 (Expressions end to end: expression field on Foli), steps [34, 35, 36, 37, 51]"
+   ],
+   "lanes": [],
+   "rank": 46,
+   "marginal_steps_in_rank_order": 5,
+   "cumulative_distinct_steps": 647
+  },
+  {
+   "id": "G-MOTION-EFFECTS",
+   "tier": "score",
+   "title": "Layer kinds and effect catalogue",
+   "what": "Solid, adjustment effects, grain, particle and simulation effects from records.",
+   "size": "large",
+   "steps_unblocked": 5,
+   "size_units": 4,
+   "cheap_high_value": false,
+   "steps_per_unit": 1.2,
+   "scenarios": {
+    "motion-comp": 5
+   },
+   "steps": {
+    "motion-comp": [
+     16,
+     17,
+     44,
+     74,
+     76
+    ]
+   },
+   "steps_by_status": {
+    "missing": 4,
+    "engine_only": 1
+   },
+   "crates": [
+    "hsk-studio-folio",
+    "hsk-studio-composite",
+    "hsk-studio-pigment"
+   ],
+   "spec_clauses": [
+    "STU-MOT-005",
+    "STU-CMP-015",
+    "STU-FX-130",
+    "STU-CMP-075"
+   ],
+   "spec_clauses_total": 4,
+   "mts": [
+    "MT-31502",
+    "MT-31503",
+    "MT-33852",
+    "MT-33853",
+    "MT-34075",
+    "MT-34175",
+    "MT-34176"
+   ],
+   "mts_total": 7,
+   "scenario_gaps_merged": [
+    "motion-comp gap 8 (Missing layer kinds and effect catalogue: solid,), steps [16, 17, 44, 74, 76]"
+   ],
+   "lanes": [],
+   "rank": 47,
+   "marginal_steps_in_rank_order": 5,
+   "cumulative_distinct_steps": 652
+  },
+  {
+   "id": "G-WEB-DEPTH",
+   "tier": "score",
+   "title": "Web rendering, code surface, checks, generation",
+   "what": "No layout or paint engine, no code view, no link checks, no design-to-web, no remote publish.",
+   "size": "large",
+   "steps_unblocked": 19,
+   "size_units": 18,
+   "cheap_high_value": false,
+   "steps_per_unit": 1.1,
+   "scenarios": {
+    "board-slides-web": 19
+   },
+   "steps": {
+    "board-slides-web": [
+     86,
+     88,
+     90,
+     91,
+     92,
+     95,
+     98,
+     100,
+     103,
+     104,
+     105,
+     107,
+     108,
+     109,
+     110,
+     111,
+     114,
+     115,
+     118
+    ]
+   },
+   "steps_by_status": {
+    "missing": 17,
+    "engine_only": 2
+   },
+   "crates": [
+    "hsk-studio-web-core",
+    "hsk-studio-render-gpu",
+    "hsk-studio-type",
+    "hsk-studio-web",
+    "hsk-studio-components",
+    "hsk-studio-interop-fig-native",
+    "hsk-studio-harness-view",
+    "hsk-studio-controls",
+    "hsk-studio-web-assets"
+   ],
+   "spec_clauses": [
+    "STU-WEB-087:31029",
+    "STU-WEB-128:31146",
+    "STU-WEB-130:31150",
+    "STU-WEB-131:31152",
+    "STU-WEB-135:31164",
+    "STU-WEB-136:31173",
+    "STU-WEB-088:31031",
+    "STU-WEB-120:31115",
+    "STU-WEB-045:30696",
+    "STU-WEB-050:30706",
+    "STU-WEB-061:30825",
+    "STU-WEB-063:30839"
+   ],
+   "spec_clauses_total": 29,
+   "mts": [
+    "MT-34314",
+    "MT-34357",
+    "MT-34359",
+    "MT-34360",
+    "MT-34364",
+    "MT-34365",
+    "MT-34315",
+    "MT-34348",
+    "MT-34263",
+    "MT-34268",
+    "MT-34280",
+    "MT-34282"
+   ],
+   "mts_total": 30,
+   "scenario_gaps_merged": [
+    "board-slides-web gap 4 (No web rendering. The web crates evaluate no lay), steps [90, 98, 100]",
+    "board-slides-web gap 10 (Design-to-web generation is absent, so the desig), steps [88]",
+    "board-slides-web gap 12 (Code surface: code view with colouring and hints), steps [86, 90, 91, 92, 95, 107]",
+    "board-slides-web gap 13 (Site quality checks: markup validator, linter, l), steps [105, 108, 109, 110, 111]",
+    "board-slides-web gap 14 (Reuse and interactions on the site: library item), steps [103, 104]",
+    "board-slides-web gap 15 (Remote publishing beyond a folder: transports, s), steps [114, 115, 118]"
+   ],
+   "lanes": [],
+   "rank": 48,
+   "marginal_steps_in_rank_order": 17,
+   "cumulative_distinct_steps": 669
+  },
+  {
+   "id": "G-INTEROP-HOST",
+   "tier": "score",
+   "title": "Interchange hosting",
+   "what": "SVG options and open, EPS; AAF, OMF, .sesx; .pptx, WebP and local-copy kinds.",
+   "size": "large",
+   "steps_unblocked": 9,
+   "size_units": 9,
+   "cheap_high_value": false,
+   "steps_per_unit": 1.0,
+   "scenarios": {
+    "audio-post": 3,
+    "board-slides-web": 3,
+    "vector-brand": 3
+   },
+   "steps": {
+    "audio-post": [
+     28,
+     29,
+     92
+    ],
+    "board-slides-web": [
+     4,
+     56,
+     81
+    ],
+    "vector-brand": [
+     87,
+     96,
+     97
+    ]
+   },
+   "steps_by_status": {
+    "missing": 6,
+    "callable": 2,
+    "engine_only": 1
+   },
+   "crates": [
+    "hsk-studio-interop-vector-svg",
+    "hsk-studio-interop-vector-core",
+    "hsk-studio-harness-view",
+    "hsk-studio-interop-media",
+    "hsk-studio-interop-raster",
+    "hsk-studio-interop-fig-base",
+    "hsk-studio-interop-fig-native"
+   ],
+   "spec_clauses": [
+    "STU-IO-113:21201",
+    "STU-IO-006:21544",
+    "STU-IO-002:21512",
+    "STU-IO-189",
+    "STU-IO-186",
+    "STU-IO-006 row 7:21554",
+    "STU-IO-006 row 36:21583",
+    "STU-IO-006 row 37:21584",
+    "STU-IO-006 row 38:21585",
+    "STU-IO-006 row 39:21586",
+    "STU-IO-006 row 40:21587",
+    "STU-IO-006 row 47:21594"
+   ],
+   "spec_clauses_total": 12,
+   "mts": [
+    "MT-33380",
+    "MT-443",
+    "MT-446",
+    "MT-441",
+    "MT-33440",
+    "MT-35590",
+    "MT-36142",
+    "MT-36143",
+    "MT-35587",
+    "MT-447"
+   ],
+   "mts_total": 10,
+   "scenario_gaps_merged": [
+    "vector-brand gap 17 (SVG options (outline text, ids, simplify), SVG o), steps [87, 96, 97]",
+    "audio-post gap 15 (Interchange: AAF and OMF import; .sesx mapping w), steps [28, 29, 92]",
+    "board-slides-web gap 18 (Formats: .pptx, WebP, and the local-copy kinds .), steps [4, 56, 81]"
+   ],
+   "lanes": [],
+   "rank": 49,
+   "marginal_steps_in_rank_order": 8,
+   "cumulative_distinct_steps": 677
+  },
+  {
+   "id": "G-PHOTO-GAMUT-RAW",
+   "tier": "score",
+   "title": "Wide gamut, re-editable raw, develop special cases",
+   "what": "Working space beyond sRGB primaries, placed raw; red-eye and subject select. Includes a data-loss risk: re-develop rewrites base tiles after paint.",
+   "size": "large",
+   "steps_unblocked": 7,
+   "size_units": 8,
+   "cheap_high_value": false,
+   "steps_per_unit": 0.9,
+   "scenarios": {
+    "photo-retouch": 7
+   },
+   "steps": {
+    "photo-retouch": [
+     42,
+     45,
+     53,
+     56,
+     59,
+     72,
+     115
+    ]
+   },
+   "steps_by_status": {
+    "missing": 5,
+    "engine_only": 2
+   },
+   "crates": [
+    "hsk-studio-prism",
+    "hsk-studio-develop",
+    "hsk-studio-harness-core",
+    "hsk-studio-render-cpu",
+    "hsk-studio-render-gpu",
+    "hsk-studio-harness-view",
+    "hsk-studio-folio",
+    "hsk-studio-composite",
+    "hsk-studio-pigment"
+   ],
+   "spec_clauses": [
+    "STU-RAS-033:1502",
+    "STU-RAS-034:1516",
+    "STU-RAW-016:2688",
+    "STU-RAS-014:674",
+    "STU-RAW-124:2622",
+    "STU-RAW-014b:2543",
+    "STU-RAW-123:2605",
+    "STU-RAW-129:2641",
+    "STU-RAS-019:833"
+   ],
+   "spec_clauses_total": 9,
+   "mts": [
+    "MT-052",
+    "MT-30216",
+    "MT-053",
+    "MT-30218",
+    "MT-430",
+    "MT-30370",
+    "MT-029",
+    "MT-30059",
+    "MT-30365",
+    "MT-425",
+    "MT-426",
+    "MT-30363"
+   ],
+   "mts_total": 13,
+   "scenario_gaps_merged": [
+    "photo-retouch gap 8 (Wide-gamut and high-depth: working space beyond ), steps [59, 115]",
+    "photo-retouch gap 10 (Re-editable raw in a document: raw as placed obj), steps [56]",
+    "photo-retouch gap 14 (Develop special cases: red-eye (spec names no re), steps [42, 45, 53, 72]"
+   ],
+   "lanes": [],
+   "rank": 50,
+   "marginal_steps_in_rank_order": 7,
+   "cumulative_distinct_steps": 684
+  },
+  {
+   "id": "G-AUDIO-DSP-DEPTH",
+   "tier": "score",
+   "title": "New restoration DSP and mixer depth",
+   "what": "De-esser, de-reverb, de-clip, adaptive NR; track and clip effects, guided adjustment, automation modes, surround.",
+   "size": "large",
+   "steps_unblocked": 11,
+   "size_units": 14,
+   "cheap_high_value": false,
+   "steps_per_unit": 0.8,
+   "scenarios": {
+    "audio-post": 11
+   },
+   "steps": {
+    "audio-post": [
+     3,
+     17,
+     31,
+     38,
+     43,
+     44,
+     45,
+     60,
+     63,
+     68,
+     75
+    ]
+   },
+   "steps_by_status": {
+    "missing": 10,
+    "engine_only": 1
+   },
+   "crates": [
+    "hsk-studio-score",
+    "hsk-studio-folio",
+    "hsk-studio-pulse",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-FX-134a",
+    "STU-FX-136a",
+    "STU-FX-134",
+    "STU-FX-135",
+    "STU-FX-138",
+    "STU-FX-138a",
+    "STU-FX-137",
+    "STU-MOT-016"
+   ],
+   "spec_clauses_total": 8,
+   "mts": [
+    "MT-32639",
+    "MT-32662",
+    "MT-32664",
+    "MT-32614",
+    "MT-32615",
+    "MT-32618",
+    "MT-32619",
+    "MT-32620",
+    "MT-32617",
+    "MT-35376"
+   ],
+   "mts_total": 10,
+   "scenario_gaps_merged": [
+    "audio-post gap 9 (Missing restoration processors: adaptive noise r), steps [17, 38, 43, 44, 45]",
+    "audio-post gap 10 (Effects on tracks and clips, not only buses.), steps [60]",
+    "audio-post gap 12 (Guided audio-adjustment surface over the effect ), steps [31, 63]",
+    "audio-post gap 13 (Automation modes: Read, Write, Latch, Touch, Off), steps [68]",
+    "audio-post gap 14 (Surround: master channel configuration, six-chan), steps [3, 75]"
+   ],
+   "lanes": [],
+   "rank": 51,
+   "marginal_steps_in_rank_order": 9,
+   "cumulative_distinct_steps": 693
+  },
+  {
+   "id": "G-COLOUR-SCIENCE-VIDEO",
+   "tier": "score",
+   "title": "Scopes, proxies, preview rendering",
+   "what": "No scope measures anything; proxies and offline; render spans.",
+   "size": "large",
+   "steps_unblocked": 8,
+   "size_units": 12,
+   "cheap_high_value": false,
+   "steps_per_unit": 0.7,
+   "scenarios": {
+    "video-edit": 8
+   },
+   "steps": {
+    "video-edit": [
+     7,
+     8,
+     9,
+     10,
+     58,
+     60,
+     61,
+     69
+    ]
+   },
+   "steps_by_status": {
+    "missing": 7,
+    "engine_only": 1
+   },
+   "crates": [
+    "hsk-studio-prism",
+    "hsk-studio-composite",
+    "hsk-studio-harness-view",
+    "hsk-studio-reel",
+    "hsk-studio-folio",
+    "hsk-studio-session",
+    "hsk-studio-worker",
+    "hsk-studio-pulse"
+   ],
+   "spec_clauses": [
+    "STU-COL-330:12224",
+    "STU-COL-331:12236",
+    "STU-COL-334:12304",
+    "STU-COL-335:12322",
+    "STU-COL-337:12383",
+    "STU-VID-038:23884",
+    "STU-VID-053:24879",
+    "STU-VID-039:23892"
+   ],
+   "spec_clauses_total": 8,
+   "mts": [
+    "MT-35497",
+    "MT-35498",
+    "MT-35505",
+    "MT-35509",
+    "MT-35510",
+    "MT-35514",
+    "MT-33741",
+    "MT-33765",
+    "MT-33742"
+   ],
+   "mts_total": 9,
+   "scenario_gaps_merged": [
+    "video-edit gap 3 (Scopes and legal range: none of the six scopes, ), steps [60, 61, 69]",
+    "video-edit gap 8 (Proxies and offline: create, attach, toggle, bad), steps [7, 8, 9, 10]",
+    "video-edit gap 12 (Timeline preview rendering: render spans, three-), steps [58]"
+   ],
+   "lanes": [],
+   "rank": 52,
+   "marginal_steps_in_rank_order": 8,
+   "cumulative_distinct_steps": 701
+  },
+  {
+   "id": "G-CROSS-DOC",
+   "tier": "score",
+   "title": "Cross-document campaign link",
+   "what": "No token or copy edit reaches board, deck, assets and site. No clause states it for documents of different kinds.",
+   "size": "large",
+   "steps_unblocked": 2,
+   "size_units": 4,
+   "cheap_high_value": false,
+   "steps_per_unit": 0.5,
+   "scenarios": {
+    "board-slides-web": 2
+   },
+   "steps": {
+    "board-slides-web": [
+     38,
+     112
+    ]
+   },
+   "steps_by_status": {
+    "missing": 2
+   },
+   "crates": [
+    "hsk-studio-folio",
+    "hsk-studio-components",
+    "hsk-studio-session"
+   ],
+   "spec_clauses": [
+    "STU-UNI-001:22613",
+    "STU-DOC-004:287",
+    "STU-WEB-093:31053"
+   ],
+   "spec_clauses_total": 3,
+   "mts": [
+    "MT-009",
+    "MT-551",
+    "MT-33658",
+    "MT-081",
+    "MT-082",
+    "MT-083"
+   ],
+   "mts_total": 6,
+   "scenario_gaps_merged": [
+    "board-slides-web gap 16 (Cross-document campaign link: nothing lets one t), steps [38, 112]"
+   ],
+   "lanes": [],
+   "rank": 53,
+   "marginal_steps_in_rank_order": 1,
+   "cumulative_distinct_steps": 702
+  }
+ ],
+ "running_lane_overlap": {
+  "running": [
+   {
+    "lane": "SMB-HARNESS-DRIVE-1",
+    "state": "branch lane/smb-harness-drive-1 at 95af749d, 2 commits on c4d06841, unmerged, no verdict",
+    "covers": "Process commands: 8 RUN_COMMANDS rows, 39 timeline.<key>, 86 viewer.<method> (86 row names read from drive_viewer.rs), menu studio.*.",
+    "steps_it_reaches": "By regex over agent_call: 53 callable steps name a drive row, 24 are timeline.<key>, 88 were already process-reachable. 164 callable steps stay Rust-only, which is why SMB-DRIVE-TYPED-1 and -2 rank here.",
+    "not_ranked_again": "The 77 steps above are excluded from G-REACH-*."
+   },
+   {
+    "lane": "SMB-OBSERVE-DIAG-SINK-1",
+    "covers": "Observe sink, no scenario gap names it.",
+    "steps_it_reaches": 0,
+    "overlap": "None by file with the top 12."
+   },
+   {
+    "lane": "SMB-SESSION-WRITE-SAFETY-1",
+    "covers": "Durable writes in harness, session and harness-view writers.",
+    "steps_it_reaches": 0,
+    "overlap": "Owns view/export.rs:140 and view/audio_import.rs:779 (from the audio and delivery scopes' overlap notes). SMB-DOC-EXPORT-1, SMB-AUDIO-OUT-MIX-1 and SMB-PROJECT-BIN-1 rebase after it."
+   },
+   {
+    "lane": "SMB-PR-ROUTING-REPAIR-1",
+    "covers": "F-R57-2, F-R57-3: folio multicam and audio routing, session sequence records, pulse, id mints in harness-view.",
+    "steps_it_reaches": "UNVERIFIED against scenario steps; no gap names it",
+    "overlap": "SMB-DRIVE-TYPED-2 (mixer), SMB-PROJECT-BIN-1 (session sequence records), SMB-AUDIO-OUT-MIX-1, and unranked G-MULTICAM-HOST."
+   },
+   {
+    "lane": "SMB-CONTROLS-EGUI-GATE-1",
+    "covers": "egui optional in controls, quarantine gate, consumer manifests.",
+    "steps_it_reaches": 0,
+    "overlap": "GUI prerequisite. SMB-WEB-HOST-1 and SMB-LAYOUT-PDF-HOST-1 edit harness-view/Cargo.toml: land after it."
+   },
+   {
+    "lane": "SMB-PIGMENT-FILTER-KERNELS-1",
+    "covers": "19 raster filter kinds, engine and record path, CPU only.",
+    "steps_it_reaches": "No scenario step closes on its own: photo steps need G-RASTER-LAYER-HOST to create a live filter.",
+    "overlap": "Feeds G-RASTER-LAYER-HOST (rank in merged_gaps)."
+   }
+  ],
+  "scoped": [
+   {
+    "lane": "SMB-SCORE-EFFECTS-6",
+    "file": "research/scope-20261107-audio-processors.json",
+    "rank": "G-AUDIO-EFFECT-HOST rank 17 in merged_gaps; just outside the top 12 lanes. Fully scoped, so start it when a slot is free",
+    "verdict": "Re-scope before starting. Its target says MultibandCompressor, SidechainDynamics and NoiseReducer stay out, so audio steps 36, 37, 61, 63 stay blocked and noise reduction, half of the audio brief, is not delivered. It closes 39, 40, 53, 62 of G-AUDIO-EFFECT-HOST, and 43 through its de-esser. Add those three plus NoiseProfiler. Graphic EQ and distortion new DSP are its own value, with no gap citing them (UNVERIFIED by step text search)."
+   },
+   {
+    "lane": "SMB-PR-EXPORT-RECIPE-1",
+    "file": "research/scope-20261107-timeline-delivery.json",
+    "rank": "Split. Item 1 publish-safety: keep soon, it is data-loss work with 0 steps. The 453-row table: below G-DELIVERY-ENCODERS rank 41",
+    "verdict": "Its own red team names paper reach. It adds no writer and no scenario step closes on it. The audio half of its next slice is folded into SMB-AUDIO-OUT-MIX-1. Replace the table work with the first writer slices (AAC, image sequences) when G-DELIVERY-ENCODERS comes up."
+   },
+   {
+    "lane": "SMB-TYPE-INDENT-SPACING-1",
+    "file": "research/scope-20261107-text-attributes.json",
+    "rank": "Inside G-TYPE-ATTRIBUTES rank 40; after SMB-LAYOUT-PERSIST-1",
+    "verdict": "Closes print step 24 of the 13 steps in that gap. Keep the slice, since lists, tabs and drop caps stand on it, but it does not lead. Vector type (font picker, kerning, 6 steps) is the higher-value slice of the same gap and is not scoped."
+   },
+   {
+    "lane": "SMB-AI-LIVE-EFFECTS-1",
+    "file": "research/scope-20261107-vector-effects.json",
+    "rank": "Inside G-VECTOR-CONSTRUCTS rank 43; defer",
+    "verdict": "Closes vector step 73 only; steps 11, 70, 71, 74, 75 are other constructs. Destructive workarounds exist. Deferring frees smb-ai-distort-effects-1, the best free D: viewer tree."
+   },
+   {
+    "lane": "SMB-PARSER-HOSTILE-1",
+    "file": "research/scope-20261107-parser-hardening.json",
+    "rank": "Not on this list: 0 steps, a safety lane",
+    "verdict": "Stays a separate track. Two file-data abort routes are a real risk when opening other people's files, and it shares no file with the top 12 except the tree. Run it when a slot and a tree are free; smb-pr-nudge-1 is reassigned here to SMB-DOC-EXPORT-1, so it needs another tree."
+   }
+  ],
+  "tree_conflict": "Both SMB-SCORE-EFFECTS-6 and SMB-PR-EXPORT-RECIPE-1 name smb-pr-retime-output-1. Suggested: SMB-AUDIO-OUT-MIX-1 takes it; SMB-SCORE-EFFECTS-6 moves to smb-pr-merge-sync-1 (D:, 1.9 GiB, score, pulse, session, folio; harness-view builds once)."
+ },
+ "top_lanes": [
+  {
+   "id": "SMB-DOC-NEW-1",
+   "commits": 5,
+   "summary": "document.new as a RUN_COMMANDS row and CLI verb: a blank vector, raster, design or layout document at a stated size, plus add, name, resize and delete of artboards and pages with state projection. First step of every design scene.",
+   "crates": [
+    "hsk-studio-harness-core",
+    "hsk-studio-harness",
+    "hsk-studio-harness-view",
+    "hsk-studio-session"
+   ],
+   "paths": [
+    "hsk-studio-harness-core/src/action.rs (one row beside :865)",
+    "hsk-studio-harness/src/cli.rs (one verb)",
+    "hsk-studio-harness-view/src/view/shell.rs:1590 (blank_layout_doc stays the layout case)",
+    "hsk-studio-harness-view/src/view/document_new.rs (new, egui-free)",
+    "hsk-studio-harness/tests/document_new.rs (new)"
+   ],
+   "depends_on": [],
+   "parallel_with": [
+    "SMB-LAYOUT-PERSIST-1",
+    "SMB-PROJECT-BIN-1",
+    "SMB-MOTION-COMMANDS-1",
+    "SMB-WEB-HOST-1"
+   ],
+   "verified_facts": [
+    "hsk-studio-harness-core/src/action.rs:865 document.open is the only document start row; git grep new_document, new_project, studio.document.new, new_blank over harness, harness-core, harness-view, session: no entry point",
+    "hsk-studio-harness-view/src/view/shell.rs:1590 blank_layout_doc is the only blank, used at shell.rs:1386",
+    "hsk-studio-folio/src/lib.rs:207, :217 artboards: Vec<StudioArtboard> exists; git grep artboards.push, add_artboard, set_artboard: 0 hits",
+    "hsk-studio-session/src/composition_token.rs:236 new_document_composition_entry exists for a new document"
+   ],
+   "tree": "smb-ai-distort-effects-1",
+   "disk": "D",
+   "tree_note": "20.37 GiB, PASS_V4, clean, ancestor of c4d06841 (re-checked). Built harness, harness_core, harness_view, session, folio, composite. Currently named by SMB-AI-LIVE-EFFECTS-1, which this backlog defers. Fallback smb-tiff-channels-1.",
+   "collisions": [
+    "RUN_COMMANDS table action.rs:843 and cli.rs: one row each, also edited by DRIVE lanes; land after SMB-HARNESS-DRIVE-1 merges.",
+    "No Folio schema change expected: StudioArtboard exists. UNVERIFIED whether artboard options (transparent background, step vector 4) need a field."
+   ],
+   "rank": 1,
+   "merged_gaps": [
+    "G-DOC-NEW"
+   ],
+   "scenarios_unblocked": {
+    "board-slides-web": 4,
+    "product-design": 3,
+    "vector-brand": 3
+   },
+   "steps_unblocked": 10,
+   "steps_new_in_rank_order": 10,
+   "cumulative_distinct_steps": 10
+  },
+  {
+   "id": "SMB-DRIVE-TYPED-1",
+   "commits": 6,
+   "summary": "Second drive slice: JSON decoders and viewer.<method> rows for LayoutEdit (10 members), PanelAction (41 variants), ProofCommand and the remaining vector and photo Viewer methods, with typed refusals. Hand-written decoders, because harness-view has serde_json and no serde derive.",
+   "crates": [
+    "hsk-studio-harness",
+    "hsk-studio-harness-core"
+   ],
+   "paths": [
+    "hsk-studio-harness/src/cli/drive_layout.rs (new)",
+    "hsk-studio-harness/src/cli/drive_panel.rs (new)",
+    "hsk-studio-harness/src/cli/drive_viewer.rs (dispatch arm only)",
+    "hsk-studio-harness-core/src/manual.rs (DRIVE_VIEWER rows)",
+    "hsk-studio-harness/tests/harness_drive_typed.rs (new)"
+   ],
+   "depends_on": [
+    "SMB-HARNESS-DRIVE-1 merged"
+   ],
+   "parallel_with": [
+    "SMB-LAYOUT-PERSIST-1",
+    "SMB-DOC-NEW-1",
+    "SMB-MOTION-COMMANDS-1"
+   ],
+   "verified_facts": [
+    "branch lane/smb-harness-drive-1 95af749d hsk-studio-harness/src/cli/drive_viewer.rs:1-5 says methods taking a whole typed spec are not here yet; its 86 rows name neither hosted_action nor any LayoutEdit call; drive.rs has 0 matches for layout",
+    "hsk-studio-harness-view/src/layout_ui.rs:146 enum LayoutEdit",
+    "hsk-studio-harness-view/src/view/hosted.rs:217 enum PanelAction, 41 variants; :1348 hosted_action",
+    "hsk-studio-harness-view/src/view/proof.rs:389 proof_command",
+    "git grep Deserialize over hosted.rs, layout_ui.rs, mixer.rs: 0 hits; hsk-studio-harness-view/Cargo.toml:64 serde_json only"
+   ],
+   "tree": "smb-tiff-channels-1",
+   "disk": "D",
+   "tree_note": "3.8 GiB, PASS_V6, clean, ancestor of c4d06841 (re-checked). 15 crates incl harness, harness_core, harness_view; layout and the wider viewer closure rebuild once.",
+   "collisions": [
+    "manual.rs DRIVE_VIEWER and drive_viewer.rs dispatch: shared with SMB-DRIVE-TYPED-2. Use one new file per enum, and land the two lanes one at a time.",
+    "Reads LayoutEdit: SMB-LAYOUT-PERSIST-1 may add members; decoder match must stay exhaustive."
+   ],
+   "rank": 2,
+   "merged_gaps": [
+    "G-REACH-LAYOUT-VECTOR-PHOTO"
+   ],
+   "scenarios_unblocked": {
+    "board-slides-web": 19,
+    "photo-retouch": 22,
+    "print-publication": 29,
+    "vector-brand": 31
+   },
+   "steps_unblocked": 101,
+   "steps_new_in_rank_order": 101,
+   "cumulative_distinct_steps": 111
+  },
+  {
+   "id": "SMB-DRIVE-TYPED-2",
+   "commits": 5,
+   "summary": "Third drive slice: rows for MixerEdit, WaveformEdit, AutomationCommand, SpectralMaskOp, DesignCommand, source edit, bind_program_media and prototype play, so audio and product design can run as a script.",
+   "crates": [
+    "hsk-studio-harness",
+    "hsk-studio-harness-core"
+   ],
+   "paths": [
+    "hsk-studio-harness/src/cli/drive_audio.rs (new)",
+    "hsk-studio-harness/src/cli/drive_design.rs (new)",
+    "hsk-studio-harness/src/cli/drive_viewer.rs (dispatch arm only)",
+    "hsk-studio-harness-core/src/manual.rs (rows)",
+    "hsk-studio-harness/tests/harness_drive_audio.rs (new)"
+   ],
+   "depends_on": [
+    "SMB-HARNESS-DRIVE-1 merged",
+    "SMB-PR-ROUTING-REPAIR-1 merged (it edits mixer and id mints)"
+   ],
+   "parallel_with": [
+    "SMB-DOC-NEW-1",
+    "SMB-LAYOUT-PERSIST-1"
+   ],
+   "verified_facts": [
+    "hsk-studio-harness-view/src/view/mixer.rs:145 enum MixerEdit, :297 mixer_edit",
+    "hsk-studio-harness-view/src/view/waveform.rs:100 enum WaveformEdit, :743 waveform_edit",
+    "hsk-studio-harness-view/src/view/timeline/audio.rs:399 open_multitrack generic over AudioSources, :422 multitrack_command",
+    "hsk-studio-harness-view/src/view/design/instance.rs:76 enum DesignCommand, :400 design_command",
+    "hsk-studio-harness-view/src/view/spectral_display.rs:194 apply_spectral",
+    "hsk-studio-harness-view/src/view/source_monitor.rs:561 source_edit, :749 open_source_media",
+    "hsk-studio-harness-view/src/view/timeline/export_media.rs:464 bind_program_media takes file bytes"
+   ],
+   "tree": "smb-pr-sequence-presets-1",
+   "disk": "C",
+   "tree_note": "4.77 GiB, PASS_V4, clean, ancestor of c4d06841 (re-checked). Built harness, harness_core, harness_view, session, pulse, score, composite. On C:, see not_verified on the D-only rule.",
+   "collisions": [
+    "open_multitrack is generic over AudioSources: a process needs a concrete source, which SMB-PROJECT-BIN-1 supplies. Until then those rows take file paths.",
+    "manual.rs and drive_viewer.rs shared with SMB-DRIVE-TYPED-1."
+   ],
+   "rank": 3,
+   "merged_gaps": [
+    "G-REACH-AUDIO-DESIGN"
+   ],
+   "scenarios_unblocked": {
+    "audio-post": 35,
+    "motion-comp": 3,
+    "product-design": 14,
+    "video-edit": 11
+   },
+   "steps_unblocked": 63,
+   "steps_new_in_rank_order": 63,
+   "cumulative_distinct_steps": 174
+  },
+  {
+   "id": "SMB-LAYOUT-PERSIST-1",
+   "commits": 5,
+   "summary": "LayoutEditor commits to the document: a session entry for stories, flow, styles, parents and long-document records, saved in the package and reopened through the existing load at shell.rs:1378, one undo step per LayoutEdit.",
+   "crates": [
+    "hsk-studio-session",
+    "hsk-studio-harness-view",
+    "hsk-studio-harness-core",
+    "hsk-studio-package"
+   ],
+   "paths": [
+    "hsk-studio-session/src/layout_records.rs (new, shaped like sequence_records.rs:195)",
+    "hsk-studio-session/src/lib.rs (mod line)",
+    "hsk-studio-harness-view/src/layout_ui.rs (commit call, no draw change)",
+    "hsk-studio-harness-view/src/view/shell.rs:1378-1386",
+    "hsk-studio-package/tests/externals.rs (rows if rule 4b requires)",
+    "hsk-studio-harness/tests/layout_persist.rs (new)"
+   ],
+   "depends_on": [],
+   "parallel_with": [
+    "SMB-DOC-NEW-1",
+    "SMB-MOTION-COMMANDS-1",
+    "SMB-WEB-HOST-1"
+   ],
+   "verified_facts": [
+    "hsk-studio-harness-view/src/layout_ui.rs:284 pub struct LayoutEditor; :121 LayoutDoc holds document, stories, flow, styles; LayoutRecords holds parents and longdoc",
+    "hsk-studio-harness-view/src/view/shell.rs:760, :769, :1327, :1560 and view/hosted.rs:1511 are the only uses of shell.layout: construct, draw, report state; no commit back",
+    "hsk-studio-harness-view/src/view/text.rs:661 text_entry reads; git grep set_ or put_ text, flow, parent, longdoc in harness-view, harness-core, session: 0 hits",
+    "git grep LayoutEditor, layout_snapshot, layout_records over session, package, harness-core: 0 hits; session has no layout, story or page function",
+    "hsk-studio-folio/src/parentpages.rs:107 StudioParentPageRecords, folio/src/longdoc.rs:467 StudioSection: record homes exist"
+   ],
+   "tree": "smb-id-toc-persist-1",
+   "disk": "D",
+   "tree_note": "3.8 GiB, PASS_V7, clean, ancestor of c4d06841 (re-checked). Built folio, layout, interop_layout, package, type; harness-view and session build once.",
+   "collisions": [
+    "session: new entry, session/src/lib.rs mod line; SMB-SESSION-WRITE-SAFETY-1 is in session now, so rebase after it.",
+    "SMB-GUI-PANELS-LAYOUT-1 later moves the layout_ui draw family: keep commit code out of draw functions.",
+    "SMB-TYPE-INDENT-SPACING-1 edits layout_ui.rs:1067 and styles.rs: order it after this lane."
+   ],
+   "rank": 4,
+   "merged_gaps": [
+    "G-LAYOUT-PERSIST"
+   ],
+   "scenarios_unblocked": {
+    "print-publication": 26
+   },
+   "steps_unblocked": 26,
+   "steps_new_in_rank_order": 2,
+   "cumulative_distinct_steps": 176
+  },
+  {
+   "id": "SMB-PROJECT-BIN-1",
+   "commits": 6,
+   "summary": "New Project: sequence from preset, project-bin record with folders and media items, import with typed refusal, add track, add submix, and a concrete source port built from the bin so open_multitrack and the program monitor bind from a saved project.",
+   "crates": [
+    "hsk-studio-folio",
+    "hsk-studio-session",
+    "hsk-studio-pulse",
+    "hsk-studio-harness-view",
+    "hsk-studio-harness-core"
+   ],
+   "paths": [
+    "hsk-studio-folio/src/project_bin.rs (new)",
+    "hsk-studio-folio/src/lib.rs (mod, DESCRIPTOR)",
+    "hsk-studio-session/src/project_bin.rs (new)",
+    "hsk-studio-session/src/lib.rs (mod line)",
+    "hsk-studio-harness-view/src/view/project.rs (new, egui-free)",
+    "hsk-studio-harness-core/src/action.rs (rows)",
+    "hsk-studio-package/tests/externals.rs (classification rows)",
+    "hsk-studio-harness/tests/project_bin.rs (new)"
+   ],
+   "depends_on": [
+    "SMB-PR-ROUTING-REPAIR-1 merged",
+    "SMB-SESSION-WRITE-SAFETY-1 merged"
+   ],
+   "parallel_with": [
+    "SMB-DOC-NEW-1",
+    "SMB-LAYOUT-PERSIST-1",
+    "SMB-MOTION-COMMANDS-1"
+   ],
+   "verified_facts": [
+    "git grep new_project over harness, harness-core, harness-view, session: 0 hits",
+    "hsk-studio-folio/src/media_markers.rs:73 media_items is the only media list and holds markers; git grep StudioMediaItem, StudioProjectBin, project_bin over folio, session: 0 hits",
+    "git grep pub fn add_track, add_clip, place_clip, insert_track, new_sequence, create_sequence over harness-view, session, pulse: 0 hits",
+    "hsk-studio-harness-view/src/view/timeline/audio.rs:399 open_multitrack needs a caller-built AudioSources",
+    "hsk-studio-session/src/sequence_records.rs:195, :299, :327 are the pattern for a new session entry"
+   ],
+   "tree": "smb-pr-track-display-1",
+   "disk": "D",
+   "tree_note": "3.4 GiB, PASS_V2, clean, ancestor of c4d06841 (re-checked). Built session and folio only; pulse and harness-view build once. Fallback smb-pr-merge-sync-1.",
+   "collisions": [
+    "folio: new record, so package/tests/externals.rs rows and the wide folio rebuild; folio commits early.",
+    "session entry beside sequence_records.rs, which SMB-PR-ROUTING-REPAIR-1 owns now.",
+    "Likely the heaviest of the twelve: split bin record from source binding if it passes 6 commits."
+   ],
+   "rank": 5,
+   "merged_gaps": [
+    "G-PROJECT-MEDIA"
+   ],
+   "scenarios_unblocked": {
+    "audio-post": 9,
+    "motion-comp": 5,
+    "video-edit": 7
+   },
+   "steps_unblocked": 21,
+   "steps_new_in_rank_order": 19,
+   "cumulative_distinct_steps": 195
+  },
+  {
+   "id": "SMB-MOTION-COMMANDS-1",
+   "commits": 5,
+   "summary": "Typed composition, layer, property, keyframe and expression-field commands as named undo steps over the existing records and session entry; add key at current value, new layer kinds, pre-compose, parent, switches.",
+   "crates": [
+    "hsk-studio-harness-core",
+    "hsk-studio-session",
+    "hsk-studio-folio"
+   ],
+   "paths": [
+    "hsk-studio-harness-core/src/action.rs (rows)",
+    "hsk-studio-harness-core/src/motion_commands.rs (new)",
+    "hsk-studio-session/src/motion.rs",
+    "hsk-studio-harness/tests/motion_commands.rs (new)"
+   ],
+   "depends_on": [],
+   "parallel_with": [
+    "SMB-DOC-NEW-1",
+    "SMB-LAYOUT-PERSIST-1",
+    "SMB-WEB-HOST-1",
+    "SMB-PROJECT-BIN-1"
+   ],
+   "verified_facts": [
+    "hsk-studio-session/src/motion.rs:37 composition_records, :54 set_composition_records, :98 set_motion_records: whole-record writes exist",
+    "git grep STUDIO_PROPERTY_, STUDIO_KEYFRAME_ and other STUDIO_COMPOSITION_ or STUDIO_EXPRESSION_ command ids outside accord: 0 hits; hsk-studio-folio/src/composition_token.rs:31 STUDIO_COMPOSITION_TOKENS and accord/src/lib.rs:40 are unrelated constants",
+    "hsk-studio-harness-core/src/action.rs:843 RUN_COMMANDS holds document and layer ids; document.set_document_entry is the record-rewrite route the scenario counts"
+   ],
+   "tree": "smb-folio-angle-unbounded-1",
+   "disk": "D",
+   "tree_note": "4.44 GiB, PASS_V7, clean, ancestor of c4d06841 (re-checked). Built folio, composite, motion; session and harness_core build once. Fallback smb-pr-track-display-1.",
+   "collisions": [
+    "RUN_COMMANDS action.rs:843: more rows than other lanes, so put the table in motion_commands.rs and add one spread line.",
+    "folio: only if stored spatial tangents ride along. Default is no; they stay with G-MOTION-ASSISTANTS.",
+    "SMB-AE-KEYFRAME-TIMELINE-1 panel must dispatch through these."
+   ],
+   "rank": 6,
+   "merged_gaps": [
+    "G-MOTION-COMMANDS"
+   ],
+   "scenarios_unblocked": {
+    "motion-comp": 33
+   },
+   "steps_unblocked": 33,
+   "steps_new_in_rank_order": 33,
+   "cumulative_distinct_steps": 228
+  },
+  {
+   "id": "SMB-WEB-HOST-1",
+   "commits": 5,
+   "summary": "First host for the web crates: a web document in the harness with open, patch, undo and save over source text, an export recipe writing a static tree, local_or_network publish to a folder with a receipt, and command rows. No rendering.",
+   "crates": [
+    "hsk-studio-harness",
+    "hsk-studio-harness-core",
+    "hsk-studio-harness-view",
+    "hsk-studio-web"
+   ],
+   "paths": [
+    "hsk-studio-harness-view/Cargo.toml (new edge, lead approval)",
+    "Cargo.lock",
+    "hsk-studio-harness-view/src/view/web.rs (new, egui-free)",
+    "hsk-studio-harness-core/src/action.rs (rows)",
+    "hsk-studio-harness/tests/web_host.rs (new)"
+   ],
+   "depends_on": [],
+   "parallel_with": [
+    "SMB-DOC-NEW-1",
+    "SMB-LAYOUT-PERSIST-1",
+    "SMB-MOTION-COMMANDS-1"
+   ],
+   "verified_facts": [
+    "git grep hsk-studio-web, -web-core, -web-assets over crates/*/Cargo.toml outside those three: 0 hits",
+    "git grep hsk_studio_web over harness, harness-core, harness-view src: 0 hits",
+    "git grep -c: 14,470 lines under the three crates' src, not the about 25,000 the scenario states (it may include tests; UNVERIFIED)"
+   ],
+   "tree": "smb-sentinels-native-1",
+   "disk": "D",
+   "tree_note": "5.4 GiB, PASS_V5, clean, ancestor of c4d06841 (re-checked). No reusable target built the web crates (only studio-round did), so third-party reuse only; chosen for low cost.",
+   "collisions": [
+    "harness-view Cargo.toml and Cargo.lock: SMB-CONTROLS-EGUI-GATE-1 edits consumer manifests; shared_files_rule in the GUI plan keeps root files with the steward. Land after that lane.",
+    "Public web document entry point NOT_INSPECTED: names and shape must be read before the brief."
+   ],
+   "rank": 7,
+   "merged_gaps": [
+    "G-WEB-HOST"
+   ],
+   "scenarios_unblocked": {
+    "board-slides-web": 15
+   },
+   "steps_unblocked": 15,
+   "steps_new_in_rank_order": 15,
+   "cumulative_distinct_steps": 243
+  },
+  {
+   "id": "SMB-LAYOUT-PDF-HOST-1",
+   "commits": 4,
+   "summary": "Host for layout PDF and IDML export: the edge to hsk-studio-interop-layout, Viewer export of the live LayoutDoc with glyph lowering and page labels, a command row and a typed preflight-before-export result. Includes the size of the page so a deck can leave A4.",
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-harness",
+    "hsk-studio-interop-layout"
+   ],
+   "paths": [
+    "hsk-studio-harness-view/Cargo.toml (new edge, lead approval)",
+    "Cargo.lock",
+    "hsk-studio-harness-view/src/view/layout_export.rs (new, egui-free)",
+    "hsk-studio-harness-core/src/action.rs (rows)",
+    "hsk-studio-harness/tests/layout_pdf_host.rs (new)"
+   ],
+   "depends_on": [],
+   "parallel_with": [
+    "SMB-DOC-NEW-1",
+    "SMB-MOTION-COMMANDS-1",
+    "SMB-LAYOUT-PERSIST-1 (independent: exports the live snapshot)"
+   ],
+   "verified_facts": [
+    "hsk-studio-interop-layout/src/pdf_export.rs:287 export_pdf, :294 export_pdf_with; idml_encode.rs:250 export_idml",
+    "git grep interop-layout over harness, harness-view, harness-core Cargo.toml: 0 hits",
+    "hsk-studio-harness-view/src/layout_ui.rs:146 LayoutEdit has no export member; hsk-studio-harness-view/src/view/vector/pdf_export.rs:364 export_vector_pdf is the only host PDF route"
+   ],
+   "tree": "smb-layout-marker-lookups-1",
+   "disk": "D",
+   "tree_note": "2.8 GiB, PASS_V4, clean, ancestor of c4d06841 (re-checked). Built interop_layout, layout, press, press_write, type; harness-view builds once.",
+   "collisions": [
+    "Cargo.toml and Cargo.lock as SMB-WEB-HOST-1: land one at a time.",
+    "Scenario gap names PDF/X oracle separately: this lane claims no PDF/X conformance."
+   ],
+   "rank": 8,
+   "merged_gaps": [
+    "G-LAYOUT-PDF"
+   ],
+   "scenarios_unblocked": {
+    "board-slides-web": 2,
+    "print-publication": 5,
+    "vector-brand": 2
+   },
+   "steps_unblocked": 9,
+   "steps_new_in_rank_order": 8,
+   "cumulative_distinct_steps": 251
+  },
+  {
+   "id": "SMB-ARTBOARD-EXPORT-1",
+   "commits": 6,
+   "summary": "Replace the first-artboard assumption at its nine sites with a named board target, per-board render and export, and object-level export settings with SCALE, WIDTH and HEIGHT constraints writing many named files in one run.",
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-folio",
+    "hsk-studio-interop-vector-svg",
+    "hsk-studio-interop-vector-core",
+    "hsk-studio-interop-raster"
+   ],
+   "paths": [
+    "hsk-studio-harness-view/src/view/render.rs:268",
+    "hsk-studio-harness-view/src/view/edit.rs:463",
+    "hsk-studio-harness-view/src/view/select_liquify.rs:151",
+    "hsk-studio-harness-view/src/view/vector/arrange.rs:159",
+    "hsk-studio-harness-view/src/view/vector/interop.rs:587",
+    "hsk-studio-harness-view/src/view/vector/pdf_export.rs:339",
+    "hsk-studio-harness-view/src/view/vector/separations.rs:305",
+    "hsk-studio-interop-vector-core/src/eps_export.rs:386",
+    "hsk-studio-interop-vector-svg/src/svg_export.rs:1167",
+    "hsk-studio-harness-view/src/view/export_set.rs (new)",
+    "hsk-studio-folio/src/export_settings.rs (new)",
+    "hsk-studio-package/tests/externals.rs (rows)"
+   ],
+   "depends_on": [
+    "SMB-DOC-NEW-1"
+   ],
+   "parallel_with": [
+    "SMB-LAYOUT-PERSIST-1",
+    "SMB-MOTION-COMMANDS-1",
+    "SMB-WEB-HOST-1"
+   ],
+   "verified_facts": [
+    "artboards.first() at the nine sites listed in paths, by git grep",
+    "hsk-studio-harness-view/src/view/export.rs:27 ExportFormat: Png, Jpeg; view/mod.rs:672 Viewer::export takes one path",
+    "hsk-studio-harness-view/src/view/vector/interop.rs:605 export_vector_svg, view/vector/pdf_export.rs:364 export_vector_pdf take one path",
+    "git grep export_settings over folio: 0 hits; harness-view hits are develop's TiffExportSettings and DngExportSettings"
+   ],
+   "tree": "smb-r54-followups-1",
+   "disk": "C",
+   "tree_note": "11.38 GiB, PASS_V4, clean, ancestor of c4d06841 (re-checked). 34 crates incl interop_vector, -core, -svg, harness_view, composite. Currently named by SMB-TYPE-INDENT-SPACING-1, whose scope names smb-layout-composer-depth-1 as second choice.",
+   "collisions": [
+    "Nine shared call sites across vector files: SMB-AI-LIVE-EFFECTS-1 also edits arrange.rs:199-206 and render paths.",
+    "folio: new record, wide rebuild, externals rows.",
+    "SMB-VIEW-EGUI-FREE-1 touches view/ signatures: land first or rebase."
+   ],
+   "rank": 9,
+   "merged_gaps": [
+    "G-EXPORT-PER-OBJECT"
+   ],
+   "scenarios_unblocked": {
+    "board-slides-web": 1,
+    "product-design": 3,
+    "vector-brand": 8
+   },
+   "steps_unblocked": 12,
+   "steps_new_in_rank_order": 11,
+   "cumulative_distinct_steps": 262
+  },
+  {
+   "id": "SMB-DOC-EXPORT-1",
+   "commits": 5,
+   "summary": "One document-level export recipe: tagged 16-bit TIFF, layered PSD, CMYK conversion, resize, output sharpening and watermark through ExportFormat, with the batch runner able to write non-native formats.",
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-harness-core",
+    "hsk-studio-harness",
+    "hsk-studio-interop-tiff",
+    "hsk-studio-interop-psd",
+    "hsk-studio-prism"
+   ],
+   "paths": [
+    "hsk-studio-harness-view/src/view/export.rs",
+    "hsk-studio-harness-view/src/view/doc_export.rs (new, egui-free)",
+    "hsk-studio-harness/src/cli.rs (export verb arguments)",
+    "hsk-studio-harness/tests/doc_export.rs (new)"
+   ],
+   "depends_on": [
+    "SMB-SESSION-WRITE-SAFETY-1 merged (it owns view/export.rs:140)"
+   ],
+   "parallel_with": [
+    "SMB-DOC-NEW-1",
+    "SMB-LAYOUT-PERSIST-1",
+    "SMB-WEB-HOST-1"
+   ],
+   "verified_facts": [
+    "hsk-studio-harness-view/src/view/export.rs:27 ExportFormat holds Png and Jpeg { quality } only",
+    "hsk-studio-harness-view/src/view/mod.rs:672 Viewer::export",
+    "hsk-studio-interop-tiff/src/encode.rs:159 TIFF writer exists",
+    "hsk-studio-harness-view/src/view/develop.rs:1161 TiffExportSettings: TIFF is reached only by the develop route; PSD writer location taken from the scenario, not re-read"
+   ],
+   "tree": "smb-pr-nudge-1",
+   "disk": "C",
+   "tree_note": "19.23 GiB, PASS_V2, clean, ancestor of c4d06841 (re-checked). 35 crates incl interop_psd, interop_tiff, prism, harness_view. Named by SMB-PARSER-HOSTILE-1, which has no scenario steps. Approved cargo plan R has candidate R-C02 here: see not_verified.",
+   "collisions": [
+    "view/export.rs with SMB-SESSION-WRITE-SAFETY-1.",
+    "SMB-PR-EXPORT-RECIPE-1 owns reel export, not this path. Recipe naming should agree with it; STU-IO-101 says every output is a StudioExportRecipe."
+   ],
+   "rank": 10,
+   "merged_gaps": [
+    "G-DOC-EXPORT"
+   ],
+   "scenarios_unblocked": {
+    "photo-retouch": 8
+   },
+   "steps_unblocked": 8,
+   "steps_new_in_rank_order": 8,
+   "cumulative_distinct_steps": 270
+  },
+  {
+   "id": "SMB-AUDIO-OUT-MIX-1",
+   "commits": 6,
+   "summary": "Cheap first: wire the written AudioOut to the transport and program monitor with device selection, dropout count and meters. Then the routed audio-only mixdown, a WAV path, per-bus stems with a sum check, and repaired audio resolved into the mix.",
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-harness",
+    "hsk-studio-score-device",
+    "hsk-studio-reel",
+    "hsk-studio-pulse"
+   ],
+   "paths": [
+    "hsk-studio-harness-view/src/view/audio_out.rs (caller only)",
+    "hsk-studio-harness-view/src/view/mod.rs:38-41",
+    "hsk-studio-harness-view/src/view/audio_import.rs:482, :663",
+    "hsk-studio-harness-view/src/view/audio_session.rs",
+    "hsk-studio-harness-view/src/view/timeline/export_media.rs:373",
+    "hsk-studio-reel/src/wav.rs:425",
+    "hsk-studio-harness/tests/audio_out_mix.rs (new)"
+   ],
+   "depends_on": [
+    "SMB-SESSION-WRITE-SAFETY-1 merged (it owns audio_import.rs:779)",
+    "SMB-PR-ROUTING-REPAIR-1 merged"
+   ],
+   "parallel_with": [
+    "SMB-DOC-NEW-1",
+    "SMB-LAYOUT-PERSIST-1",
+    "SMB-MOTION-COMMANDS-1"
+   ],
+   "verified_facts": [
+    "hsk-studio-harness-view/src/view/audio_out.rs:110 pub struct AudioOut, :129 impl, feature audio-device at hsk-studio-harness-view/Cargo.toml:23 and module at view/mod.rs:41",
+    "git grep AudioOut:: and with_buses( over harness-view, harness, controls src outside audio_out.rs: only the doc comments at view/audio_session.rs:9, :48",
+    "hsk-studio-harness-view/src/view/audio_import.rs:482 MixFormat, :663 export_mix",
+    "hsk-studio-reel/src/wav.rs:425 encode_segment"
+   ],
+   "tree": "smb-pr-retime-output-1",
+   "disk": "C",
+   "tree_note": "50.68 GiB, PASS_V2, clean, ancestor of c4d06841 (re-checked). 37 crates incl reel, score_device, pulse, harness_view. Two scopes (audio-processors, timeline-delivery) name this same tree. Approved plan R has candidate R-C01 here: see not_verified.",
+   "collisions": [
+    "audio_import.rs with SMB-SESSION-WRITE-SAFETY-1; mixer and routing with SMB-PR-ROUTING-REPAIR-1.",
+    "audio_batch.rs is SMB-SCORE-EFFECTS-6, not touched here.",
+    "BWF has no spec clause: WAV only until decided. Proof of real device output is NOT available from a test run; AudioOut already has a clock port."
+   ],
+   "rank": 11,
+   "merged_gaps": [
+    "G-AUDIO-PLAYBACK",
+    "G-AUDIO-MIXDOWN"
+   ],
+   "scenarios_unblocked": {
+    "audio-post": 10,
+    "video-edit": 1
+   },
+   "steps_unblocked": 11,
+   "steps_new_in_rank_order": 8,
+   "cumulative_distinct_steps": 278
+  },
+  {
+   "id": "SMB-PLACE-ASSET-1",
+   "commits": 5,
+   "summary": "Place embedded or linked into a raster or vector document with raster move and free transform, over the existing StudioPlacedAsset record and composite rendering. Layout graphic frames follow as SMB-LAYOUT-PLACE-1.",
+   "crates": [
+    "hsk-studio-harness-view",
+    "hsk-studio-harness-core",
+    "hsk-studio-folio",
+    "hsk-studio-composite"
+   ],
+   "paths": [
+    "hsk-studio-harness-view/src/view/place.rs (new, egui-free)",
+    "hsk-studio-harness-core/src/action.rs (rows)",
+    "hsk-studio-composite/src/placed.rs (read first)",
+    "hsk-studio-harness/tests/place_asset.rs (new)"
+   ],
+   "depends_on": [
+    "SMB-DOC-NEW-1"
+   ],
+   "parallel_with": [
+    "SMB-LAYOUT-PERSIST-1",
+    "SMB-MOTION-COMMANDS-1",
+    "SMB-WEB-HOST-1"
+   ],
+   "verified_facts": [
+    "hsk-studio-folio/src/raster.rs:767 placed_asset field, :847 pub struct StudioPlacedAsset, :942 validation",
+    "hsk-studio-composite/src/placed.rs:2 renders it",
+    "git grep fn place_asset, place_image, place_embedded, place_linked, place_graphic over harness-view, folio, composite: 0 hits",
+    "hsk-studio-layout/src/lib.rs:115 place_graphic and fit_content exist for the later layout lane"
+   ],
+   "tree": "smb-layout-entry-text-1",
+   "disk": "D",
+   "tree_note": "2.69 GiB, PASS_V3, clean, ancestor of c4d06841 (re-checked), cheap. It lacks composite and harness_view, which build once. Better fit if free: a viewer-class tree, all of which are named above.",
+   "collisions": [
+    "action.rs rows.",
+    "view/layers.rs: ask first, SMB-PR-ROUTING-REPAIR-1 edits :51.",
+    "Link record shape is a Folio question for the layout lane (38-field link record, STU-LAY-131)."
+   ],
+   "rank": 12,
+   "merged_gaps": [
+    "G-PLACE:P,V,B"
+   ],
+   "scenarios_unblocked": {
+    "board-slides-web": 1,
+    "photo-retouch": 3,
+    "vector-brand": 1
+   },
+   "steps_unblocked": 5,
+   "steps_new_in_rank_order": 5,
+   "cumulative_distinct_steps": 283
+  }
+ ],
+ "gui_dependencies": {
+  "source": "research/blockers-20261107-shell-architect.json plan.lanes; no panel ranked here",
+  "gui_depends_on_these": [
+   {
+    "gui_lane": "SMB-GUI-DRIVE-2",
+    "needs": "SMB-HARNESS-DRIVE-1 (declared). Its gui.invoke should dispatch through the same rows as SMB-DRIVE-TYPED-1 and -2, or panels and scripts get two decoders."
+   },
+   {
+    "gui_lane": "SMB-GUI-SPINE-1",
+    "needs": "Its plan opens a real PSD or .handshake. File New in the menu needs SMB-DOC-NEW-1, or the first shell shows only existing files."
+   },
+   {
+    "gui_lane": "SMB-GUI-PANELS-LAYOUT-1",
+    "needs": "SMB-LAYOUT-PERSIST-1, or the rebuilt panel edits a snapshot that is lost."
+   },
+   {
+    "gui_lane": "SMB-GUI-PANELS-TIMELINE-1 and SMB-AE-KEYFRAME-TIMELINE-1",
+    "needs": "SMB-MOTION-COMMANDS-1 for keyframe dispatch and SMB-PROJECT-BIN-1 for a project-bin panel."
+   },
+   {
+    "gui_lane": "SMB-GUI-PANELS-AUDIO-1",
+    "needs": "SMB-AUDIO-OUT-MIX-1 for meters driven by what is heard; G-AUDIO-EFFECT-HOST for effect slots beyond four kinds."
+   },
+   {
+    "gui_lane": "SMB-UI-DESCRIPTOR-1",
+    "needs": "Seeds from existing enumerations; better after the DRIVE-TYPED rows name them."
+   }
+  ],
+  "these_depend_on_gui": [
+   "None of the top 12 needs pixels: each is proved by state, files and hashes.",
+   "Human half of steps stays blocked until the shell: G-LAYOUT-DEPTH editor composition (print 42, 52, 94), G-WEB-DEPTH code surface and web rendering, G-CATALOG grid, G-COLOUR-SCIENCE-VIDEO scopes as panels, G-BOARD-MODE canvas, Layout Presets and Task Scopes (gui_owned_scenario_gaps_not_ranked_here)."
+  ],
+  "shared_file_order": "SMB-VIEW-EGUI-FREE-1 changes 18 signatures and Viewer fields in view/, and SMB-GUI-SPINE-1 extracts canvas code from view/mod.rs. New top-lane code goes in new egui-free files under view/ so either order rebases cleanly. Avoid view/mod.rs beyond one field line.",
+  "gui_owned_scenario_gaps_not_ranked_here": [
+   {
+    "scenario": "audio-post",
+    "gap": "Spec and governance: panel ids for the waveform and spectral surfaces, an audio Layout Preset decision, a phase meter and audio diagnostics home, and an MT family for Audition-class editing.",
+    "steps": [
+     2,
+     17,
+     32,
+     33,
+     34,
+     35,
+     41,
+     42,
+     73
+    ]
+   },
+   {
+    "scenario": "board-slides-web",
+    "gap": "Spec gaps in the shell for boards and decks: no named signature, default layout or Layout Preset for a board; no tool family for board tools (22 families are closed); no presentation job preset; the prompt-to-page workflow has no clause.",
+    "steps": [
+     2,
+     86,
+     87
+    ]
+   },
+   {
+    "scenario": "motion-comp",
+    "gap": "Composition viewer, keyframe-timeline with the shared time model, graph mode, effect-controls, and playback with cached preview, on the Vulkan GUI.",
+    "steps": [
+     2,
+     29,
+     32,
+     47,
+     53,
+     54,
+     56
+    ]
+   },
+   {
+    "scenario": "motion-comp",
+    "gap": "Layout Presets for the composition profile, Composition Flowchart and per-layer render graph diagnostics.",
+    "steps": [
+     2,
+     77,
+     78
+    ]
+   },
+   {
+    "scenario": "photo-retouch",
+    "gap": "Layout Presets, Task Scopes and the missing photo panels: Channels, History, Adjustments, Actions, Navigator, jobs.",
+    "steps": [
+     1,
+     17,
+     19,
+     57,
+     82,
+     102
+    ]
+   },
+   {
+    "scenario": "product-design",
+    "gap": "Panel homes and Layout Preset: a design-system preset decision, and homes for the variable table, ready-for-dev list and prototype player",
+    "steps": [
+     2,
+     4,
+     63,
+     74
+    ]
+   },
+   {
+    "scenario": "vector-brand",
+    "gap": "Shell surfaces in the Vulkan GUI: Illustrate, Colour, Type and Layout presets, Tool Rail, Context Bar, docked panels, the missing history, gradient, colour, info and pages-artboards hosts.",
+    "steps": [
+     2,
+     32,
+     46
+    ]
+   },
+   {
+    "scenario": "video-edit",
+    "gap": "Layout Presets and docking in the new GUI: Edit, Colour, no gating, keep state on switch.",
+    "steps": [
+     59
+    ]
+   }
+  ]
+ },
+ "spec_questions": [
+  {
+   "q": "STU-FX-147 named loudness standards and a QC report: which enumeration?",
+   "blocks": "G-LOUDNESS",
+   "source": "audio-post gap 6"
+  },
+  {
+   "q": "BWF with timecode has no spec clause.",
+   "blocks": "broadcast master in SMB-AUDIO-OUT-MIX-1; lane ships WAV",
+   "source": "audio-post gap 4"
+  },
+  {
+   "q": "Encoder licensing for AAC and MP3 (UNVERIFIED): Operator call.",
+   "blocks": "G-DELIVERY-ENCODERS",
+   "source": "audio-post gap 11"
+  },
+  {
+   "q": "No Audition-class MT family, no panel ids for waveform and spectral, no audio Layout Preset.",
+   "blocks": "GUI placement",
+   "source": "audio-post gap 16"
+  },
+  {
+   "q": "Own a layout and paint engine for the web subset, or another route? The spec requires rendering and names no engine.",
+   "blocks": "G-WEB-DEPTH",
+   "source": "board-slides-web gap 4"
+  },
+  {
+   "q": "Speaker notes and presenter view have no clause; prompt-to-page has no clause.",
+   "blocks": "G-PROTOTYPE-NATIVE, G-BATCH-PROPOSAL",
+   "source": "board-slides-web gaps 9, 17"
+  },
+  {
+   "q": "Board: no signature, default layout, Layout Preset or tool family; 22 families are closed. OD-4 at STU-SHL-136.",
+   "blocks": "G-BOARD-MODE, GUI",
+   "source": "board-slides-web gap 17"
+  },
+  {
+   "q": "Cross-document token and copy link: no clause for documents of different kinds. Decide the shape early.",
+   "blocks": "G-CROSS-DOC",
+   "source": "board-slides-web gap 16"
+  },
+  {
+   "q": "Independent PDF/X oracle: check_pdfx4 is the crate's own reading; veraPDF PDF/X support UNVERIFIED.",
+   "blocks": "Any PDF/X claim",
+   "source": "print-publication gap 9"
+  },
+  {
+   "q": "KeyCombination refusal conflicts with STU-CMP-033.",
+   "blocks": "G-MOTION-VFX-HOST",
+   "source": "motion-comp gap 4"
+  },
+  {
+   "q": "G1 decision on wiggle, ease, random and noise.",
+   "blocks": "G-MOTION-EXPRESSIONS",
+   "source": "motion-comp gap 5"
+  },
+  {
+   "q": "Are audio automation lanes the STU-MOT-016 keyframe model or separate routing data?",
+   "blocks": "G-AUDIO-DSP-DEPTH",
+   "source": "audio-post gap 13"
+  },
+  {
+   "q": "Design-system Layout Preset: the spec defines none, and STU-DS-160 and STU-WEB-031 forbid a persona toggle.",
+   "blocks": "GUI",
+   "source": "product-design gap 12"
+  },
+  {
+   "q": "Wide-gamut decision due before GUI work freezes the display path.",
+   "blocks": "G-PHOTO-GAMUT-RAW",
+   "source": "photo-retouch gap 8"
+  },
+  {
+   "q": "Red-eye names no record fields.",
+   "blocks": "G-PHOTO-GAMUT-RAW",
+   "source": "photo-retouch gap 14"
+  },
+  {
+   "q": "Export-recipe conflicts: STU-VID-061 vs STU-IO-102 record; STU-VID-061b vs STU-IO-160 units; STU-VID-061a vs STU-IO-106 labels.",
+   "blocks": "SMB-PR-EXPORT-RECIPE-1, SMB-DOC-EXPORT-1 naming",
+   "source": "scope timeline-delivery open_questions"
+  },
+  {
+   "q": "New host edges (harness-view to interop-layout and to web) need the lead's approval, as earlier edges did per hsk-studio-harness/Cargo.toml:60.",
+   "blocks": "SMB-LAYOUT-PDF-HOST-1, SMB-WEB-HOST-1",
+   "source": "code"
+  }
+ ],
+ "not_verified": [
+  "INCIDENT, this agent's error: I ran scratchpad/s3.py believing it was mine. It was the video-edit workflow agent's scene script. It rewrote S/workflows/scenario-video-edit.json at 2026-11-07 07:51:37 local, outside this task's only allowed write, moving scene S3 to the end and renumbering its steps 59..83 to 100..124, and it appended duplicate tags to scratchpad/gaptags.json. I have not repaired either file. Its gaps and coverage blocks still use 59..83. This backlog undoes the renumbering in memory, so all video-edit step numbers here are the original ones. Reversal: backlog_synth/repair_video_edit.py in the session scratchpad, dry-run output has the original 134588 bytes, 1..99 sequential, and zero status mismatches against the untouched coverage block; run with --apply on the lead's approval. There is no pre-image, and the workflows folder is untracked, so byte identity is inferred from size and those checks, not proved. Scratch files written by my early scripts in the scratchpad root may also have overwritten same-named files: gaps.txt, led.txt, led2.txt, scopes.txt (UNVERIFIED).",
+  "Method: tier first (foundation, then deliverable_gate, then score), then steps_unblocked per size unit with small=1, medium=2, large=4. Sizes for merged gaps are my estimates from the scenario sizes; nothing was measured. A gap that bundles unrelated problems (size_units above 4) sums its scenario gaps' sizes and is many lanes, not one. top_lanes rank is start order: lanes with no predecessor and lanes others depend on come first, so it differs from merged_gaps rank. Foundation and deliverable_gate placement is my judgement and overrides raw score: for example G-EXPORT-PER-OBJECT and G-PLACE outrank higher-scoring gaps because a deliverable cannot exist without them.",
+  "Step counts are the scenarios' blocks_steps, written by reading code, nothing run. A step can need several gaps: print-publication's 30 reach steps and 26 persistence steps nearly coincide and need both lanes. marginal_steps_in_rank_order shows this.",
+  "G-REACH counts come from a regex over each step's agent_call, not from reading each method. Treat 164 Rust-only steps and the 77 drive steps as estimates. Photo-retouch is the weakest: many of its steps name no method in api.",
+  "NOT_INSPECTED: public entry point of hsk-studio-web; PSD writer location; whether artboard options need a Folio field; hsk-studio-score source beyond the struct names; every lane's real commit count (commits are estimates against the about-5 target).",
+  "UNVERIFIED: the scope note that running briefs build on D: only until STUDIO-R59 is recorded. At this read validation/round-R59.json does not exist and the ledger has no round_R59. Lanes on C: (SMB-DRIVE-TYPED-2, SMB-ARTBOARD-EXPORT-1, SMB-DOC-EXPORT-1, SMB-AUDIO-OUT-MIX-1) wait for it, or their trees must change.",
+  "Approved cargo plan R: candidates R-C01 on smb-pr-retime-output-1 and R-C02 on smb-pr-nudge-1 need fresh approval if a lane uses those targets before execution (per the delivery scope's reading of research/cargo-cleanup-plan-20261107-R.json; I did not reread that plan). Run R first, as that scope advises.",
+  "Tree state was re-checked clean and ancestor of c4d06841 for the trees named here at this read. Only 6 viewer-class targets exist outside target_reuse, and the shell plan's GUI lanes will want them too; assignment across GUI and feature lanes is NOT settled here. HSK-ART-003 P3 caps live lane targets at 6 per disk.",
+  "Scenario deliverables were not re-derived: this file does not claim any project finishes after the top 12.",
+  "Board scenario states about 25000 lines for the web crates; git grep -c counts 14,470 in their src. Scenario left as written.",
+  "Computed: the top 12 touch 283 distinct steps of 833 across eight scenarios (photo-retouch 33/121, vector-brand 43/110, print-publication 36/107, motion-comp 40/92, video-edit 19/99, audio-post 50/96, product-design 20/90, board-slides-web 42/118). A touched step can still need another lane, so this is not a share of steps that run."
+ ]
+}

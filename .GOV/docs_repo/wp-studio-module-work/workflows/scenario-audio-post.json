@@ -1,0 +1,4425 @@
+{
+ "schema": "hsk.studio.workflow_scenario@1",
+ "id": "audio-post",
+ "evidence_tree": "wt-studio-lanes/smb-type-authored-token-1 at commit c4d06841, paths relative to handshake-studio-assets/crates; read with git show and git grep only; nothing was built or run",
+ "status_rule": "callable = a command or public API that a host or runner can reach exists and was read; engine_only = public engine logic exists but no command, Viewer method or host reaches it; missing = looked and not found, evidence says where. Added key agent_call.reach: cli, timeline_command (Viewer::timeline_command), viewer_api (public Viewer or view-module Rust API), run_api (hsk-studio-harness-core Run), crate_api_unhosted, none. Added key agent_call.api names the Rust entry. command_id is only a RUN_COMMANDS id or a real timeline.<key>; every other command_id is null. Spec cmd.* names cited in human.gesture or evidence are recovered import keys ([STU-VID-041], line 23910), not callable ids.",
+ "title": "Podcast episode and film dialogue clean-up, from empty project to masters",
+ "domain": "audio post-production",
+ "vendor_parity_targets": [
+  "Adobe Audition"
+ ],
+ "workflow_basis": {
+  "note": "Public documents used for workflow and delivery targets only; no vendor text, assets or source copied. Delivery targets are the deliverable's own acceptance values, not spec law: the spec has no loudness-standard enumeration ([STU-FX-147]).",
+  "sources": [
+   "https://podcasters.apple.com/support/audio-requirements (about -16 LKFS +/-1 dB, true peak not above -1 dBFS, BS.1770)",
+   "https://backlothelp.netflix.com/hc/en-us/articles/360001794307-Netflix-Sound-Mix-Specifications-Best-Practices-v1-5 (-27 LKFS +/-2 LU dialog-gated, true peak -2 dBFS; dialogue, music and effects stems that sum to the mix; versions differ, check before real delivery)",
+   "https://helpx.adobe.com/audition/desktop/effects-reference/noise-reduction-restoration-effects.html (capture noise print from noise-only range of at least about half a second, FFT size around 4096 to 8192, restoration family)"
+  ],
+  "not_verified": "Audition automation modes, Match Loudness and mixdown dialogs were not confirmed from a vendor page in this pass; those steps follow general post practice and are UNVERIFIED as exact Audition parity."
+ },
+ "deliverable": {
+  "podcast": "Episode 'ep12', about 28 minutes, host and remote guest, music bed and stingers. Masters: stereo 48 kHz 24-bit FLAC archive at -16 LUFS integrated +/-1 LU, true peak at or below -1 dBTP; 44.1 kHz distribution MP3 with chapter markers and ID3 tags.",
+  "film": "A 6-minute dialogue scene against picture lock: boom and lav dialogue repaired, ADR-matched, room tone filled. Masters: stereo print (5.1 when the engine has it) at -27 LKFS dialogue-gated +/-2 LU, true peak at or below -2 dBTP; dialogue, music and effects stems that sum to the print; reference MOV with the mix."
+ },
+ "input_assets": [
+  {
+   "id": "pod_host.wav",
+   "kind": "generated",
+   "spec": "48 kHz 24-bit mono, 28 min, formant-shaped noise bursts as speech stand-in, seeded"
+  },
+  {
+   "id": "pod_guest.flac",
+   "kind": "generated",
+   "spec": "44.1 kHz 16-bit mono, 28 min, offset 1.25 s from host, seeded, for the rate-mismatch and sync cases"
+  },
+  {
+   "id": "pod_music.flac",
+   "kind": "generated",
+   "spec": "48 kHz stereo additive chords, 3 min, seeded"
+  },
+  {
+   "id": "pod_sting.aiff",
+   "kind": "generated",
+   "spec": "48 kHz stereo 4 s swept tone"
+  },
+  {
+   "id": "film_boom_lav.wav",
+   "kind": "generated",
+   "spec": "48 kHz 24-bit two-channel (boom, lav), 6 min, known defects at known positions: pink noise at -55 dBFS, 50 Hz hum with 5 harmonics, 40 clicks, a 2.2 kHz tone burst from 01:12.000 to 01:12.800 (phone chirp), 12 sibilant bursts, one 200 ms clipped span"
+  },
+  {
+   "id": "film_adr.flac",
+   "kind": "generated",
+   "spec": "48 kHz mono clean replacement line, 4 s"
+  },
+  {
+   "id": "film_fx_music.flac",
+   "kind": "generated",
+   "spec": "48 kHz stereo effects and music stand-in, 6 min"
+  },
+  {
+   "id": "film_ref.mp4",
+   "kind": "generated",
+   "spec": "1920x1080 test-pattern H.264 with burned timecode, 6 min, encoded by Studio's own export or a fixture"
+  }
+ ],
+ "workspace_or_layout_preset": {
+  "preset": "Edit",
+  "basis": "[STU-SHL-095] line 32272 proposes twelve Layout Presets; none is an audio job. `Edit` over the sequence profile [STU-SHL-090] line 32244 is the closest: source and program viewers in the centre, audio-meters in the right rail, timeline plus audio-mixer in the bottom band.",
+  "spec_gap": "The preset set and final names are an open Operator decision ([STU-SHL-095], [STU-SHL-136]). The panel registry (lines 32095 to 32179) has `audio-meters` and `audio-mixer` but no panel id for a waveform editor or a spectral display, and no audio-repair Layout Preset. Code has panels named Waveform Editor and Spectral Display (hsk-studio-harness-view/src/view/shell.rs:165-166). This scenario uses those code names and states that no spec panel id is verified for them."
+ },
+ "scenes": [
+  {
+   "scene_id": "s1-podcast-assembly",
+   "goal": "Build the podcast edit: empty project, media, tracks, sync, rough cut, fine cut, chapter markers, audition by ear.",
+   "steps": [
+    {
+     "n": 1,
+     "intent": "Start an empty project holding one sequence",
+     "human": {
+      "panel": "FILE",
+      "tool": null,
+      "gesture": "File > New project, choose a sequence profile",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "profile": "sequence",
+       "name": "ep12"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "git grep of new_document|create_document|new_package|new_project|studio.document.new in harness-view shell.rs, mod.rs and harness-core run.rs, lib.rs: 0 hits; CLI verbs at hsk-studio-harness/src/cli.rs:269-420 are open, panel, edit, verify, import, export, develop, export-sequence, batch, action. A runner needs a fixture package built with Folio, as hsk-studio-harness/tests/audio_mixer.rs:103 does."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-VID-010",
+       "line": 22982
+      },
+      {
+       "clause": "STU-SHL-097",
+       "line": 32280
+      }
+     ],
+     "mts": [
+      "MT-33685",
+      "MT-34628"
+     ],
+     "expected_state": "One document tab with an empty sequence, one undo stack, revision 1.",
+     "visual_check": {
+      "what_must_be_visible": "A new document tab; empty timeline with a stated rate; focus on the timeline.",
+      "layout_or_fit_concern": "An empty timeline must still show track headers, ruler and a clear next action."
+     },
+     "failure_a_professional_would_notice": "No way to begin without a prepared file; an audio engineer starts every job from a session template."
+    },
+    {
+     "n": 2,
+     "intent": "Apply the Edit Layout Preset",
+     "human": {
+      "panel": "WORKSPACE > Layout Presets",
+      "tool": null,
+      "gesture": "Choose Edit",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "preset": "Edit"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "git grep layout_preset|LayoutPreset in harness-view shell.rs: 0 hits; shell.rs:89-107 has panel toggles only; panel placement in the Vulkan shell is being rebuilt."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-SHL-095",
+       "line": 32272
+      },
+      {
+       "clause": "STU-SHL-093",
+       "line": 32260
+      },
+      {
+       "clause": "STU-SHL-090",
+       "line": 32244
+      }
+     ],
+     "mts": [
+      "MT-34626",
+      "MT-34624",
+      "MT-34621"
+     ],
+     "expected_state": "Docks rearranged; no change to document, selection or history.",
+     "visual_check": {
+      "what_must_be_visible": "Two monitors, audio-meters in the right rail, timeline and audio-mixer bottom band, project-bin left.",
+      "layout_or_fit_concern": "Meters must stay visible at every dock size; a mixer hidden behind the timeline tab makes the job slower."
+     },
+     "failure_a_professional_would_notice": "A preset that closes the mixer or loses a resized dock."
+    },
+    {
+     "n": 3,
+     "intent": "Set session audio format: stereo master, 48 kHz, 24-bit working",
+     "human": {
+      "panel": "Properties (sequence)",
+      "tool": null,
+      "gesture": "Open sequence settings, set master channel configuration and sample rate",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "master": "stereo",
+       "sample_rate_hz": 48000
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "hsk-studio-folio/src/audio_routing.rs:115-124 StudioAudioMaster holds volume, effects, volume_automation only: no channel configuration; hsk-studio-folio StudioSequence literal at harness-view/src/view/audio_import.rs:436-447 has no sample rate; the mixer rate is the constant MIXER_RATE 48000 at shell.rs:54."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-137",
+       "line": 18683
+      }
+     ],
+     "mts": [
+      "MT-32617"
+     ],
+     "expected_state": "The sequence declares master mono, stereo, 5.1, multichannel_adaptive or sixteen_channel and its rate.",
+     "visual_check": {
+      "what_must_be_visible": "Master config and rate in sequence properties and in the mixer master strip.",
+      "layout_or_fit_concern": "A format shown only in a dialog is forgotten; it belongs on the master strip."
+     },
+     "failure_a_professional_would_notice": "Session rate implied, not stated; a 44.1 kHz guest file silently plays at the wrong speed or is refused with no remedy."
+    },
+    {
+     "n": 4,
+     "intent": "Show audio time in samples on the ruler",
+     "human": {
+      "panel": "Timeline",
+      "tool": null,
+      "gesture": "Timeline menu > Show Audio Time Units",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "display": "AudioSamples"
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "hsk-studio-pulse/src/display.rs:25-26 AudioSamples and Milliseconds with format_ticks; TimelineCommand (timeline.rs:682-790) has no display command; timeline_ui.rs:284 derives the display from the frame rate."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-137",
+       "line": 18683
+      },
+      {
+       "clause": "STU-VID-012",
+       "line": 23019
+      }
+     ],
+     "mts": [
+      "MT-32617",
+      "MT-33687"
+     ],
+     "expected_state": "Ruler and selection readouts in samples; stored ticks unchanged.",
+     "visual_check": {
+      "what_must_be_visible": "Ruler labels in samples, independent of the picture time display.",
+      "layout_or_fit_concern": "Long sample numbers must not overlap at the default ruler zoom."
+     },
+     "failure_a_professional_would_notice": "Sample-accurate work with only timecode on screen. Spec key cmd.timeline.sequence.audiounits, line 24000."
+    },
+    {
+     "n": 5,
+     "intent": "Import the host stem",
+     "human": {
+      "panel": "Project Bin or FILE",
+      "tool": null,
+      "gesture": "File > Open, or drop the file",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::open(path) then Viewer::audio_json via state_json",
+      "parameters": {
+       "path": "pod_host.wav"
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "Viewer::open sniff at harness-view/src/view/mod.rs:533 to open_audio_bytes at audio_import.rs:863; decodes WAV, MP3, FLAC, Ogg, ADTS AAC, AIFF (audio_import.rs:2). It lands in a private one-clip sequence, not in the open document (audio_import.rs:860-862)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-VID-050",
+       "line": 24736
+      }
+     ],
+     "mts": [
+      "MT-33761"
+     ],
+     "expected_state": "state_json().audio shows rate, channels, frames, decoder id.",
+     "visual_check": {
+      "what_must_be_visible": "File facts: rate, channels, duration, decoder.",
+      "layout_or_fit_concern": "The audio panel is a right-side stack of its own; it should be Properties of the selected media item."
+     },
+     "failure_a_professional_would_notice": "An opened file replacing the previous one instead of joining a bin."
+    },
+    {
+     "n": 6,
+     "intent": "Import guest, music and sting into one project bin",
+     "human": {
+      "panel": "Project Bin",
+      "tool": null,
+      "gesture": "Select several files, import",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "paths": [
+        "pod_guest.flac",
+        "pod_music.flac",
+        "pod_sting.aiff"
+       ]
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "ViewerAudio is one Option at harness-view/src/view/mod.rs:260 and open_audio_bytes overwrites it (audio_import.rs:888); shell.rs and hosted.rs have no project bin (grep media_item|project_bin|ProjectBin: 0 hits). Only the CLI export path holds several decoded files (hsk-studio-harness/src/cli.rs:794, export only)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-VID-050",
+       "line": 24736
+      },
+      {
+       "clause": "STU-SHL-090",
+       "line": 32244
+      },
+      {
+       "clause": "STU-IO-189",
+       "line": 235
+      }
+     ],
+     "mts": [
+      "MT-33761",
+      "MT-33762"
+     ],
+     "expected_state": "Four media items with content digests, in one bin, each with duration and rate.",
+     "visual_check": {
+      "what_must_be_visible": "A bin list with waveform thumbnail, rate, channels, duration per item; a rate mismatch marked per item.",
+      "layout_or_fit_concern": "`project-bin` (line 32160) must be reachable beside the timeline, not behind a menu."
+     },
+     "failure_a_professional_would_notice": "Every extra file kicks the last out: a multitrack job cannot begin in the window."
+    },
+    {
+     "n": 7,
+     "intent": "Conform the 44.1 kHz guest stem to the session rate",
+     "human": {
+      "panel": "Project Bin / Jobs",
+      "tool": null,
+      "gesture": "Import conforms in the background; a progress row appears",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "source": "pod_guest.flac",
+       "to_hz": 48000
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "hsk-studio-score/src/resample.rs ClipResampler and src_bounce.rs ResampledBounce exported at score/src/lib.rs:139; git grep ClipResampler|src_bounce in harness-view, harness and pulse src: 0 hits. harness/src/cli.rs:856 refuses audio_rate_mismatch and notes this path has no resampler."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-VID-053",
+       "line": 24879
+      },
+      {
+       "clause": "STU-ARC-013",
+       "line": 221
+      }
+     ],
+     "mts": [
+      "MT-33765",
+      "MT-35570"
+     ],
+     "expected_state": "Derived conform artifact in the cache tier; the source untouched.",
+     "visual_check": {
+      "what_must_be_visible": "A Jobs row with progress and cancel; the bin item leaves its 'conforming' state.",
+      "layout_or_fit_concern": "Progress in the Jobs pane, not a modal."
+     },
+     "failure_a_professional_would_notice": "Mixed-rate material refused outright, or conformed silently with no record."
+    },
+    {
+     "n": 8,
+     "intent": "Generate peak files for the bin",
+     "human": {
+      "panel": "Jobs",
+      "tool": null,
+      "gesture": "Automatic after import; Clip > Generate Audio Waveform",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "scope": "all_media"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "Peaks are built synchronously and in memory: timeline/audio.rs:300 AudioLanes::peaks; bounds at timeline/audio.rs:9-10. No queued, cancellable, cached job. Truth-check 20261105 top_missing rank 3 names background peak jobs."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-VID-053",
+       "line": 24879
+      }
+     ],
+     "mts": [
+      "MT-33765"
+     ],
+     "expected_state": "Peak artifacts in the cache tier, safe to delete and regenerable.",
+     "visual_check": {
+      "what_must_be_visible": "Jobs row per file; clips redraw as peaks arrive.",
+      "layout_or_fit_concern": "No UI stall while a 28-minute file is scanned."
+     },
+     "failure_a_professional_would_notice": "The timeline freezing on first draw of a long file. Spec key cmd.clip.generatepeakfile, line 24296."
+    },
+    {
+     "n": 9,
+     "intent": "Add tracks A1 Host, A2 Guest, A3 Music, A4 Stings",
+     "human": {
+      "panel": "Timeline",
+      "tool": null,
+      "gesture": "Sequence > Add Tracks",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.submit_sequence",
+      "api": null,
+      "parameters": {
+       "sequence": "StudioSequence with four Audio tracks"
+      },
+      "status": "callable",
+      "reach": "run_api",
+      "evidence": "hsk-studio-harness-core/src/action.rs RUN_COMMANDS entry document.submit_sequence, recordable false; whole-sequence replace; no typed add-track in TimelineCommand (timeline.rs:682-790). No window path. Spec keys cmd.sequence.addtrack and addtracks lines 24169-24170."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-VID-021",
+       "line": 23628
+      },
+      {
+       "clause": "STU-VID-041",
+       "line": 23910
+      }
+     ],
+     "mts": [
+      "MT-33706",
+      "MT-33744"
+     ],
+     "expected_state": "Four audio tracks, each volume 1.0, pan 0, sync_locked true, one undo step.",
+     "visual_check": {
+      "what_must_be_visible": "Named track headers with mute, solo, lock, target.",
+      "layout_or_fit_concern": "Headers must fit four rows at default height without clipping names."
+     },
+     "failure_a_professional_would_notice": "Having to author a whole sequence to add one track; adding a track is not recordable, so no action can repeat it."
+    },
+    {
+     "n": 10,
+     "intent": "Place stems and music on tracks at their start times",
+     "human": {
+      "panel": "Timeline, Project Bin",
+      "tool": null,
+      "gesture": "Drag from bin to track, or Source monitor then Insert/Overwrite",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.submit_sequence",
+      "api": null,
+      "parameters": {
+       "clips": [
+        {
+         "source": "sha256:<host>",
+         "track": "A1",
+         "start": 0
+        },
+        {
+         "source": "sha256:<guest>",
+         "track": "A2",
+         "start": 0
+        }
+       ]
+      },
+      "status": "callable",
+      "reach": "run_api",
+      "evidence": "Same whole-sequence path. The source-edit path Viewer::source_edit (source_monitor.rs:561) with pulse plan_assembly_edit exists, but SourceEdit.targets names destination video tracks (source_monitor.rs:281-283) and open_source_media decodes through the frame decoder (source_monitor.rs:749-768), so audio-only source placement in the window has no path."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-VID-024",
+       "line": 23674
+      },
+      {
+       "clause": "STU-VID-025",
+       "line": 23686
+      }
+     ],
+     "mts": [
+      "MT-33710",
+      "MT-33711"
+     ],
+     "expected_state": "Clips reference media digests; revision advances once per placement.",
+     "visual_check": {
+      "what_must_be_visible": "Clip blocks on A1 to A3 with names and lengths matching source durations.",
+      "layout_or_fit_concern": "A drop target must show which track and time it lands on before release."
+     },
+     "failure_a_professional_would_notice": "No drag from bin to track: the single most common gesture has no surface."
+    },
+    {
+     "n": 11,
+     "intent": "Bind the audio sources so the timeline can draw and mix them",
+     "human": {
+      "panel": null,
+      "tool": null,
+      "gesture": "None for a person: automatic once media is in the project",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::open_multitrack",
+      "parameters": {
+       "sample_rate_hz": 48000,
+       "port": "AudioSources"
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "Viewer::open_multitrack at timeline/audio.rs:399, generic over AudioSources; git grep shows no caller in shell.rs, mod.rs, timeline_ui.rs, harness bin or cli.rs, so only Rust tests reach it (hsk-studio-harness/tests/). The window's Panel::Mixer binds only the one open file or NoAudio (shell.rs:1351-1358)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-VID-020",
+       "line": 23636
+      }
+     ],
+     "mts": [
+      "MT-33707"
+     ],
+     "expected_state": "state_json().timeline lists lanes; mixer position 0; no refused source.",
+     "visual_check": {
+      "what_must_be_visible": "Nothing to do; a clip whose media is absent shows an offline state.",
+      "layout_or_fit_concern": "Offline clips must look different from silent clips."
+     },
+     "failure_a_professional_would_notice": "A multitrack that plays silence with no statement why."
+    },
+    {
+     "n": 12,
+     "intent": "Turn on clip waveforms and fit the timeline",
+     "human": {
+      "panel": "Timeline",
+      "tool": null,
+      "gesture": "Toolbar Waveforms; zoom to fit",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "timeline.zoom_fit",
+      "api": null,
+      "parameters": {
+       "also_api": "AutomationCommand::ToggleWaveforms"
+      },
+      "status": "callable",
+      "reach": "timeline_command",
+      "evidence": "TimelineCommand::ZoomToFit key zoom_fit at timeline.rs:706, 811; AutomationCommand::ToggleWaveforms at timeline/audio.rs:213 run by Viewer::multitrack_command at timeline/audio.rs:422; timeline_clip_peaks at timeline/audio.rs:576 for the numbers."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-VID-041",
+       "line": 23910
+      }
+     ],
+     "mts": [
+      "MT-33744"
+     ],
+     "expected_state": "Peaks per clip available; scale state shown in state_json.",
+     "visual_check": {
+      "what_must_be_visible": "Readable min/max waveform per clip across the whole 28 minutes.",
+      "layout_or_fit_concern": "Waveform height must follow track height; a fixed thin lane hides speech. Spec keys for logarithmic, rectified scaling at lines 24003-24007."
+     },
+     "failure_a_professional_would_notice": "Waveforms that look identical whether the clip is -6 or -40 dBFS."
+    },
+    {
+     "n": 13,
+     "intent": "Sync the guest stem to the host by waveform",
+     "human": {
+      "panel": "Timeline",
+      "tool": null,
+      "gesture": "Select both clips, Clip > Synchronize, Audio",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "point": "AudioWaveform"
+      },
+      "status": "missing",
+      "reach": "crate_api_unhosted",
+      "evidence": "hsk-studio-pulse/src/merge_sync.rs:30-31,121-131: SyncPoint::AudioWaveform is refused sync_waveform_unavailable, no correlator. Other sync points in plan_synchronize (merge_sync.rs:725) have no Viewer caller (git grep in harness-view: 0 hits)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-VID-029a",
+       "line": 23768
+      }
+     ],
+     "mts": [
+      "MT-33727"
+     ],
+     "expected_state": "Guest moved by the measured offset of 1.25 s, one undo step, clips linked.",
+     "visual_check": {
+      "what_must_be_visible": "The clips visibly aligned; offset stated in the status line.",
+      "layout_or_fit_concern": "Result confirmation in the status area, not a dialog."
+     },
+     "failure_a_professional_would_notice": "Double-ender podcasts rely on this; manual nudging by ear wastes the first hour. Spec key cmd.clip.synchronizeclips, line 24336."
+    },
+    {
+     "n": 14,
+     "intent": "Lock the sync and nudge the guest by sample if it drifts",
+     "human": {
+      "panel": "Timeline",
+      "tool": null,
+      "gesture": "Select clip, nudge",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "timeline.clip_nudge",
+      "api": null,
+      "parameters": {
+       "right": true,
+       "many": false
+      },
+      "status": "callable",
+      "reach": "timeline_command",
+      "evidence": "TimelineCommand::ClipNudge at timeline.rs:736, key clip_nudge at timeline.rs:824. Step is whole frames, not samples (timeline.rs:736 doc; frame-based tools at timeline.rs:715-744)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-VID-026",
+       "line": 23707
+      }
+     ],
+     "mts": [
+      "MT-33712"
+     ],
+     "expected_state": "Clip moves by one frame; a sample-level nudge has no command.",
+     "visual_check": {
+      "what_must_be_visible": "Clip edge and offset readout.",
+      "layout_or_fit_concern": "Offset readout should use the audio time display."
+     },
+     "failure_a_professional_would_notice": "Frame-sized nudges on audio-only material: 20 ms at 50 fps is an audible echo between stems."
+    },
+    {
+     "n": 15,
+     "intent": "Rough cut: razor at each flub",
+     "human": {
+      "panel": "Timeline",
+      "tool": "Razor",
+      "gesture": "Playhead at flub, Add Edit",
+      "shortcut_if_spec_defines_one": "Ctrl+K (cmd.sequence.razorateditline, line 24232); Ctrl+Shift+K for all tracks (line 24233)"
+     },
+     "agent_call": {
+      "command_id": "timeline.razor",
+      "api": null,
+      "parameters": {},
+      "status": "callable",
+      "reach": "timeline_command",
+      "evidence": "TimelineCommand::RazorAtPlayhead timeline.rs:692, key razor timeline.rs:800. All-tracks variant not in the enum."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-VID-026",
+       "line": 23707
+      },
+      {
+       "clause": "STU-VID-041",
+       "line": 23910
+      }
+     ],
+     "mts": [
+      "MT-33712",
+      "MT-33744"
+     ],
+     "expected_state": "Clip split at the frame-floored playhead; one undo step.",
+     "visual_check": {
+      "what_must_be_visible": "A visible edit line through the targeted lane.",
+      "layout_or_fit_concern": "A razor line needs contrast against a dense waveform."
+     },
+     "failure_a_professional_would_notice": "A cut landing off the zero crossing clicks, and there is no sample-level razor to fix it."
+    },
+    {
+     "n": 16,
+     "intent": "Ripple-delete the flubs across host and guest",
+     "human": {
+      "panel": "Timeline",
+      "tool": null,
+      "gesture": "Select span, ripple delete",
+      "shortcut_if_spec_defines_one": "Alt+Backspace (cmd.timeline.ripple.delete, line 23997)"
+     },
+     "agent_call": {
+      "command_id": "timeline.ripple_delete",
+      "api": null,
+      "parameters": {},
+      "status": "callable",
+      "reach": "timeline_command",
+      "evidence": "TimelineCommand::RippleDelete timeline.rs:696, key at timeline.rs:802; pulse ExtractClip and ExtractRange at timeline_edit.rs:93-106 with sync-lock shift."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-VID-028",
+       "line": 23746
+      }
+     ],
+     "mts": [
+      "MT-33725"
+     ],
+     "expected_state": "Gap closed on all sync-locked tracks, sync kept, one undo.",
+     "visual_check": {
+      "what_must_be_visible": "Later clips slide left together.",
+      "layout_or_fit_concern": "Sync-locked state must be visible on the header before the edit."
+     },
+     "failure_a_professional_would_notice": "Music bed shifting too because a sync lock was not visible."
+    },
+    {
+     "n": 17,
+     "intent": "Find and strip long silences on the guest track",
+     "human": {
+      "panel": "Waveform Editor or Timeline",
+      "tool": null,
+      "gesture": "Diagnostics: mark silence over threshold and duration, review, delete",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "threshold_db": -48,
+       "min_ms": 1200,
+       "leave_ms": 400
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "git grep -i silence.*(detect|strip)|strip.?silence in score/src, harness-view audio modules: hits only for WaveBuffer::silence (write zeros, wave_edit.rs:418) and stretch transients. No detector."
+     },
+     "spec_clauses": [],
+     "mts": [],
+     "expected_state": "A marker list of candidate spans the engineer accepts or rejects; one undo per accept.",
+     "visual_check": {
+      "what_must_be_visible": "Diagnostic list beside the wave with jump-to on each row.",
+      "layout_or_fit_concern": "Spec gap: no clause or panel id found for audio diagnostics; a results list fits `find-replace` or `problems` only if the Operator decides so."
+     },
+     "failure_a_professional_would_notice": "Hand-hunting pauses on a 28-minute interview."
+    },
+    {
+     "n": 18,
+     "intent": "Tighten edges with ripple trims and slips",
+     "human": {
+      "panel": "Timeline",
+      "tool": "Ripple trim",
+      "gesture": "Drag edit, or trim to playhead",
+      "shortcut_if_spec_defines_one": "Q and W (cmd.sequence.rippletrimpreviousedittoplayhead and next, lines 24237-24238); Ctrl+Alt+Left/Right slip (lines 24025-24028)"
+     },
+     "agent_call": {
+      "command_id": "timeline.ripple_trim_out",
+      "api": null,
+      "parameters": {
+       "clip_id": "<clip>",
+       "delta_frames": -3
+      },
+      "status": "callable",
+      "reach": "timeline_command",
+      "evidence": "TimelineCommand RippleTrimIn, RippleTrimOut, Slip, Slide, Roll at timeline.rs:715-723 with keys at 814-818; delta in frames."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-VID-026",
+       "line": 23707
+      }
+     ],
+     "mts": [
+      "MT-33712"
+     ],
+     "expected_state": "Clip window changes, source untouched.",
+     "visual_check": {
+      "what_must_be_visible": "Trim cursor and delta readout.",
+      "layout_or_fit_concern": "Trim handles must be hit-testable on narrow clips at high zoom."
+     },
+     "failure_a_professional_would_notice": "Frame-grid trims are coarse on consonant tails; audio editors expect sample-level edits."
+    },
+    {
+     "n": 19,
+     "intent": "Fill a gap with room tone",
+     "human": {
+      "panel": "Timeline",
+      "tool": null,
+      "gesture": "Copy a clean tone span from the same stem to A1 under the gap",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.submit_sequence",
+      "api": null,
+      "parameters": {
+       "source_in": "<tone in>",
+       "track": "A1",
+       "start": "<gap>"
+      },
+      "status": "callable",
+      "reach": "run_api",
+      "evidence": "Whole-sequence path as in step 9; clips can be any source window (StudioClip source_in, source_out at audio_import.rs:405-419)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-VID-020",
+       "line": 23636
+      }
+     ],
+     "mts": [
+      "MT-33707"
+     ],
+     "expected_state": "A new clip covers the gap; no dropout to digital black.",
+     "visual_check": {
+      "what_must_be_visible": "The fill clip with its own name on the lane.",
+      "layout_or_fit_concern": "Copy and paste at timeline level has no command (cmd.timeline.paste.to.same.track line 23995 not in TimelineCommand)."
+     },
+     "failure_a_professional_would_notice": "Dropouts to digital silence between words."
+    },
+    {
+     "n": 20,
+     "intent": "Crossfade every dialogue edit",
+     "human": {
+      "panel": "Timeline",
+      "tool": "Crossfade",
+      "gesture": "Select edits, apply audio crossfade",
+      "shortcut_if_spec_defines_one": "Ctrl+Shift+D (cmd.sequence.applydefaultaudiotransition, line 24172)"
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "curve": "equal_power",
+       "duration_ms": 10
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "Mixing side exists: score/src/session.rs:271-304 Fade and FadeCurve; pulse transition.rs:192,233; Folio ClipTransitions read at timeline_edit.rs:359. TimelineCommand has no transition command, and timeline_ui.rs has no match for transition (git grep). A prebuilt transition in a submitted sequence plays. mixer.rs:35-37 refuses mono/stereo mismatches."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-VID-032a",
+       "line": 23819
+      }
+     ],
+     "mts": [
+      "MT-33734"
+     ],
+     "expected_state": "Each edit has a head and tail fade or crossfade; default stored per sequence.",
+     "visual_check": {
+      "what_must_be_visible": "Fade handles on clips, crossfade overlap drawn.",
+      "layout_or_fit_concern": "Fade handles (cmd.timeline.audio.show.fadehandles line 23953) must not collide with trim handles."
+     },
+     "failure_a_professional_would_notice": "No fast way to de-click a hundred edits; clicks on every cut."
+    },
+    {
+     "n": 21,
+     "intent": "Level the stems by clip gain",
+     "human": {
+      "panel": "Timeline",
+      "tool": null,
+      "gesture": "Select clip, gain up or down",
+      "shortcut_if_spec_defines_one": "G opens gain, ] and [ nudge (lines 24274, 24214, 24182)"
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::multitrack_command(ClipGain)",
+      "parameters": {
+       "clip_id": "<clip>",
+       "delta_db": -2.0
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "AutomationCommand::ClipGain timeline/audio.rs:211 through Viewer::multitrack_command timeline/audio.rs:422; buttons Clip Gain -1 dB, +1 dB per timeline/audio.rs:29. One entry-only undo step."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-135",
+       "line": 18673
+      },
+      {
+       "clause": "STU-MOT-123",
+       "line": 28297
+      }
+     ],
+     "mts": [
+      "MT-32615",
+      "MT-34026"
+     ],
+     "expected_state": "Envelope points on the clip move by the delta; the waveform redraws scaled.",
+     "visual_check": {
+      "what_must_be_visible": "Clip gain value on the clip; waveform height follows gain.",
+      "layout_or_fit_concern": "Gain value must stay readable on short clips."
+     },
+     "failure_a_professional_would_notice": "Gain changing the sound but not the drawn waveform."
+    },
+    {
+     "n": 22,
+     "intent": "Fade the music under the intro with clip envelope points",
+     "human": {
+      "panel": "Timeline",
+      "tool": null,
+      "gesture": "Open the Clip Volume lane, click points",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::multitrack_command(AddPoint)",
+      "parameters": {
+       "lane": "ClipVolume",
+       "points": [
+        [
+         0,
+         0.0
+        ],
+        [
+         "00:12.000",
+         0.0
+        ],
+        [
+         "00:15.000",
+         -18.0
+        ]
+       ]
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "AutomationCommand::ShowLane and AddPoint timeline/audio.rs:202-206; LaneTarget::ClipVolume timeline/audio.rs:94; lanes drawn in the panel per timeline/audio.rs:24-28."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-016",
+       "line": 27526
+      },
+      {
+       "clause": "STU-FX-135",
+       "line": 18673
+      }
+     ],
+     "mts": [
+      "MT-35376",
+      "MT-32615"
+     ],
+     "expected_state": "Envelope points in the routing entry; mix follows; each point is one undo.",
+     "visual_check": {
+      "what_must_be_visible": "Lane under the track with points and a value readout in dB.",
+      "layout_or_fit_concern": "An expanded lane must not push later tracks off the panel without a scroll cue."
+     },
+     "failure_a_professional_would_notice": "No value entry for a point; ears cannot place -18.0 by eye."
+    },
+    {
+     "n": 23,
+     "intent": "Mark chapter starts as sequence markers",
+     "human": {
+      "panel": "Markers, Timeline",
+      "tool": null,
+      "gesture": "Playhead at chapter, Add Marker, name it",
+      "shortcut_if_spec_defines_one": "Shift+M and Ctrl+Shift+M for next and previous marker (lines 24625-24626)"
+     },
+     "agent_call": {
+      "command_id": "timeline.marker_add",
+      "api": null,
+      "parameters": {},
+      "status": "callable",
+      "reach": "timeline_command",
+      "evidence": "TimelineCommand::AddMarker timeline.rs:698, key marker_add timeline.rs:803; plan_record_edit AddMarker at timeline.rs:1456. No TimelineCommand for name or chapter role (read enum 682-790); hsk-studio-folio/src/timeline.rs:142,152 MarkerRole and StudioMarker hold the record."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-VID-034",
+       "line": 23849
+      }
+     ],
+     "mts": [
+      "MT-33736"
+     ],
+     "expected_state": "Sequence markers at chapter starts, in sequence time, not moved by clip moves.",
+     "visual_check": {
+      "what_must_be_visible": "Marker flags on the ruler and a `markers` panel list with names.",
+      "layout_or_fit_concern": "A marker list must be reachable; `markers` is in the Browse Dock (line 32143)."
+     },
+     "failure_a_professional_would_notice": "Markers without names, so chapters cannot be read back at export. Spec key cmd.marker.setchaptermarker line 24632."
+    },
+    {
+     "n": 24,
+     "intent": "Listen through the edit from the speakers",
+     "human": {
+      "panel": "Program monitor, transport",
+      "tool": null,
+      "gesture": "Space to play; J/K/L shuttle",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "device": "default",
+       "from": "playhead"
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "AudioOut at harness-view/src/view/audio_out.rs:110,132,339 (feature audio-device) is complete, but git grep AudioOut|audio_out:: outside audio_out.rs finds no caller in harness-view or harness; audio_import.rs:874-875 runs the monitor on WallClock. Device crate hsk-studio-score-device OutputStream exists. The window as of this tip plays no sound."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-ARC-013",
+       "line": 221
+      },
+      {
+       "clause": "STU-VID-023",
+       "line": 23664
+      }
+     ],
+     "mts": [
+      "MT-36030",
+      "MT-33709"
+     ],
+     "expected_state": "Sound at 1x with the device as master clock; underruns counted.",
+     "visual_check": {
+      "what_must_be_visible": "Moving playhead locked to sound; live meters; device name and any dropouts.",
+      "layout_or_fit_concern": "A running transport should be readable from across the desk."
+     },
+     "failure_a_professional_would_notice": "An audio editor that cannot be heard fails at this step for every human user."
+    },
+    {
+     "n": 25,
+     "intent": "Undo and redo a block of edits",
+     "human": {
+      "panel": "EDIT",
+      "tool": null,
+      "gesture": "Ctrl+Z, Ctrl+Y",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "history.undo",
+      "api": null,
+      "parameters": {},
+      "status": "callable",
+      "reach": "run_api",
+      "evidence": "RUN_COMMANDS history.undo and history.redo in hsk-studio-harness-core/src/action.rs; mixer and timeline edits are one undo step per timeline.rs and mixer.rs:3-12."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-VID-040",
+       "line": 23902
+      }
+     ],
+     "mts": [],
+     "expected_state": "The prior revision restored including routing entries.",
+     "visual_check": {
+      "what_must_be_visible": "A named history row per edit; the affected lane redraws.",
+      "layout_or_fit_concern": "`history` is in the sequence left dock (line 32246); it should name each audio edit."
+     },
+     "failure_a_professional_would_notice": "Undo moving a clip but leaving its envelope behind."
+    },
+    {
+     "n": 26,
+     "intent": "Save the session and reopen it",
+     "human": {
+      "panel": "FILE",
+      "tool": null,
+      "gesture": "Save, close tab, reopen",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.save",
+      "api": null,
+      "parameters": {
+       "path": "ep12.handshake"
+      },
+      "status": "callable",
+      "reach": "run_api",
+      "evidence": "RUN_COMMANDS document.save and document.reopen (action.rs); routing entry AUDIO_ROUTING_ENTRY audio_session.rs:19 and WAVEFORM_EDIT_ENTRY waveform.rs:62 saved with the package."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-137",
+       "line": 18683
+      }
+     ],
+     "mts": [
+      "MT-32617"
+     ],
+     "expected_state": "Identical sequence, routing and edit list after reopen; digest stable.",
+     "visual_check": {
+      "what_must_be_visible": "Same panels, playhead and zoom after reopen ([STU-SHL-097]).",
+      "layout_or_fit_concern": "Reopen needs media re-bound by the host today; missing media must show as offline."
+     },
+     "failure_a_professional_would_notice": "A reopened session with no sound because the source port is not rebuilt."
+    }
+   ]
+  },
+  {
+   "scene_id": "s2-film-dialogue-repair",
+   "goal": "Clean film dialogue against picture: turnover, waveform and spectral repair, restoration effects, room tone, return to the timeline.",
+   "steps": [
+    {
+     "n": 27,
+     "intent": "Open the film session and load the picture-locked reference",
+     "human": {
+      "panel": "Program monitor",
+      "tool": null,
+      "gesture": "Import the reference, bind it to the sequence",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::bind_program_media",
+      "parameters": {
+       "sequence": "film-scene",
+       "files": [
+        "film_ref.mp4"
+       ],
+       "width": 1920,
+       "height": 1080
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "Viewer::bind_program_media timeline/export_media.rs:464; Viewer::set_monitor_sources mod.rs:432; CLI passes --media to the same path (harness/src/cli.rs:873-874)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-VID-023",
+       "line": 23664
+      }
+     ],
+     "mts": [
+      "MT-33709"
+     ],
+     "expected_state": "Program monitor shows the frame at the playhead; timecode matches the burned-in code.",
+     "visual_check": {
+      "what_must_be_visible": "Picture above the timeline at a useful size, burned timecode readable.",
+      "layout_or_fit_concern": "Picture must stay visible while the Waveform Editor is open; a repair view that hides picture breaks sync checks."
+     },
+     "failure_a_professional_would_notice": "Sound repaired blind, without the lips in view."
+    },
+    {
+     "n": 28,
+     "intent": "Import the picture editor's turnover as an AAF or OMF",
+     "human": {
+      "panel": "FILE > Import",
+      "tool": null,
+      "gesture": "Import the turnover; review the conversion report",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "format": "aaf"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "git grep AAF|OMF|aaf|omf in hsk-studio-interop-media/src: 0 hits. Spec search of module 14 for AAF and OMF: 0 clause hits, so this is a spec gap as well as a code gap."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-IO-189",
+       "line": 235
+      }
+     ],
+     "mts": [
+      "MT-35590"
+     ],
+     "expected_state": "Tracks, clips, handles and fades with a per-entity loss report.",
+     "visual_check": {
+      "what_must_be_visible": "Conversion report listing every clip, handle length and refused item.",
+      "layout_or_fit_concern": "The report must stay open beside the timeline for checking."
+     },
+     "failure_a_professional_would_notice": "A dialogue editor receives AAF from picture on nearly every film; without it the sequence is rebuilt by hand from an EDL or by ear."
+    },
+    {
+     "n": 29,
+     "intent": "Import an existing session from the parity target (.sesx)",
+     "human": {
+      "panel": "FILE > Import",
+      "tool": null,
+      "gesture": "Import session",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "path": "reference.sesx"
+      },
+      "status": "missing",
+      "reach": "viewer_api",
+      "evidence": "hsk-studio-interop-media/src/native.rs:17,83-84 sniffs a sesx root as xml_root_sesx_candidate_unverified; import_native refuses editable import (tests/foundation_contract.rs:603-621). Spec row 50 line 21598 and [STU-IO-189] require per-entity mapping and loss outcomes. The input fixture is a hand-written synthetic XML, no vendor file."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-IO-189",
+       "line": 235
+      },
+      {
+       "clause": "STU-IO-186",
+       "line": 211
+      }
+     ],
+     "mts": [
+      "MT-35590",
+      "MT-36142",
+      "MT-36143",
+      "MT-35587"
+     ],
+     "expected_state": "Clips, routing, effects and automation mapped, each with an explicit loss outcome.",
+     "visual_check": {
+      "what_must_be_visible": "A loss report by entity; a recognised but refused file says why.",
+      "layout_or_fit_concern": "Refusal text must name the missing decoder, not a generic failure."
+     },
+     "failure_a_professional_would_notice": "Session handoff from a colleague cannot open at all."
+    },
+    {
+     "n": 30,
+     "intent": "Split the two-channel production file to boom and lav mono clips",
+     "human": {
+      "panel": "Timeline",
+      "tool": null,
+      "gesture": "Clip > Audio Channels; Breakout to Mono",
+      "shortcut_if_spec_defines_one": "Shift+G (cmd.clip.audiooptions.sourcechannelmappings, line 24279)"
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "map": [
+        "FrontCenter",
+        "Unused"
+       ],
+       "also": [
+        "Unused",
+        "FrontCenter"
+       ]
+      },
+      "status": "missing",
+      "reach": "viewer_api",
+      "evidence": "Spec key cmd.clip.audiooptions.breakouttomono line 24273. ImportOptions.channel_map exists (audio_import.rs:86-92) with Unused drop at the file level, but Viewer::open passes ImportOptions::default (audio_import.rs:865) and no clip-level channel map exists in StudioClip (audio_import.rs:405-419)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-VID-025",
+       "line": 23686
+      },
+      {
+       "clause": "STU-FX-137",
+       "line": 18683
+      }
+     ],
+     "mts": [
+      "MT-33711",
+      "MT-32617"
+     ],
+     "expected_state": "Boom on A1, lav on A2, each from one channel, still linked.",
+     "visual_check": {
+      "what_must_be_visible": "Two lanes labelled by channel; channel labels shown (line 23951).",
+      "layout_or_fit_concern": "Channel mapping belongs in a clip inspector, not a modal chain."
+     },
+     "failure_a_professional_would_notice": "A multi-channel source forced to a stereo fold: boom and lav become one unusable mix (audio_import.rs:10-19)."
+    },
+    {
+     "n": 31,
+     "intent": "Tag dialogue clips with the Dialogue content type",
+     "human": {
+      "panel": "Properties (guided audio surface)",
+      "tool": null,
+      "gesture": "Select clips, choose Dialogue",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "mode": "dialogue"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "git grep content_type|ContentType|dialogue in hsk-studio-folio/src, score/src and harness-view mixer.rs: 0 hits. The guided surface and its modes do not exist. Spec key cmd.clip.audiocategorization line 24272."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-138",
+       "line": 18699
+      },
+      {
+       "clause": "STU-FX-138a",
+       "line": 18716
+      }
+     ],
+     "mts": [
+      "MT-32618",
+      "MT-32619",
+      "MT-32620"
+     ],
+     "expected_state": "Clips carry a mode; the panel offers loudness, restoration, clarity, soundeffects, volume groups.",
+     "visual_check": {
+      "what_must_be_visible": "A badge on each clip (cmd.timeline.audio.show.esp.badges line 23952); the guided groups in the inspector.",
+      "layout_or_fit_concern": "Guided groups must edit the same effect stack entries the mixer shows, per [STU-FX-138], never a second engine."
+     },
+     "failure_a_professional_would_notice": "A novice-friendly path that hides what it did to the stack."
+    },
+    {
+     "n": 32,
+     "intent": "Send the boom clip from the timeline to the Waveform Editor",
+     "human": {
+      "panel": "Timeline to Waveform Editor",
+      "tool": null,
+      "gesture": "Double-click the clip",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "clip_id": "<boom clip>"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "Viewer::open_waveform_from_audio binds the one open file (waveform.rs:650-654); Panel::WaveformEditor calls that (shell.rs:1367). Nothing opens a clip's source window. Viewer::open_waveform(rate, channels) (waveform.rs:619) takes raw samples from a caller, and needs an open document (waveform.rs:620)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-OVR-015",
+       "line": 142
+      }
+     ],
+     "mts": [],
+     "expected_state": "The editor opens on the clip's source with the clip's window selected.",
+     "visual_check": {
+      "what_must_be_visible": "Waveform Editor with one lane per channel, with the clip's name and time range.",
+      "layout_or_fit_concern": "No spec panel id for this surface is verified; decide whether it is a sibling editor group in the centre tree."
+     },
+     "failure_a_professional_would_notice": "The waveform view unrelated to the edit under the playhead."
+    },
+    {
+     "n": 33,
+     "intent": "Open the boom source in the Waveform Editor",
+     "human": {
+      "panel": "Waveform Editor",
+      "tool": null,
+      "gesture": "WORKSPACE > Panels > Waveform Editor",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::open_waveform",
+      "parameters": {
+       "sample_rate_hz": 48000,
+       "channels": "boom"
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "Viewer::open_waveform waveform.rs:619; state via waveform_json waveform.rs:830 in state_json (mod.rs:869); panel canvas waveform.canvas waveform.rs:45."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-OVR-015",
+       "line": 142
+      }
+     ],
+     "mts": [],
+     "expected_state": "state_json().waveform has frames, rate, ops count, selection null.",
+     "visual_check": {
+      "what_must_be_visible": "Canvas with min/max per column and a time ruler.",
+      "layout_or_fit_concern": "Panel today is a bottom band; repair work needs most of the screen height."
+     },
+     "failure_a_professional_would_notice": "A tiny waveform with no amplitude scale. git grep of waveform.rs widget ids (waveform.rs:75-95) shows no zoom control; git grep -i zoom in waveform.rs: 0."
+    },
+    {
+     "n": 34,
+     "intent": "Zoom to the phrase and select a noise-only span",
+     "human": {
+      "panel": "Waveform Editor",
+      "tool": "Time selection",
+      "gesture": "Drag on the canvas",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::waveform_select",
+      "parameters": {
+       "start": "<sample>",
+       "end": "<sample + 1.0 s>",
+       "channels": "all"
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "Viewer::waveform_select waveform.rs:709 with WaveSelection (score wave_edit.rs:58), snap by set_waveform_snap waveform.rs:736; Viewer::waveform_peaks(start, end, columns) waveform.rs:824 gives any range numerically. Canvas zoom: git grep -i zoom in waveform.rs: 0."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-OVR-015",
+       "line": 142
+      }
+     ],
+     "mts": [],
+     "expected_state": "Selection in samples, optional zero-cross snap.",
+     "visual_check": {
+      "what_must_be_visible": "A highlighted span with start, end, duration readouts in samples and time.",
+      "layout_or_fit_concern": "Readouts must not sit on top of the wave."
+     },
+     "failure_a_professional_would_notice": "Selection numbers absent, or only in frames."
+    },
+    {
+     "n": 35,
+     "intent": "Open the Spectral Display under the waveform",
+     "human": {
+      "panel": "Spectral Display",
+      "tool": null,
+      "gesture": "WORKSPACE > Panels > Spectral Display",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::open_spectral_display",
+      "parameters": {
+       "window": "Hann",
+       "fft": 4096,
+       "scale": "Mel or log"
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "Viewer::open_spectral_display spectral_display.rs:84, set_spectral_params :92, spectral_image :179; widget ids window, scale, fft, lasso at :30-39; score SpectralViewParams and FrequencyScale score/src/lib.rs:134-137."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-OVR-015",
+       "line": 142
+      }
+     ],
+     "mts": [],
+     "expected_state": "Tiled spectrogram cached; state_json().spectral lists params and cache stats.",
+     "visual_check": {
+      "what_must_be_visible": "Spectrogram with frequency axis and time aligned to the waveform above.",
+      "layout_or_fit_concern": "Waveform and spectrogram must share one horizontal time axis; today they are separate panels (shell.rs:102-103), a serious fit risk."
+     },
+     "failure_a_professional_would_notice": "A spectrogram that drifts out of step with the wave above it."
+    },
+    {
+     "n": 36,
+     "intent": "Capture a noise print from the selected room tone",
+     "human": {
+      "panel": "Effects Browser > Restoration",
+      "tool": "Noise print",
+      "gesture": "Capture Noise Print from selection",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "fft_size": 4096,
+       "min_frames": "score DENOISE_MIN_PROFILE_FRAMES"
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "score/src/denoise.rs:142 NoiseProfiler push, finish; :101 NoiseProfile with digest; git grep NoiseReducer|NoiseProfiler in harness-view, harness, pulse: 0 hits."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-134a",
+       "line": 19024
+      }
+     ],
+     "mts": [
+      "MT-32639",
+      "MT-32664"
+     ],
+     "expected_state": "A named noise profile stored with the document, digest recorded.",
+     "visual_check": {
+      "what_must_be_visible": "The print graph, frames captured, a warning if the span is too short.",
+      "layout_or_fit_concern": "The print must persist across a reopen and be visible in the effect instance."
+     },
+     "failure_a_professional_would_notice": "A print that vanishes after reopen, forcing a recapture on revision notes."
+    },
+    {
+     "n": 37,
+     "intent": "Reduce broadband noise across the boom with preview and bypass",
+     "human": {
+      "panel": "Effect Controls",
+      "tool": "Noise reduction",
+      "gesture": "Set reduction, smoothing; audition noise-only; apply",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "reduction_db": 12,
+       "over_subtraction": "default",
+       "smoothing_ms": "default"
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "score/src/denoise.rs:233,272,295 NoiseReductionParams, NoiseReducer. EffectSpec has only Gain, Equalizer, Dynamics, Limiter (audio_batch.rs:43-55) and WaveformEdit::Effect goes through it (waveform.rs:118, 545), so this processor cannot run on a selection, a bus or a batch."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-134",
+       "line": 18665
+      },
+      {
+       "clause": "STU-FX-135",
+       "line": 18673
+      },
+      {
+       "clause": "STU-FX-134a",
+       "line": 19024
+      }
+     ],
+     "mts": [
+      "MT-32614",
+      "MT-32615",
+      "MT-32664"
+     ],
+     "expected_state": "Noise floor down by the set amount on tone spans; the speech band within tolerance. Non-destructive stack entry.",
+     "visual_check": {
+      "what_must_be_visible": "Before and after spectrum over the print, gain reduction by band.",
+      "layout_or_fit_concern": "Controls and print graph must be seen with the wave; a floating dialog over it hides the check."
+     },
+     "failure_a_professional_would_notice": "Musical noise or flanged consonants with no way to hear what was removed."
+    },
+    {
+     "n": 38,
+     "intent": "Run adaptive noise reduction on the moving noise (traffic)",
+     "human": {
+      "panel": "Effect Controls",
+      "tool": null,
+      "gesture": "Add Adaptive Noise Reduction to the clip",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "reduce_noise": 20,
+       "noisiness": 30,
+       "fine_tune_noise_floor": 2,
+       "signal_threshold": 2.5,
+       "spectral_decay": 140,
+       "broadband_preservation": 100
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "git grep -i adaptive in score/src and harness-view audio modules: 0 hits; truth-check MT-32639: profile mode only. Parameter contract at spec lines 17903-17908 (6 rows)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-134a",
+       "line": 19024
+      },
+      {
+       "clause": "STU-FX-136a",
+       "line": 18727
+      }
+     ],
+     "mts": [
+      "MT-32639",
+      "MT-32621"
+     ],
+     "expected_state": "Live effect entry on the clip, no print needed.",
+     "visual_check": {
+      "what_must_be_visible": "Six parameters with declared units and mapped real values.",
+      "layout_or_fit_concern": "Spec says parameters show real values, never normalised 0 to 1 ([STU-FX-136])."
+     },
+     "failure_a_professional_would_notice": "Without it every changing background needs manual spectral work."
+    },
+    {
+     "n": 39,
+     "intent": "Remove 50 Hz hum and harmonics",
+     "human": {
+      "panel": "Effect Controls",
+      "tool": null,
+      "gesture": "Add the hum remover; set fundamental and harmonics",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "fundamental_hz": 50,
+       "harmonics": 5
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "score/src/restore.rs:555,571 HumParams, HumRemover; truth-check MT-32663 gui_only_gap. git grep HumRemover in harness-view, harness, pulse: 0 hits. EffectSpec has only Gain, Equalizer, Dynamics, Limiter (audio_batch.rs:43-55) and WaveformEdit::Effect goes through it (waveform.rs:118, 545), so this processor cannot run on a selection, a bus or a batch. Peaking Equalizer sections are a rough callable workaround only (score/src/eq.rs:21)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-134a",
+       "line": 19024
+      }
+     ],
+     "mts": [
+      "MT-32663"
+     ],
+     "expected_state": "Hum lines gone in the spectrum; voice band unchanged.",
+     "visual_check": {
+      "what_must_be_visible": "Notches overlaid on a spectrum; fundamental stated in Hz.",
+      "layout_or_fit_concern": "A live spectrum must sit beside the effect controls; SpectrumAnalyzer has no panel (score/src/lib.rs:138, git grep in harness-view: 0)."
+     },
+     "failure_a_professional_would_notice": "Thinned voice from over-wide notches."
+    },
+    {
+     "n": 40,
+     "intent": "Repair clicks and lip smacks",
+     "human": {
+      "panel": "Effect Controls",
+      "tool": null,
+      "gesture": "Add Click Repair; sensitivity; audition removed clicks",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "threshold": "default",
+       "max_gap": "default"
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "score/src/restore.rs:81,115 ClickRepair with repaired_gaps and skipped_gaps reports at :195-199; bound row refusals per truth-check MT-32650. git grep ClickRepair in harness-view, harness, pulse: 0 hits."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-134a",
+       "line": 19024
+      }
+     ],
+     "mts": [
+      "MT-32650"
+     ],
+     "expected_state": "40 injected clicks detected; consonants untouched; a count returned.",
+     "visual_check": {
+      "what_must_be_visible": "Repaired and skipped counts; a marked list of repairs.",
+      "layout_or_fit_concern": "A hit list lets an editor reject false positives on plosives."
+     },
+     "failure_a_professional_would_notice": "Clicks removed along with the T and K consonants."
+    },
+    {
+     "n": 41,
+     "intent": "Heal the phone chirp in the Spectral Display",
+     "human": {
+      "panel": "Spectral Display",
+      "tool": "Lasso / Marquee",
+      "gesture": "Marquee the 2.2 kHz burst, Heal",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::apply_spectral(SpectralMaskOp::Heal)",
+      "parameters": {
+       "region": {
+        "Marquee": {
+         "start_sample": 3456000,
+         "end_sample": 3494400,
+         "low_hz": 2100,
+         "high_hz": 2300
+        }
+       },
+       "op": "Heal",
+       "fft_size": 4096
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "Viewer::set_spectral_region spectral_display.rs:187, apply_spectral :194; WaveformEdit::Spectral waveform.rs:116; score spectral_mask_edit with Marquee, Lasso, Attenuate, Remove, Heal at score/src/spectral_mask.rs:50-63. One undo step and replayed."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-OVR-015",
+       "line": 142
+      }
+     ],
+     "mts": [],
+     "expected_state": "Energy in the region down, samples outside the affected range bit-identical.",
+     "visual_check": {
+      "what_must_be_visible": "The region outline, the healed patch blended to neighbours, region bounds in Hz and time.",
+      "layout_or_fit_concern": "Tool state (Lasso, Marquee) must be obvious; today a toggle in a band panel, spectral.lasso (spectral_display.rs:36)."
+     },
+     "failure_a_professional_would_notice": "A visible smear where healing used too few neighbours. Audition's resynthesis detail is UNVERIFIED."
+    },
+    {
+     "n": 42,
+     "intent": "Attenuate individual sibilant bursts by region",
+     "human": {
+      "panel": "Spectral Display",
+      "tool": "Lasso",
+      "gesture": "Lasso, attenuate 6 dB",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::apply_spectral(SpectralMaskOp::Attenuate)",
+      "parameters": {
+       "region": {
+        "Lasso": "<polygon>"
+       },
+       "op": {
+        "Attenuate": {
+         "gain_db": -6
+        }
+       }
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "SpectralMaskOp::Attenuate score/src/spectral_mask.rs:60; bounds MAX_SPECTRAL_MASK_CELLS, MAX_LASSO_POINTS score/src/lib.rs:133."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-OVR-015",
+       "line": 142
+      }
+     ],
+     "mts": [],
+     "expected_state": "Region lowered by 6 dB within tolerance.",
+     "visual_check": {
+      "what_must_be_visible": "Lasso path, numeric gain field with unit.",
+      "layout_or_fit_concern": "Numeric gain field must be in reach of the lasso, not across a dock."
+     },
+     "failure_a_professional_would_notice": "Twelve manual lassos per scene with no de-esser to do it in one pass."
+    },
+    {
+     "n": 43,
+     "intent": "De-ess the lav dialogue",
+     "human": {
+      "panel": "Effect Controls",
+      "tool": null,
+      "gesture": "Add DeEsser, set threshold and band",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "filter_kind": "DeEsser"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "git grep -i de.?ess in score/src: 0; only reel provider text matches; truth-check MT-32662: no de-esser. Catalogue row line 19057."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-134a",
+       "line": 19024
+      }
+     ],
+     "mts": [
+      "MT-32662"
+     ],
+     "expected_state": "Sibilance band reduced dynamically; live entry in the stack.",
+     "visual_check": {
+      "what_must_be_visible": "Threshold, frequency band, gain-reduction meter.",
+      "layout_or_fit_concern": "Gain reduction meter must be drawn inside the effect, updating with playback."
+     },
+     "failure_a_professional_would_notice": "Every lav-mic dialogue job needs one; absence pushes the editor to a hosted plugin."
+    },
+    {
+     "n": 44,
+     "intent": "Reduce room reverb on the wide shot",
+     "human": {
+      "panel": "Effect Controls",
+      "tool": null,
+      "gesture": "Add DeNoiseDeReverb, set amount",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "filter_kind": "DeNoiseDeReverb"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "git grep -i de.?reverb|dereverb in score/src and harness-view audio modules: 0; truth-check MT-32664: denoise only, no dereverb. Row line 19059."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-134a",
+       "line": 19024
+      }
+     ],
+     "mts": [
+      "MT-32664"
+     ],
+     "expected_state": "Reverb tail reduced; live entry.",
+     "visual_check": {
+      "what_must_be_visible": "Amount control and output preview.",
+      "layout_or_fit_concern": "A model-backed form would need the adapter rules; do not assume it."
+     },
+     "failure_a_professional_would_notice": "Boom and lav lines that cannot be matched across a cut."
+    },
+    {
+     "n": 45,
+     "intent": "Repair the clipped span",
+     "human": {
+      "panel": "Effect Controls",
+      "tool": null,
+      "gesture": "Run a de-clipper on the selection",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "selection": "<200 ms span>"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "git grep -i de.?clip in score/src: 0 (harness-view timeline/audio.rs hit is unrelated text). Catalogue scan of lines 19030-19200 for clip: no de-clip row. Spec gap as well."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-134a",
+       "line": 19024
+      }
+     ],
+     "mts": [],
+     "expected_state": "Restored peaks above the former flat top; inter-sample level noted.",
+     "visual_check": {
+      "what_must_be_visible": "Clipped sample regions marked on the wave.",
+      "layout_or_fit_concern": "A clip-mark overlay is useful on all waveform views."
+     },
+     "failure_a_professional_would_notice": "Audible distortion left on a usable take."
+    },
+    {
+     "n": 46,
+     "intent": "Patch a word gap with copied room tone",
+     "human": {
+      "panel": "Waveform Editor",
+      "tool": null,
+      "gesture": "Select tone, copy; select gap, paste overwrite; fade the seams",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::waveform_edit",
+      "parameters": {
+       "copy": "<tone span>",
+       "paste": {
+        "at": "<gap>",
+        "mode": "Overwrite",
+        "channels": "all"
+       },
+       "fade": {
+        "curve": "EqualPower"
+       }
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "WaveformEdit Copy, Paste, Fade waveform.rs:105-109; PasteMode at score/src/wave_edit.rs:86; undo as one step; clipboard prefix rule waveform.rs:13-16 refuses stale paste with waveform_clipboard_stale."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-OVR-015",
+       "line": 142
+      }
+     ],
+     "mts": [],
+     "expected_state": "Gap filled, no level step; edit list grows by defined ops.",
+     "visual_check": {
+      "what_must_be_visible": "Paste placement and fade shape drawn on the wave.",
+      "layout_or_fit_concern": "Widget ids paste, fade_in, fade_out are separate buttons (waveform.rs:78-84); the curve is one global choice."
+     },
+     "failure_a_professional_would_notice": "An audible step in level at the seam; a 'stale clipboard' refusal that loses the copy after unrelated edits."
+    },
+    {
+     "n": 47,
+     "intent": "Ride a loud word down with a gain envelope",
+     "human": {
+      "panel": "Waveform Editor",
+      "tool": null,
+      "gesture": "Selection, gain envelope points",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::waveform_edit(GainEnvelope)",
+      "parameters": {
+       "selection": "<word>",
+       "points": [
+        [
+         0,
+         0.0
+        ],
+        [
+         2400,
+         -4.0
+        ],
+        [
+         9600,
+         -4.0
+        ],
+        [
+         12000,
+         0.0
+        ]
+       ]
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "WaveformEdit::GainEnvelope waveform.rs:110; score/src/wave_edit.rs:450; no point drawing widget in waveform.rs:75-95 list, so the GUI has no envelope."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-OVR-015",
+       "line": 142
+      }
+     ],
+     "mts": [],
+     "expected_state": "Selection follows the envelope; samples outside unchanged.",
+     "visual_check": {
+      "what_must_be_visible": "Envelope line over the wave with draggable points.",
+      "layout_or_fit_concern": "Envelope drawing has no surface today."
+     },
+     "failure_a_professional_would_notice": "Fixed-gain steps instead of a smooth ride."
+    },
+    {
+     "n": 48,
+     "intent": "Amplify and peak-normalise one selection",
+     "human": {
+      "panel": "Waveform Editor",
+      "tool": null,
+      "gesture": "Amplify +3 dB; Normalize -3 dBFS",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::waveform_edit(Amplify)",
+      "parameters": {
+       "amplify_db": 3.0,
+       "normalize_dbfs": -3.0,
+       "linked": true
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "WaveformEdit::Amplify, Normalize waveform.rs:111-112, widgets amplify_db, normalize_dbfs :87-89; score/src/wave_edit.rs:513,522."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-134a",
+       "line": 19024
+      }
+     ],
+     "mts": [
+      "MT-32642"
+     ],
+     "expected_state": "Level changed by the value; report counts clips.",
+     "visual_check": {
+      "what_must_be_visible": "Numeric fields with units next to their action.",
+      "layout_or_fit_concern": "Fields and buttons must be paired visually."
+     },
+     "failure_a_professional_would_notice": "Peak normalise offered without a clip warning."
+    },
+    {
+     "n": 49,
+     "intent": "Run a third-party CLAP restoration plugin on a selection",
+     "human": {
+      "panel": "Waveform Editor",
+      "tool": null,
+      "gesture": "Choose an approved plugin; run on selection",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::register_waveform_plugin then Viewer::waveform_edit(Plugin)",
+      "parameters": {
+       "content_sha256": "<fixture plugin>",
+       "parameters": []
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "Viewer::register_waveform_plugin waveform_plugin.rs:122 (feature audio-plugin); WaveformEdit::Plugin waveform.rs:120; process isolated; CLAP only, VST3 and others refused (waveform.rs:37-43). A plugin on a track or bus has no path."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-134",
+       "line": 18665
+      }
+     ],
+     "mts": [
+      "MT-32614"
+     ],
+     "expected_state": "One undo step; replay needs the same digest registered, otherwise waveform_plugin_unregistered.",
+     "visual_check": {
+      "what_must_be_visible": "Plugin name, digest, grant; a clear unregistered state on reopen.",
+      "layout_or_fit_concern": "A plugin's own window must not steal focus ([STU-QUIET-005])."
+     },
+     "failure_a_professional_would_notice": "No live insert: the plugin bakes the selection only."
+    },
+    {
+     "n": 50,
+     "intent": "Hear and measure the spectrum of the repaired line",
+     "human": {
+      "panel": "Scopes or a spectrum view",
+      "tool": null,
+      "gesture": "Open frequency analysis on the selection",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "fft": 4096
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "score/src/spectrum.rs SpectrumAnalyzer exported score/src/lib.rs:138; git grep SpectrumAnalyzer in harness-view, harness, pulse: 0."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-134a",
+       "line": 19024
+      }
+     ],
+     "mts": [],
+     "expected_state": "Frequency curve updates with selection or playback.",
+     "visual_check": {
+      "what_must_be_visible": "Log frequency axis, dB axis, a freeze trace to compare.",
+      "layout_or_fit_concern": "`scopes` holds video scopes per [STU-COL-333]; audio analysis needs a stated home."
+     },
+     "failure_a_professional_would_notice": "Hum removal judged by ear only."
+    },
+    {
+     "n": 51,
+     "intent": "Undo the last repair and compare",
+     "human": {
+      "panel": "Waveform Editor",
+      "tool": null,
+      "gesture": "Undo, redo",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::waveform_undo",
+      "parameters": {
+       "undo": true
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "Viewer::waveform_undo waveform.rs:815; widgets undo, redo waveform.rs:94-95."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-135",
+       "line": 18673
+      }
+     ],
+     "mts": [
+      "MT-32615"
+     ],
+     "expected_state": "Buffer identical to the prior state by digest.",
+     "visual_check": {
+      "what_must_be_visible": "History names the repair.",
+      "layout_or_fit_concern": "A/B without undo needs a bypass, which an edit list has no form of."
+     },
+     "failure_a_professional_would_notice": "No side-by-side A/B of original and repaired takes."
+    },
+    {
+     "n": 52,
+     "intent": "Bring the repaired audio back into the timeline clip and the mix",
+     "human": {
+      "panel": "Waveform Editor to Timeline",
+      "tool": null,
+      "gesture": "Save edit; the clip plays the repaired audio",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "source": "boom",
+       "repaired_digest": "<sha256>"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "git grep waveform in audio_import.rs, timeline_export.rs, timeline/export_media.rs: 0; mod.rs and shell.rs only own panel state; Viewer::export_audio reads a.import unedited (audio_import.rs:917-922); the AudioSources port the mixer reads has no edit-list stage. The edit list stays in entry waveform_edit (waveform.rs:7-12), with no file save, clip bounce or mix path. Viewer::waveform_buffer (waveform.rs:698) returns samples to a Rust caller, which could write them with reel's encoder itself."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-135",
+       "line": 18673
+      },
+      {
+       "clause": "STU-IO-101",
+       "line": 21135
+      }
+     ],
+     "mts": [
+      "MT-32615",
+      "MT-33368"
+     ],
+     "expected_state": "The clip's source resolves through the edit list or a new digest; mix and export hear the repair.",
+     "visual_check": {
+      "what_must_be_visible": "A badge on the clip for 'has repair'; waveform peaks refresh.",
+      "layout_or_fit_concern": "Reverting a repair must be one action on the clip."
+     },
+     "failure_a_professional_would_notice": "Every minute of repair above is lost at mix and master: the worst defect in this project."
+    },
+    {
+     "n": 53,
+     "intent": "Apply a reusable restoration chain to the other dialogue files",
+     "human": {
+      "panel": "Audio Batch (hosted panel)",
+      "tool": null,
+      "gesture": "Add files, choose preset, run",
+      "shortcut_if_spec_defines_one": "Ctrl+Shift+F3 in code (hosted.rs:188), not a spec binding"
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "AudioBatchQueue",
+      "parameters": {
+       "chain": [
+        "Equalizer",
+        "Dynamics"
+       ],
+       "format": {
+        "Flac": {
+         "bits": 24
+        }
+       }
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "AudioBatchQueue::submit, run audio_batch.rs:323,347 with EffectSpec chain and keyframes; verified re-decode (audio_batch.rs:10-14). The panel's own run_batch offers only a gain chain (hosted.rs:1457). Restoration kinds not in EffectSpec. Not exposed by CLI (git grep AudioBatch in cli.rs: 0)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-AUT-132",
+       "line": 21851
+      },
+      {
+       "clause": "STU-FX-144",
+       "line": 19199
+      }
+     ],
+     "mts": [
+      "MT-32781"
+     ],
+     "expected_state": "One receipt per file with outcome, job settlement, output digest.",
+     "visual_check": {
+      "what_must_be_visible": "A queue with progress and a receipt list.",
+      "layout_or_fit_concern": "Panel exposes a gain field where a preset picker is needed."
+     },
+     "failure_a_professional_would_notice": "Batch that cannot apply the noise chain it is needed for."
+    },
+    {
+     "n": 54,
+     "intent": "Save the chain as a named preset",
+     "human": {
+      "panel": "Effects Browser or preset-library",
+      "tool": null,
+      "gesture": "Save stack as preset",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "audio_batch::save_preset_set",
+      "parameters": {
+       "preset_id": "film-dx-clean",
+       "name": "Film dialogue clean"
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "audio_batch.rs:830,841,853,865 preset_from_chain, chain_from_preset, save_preset_set, load_preset_set; Folio schema audio_preset.rs:73,85."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-144",
+       "line": 19199
+      }
+     ],
+     "mts": [
+      "MT-32781"
+     ],
+     "expected_state": "A preset set file with a stable identity; reload is identical.",
+     "visual_check": {
+      "what_must_be_visible": "A named preset in the library; a stale preset names what failed.",
+      "layout_or_fit_concern": "No window surface offers this (git grep save_preset_set|load_preset_set in hosted.rs and mixer.rs: 0)."
+     },
+     "failure_a_professional_would_notice": "Presets that silently drop keys."
+    }
+   ]
+  },
+  {
+   "scene_id": "s3-multitrack-mix",
+   "goal": "Route, process, automate and meter a real multitrack, using both sessions, with buses and lanes.",
+   "steps": [
+    {
+     "n": 55,
+     "intent": "Open the mixer on the sequence",
+     "human": {
+      "panel": "Audio Mixer",
+      "tool": null,
+      "gesture": "Bottom band tab",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::open_mixer",
+      "parameters": {
+       "sequence": "ep12",
+       "rate": 48000,
+       "block": 960
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "Viewer::open_mixer mixer.rs:178 with AudioSources; Panel::Mixer opens with one file or NoAudio (shell.rs:1351-1358); mixer_json mixer.rs:556."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-SHL-090",
+       "line": 32244
+      },
+      {
+       "clause": "STU-FX-137",
+       "line": 18683
+      }
+     ],
+     "mts": [
+      "MT-34621",
+      "MT-32617"
+     ],
+     "expected_state": "One strip per audio and submix track, plus master; position 0; no error.",
+     "visual_check": {
+      "what_must_be_visible": "Strips in track order with fader, pan, mute, solo, output, sends, peak, and master LUFS.",
+      "layout_or_fit_concern": "All strips must fit or scroll with the master pinned; the shell opens the mixer as a separate panel from the timeline."
+     },
+     "failure_a_professional_would_notice": "Master strip scrolled off-screen; 'error' shown only in a status line."
+    },
+    {
+     "n": 56,
+     "intent": "Add DX, MX and FX submix tracks",
+     "human": {
+      "panel": "Timeline",
+      "tool": null,
+      "gesture": "Sequence > Add Audio Submix Track",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.submit_sequence",
+      "api": null,
+      "parameters": {
+       "tracks": [
+        "SUB-DX",
+        "SUB-MX",
+        "SUB-FX"
+       ],
+       "kind": "Submix"
+      },
+      "status": "callable",
+      "reach": "run_api",
+      "evidence": "Whole-sequence path (see step 9); TrackKind::Submix used by mixer.rs:1-3; spec key cmd.sequence.addaudiosubmixtrack line 24168 has no typed command."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-137",
+       "line": 18683
+      },
+      {
+       "clause": "STU-VID-021",
+       "line": 23628
+      }
+     ],
+     "mts": [
+      "MT-32617",
+      "MT-33706"
+     ],
+     "expected_state": "Three submix strips appear after the rebuild.",
+     "visual_check": {
+      "what_must_be_visible": "Submix strips distinct in colour from audio strips.",
+      "layout_or_fit_concern": "A submix and an audio track must be distinguishable at a glance."
+     },
+     "failure_a_professional_would_notice": "Adding one bus means replacing a sequence; not recordable."
+    },
+    {
+     "n": 57,
+     "intent": "Route tracks to submixes",
+     "human": {
+      "panel": "Audio Mixer",
+      "tool": null,
+      "gesture": "Output popup on the strip",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::mixer_edit(Output)",
+      "parameters": {
+       "track_id": "A1",
+       "bus": "SUB-DX"
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "MixerEdit::Output mixer.rs:150, Viewer::mixer_edit mixer.rs:297; entry-only undo step mixer.rs:8-12; Folio StudioTrackRoute audio_routing.rs:95."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-137",
+       "line": 18683
+      }
+     ],
+     "mts": [
+      "MT-32617"
+     ],
+     "expected_state": "Routing entry updated, stream rebuilt, exact seek back.",
+     "visual_check": {
+      "what_must_be_visible": "Output name visible on each strip without opening the popup.",
+      "layout_or_fit_concern": "Long bus names must not wrap into the fader."
+     },
+     "failure_a_professional_would_notice": "Routing feedback cycle not refused plainly."
+    },
+    {
+     "n": 58,
+     "intent": "Insert a high-pass EQ on the dialogue bus",
+     "human": {
+      "panel": "Audio Mixer, Effect Controls",
+      "tool": null,
+      "gesture": "Add effect to the strip, set 80 Hz HP",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::mixer_edit(AddEffect)",
+      "parameters": {
+       "bus": "SUB-DX",
+       "effect": {
+        "filter_kind": "equalizer",
+        "sections": [
+         {
+          "kind": "HighPass",
+          "frequency_hz": 80,
+          "q": 0.7
+         },
+         {
+          "kind": "Peaking",
+          "frequency_hz": 3000,
+          "gain_db": 2,
+          "q": 1.0
+         }
+        ]
+       }
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "MixerEdit::AddEffect mixer.rs:156; template list mixer.rs:106-119 gain, equalizer, dynamics, lookahead_limiter; BiquadKind score/src/eq.rs:21 has Peaking, LowShelf, HighShelf, LowPass, HighPass (no notch kind). Spec row Parametric Equalizer line 19130."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-134a",
+       "line": 19024
+      },
+      {
+       "clause": "STU-FX-135",
+       "line": 18673
+      }
+     ],
+     "mts": [
+      "MT-32735"
+     ],
+     "expected_state": "Effect instance in routing; one undo; refused before storing if it does not build.",
+     "visual_check": {
+      "what_must_be_visible": "A slot on the strip; EQ curve with handles and frequency axis.",
+      "layout_or_fit_concern": "Parameter rows alone are not an EQ surface: an audio engineer needs the curve. GUI curve: NOT_INSPECTED beyond mixer.rs EffectParam rows."
+     },
+     "failure_a_professional_would_notice": "Numeric-only EQ with no curve, no spectrum behind it."
+    },
+    {
+     "n": 59,
+     "intent": "Compress dialogue on the bus",
+     "human": {
+      "panel": "Audio Mixer, Effect Controls",
+      "tool": null,
+      "gesture": "Add Dynamics, threshold, ratio",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::mixer_edit(AddEffect)",
+      "parameters": {
+       "bus": "SUB-DX",
+       "effect": {
+        "filter_kind": "dynamics",
+        "threshold_db": -20,
+        "ratio": 3,
+        "makeup_db": 2
+       }
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "EffectSpec::Dynamics audio_batch.rs:52 and automation keys :83-86; DynamicsMode compressor and expander at score/src/dynamics.rs:45; truth-check MT-32669: binds 5 of 16 spec rows, others refused by score/src/spec_rows.rs."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-134a",
+       "line": 19024
+      },
+      {
+       "clause": "STU-FX-136",
+       "line": 18679
+      }
+     ],
+     "mts": [
+      "MT-32669"
+     ],
+     "expected_state": "Live entry; gain reduction on dialogue peaks.",
+     "visual_check": {
+      "what_must_be_visible": "Gain reduction meter on the strip while playing.",
+      "layout_or_fit_concern": "A gain-reduction meter is not in mixer_json (mixer.rs:628-646)."
+     },
+     "failure_a_professional_would_notice": "Compression you cannot see. SidechainDynamics reports it (score/src/sidechain.rs:137), the bus path does not."
+    },
+    {
+     "n": 60,
+     "intent": "Insert an effect directly on an audio track or a clip",
+     "human": {
+      "panel": "Audio Mixer, Effect Controls",
+      "tool": null,
+      "gesture": "Add effect to A1 or to a clip",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "track_id": "A1",
+       "filter_kind": "equalizer"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "StudioAudioRouting audio_routing.rs:202-216 holds bus_effects and master only; no track or clip effect stack; MixerEdit::AddEffect takes bus or master (mixer.rs:155-156). [STU-FX-134], [STU-FX-135] require clip, track and bus targets."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-134",
+       "line": 18665
+      },
+      {
+       "clause": "STU-FX-135",
+       "line": 18673
+      }
+     ],
+     "mts": [
+      "MT-32614",
+      "MT-32615"
+     ],
+     "expected_state": "Ordered, reorderable, bypassable stack entry on the clip or track.",
+     "visual_check": {
+      "what_must_be_visible": "Effect count on clip and on strip; Effect Controls follow the selection.",
+      "layout_or_fit_concern": "Effect Controls ([STU-SHL-090] right dock) must follow timeline selection."
+     },
+     "failure_a_professional_would_notice": "Forced a one-submix-per-track layout to get an insert; clip-specific repair has no live form."
+    },
+    {
+     "n": 61,
+     "intent": "Multiband compress the music bus",
+     "human": {
+      "panel": "Effect Controls",
+      "tool": null,
+      "gesture": "Add Multiband Compressor",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "filter_kind": "Multiband Compressor",
+       "crossovers_hz": [
+        200,
+        2000,
+        8000
+       ]
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "score/src/multiband.rs and lib export; EffectSpec lacks it (audio_batch.rs:43-55); git grep MultibandCompressor in harness-view, harness, pulse: 0."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-134a",
+       "line": 19024
+      }
+     ],
+     "mts": [
+      "MT-32731"
+     ],
+     "expected_state": "Bands compress independently.",
+     "visual_check": {
+      "what_must_be_visible": "Band crossovers and gain reduction per band.",
+      "layout_or_fit_concern": "Dense controls need a resizable inspector."
+     },
+     "failure_a_professional_would_notice": "Only a one-band compressor available to a mix engineer."
+    },
+    {
+     "n": 62,
+     "intent": "Add a reverb send for ADR to match the room",
+     "human": {
+      "panel": "Audio Mixer",
+      "tool": null,
+      "gesture": "Add send to an aux submix; add reverb on it",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "send": {
+        "track_id": "ADR",
+        "target": "AUX-VERB",
+        "level": 0.2,
+        "pre_fader": false
+       },
+       "bus_effect": "Studio Reverb"
+      },
+      "status": "engine_only",
+      "reach": "viewer_api",
+      "evidence": "Send callable: MixerEdit::AddSend mixer.rs:151. Reverb not: score/src/reverb.rs Reverb exported, EffectSpec lacks it; git grep Reverb::new|score::Reverb in harness-view: 0. Row line 19160. Convolution reverb for real room match is absent altogether (MT-32661, truth-check)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-134a",
+       "line": 19024
+      },
+      {
+       "clause": "STU-FX-137",
+       "line": 18683
+      }
+     ],
+     "mts": [
+      "MT-32765",
+      "MT-32661"
+     ],
+     "expected_state": "Send carried in routing; bus reverb heard on the ADR.",
+     "visual_check": {
+      "what_must_be_visible": "A send level on the strip, reverb controls on the aux.",
+      "layout_or_fit_concern": "Sends should fold on the strip."
+     },
+     "failure_a_professional_would_notice": "ADR that sounds pasted in, no room around it."
+    },
+    {
+     "n": 63,
+     "intent": "Duck music under speech with a sidechain",
+     "human": {
+      "panel": "Effect Controls",
+      "tool": null,
+      "gesture": "Add ducking on MX keyed by DX",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "keyed_by": "SUB-DX",
+       "threshold_db": -30,
+       "reduction_db": 12
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "score/src/sidechain.rs:37,45,66 KeySource, SidechainParams, SidechainDynamics; git grep SidechainDynamics in harness-view, harness, pulse: 0. Guided ducking model [STU-FX-138] absent (git grep -i duck: 0)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-138",
+       "line": 18699
+      },
+      {
+       "clause": "STU-FX-138a",
+       "line": 18716
+      }
+     ],
+     "mts": [
+      "MT-32618",
+      "MT-32620"
+     ],
+     "expected_state": "Music falls under speech and returns; reduction visible and stored.",
+     "visual_check": {
+      "what_must_be_visible": "Ducking amount as a lane or gain reduction trace on the MX track.",
+      "layout_or_fit_concern": "A key-source picker must list buses only."
+     },
+     "failure_a_professional_would_notice": "A podcast bed manually drawn for 28 minutes."
+    },
+    {
+     "n": 64,
+     "intent": "Draw a music dip by hand with volume automation",
+     "human": {
+      "panel": "Timeline",
+      "tool": null,
+      "gesture": "Open Track Volume lane, add points",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::multitrack_command(AddPoint)",
+      "parameters": {
+       "track_id": "SUB-MX",
+       "lane": "TrackVolume",
+       "at": "<tick>",
+       "value_db": -12
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "AutomationCommand::AddPoint timeline/audio.rs:206, LaneTarget::TrackVolume :96; Folio StudioTrackAutomation audio_routing.rs:193; pulse bus_mix follows the lane per timeline/audio.rs:22-23."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-016",
+       "line": 27526
+      },
+      {
+       "clause": "STU-FX-137",
+       "line": 18683
+      }
+     ],
+     "mts": [
+      "MT-35376",
+      "MT-32617"
+     ],
+     "expected_state": "Lane point stored; fader shows AUTO state (mixer.rs:21-26).",
+     "visual_check": {
+      "what_must_be_visible": "Lane under the track with dB value; AUTO label on the strip.",
+      "layout_or_fit_concern": "Spec holds audio level on the same keyframe model ([STU-MOT-016]); the code's lanes are separate routing data, a possible conflict to resolve."
+     },
+     "failure_a_professional_would_notice": "Value only in linear gain, not in dB."
+    },
+    {
+     "n": 65,
+     "intent": "Move and delete automation points",
+     "human": {
+      "panel": "Timeline",
+      "tool": null,
+      "gesture": "Drag a point; right-click to delete",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::multitrack_command(MovePoint)",
+      "parameters": {
+       "move": {
+        "at": "<tick>",
+        "value_db": -9
+       }
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "AutomationCommand::MovePoint, DeletePoint timeline/audio.rs:208-209; each one entry-only undo step; deleting the last removes the lane (:23)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-MOT-016",
+       "line": 27526
+      }
+     ],
+     "mts": [
+      "MT-35376"
+     ],
+     "expected_state": "Points follow; mix follows after stream rebuild.",
+     "visual_check": {
+      "what_must_be_visible": "Point handles; value tooltip without occluding the lane.",
+      "layout_or_fit_concern": "Spec keys for frame-step moves (lines 24305-24308) have no command."
+     },
+     "failure_a_professional_would_notice": "Multi-select of points absent: no block moves of a whole dip."
+    },
+    {
+     "n": 66,
+     "intent": "Automate pan for a moving effect",
+     "human": {
+      "panel": "Timeline",
+      "tool": null,
+      "gesture": "Track Pan lane",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::multitrack_command(AddPoint)",
+      "parameters": {
+       "lane": "TrackPan",
+       "points": [
+        [
+         0,
+         -0.8
+        ],
+        [
+         "00:04.000",
+         0.8
+        ]
+       ]
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "LaneTarget::TrackPan timeline/audio.rs:98, ClipPan :103."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-137",
+       "line": 18683
+      }
+     ],
+     "mts": [
+      "MT-32617"
+     ],
+     "expected_state": "Pan moves; the panner law is pulse pan_gains (score/src/session.rs:650).",
+     "visual_check": {
+      "what_must_be_visible": "Pan lane centered at zero with L and R marks.",
+      "layout_or_fit_concern": "The law used must be stated somewhere visible."
+     },
+     "failure_a_professional_would_notice": "An unstated pan law changing level across the field."
+    },
+    {
+     "n": 67,
+     "intent": "Automate an EQ band on the dialogue bus over a line",
+     "human": {
+      "panel": "Timeline",
+      "tool": null,
+      "gesture": "Lane choice: bus effect parameter",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::multitrack_command(AddPoint)",
+      "parameters": {
+       "lane": {
+        "BusParam": {
+         "instance_id": "fx-0",
+         "key": "section_1_gain_db"
+        }
+       }
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "LaneTarget::BusParam timeline/audio.rs:101; automation_index keys audio_batch.rs:83-86; timeline_lane_choices timeline/audio.rs:434. On a submix or master only."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-135",
+       "line": 18673
+      }
+     ],
+     "mts": [
+      "MT-32615"
+     ],
+     "expected_state": "Keyframes in the effect instance; heard in the mix.",
+     "visual_check": {
+      "what_must_be_visible": "Parameter name in the lane header with unit.",
+      "layout_or_fit_concern": "Header label is instance_id plus key (timeline/audio.rs:123), not a readable effect name."
+     },
+     "failure_a_professional_would_notice": "Lane headers that read 'fx-0 section_1_gain_db'."
+    },
+    {
+     "n": 68,
+     "intent": "Ride the fader in Latch or Touch while playing",
+     "human": {
+      "panel": "Audio Mixer",
+      "tool": null,
+      "gesture": "Set strip to Latch; move the fader during playback",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "mode": "Latch"
+      },
+      "status": "missing",
+      "reach": "viewer_api",
+      "evidence": "A static fader edit on an automated control writes one point at the playhead (mixer.rs:26-30, Studio reading; Audition modes UNVERIFIED D5). No mode enum in MixerEdit (mixer.rs:145-161), no real-time capture. Audible playback itself is not hosted (step 24)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-137",
+       "line": 18683
+      },
+      {
+       "clause": "STU-MOT-016",
+       "line": 27526
+      }
+     ],
+     "mts": [
+      "MT-32617"
+     ],
+     "expected_state": "Moves captured as thinned points; Read, Write, Latch, Touch, Off stated.",
+     "visual_check": {
+      "what_must_be_visible": "Mode control on every strip; writing state in red.",
+      "layout_or_fit_concern": "Spec has no automation-mode enumeration: spec gap for the Operator."
+     },
+     "failure_a_professional_would_notice": "The mix engineer's primary gesture does not exist."
+    },
+    {
+     "n": 69,
+     "intent": "Solo and mute to check stems",
+     "human": {
+      "panel": "Audio Mixer",
+      "tool": null,
+      "gesture": "S and M on strips",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::mixer_edit(Solo)",
+      "parameters": {
+       "track_id": "A2",
+       "soloed": true
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "MixerEdit::Mute, Solo mixer.rs:148-149; spec keys for all targeted tracks at lines 24249-24250 have no command."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-137",
+       "line": 18683
+      }
+     ],
+     "mts": [
+      "MT-32617"
+     ],
+     "expected_state": "Other strips are silent in mixer_render.",
+     "visual_check": {
+      "what_must_be_visible": "S and M lit state readable, solo on a bus shown distinctly.",
+      "layout_or_fit_concern": "Solo safe for submix dependencies is not specified."
+     },
+     "failure_a_professional_would_notice": "Solo logged as a document edit and an undo step in a live mix."
+    },
+    {
+     "n": 70,
+     "intent": "Bypass and reorder effects while comparing",
+     "human": {
+      "panel": "Audio Mixer",
+      "tool": null,
+      "gesture": "Bypass toggle; drag slot",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::mixer_edit(EffectEnabled)",
+      "parameters": {
+       "bus": "SUB-DX",
+       "instance_id": "fx-0",
+       "enabled": false,
+       "to": 1
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "MixerEdit::EffectEnabled, MoveEffect mixer.rs:158-159."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-135",
+       "line": 18673
+      }
+     ],
+     "mts": [
+      "MT-32615"
+     ],
+     "expected_state": "Exact restoration of output when bypassed.",
+     "visual_check": {
+      "what_must_be_visible": "Slot state and order visible on the strip.",
+      "layout_or_fit_concern": "A bypass click should not cause a click: UNVERIFIED, needs an audio test."
+     },
+     "failure_a_professional_would_notice": "A loudness jump masks the A/B; no gain-match bypass."
+    },
+    {
+     "n": 71,
+     "intent": "Read per-strip peaks and master loudness during a pass",
+     "human": {
+      "panel": "Audio Mixer",
+      "tool": null,
+      "gesture": "Run a pass; read meters",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::mixer_render, Viewer::mixer_json",
+      "parameters": {
+       "frames": 960
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "Viewer::mixer_render mixer.rs:279 updates meters; mixer_json mixer.rs:636-645 momentary, short_term, integrated, peak; panel text mixer.rs:767."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-137",
+       "line": 18683
+      },
+      {
+       "clause": "STU-FX-134a",
+       "line": 19024
+      }
+     ],
+     "mts": [
+      "MT-32721"
+     ],
+     "expected_state": "Offline meter values reproducible for a given block sequence.",
+     "visual_check": {
+      "what_must_be_visible": "Peak bars per strip and an M, S, I LUFS line on master.",
+      "layout_or_fit_concern": "A single text line is not a loudness meter; history and a target line are needed."
+     },
+     "failure_a_professional_would_notice": "Loudness read only from small text."
+    },
+    {
+     "n": 72,
+     "intent": "Watch true peak and loudness range on a Meter Rail",
+     "human": {
+      "panel": "Audio Meters (right rail)",
+      "tool": null,
+      "gesture": "Always visible on the rail",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "fields": [
+        "true_peak_dbtp",
+        "loudness_range_lu",
+        "max_short_term_lufs"
+       ]
+      },
+      "status": "engine_only",
+      "reach": "viewer_api",
+      "evidence": "score/src/loudness.rs:140-154 LoudnessSnapshot holds them, GraphMeters.loudness carries it (score/src/bus.rs:227), but mixer_json drops them (mixer.rs:636-645). No Meter Rail or audio-meters panel: git grep audio-meters|audio_meters in harness-view: 0."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-SHL-090",
+       "line": 32244
+      },
+      {
+       "clause": "STU-FX-138a",
+       "line": 18716
+      }
+     ],
+     "mts": [
+      "MT-34621",
+      "MT-32620"
+     ],
+     "expected_state": "True peak per channel, LRA and maxima in state.",
+     "visual_check": {
+      "what_must_be_visible": "Stereo bars on the rail with dBFS scale; dBTP and LUFS numbers; clip latch.",
+      "layout_or_fit_concern": "Spec fixes `audio-meters` in the right rail for this profile (line 32248); it must be readable at narrow rail width."
+     },
+     "failure_a_professional_would_notice": "Delivery limits checked with no true peak reading in view."
+    },
+    {
+     "n": 73,
+     "intent": "Check stereo correlation before delivery",
+     "human": {
+      "panel": "Audio Meters",
+      "tool": null,
+      "gesture": "Read the phase meter",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {},
+      "status": "missing",
+      "reach": "none",
+      "evidence": "git grep -i phase.?correl|stereo_phase in score/src/report.rs, lib.rs: only STEREO_PHASE_DEG (modulation) and correlation_id; no meter. No spec clause found (searched module 14 for correlat in audio lines)."
+     },
+     "spec_clauses": [],
+     "mts": [],
+     "expected_state": "Value from -1 to +1 over the program.",
+     "visual_check": {
+      "what_must_be_visible": "A correlation bar under the meters.",
+      "layout_or_fit_concern": "Spec gap."
+     },
+     "failure_a_professional_would_notice": "A mono fold-down that cancels dialogue, caught only by listeners."
+    },
+    {
+     "n": 74,
+     "intent": "Check plugin and effect latency compensation",
+     "human": {
+      "panel": "Audio Mixer",
+      "tool": null,
+      "gesture": "Read latency",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::mixer_json",
+      "parameters": {},
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "mixer_json latency mixer.rs:632 from TimelineBusStream latency; score GraphLatency in bus exports; tests score/tests/session_latency.rs."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-137",
+       "line": 18683
+      }
+     ],
+     "mts": [
+      "MT-32617"
+     ],
+     "expected_state": "Stated latency in samples, compensated; stems aligned.",
+     "visual_check": {
+      "what_must_be_visible": "Total latency at the master strip.",
+      "layout_or_fit_concern": "Small text is enough, must exist in state and on screen."
+     },
+     "failure_a_professional_would_notice": "A dialogue bus slightly later than picture, unnoticed."
+    },
+    {
+     "n": 75,
+     "intent": "Mix in 5.1 for the film print",
+     "human": {
+      "panel": "Audio Mixer",
+      "tool": null,
+      "gesture": "Set master to 5.1; pan in surround",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "master": "5.1"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "mixer_render returns [Vec<f32>;2] (mixer.rs:279); BusSpec effects stereo-to-stereo (score/src/bus.rs near :233); StudioAudioMaster no config (audio_routing.rs:115). Metering supports weights_5_1 (score/src/loudness.rs:292), not the mix path."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-137",
+       "line": 18683
+      }
+     ],
+     "mts": [
+      "MT-32617"
+     ],
+     "expected_state": "Six-channel buses and a surround panner; 2.0 fold-down.",
+     "visual_check": {
+      "what_must_be_visible": "Six-channel meters and a surround panner on strips.",
+      "layout_or_fit_concern": "Meter Rail width must grow for six bars."
+     },
+     "failure_a_professional_would_notice": "Film and streaming masters cannot be delivered in surround."
+    }
+   ]
+  },
+  {
+   "scene_id": "s4-loudness-and-masters",
+   "goal": "Hit loudness targets and print every master, stem and report, then prove them by re-reading the files.",
+   "steps": [
+    {
+     "n": 76,
+     "intent": "Choose loudness targets from a named standard",
+     "human": {
+      "panel": "Render Queue or guided audio surface",
+      "tool": null,
+      "gesture": "Pick Podcast -16 LUFS or the film target",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "target_lufs": -16,
+       "ceiling_dbtp": -1,
+       "standard": "<unnamed>"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "[STU-FX-147] line 19226: LoudnessStandard enumeration must be authored as a named decision. git grep LoudnessStandard in score/src and harness-view: 0. score NORMALIZE_TARGET_LUFS is a bound, not a standard list (score/src/lib.rs exports)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-147",
+       "line": 19226
+      },
+      {
+       "clause": "STU-FX-138a",
+       "line": 18716
+      }
+     ],
+     "mts": [
+      "MT-32784",
+      "MT-32620"
+     ],
+     "expected_state": "Named target stored on the job; both limits show on the meter.",
+     "visual_check": {
+      "what_must_be_visible": "Target line on the loudness meter; standard name on the render item.",
+      "layout_or_fit_concern": "Selecting a target should not need a modal."
+     },
+     "failure_a_professional_would_notice": "Target typed by hand each time. Operator decision needed before coding."
+    },
+    {
+     "n": 77,
+     "intent": "Measure the integrated loudness of the whole podcast mix offline",
+     "human": {
+      "panel": "Audio Mixer or Render Queue",
+      "tool": null,
+      "gesture": "Analyze",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::mixer_render loop",
+      "parameters": {
+       "sequence": "ep12"
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "Loop Viewer::mixer_render to the end, read mixer_json master integrated_lufs (mixer.rs:644). score measure_loudness (score/src/normalize.rs:77) has no host."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-134a",
+       "line": 19024
+      }
+     ],
+     "mts": [
+      "MT-32721"
+     ],
+     "expected_state": "Integrated LUFS within 0.1 LU of a reference meter on the fixture.",
+     "visual_check": {
+      "what_must_be_visible": "Result row with LUFS, LRA, dBTP and date.",
+      "layout_or_fit_concern": "A faster-than-realtime pass should run in Jobs with progress."
+     },
+     "failure_a_professional_would_notice": "Must play the whole mix through a test loop to get one number."
+    },
+    {
+     "n": 78,
+     "intent": "Measure dialogue-gated loudness for the film",
+     "human": {
+      "panel": "Audio Mixer or Render Queue",
+      "tool": null,
+      "gesture": "Analyze with dialogue gating",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "gate": "dialogue"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "score/src/loudness.rs:1-17 implements BS.1770 gates only, no speech gating; git grep -i dialog in score/src: 0 for loudness (searched content_type|dialogue, score/src)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-147",
+       "line": 19226
+      }
+     ],
+     "mts": [
+      "MT-32784"
+     ],
+     "expected_state": "Dialogue-anchored loudness value.",
+     "visual_check": {
+      "what_must_be_visible": "Value labelled dialogue-gated or program-gated, never just LUFS.",
+      "layout_or_fit_concern": "The label is a safety item."
+     },
+     "failure_a_professional_would_notice": "A film that meets program loudness but fails a dialogue-gated delivery spec."
+    },
+    {
+     "n": 79,
+     "intent": "Normalise the mix to target with peak control",
+     "human": {
+      "panel": "Render Queue",
+      "tool": null,
+      "gesture": "Apply Match Loudness",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "target_lufs": -16,
+       "ceiling_dbtp": -1,
+       "policy": {
+        "Limit": {
+         "lookahead_ms": 5,
+         "release_ms": 100
+        }
+       }
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "score/src/normalize.rs:50,62,152 NormalizeRequest, NormalizeReceipt, loudness_normalize with PeakPolicy; git grep loudness_normalize|measure_loudness in harness-view, harness, pulse: 0."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-138",
+       "line": 18699
+      }
+     ],
+     "mts": [
+      "MT-32618"
+     ],
+     "expected_state": "Output within 0.1 LU, receipt with gain, passes, limited flag.",
+     "visual_check": {
+      "what_must_be_visible": "Before and after values in the receipt row.",
+      "layout_or_fit_concern": "A receipt the operator can read."
+     },
+     "failure_a_professional_would_notice": "Gain applied that overshoots the ceiling with no report."
+    },
+    {
+     "n": 80,
+     "intent": "Add a true-peak limiter on the master",
+     "human": {
+      "panel": "Audio Mixer",
+      "tool": null,
+      "gesture": "Add Limiter to the master, set ceiling",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::mixer_edit(AddEffect)",
+      "parameters": {
+       "bus": null,
+       "effect": {
+        "filter_kind": "lookahead_limiter",
+        "ceiling_db": -1.0,
+        "true_peak": true,
+        "lookahead_ms": 5,
+        "release_ms": 100
+       }
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "MixerEdit::AddEffect bus None mixer.rs:155-156; EffectSpec::Limiter audio_batch.rs:54; LimiterParams score/src/dynamics.rs:409, default -1 dBTP."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-134a",
+       "line": 19024
+      }
+     ],
+     "mts": [
+      "MT-32710"
+     ],
+     "expected_state": "Limiter on master; no sample over the ceiling after oversampled check.",
+     "visual_check": {
+      "what_must_be_visible": "Ceiling value and limiter activity on the master strip.",
+      "layout_or_fit_concern": "Limiter's dBTP unit must be stated, since ceiling is dBFS when true_peak is off."
+     },
+     "failure_a_professional_would_notice": "An inter-sample over on the master."
+    },
+    {
+     "n": 81,
+     "intent": "Set the master range: first and last sound",
+     "human": {
+      "panel": "Timeline",
+      "tool": null,
+      "gesture": "Mark work area",
+      "shortcut_if_spec_defines_one": "X marks clip (line 24650), / marks selection (line 24649)"
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "ExportSequenceRequest",
+      "parameters": {
+       "in_tick": "<first>",
+       "out_tick": "<last>"
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "ExportSequenceRequest in_tick, out_tick timeline/export_media.rs:102-103; CLI --in --out harness/src/cli.rs:71-72; work_area in StudioSequence (audio_import.rs:446). No TimelineCommand sets a work area (enum 682-790)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-VID-039",
+       "line": 23892
+      }
+     ],
+     "mts": [
+      "MT-33742"
+     ],
+     "expected_state": "Export takes the stated span.",
+     "visual_check": {
+      "what_must_be_visible": "A work-area bar on the ruler with bounds.",
+      "layout_or_fit_concern": "Time displayed must match the export summary."
+     },
+     "failure_a_professional_would_notice": "Trailing digital silence at the file end."
+    },
+    {
+     "n": 82,
+     "intent": "Master the routed podcast mix to 24-bit FLAC, audio only",
+     "human": {
+      "panel": "Render Queue",
+      "tool": null,
+      "gesture": "Add render item; choose FLAC; start",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "sequence": "ep12",
+       "format": {
+        "Flac": {
+         "bits": 24
+        }
+       },
+       "output": "ep12_master.flac"
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "Engine pieces: export_from audio_import.rs:680, build_bus_stream audio_session.rs:114. Viewer::export_audio accepts only the one open file (audio_import.rs:916-922) and export_mix takes a TimelineMixStream without routing (audio_import.rs:663); the only routed export is the picture path (timeline_export.rs:478), which needs frames (export_media.rs:535 frame_decoder_missing)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-IO-101",
+       "line": 21135
+      },
+      {
+       "clause": "STU-SHL-092",
+       "line": 32254
+      }
+     ],
+     "mts": [
+      "MT-33368",
+      "MT-34623"
+     ],
+     "expected_state": "FLAC with MD5, re-decoded and verified, loudness per target.",
+     "visual_check": {
+      "what_must_be_visible": "Render item with destination, format, range and a Jobs row.",
+      "layout_or_fit_concern": "`render-queue` configures, Jobs executes ([STU-SHL-092])."
+     },
+     "failure_a_professional_would_notice": "An audio editor that cannot print an audio-only mix of its own session: the deliverable itself."
+    },
+    {
+     "n": 83,
+     "intent": "Write a one-file AIFF of the open file, as a smoke of the export path",
+     "human": {
+      "panel": "Audio panel",
+      "tool": null,
+      "gesture": "Export AIFF",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::export_audio",
+      "parameters": {
+       "format": {
+        "Aiff": {
+         "bits": 24
+        }
+       },
+       "overwrite": false
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "Viewer::export_audio audio_import.rs:907, MixFormat audio_import.rs:482-489, widgets EXPORT_FLAC and EXPORT_AIFF audio_import.rs:957-961; clipped_samples receipt audio_import.rs:509."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-IO-101",
+       "line": 21135
+      }
+     ],
+     "mts": [
+      "MT-33368"
+     ],
+     "expected_state": "File written atomically; receipt with frames and clipped samples.",
+     "visual_check": {
+      "what_must_be_visible": "Status line with file name, frames and clipped count.",
+      "layout_or_fit_concern": "A fixed 24-bit button is not an export dialog."
+     },
+     "failure_a_professional_would_notice": "Single-file passthrough mistaken for a session mixdown."
+    },
+    {
+     "n": 84,
+     "intent": "Write a broadcast WAV (BWF) with timecode and iXML",
+     "human": {
+      "panel": "Render Queue",
+      "tool": null,
+      "gesture": "Format BWF",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "format": "bwf",
+       "bits": 24,
+       "bext": {
+        "timeref": "<samples>"
+       }
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "MixFormat has FLAC and AIFF only (audio_import.rs:482-489); hsk-studio-reel/src/wav.rs and audio/wav_file.rs read only, provider list has no WAV encode (audio/provider.rs:26-37); git grep bwf|bext|ixml in reel and score audio: 0. Spec search for BWF: no clause; spec gap."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-IO-101",
+       "line": 21135
+      },
+      {
+       "clause": "STU-IO-141",
+       "line": 21335
+      }
+     ],
+     "mts": [
+      "MT-33368",
+      "MT-33405"
+     ],
+     "expected_state": "WAV with bext timestamp placing it on the timeline.",
+     "visual_check": {
+      "what_must_be_visible": "Bit depth, rate, timecode start in the render item.",
+      "layout_or_fit_concern": "Metadata fields fold under an advanced group, with [STU-IO-109] group paths."
+     },
+     "failure_a_professional_would_notice": "WAV is the universal film deliverable; AIFF and FLAC are not accepted by most mix stages."
+    },
+    {
+     "n": 85,
+     "intent": "Reduce to 16-bit with dither for the CD-rate archive",
+     "human": {
+      "panel": "Render Queue",
+      "tool": null,
+      "gesture": "16-bit, dither on, shape off",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "bits": 16,
+       "dither": "tpdf"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "audio_import.rs:23-24: integer quantise is round-to-nearest; git grep dither in score/src matches only noise floor comments in restore.rs:30,203."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-IO-105",
+       "line": 21181
+      }
+     ],
+     "mts": [
+      "MT-33372"
+     ],
+     "expected_state": "Quantisation noise decorrelated; stated in the receipt.",
+     "visual_check": {
+      "what_must_be_visible": "A dither choice next to bit depth.",
+      "layout_or_fit_concern": "The default must be visible, not implied."
+     },
+     "failure_a_professional_would_notice": "Truncation distortion in fade tails."
+    },
+    {
+     "n": 86,
+     "intent": "Convert the master to 44.1 kHz",
+     "human": {
+      "panel": "Render Queue",
+      "tool": null,
+      "gesture": "Choose rate",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "to_hz": 44100
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "ResampledBounce score/src/src_bounce.rs and StreamResample; lib exports score/src/lib.rs:139,149; no host (git grep src_bounce|ResampledBounce in harness-view: 0)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-IO-105",
+       "line": 21181
+      }
+     ],
+     "mts": [
+      "MT-33372"
+     ],
+     "expected_state": "Receipt with stages; true peak rechecked after SRC.",
+     "visual_check": {
+      "what_must_be_visible": "Rate option and post-SRC peak in the receipt.",
+      "layout_or_fit_concern": "Peak after SRC must be reported, since SRC raises peaks."
+     },
+     "failure_a_professional_would_notice": "An over introduced at the last stage."
+    },
+    {
+     "n": 87,
+     "intent": "Encode the distribution MP3",
+     "human": {
+      "panel": "Render Queue",
+      "tool": null,
+      "gesture": "MP3 128 kbps CBR",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "format": "mp3",
+       "bitrate_kbps": 128
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "reel audio/mp3*.rs are decoders; provider id mpeg-audio (audio/provider.rs:33); git grep encode in audio/mod.rs shows encode_flac only (:291); MixFormat has no MP3. External encoder ports not inspected for MP3: NOT_INSPECTED beyond these. Truth-check top_missing rank 4 lists MP3, AAC, WAV writers absent. AAC exists only behind feature studio-aac in reel audio/aac.rs:12, not in MixFormat."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-IO-140",
+       "line": 21333
+      },
+      {
+       "clause": "STU-IO-141",
+       "line": 21335
+      }
+     ],
+     "mts": [
+      "MT-33404",
+      "MT-33405"
+     ],
+     "expected_state": "A valid MP3; decode loudness within tolerance of the master; no clipping.",
+     "visual_check": {
+      "what_must_be_visible": "Codec, bitrate, resulting size and duration.",
+      "layout_or_fit_concern": "Show the size estimate before running."
+     },
+     "failure_a_professional_would_notice": "The whole podcast distribution chain ends at FLAC. Licence and patent rules for encoders are UNVERIFIED and not assessed here."
+    },
+    {
+     "n": 88,
+     "intent": "Embed ID3 tags, chapters and cover art",
+     "human": {
+      "panel": "Metadata, Render Queue",
+      "tool": null,
+      "gesture": "Fill fields; markers become chapters",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "title": "ep12",
+       "chapters": "from MarkerRole::Chapter"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "Marker data exists (hsk-studio-folio/src/timeline.rs:142-147 MarkerRole::Chapter); git grep id3|chapter in reel/src/audio returns only decoder skip text in mp3 modules and provider; no tag writer."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-VID-034",
+       "line": 23849
+      },
+      {
+       "clause": "STU-IO-105",
+       "line": 21181
+      }
+     ],
+     "mts": [
+      "MT-33736",
+      "MT-33372"
+     ],
+     "expected_state": "Tagged file reads back with chapter times equal to the markers.",
+     "visual_check": {
+      "what_must_be_visible": "Chapter list from markers in the metadata panel.",
+      "layout_or_fit_concern": "The `metadata` panel must show the sequence, not the clip, here."
+     },
+     "failure_a_professional_would_notice": "Chapter markers that are never written, so listeners see none."
+    },
+    {
+     "n": 89,
+     "intent": "Export the film reference MOV with the mix",
+     "human": {
+      "panel": "Render Queue or CLI",
+      "tool": null,
+      "gesture": "Export Media, DNxHR HQ MOV",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "cli": "studio-harness export-sequence PKG --sequence film-scene --preset studio.dnxhr.hq.mov --media film_ref.mp4 --audio <sources> --output film_ref_mix.mov --json"
+      },
+      "status": "callable",
+      "reach": "cli",
+      "evidence": "harness/src/cli.rs:373,756-881; preset PCM24 at reel/src/presets.rs:70-74; root mix through build_bus_stream at timeline_export.rs:478 'the file holds what the mixer plays'; TimelineCommand ExportMediaOpen, Run, Cancel timeline.rs:785-789; containers only MP4 and MOV (reel/src/mux.rs:54-59). Waveform edits are not in it (step 52)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-IO-101",
+       "line": 21135
+      },
+      {
+       "clause": "STU-IO-140",
+       "line": 21333
+      }
+     ],
+     "mts": [
+      "MT-33368",
+      "MT-33404"
+     ],
+     "expected_state": "MOV with picture and PCM mix; receipt with output_sha256 and audio_frames.",
+     "visual_check": {
+      "what_must_be_visible": "Export dialog with preset, range, destination; a Jobs row.",
+      "layout_or_fit_concern": "Only six presets (reel/src/presets.rs:49-84), all video; audio options are not settable."
+     },
+     "failure_a_professional_would_notice": "An editor cannot pick 48 kHz 24-bit or layout: the preset decides."
+    },
+    {
+     "n": 90,
+     "intent": "Print dialogue, music and effects stems that sum to the print",
+     "human": {
+      "panel": "Render Queue",
+      "tool": null,
+      "gesture": "Add one render item per bus; align start",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "stems": [
+        "SUB-DX",
+        "SUB-MX",
+        "SUB-FX"
+       ],
+       "format": "bwf"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "No per-bus output: export_media.rs root mix only; render_queue.rs audio is on or off (timeline_export/render_queue.rs:243-245); MixFormat no WAV. Mute workaround via mixer does not reach the audio-only export (step 82)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-137",
+       "line": 18683
+      },
+      {
+       "clause": "STU-SHL-092",
+       "line": 32254
+      }
+     ],
+     "mts": [
+      "MT-32617",
+      "MT-34623"
+     ],
+     "expected_state": "Stem files equal length and start; sum matches the print within -90 dB.",
+     "visual_check": {
+      "what_must_be_visible": "A stem matrix: bus by file, with names.",
+      "layout_or_fit_concern": "Queue rows must group as one print job."
+     },
+     "failure_a_professional_would_notice": "Stem delivery is required on many film and streaming jobs; without it the job fails at QC."
+    },
+    {
+     "n": 91,
+     "intent": "Null-test the stems against the print",
+     "human": {
+      "panel": "Waveform Editor",
+      "tool": null,
+      "gesture": "Mix-paste stems, invert the print, measure residual",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "Viewer::waveform_edit",
+      "parameters": {
+       "ops": [
+        "Paste Mix",
+        "Invert"
+       ],
+       "expect_peak_db_below": -90
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "WaveformEdit::Paste with PasteMode mix and Invert waveform.rs:106,113; Viewer::waveform_peaks :824 reads the residual. Blocked in practice until stems exist (step 90)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-OVR-015",
+       "line": 142
+      }
+     ],
+     "mts": [],
+     "expected_state": "Residual below the limit.",
+     "visual_check": {
+      "what_must_be_visible": "Residual wave flat at the scale floor; level readout.",
+      "layout_or_fit_concern": "A dB scale must be selectable to see a residual."
+     },
+     "failure_a_professional_would_notice": "A silent mismatch caused by a master limiter that the stems lack."
+    },
+    {
+     "n": 92,
+     "intent": "Hand the session on as a .sesx",
+     "human": {
+      "panel": "FILE > Export",
+      "tool": null,
+      "gesture": "Export session with loss report",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "format": "sesx"
+      },
+      "status": "missing",
+      "reach": "none",
+      "evidence": "hsk-studio-interop-media/src/native.rs is sniff and refusal only; spec row 50 is direction I (line 21598), so export is not required by that row: UNVERIFIED need, recorded so the Operator can decide. Native package save is callable (step 26)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-IO-189",
+       "line": 235
+      }
+     ],
+     "mts": [
+      "MT-35590"
+     ],
+     "expected_state": "Named mapping and loss outcomes, if the Operator adds this direction.",
+     "visual_check": {
+      "what_must_be_visible": "Loss report per entity.",
+      "layout_or_fit_concern": "Same report surface as import."
+     },
+     "failure_a_professional_would_notice": "No route out to another house's tool. Not a defect under current spec row, a parity question."
+    },
+    {
+     "n": 93,
+     "intent": "Run the master renders from the Jobs queue, quietly",
+     "human": {
+      "panel": "Jobs",
+      "tool": null,
+      "gesture": "Start; keep working; cancel one",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "timeline.export_media_run",
+      "api": null,
+      "parameters": {},
+      "status": "callable",
+      "reach": "timeline_command",
+      "evidence": "TimelineCommand::ExportMediaRun timeline.rs:787, key export_media_run timeline.rs:845; export runs headless and background per timeline/export_media.rs:1-5; JobAdmission job_admission.rs; AudioBatchQueue with_jobs audio_batch.rs:318."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-QUIET-005",
+       "line": 22603
+      },
+      {
+       "clause": "STU-SHL-092",
+       "line": 32254
+      },
+      {
+       "clause": "STU-AUT-132",
+       "line": 21851
+      }
+     ],
+     "mts": [
+      "MT-33657",
+      "MT-34623"
+     ],
+     "expected_state": "Running, failed, canceled states; no focus theft; a typed cancel.",
+     "visual_check": {
+      "what_must_be_visible": "Jobs row with progress, output, retry, open location.",
+      "layout_or_fit_concern": "Jobs must show when the panel is collapsed, as an icon count."
+     },
+     "failure_a_professional_would_notice": "Blocked UI during a long bounce."
+    },
+    {
+     "n": 94,
+     "intent": "Re-decode the master and verify checksum and length",
+     "human": {
+      "panel": "Jobs",
+      "tool": null,
+      "gesture": "Automatic verification; open report",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": "AudioBatchQueue, reel::decode_audio_file",
+      "parameters": {
+       "path": "ep12_master.flac"
+      },
+      "status": "callable",
+      "reach": "viewer_api",
+      "evidence": "Batch re-decode verify audio_batch.rs:12-14; reel decode_audio_file; FLAC MD5 in MixExport.flac_md5 audio_import.rs:512; hsk-studio-reel/src/audio/md5.rs."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-AUT-132",
+       "line": 21851
+      }
+     ],
+     "mts": [],
+     "expected_state": "MD5 match, frame count match.",
+     "visual_check": {
+      "what_must_be_visible": "A pass or fail row with actual and expected values.",
+      "layout_or_fit_concern": "Verification outcome on the Jobs row."
+     },
+     "failure_a_professional_would_notice": "A master that passes because only the export code checked itself."
+    },
+    {
+     "n": 95,
+     "intent": "Produce the loudness and peak QC report on the file",
+     "human": {
+      "panel": "Render Queue or Problems",
+      "tool": null,
+      "gesture": "Analyze the printed file; export report",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "api": null,
+      "parameters": {
+       "path": "ep12_master.flac",
+       "limits": {
+        "lufs": [
+         -17,
+         -15
+        ],
+        "dbtp_max": -1,
+        "lra_note": true
+       }
+      },
+      "status": "engine_only",
+      "reach": "crate_api_unhosted",
+      "evidence": "score measure_loudness and LoudnessSnapshot (normalize.rs:77, loudness.rs:140) with no host; no report writer (git grep measure_loudness in harness-view, harness: 0). A runner can reach only the mixer meter (step 77)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-FX-147",
+       "line": 19226
+      },
+      {
+       "clause": "STU-AUT-132",
+       "line": 21851
+      }
+     ],
+     "mts": [
+      "MT-32784"
+     ],
+     "expected_state": "Machine-readable report: integrated LUFS, LRA, dBTP per channel, pass or fail.",
+     "visual_check": {
+      "what_must_be_visible": "A report with pass and fail against the chosen standard.",
+      "layout_or_fit_concern": "Failure should link to the time of the worst true peak."
+     },
+     "failure_a_professional_would_notice": "A delivery spec check done in another tool."
+    },
+    {
+     "n": 96,
+     "intent": "Replay the entire project from a recorded action to the same digest",
+     "human": {
+      "panel": "Actions & Macros",
+      "tool": null,
+      "gesture": "Play action set on a clean project",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "action.play",
+      "api": null,
+      "parameters": {
+       "set": "audio_post_all"
+      },
+      "status": "missing",
+      "reach": "run_api",
+      "evidence": "RUN_COMMANDS (action.rs:843-880) holds action.play but only layer commands are recordable; no audio, mixer, waveform or automation command is in the corpus, so none can be a step (git grep audio|waveform|loudness in action.rs: 0). `timeline.<key>` and the JSONL loop are the job of SMB-HARNESS-DRIVE-1; CLI at this tip has no state or command verb (cli.rs:269-420)."
+     },
+     "spec_clauses": [
+      {
+       "clause": "STU-AUT-147",
+       "line": 21905
+      },
+      {
+       "clause": "STU-AUT-154",
+       "line": 21926
+      },
+      {
+       "clause": "STU-AUT-109",
+       "line": 21760
+      },
+      {
+       "clause": "STU-AUT-001",
+       "line": 22080
+      }
+     ],
+     "mts": [
+      "MT-33500",
+      "MT-33507",
+      "MT-33462"
+     ],
+     "expected_state": "Identical end state and master digest.",
+     "visual_check": {
+      "what_must_be_visible": "Action steps listed with per-step status and receipt.",
+      "layout_or_fit_concern": "A failed step points to its panel."
+     },
+     "failure_a_professional_would_notice": "No repeatable mastering template; no agent can run this scenario without compiled Rust."
+    }
+   ]
+  }
+ ],
+ "gaps": [
+  {
+   "what": "Audible playback in the host: wire AudioOut with buses to the transport and program monitor, with device selection, dropout count and meters driven by what is heard.",
+   "status": "engine_only",
+   "blocks_steps": [
+    24,
+    68,
+    69,
+    70
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-harness",
+    "hsk-studio-score-device"
+   ],
+   "spec_clauses": [
+    "STU-ARC-013",
+    "STU-VID-023"
+   ],
+   "mts": [
+    "MT-36030",
+    "MT-33709"
+   ],
+   "size": "small",
+   "why_it_ranks_here": "AudioOut is written and tested but has no caller, so a person cannot hear anything. Every human judgement in audio depends on it and it is the cheapest item here."
+  },
+  {
+   "what": "Multitrack source binding in the product: new project, project bin holding many audio files, conform, source port built from the bin, typed add track, add submix and place clip, audio-only source patching.",
+   "status": "missing",
+   "blocks_steps": [
+    1,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    19,
+    56
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-folio",
+    "hsk-studio-pulse",
+    "hsk-studio-session"
+   ],
+   "spec_clauses": [
+    "STU-VID-010",
+    "STU-VID-021",
+    "STU-VID-024",
+    "STU-VID-025",
+    "STU-VID-050",
+    "STU-VID-053"
+   ],
+   "mts": [
+    "MT-33685",
+    "MT-33706",
+    "MT-33710",
+    "MT-33711",
+    "MT-33761",
+    "MT-33762",
+    "MT-33765"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "The window holds one audio file; the mixer and lanes are tested against a Rust source port no host builds. No multitrack job can start without this."
+  },
+  {
+   "what": "Repaired audio must reach the mix: resolve a clip through its waveform edit list or bounce to a new digest, open a timeline clip in the editor, and write edited audio out.",
+   "status": "missing",
+   "blocks_steps": [
+    32,
+    52
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-pulse",
+    "hsk-studio-folio"
+   ],
+   "spec_clauses": [
+    "STU-FX-135",
+    "STU-IO-101",
+    "STU-OVR-015"
+   ],
+   "mts": [
+    "MT-32615",
+    "MT-33368"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "All of steps 33 to 51 currently produce audio nothing downstream can use. Audition-class waveform editing has no MT family of its own (truth-check 20261105 audio_domain_note), so this is at risk of never being picked up."
+  },
+  {
+   "what": "Host the existing restoration and dynamics engines: add NoiseProfiler and NoiseReducer, HumRemover, ClickRepair, MultibandCompressor, Reverb, SidechainDynamics and spectrum analysis to EffectSpec and Folio instances, then to selection, bus, batch and a visible panel.",
+   "status": "engine_only",
+   "blocks_steps": [
+    36,
+    37,
+    39,
+    40,
+    50,
+    53,
+    61,
+    62,
+    63
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-folio",
+    "hsk-studio-score"
+   ],
+   "spec_clauses": [
+    "STU-FX-134",
+    "STU-FX-134a",
+    "STU-FX-136"
+   ],
+   "mts": [
+    "MT-32614",
+    "MT-32639",
+    "MT-32650",
+    "MT-32663",
+    "MT-32664",
+    "MT-32731",
+    "MT-32765"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "The DSP is written and has tests; only EffectSpec's four kinds gate it. High return: noise reduction is half of the brief."
+  },
+  {
+   "what": "Audio-only routed session mixdown, plus a WAV and BWF writer with timecode.",
+   "status": "engine_only",
+   "blocks_steps": [
+    82,
+    84,
+    90
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-reel"
+   ],
+   "spec_clauses": [
+    "STU-IO-101",
+    "STU-IO-141",
+    "STU-SHL-092"
+   ],
+   "mts": [
+    "MT-33368",
+    "MT-33405",
+    "MT-34623"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "The project's output cannot be printed: FLAC and AIFF only reach one open file, and the routed path insists on picture frames. Spec has no BWF clause, which also needs a spec decision."
+  },
+  {
+   "what": "Typed, recordable audio command surface: mixer, waveform, spectral, automation and audio export as corpus entries with JSON parameters, reachable by the harness drive loop.",
+   "status": "missing",
+   "blocks_steps": [
+    96
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-core",
+    "hsk-studio-harness",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-AUT-001",
+    "STU-AUT-109",
+    "STU-AUT-147",
+    "STU-AUT-154"
+   ],
+   "mts": [
+    "MT-33500",
+    "MT-33507",
+    "MT-33462"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "Every viewer_api step here needs compiled Rust, so a scripted model cannot run this scenario. Ranked below items that block any user because SMB-HARNESS-DRIVE-1 is starting it; that lane must include MixerEdit, WaveformEdit, AutomationCommand, or audio stays out."
+  },
+  {
+   "what": "Loudness tooling: the named standard enumeration, host for loudness_normalize and measure_loudness, dialogue gating, a Meter Rail with true peak and LRA, a QC report.",
+   "status": "missing",
+   "blocks_steps": [
+    72,
+    76,
+    78,
+    79,
+    95
+   ],
+   "crates_likely": [
+    "hsk-studio-score",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-FX-147",
+    "STU-FX-138a",
+    "STU-SHL-090"
+   ],
+   "mts": [
+    "MT-32784",
+    "MT-32620",
+    "MT-34621",
+    "MT-32721"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Metering is sound (BS.1770, R128 tech docs in score/src/loudness.rs), but the delivery check is not reachable. Needs an Operator decision for [STU-FX-147] first."
+  },
+  {
+   "what": "Stem printing and M&E: per-bus render items with a sum check.",
+   "status": "missing",
+   "blocks_steps": [
+    90,
+    91
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-pulse"
+   ],
+   "spec_clauses": [
+    "STU-FX-137",
+    "STU-SHL-092"
+   ],
+   "mts": [
+    "MT-32617",
+    "MT-34623"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Required by film delivery, but sits on the mixdown item above."
+  },
+  {
+   "what": "Timeline audio editing precision: audio crossfades by command, fade handles, sample-accurate razor, nudge and trim, waveform sync correlator, breakout to mono, per-clip channel map, timeline-level paste.",
+   "status": "engine_only",
+   "blocks_steps": [
+    4,
+    13,
+    14,
+    15,
+    18,
+    20,
+    30
+   ],
+   "crates_likely": [
+    "hsk-studio-pulse",
+    "hsk-studio-harness-view",
+    "hsk-studio-score"
+   ],
+   "spec_clauses": [
+    "STU-VID-032a",
+    "STU-VID-029a",
+    "STU-VID-026",
+    "STU-VID-025"
+   ],
+   "mts": [
+    "MT-33734",
+    "MT-33727",
+    "MT-33712",
+    "MT-33711"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Clicks on every cut otherwise; everything still runs in frames."
+  },
+  {
+   "what": "Missing restoration processors: adaptive noise reduction, de-esser, de-reverb, de-clip, plus diagnostics for silence.",
+   "status": "missing",
+   "blocks_steps": [
+    17,
+    38,
+    43,
+    44,
+    45
+   ],
+   "crates_likely": [
+    "hsk-studio-score"
+   ],
+   "spec_clauses": [
+    "STU-FX-134a",
+    "STU-FX-136a"
+   ],
+   "mts": [
+    "MT-32639",
+    "MT-32662",
+    "MT-32664"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "Real DSP research each; workarounds exist through spectral tools and CLAP, so lower than hosting what exists. De-clip and diagnostics have no spec row."
+  },
+  {
+   "what": "Effects on tracks and clips, not only buses.",
+   "status": "missing",
+   "blocks_steps": [
+    60
+   ],
+   "crates_likely": [
+    "hsk-studio-folio",
+    "hsk-studio-pulse",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-FX-134",
+    "STU-FX-135"
+   ],
+   "mts": [
+    "MT-32614",
+    "MT-32615"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Spec requires it; the one-submix-per-track workaround runs today, so it does not stop the job."
+  },
+  {
+   "what": "Distribution outputs: MP3 and AAC audio, dither, sample-rate conversion on master, ID3 and chapters, audio options in presets.",
+   "status": "missing",
+   "blocks_steps": [
+    85,
+    86,
+    87,
+    88
+   ],
+   "crates_likely": [
+    "hsk-studio-reel",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-IO-105",
+    "STU-IO-140",
+    "STU-IO-141",
+    "STU-VID-034"
+   ],
+   "mts": [
+    "MT-33372",
+    "MT-33404",
+    "MT-33405",
+    "MT-33736"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "Blocks the podcast's final file. Encoder licence questions UNVERIFIED and need an Operator call before any choice."
+  },
+  {
+   "what": "Guided audio-adjustment surface over the effect stack, with content types and ducking.",
+   "status": "missing",
+   "blocks_steps": [
+    31,
+    63
+   ],
+   "crates_likely": [
+    "hsk-studio-folio",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-FX-138",
+    "STU-FX-138a"
+   ],
+   "mts": [
+    "MT-32618",
+    "MT-32619",
+    "MT-32620"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Speeds work and is specified, but a thin layer over gaps above."
+  },
+  {
+   "what": "Automation modes: Read, Write, Latch, Touch, Off with real-time capture.",
+   "status": "missing",
+   "blocks_steps": [
+    68
+   ],
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-pulse"
+   ],
+   "spec_clauses": [
+    "STU-FX-137",
+    "STU-MOT-016"
+   ],
+   "mts": [
+    "MT-32617",
+    "MT-35376"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Depends on playback. No spec enumeration; also resolve whether audio lanes are the [STU-MOT-016] keyframe model or separate routing data."
+  },
+  {
+   "what": "Surround: master channel configuration, six-channel buses, panner, meters, fold-down.",
+   "status": "missing",
+   "blocks_steps": [
+    3,
+    75
+   ],
+   "crates_likely": [
+    "hsk-studio-score",
+    "hsk-studio-pulse",
+    "hsk-studio-folio"
+   ],
+   "spec_clauses": [
+    "STU-FX-137"
+   ],
+   "mts": [
+    "MT-32617"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "A wide engine change; stereo delivers the podcast and a film stereo print."
+  },
+  {
+   "what": "Interchange: AAF and OMF import; .sesx mapping with loss outcomes.",
+   "status": "missing",
+   "blocks_steps": [
+    28,
+    29,
+    92
+   ],
+   "crates_likely": [
+    "hsk-studio-interop-media"
+   ],
+   "spec_clauses": [
+    "STU-IO-189",
+    "STU-IO-186"
+   ],
+   "mts": [
+    "MT-35590",
+    "MT-36142",
+    "MT-36143",
+    "MT-35587"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "Film houses need AAF, yet the spec has no clause. A solo Operator workflow may never need it: Operator decision."
+  },
+  {
+   "what": "Spec and governance: panel ids for the waveform and spectral surfaces, an audio Layout Preset decision, a phase meter and audio diagnostics home, and an MT family for Audition-class editing.",
+   "status": "missing",
+   "blocks_steps": [
+    2,
+    17,
+    32,
+    33,
+    34,
+    35,
+    41,
+    42,
+    73
+   ],
+   "crates_likely": [
+    "none: spec module 14 and MT index"
+   ],
+   "spec_clauses": [
+    "STU-SHL-095",
+    "STU-SHL-136",
+    "STU-OVR-015"
+   ],
+   "mts": [
+    "MT-34626",
+    "MT-34664"
+   ],
+   "size": "small",
+   "why_it_ranks_here": "Vulkan panel work needs a name and a placement. Cheap, but no user sees it directly."
+  }
+ ],
+ "gui_review": {
+  "panels_and_tools_needed_together": [
+   "Dialogue repair: program monitor with picture, Waveform Editor and Spectral Display sharing one time axis, Effect Controls, Audio Meters, History.",
+   "Assembly: Project Bin, source and program monitors, Timeline with waveforms and lanes, Markers.",
+   "Mix: Timeline with automation lanes, Audio Mixer with master, Audio Meters, Effect Controls.",
+   "Master: Render Queue, Jobs, Audio Meters with target line, Metadata, Problems for QC failures."
+  ],
+  "reachable_without_hunting": [
+   "Meters and master fader in every audio task, always.",
+   "Solo, mute, and transport from keyboard and strip.",
+   "Selection start, end, length readouts in samples and time.",
+   "Undo with a named history row for each audio edit.",
+   "Loudness target and integrated value together while mastering.",
+   "An effect's bypass, one click, on the strip and on Effect Controls."
+  ],
+  "workspace_switches": [
+   "Assembly to Repair: a double-click on a clip opens the editor as a sibling editor group, picture stays visible, no document change ([STU-SHL-093]: presets change arrangement only).",
+   "Repair to Mix: the Edit preset; playhead, selection and zoom remain ([STU-SHL-097]).",
+   "Mix to Master: Render Queue configures and Jobs executes as two surfaces ([STU-SHL-092]).",
+   "Spec has no audio job preset in the proposed twelve (line 32272); a Repair and a Mix preset need an Operator decision ([STU-SHL-136])."
+  ],
+  "what_would_feel_incoherent": [
+   "Waveform Editor and Spectral Display as separate panels without a shared time axis, without zoom in the editor (no zoom widget in waveform.rs). Worst concern: precise repair needs both locked together at full width.",
+   "An editor that repairs a file the timeline never hears (step 52).",
+   "An Export FLAC button that prints the single open file, next to a mixer showing a different mix (steps 82, 83).",
+   "Two automation worlds: lanes in routing data versus [STU-MOT-016] keyframes in the keyframe timeline.",
+   "Lane headers with raw ids like `fx-0 section_1_gain_db` (timeline/audio.rs:123).",
+   "Loudness shown as one text line (mixer.rs:767) instead of a meter with history.",
+   "Bus-only effects while the Effect Controls panel sits next to a selected clip showing nothing for it.",
+   "Time in frames on an audio-only project with no picture."
+  ],
+  "gui_truth_note": "The GUI is being rebuilt in pure Vulkan. Statements of what the window has today were read from the current host code and are a list of behaviours to carry forward or fix; no screenshot was taken, so visual claims about today's layout are UNVERIFIED."
+ },
+ "coverage": {
+  "steps_total": 96,
+  "by_status": {
+   "missing": 30,
+   "engine_only": 17,
+   "callable": 49
+  },
+  "by_reach": {
+   "none": 25,
+   "crate_api_unhosted": 16,
+   "viewer_api": 40,
+   "run_api": 7,
+   "timeline_command": 7,
+   "cli": 1
+  },
+  "per_scene": {
+   "s1-podcast-assembly": {
+    "missing": 7,
+    "engine_only": 4,
+    "callable": 15
+   },
+   "s2-film-dialogue-repair": {
+    "callable": 13,
+    "missing": 10,
+    "engine_only": 5
+   },
+   "s3-multitrack-mix": {
+    "callable": 13,
+    "missing": 4,
+    "engine_only": 4
+   },
+   "s4-loudness-and-masters": {
+    "missing": 9,
+    "callable": 8,
+    "engine_only": 4
+   }
+  },
+  "share_callable": 0.51,
+  "share_callable_by_cli_or_json_alone": 0.01,
+  "share_engine_only": 0.177,
+  "share_missing": 0.312,
+  "share_project_runnable_today": "0 percent end to end. A person cannot run it at all: no sound (step 24), no second file (step 6). A Rust test with a fixture package and its own source port can run the callable steps, including edit, spectral repair, routing, lanes and metering, but with no hosted noise reduction (steps 36, 37), repairs that never reach the mix (step 52) and no audio-only master (step 82). The only master it can print is the reference MOV (step 89). No required deliverable is produced: no -16 LUFS FLAC, no MP3, no stems.",
+  "caveat": "`callable` counts include Rust-only APIs and whole-sequence replacement; reach shows how little a script can touch. Nothing was executed: callable means the code was read, not that the call was proven in this pass."
+ },
+ "runner_notes": {
+  "today": "A runner must be a Rust test in hsk-studio-harness with features audio-batch and, for step 49, audio-plugin. Existing patterns: hsk-studio-harness/tests/audio_mixer.rs, audio_waveform.rs, audio_spectral.rs, audio_session.rs, tests/support_audio/mod.rs. Once SMB-HARNESS-DRIVE-1 lands, use its state, command and undo verbs with RUN_COMMANDS ids and timeline.<key>; MixerEdit, WaveformEdit and AutomationCommand need to be added there.",
+  "fixtures": "Generate all inputs from a seeded script at run time, none proprietary: the deliverable list in input_assets, with a manifest of defect positions and rates. Write a native package fixture holding the sequences, since step 1 has no command. A synthetic .sesx is a hand-written XML root only. Keep outputs under Handshake_Artifacts per HSK-ART-001.",
+  "determinism": "Fix block size at 960 frames and rate at 48000 (shell.rs:54-56); meters depend on no wall clock but mixer_render partition must be repeated exactly. Use receipt digests (flac_md5, output_sha256) only for one backend. Denoise and heal on a fixed FFT size. Actor context fixed through the test RunContext. [STU-AUT-154] requires deterministic replay.",
+  "how_to_compare": [
+   "Hum: spectrum at 50 Hz and 5 harmonics falls by a stated dB; band 300 Hz to 3 kHz within 1 dB.",
+   "Noise: tone-span RMS falls by the set reduction, tolerance stated by engine tests.",
+   "Clicks: repaired_gaps against the 40 in the manifest; no repair within speech-burst onsets.",
+   "Chirp: energy in the marquee down; samples outside report.affected range bit-identical (score/src/spectral_mask.rs:15-19).",
+   "Loudness: independent check with score's meter and a second tool (for example a reference BS.1770 implementation) on the file written, not on the mixer's own value, so the producer does not prove itself.",
+   "True peak: at or below the ceiling at 4x oversampling on the printed file.",
+   "Stems: null residual below -90 dB after sum and inversion.",
+   "Undo: state_json and document digest equal before and after.",
+   "Chapters and metadata: read back from the file and compared with Folio markers."
+  ],
+  "gui_checks": "After each visual_check, capture through the headless render harness ([STU-QUIET-005]) with no focus steal; store the shot under the step number. Fit checks at narrow and wide windows.",
+  "not_verified": [
+   "No code was run in this pass; callable claims are read-only.",
+   "Audition interaction parity is UNVERIFIED in the code's own doc comments (D5) and in this file.",
+   "External encoder ports for MP3: NOT_INSPECTED beyond the provider list and encode grep.",
+   "hsk-studio-score-plugin internals: NOT_INSPECTED, cited through the waveform host only.",
+   "Exact vendor delivery values vary by document version; they are this deliverable's targets, not spec law."
+  ]
+ }
+}

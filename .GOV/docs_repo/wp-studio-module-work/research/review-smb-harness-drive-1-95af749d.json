@@ -1,0 +1,88 @@
+{
+  "lane": "SMB-HARNESS-DRIVE-1",
+  "tip": "95af749d",
+  "verdict": "FIX_FIRST",
+  "summary": "No compile error found by reading, default, viewer and desktop. No predicted test failure on a plain unfiltered run. Two small data-loss holes in the save and export paths belong in drive.rs before the one bundled run, so the run does not have to be repeated.",
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "data_loss",
+      "certainty": "READ",
+      "where": "cli/drive.rs:217-227 (viewer_method), cli/drive_viewer.rs:232-240, harness-view view/mod.rs:691, view/vector/interop.rs:607, view/vector/pdf_export.rs:366",
+      "what": "The in-place rule (overwrite and expected revision) lives only in Live::save. The three export rows also take a path and an overwrite flag, and their only guard is the flag. The opened package is replaced with no expected revision, and the reply is ok:true. The manual says saving over the opened PACKAGE needs both.",
+      "scenario": "{\"command\":\"command\",\"command_id\":\"viewer.export\",\"parameters\":{\"path\":\"<PACKAGE>\",\"format\":\"png\",\"overwrite\":true}} replaces the .handshake with PNG bytes. viewer.export_vector_svg and viewer.export_vector_pdf do the same. These writes go through write_atomic, so there is no Run op, no observe frame and no attribution record.",
+      "fix": "In viewer_method, before the call: when params has `path` and same_file(path, self.source), refuse (overwrite_required or a new code). An export over the opened package is never wanted. Add one line to the hostile test."
+    },
+    {
+      "id": "F2",
+      "severity": "data_loss",
+      "certainty": "READ",
+      "where": "cli/drive.rs:164 and 201-215, harness-view view/mod.rs:724 and 691, hsk-studio-session/src/session.rs:2642 (save_inner has no exists check), view/shell.rs:1120-1129, view/mod.rs:593-595",
+      "what": "drive.rs:164 says a save never overwrites by default, and the row declares overwrite with default false. But Viewer::save guards only the opened source, and save_atomic_streaming replaces whatever is at the path. overwrite=false has no effect on any other existing file. The raster export is the same: mod.rs:691 guards only the source, while the SVG and PDF exports do check path.exists.",
+      "scenario": "(a) {\"command_id\":\"document.save\",\"parameters\":{\"path\":\"other.handshake\"}} with other.handshake present replaces it, ok:true. One-shot `--save OUT` behaves the same. (b) viewer.export {path:other.png,format:png} replaces other.png. (c) studio.document.save takes no parameters and writes save_input, which open_inner sets to <stem>.saved.handshake, or to <stem>.handshake for a PSD input, and replaces an existing file there with no expected revision. A model sweeping the menu leaves writes a file it never named.",
+      "fix": "Live::save: `if !overwrite && path.exists() { return Err(refuse(\"overwrite_required\", ...)) }` ahead of the same_file block. Same check in the `export` arm of drive_viewer.rs. Add studio.document.save to DRIVE_SHELL_NOT_DRIVEABLE with the reason `use document.save`. None of the current tests saves over an existing non-source path without overwrite, so none breaks."
+    },
+    {
+      "id": "F3",
+      "severity": "false_fail_or_stale_proof",
+      "certainty": "READ for the artifacts; the cause (run filters) is inferred, because lane-check does not log a builder's own arguments",
+      "where": "tests/harness_drive.rs:57-64",
+      "what": "binary() finds <target>/debug/examples/studio-harness.exe, and the path is right. That file exists only after an unfiltered test build or an explicit `cargo build --example`. It is absent in this lane's target. Red runs 2 and 3 failed at lookup ('across 1 binary', then 'across 2 binaries'). examples/ holds only studio_harness-ce4cf7aedf70b4b6.exe at 723 KB, an example built as a test harness with no uplift, which fits red 3 naming the example target. Targets of lanes that ran plain `cargo nextest run -p hsk-studio-harness`, and the C: studio-round target, do hold studio-harness.exe, so the round and an unfiltered bundled run find it.",
+      "scenario": "`--test harness_drive` fails all process tests at lookup again. Worse, red 4's plan (`cargo build --example` first, then a filtered run) spawns whatever example was last built, with no staleness or feature check, so it can pass or fail on old code.",
+      "fix": "No code change. The bundled run must be `cargo nextest run -p hsk-studio-harness -p hsk-studio-harness-core [-p hsk-studio-harness-view] --features hsk-studio-harness/viewer` with no --test or --example. Use -E to narrow it."
+    },
+    {
+      "id": "F4",
+      "severity": "wrong_claim",
+      "certainty": "READ",
+      "where": "lane file host_integration.diagnostics and notes.gaps; cli/drive.rs:217-246; view/mod.rs:732",
+      "what": "The lane says one terminal frame per command, and its gaps name only the pre-dispatch refusal. Rows that never reach a Run op also emit no frame: viewer.select, set_tool, set_brush, select_rect, select_ellipse, select_lasso, clear_selection, the three exports, timeline zoom, scroll and scrub, and studio.view.*. The selection is written into the package at the next save, so a marquee reaches disk through a frameless command. The frames assertion at tests/harness_drive.rs:363-364 only sees Run rows, so it cannot catch this.",
+      "scenario": "viewer.select_rect then document.save: the saved package holds a selection whose only op is the save, attributed to whichever command saved.",
+      "fix": "State it in DRIVE_LIMITS and in the lane gaps. Document mutation itself is fine (see checked)."
+    },
+    {
+      "id": "F5",
+      "severity": "wrong_refusal",
+      "certainty": "READ",
+      "where": "cli/drive.rs:55 and 258-261",
+      "what": "Live.timeline_open is a private copy of Viewer.timeline. Viewer::close sets the timeline to None and the bool stays true.",
+      "scenario": "studio.document.close (or viewer.close), then studio.document.open_recent.0, then timeline.razor: open_timeline is skipped and every timeline line refuses timeline_refused/no_timeline on a document that has a sequence. Reverse case: studio.workspace.panel.timeline opens it, then the first timeline.* calls open_timeline again and resets selection, view and tool.",
+      "fix": "Drop the bool. Open when state_json()[\"timeline\"] is null, or add a small non-draw accessor."
+    },
+    {
+      "id": "F6",
+      "severity": "weak_proof",
+      "certainty": "READ",
+      "where": "tests/harness_drive.rs:587-595, 599-646, 511-552, 555-581",
+      "what": "drive_sources_name_no_window_focus_or_os_input scans only cli.rs and the two drive modules, while all 86 viewer rows and every menu leaf dispatch into harness-view, which it does not scan. a_live_session_owns_no_window reads MainWindowHandle after open and runs no leaf, and it passes with a NOT_PROVEN line if powershell fails. Only 3 studio.* ids go through the process. every_viewer_row is a negative list, so a row calling the wrong method would pass, and viewer.delete_layer on L1 early in the sweep leaves most later rows meeting unknown-layer. No current leaf can open a window (see checked), so this is not a live bug: the tests do not guard the claimed width.",
+      "scenario": "A later Viewer method that spawns a process or calls an OS API stays green.",
+      "fix": "Cheap: in a_live_session_owns_no_window, send every leaf id from state.shell.menu before the handle read (scratch directory; studio.document.close last). That also proves no leaf panics or blocks in the process path, for no extra build."
+    }
+  ],
+  "checked": [
+    "Compile, desktop: bin/studio-harness.rs main traced line by line. Closure coercion to &dyn Fn(&Path)->bool, the StdinLock and StdoutLock coercions to dyn BufRead and dyn Write, match arm types, Prefer copied into the closure, PathBuf still used by struct App. egui and eframe lines unchanged apart from argument handling. No error found.",
+    "Compile, examples/studio-harness.rs: clean. Locks are dropped before exit, and process::exit also flushes stdout.",
+    "Compile, default features: window_args and run_streams use only core items; `pub mod action` is ungated; Parsed fields carry allow(dead_code).",
+    "Compile, drive_viewer.rs: all 86 arms checked against the Viewer signatures from grep, for argument order, return types through plain/unit (all Into<Value>), develop Refusal.code as &'static str, help_search Result<usize,&'static str>, Tool::ALL as an array, and the Copy derive on the indexed enums. Token arrays match enum arrays position by position (pathfinder, shapes, combine, joins).",
+    "Compile, harness_drive.rs: slice coercions, closure coercions, assert_eq on Value against &str, i32, u64 and bool, for-loop temporaries, the fixture copied from viewer_timeline.rs with write_package_with matching its signature. No error found. check-smb-harness-drive-1-a.log ended CHECK_DONE exit=0 at 07:27, before the 07:29 commit, on a dirty tree; its feature set is not logged.",
+    "Unit test the_manual_timeline_rows_match_the_typed_commands: every row's key and spec ids checked against TimelineCommand::key and spec_command, including CMD_NEST, CMD_MAKE_SUBSEQUENCE and CMD_REVEAL_NESTED in pulse. They match.",
+    "Tests: harness_headless quiet scan and the drive source scan tokens have no hit in cli.rs, drive.rs, drive_viewer.rs or manual.rs. COMMANDS covers every run() arm and every word in the classifier test. action_records does not pin document.save parameters. ClientSessionId and ActorContext limits are 1..=128 with no control character, and 's-1' is valid.",
+    "Determinism test: TransientCorrelation counts from 1; business event ids come from document, revision and sequence; state_json has no clock field in the paths this test reaches (the two Instant::now in view/mod.rs are prototype and frame timing, not in the state). It should hold.",
+    "Wrong types: parameter_text decides everything. A number or list for a typed parameter refuses (u64, i64, bool, f64 parse, is_finite; 1e3 becomes 1000.0 and fails u64; NaN refuses). A list of one string is taken as that string, so {\"visible\":[\"true\"]} and {\"overwrite\":[\"true\"]} read as true, the same intent. The worst outcomes: {\"path\":5} writes a file named 5, and {\"name\":{\"a\":1}} names a layer with JSON text, undoable and already in DRIVE_LIMITS. No real harm found beyond that.",
+    "Attribution: the only harness.run calls in the Viewer are with_context and close, both with the caller's context. Session::open_bytes uses context.actor(). convert_to_native_as uses context.actor(). The asset_local_test_context fallbacks in import.rs have no caller in the viewer open path. drive.rs uses with_context and never Viewer::new. No mutating document path with a default actor found.",
+    "Stale expected revision: dispatch, viewer_method, shell and timeline all call check_revision before running; a closed document gives None != Some(n), which refuses. One-shot --save runs only after dispatch has passed, and a refused command writes nothing. In-memory expectation only: another process saving the source mid-session is not seen, which is the sibling lane SMB-SESSION-WRITE-SAFETY-1 and out of scope here.",
+    "Saving in place through document.save and --save: same_file resolves symlinks and relative paths; a hard link gets a temp-and-rename, so the source stays untouched. The studio.* route cannot reach the source: self.overwrite is always false in the process and save_input never equals the source. File dialogs: no row sets the typed path, the suggested name is never the source, and submit refuses an existing target without replace.",
+    "Windows, dialogs, focus, blocking: harness-view/src has zero hits for Command::new, std::process, rfd, MessageBox, ShellExecute, open::that, stdin(), winit, thread::spawn or cpal. shell_command takes no egui context. Open, SaveAs and export leaves only set shell.dialog (in-app state), and viewer.dialog_cancel clears it. render_gpu is refused and matches ToggleGpu's id. No println or print in the view or core src, so the stdout lock cannot deadlock and JSONL stays clean.",
+    "JSONL loop: read_line holds at most the limit, the rest is dropped; EOF, a final line with no newline, CRLF, NUL and non-UTF-8 all refuse or end cleanly; serde_json's recursion limit stops 200k-deep input; a closed stdout returns 1 without a panic; Rust's Windows stdin passes pipe bytes unvalidated. No input found that panics the loop itself.",
+    "Hostile numbers traced: trim_edit uses checked i128 arithmetic; multi_frame_step is bounded; envelope index uses get_mut; Threads::new refuses; paint goes through BrushLimits; mesh through MeshLimits; draw_shape and pen refuse non-finite; a huge OpenRecent index gives `no menu leaf`.",
+    "Window classifier: the first-word match wins over a file of that name; unknown flag, unknown word, missing file, directory and a second file all give usage; `--help` goes to the manual. `--cpu` alone and `--recent LIST` alone do open a window, which the classifier's doc and the test name ('only no argument or an existing file') overstate, though those flags ask for the window explicitly."
+  ],
+  "not_checked": [
+    "Nothing compiled or run; every compile statement above is from reading.",
+    "Extreme finite coordinates through the CPU vector render (draw_shape b=[1e308,1e308] then render_if_dirty): no input proved a hang, none ruled out. There is no catch_unwind, so a panic in any viewer method would end the session with exit 101 and no end line; no concrete panicking input found.",
+    "observe frames == 1 for undo and redo at tests/harness_drive.rs:364 traced only through push and the existing headless assertions, not run.",
+    "Panel leaves under audio-device and audio-batch (open_monitor, open_mixer) for OS audio streams; these are not windows, and not in the viewer or desktop units.",
+    "MT rows and spec clauses claimed by the lane.",
+    "Per-sha compile of red commit ca58b015 under every round feature set; the builder's --per-sha gate covers it."
+  ]
+}

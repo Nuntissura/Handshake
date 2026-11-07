@@ -1,0 +1,5313 @@
+{
+ "schema": "hsk.studio.workflow_scenario@1",
+ "id": "print-publication",
+ "title": "Meridian Quarterly, issue 12: a 32-page saddle-stitched print magazine, from empty document to press-ready PDF/X-4",
+ "domain": "Page layout and prepress (spec 14.6, with colour 14.8 and the shell in 14.30)",
+ "vendor_parity_targets": [
+  "InDesign",
+  "Affinity Publisher"
+ ],
+ "deliverable": "32pp self-cover magazine, 210 x 280 mm trim, 3 mm bleed: two parent-page families, a threaded 8-page feature and departments, placed CMYK images, spec tables, footnotes, generated contents and index, a clean preflight, PDF/X-4 with marks and an output intent, an imposition plan and a collect-for-output package.",
+ "evidence_pin": {
+  "product_commit": "c4d06841",
+  "spec": "master-spec-v02.229 module 14",
+  "method": "Every E evidence was resolved to a line by the generator and every negative was a zero-hit git grep at the pin. No code was built or run."
+ },
+ "input_assets": [
+  {
+   "name": "feature-story.txt, departments.txt",
+   "kind": "synthetic generated plain text, seeded, 2,400 and 900 words, including double spaces and straight quotes planted for find/change"
+  },
+  {
+   "name": "img-01..12",
+   "kind": "generated raster fixtures: 6 RGB and 6 CMYK at 300 ppi, one deliberately 96 ppi, one with an embedded clipping path"
+  },
+  {
+   "name": "spec-table.csv",
+   "kind": "synthetic, 14 rows by 5 columns"
+  },
+  {
+   "name": "Inter-Regular.ttf, NotoSansSC-Regular.otf",
+   "kind": "existing repo fixtures in crates/hsk-studio-type/tests/fixtures/fonts"
+  },
+  {
+   "name": "hsk-synth-cmyk-v2.icc, sRGB-v4.icc",
+   "kind": "existing repo fixtures: crates/hsk-studio-prism/tests/oracle/profiles and crates/hsk-studio-develop/tests/profiles"
+  }
+ ],
+ "workspace_or_layout_preset": {
+  "layout_preset": "Layout (STU-SHL-095; the shipped names are an open operator decision, STU-SHL-136)",
+  "profile_signature": "{page_spread} (STU-SHL-087)",
+  "task_scopes": "none of the seven proposed Task Scopes (STU-SHL-153) applies to this project",
+  "shortcuts": "Every shortcut field is null: STU-SHL-045 and STU-SHL-131 say no default chord set is frozen, and this project cites none. The harness F5 for the Layout Editor panel is not a spec chord."
+ },
+ "workflow_basis": {
+  "public_sources_consulted": [
+   "https://helpx.adobe.com/indesign/using/preflighting-files-handoff.html",
+   "https://helpx.adobe.com/indesign/using/preparing-pdfs-service-providers.html",
+   "https://affinity.help/publisher2/en-US.lproj/pages/Text/linkingTextFrames.html",
+   "https://affinity.help/publisher2/en-US.lproj/pages/Pages/detachLinkMasterPages.html",
+   "https://demo.verapdf.org/"
+  ],
+  "limit": "Search results and snippets only, for workflow shape. The step order is otherwise written from professional practice and is UNVERIFIED against vendor behaviour. Nothing was copied."
+ },
+ "scenes": [
+  {
+   "scene_id": "S1-template",
+   "goal": "Build the issue template: trim, bleed, grid, colour setup, swatches, parent pages, folios, styles, empty 32-page flatplan.",
+   "steps": [
+    {
+     "n": 1,
+     "intent": "Create the issue document: 210 x 280 mm trim, 32 pages, facing, left binding",
+     "human": {
+      "panel": "document-templates",
+      "tool": null,
+      "gesture": "FILE > New > From Document Preset...; enter size, pages, facing",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEditor::new(hand-built LayoutDoc)",
+      "parameters": {
+       "width_pt": 595.276,
+       "height_pt": 793.701,
+       "pages": 32,
+       "facing": true
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/view/shell.rs:1590",
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:312",
+       "the only host document is a fixed 595 x 842 single page; a custom size means hand-building Folio structs, no preset or setup command"
+      ],
+      "spec_command_id": "studio.document.new"
+     },
+     "spec_clauses": [
+      "STU-LAY-105 (line 5399)",
+      "STU-LAY-001 (line 5394)",
+      "STU-SHL-087 (line 32226)"
+     ],
+     "mts": [
+      "MT-30657",
+      "MT-30658",
+      "MT-30659",
+      "MT-30656",
+      "MT-35680",
+      "MT-35681",
+      "MT-34618"
+     ],
+     "expected_state": "Document holds one page spread family at the stated trim; profile signature {page_spread}.",
+     "visual_check": {
+      "what_must_be_visible": "Layout default arrangement of STU-SHL-087: pages-artboards left, inspector right, preflight bottom; page centred at fit-spread zoom.",
+      "layout_or_fit_concern": "New-document dialog must show mm while storage stays pt; rounding must not turn 210 mm into 209.99 on screen."
+     },
+     "failure_a_professional_would_notice": "Trim in the document disagrees with the printer spec by a fraction of a mm.",
+     "gap_ref": "G7"
+    },
+    {
+     "n": 2,
+     "intent": "Declare facing pages and left binding at document level",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": null,
+      "gesture": "Document Setup...: Facing Pages on, Binding left",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "facing_pages": true,
+       "binding_location": "left"
+      },
+      "status": "missing",
+      "evidence": [
+       "crates/hsk-studio-folio/src/layout.rs:27",
+       "layout.rs declares facing flag, spread page_count, binding_location and shuffle flags as not stored"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-105 (line 5399)",
+      "STU-LAY-106 (line 5443)",
+      "STU-LAY-002 (line 5466)"
+     ],
+     "mts": [
+      "MT-30657",
+      "MT-30658",
+      "MT-30659",
+      "MT-30660",
+      "MT-30661",
+      "MT-35680",
+      "MT-35681"
+     ],
+     "expected_state": "Spreads pair across the spine; page 1 is a right-hand page alone.",
+     "visual_check": {
+      "what_must_be_visible": "Pages panel shows 1, 2-3, ... 30-31, 32 with the spine visible.",
+      "layout_or_fit_concern": "Thumbnails must stay legible at the 260 px dock width with 32 pages."
+     },
+     "failure_a_professional_would_notice": "Odd pages land on the left, so every outer-margin folio is wrong.",
+     "gap_ref": "G7"
+    },
+    {
+     "n": 3,
+     "intent": "Set 3 mm bleed on all outer edges",
+     "human": {
+      "panel": "properties",
+      "tool": "bleed",
+      "gesture": "Document Setup... > Bleed & Slug",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "bleed_mm": 3
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-folio/src/layout.rs:76",
+       "crates/hsk-studio-harness-view/src/layout_ui/pages.rs:29",
+       "stored and read by PDF lowering; PageEdit has no bleed edit and the blank document sets bleed: None"
+      ],
+      "spec_command_id": "DOCUMENT > Grids & Guides Setup > Bleed & Slug..."
+     },
+     "spec_clauses": [
+      "STU-LAY-105 (line 5399)",
+      "STU-LAY-107 (line 5480)"
+     ],
+     "mts": [
+      "MT-30657",
+      "MT-30658",
+      "MT-30659",
+      "MT-30663"
+     ],
+     "expected_state": "Every page carries a bleed of 8.504 pt.",
+     "visual_check": {
+      "what_must_be_visible": "Red bleed guide outside the trim; Bleed Screen Mode shows it.",
+      "layout_or_fit_concern": "Bleed guide must be distinct from margin and column guide colours."
+     },
+     "failure_a_professional_would_notice": "Bleed missing at export and the printer rejects the file.",
+     "gap_ref": "G7"
+    },
+    {
+     "n": 4,
+     "intent": "Set a 12 mm slug for the job line",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "Document Setup... > Bleed & Slug",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "slug_mm": 12
+      },
+      "status": "missing",
+      "evidence": [
+       "crates/hsk-studio-folio/src/layout.rs:26",
+       "slug is named among the fields not stored"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-105 (line 5399)"
+     ],
+     "mts": [
+      "MT-30657",
+      "MT-30658",
+      "MT-30659"
+     ],
+     "expected_state": "Slug area stored per page.",
+     "visual_check": {
+      "what_must_be_visible": "Blue slug guide outside the bleed; job line readable there.",
+      "layout_or_fit_concern": "Pasteboard must leave room for slug plus marks."
+     },
+     "failure_a_professional_would_notice": "Job information has nowhere to go; imposition operators complain.",
+     "gap_ref": "G7"
+    },
+    {
+     "n": 5,
+     "intent": "Set margins: inner 18, outer 15, top 14, bottom 20 mm",
+     "human": {
+      "panel": "guides-grid",
+      "tool": null,
+      "gesture": "DOCUMENT > Grids & Guides Setup > Margins & Columns...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "margins_mm": {
+        "inside": 18,
+        "outside": 15,
+        "top": 14,
+        "bottom": 20
+       }
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-folio/src/layout.rs:61",
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:146",
+       "StudioPage.margins is stored; no LayoutEdit or PageEdit member changes it"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-113 (line 5639)"
+     ],
+     "mts": [
+      "MT-30678"
+     ],
+     "expected_state": "Margins mirror across the spine on facing pages.",
+     "visual_check": {
+      "what_must_be_visible": "Magenta margin guides mirror on left and right pages.",
+      "layout_or_fit_concern": "Inside and outside labels must replace left and right when facing is on."
+     },
+     "failure_a_professional_would_notice": "Margins do not mirror; the gutter eats text on left pages.",
+     "gap_ref": "G7"
+    },
+    {
+     "n": 6,
+     "intent": "Set a 12-column page grid with 4 mm gutter",
+     "human": {
+      "panel": "guides-grid",
+      "tool": null,
+      "gesture": "Margins & Columns...: columns 12, gutter 4 mm",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "columns": 12,
+       "gutter_mm": 4
+      },
+      "status": "missing",
+      "evidence": [
+       "crates/hsk-studio-folio/src/layout.rs:26",
+       "page grid and column guides are declared not stored; SetColumns is frame-level only"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-113 (line 5639)",
+      "STU-LAY-050 (line 6872)"
+     ],
+     "mts": [
+      "MT-30678",
+      "MT-30791",
+      "MT-35689",
+      "MT-35690"
+     ],
+     "expected_state": "Column guides on every page of the parent.",
+     "visual_check": {
+      "what_must_be_visible": "Violet column guides, snap active.",
+      "layout_or_fit_concern": "Guides must draw below frames and stay quiet at low zoom."
+     },
+     "failure_a_professional_would_notice": "No page grid means every frame is placed by eye and columns drift between spreads.",
+     "gap_ref": "G7"
+    },
+    {
+     "n": 7,
+     "intent": "Set a 12 pt baseline grid from the top margin",
+     "human": {
+      "panel": "guides-grid",
+      "tool": "baseline_grid",
+      "gesture": "DOCUMENT > Grids & Guides Setup > Baseline Grid...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_layout::baseline_grid_lines",
+      "parameters": {
+       "start_pt": 0,
+       "division_pt": 12,
+       "relative": "top_margin"
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-layout/src/grids.rs:70",
+       "looked: git grep -iE 'baseline_grid_lines|snap_point' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ],
+      "spec_command_id": "studio.view.grids"
+     },
+     "spec_clauses": [
+      "STU-LAY-050 (line 6872)",
+      "STU-LAY-115 (line 6874)"
+     ],
+     "mts": [
+      "MT-30791",
+      "MT-35689",
+      "MT-35690",
+      "MT-30792",
+      "MT-30793"
+     ],
+     "expected_state": "Baseline grid record stored; body text can align to it.",
+     "visual_check": {
+      "what_must_be_visible": "Hairline baseline rows behind text from a stated zoom up.",
+      "layout_or_fit_concern": "Grid must fade below its view threshold so the page stays readable."
+     },
+     "failure_a_professional_would_notice": "Columns on a spread do not cross-align.",
+     "gap_ref": "G7"
+    },
+    {
+     "n": 8,
+     "intent": "Add ruler guides for folio line and running-head line",
+     "human": {
+      "panel": "guides-grid",
+      "tool": "guides",
+      "gesture": "Drag from ruler; VIEW > Guides > New Guide...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_folio::StudioRulerGuide",
+      "parameters": {
+       "guides_mm": [
+        10,
+        270
+       ]
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-folio/src/layout_grids.rs:95",
+       "looked: git grep -iE 'StudioRulerGuide' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ],
+      "spec_command_id": "studio.view.guides"
+     },
+     "spec_clauses": [
+      "STU-LAY-114 (line 6896)",
+      "STU-LAY-051 (line 6913)"
+     ],
+     "mts": [
+      "MT-30794",
+      "MT-30795",
+      "MT-30796",
+      "MT-35689",
+      "MT-35690"
+     ],
+     "expected_state": "Guides stored on the parent, shown on children.",
+     "visual_check": {
+      "what_must_be_visible": "Cyan guides; a smart-guide flash when an object meets them.",
+      "layout_or_fit_concern": "Ruler must exist in the rebuilt canvas; no ruler means no guide gesture."
+     },
+     "failure_a_professional_would_notice": "Folio line varies by a point between parents.",
+     "gap_ref": "G7"
+    },
+    {
+     "n": 9,
+     "intent": "Create document layers: Furniture, Images, Text, Editor notes (non-printing)",
+     "human": {
+      "panel": "layers",
+      "tool": null,
+      "gesture": "Layers panel: New, name, printable off for notes",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "layers": [
+        "Furniture",
+        "Images",
+        "Text",
+        "Editor notes"
+       ]
+      },
+      "status": "missing",
+      "evidence": [
+       "looked: git grep -iE 'document_layer|DocumentLayer|StudioDocLayer' at c4d06841 in hsk-studio-folio/src, hsk-studio-layout/src: 0 hits",
+       "truth-check MT-30665: no document-wide layer model; layers are per tree"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-005 (line 5513)",
+      "STU-LAY-109 (line 5516)"
+     ],
+     "mts": [
+      "MT-30665",
+      "MT-143",
+      "MT-30666"
+     ],
+     "expected_state": "Named layers span all spreads; notes layer does not print.",
+     "visual_check": {
+      "what_must_be_visible": "Layers panel lists the four rows with visibility, lock, print state.",
+      "layout_or_fit_concern": "Layers panel means a per-object tree in other profiles; the layout profile must not look like a different panel."
+     },
+     "failure_a_professional_would_notice": "Editor notes appear in the press PDF.",
+     "gap_ref": "G7"
+    },
+    {
+     "n": 10,
+     "intent": "Set working spaces: CMYK output profile and sRGB, blend space CMYK",
+     "human": {
+      "panel": "colour",
+      "tool": null,
+      "gesture": "COLOR > Working Spaces > CMYK Working Space...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "cmyk_profile": "hsk-synth-cmyk-v2.icc",
+       "blending_space": "cmyk"
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-folio/src/lib.rs:200",
+       "crates/hsk-studio-harness-view/src/view/proof.rs:485",
+       "the field is stored and proof reads it; no host command writes it"
+      ]
+     },
+     "spec_clauses": [
+      "STU-COL-127 (line 10262)",
+      "STU-COL-162 (line 10518)"
+     ],
+     "mts": [
+      "MT-31187",
+      "MT-31219"
+     ],
+     "expected_state": "Document binds four working spaces by profile hash.",
+     "visual_check": {
+      "what_must_be_visible": "Colour Settings shows the profile name and its class; status bar shows the document profile.",
+      "layout_or_fit_concern": "A long profile name must truncate in the middle, never hide the suffix."
+     },
+     "failure_a_professional_would_notice": "Everything is written DeviceRGB because no profile is bound.",
+     "gap_ref": "G8"
+    },
+    {
+     "n": 11,
+     "intent": "Set colour-management policy: preserve embedded, warn on mismatch",
+     "human": {
+      "panel": "colour",
+      "tool": null,
+      "gesture": "COLOR > Colour Management Policies > Policies...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "rgb": "preserve",
+       "cmyk": "preserve_numbers",
+       "warn_mismatch": true
+      },
+      "status": "missing",
+      "evidence": [
+       "looked: git grep -iE 'colour_management_policy|ColourPolicy|profile_mismatch' at c4d06841 in hsk-studio-folio/src, hsk-studio-prism/src, hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-COL-128 (line 10268)",
+      "STU-COL-129 (line 10281)"
+     ],
+     "mts": [
+      "MT-31188",
+      "MT-31189"
+     ],
+     "expected_state": "Policy record stored on the document.",
+     "visual_check": {
+      "what_must_be_visible": "Policies dialog; a mismatch warning when a placed asset disagrees.",
+      "layout_or_fit_concern": "Warnings must not interrupt batch placement as modal stacks."
+     },
+     "failure_a_professional_would_notice": "Silent CMYK conversion of a press-ready image changes its black.",
+     "gap_ref": "G8"
+    },
+    {
+     "n": 12,
+     "intent": "Define process swatches: Black 100K, Rich Black, Paper, house blue C100 M60",
+     "human": {
+      "panel": "swatches",
+      "tool": null,
+      "gesture": "Swatches panel: New Swatch, CMYK values",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:Viewer::add_folio_swatch",
+      "parameters": {
+       "swatches": [
+        {
+         "name": "House Blue",
+         "cmyk": [
+          100,
+          60,
+          0,
+          0
+         ]
+        }
+       ]
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/view/hosted.rs:4",
+       "crates/hsk-studio-harness-view/src/view/vector/swatch.rs:271",
+       "works on the vector records entry only; nothing in the layout editor can bind it (next steps)"
+      ]
+     },
+     "spec_clauses": [
+      "STU-COL-170 (line 10544)",
+      "STU-COL-171 (line 10550)"
+     ],
+     "mts": [
+      "MT-31223",
+      "MT-31224",
+      "MT-31225",
+      "MT-31226"
+     ],
+     "expected_state": "Swatches stored in the document palette.",
+     "visual_check": {
+      "what_must_be_visible": "Grid or list swatch rows with CMYK values, type marker and name.",
+      "layout_or_fit_concern": "Swatch list is LIST-DENSE and must not stack with the character panel (STU-SHL-074)."
+     },
+     "failure_a_professional_would_notice": "Swatch exists but cannot be applied to a text frame."
+    },
+    {
+     "n": 13,
+     "intent": "Define one spot ink for the masthead",
+     "human": {
+      "panel": "swatches",
+      "tool": null,
+      "gesture": "New Swatch: type Spot, name, Lab alternate",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:Viewer::add_folio_swatch",
+      "parameters": {
+       "ink": "Meridian Orange",
+       "lab": [
+        68,
+        45,
+        62
+       ]
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/view/vector/swatch.rs:271",
+       "crates/hsk-studio-harness-view/src/view/vector/separations.rs:12",
+       "spot exists for vector documents; the PDF route for layout has no spot colour (S4)"
+      ]
+     },
+     "spec_clauses": [
+      "STU-COL-173 (line 10573)",
+      "STU-COL-020 (line 12698)"
+     ],
+     "mts": [
+      "MT-31233",
+      "MT-31234",
+      "MT-31462",
+      "MT-35732",
+      "MT-35733"
+     ],
+     "expected_state": "A spot swatch with its Lab definition.",
+     "visual_check": {
+      "what_must_be_visible": "Spot marker on the swatch row; plate named in separations.",
+      "layout_or_fit_concern": "Spot and process markers must differ without relying on colour alone."
+     },
+     "failure_a_professional_would_notice": "Spot is converted to process without a warning."
+    },
+    {
+     "n": 14,
+     "intent": "Create parent page A-Feature",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": null,
+      "gesture": "Pages panel: New Parent...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEditor::apply(LayoutEdit::Page(PageEdit::NewParent))",
+      "parameters": {
+       "name": "A-Feature",
+       "based_on": null
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/pages.rs:40",
+       "test crate hsk-studio-harness tests/viewer_layout_ui_2.rs"
+      ],
+      "spec_command_id": "DOCUMENT > Parent Pages > New Parent..."
+     },
+     "spec_clauses": [
+      "STU-LAY-006 (line 5541)",
+      "STU-LAY-110 (line 5547)"
+     ],
+     "mts": [
+      "MT-30667",
+      "MT-144",
+      "MT-30668"
+     ],
+     "expected_state": "Parent record validated by Folio.",
+     "visual_check": {
+      "what_must_be_visible": "Parent row at top of the Pages panel, with its prefix on thumbnails.",
+      "layout_or_fit_concern": "Parents and pages must split visibly with a draggable divider."
+     },
+     "failure_a_professional_would_notice": "Parent is created but cannot be edited as a spread."
+    },
+    {
+     "n": 15,
+     "intent": "Create B-Department based on A-Feature, and C-Opener",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": null,
+      "gesture": "New Parent... Based on A-Feature",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEditor::apply(LayoutEdit::Page(PageEdit::NewParent))",
+      "parameters": {
+       "name": "B-Department",
+       "based_on": "A-Feature"
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/pages.rs:40",
+       "crates/hsk-studio-folio/src/parentpages.rs:93"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-006 (line 5541)"
+     ],
+     "mts": [
+      "MT-30667",
+      "MT-144"
+     ],
+     "expected_state": "Inheritance chain A to B; cycle refused.",
+     "visual_check": {
+      "what_must_be_visible": "Based-on prefix shown on the parent thumbnail.",
+      "layout_or_fit_concern": "Chain depth must be readable without opening a dialog."
+     },
+     "failure_a_professional_would_notice": "An edit to A does not reach pages using B."
+    },
+    {
+     "n": 16,
+     "intent": "Draw folio and running-head frames, add them to the parents",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": "frame_text",
+      "gesture": "Frame tool drag on the parent, then make it a parent item",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::DrawFrame then PageEdit::AddParentItem",
+      "parameters": {
+       "parent": "A-Feature",
+       "bounds_pt": [
+        51,
+        765,
+        200,
+        12
+       ]
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:148",
+       "crates/hsk-studio-harness-view/src/layout_ui/pages.rs:45",
+       "frames are drawn on a page then promoted; there is no edit-the-parent canvas"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-006 (line 5541)",
+      "STU-LAY-017 (line 5751)"
+     ],
+     "mts": [
+      "MT-30667",
+      "MT-144",
+      "MT-30685",
+      "MT-152"
+     ],
+     "expected_state": "Items resolve onto children through resolve_page_from_records.",
+     "visual_check": {
+      "what_must_be_visible": "Inherited items draw dashed, not selectable until overridden.",
+      "layout_or_fit_concern": "Inherited and local items must differ at any zoom."
+     },
+     "failure_a_professional_would_notice": "Designer edits a page thinking it is the parent."
+    },
+    {
+     "n": 17,
+     "intent": "Designate the primary text frame on A-Feature",
+     "human": {
+      "panel": "text-frame",
+      "tool": "frame_text",
+      "gesture": "Frame options: Primary Text Frame",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "primary": true
+      },
+      "status": "missing",
+      "evidence": [
+       "looked: git grep -iE 'primary_text_frame|primary_frame' at c4d06841 in hsk-studio-folio/src, hsk-studio-layout/src, hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-008 (line 5564)"
+     ],
+     "mts": [
+      "MT-30670",
+      "MT-145",
+      "MT-154"
+     ],
+     "expected_state": "New pages adopt the frame and re-thread when the parent changes.",
+     "visual_check": {
+      "what_must_be_visible": "Primary marker on the frame port.",
+      "layout_or_fit_concern": "Marker must be explainable by tooltip level L1."
+     },
+     "failure_a_professional_would_notice": "Each new feature page needs its frame drawn and threaded by hand.",
+     "gap_ref": "G9"
+    },
+    {
+     "n": 18,
+     "intent": "Insert the current-page-number marker in the folio frame",
+     "human": {
+      "panel": "character",
+      "tool": null,
+      "gesture": "INSERT > Page Element > Current Page Number",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_layout::number_pages",
+      "parameters": {
+       "marker": "current_page"
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-layout/src/numbering.rs:182",
+       "looked: git grep -iE 'number_pages' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-015 (line 5732)"
+     ],
+     "mts": [
+      "MT-30683",
+      "MT-151",
+      "MT-177"
+     ],
+     "expected_state": "Each child shows its own label.",
+     "visual_check": {
+      "what_must_be_visible": "A on the parent, real numbers on pages.",
+      "layout_or_fit_concern": "Marker glyph must read as a marker in the story editor."
+     },
+     "failure_a_professional_would_notice": "Folios read A on every page.",
+     "gap_ref": "G4"
+    },
+    {
+     "n": 19,
+     "intent": "Add a running head from the Section-Head paragraph style",
+     "human": {
+      "panel": "long-document",
+      "tool": null,
+      "gesture": "INSERT > Page Element > Running Header...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_layout::resolve_running_texts",
+      "parameters": {
+       "source": "paragraph_style",
+       "style": "Feature-Title",
+       "use": "first_on_page"
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-layout/src/running.rs:134",
+       "crates/hsk-studio-folio/src/longdoc.rs:1251",
+       "looked: git grep -iE 'resolve_running_texts|compose_overlay' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-016 (line 5738)",
+      "STU-LAY-048 (line 6829)"
+     ],
+     "mts": [
+      "MT-30684",
+      "MT-151",
+      "MT-177",
+      "MT-30787",
+      "MT-30788"
+     ],
+     "expected_state": "Head resolves per page.",
+     "visual_check": {
+      "what_must_be_visible": "Head text changes across a feature boundary.",
+      "layout_or_fit_concern": "Long titles must be seen to truncate rather than overflow."
+     },
+     "failure_a_professional_would_notice": "Previous feature's title on the first page of the next.",
+     "gap_ref": "G4"
+    },
+    {
+     "n": 20,
+     "intent": "Partition sections: front matter roman, body arabic from 1",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": null,
+      "gesture": "DOCUMENT > Sections & Numbering > Numbering & Section Options...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_folio::StudioSection",
+      "parameters": {
+       "sections": [
+        {
+         "start": 1,
+         "style": "roman_lower"
+        },
+        {
+         "start": 3,
+         "style": "arabic",
+         "number": 1
+        }
+       ]
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-folio/src/longdoc.rs:467",
+       "crates/hsk-studio-interop-layout/src/pdf_export/longdoc.rs:86",
+       "looked: git grep -iE 'StudioSection|page_labels_from_sections' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-014 (line 5670)",
+      "STU-LAY-108 (line 5672)"
+     ],
+     "mts": [
+      "MT-30680",
+      "MT-35685",
+      "MT-35686",
+      "MT-30681",
+      "MT-30682"
+     ],
+     "expected_state": "Labels follow sections; PDF /PageLabels match.",
+     "visual_check": {
+      "what_must_be_visible": "Section marker triangle on the first thumbnail of each section.",
+      "layout_or_fit_concern": "Pages panel labels must show section labels, not ordinals."
+     },
+     "failure_a_professional_would_notice": "Contents says page 12, print says page 14.",
+     "gap_ref": "G4"
+    },
+    {
+     "n": 21,
+     "intent": "Insert 31 more pages with parents assigned",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": null,
+      "gesture": "Pages panel: Insert Pages...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::Page(PageEdit::InsertPage)",
+      "parameters": {
+       "after": "page-1",
+       "new_spread": false,
+       "parent": "A-Feature",
+       "repeat": 31
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/pages.rs:32",
+       "declared gap: sides are not re-paginated; it is one undo step per page, so 31 undos"
+      ],
+      "spec_command_id": "DOCUMENT > Pages & Spreads > Insert Pages..."
+     },
+     "spec_clauses": [
+      "STU-LAY-001 (line 5394)",
+      "STU-SHL-087 (line 32226)"
+     ],
+     "mts": [
+      "MT-30656",
+      "MT-35680",
+      "MT-35681",
+      "MT-34618"
+     ],
+     "expected_state": "32 pages in order with sides alternating.",
+     "visual_check": {
+      "what_must_be_visible": "Thumbnail column scrolls; count shown in panel footer.",
+      "layout_or_fit_concern": "Insert 31 must be one command and one undo entry."
+     },
+     "failure_a_professional_would_notice": "Thirty-one undo entries for one operation."
+    },
+    {
+     "n": 22,
+     "intent": "Assign parents across the flatplan",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": null,
+      "gesture": "Select thumbnails; DOCUMENT > Parent Pages > Apply Parent to Pages...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::Page(PageEdit::ApplyParent)",
+      "parameters": {
+       "pages": "4-5,14-15",
+       "parent": "C-Opener"
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/pages.rs:43"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-110 (line 5547)"
+     ],
+     "mts": [
+      "MT-30668"
+     ],
+     "expected_state": "Bindings recorded per page.",
+     "visual_check": {
+      "what_must_be_visible": "Parent prefix on each thumbnail.",
+      "layout_or_fit_concern": "Multi-selection must survive a thumbnail scroll."
+     },
+     "failure_a_professional_would_notice": "Parent applied to a single page of a spread by accident."
+    },
+    {
+     "n": 23,
+     "intent": "Define paragraph styles: Body, Feature-Title, Deck, Pull-Quote, Caption, Byline, Folio",
+     "human": {
+      "panel": "text-styles",
+      "tool": null,
+      "gesture": "Text Styles panel: New; based-on and next-style",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::Style(StyleEdit::NewStyle / EditStyle)",
+      "parameters": {
+       "style": "Body",
+       "font_family": "Inter",
+       "font_size_pt": 9.5,
+       "leading_pt": 12,
+       "align": "justify"
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/styles.rs:45",
+       "crates/hsk-studio-harness-view/src/layout_ui/styles.rs:32",
+       "crates/hsk-studio-harness-view/src/layout_ui/styles.rs:37"
+      ],
+      "spec_command_id": "TYPE > Styles > Paragraph Styles..."
+     },
+     "spec_clauses": [
+      "STU-LAY-036 (line 6457)",
+      "STU-LAY-037 (line 6498)",
+      "STU-LAY-143 (line 6504)"
+     ],
+     "mts": [
+      "MT-30756",
+      "MT-168",
+      "MT-173",
+      "MT-30764",
+      "MT-30765"
+     ],
+     "expected_state": "Styles validated; names unique; cycle refused.",
+     "visual_check": {
+      "what_must_be_visible": "Style list with usage counts and override mark.",
+      "layout_or_fit_concern": "Style tree must be grouped and scroll independently of the character panel."
+     },
+     "failure_a_professional_would_notice": "Style names collide silently."
+    },
+    {
+     "n": 24,
+     "intent": "Set style attributes a body style needs: first-line indent, space after, hyphenation, keep lines, drop cap",
+     "human": {
+      "panel": "paragraph",
+      "tool": null,
+      "gesture": "Paragraph Style Options: Indents, Spacing, Hyphenation, Keep Options, Drop Caps",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "first_line_indent_pt": 12,
+       "space_after_pt": 0,
+       "hyphenate": true,
+       "keep": [
+        2,
+        2
+       ],
+       "drop_cap_lines": 3
+      },
+      "status": "missing",
+      "evidence": [
+       "crates/hsk-studio-folio/src/typestyle.rs:97",
+       "looked: git grep -iE 'drop_?cap' at c4d06841 in hsk-studio-folio/src, hsk-studio-layout/src: 0 hits",
+       "truth-check top_missing rank 1: no indents, spacing, tabs, lists, drop caps, rules, borders or keep options on the record"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-022 (line 5971)",
+      "STU-LAY-125 (line 5896)",
+      "STU-TYP-201 (line 9064)"
+     ],
+     "mts": [
+      "MT-30703",
+      "MT-155",
+      "MT-30700",
+      "MT-30701",
+      "MT-30702",
+      "MT-30999"
+     ],
+     "expected_state": "All attributes round through the style.",
+     "visual_check": {
+      "what_must_be_visible": "Paragraph panel fields in declared order; ScrubValue for every number.",
+      "layout_or_fit_concern": "FIELD-DENSE panel; must hold 260 px without clipping (STU-SHL-073)."
+     },
+     "failure_a_professional_would_notice": "Body copy cannot be set to magazine standard: no indent, no widow control, no drop cap.",
+     "gap_ref": "G6"
+    },
+    {
+     "n": 25,
+     "intent": "Define character styles: Emphasis, Small-Caps, Byline-Name in House Blue",
+     "human": {
+      "panel": "text-styles",
+      "tool": null,
+      "gesture": "New character style: font style, case, colour",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::Style(StyleEdit::NewStyle)",
+      "parameters": {
+       "scope": "character",
+       "name": "Byline-Name",
+       "colour_swatch": "House Blue"
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/styles.rs:45",
+       "name and size work; StylePatch has no fill or case member; the record's fill is StudioRgba, so a CMYK swatch cannot be bound (gap G8)"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-036 (line 6457)",
+      "STU-LAY-143 (line 6504)"
+     ],
+     "mts": [
+      "MT-30756",
+      "MT-168",
+      "MT-173",
+      "MT-30765"
+     ],
+     "expected_state": "Character style applies to ranges.",
+     "visual_check": {
+      "what_must_be_visible": "Character style list with a colour chip.",
+      "layout_or_fit_concern": "Panel must make plain which attributes this style sets."
+     },
+     "failure_a_professional_would_notice": "Byline turns RGB blue in a CMYK job."
+    },
+    {
+     "n": 26,
+     "intent": "Add a pattern style: figures followed by mm take Small-Caps",
+     "human": {
+      "panel": "text-styles",
+      "tool": null,
+      "gesture": "Paragraph Style > Pattern Styles: add rule",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::Style(StyleEdit::AddGrepRule)",
+      "parameters": {
+       "style": "Body",
+       "pattern": "\\d+ ?mm",
+       "character_style": "Small-Caps"
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/styles.rs:50",
+       "bounded engine: layout compile_find"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-038 (line 6522)"
+     ],
+     "mts": [
+      "MT-30766",
+      "MT-162",
+      "MT-169"
+     ],
+     "expected_state": "Rule compiled and stored.",
+     "visual_check": {
+      "what_must_be_visible": "Rule row; a typed refusal for a bad pattern.",
+      "layout_or_fit_concern": "Pattern entry needs a monospaced field and inline error."
+     },
+     "failure_a_professional_would_notice": "Pattern hangs on a long story."
+    },
+    {
+     "n": 27,
+     "intent": "Define nested and line styles for Deck first-line treatment",
+     "human": {
+      "panel": "text-styles",
+      "tool": null,
+      "gesture": "Paragraph Style > Nested Styles",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "nested": [
+        {
+         "style": "Small-Caps",
+         "through": "first_line"
+        }
+       ]
+      },
+      "status": "missing",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/styles.rs:14",
+       "declared gap in styles.rs: the engine has none"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-038 (line 6522)"
+     ],
+     "mts": [
+      "MT-30766",
+      "MT-162",
+      "MT-169"
+     ],
+     "expected_state": "Nested rule applied at composition.",
+     "visual_check": {
+      "what_must_be_visible": "Nested rows in style options.",
+      "layout_or_fit_concern": "None until built."
+     },
+     "failure_a_professional_would_notice": "First-line small caps must be applied by hand and break on reflow.",
+     "gap_ref": "G6"
+    },
+    {
+     "n": 28,
+     "intent": "Define object styles: Image-Bleed, Sidebar-Tint",
+     "human": {
+      "panel": "object-styles",
+      "tool": null,
+      "gesture": "Object Styles panel: New; fill, stroke, fitting, wrap",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_layout::apply_object_style",
+      "parameters": {
+       "style": "Sidebar-Tint",
+       "fill_swatch": "House Blue",
+       "tint": 15,
+       "inset_pt": 8
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-layout/src/objstyle.rs:101",
+       "crates/hsk-studio-folio/src/layoutflow.rs:612",
+       "looked: git grep -iE 'apply_object_style|resolve_object_style' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-039 (line 6530)",
+      "STU-LAY-142 (line 6459)"
+     ],
+     "mts": [
+      "MT-30767",
+      "MT-167",
+      "MT-170",
+      "MT-30757",
+      "MT-30758",
+      "MT-30759"
+     ],
+     "expected_state": "One operation sets all enabled categories.",
+     "visual_check": {
+      "what_must_be_visible": "Style list; override mark on the selected frame.",
+      "layout_or_fit_concern": "Category checklist must be collapsible."
+     },
+     "failure_a_professional_would_notice": "Every sidebar set by hand and none match.",
+     "gap_ref": "G18"
+    },
+    {
+     "n": 29,
+     "intent": "Define table and cell styles: Spec-Table, Header-Cell, Body-Cell",
+     "human": {
+      "panel": "text-styles",
+      "tool": null,
+      "gesture": "TYPE > Styles > Table Styles..., Cell Styles...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "table_style": "Spec-Table",
+       "cell_styles": [
+        "Header-Cell",
+        "Body-Cell"
+       ]
+      },
+      "status": "missing",
+      "evidence": [
+       "looked: git grep -iE 'cell_?style|table_?style' at c4d06841 in hsk-studio-folio/src/longdoc.rs, hsk-studio-layout/src/table.rs: 0 hits",
+       "crates/hsk-studio-harness-view/src/layout_ui/tables.rs:10"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-039 (line 6530)",
+      "STU-LAY-142 (line 6459)"
+     ],
+     "mts": [
+      "MT-30767",
+      "MT-167",
+      "MT-170",
+      "MT-30757",
+      "MT-30758",
+      "MT-30759"
+     ],
+     "expected_state": "Table and cell styles stored and applied.",
+     "visual_check": {
+      "what_must_be_visible": "Table and cell scopes in the style panel.",
+      "layout_or_fit_concern": "Five style scopes must not need five panels."
+     },
+     "failure_a_professional_would_notice": "A style change means reformatting every table cell by cell.",
+     "gap_ref": "G16"
+    },
+    {
+     "n": 30,
+     "intent": "Save the issue template with its layout state",
+     "human": {
+      "panel": "document-templates",
+      "tool": null,
+      "gesture": "FILE > Save as Template...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.save",
+      "parameters": {
+       "path": "meridian-template.hskstudio"
+      },
+      "status": "missing",
+      "evidence": [
+       "crates/hsk-studio-harness-core/src/action.rs:868",
+       "crates/hsk-studio-harness-view/src/view/shell.rs:1328",
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:19",
+       "document.save writes the Run document; LayoutEditor state is a private copy that is never saved"
+      ],
+      "spec_command_id": "studio.document.save_template"
+     },
+     "spec_clauses": [
+      "STU-LAY-067 (line 7620)",
+      "STU-LAY-013 (line 5659)",
+      "STU-SDB-001 (line 26)"
+     ],
+     "mts": [
+      "MT-35680",
+      "MT-35681",
+      "MT-35682",
+      "MT-30679",
+      "MT-35684",
+      "MT-149"
+     ],
+     "expected_state": "Reopen shows every parent, style and page.",
+     "visual_check": {
+      "what_must_be_visible": "Save receipt; title bar clears its dirty mark.",
+      "layout_or_fit_concern": "The panel must say when edits are unsaved; today only a note says so."
+     },
+     "failure_a_professional_would_notice": "Close and reopen: the template is gone.",
+     "gap_ref": "G3"
+    }
+   ]
+  },
+  {
+   "scene_id": "S2-feature",
+   "goal": "Set the 8-page feature and the departments: flow copy, style it, place and fit pictures, wrap, footnotes, cross-references and a spec table.",
+   "steps": [
+    {
+     "n": 31,
+     "intent": "Place the feature text and load the cursor",
+     "human": {
+      "panel": "links-placements",
+      "tool": "place",
+      "gesture": "FILE > Place > Place Linked...: feature-story.txt",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "path": "feature-story.txt",
+       "link": true
+      },
+      "status": "missing",
+      "evidence": [
+       "looked: git grep -iE 'place_text_file|import_story|load_text_file' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits",
+       "crates/hsk-studio-harness-view/src/view/text.rs:689",
+       "that place_text is point text on the viewer canvas with a string, not a file place into a frame",
+       "no text-file place in LayoutEdit; a caller may only push a string with ReplaceText (next step)"
+      ],
+      "spec_command_id": "studio.interop.place"
+     },
+     "spec_clauses": [
+      "STU-LAY-019 (line 5842)",
+      "STU-LAY-123 (line 5855)",
+      "STU-LAY-128 (line 6053)"
+     ],
+     "mts": [
+      "MT-30695",
+      "MT-147",
+      "MT-153",
+      "MT-30697",
+      "MT-30698",
+      "MT-30713"
+     ],
+     "expected_state": "Story linked to its source; cursor shows loaded text.",
+     "visual_check": {
+      "what_must_be_visible": "Loaded-text cursor with a preview of the first lines.",
+      "layout_or_fit_concern": "Cursor state must also show in the Context Bar's Tool Zone."
+     },
+     "failure_a_professional_would_notice": "Copy is pasted, so a corrected manuscript cannot be updated through a link.",
+     "gap_ref": "G5"
+    },
+    {
+     "n": 32,
+     "intent": "Push the story text into the first frame",
+     "human": {
+      "panel": "text-frame",
+      "tool": "frame_text",
+      "gesture": "Click in the frame and type or paste",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::ReplaceText",
+      "parameters": {
+       "story": "$feature",
+       "start": 0,
+       "end": 0,
+       "text": "$feature-story.txt"
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:154",
+       "crates/hsk-studio-layout/src/textflow.rs:49"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-017 (line 5751)"
+     ],
+     "mts": [
+      "MT-30685",
+      "MT-152"
+     ],
+     "expected_state": "Story holds the text; paragraphs derived; overset set.",
+     "visual_check": {
+      "what_must_be_visible": "Text in the frame, red overset port.",
+      "layout_or_fit_concern": "Large paste must not stall the UI; the 0.5 em placeholder composition misreports the fit."
+     },
+     "failure_a_professional_would_notice": "Paragraph marks lost in the paste."
+    },
+    {
+     "n": 33,
+     "intent": "Autoflow through the feature pages, adding pages if needed",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": "text_flow",
+      "gesture": "TYPE > Threading > Autoflow; Shift-click on the page",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "flow_mode": "flow.auto",
+       "from_page": "6"
+      },
+      "status": "missing",
+      "evidence": [
+       "looked: git grep -iE 'text_autoflow|autoflow_|flow\\.auto|smart_text_reflow|smart_reflow' at c4d06841 in hsk-studio-folio/src, hsk-studio-layout/src, hsk-studio-harness-view/src/layout_ui: 0 hits",
+       "truth-check MT-30696 to MT-30698 agree"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-020 (line 5851)",
+      "STU-LAY-123 (line 5855)",
+      "STU-TYP-123 (line 8047)"
+     ],
+     "mts": [
+      "MT-30696",
+      "MT-145",
+      "MT-154",
+      "MT-30697",
+      "MT-30698",
+      "MT-30891"
+     ],
+     "expected_state": "Frames created and threaded; story fits; no overset.",
+     "visual_check": {
+      "what_must_be_visible": "New pages appear in the Pages panel as text flows.",
+      "layout_or_fit_concern": "Page add must not jump the viewport away from the current spread."
+     },
+     "failure_a_professional_would_notice": "Eight pages threaded frame by frame; any later cut leaves orphan pages.",
+     "gap_ref": "G9"
+    },
+    {
+     "n": 34,
+     "intent": "Draw and thread the frames by hand as the working fallback",
+     "human": {
+      "panel": "text-frame",
+      "tool": "text_flow",
+      "gesture": "Click out port, click next frame; VIEW > Extras > Show Text Threads",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::Thread",
+      "parameters": {
+       "from": "$frame_n",
+       "to": "$frame_n1"
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:150",
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:182",
+       "crates/hsk-studio-harness-view/src/layout_ui/threads.rs:91"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-018 (line 5831)",
+      "STU-LAY-122 (line 5834)"
+     ],
+     "mts": [
+      "MT-30693",
+      "MT-153",
+      "MT-30694"
+     ],
+     "expected_state": "One story across eight frames; a cycle or occupied target is refused with its typed code.",
+     "visual_check": {
+      "what_must_be_visible": "Thread lines, in and out ports on each frame.",
+      "layout_or_fit_concern": "Thread lines must cross a spread legibly and be toggled off quickly."
+     },
+     "failure_a_professional_would_notice": "Thread into a frame with text is refused rather than merged; declared gap."
+    },
+    {
+     "n": 35,
+     "intent": "Set the frames to 3 columns with 4 mm gutter",
+     "human": {
+      "panel": "text-frame",
+      "tool": null,
+      "gesture": "Text Frame panel: Columns 3, Gutter 11.34 pt",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::SetColumns",
+      "parameters": {
+       "frame": "$frame",
+       "count": 3,
+       "gutter": 11.34
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:153",
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:68"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-017 (line 5751)",
+      "STU-LAY-118 (line 5754)"
+     ],
+     "mts": [
+      "MT-30685",
+      "MT-152",
+      "MT-30686",
+      "MT-30687"
+     ],
+     "expected_state": "Frame options stored; reflow follows.",
+     "visual_check": {
+      "what_must_be_visible": "Columns visible in the frame; fields as ScrubValue with units.",
+      "layout_or_fit_concern": "Apply must be live, without a separate Apply button; the harness has one."
+     },
+     "failure_a_professional_would_notice": "Column change needs a second click to take effect."
+    },
+    {
+     "n": 36,
+     "intent": "Check fit: overset state of the story",
+     "human": {
+      "panel": "text-frame",
+      "tool": null,
+      "gesture": "Look at the out port; TYPE > Threading > Overset Report...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEditor::thread_info",
+      "parameters": {
+       "frame": "$last"
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/threads.rs:91",
+       "the value comes from placeholder composition, not hsk-studio-type: a pass here is not a fit in the PDF"
+      ],
+      "spec_command_id": "TYPE > Threading > Overset Report..."
+     },
+     "spec_clauses": [
+      "STU-LAY-122 (line 5834)",
+      "STU-LAY-154 (line 6986)"
+     ],
+     "mts": [
+      "MT-30694",
+      "MT-30805",
+      "MT-30806"
+     ],
+     "expected_state": "overflows is true or false for the chain.",
+     "visual_check": {
+      "what_must_be_visible": "Overset port marker and a count in the status bar.",
+      "layout_or_fit_concern": "The marker is small; the count must not depend on the frame being on screen."
+     },
+     "failure_a_professional_would_notice": "Screen says it fits, the PDF ends 3 lines short or overset."
+    },
+    {
+     "n": 37,
+     "intent": "Apply paragraph styles down the story",
+     "human": {
+      "panel": [
+       "text-styles",
+       "paragraph"
+      ],
+      "tool": "type",
+      "gesture": "Place the caret, click the style; next-style cascade over a selection",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::ApplyParagraphStyle",
+      "parameters": {
+       "story": "$feature",
+       "paragraph": 0,
+       "style": "Feature-Title"
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:156"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-037 (line 6498)"
+     ],
+     "mts": [
+      "MT-30764",
+      "MT-168"
+     ],
+     "expected_state": "style_ref on each paragraph.",
+     "visual_check": {
+      "what_must_be_visible": "Active style highlights in the list as the caret moves.",
+      "layout_or_fit_concern": "Applying down a story is per-paragraph; a next-style cascade command is absent."
+     },
+     "failure_a_professional_would_notice": "A hundred paragraphs are styled one call at a time."
+    },
+    {
+     "n": 38,
+     "intent": "Apply character styles to bylines and emphasised words",
+     "human": {
+      "panel": "text-styles",
+      "tool": "type",
+      "gesture": "Select the range; click the character style",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::ApplyCharacterStyle",
+      "parameters": {
+       "story": "$feature",
+       "start": 412,
+       "end": 438,
+       "style": "Emphasis"
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:158"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-037 (line 6498)"
+     ],
+     "mts": [
+      "MT-30764",
+      "MT-168"
+     ],
+     "expected_state": "Range stored and shifted on later edits.",
+     "visual_check": {
+      "what_must_be_visible": "Style indicated while the caret is in the range.",
+      "layout_or_fit_concern": "The harness takes byte ranges in a field; the rebuilt canvas must offer text selection."
+     },
+     "failure_a_professional_would_notice": "Byte offsets break on non-ASCII characters if treated as characters."
+    },
+    {
+     "n": 39,
+     "intent": "Apply local overrides: tracking -10 on a loose line, baseline shift on a superscript",
+     "human": {
+      "panel": "character",
+      "tool": null,
+      "gesture": "Character panel: Tracking, Baseline Shift",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "tracking": -10,
+       "baseline_shift_pt": 2.5
+      },
+      "status": "missing",
+      "evidence": [
+       "crates/hsk-studio-folio/src/story.rs:92",
+       "StoryRange holds only style_ref and applied_language; truth-check top_missing rank 1"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-142 (line 6459)",
+      "STU-TYP-201 (line 9064)",
+      "STU-TYP-202 (line 9077)"
+     ],
+     "mts": [
+      "MT-30757",
+      "MT-30758",
+      "MT-30759",
+      "MT-30999",
+      "MT-31000"
+     ],
+     "expected_state": "Attributes on the range, reported as overrides.",
+     "visual_check": {
+      "what_must_be_visible": "Plus mark on the style; values in the panel.",
+      "layout_or_fit_concern": "Character panel has no data to show today."
+     },
+     "failure_a_professional_would_notice": "Widows and loose lines cannot be fixed by hand; copy-fit is impossible.",
+     "gap_ref": "G6"
+    },
+    {
+     "n": 40,
+     "intent": "Clear stray overrides on a pasted paragraph",
+     "human": {
+      "panel": "text-styles",
+      "tool": null,
+      "gesture": "TYPE > Styles > Clear Overrides",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::Style(StyleEdit::ClearOverrides)",
+      "parameters": {
+       "story": "$feature",
+       "paragraph": 7
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/styles.rs:53",
+       "crates/hsk-studio-harness-view/src/layout_ui/styles.rs:294"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-037 (line 6498)"
+     ],
+     "mts": [
+      "MT-30764",
+      "MT-168"
+     ],
+     "expected_state": "Character ranges in the paragraph revert.",
+     "visual_check": {
+      "what_must_be_visible": "Override mark clears.",
+      "layout_or_fit_concern": "Must be reachable from the style list as well as the menu."
+     },
+     "failure_a_professional_would_notice": "Clears ranges only, since no other override exists yet."
+    },
+    {
+     "n": 41,
+     "intent": "Span the opener deck across all columns",
+     "human": {
+      "panel": "paragraph",
+      "tool": null,
+      "gesture": "Paragraph panel: Span Columns > All",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_folio::StudioParagraphFlow",
+      "parameters": {
+       "span": "all"
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-folio/src/layoutflow.rs:116",
+       "crates/hsk-studio-layout/src/threaded_reflow.rs:428",
+       "looked: git grep -iE 'StudioSpanColumn|StudioParagraphFlow' at c4d06841 in hsk-studio-harness-view/src/layout_ui: 0 hits",
+       "reflow_flow reads the record; LayoutEdit has no member that sets it"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-021 (line 5887)",
+      "STU-LAY-125 (line 5896)"
+     ],
+     "mts": [
+      "MT-30699",
+      "MT-155",
+      "MT-30700",
+      "MT-30701",
+      "MT-30702"
+     ],
+     "expected_state": "Deck spans; body resumes under it in 3 columns.",
+     "visual_check": {
+      "what_must_be_visible": "Deck across the frame width.",
+      "layout_or_fit_concern": "Option lives in Paragraph, far from column controls in Text Frame."
+     },
+     "failure_a_professional_would_notice": "Deck is forced into a separate frame that does not thread.",
+     "gap_ref": "G6"
+    },
+    {
+     "n": 42,
+     "intent": "Set composer and hyphenation for body",
+     "human": {
+      "panel": "paragraph",
+      "tool": null,
+      "gesture": "TYPE > Paragraph > Hyphenation..., Justification...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_layout::typeset (StudioCompositionSettings)",
+      "parameters": {
+       "engine": "paragraph",
+       "hyphenate": true,
+       "word_spacing": [
+        85,
+        100,
+        115
+       ]
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-folio/src/typestyle.rs:206",
+       "crates/hsk-studio-layout/src/hyphenate.rs:1",
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:22",
+       "the editor's composition does not use it"
+      ]
+     },
+     "spec_clauses": [
+      "STU-TYP-135 (line 8143)",
+      "STU-TYP-136 (line 8159)"
+     ],
+     "mts": [
+      "MT-30904",
+      "MT-30905"
+     ],
+     "expected_state": "Justified copy has even colour.",
+     "visual_check": {
+      "what_must_be_visible": "Rivers visible when zoomed; H and J violations highlighted.",
+      "layout_or_fit_concern": "H and J highlight must be a view option."
+     },
+     "failure_a_professional_would_notice": "Rivers and hyphen stacks in three-column justified text.",
+     "gap_ref": "G14"
+    },
+    {
+     "n": 43,
+     "intent": "Apply small caps and old-style figures through OpenType",
+     "human": {
+      "panel": "opentype",
+      "tool": null,
+      "gesture": "TYPE > OpenType: Small Caps, Oldstyle Figures",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "features": [
+        "smcp",
+        "onum"
+       ]
+      },
+      "status": "missing",
+      "evidence": [
+       "crates/hsk-studio-folio/src/story.rs:92",
+       "truth-check T08: FeatureMap is not referenced outside hsk-studio-type; ranges store no features"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-142 (line 6459)",
+      "STU-TYP-201 (line 9064)"
+     ],
+     "mts": [
+      "MT-30757",
+      "MT-30758",
+      "MT-30759",
+      "MT-30999"
+     ],
+     "expected_state": "Features in the range reach shaping and the PDF.",
+     "visual_check": {
+      "what_must_be_visible": "Panel shows features the font supports, others disabled with a reason.",
+      "layout_or_fit_concern": "Disabled rows must remain visible (STU-SHL-018)."
+     },
+     "failure_a_professional_would_notice": "Figures in running text stay lining; small caps are faked.",
+     "gap_ref": "G6"
+    },
+    {
+     "n": 44,
+     "intent": "Clean the copy: GREP find/change of double spaces and straight quotes",
+     "human": {
+      "panel": "find-replace",
+      "tool": null,
+      "gesture": "Find & Replace: GREP mode, Change All",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::Change",
+      "parameters": {
+       "query": {
+        "mode": "grep",
+        "pattern": " {2,}",
+        "scope": "document"
+       },
+       "replacement": " ",
+       "only": null
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:166",
+       "crates/hsk-studio-harness-view/src/layout_ui/find.rs:26",
+       "all hits are one undo step"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-027 (line 6061)",
+      "STU-LAY-129 (line 6063)"
+     ],
+     "mts": [
+      "MT-30714",
+      "MT-160",
+      "MT-30715",
+      "MT-30716",
+      "MT-30717"
+     ],
+     "expected_state": "Hit count reported; one undo entry.",
+     "visual_check": {
+      "what_must_be_visible": "Hit list with context in the bottom dock; navigation jumps to each.",
+      "layout_or_fit_concern": "List must not cover the page; the bottom dock is 180 px."
+     },
+     "failure_a_professional_would_notice": "Change All hits a locked story silently."
+    },
+    {
+     "n": 45,
+     "intent": "Find by formatting: every Byline without its style",
+     "human": {
+      "panel": "find-replace",
+      "tool": null,
+      "gesture": "Find & Replace: Find Format",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "find_format": {
+        "paragraph_style": null,
+        "font_family": "Inter"
+       }
+      },
+      "status": "missing",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/find.rs:8",
+       "declared gap in find.rs"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-129 (line 6063)"
+     ],
+     "mts": [
+      "MT-30715",
+      "MT-30716",
+      "MT-30717"
+     ],
+     "expected_state": "Hits by attribute.",
+     "visual_check": {
+      "what_must_be_visible": "Find Format row in the panel.",
+      "layout_or_fit_concern": "None until built."
+     },
+     "failure_a_professional_would_notice": "Inconsistent formatting found only by proofreading.",
+     "gap_ref": "G17"
+    },
+    {
+     "n": 46,
+     "intent": "Spell-check the feature",
+     "human": {
+      "panel": "spelling",
+      "tool": "spelling",
+      "gesture": "EDIT or panel: Check Spelling",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "language": "en-GB",
+       "scope": "story"
+      },
+      "status": "missing",
+      "evidence": [
+       "looked: git grep -iE 'spell_?check|user_dictionary' at c4d06841 in hsk-studio-layout/src, hsk-studio-type/src/lib.rs, hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits",
+       "crates/hsk-studio-layout/src/preflight.rs:19"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-057 (line 7021)",
+      "STU-TYP-209 (line 9194)"
+     ],
+     "mts": [
+      "MT-30808",
+      "MT-30809",
+      "MT-30810",
+      "MT-31023"
+     ],
+     "expected_state": "Unknown words listed; user dictionary kept in the document.",
+     "visual_check": {
+      "what_must_be_visible": "Spelling tab in the bottom dock; word and suggestions.",
+      "layout_or_fit_concern": "Panel is in the default bottom dock; it must explain itself rather than be empty."
+     },
+     "failure_a_professional_would_notice": "Errors reach press.",
+     "gap_ref": "G17"
+    },
+    {
+     "n": 47,
+     "intent": "Read the story in linear form",
+     "human": {
+      "panel": "text-frame",
+      "tool": null,
+      "gesture": "VIEW > Story Editor > Open Story Editor",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEditor::story_lines, story_rows",
+      "parameters": {
+       "story": "$feature"
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/threads.rs:147",
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:458",
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:70"
+      ],
+      "spec_command_id": "studio.typography.story_editor"
+     },
+     "spec_clauses": [
+      "STU-LAY-026 (line 6045)"
+     ],
+     "mts": [
+      "MT-30712",
+      "MT-159"
+     ],
+     "expected_state": "One row per paragraph with style name; line list with depth; overset rows after a marker.",
+     "visual_check": {
+      "what_must_be_visible": "Style-name column, depth ruler, overset line.",
+      "layout_or_fit_concern": "Notes, tables and tags are not shown inline; declared gap in threads.rs."
+     },
+     "failure_a_professional_would_notice": "Editor cannot see the footnote while proofing."
+    },
+    {
+     "n": 48,
+     "intent": "Place opener picture into a bleed frame",
+     "human": {
+      "panel": "links-placements",
+      "tool": "picture_frame_rectangle",
+      "gesture": "FILE > Place: img-01; drag the frame past trim",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_layout::place_graphic",
+      "parameters": {
+       "layer": "$image",
+       "page": "5",
+       "bounds_pt": [
+        -8.5,
+        -8.5,
+        1199,
+        810
+       ]
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-layout/src/fitting.rs:198",
+       "crates/hsk-studio-folio/src/longdoc.rs:380",
+       "looked: git grep -iE 'place_graphic|StudioGraphicFrame' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ],
+      "spec_command_id": "studio.interop.place"
+     },
+     "spec_clauses": [
+      "STU-LAY-028 (line 6093)"
+     ],
+     "mts": [
+      "MT-30721",
+      "MT-30722",
+      "MT-30723"
+     ],
+     "expected_state": "Frame across the spread into bleed; link recorded.",
+     "visual_check": {
+      "what_must_be_visible": "Picture on the page; link badge; frame reaches the bleed guide.",
+      "layout_or_fit_concern": "Page view must draw pictures; today it draws text frames only."
+     },
+     "failure_a_professional_would_notice": "Spread shows no image at all.",
+     "gap_ref": "G5"
+    },
+    {
+     "n": 49,
+     "intent": "Place eleven more images as a loaded cursor",
+     "human": {
+      "panel": "links-placements",
+      "tool": "place",
+      "gesture": "Place Multiple...: thumbnails on the cursor",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "paths": "img-02..12"
+      },
+      "status": "missing",
+      "evidence": [
+       "looked: git grep -iE 'place_multiple|multi_place|gridified' at c4d06841 in hsk-studio-layout/src, hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ],
+      "spec_command_id": "FILE > Place > Place Multiple..."
+     },
+     "spec_clauses": [
+      "STU-LAY-028 (line 6093)"
+     ],
+     "mts": [
+      "MT-30721",
+      "MT-30722",
+      "MT-30723"
+     ],
+     "expected_state": "Each click places the next image.",
+     "visual_check": {
+      "what_must_be_visible": "Thumbnail stack at the cursor with a count.",
+      "layout_or_fit_concern": "Count must be legible on a dark image."
+     },
+     "failure_a_professional_would_notice": "Each image goes through a separate dialog.",
+     "gap_ref": "G5"
+    },
+    {
+     "n": 50,
+     "intent": "Preserve a CMYK image's numbers through to the PDF",
+     "human": {
+      "panel": "colour",
+      "tool": null,
+      "gesture": "Place options: keep embedded profile; Links panel shows ICC",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_interop_layout::PlacedRaster",
+      "parameters": {
+       "image": "img-07-cmyk.tif"
+      },
+      "status": "missing",
+      "evidence": [
+       "crates/hsk-studio-interop-layout/src/pdf_export.rs:29",
+       "raster lowering writes rgb_f32le tiles with their profile; found no CMYK sample path in layout PDF lowering"
+      ]
+     },
+     "spec_clauses": [
+      "STU-COL-129 (line 10281)",
+      "STU-COL-165 (line 10536)",
+      "STU-LAY-160 (line 7206)"
+     ],
+     "mts": [
+      "MT-31189",
+      "MT-31222",
+      "MT-30844",
+      "MT-30845"
+     ],
+     "expected_state": "CMYK values unchanged in the file.",
+     "visual_check": {
+      "what_must_be_visible": "Colour space and profile in the link info.",
+      "layout_or_fit_concern": "Link info must show the effective resolution and colour space together."
+     },
+     "failure_a_professional_would_notice": "Black text in images turns to four-colour black on press.",
+     "gap_ref": "G5"
+    },
+    {
+     "n": 51,
+     "intent": "Fit the image: fill frame proportionally, top anchored",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "OBJECT > Frame & Fitting > Fitting",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_layout::fit_content",
+      "parameters": {
+       "fit": "fill_proportionally",
+       "anchor": "top_center"
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-layout/src/fitting.rs:81",
+       "looked: git grep -iE 'fit_content' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-029 (line 6132)",
+      "STU-LAY-131 (line 6137)"
+     ],
+     "mts": [
+      "MT-30730",
+      "MT-162",
+      "MT-170",
+      "MT-30731",
+      "MT-30732"
+     ],
+     "expected_state": "Crop and scale stored; frame unchanged.",
+     "visual_check": {
+      "what_must_be_visible": "Content bounds on a content-grabber drag.",
+      "layout_or_fit_concern": "Frame versus content selection must be clearly different."
+     },
+     "failure_a_professional_would_notice": "Picture is stretched rather than cropped.",
+     "gap_ref": "G5"
+    },
+    {
+     "n": 52,
+     "intent": "Move and resize a frame on the page",
+     "human": {
+      "panel": "transform",
+      "tool": null,
+      "gesture": "Selection drag; Transform panel X, Y, W, H",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "frame": "$frame",
+       "x": 51,
+       "y": 62
+      },
+      "status": "missing",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:146",
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:770",
+       "looked: git grep -iE 'MoveFrame|ResizeFrame|SetBounds|SetFrameBounds' at c4d06841 in hsk-studio-harness-view/src/layout_ui: 0 hits",
+       "the Transform hosted panel acts on Run or vector layers"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-012 (line 5630)",
+      "STU-SHL-087 (line 32226)"
+     ],
+     "mts": [
+      "MT-30677",
+      "MT-148",
+      "MT-34618"
+     ],
+     "expected_state": "Bounds change, story reflows, one undo entry per gesture.",
+     "visual_check": {
+      "what_must_be_visible": "Handles; live X, Y, W, H; smart guides.",
+      "layout_or_fit_concern": "Same panel must drive frames and vector shapes without a second transform panel."
+     },
+     "failure_a_professional_would_notice": "A frame cannot be adjusted once drawn.",
+     "gap_ref": "G14"
+    },
+    {
+     "n": 53,
+     "intent": "Wrap the body copy around a cut-out image",
+     "human": {
+      "panel": "text-wrap",
+      "tool": null,
+      "gesture": "OBJECT > Frame & Fitting > Text Wrap...: around bounding box, 3 mm",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:ReflowRequest wrap obstacles",
+      "parameters": {
+       "mode": "around_bounding_box",
+       "offset_pt": 8.5
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-layout/src/threaded_reflow.rs:104",
+       "crates/hsk-studio-folio/src/layoutflow.rs:690",
+       "truth-check MT-30706"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-024 (line 6039)",
+      "STU-LAY-126 (line 5981)"
+     ],
+     "mts": [
+      "MT-30710",
+      "MT-157",
+      "MT-162",
+      "MT-30705",
+      "MT-30706",
+      "MT-30707"
+     ],
+     "expected_state": "Text runs around, wrap stored on the object.",
+     "visual_check": {
+      "what_must_be_visible": "Wrap outline in a tint with offset handles.",
+      "layout_or_fit_concern": "Panel in the default right group; must show state for the selected frame."
+     },
+     "failure_a_professional_would_notice": "No wrap on the IDML round trip either: idml_decode reports it as a loss.",
+     "gap_ref": "G10"
+    },
+    {
+     "n": 54,
+     "intent": "Clip to the image's embedded path",
+     "human": {
+      "panel": "properties",
+      "tool": null,
+      "gesture": "OBJECT > Frame & Fitting > Clipping Path",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "type": "embedded_path",
+       "path": "Path 1"
+      },
+      "status": "missing",
+      "evidence": [
+       "looked: git grep -iE 'clipping_path|detect_edges' at c4d06841 in hsk-studio-layout/src, hsk-studio-folio/src/longdoc.rs, hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-031 (line 6202)",
+      "STU-LAY-133 (line 6206)"
+     ],
+     "mts": [
+      "MT-30736",
+      "MT-157",
+      "MT-162",
+      "MT-30737",
+      "MT-30738"
+     ],
+     "expected_state": "Image clipped; wrap may follow the path.",
+     "visual_check": {
+      "what_must_be_visible": "Cut-out on the page.",
+      "layout_or_fit_concern": "None until built."
+     },
+     "failure_a_professional_would_notice": "White box around the cut-out.",
+     "gap_ref": "G5"
+    },
+    {
+     "n": 55,
+     "intent": "Anchor the caption to its image",
+     "human": {
+      "panel": "anchoring",
+      "tool": null,
+      "gesture": "OBJECT > Frame & Fitting > Anchored Object",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_layout::place_anchored_objects",
+      "parameters": {
+       "position": "custom",
+       "reference": "frame"
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-layout/src/anchors.rs:242",
+       "crates/hsk-studio-folio/src/layoutflow.rs:469",
+       "looked: git grep -iE 'place_anchored_objects' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-025 (line 6041)",
+      "STU-LAY-127 (line 6013)"
+     ],
+     "mts": [
+      "MT-30711",
+      "MT-158",
+      "MT-170",
+      "MT-30708",
+      "MT-30709"
+     ],
+     "expected_state": "Object travels with its text position.",
+     "visual_check": {
+      "what_must_be_visible": "Anchor glyph in the text; a line to the object.",
+      "layout_or_fit_concern": "Anchor glyph must only show with hidden characters on."
+     },
+     "failure_a_professional_would_notice": "Caption stays behind when copy reflows.",
+     "gap_ref": "G10"
+    },
+    {
+     "n": 56,
+     "intent": "Insert a pull quote as a tinted frame in spot colour",
+     "human": {
+      "panel": "swatches",
+      "tool": "frame_text",
+      "gesture": "Draw frame, apply Pull-Quote, fill Meridian Orange 15 percent",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "fill_swatch": "Meridian Orange",
+       "tint": 15
+      },
+      "status": "missing",
+      "evidence": [
+       "crates/hsk-studio-folio/src/typestyle.rs:118",
+       "crates/hsk-studio-harness-view/src/layout_ui/styles.rs:32",
+       "crates/hsk-studio-press-write/src/export.rs:350",
+       "looked: git grep -iE 'Separation' at c4d06841 in hsk-studio-press-write/src/export.rs: 0 hits",
+       "text fill is RGB on the style, frames have no fill edit, and the PDF Colour enum has no separation"
+      ]
+     },
+     "spec_clauses": [
+      "STU-COL-170 (line 10544)",
+      "STU-COL-172 (line 10567)",
+      "STU-LAY-160 (line 7206)"
+     ],
+     "mts": [
+      "MT-31223",
+      "MT-31232",
+      "MT-30844",
+      "MT-30845"
+     ],
+     "expected_state": "Frame and text carry a swatch reference.",
+     "visual_check": {
+      "what_must_be_visible": "Fill swatch in panel, tint field.",
+      "layout_or_fit_concern": "Swatches panel must show which target is active."
+     },
+     "failure_a_professional_would_notice": "Spot prints as process or as RGB.",
+     "gap_ref": "G8"
+    },
+    {
+     "n": 57,
+     "intent": "Add a soft shadow to a sidebar frame",
+     "human": {
+      "panel": "effect-controls",
+      "tool": null,
+      "gesture": "EFFECTS: Drop Shadow on object fill target",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "target": "object",
+       "effect": "drop_shadow",
+       "opacity": 0.5
+      },
+      "status": "missing",
+      "evidence": [
+       "looked: git grep -iE 'drop_shadow|DropShadow' at c4d06841 in hsk-studio-layout/src, hsk-studio-interop-layout/src/pdf_export.rs: 0 hits",
+       "truth-check L04: object effect four-target model absent"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-032 (line 6309)",
+      "STU-LAY-134 (line 6226)"
+     ],
+     "mts": [
+      "MT-30744",
+      "MT-164",
+      "MT-170",
+      "MT-30739",
+      "MT-30740",
+      "MT-30741"
+     ],
+     "expected_state": "Effect on the target; flatten behaviour stated at export.",
+     "visual_check": {
+      "what_must_be_visible": "Effect target row with a live value.",
+      "layout_or_fit_concern": "effect-controls is huge; the layout profile should show only object effect groups."
+     },
+     "failure_a_professional_would_notice": "Designer leaves the tool to fake shadows in a raster.",
+     "gap_ref": "G18"
+    },
+    {
+     "n": 58,
+     "intent": "Reduce an image layer to 70 percent opacity",
+     "human": {
+      "panel": "layers",
+      "tool": null,
+      "gesture": "Layers row: opacity ScrubValue",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "layer.set_opacity",
+      "parameters": {
+       "layer": "$image",
+       "opacity": 0.7
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-core/src/action.rs:817",
+       "acts on the Run document, not on the LayoutEditor copy; the two do not sync"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-135 (line 6293)"
+     ],
+     "mts": [
+      "MT-30742",
+      "MT-30743"
+     ],
+     "expected_state": "Appearance changes; PDF route draws a transparency group.",
+     "visual_check": {
+      "what_must_be_visible": "Value and preview change together.",
+      "layout_or_fit_concern": "Change does not appear in the layout page view, which is a separate copy."
+     },
+     "failure_a_professional_would_notice": "Opacity shows in Layers and never on the page."
+    },
+    {
+     "n": 59,
+     "intent": "Add two footnotes to the feature",
+     "human": {
+      "panel": "long-document",
+      "tool": null,
+      "gesture": "INSERT > Page Element > Footnote",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_layout::layout_footnotes",
+      "parameters": {
+       "story": "$feature",
+       "byte": 8123,
+       "text": "Source note"
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-layout/src/footnotes.rs:276",
+       "crates/hsk-studio-folio/src/longdoc.rs:727",
+       "looked: git grep -iE 'layout_footnotes|StudioFootnote' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-046 (line 6720)",
+      "STU-LAY-150 (line 6722)"
+     ],
+     "mts": [
+      "MT-30780",
+      "MT-175",
+      "MT-30781",
+      "MT-30782",
+      "MT-30783"
+     ],
+     "expected_state": "Band at the foot of the column, renumbered in flow order.",
+     "visual_check": {
+      "what_must_be_visible": "Number in text; note and rule at column foot.",
+      "layout_or_fit_concern": "Story editor must show notes; declared gap."
+     },
+     "failure_a_professional_would_notice": "Notes typed as text and renumbered by hand.",
+     "gap_ref": "G4"
+    },
+    {
+     "n": 60,
+     "intent": "Add a cross-reference: see page N",
+     "human": {
+      "panel": "hyperlinks",
+      "tool": null,
+      "gesture": "INSERT > Page Element > Cross-Reference...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_layout::write_cross_reference",
+      "parameters": {
+       "destination": "anchor:spec-table",
+       "format": "<pageNum/>"
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-layout/src/xref.rs:452",
+       "crates/hsk-studio-harness-view/src/layout_ui/preflight.rs:5",
+       "looked: git grep -iE 'write_cross_reference' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits",
+       "preflight resolves stale and broken status, but no host authors one"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-047 (line 6801)",
+      "STU-LAY-151 (line 6806)"
+     ],
+     "mts": [
+      "MT-30785",
+      "MT-176",
+      "MT-30786"
+     ],
+     "expected_state": "Reference resolves to the page label; stale flagged by preflight.",
+     "visual_check": {
+      "what_must_be_visible": "Live text with a reference tint under View options.",
+      "layout_or_fit_concern": "Hyperlinks panel must list stale ones first."
+     },
+     "failure_a_professional_would_notice": "A wrong page reference after a late page move.",
+     "gap_ref": "G4"
+    },
+    {
+     "n": 61,
+     "intent": "Insert the spec table in the department story",
+     "human": {
+      "panel": "text-frame",
+      "tool": "table",
+      "gesture": "INSERT > Table > Insert Table...: 15 rows, 5 columns, 1 header",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::Table(TableEdit::InsertTable)",
+      "parameters": {
+       "story": "$dept",
+       "paragraph": 4,
+       "rows": 15,
+       "columns": 5,
+       "header_rows": 1
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/tables.rs:51",
+       "crates/hsk-studio-layout/src/story_tables.rs:83",
+       "declared gap: a story with tables does not read flow records, so columns and span are not applied"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-035 (line 6364)",
+      "STU-LAY-139 (line 6367)"
+     ],
+     "mts": [
+      "MT-30750",
+      "MT-35687",
+      "MT-35688",
+      "MT-30751",
+      "MT-30752"
+     ],
+     "expected_state": "Table in the story with repeating header.",
+     "visual_check": {
+      "what_must_be_visible": "Table drawn in the frame; header row distinct.",
+      "layout_or_fit_concern": "A story with a table loses its 3-column setting; a professional would catch that at once."
+     },
+     "failure_a_professional_would_notice": "Table story collapses to one column."
+    },
+    {
+     "n": 62,
+     "intent": "Fill the table from CSV",
+     "human": {
+      "panel": "text-frame",
+      "tool": "table",
+      "gesture": "FILE > Place: spec-table.csv as a table; or Convert Text to Table...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "path": "spec-table.csv"
+      },
+      "status": "missing",
+      "evidence": [
+       "crates/hsk-studio-interop-layout/src/data_merge.rs:137",
+       "looked: git grep -iE 'spreadsheet|csv_to_table|convert_to_table' at c4d06841 in hsk-studio-layout/src, hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits",
+       "parser exists for data merge only; truth-check MT-30713"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-128 (line 6053)"
+     ],
+     "mts": [
+      "MT-30713"
+     ],
+     "expected_state": "Cells filled; row count matches.",
+     "visual_check": {
+      "what_must_be_visible": "Import preview before commit.",
+      "layout_or_fit_concern": "Preview must show the delimiter guess."
+     },
+     "failure_a_professional_would_notice": "Fourteen rows typed by hand.",
+     "gap_ref": "G16"
+    },
+    {
+     "n": 63,
+     "intent": "Set cell text as the working fallback",
+     "human": {
+      "panel": "text-frame",
+      "tool": "table",
+      "gesture": "Click a cell; type",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::Table(TableEdit::SetCellText)",
+      "parameters": {
+       "table": "$t",
+       "row": 1,
+       "column": 0,
+       "text": "Example"
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/tables.rs:57"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-141 (line 6413)"
+     ],
+     "mts": [
+      "MT-30754",
+      "MT-30755"
+     ],
+     "expected_state": "Cell story holds the text.",
+     "visual_check": {
+      "what_must_be_visible": "Text in the cell; row height grows.",
+      "layout_or_fit_concern": "Cell caret and tab-to-next-cell gesture need the canvas."
+     },
+     "failure_a_professional_would_notice": "Tab inserts a tab instead of moving cell."
+    },
+    {
+     "n": 64,
+     "intent": "Merge the header cells of the last two columns and add a footer row",
+     "human": {
+      "panel": "text-frame",
+      "tool": "table",
+      "gesture": "OBJECT > Table: Merge Cells, Insert Row",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:TableEdit::MergeCells, InsertRow",
+      "parameters": {
+       "table": "$t",
+       "row": 0,
+       "column": 3,
+       "rows": 1,
+       "columns": 2
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/tables.rs:59",
+       "crates/hsk-studio-harness-view/src/layout_ui/tables.rs:52"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-139 (line 6367)",
+      "STU-LAY-141 (line 6413)"
+     ],
+     "mts": [
+      "MT-30751",
+      "MT-30752",
+      "MT-30754",
+      "MT-30755"
+     ],
+     "expected_state": "Spans valid; validator refuses overlap.",
+     "visual_check": {
+      "what_must_be_visible": "Merged header visible.",
+      "layout_or_fit_concern": "Selecting across cells needs a clear selection colour."
+     },
+     "failure_a_professional_would_notice": "Merge shifts cell text to the wrong cell."
+    },
+    {
+     "n": 65,
+     "intent": "Rule and tint the table: alternate fills and 0.25 pt rules in House Blue",
+     "human": {
+      "panel": "text-frame",
+      "tool": "table",
+      "gesture": "OBJECT > Table: Table Options, Fills, Strokes",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_layout::layout_table",
+      "parameters": {
+       "alternate_fill": {
+        "swatch": "House Blue",
+        "tint": 10
+       },
+       "row_stroke_pt": 0.25
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-layout/src/table.rs:472",
+       "crates/hsk-studio-folio/src/longdoc.rs:190",
+       "crates/hsk-studio-harness-view/src/layout_ui/tables.rs:10",
+       "the composition reads records; no host edit writes them"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-140 (line 6399)",
+      "STU-LAY-141 (line 6413)"
+     ],
+     "mts": [
+      "MT-30753",
+      "MT-30754",
+      "MT-30755"
+     ],
+     "expected_state": "Strokes and fills on the record; drawn in the PDF lowering.",
+     "visual_check": {
+      "what_must_be_visible": "Table options with live preview.",
+      "layout_or_fit_concern": "Table options need their own panel state; no spec panel named for tables, only OBJECT > Table."
+     },
+     "failure_a_professional_would_notice": "Table prints with no rules.",
+     "gap_ref": "G16"
+    },
+    {
+     "n": 66,
+     "intent": "Override a parent item on the opener page",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": "frame_text",
+      "gesture": "Ctrl-Shift-click the item, or DOCUMENT > Parent Pages > Override All...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::Page(PageEdit::OverrideItem)",
+      "parameters": {
+       "page": "5",
+       "item": "$folio"
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/pages.rs:47",
+       "crates/hsk-studio-harness-view/src/layout_ui/pages.rs:49",
+       "crates/hsk-studio-harness-view/src/layout_ui/pages.rs:51"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-007 (line 5556)",
+      "STU-LAY-110 (line 5547)"
+     ],
+     "mts": [
+      "MT-30669",
+      "MT-145",
+      "MT-30668"
+     ],
+     "expected_state": "Local copy on that page; removal restores inheritance.",
+     "visual_check": {
+      "what_must_be_visible": "Item goes from dashed to solid.",
+      "layout_or_fit_concern": "Reversal must be discoverable from the item."
+     },
+     "failure_a_professional_would_notice": "Folio knocked out on all pages instead of one."
+    },
+    {
+     "n": 67,
+     "intent": "Check a late page move: move the department spread",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": null,
+      "gesture": "Drag the spread thumbnail",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEdit::Page(PageEdit::MovePage)",
+      "parameters": {
+       "page": "20",
+       "spread": 8,
+       "index": 0
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/pages.rs:38",
+       "crates/hsk-studio-harness-view/src/layout_ui/pages.rs:11"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-001 (line 5394)"
+     ],
+     "mts": [
+      "MT-30656",
+      "MT-35680",
+      "MT-35681"
+     ],
+     "expected_state": "Order changes; sides correct.",
+     "visual_check": {
+      "what_must_be_visible": "Thumbnail drop indicator.",
+      "layout_or_fit_concern": "Sides do not re-paginate, so the picture on the spine side is misplaced with no warning."
+     },
+     "failure_a_professional_would_notice": "A spread comes unpaired; both pages stay on the wrong sides."
+    }
+   ]
+  },
+  {
+   "scene_id": "S3-long-document",
+   "goal": "Generate the contents page and back-of-book index, and keep them live through a late edit.",
+   "steps": [
+    {
+     "n": 68,
+     "intent": "Define the TOC style: Feature-Title and Department-Head, page number after a tab leader",
+     "human": {
+      "panel": "long-document",
+      "tool": null,
+      "gesture": "DOCUMENT > Long Document > Table of Contents",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_layout::TocStyle",
+      "parameters": {
+       "entries": [
+        {
+         "name": "Feature-Title",
+         "entry_style": "TOC-1"
+        },
+        {
+         "name": "Dept-Head",
+         "entry_style": "TOC-2"
+        }
+       ],
+       "include_overset": false
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-layout/src/toc_contract.rs:1",
+       "crates/hsk-studio-folio/src/longdoc.rs:568",
+       "looked: git grep -iE 'TocStyle|generate_toc|generate_table_of_contents' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-044 (line 6628)",
+      "STU-LAY-148 (line 6630)"
+     ],
+     "mts": [
+      "MT-30776",
+      "MT-173",
+      "MT-30777"
+     ],
+     "expected_state": "Style record stored; same-style-twice refused.",
+     "visual_check": {
+      "what_must_be_visible": "Mapping list with a target style for each row.",
+      "layout_or_fit_concern": "A two-column mapping needs more than the 260 px left dock; open as a sheet."
+     },
+     "failure_a_professional_would_notice": "Contents typed by hand and wrong after page moves.",
+     "gap_ref": "G4"
+    },
+    {
+     "n": 69,
+     "intent": "Generate the TOC and place it on page 3",
+     "human": {
+      "panel": "long-document",
+      "tool": null,
+      "gesture": "Generate, then click to place the story",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_layout::generate_table_of_contents",
+      "parameters": {
+       "style": "$toc",
+       "replace_existing": false,
+       "include_overset": false
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-layout/src/toc_contract.rs:722",
+       "crates/hsk-studio-layout/src/toc.rs:138",
+       "looked: git grep -iE 'generate_table_of_contents|update_all_tables_of_contents' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-148 (line 6630)"
+     ],
+     "mts": [
+      "MT-30777"
+     ],
+     "expected_state": "Generated story with section labels as page numbers; omitted overset counted.",
+     "visual_check": {
+      "what_must_be_visible": "Entries on the page, leader dots, roman and arabic labels correct.",
+      "layout_or_fit_concern": "Generated story must be marked generated so edits are not lost silently."
+     },
+     "failure_a_professional_would_notice": "Page numbers ignore the section start.",
+     "gap_ref": "G4"
+    },
+    {
+     "n": 70,
+     "intent": "Mark index topics through the feature",
+     "human": {
+      "panel": "long-document",
+      "tool": null,
+      "gesture": "INSERT > Page Element > Index Marker",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_layout::capture_index_mark",
+      "parameters": {
+       "topic": [
+        "Ink",
+        "Spot"
+       ],
+       "scope": "current_page"
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-layout/src/index_contract.rs:1095",
+       "crates/hsk-studio-folio/src/longdoc.rs:831",
+       "looked: git grep -iE 'capture_index_mark|StudioIndexMark' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-045 (line 6672)",
+      "STU-LAY-149 (line 6675)"
+     ],
+     "mts": [
+      "MT-30778",
+      "MT-174",
+      "MT-30779"
+     ],
+     "expected_state": "Marks in text; up to four levels; typed errors for invalid entries.",
+     "visual_check": {
+      "what_must_be_visible": "Marker glyph with hidden characters on; topic tree in the panel.",
+      "layout_or_fit_concern": "Tree must stay usable in the left dock for 300 topics."
+     },
+     "failure_a_professional_would_notice": "Marks are lost when the text is replaced.",
+     "gap_ref": "G4"
+    },
+    {
+     "n": 71,
+     "intent": "Add a see-also cross-reference topic",
+     "human": {
+      "panel": "long-document",
+      "tool": null,
+      "gesture": "Index topic options: See also",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_folio::StudioIndexXref",
+      "parameters": {
+       "topic": [
+        "Bleed"
+       ],
+       "kind": "see_also",
+       "referenced": [
+        "Trim"
+       ]
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-folio/src/longdoc.rs:799",
+       "looked: git grep -iE 'StudioIndexXref' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-149 (line 6675)"
+     ],
+     "mts": [
+      "MT-30779"
+     ],
+     "expected_state": "One of eight types stored.",
+     "visual_check": {
+      "what_must_be_visible": "Reference row under the topic.",
+      "layout_or_fit_concern": "Eight members must fit a dropdown without jargon."
+     },
+     "failure_a_professional_would_notice": "See-also pointing at a deleted topic with no warning.",
+     "gap_ref": "G4"
+    },
+    {
+     "n": 72,
+     "intent": "Generate the index with section headers on the last two pages",
+     "human": {
+      "panel": "long-document",
+      "tool": null,
+      "gesture": "Generate Index..., click to place",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_layout::generate_index_contract",
+      "parameters": {
+       "format": "nested",
+       "include_headers": true,
+       "replace_existing": false
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-layout/src/index_contract.rs:770",
+       "looked: git grep -iE 'generate_index_contract|generate_index' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-045 (line 6672)",
+      "STU-LAY-149 (line 6675)"
+     ],
+     "mts": [
+      "MT-30778",
+      "MT-174",
+      "MT-30779"
+     ],
+     "expected_state": "Generated story sorted with Latin headers and ranges.",
+     "visual_check": {
+      "what_must_be_visible": "Two-column index with A to Z heads.",
+      "layout_or_fit_concern": "Generation must report its typed errors in Problems, not a modal."
+     },
+     "failure_a_professional_would_notice": "Sort is byte order rather than alphabetical.",
+     "gap_ref": "G4"
+    },
+    {
+     "n": 73,
+     "intent": "Add a text variable for the issue number, used in the head and the imprint",
+     "human": {
+      "panel": "long-document",
+      "tool": null,
+      "gesture": "DOCUMENT > Long Document > Text Variables",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_folio::StudioTextVariable",
+      "parameters": {
+       "name": "Issue",
+       "kind": "custom",
+       "value": "12"
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-folio/src/longdoc.rs:1230",
+       "looked: git grep -iE 'StudioTextVariable' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-048 (line 6829)"
+     ],
+     "mts": [
+      "MT-30787",
+      "MT-30788",
+      "MT-151"
+     ],
+     "expected_state": "One edit updates each use.",
+     "visual_check": {
+      "what_must_be_visible": "Variable text shows a tint in View options.",
+      "layout_or_fit_concern": "Variable list and insert must sit together."
+     },
+     "failure_a_professional_would_notice": "Old issue number in the imprint.",
+     "gap_ref": "G4"
+    },
+    {
+     "n": 74,
+     "intent": "Late edit: cut 40 lines from the feature, then update TOC and index",
+     "human": {
+      "panel": "long-document",
+      "tool": null,
+      "gesture": "Edit the story; Update Table of Contents, Update Index",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_layout::update_all_tables_of_contents",
+      "parameters": {
+       "after_edit": true
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-layout/src/toc_contract.rs:761",
+       "no staleness signal: preflight has no out-of-date TOC rule (PREFLIGHT_RULES holds 9, none for TOC)",
+       "crates/hsk-studio-layout/src/preflight.rs:52"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-148 (line 6630)",
+      "STU-LAY-057 (line 7021)"
+     ],
+     "mts": [
+      "MT-30777",
+      "MT-30808",
+      "MT-30809",
+      "MT-30810"
+     ],
+     "expected_state": "Updated page numbers match; preflight flags stale TOC before the update.",
+     "visual_check": {
+      "what_must_be_visible": "Stale badge on the TOC row; cleared after update.",
+      "layout_or_fit_concern": "Staleness must also surface in preflight."
+     },
+     "failure_a_professional_would_notice": "TOC printed stale; the classic late-edit failure.",
+     "gap_ref": "G4"
+    },
+    {
+     "n": 75,
+     "intent": "Check the running heads and folios after the edit",
+     "human": {
+      "panel": "pages-artboards",
+      "tool": null,
+      "gesture": "Page through in Preview screen mode",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_layout::compose_overlay",
+      "parameters": {
+       "pages": "all"
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-layout/src/running.rs:251",
+       "looked: git grep -iE 'compose_overlay' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits",
+       "looked: git grep -iE 'studio.view.screen_mode|ScreenMode' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ],
+      "spec_command_id": "studio.view.screen_mode"
+     },
+     "spec_clauses": [
+      "STU-LAY-015 (line 5732)",
+      "STU-LAY-016 (line 5738)",
+      "STU-SHL-025 (line 31613)"
+     ],
+     "mts": [
+      "MT-30683",
+      "MT-151",
+      "MT-177",
+      "MT-30684",
+      "MT-34446"
+     ],
+     "expected_state": "Each page's head and folio correct.",
+     "visual_check": {
+      "what_must_be_visible": "Preview screen mode hides guides and shows trim only.",
+      "layout_or_fit_concern": "Screen Mode must be one click from the canvas."
+     },
+     "failure_a_professional_would_notice": "No way to view a clean page without guides.",
+     "gap_ref": "G4"
+    },
+    {
+     "n": 76,
+     "intent": "Name PDF bookmarks from the TOC and add a contents hyperlink",
+     "human": {
+      "panel": "hyperlinks",
+      "tool": null,
+      "gesture": "Export option: Create Bookmarks; Hyperlinks panel",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_interop_layout::outline_from_toc",
+      "parameters": {
+       "toc": "$toc",
+       "hyperlinks": true
+      },
+      "status": "missing",
+      "evidence": [
+       "crates/hsk-studio-interop-layout/src/pdf_export/longdoc.rs:115",
+       "crates/hsk-studio-press-write/src/export.rs:20",
+       "outline exists as engine; press writes no link annotations"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-151 (line 6806)",
+      "STU-LAY-065 (line 7507)"
+     ],
+     "mts": [
+      "MT-30786",
+      "MT-30857",
+      "MT-35698",
+      "MT-35699"
+     ],
+     "expected_state": "Bookmarks in the PDF; contents entries link.",
+     "visual_check": {
+      "what_must_be_visible": "Bookmark count in the receipt.",
+      "layout_or_fit_concern": "Not required in PDF/X press output; digital-edition need."
+     },
+     "failure_a_professional_would_notice": "Reader edition has no navigation.",
+     "gap_ref": "G20"
+    },
+    {
+     "n": 77,
+     "intent": "Add alternative text and a reading order for the digital reissue",
+     "human": {
+      "panel": "reading-order-tags",
+      "tool": null,
+      "gesture": "DOCUMENT > Accessibility & Structure > Alt Text..., Articles / Reading Order...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "object": "$image",
+       "alt": "Press sheet on a delivery table"
+      },
+      "status": "missing",
+      "evidence": [
+       "crates/hsk-studio-folio/src/layoutflow.rs:782",
+       "looked: git grep -iE 'StructTree|StructElem|MarkInfo' at c4d06841 in hsk-studio-press-write/src/export.rs, hsk-studio-interop-layout/src/pdf_export.rs: 0 hits",
+       "stored only as an object-style field; no tagged PDF writer"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-146 (line 6548)",
+      "STU-PDF-002 (line 243)"
+     ],
+     "mts": [
+      "MT-30770",
+      "MT-35593",
+      "MT-36149",
+      "MT-36151"
+     ],
+     "expected_state": "Tags and alt text in the reissue PDF.",
+     "visual_check": {
+      "what_must_be_visible": "Article list with drag order.",
+      "layout_or_fit_concern": "Panel is in the default left dock; a press-only job should not see it as an error."
+     },
+     "failure_a_professional_would_notice": "Reissue fails an accessibility check.",
+     "gap_ref": "G20"
+    }
+   ]
+  },
+  {
+   "scene_id": "S4-prepress",
+   "goal": "Prove the issue is printable: preflight, links and fonts, soft proof, separations, PDF/X-4 export with marks, independent check, imposition and package.",
+   "steps": [
+    {
+     "n": 78,
+     "intent": "Run live preflight on the working profile",
+     "human": {
+      "panel": "preflight",
+      "tool": null,
+      "gesture": "Status light; FILE > Preflight > Run Preflight",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEditor::preflight",
+      "parameters": {
+       "scope": null
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/preflight.rs:48",
+       "crates/hsk-studio-layout/src/preflight.rs:156",
+       "crates/hsk-studio-layout/src/preflight.rs:52"
+      ],
+      "spec_command_id": "studio.layout.preflight"
+     },
+     "spec_clauses": [
+      "STU-LAY-055 (line 6982)",
+      "STU-LAY-154 (line 6986)"
+     ],
+     "mts": [
+      "MT-30804",
+      "MT-35693",
+      "MT-182",
+      "MT-30805",
+      "MT-30806"
+     ],
+     "expected_state": "Structured findings: rule id, severity, object, page, detail.",
+     "visual_check": {
+      "what_must_be_visible": "Status green or red with count; findings in the bottom dock.",
+      "layout_or_fit_concern": "Light must sit in the status bar, not only inside a panel; the panel re-runs on every draw, which must become change-driven."
+     },
+     "failure_a_professional_would_notice": "Green light with 9 rules gives false confidence for press."
+    },
+    {
+     "n": 79,
+     "intent": "Jump from a finding to the offending frame and fix it",
+     "human": {
+      "panel": "preflight",
+      "tool": null,
+      "gesture": "Click the finding row",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEditor::preflight then select",
+      "parameters": {
+       "finding": "text.overset"
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/preflight.rs:3",
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:290"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-055 (line 6982)",
+      "STU-LAY-154 (line 6986)"
+     ],
+     "mts": [
+      "MT-30804",
+      "MT-35693",
+      "MT-182",
+      "MT-30805",
+      "MT-30806"
+     ],
+     "expected_state": "Selection and viewport move to the object.",
+     "visual_check": {
+      "what_must_be_visible": "Viewport pans; object selected.",
+      "layout_or_fit_concern": "Jump must not lose the panel's scroll position."
+     },
+     "failure_a_professional_would_notice": "Rows do not lead to the object."
+    },
+    {
+     "n": 80,
+     "intent": "Set rule severities in the working profile",
+     "human": {
+      "panel": "preflight",
+      "tool": null,
+      "gesture": "Preflight Profiles...: rule row, severity",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEditor::set_preflight_severity",
+      "parameters": {
+       "rule": "text.double_space",
+       "severity": "severity.error"
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/preflight.rs:41"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-056 (line 7016)",
+      "STU-LAY-154 (line 6986)"
+     ],
+     "mts": [
+      "MT-30807",
+      "MT-35693",
+      "MT-182",
+      "MT-30805",
+      "MT-30806"
+     ],
+     "expected_state": "Severity applies at the next run.",
+     "visual_check": {
+      "what_must_be_visible": "Severity control per rule row.",
+      "layout_or_fit_concern": "Long rule lists need a category tree."
+     },
+     "failure_a_professional_would_notice": "Severity lost on reopen, since profiles are not stored."
+    },
+    {
+     "n": 81,
+     "intent": "Author a press profile: image below 250 ppi error, RGB error, TAC over 300 warning, missing fonts error, bleed hazard error",
+     "human": {
+      "panel": "preflight",
+      "tool": null,
+      "gesture": "FILE > Preflight > Define Profile...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "rules": [
+        "images.min_resolution:250",
+        "colour.disallow_rgb",
+        "ink.tac:300",
+        "text.missing_font",
+        "objects.bleed_hazard"
+       ]
+      },
+      "status": "missing",
+      "evidence": [
+       "crates/hsk-studio-layout/src/preflight.rs:18",
+       "typed rule parameters and those categories are absent"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-056 (line 7016)",
+      "STU-LAY-057 (line 7021)",
+      "STU-LAY-154 (line 6986)"
+     ],
+     "mts": [
+      "MT-30807",
+      "MT-35693",
+      "MT-182",
+      "MT-30808",
+      "MT-30809",
+      "MT-30810",
+      "MT-30805",
+      "MT-30806"
+     ],
+     "expected_state": "Profile holds typed rule parameters.",
+     "visual_check": {
+      "what_must_be_visible": "Rule tree with parameter fields.",
+      "layout_or_fit_concern": "Parameters must use ScrubValue and show their units."
+     },
+     "failure_a_professional_would_notice": "Low-resolution web image reaches the plate.",
+     "gap_ref": "G11"
+    },
+    {
+     "n": 82,
+     "intent": "Embed the profile and export it for the print provider",
+     "human": {
+      "panel": "preflight",
+      "tool": null,
+      "gesture": "FILE > Preflight > Embed Profile in Document",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "embed": true,
+       "export_path": "meridian.preflight"
+      },
+      "status": "missing",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui/preflight.rs:7",
+       "crates/hsk-studio-layout/src/preflight.rs:20"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-056 (line 7016)"
+     ],
+     "mts": [
+      "MT-30807",
+      "MT-35693",
+      "MT-182"
+     ],
+     "expected_state": "Recipient preflights against identical rules.",
+     "visual_check": {
+      "what_must_be_visible": "Embedded marker on the profile row.",
+      "layout_or_fit_concern": "None until built."
+     },
+     "failure_a_professional_would_notice": "Provider and studio disagree on what passed.",
+     "gap_ref": "G11"
+    },
+    {
+     "n": 83,
+     "intent": "Review Links: status, effective ppi, colour space; relink the 96 ppi image",
+     "human": {
+      "panel": "links-placements",
+      "tool": null,
+      "gesture": "Links panel: sort by ppi; Relink...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_package::external_references",
+      "parameters": {
+       "relink": {
+        "from": "img-09-96ppi.jpg",
+        "to": "img-09-300ppi.tif"
+       }
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-package/src/externals.rs:490",
+       "crates/hsk-studio-package/src/externals.rs:159",
+       "looked: git grep -iE 'external_references' at c4d06841 in hsk-studio-harness-view/src/layout_ui: 0 hits",
+       "truth-check: 38-field link record and edit-original absent"
+      ],
+      "spec_command_id": "FILE > Place > Relink..."
+     },
+     "spec_clauses": [
+      "STU-LAY-030 (line 6162)",
+      "STU-LAY-132 (line 6168)"
+     ],
+     "mts": [
+      "MT-30733",
+      "MT-163",
+      "MT-30734",
+      "MT-30735"
+     ],
+     "expected_state": "Modified and missing visible; effective ppi per placement.",
+     "visual_check": {
+      "what_must_be_visible": "Sortable list; warning glyph; link details.",
+      "layout_or_fit_concern": "List and details in one 260 px dock must not need horizontal scrolling."
+     },
+     "failure_a_professional_would_notice": "A low-resolution image is found only on the press proof.",
+     "gap_ref": "G5"
+    },
+    {
+     "n": 84,
+     "intent": "Review fonts and fix a missing font",
+     "human": {
+      "panel": "problems",
+      "tool": null,
+      "gesture": "DOCUMENT > Fonts > Missing Fonts...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "replace": {
+        "from": "Absent Sans",
+        "to": "Inter"
+       }
+      },
+      "status": "missing",
+      "evidence": [
+       "looked: git grep -iE 'missing_?font' at c4d06841 in hsk-studio-harness-view/src/layout_ui, hsk-studio-layout/src/preflight.rs: 0 hits",
+       "truth-check top_missing rank 5: missing-font bulk replace absent"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-057 (line 7021)",
+      "STU-TYP-129 (line 8090)"
+     ],
+     "mts": [
+      "MT-30808",
+      "MT-30809",
+      "MT-30810",
+      "MT-30897"
+     ],
+     "expected_state": "No missing fonts; replacements stated.",
+     "visual_check": {
+      "what_must_be_visible": "Fonts list with status and embeddable flag.",
+      "layout_or_fit_concern": "Font name, style, status columns need width; a sheet, not a dock."
+     },
+     "failure_a_professional_would_notice": "Silent font substitution changes page count.",
+     "gap_ref": "G17"
+    },
+    {
+     "n": 85,
+     "intent": "Turn on soft proof for the output condition",
+     "human": {
+      "panel": "print-preview",
+      "tool": null,
+      "gesture": "VIEW > Proof > Proof Setup..., Proof Colours",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:Viewer::proof_command(ProofCommand)",
+      "parameters": {
+       "condition": "working_cmyk",
+       "intent": "relative_colorimetric",
+       "bpc": true
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/view/proof.rs:389",
+       "crates/hsk-studio-harness-view/src/view/proof.rs:220",
+       "proofs the canvas composite; whether a layout page reaches that canvas is UNVERIFIED, and the Layout Editor page view is drawn separately"
+      ],
+      "spec_command_id": "studio.color.proof"
+     },
+     "spec_clauses": [
+      "STU-COL-240 (line 11277)",
+      "STU-COL-241 (line 11281)",
+      "STU-LAY-062 (line 7204)"
+     ],
+     "mts": [
+      "MT-35317",
+      "MT-31339",
+      "MT-30843",
+      "MT-35695",
+      "MT-35697"
+     ],
+     "expected_state": "Overlay only; document and exports unproofed; state saved in the proof entry.",
+     "visual_check": {
+      "what_must_be_visible": "Proof name in the title or status bar while on.",
+      "layout_or_fit_concern": "A persistent indicator is mandatory, because a proofed canvas looks like reality."
+     },
+     "failure_a_professional_would_notice": "Designer signs off colours while proof is off."
+    },
+    {
+     "n": 86,
+     "intent": "Turn on gamut warning and resolve out-of-gamut swatches",
+     "human": {
+      "panel": "print-preview",
+      "tool": null,
+      "gesture": "VIEW > Proof > Gamut Warning",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:Viewer::proof_command(ProofCommand)",
+      "parameters": {
+       "gamut_warning": true
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/view/proof.rs:4",
+       "crates/hsk-studio-prism/src/proof/gamut.rs:255"
+      ]
+     },
+     "spec_clauses": [
+      "STU-COL-244 (line 11298)",
+      "STU-COL-024 (line 12651)"
+     ],
+     "mts": [
+      "MT-31341",
+      "MT-31342",
+      "MT-31449",
+      "MT-251"
+     ],
+     "expected_state": "Out-of-gamut pixels overlaid.",
+     "visual_check": {
+      "what_must_be_visible": "Warning colour distinct from page content.",
+      "layout_or_fit_concern": "Overlay colour must be configurable; default must stand out on a red image."
+     },
+     "failure_a_professional_would_notice": "The vivid RGB image dulls on press with no warning."
+    },
+    {
+     "n": 87,
+     "intent": "Inspect separations per plate on a layout spread",
+     "human": {
+      "panel": "print-preview",
+      "tool": null,
+      "gesture": "COLOR > Separations & Output > Separations Preview",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_press_write::Separator",
+      "parameters": {
+       "spread": "4-5",
+       "plates": [
+        "C",
+        "M",
+        "Y",
+        "K",
+        "Meridian Orange"
+       ]
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-press-write/src/separations.rs:905",
+       "crates/hsk-studio-harness-view/src/view/vector/separations.rs:1",
+       "looked: git grep -iE 'hsk_studio_press|separate_vector_page' at c4d06841 in hsk-studio-harness-view/src/layout_ui: 0 hits",
+       "fed only from vector artboards"
+      ]
+     },
+     "spec_clauses": [
+      "STU-COL-212 (line 10843)",
+      "STU-LAY-160 (line 7206)"
+     ],
+     "mts": [
+      "MT-31278",
+      "MT-31279",
+      "MT-30844",
+      "MT-30845"
+     ],
+     "expected_state": "Typed per-plate readouts for this spread.",
+     "visual_check": {
+      "what_must_be_visible": "Plate toggles; readout under the pointer.",
+      "layout_or_fit_concern": "Readout must not jitter while panning."
+     },
+     "failure_a_professional_would_notice": "Text in rich black found only on the plate.",
+     "gap_ref": "G19"
+    },
+    {
+     "n": 88,
+     "intent": "Check total area coverage against the 300 percent limit",
+     "human": {
+      "panel": "print-preview",
+      "tool": null,
+      "gesture": "COLOR > Separations & Output > Total Area Coverage...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_press_write::evaluate_ink_coverage",
+      "parameters": {
+       "limit_percent": 300
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-press-write/src/coverage.rs:733",
+       "looked: git grep -iE 'evaluate_ink_coverage' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-250 (line 7236)",
+      "STU-LAY-252 (line 7298)",
+      "STU-LAY-253 (line 7326)"
+     ],
+     "mts": [
+      "MT-35425",
+      "MT-35426",
+      "MT-35429",
+      "MT-35430",
+      "MT-35431"
+     ],
+     "expected_state": "Typed violations with location.",
+     "visual_check": {
+      "what_must_be_visible": "Violation overlay; list with coordinates.",
+      "layout_or_fit_concern": "Published limits are reference, not a Studio default (STU-LAY-254); the UI must make the operator state one."
+     },
+     "failure_a_professional_would_notice": "Set-off in the stack and a press complaint.",
+     "gap_ref": "G19"
+    },
+    {
+     "n": 89,
+     "intent": "Check overprint of black text and preview it",
+     "human": {
+      "panel": "print-preview",
+      "tool": null,
+      "gesture": "VIEW > Display Quality > Overprint Preview",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "overprint_black": true
+      },
+      "status": "missing",
+      "evidence": [
+       "looked: git grep -iE 'overprint.?preview' at c4d06841 in hsk-studio-harness-view/src, hsk-studio-press-write/src/separations.rs: 0 hits",
+       "looked: git grep -iE 'overprint' at c4d06841 in hsk-studio-interop-layout/src/pdf_export.rs: 0 hits",
+       "press separations knows document black overprint; layout PDF lowering does not write overprint"
+      ]
+     },
+     "spec_clauses": [
+      "STU-COL-210 (line 10831)",
+      "STU-COL-211 (line 10838)",
+      "STU-LAY-160 (line 7206)"
+     ],
+     "mts": [
+      "MT-31276",
+      "MT-31277",
+      "MT-30844",
+      "MT-30845"
+     ],
+     "expected_state": "Preview matches the file.",
+     "visual_check": {
+      "what_must_be_visible": "Overprint mode indicator.",
+      "layout_or_fit_concern": "Must be plain which display mode is on."
+     },
+     "failure_a_professional_would_notice": "White text knocked out by overprint; a classic press failure.",
+     "gap_ref": "G8"
+    },
+    {
+     "n": 90,
+     "intent": "Choose flattening: none, since X-4 keeps live transparency; record preset for the X-1a fallback",
+     "human": {
+      "panel": "print-preview",
+      "tool": null,
+      "gesture": "COLOR > Separations & Output > Flattener Presets...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_layout::resolve_flattener_preset",
+      "parameters": {
+       "preset": "high_resolution"
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-layout/src/pdf_export_prefs.rs:1110",
+       "record and resolver only; no flatten in layout PDF lowering. press-read flatten.rs works on existing PDFs, callers UNVERIFIED"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-161 (line 7417)",
+      "STU-COL-214 (line 10884)"
+     ],
+     "mts": [
+      "MT-30848",
+      "MT-30849",
+      "MT-31282",
+      "MT-31283"
+     ],
+     "expected_state": "Preset named in the recipe.",
+     "visual_check": {
+      "what_must_be_visible": "Flattener preview highlights affected objects.",
+      "layout_or_fit_concern": "None until built."
+     },
+     "failure_a_professional_would_notice": "A fallback provider asks for X-1a and it cannot be supplied.",
+     "gap_ref": "G19"
+    },
+    {
+     "n": 91,
+     "intent": "Select the PDF/X-4 preset",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "FILE > Export > PDF (print): preset PDF/X-4",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_press::StockPreset::to_preset",
+      "parameters": {
+       "preset": "hsk.studio.pdf_preset.pdf_x_4"
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-press/src/preset/stock.rs:15",
+       "the three PDF/X stock presets refuse: no captured output intent (SD-18)"
+      ],
+      "spec_command_id": "studio.interop.export"
+     },
+     "spec_clauses": [
+      "STU-LAY-159 (line 7164)",
+      "STU-LAY-158 (line 7117)"
+     ],
+     "mts": [
+      "MT-30841",
+      "MT-30842",
+      "MT-30833",
+      "MT-30834",
+      "MT-30835"
+     ],
+     "expected_state": "Preset applied, compliance token PDF/X-4:2007 kept separate from its name.",
+     "visual_check": {
+      "what_must_be_visible": "Preset dropdown; panel list in declared order.",
+      "layout_or_fit_concern": "Six panels in one export sheet; Inspect Dock placement of export is cramped."
+     },
+     "failure_a_professional_would_notice": "Selecting the standard preset fails with a technical refusal.",
+     "gap_ref": "G12"
+    },
+    {
+     "n": 92,
+     "intent": "Set output intent to the provider's CMYK condition",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "Export > Output: Destination profile, Output Condition",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_press_write::OutputIntent",
+      "parameters": {
+       "profile": "hsk-synth-cmyk-v2.icc",
+       "condition": "synthetic test"
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-press-write/src/export.rs:246",
+       "looked: git grep -iE 'OutputIntent' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-158 (line 7117)",
+      "STU-COL-132 (line 10296)"
+     ],
+     "mts": [
+      "MT-30833",
+      "MT-30834",
+      "MT-30835",
+      "MT-31192"
+     ],
+     "expected_state": "Intent embedded; read back through effective_ fields.",
+     "visual_check": {
+      "what_must_be_visible": "Requested and effective values both visible.",
+      "layout_or_fit_concern": "Effective values must be findable after export."
+     },
+     "failure_a_professional_would_notice": "Wrong intent passes every local check.",
+     "gap_ref": "G1"
+    },
+    {
+     "n": 93,
+     "intent": "Set printer marks: crop, bleed, registration, colour bars, page info",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "Export > Marks and bleeds",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "crop_marks": true,
+       "bleed_marks": true,
+       "registration": true,
+       "color_bars": true,
+       "page_info": true,
+       "offset_mm": 3
+      },
+      "status": "missing",
+      "evidence": [
+       "crates/hsk-studio-press-write/src/export.rs:20",
+       "looked: git grep -iE 'crop_marks|registration_marks|printer_mark' at c4d06841 in hsk-studio-press-write/src/export.rs, hsk-studio-interop-layout/src/pdf_export.rs: 0 hits",
+       "only a preference record: pdf_export_prefs.rs states nothing there exports"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-158 (line 7117)"
+     ],
+     "mts": [
+      "MT-30833",
+      "MT-30834",
+      "MT-30835"
+     ],
+     "expected_state": "Marks outside bleed; media box enlarged.",
+     "visual_check": {
+      "what_must_be_visible": "Preview with marks in the export sheet.",
+      "layout_or_fit_concern": "Page thumbnail must reflect marks and offset."
+     },
+     "failure_a_professional_would_notice": "Provider cannot register the sheet.",
+     "gap_ref": "G12"
+    },
+    {
+     "n": 94,
+     "intent": "Shape the whole document for export through the real type engine",
+     "human": {
+      "panel": null,
+      "tool": null,
+      "gesture": "Implicit in export",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_interop_layout::pdf_glyphs_from_type",
+      "parameters": {
+       "fonts": [
+        "Inter-Regular.ttf"
+       ]
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-interop-layout/src/pdf_export.rs:1362",
+       "looked: git grep -iE 'pdf_glyphs_from_type' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits",
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:24"
+      ]
+     },
+     "spec_clauses": [
+      "STU-TYP-127 (line 8076)",
+      "STU-LAY-167 (line 7599)"
+     ],
+     "mts": [
+      "MT-30895",
+      "MT-30864"
+     ],
+     "expected_state": "Line breaks from real metrics.",
+     "visual_check": {
+      "what_must_be_visible": "Editor and PDF show the same lines.",
+      "layout_or_fit_concern": "The editor preview uses a fixed advance, so the two will differ on every page."
+     },
+     "failure_a_professional_would_notice": "Page breaks change between screen and file.",
+     "gap_ref": "G14"
+    },
+    {
+     "n": 95,
+     "intent": "Export the press PDF/X-4",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "FILE > Export > PDF (print)",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_interop_layout::export_pdf_with",
+      "parameters": {
+       "pdfx": "pdfx.x4_2010",
+       "created": "D:20261107000000Z",
+       "subset_fonts": true,
+       "path": "meridian-12-press.pdf"
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-interop-layout/src/pdf_export.rs:294",
+       "crates/hsk-studio-press-write/src/export.rs:306",
+       "looked: git grep -iE 'export_pdf_with|hsk_studio_interop_layout' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits",
+       "tests crates/hsk-studio-interop-layout/tests/longdoc_pdf.rs drive it directly; no export host"
+      ],
+      "spec_command_id": "studio.interop.export"
+     },
+     "spec_clauses": [
+      "STU-LAY-054 (line 6959)",
+      "STU-LAY-061 (line 7115)",
+      "STU-LAY-158 (line 7117)",
+      "STU-LAY-160 (line 7206)"
+     ],
+     "mts": [
+      "MT-30802",
+      "MT-35692",
+      "MT-35857",
+      "MT-30832",
+      "MT-171",
+      "MT-187",
+      "MT-30833",
+      "MT-30834",
+      "MT-30835",
+      "MT-30844",
+      "MT-30845"
+     ],
+     "expected_state": "PDF with TrimBox, BleedBox, output intent, /GTS_PDFXVersion; typed losses listed; conformance not_proven.",
+     "visual_check": {
+      "what_must_be_visible": "Job in the queue; loss list after finish.",
+      "layout_or_fit_concern": "Losses must be presented as a reviewable report and not as a toast."
+     },
+     "failure_a_professional_would_notice": "The press file cannot be produced from any shell surface.",
+     "gap_ref": "G1"
+    },
+    {
+     "n": 96,
+     "intent": "Request the X-1a variant for a provider that requires it",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "Standard: PDF/X-1a:2001",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:ExportOptions::with_pdfx_standard",
+      "parameters": {
+       "standard": "pdfx.x1a_2001"
+      },
+      "status": "missing",
+      "evidence": [
+       "crates/hsk-studio-press-write/src/export/pdfx.rs:19",
+       "the other four members refuse with PdfXStandardNotImplemented"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-160 (line 7206)"
+     ],
+     "mts": [
+      "MT-30844",
+      "MT-30845"
+     ],
+     "expected_state": "Flattened CMYK file.",
+     "visual_check": {
+      "what_must_be_visible": "Refusal states the standard and the alternative.",
+      "layout_or_fit_concern": "Refused choices stay visible with a reason."
+     },
+     "failure_a_professional_would_notice": "Provider requiring X-1a cannot be served; common with small printers.",
+     "gap_ref": "G12"
+    },
+    {
+     "n": 97,
+     "intent": "Self-check the written PDF/X-4",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "Automatic after export; results in the receipt",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_press_write::check_pdfx4",
+      "parameters": {
+       "path": "meridian-12-press.pdf"
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-press-write/src/export/pdfx.rs:186",
+       "looked: git grep -iE 'check_pdfx4' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits"
+      ]
+     },
+     "spec_clauses": [
+      "STU-PDF-002 (line 243)",
+      "STU-LAY-158 (line 7117)"
+     ],
+     "mts": [
+      "MT-35593",
+      "MT-36149",
+      "MT-36151",
+      "MT-30833",
+      "MT-30834",
+      "MT-30835"
+     ],
+     "expected_state": "Named rules pass; verdict remains self-check.",
+     "visual_check": {
+      "what_must_be_visible": "Rule list; a visible not_proven state.",
+      "layout_or_fit_concern": "Self-check must never look like certification."
+     },
+     "failure_a_professional_would_notice": "A self-check green read as press approval.",
+     "gap_ref": "G1"
+    },
+    {
+     "n": 98,
+     "intent": "Get an independent PDF/X verdict",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "Run an external preflight tool; attach the report to the job",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "oracle": "Operator decision needed"
+      },
+      "status": "missing",
+      "evidence": [
+       "crates/hsk-studio-press/tests/verapdf_corpus.rs:143",
+       "crates/hsk-studio-press-write/src/export/verdict.rs:54",
+       "crates/hsk-studio-press-write/src/export/pdfx.rs:4",
+       "the only report on file is PDF/A-2b, not PDF/X; veraPDF PDF/X support UNVERIFIED and not shown in public material found"
+      ]
+     },
+     "spec_clauses": [
+      "STU-PDF-002 (line 243)"
+     ],
+     "mts": [
+      "MT-35593",
+      "MT-36149",
+      "MT-36151"
+     ],
+     "expected_state": "External verdict attached; conformance moves from not_proven only then.",
+     "visual_check": {
+      "what_must_be_visible": "Verdict with tool name, version and date.",
+      "layout_or_fit_concern": "State must show who said so."
+     },
+     "failure_a_professional_would_notice": "File rejected by the provider's preflight after a clean local run.",
+     "gap_ref": "G13"
+    },
+    {
+     "n": 99,
+     "intent": "Render every PDF page to an image and read the result back",
+     "human": {
+      "panel": "print-preview",
+      "tool": null,
+      "gesture": "Open the PDF in the viewer; flick through at 100 percent",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_press_write::render_page",
+      "parameters": {
+       "path": "meridian-12-press.pdf",
+       "dpi": 150
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-press-write/src/export.rs:40",
+       "looked: git grep -iE 'render_page' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits",
+       "the render test surface exists in press; a reviewer needs it hosted"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-168 (line 7610)",
+      "STU-PDF-002 (line 243)"
+     ],
+     "mts": [
+      "MT-30865",
+      "MT-35593",
+      "MT-36149",
+      "MT-36151"
+     ],
+     "expected_state": "Page images for visual comparison.",
+     "visual_check": {
+      "what_must_be_visible": "Spread view of the exported file, not of the document.",
+      "layout_or_fit_concern": "Reader view must show boxes: trim, bleed."
+     },
+     "failure_a_professional_would_notice": "An export defect is noticed by the printer rather than by the studio.",
+     "gap_ref": "G1"
+    },
+    {
+     "n": 100,
+     "intent": "Reopen the exported PDF through import to confirm it reads",
+     "human": {
+      "panel": null,
+      "tool": null,
+      "gesture": "FILE > Open: the press PDF",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.import",
+      "parameters": {
+       "path": "meridian-12-press.pdf",
+       "cli": "studio-harness import"
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-core/src/action.rs:866",
+       "crates/hsk-studio-harness/src/cli.rs:293",
+       "crates/hsk-studio-harness-core/src/import/pdf.rs:21",
+       "pages arrive as typed losses, so this proves readability, not content"
+      ]
+     },
+     "spec_clauses": [
+      "STU-AUT-147 (line 21905)"
+     ],
+     "mts": [
+      "MT-33500"
+     ],
+     "expected_state": "File opens; page count in the report.",
+     "visual_check": {
+      "what_must_be_visible": "Report with a page count and typed losses.",
+      "layout_or_fit_concern": "Opening a PDF must not look like a faithful edit of the layout."
+     },
+     "failure_a_professional_would_notice": "Read test passes while the content is wrong: never use as the only check."
+    },
+    {
+     "n": 101,
+     "intent": "Export a low-resolution page proof set for editors",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "FILE > Export > PNG: all pages, 96 ppi",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "format": "png",
+       "pages": "all",
+       "ppi": 96
+      },
+      "status": "missing",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/view/export.rs:1",
+       "looked: git grep -iE 'page_raster|export_pages|export_page_png' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits",
+       "the existing export takes the canvas composite, not layout pages; truth-check MT-30851"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-063 (line 7431)",
+      "STU-LAY-162 (line 7439)"
+     ],
+     "mts": [
+      "MT-30850",
+      "MT-165",
+      "MT-189",
+      "MT-30851",
+      "MT-30852"
+     ],
+     "expected_state": "One PNG per page, named by label.",
+     "visual_check": {
+      "what_must_be_visible": "Output folder and count in a receipt.",
+      "layout_or_fit_concern": "Page range field must accept section labels."
+     },
+     "failure_a_professional_would_notice": "Editors get no proofs without a PDF reader.",
+     "gap_ref": "G15"
+    },
+    {
+     "n": 102,
+     "intent": "Build the imposition plan for 32pp saddle stitch and check creep",
+     "human": {
+      "panel": "print-preview",
+      "tool": null,
+      "gesture": "FILE > Print > Print Booklet...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_layout::impose",
+      "parameters": {
+       "type": "two_up_saddle_stitch",
+       "creep_pt": 2.0
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-layout/src/booklet.rs:389",
+       "crates/hsk-studio-layout/src/booklet.rs:2",
+       "looked: git grep -iE 'impose|sheet_geometry' at c4d06841 in hsk-studio-harness-view/src/layout_ui, hsk-studio-harness/src/cli.rs: 0 hits"
+      ],
+      "spec_command_id": "studio.layout.print"
+     },
+     "spec_clauses": [
+      "STU-LAY-060 (line 7090)",
+      "STU-LAY-157 (line 7092)"
+     ],
+     "mts": [
+      "MT-30829",
+      "MT-186",
+      "MT-30830",
+      "MT-30831"
+     ],
+     "expected_state": "32 and 1 pair, 2 and 31; 8 sheets; creep applied.",
+     "visual_check": {
+      "what_must_be_visible": "Sheet preview with page numbers.",
+      "layout_or_fit_concern": "Preview needs a whole-sheet view at both sides."
+     },
+     "failure_a_professional_would_notice": "Pagination pairs wrong and the issue must be reprinted.",
+     "gap_ref": "G15"
+    },
+    {
+     "n": 103,
+     "intent": "Print a laser proof to a device",
+     "human": {
+      "panel": "print-preview",
+      "tool": null,
+      "gesture": "FILE > Print > Print...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "device": "$printer",
+       "scale": "fit"
+      },
+      "status": "missing",
+      "evidence": [
+       "crates/hsk-studio-layout/src/print.rs:2",
+       "truth-check: print parameter bounds exist with no print path"
+      ],
+      "spec_command_id": "studio.layout.print"
+     },
+     "spec_clauses": [
+      "STU-LAY-059 (line 7053)",
+      "STU-LAY-156 (line 7055)"
+     ],
+     "mts": [
+      "MT-30818",
+      "MT-185",
+      "MT-30819",
+      "MT-30820",
+      "MT-30821"
+     ],
+     "expected_state": "Job sent; preset saved.",
+     "visual_check": {
+      "what_must_be_visible": "Print dialog with preview.",
+      "layout_or_fit_concern": "Device call must not take focus during a model-driven run."
+     },
+     "failure_a_professional_would_notice": "No hard-copy proof.",
+     "gap_ref": "G15"
+    },
+    {
+     "n": 104,
+     "intent": "Collect for output: document, links, fonts, report",
+     "human": {
+      "panel": "preflight",
+      "tool": null,
+      "gesture": "FILE > Package > Package Document...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": null,
+      "parameters": {
+       "path": "meridian-12-package/",
+       "copy_fonts": true,
+       "copy_links": true,
+       "include_report": true
+      },
+      "status": "missing",
+      "evidence": [
+       "looked: git grep -iE 'package_document|collect_for_output|PackageOptions' at c4d06841 in hsk-studio-layout/src, hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits",
+       "truth-check rank 8"
+      ],
+      "spec_command_id": "studio.layout.package"
+     },
+     "spec_clauses": [
+      "STU-LAY-058 (line 7041)",
+      "STU-LAY-155 (line 7045)"
+     ],
+     "mts": [
+      "MT-30816",
+      "MT-184",
+      "MT-30817"
+     ],
+     "expected_state": "Portable folder; relocates and reopens with links intact.",
+     "visual_check": {
+      "what_must_be_visible": "Package report; failure lists exact files.",
+      "layout_or_fit_concern": "Must offer preflight first and state which profile passed."
+     },
+     "failure_a_professional_would_notice": "Provider asks for sources and none can be collected.",
+     "gap_ref": "G15"
+    },
+    {
+     "n": 105,
+     "intent": "Exchange the issue as IDML for an outside designer",
+     "human": {
+      "panel": "export",
+      "tool": null,
+      "gesture": "FILE > Export > Layout markup",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:hsk_studio_interop_layout::export_folio_longdoc",
+      "parameters": {
+       "path": "meridian-12.idml"
+      },
+      "status": "engine_only",
+      "evidence": [
+       "crates/hsk-studio-interop-layout/src/idml_longdoc.rs:1524",
+       "looked: git grep -iE 'export_folio|open_idml' at c4d06841 in hsk-studio-harness/src, hsk-studio-harness-core/src, hsk-studio-harness-view/src: 0 hits",
+       "tested against an InDesign oracle per truth-check, but no host; typed losses, wrap among them"
+      ]
+     },
+     "spec_clauses": [
+      "STU-LAY-064 (line 7485)",
+      "STU-IO-187 (line 231)"
+     ],
+     "mts": [
+      "MT-30855",
+      "MT-35698",
+      "MT-35699",
+      "MT-35588",
+      "MT-36138"
+     ],
+     "expected_state": "File opens in the other application with losses listed.",
+     "visual_check": {
+      "what_must_be_visible": "Loss report.",
+      "layout_or_fit_concern": "Losses must be grouped, not raw."
+     },
+     "failure_a_professional_would_notice": "Outside designer reports lost formatting that was never reported.",
+     "gap_ref": "G1"
+    },
+    {
+     "n": 106,
+     "intent": "Checkpoint and verify the document at sign-off",
+     "human": {
+      "panel": "history",
+      "tool": null,
+      "gesture": "FILE > Version History > Create Named Version...",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "document.checkpoint",
+      "parameters": {
+       "name": "issue-12-press"
+      },
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-core/src/action.rs:869",
+       "crates/hsk-studio-harness-core/src/action.rs:870",
+       "covers the Run document only, without layout records (G3)"
+      ],
+      "spec_command_id": "studio.history.version"
+     },
+     "spec_clauses": [
+      "STU-LAY-067 (line 7620)"
+     ],
+     "mts": [
+      "MT-35680",
+      "MT-35681",
+      "MT-35682"
+     ],
+     "expected_state": "Named version; verify passes; reopen matches.",
+     "visual_check": {
+      "what_must_be_visible": "Version row with its receipt.",
+      "layout_or_fit_concern": "Must state what was covered."
+     },
+     "failure_a_professional_would_notice": "A signed-off version missing the layout work."
+    },
+    {
+     "n": 107,
+     "intent": "Inspect the editor's state as a no-context model",
+     "human": {
+      "panel": "problems",
+      "tool": null,
+      "gesture": "HELP > Diagnostics > Visual Debugger",
+      "shortcut_if_spec_defines_one": null
+     },
+     "agent_call": {
+      "command_id": "api:LayoutEditor::state_json",
+      "parameters": {},
+      "status": "callable",
+      "evidence": [
+       "crates/hsk-studio-harness-view/src/layout_ui.rs:494",
+       "crates/hsk-studio-harness-view/src/view/hosted.rs:22"
+      ]
+     },
+     "spec_clauses": [
+      "STU-SHL-009 (line 31509)",
+      "STU-LAY-067 (line 7620)"
+     ],
+     "mts": [
+      "MT-34430",
+      "MT-35680",
+      "MT-35681",
+      "MT-35682"
+     ],
+     "expected_state": "JSON state of pages, frames, stories and history.",
+     "visual_check": {
+      "what_must_be_visible": "Debug surface does not take focus.",
+      "layout_or_fit_concern": "State shape must be stable and documented in the manual."
+     },
+     "failure_a_professional_would_notice": "A model must guess from pixels."
+    }
+   ]
+  }
+ ],
+ "gui_review": {
+  "panels_needed_together": {
+   "left_browse_dock": [
+    "pages-artboards",
+    "links-placements",
+    "long-document",
+    "book",
+    "library"
+   ],
+   "right_inspect_dock": [
+    "properties",
+    "character",
+    "paragraph",
+    "text-frame",
+    "text-wrap",
+    "opentype",
+    "text-styles",
+    "object-styles",
+    "colour",
+    "swatches",
+    "align-distribute",
+    "layers",
+    "transform",
+    "history",
+    "info"
+   ],
+   "bottom_results_dock": [
+    "preflight",
+    "find-replace",
+    "spelling",
+    "problems"
+   ],
+   "episodic": [
+    "export",
+    "print-preview",
+    "guides-grid",
+    "anchoring",
+    "glyphs"
+   ],
+   "source": "STU-SHL-087 line 32226 is the default arrangement; the episodic row is this project's own need"
+  },
+  "reachable_without_hunting": [
+   "Preflight status light in the status bar, always visible, one click to the preflight panel",
+   "Overset port marker on the frame, and an overset count that does not depend on the frame being on screen",
+   "Parent / page edit context: which one is being edited must always be visible",
+   "Text Frame tool, Picture Frame tool, Selection and Type within the first Tool Rail slots",
+   "Text Styles beside Character and Paragraph, without opening a dialog to apply a style",
+   "Swatches reachable from text and from frames, with the fill or stroke target plainly marked",
+   "Export recipe and last-used PDF preset reachable from FILE and from the preflight panel"
+  ],
+  "workspace_switches": [
+   "No switch is needed for layout, text and prepress: one Layout preset must carry the whole issue, per STU-SHL-055 presets gate nothing",
+   "Optional switch to the Type preset for a long copy-fit session",
+   "A raster fix should open the placed image in another tab and return on save with the link updated; not available today"
+  ],
+  "what_would_feel_incoherent": [
+   "WORST: the Layout Editor is one floating panel holding a private copy of the document. Its edits are not in the document the rest of the shell sees, are not saved, and its page view composes with a placeholder 0.5 em advance, so line breaks and overset on screen are not those of the PDF route, which shapes through hsk-studio-type.",
+   "Layers, Swatches, Appearance, Transform and Align act on the Run or vector document, and the layout panels act on the private copy, so one window has two sources of truth for the same layer.",
+   "Harness panels are a single floating window per surface; spec 14.30 requires docked groups of named panels. The layout editor's Pages, Threads, Styles, Tables, Find and Preflight sections must become the spec's separate panel identities in the Vulkan shell, not one long window.",
+   "Separations, overprint and ink limits exist for vector artboards but not for pages, so a print job has its prepress tools only in the wrong profile.",
+   "Soft proof tints the canvas composite while the page view is drawn elsewhere, so proofing cannot be judged on the layout surface. UNVERIFIED whether a page-spread document composites to that canvas at all.",
+   "Text colour is RGB on the style record in a CMYK job; a press designer will read that as the application not being for print.",
+   "Graphic frames are absent from the page view, so a magazine spread on screen shows text and no pictures."
+  ],
+  "checks_for_a_screenshot_reviewer": [
+   "At 1920 x 1080 with the three docks open, a full spread at fit zoom is at least 60 percent of window width",
+   "No field-dense panel shares a tab group with a list-dense panel (STU-SHL-074)",
+   "Below 260 px docks turn to stacked compact form and do not clip (STU-SHL-073)",
+   "Margin, column, bleed, slug and guide colours are five distinct values and legible on white",
+   "Disabled commands stay visible with a reason (STU-SHL-018, STU-SHL-019)"
+  ]
+ },
+ "gaps": [
+  {
+   "what": "No host reaches layout PDF export. export_pdf_with, glyph lowering from hsk-studio-type, page labels and outlines exist and are tested in their crate, but the harness has no hsk-studio-interop-layout dependency and no export command. The same holds for IDML export.",
+   "status": "engine_only",
+   "crates_likely": [
+    "hsk-studio-harness",
+    "hsk-studio-harness-view",
+    "hsk-studio-interop-layout",
+    "hsk-studio-type"
+   ],
+   "spec_clauses": [
+    "STU-LAY-054 (line 6959)",
+    "STU-LAY-061 (line 7115)",
+    "STU-LAY-158 (line 7117)"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "It is the deliverable. Nothing else in a print project counts until a real page reaches a real PDF, and most of the engine is already there.",
+   "rank": 1,
+   "gap_id": "G1",
+   "blocks_steps": [
+    92,
+    95,
+    97,
+    99,
+    105
+   ],
+   "mts": [
+    "MT-30802",
+    "MT-30832",
+    "MT-30833",
+    "MT-30834",
+    "MT-30835",
+    "MT-35692",
+    "MT-35857",
+    "MT-171",
+    "MT-187"
+   ]
+  },
+  {
+   "what": "No layout command surface. RUN_COMMANDS has no layout id, so LayoutEdit, preflight and find cannot be driven by the command path of SMB-HARNESS-DRIVE-1; they are reachable only from Rust.",
+   "status": "missing",
+   "crates_likely": [
+    "hsk-studio-harness-core",
+    "hsk-studio-harness",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-LAY-067 (line 7620)",
+    "STU-AUT-147 (line 21905)",
+    "STU-SHL-137 (line 32495)"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Every later check depends on it: without it neither a model nor this scenario's runner can operate layout out of process.",
+   "rank": 2,
+   "gap_id": "G2",
+   "blocks_steps": [
+    12,
+    13,
+    14,
+    15,
+    16,
+    21,
+    22,
+    23,
+    25,
+    26,
+    32,
+    34,
+    35,
+    36,
+    37,
+    38,
+    40,
+    44,
+    47,
+    61,
+    63,
+    64,
+    66,
+    67,
+    78,
+    79,
+    80,
+    85,
+    86,
+    107
+   ],
+   "mts": [
+    "MT-33500",
+    "MT-34665",
+    "MT-35680",
+    "MT-35681",
+    "MT-35682"
+   ]
+  },
+  {
+   "what": "Layout state is not persisted. LayoutEditor edits a private snapshot; stories, flow, parents, long-document and style records never reach the package, and there is no reopen.",
+   "status": "missing",
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-harness-core",
+    "hsk-studio-package",
+    "hsk-studio-session"
+   ],
+   "spec_clauses": [
+    "STU-LAY-013 (line 5659)",
+    "STU-LAY-067 (line 7620)",
+    "STU-SDB-001 (line 26)"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Work cannot survive a session, which rules out any real project and any recovery proof.",
+   "rank": 3,
+   "gap_id": "G3",
+   "blocks_steps": [
+    14,
+    15,
+    16,
+    21,
+    22,
+    23,
+    25,
+    26,
+    30,
+    32,
+    34,
+    35,
+    36,
+    37,
+    38,
+    40,
+    44,
+    47,
+    61,
+    63,
+    66,
+    67,
+    78,
+    79,
+    80,
+    107
+   ],
+   "mts": [
+    "MT-30679",
+    "MT-35680",
+    "MT-35681",
+    "MT-35682",
+    "MT-35684",
+    "MT-149"
+   ]
+  },
+  {
+   "what": "Placed graphics in layout: no place command, no graphic frame in the editor or page view, no CMYK image path to PDF, no clipping path, 38-field link record or relink.",
+   "status": "engine_only",
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-layout",
+    "hsk-studio-folio",
+    "hsk-studio-interop-layout",
+    "hsk-studio-package",
+    "hsk-studio-pigment"
+   ],
+   "spec_clauses": [
+    "STU-LAY-028 (line 6093)",
+    "STU-LAY-029 (line 6132)",
+    "STU-LAY-030 (line 6162)",
+    "STU-LAY-031 (line 6202)",
+    "STU-LAY-131 (line 6137)",
+    "STU-LAY-132 (line 6168)"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "A magazine without pictures is not a magazine; this blocks the visual review of every spread.",
+   "rank": 4,
+   "gap_id": "G5",
+   "blocks_steps": [
+    31,
+    48,
+    49,
+    50,
+    51,
+    54,
+    83
+   ],
+   "mts": [
+    "MT-30721",
+    "MT-30722",
+    "MT-30723",
+    "MT-30730",
+    "MT-30731",
+    "MT-30732",
+    "MT-30733",
+    "MT-30734",
+    "MT-30735",
+    "MT-30736",
+    "MT-157",
+    "MT-162",
+    "MT-163",
+    "MT-170"
+   ]
+  },
+  {
+   "what": "Character and paragraph attribute model: no per-range size, tracking, kerning, baseline shift or OpenType features; no indents, spacing, tabs, drop caps, rules or keep options; no nested styles.",
+   "status": "missing",
+   "crates_likely": [
+    "hsk-studio-folio",
+    "hsk-studio-layout",
+    "hsk-studio-type",
+    "hsk-studio-interop-layout"
+   ],
+   "spec_clauses": [
+    "STU-LAY-022 (line 5971)",
+    "STU-LAY-038 (line 6522)",
+    "STU-LAY-125 (line 5896)",
+    "STU-TYP-201 (line 9064)"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "Matches truth-check rank 1. Output would be typographically unacceptable even once the PDF route works, but it does not stop a first PDF.",
+   "rank": 5,
+   "gap_id": "G6",
+   "blocks_steps": [
+    24,
+    27,
+    39,
+    41,
+    43
+   ],
+   "mts": [
+    "MT-30700",
+    "MT-30701",
+    "MT-30702",
+    "MT-30703",
+    "MT-30766",
+    "MT-30999",
+    "MT-155",
+    "MT-162",
+    "MT-169"
+   ]
+  },
+  {
+   "what": "Print colour on layout: type styles hold StudioRgba only; frames cannot bind swatches; no working-space or policy command; no assign or convert; the PDF writer's Colour has no separation or overprint, so spot ink cannot reach the file.",
+   "status": "missing",
+   "crates_likely": [
+    "hsk-studio-folio",
+    "hsk-studio-press-write",
+    "hsk-studio-interop-layout",
+    "hsk-studio-prism",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-COL-127 (line 10262)",
+    "STU-COL-128 (line 10268)",
+    "STU-COL-130 (line 10286)",
+    "STU-COL-131 (line 10291)",
+    "STU-COL-173 (line 10573)",
+    "STU-COL-210 (line 10831)",
+    "STU-LAY-160 (line 7206)"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "The file could carry a valid PDF/X-4 identification and still be wrong on press; ranks after pictures and type only because those block earlier steps.",
+   "rank": 6,
+   "gap_id": "G8",
+   "blocks_steps": [
+    10,
+    11,
+    56,
+    89
+   ],
+   "mts": [
+    "MT-30844",
+    "MT-30845",
+    "MT-31187",
+    "MT-31188",
+    "MT-31190",
+    "MT-31191",
+    "MT-31233",
+    "MT-31234",
+    "MT-31276"
+   ]
+  },
+  {
+   "what": "Long-document host: TOC, index, sections, running heads, footnotes, cross-references and text variables have engine and Folio records but no LayoutEdit member or panel.",
+   "status": "engine_only",
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-layout"
+   ],
+   "spec_clauses": [
+    "STU-LAY-014 (line 5670)",
+    "STU-LAY-015 (line 5732)",
+    "STU-LAY-016 (line 5738)",
+    "STU-LAY-044 (line 6628)",
+    "STU-LAY-045 (line 6672)",
+    "STU-LAY-046 (line 6720)",
+    "STU-LAY-047 (line 6801)",
+    "STU-LAY-048 (line 6829)",
+    "STU-LAY-148 (line 6630)",
+    "STU-LAY-149 (line 6675)"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "High step count and cheap for what it unlocks, since the engines exist; it needs G2 and G3 first or the results vanish.",
+   "rank": 7,
+   "gap_id": "G4",
+   "blocks_steps": [
+    18,
+    19,
+    20,
+    59,
+    60,
+    68,
+    69,
+    70,
+    71,
+    72,
+    73,
+    74,
+    75
+   ],
+   "mts": [
+    "MT-30680",
+    "MT-30683",
+    "MT-30684",
+    "MT-30776",
+    "MT-30777",
+    "MT-30778",
+    "MT-30779",
+    "MT-30780",
+    "MT-30785",
+    "MT-30787",
+    "MT-30788",
+    "MT-35685",
+    "MT-35686",
+    "MT-151",
+    "MT-173",
+    "MT-174",
+    "MT-175",
+    "MT-176",
+    "MT-177"
+   ]
+  },
+  {
+   "what": "Document setup: custom trim and presets, facing and binding, bleed and margin edits, slug, page grid, baseline grid and guides in the host, document-wide layers.",
+   "status": "missing",
+   "crates_likely": [
+    "hsk-studio-folio",
+    "hsk-studio-layout",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-LAY-002 (line 5466)",
+    "STU-LAY-005 (line 5513)",
+    "STU-LAY-050 (line 6872)",
+    "STU-LAY-105 (line 5399)",
+    "STU-LAY-106 (line 5443)",
+    "STU-LAY-109 (line 5516)",
+    "STU-LAY-113 (line 5639)",
+    "STU-LAY-114 (line 6896)"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "These are the first steps of every job. Records partly exist, so bleed and size can be stubbed by hand while the export path is proved.",
+   "rank": 8,
+   "gap_id": "G7",
+   "blocks_steps": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+   ],
+   "mts": [
+    "MT-30657",
+    "MT-30658",
+    "MT-30659",
+    "MT-30660",
+    "MT-30661",
+    "MT-30665",
+    "MT-30666",
+    "MT-30678",
+    "MT-30791",
+    "MT-30794",
+    "MT-30795",
+    "MT-35680",
+    "MT-35681",
+    "MT-35689",
+    "MT-35690",
+    "MT-143"
+   ]
+  },
+  {
+   "what": "PDF output options for press: stock PDF/X presets refuse for lack of a captured output intent; X-1a and X-3 refuse; no printer marks; the 88-field preferences record is connected to no exporter.",
+   "status": "missing",
+   "crates_likely": [
+    "hsk-studio-press-write",
+    "hsk-studio-press",
+    "hsk-studio-layout",
+    "hsk-studio-interop-layout"
+   ],
+   "spec_clauses": [
+    "STU-LAY-158 (line 7117)",
+    "STU-LAY-159 (line 7164)",
+    "STU-LAY-160 (line 7206)"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "X-4 can be set through ExportOptions directly, so a first file does not wait for it, but no printer will accept a job without marks when asked for them.",
+   "rank": 9,
+   "gap_id": "G12",
+   "blocks_steps": [
+    91,
+    93,
+    96
+   ],
+   "mts": [
+    "MT-30833",
+    "MT-30834",
+    "MT-30835",
+    "MT-30841",
+    "MT-30842",
+    "MT-30844",
+    "MT-30845"
+   ]
+  },
+  {
+   "what": "No independent PDF/X oracle. check_pdfx4 is the crate's own reading of ISO 15930-7 as recalled; the only veraPDF report on file is PDF/A-2b, and public veraPDF material found names PDF/A, PDF/UA and WTPDF but not PDF/X (UNVERIFIED against its full documentation).",
+   "status": "missing",
+   "crates_likely": [
+    "hsk-studio-press-write",
+    "hsk-studio-press"
+   ],
+   "spec_clauses": [
+    "STU-PDF-002 (line 243)"
+   ],
+   "size": "small",
+   "why_it_ranks_here": "Small to decide, and it changes what may be claimed: the module comment names veraPDF as a possible X-4 validator, which this work could not confirm. It needs an Operator decision on the oracle, for example a commercial preflight run or a print provider check.",
+   "rank": 10,
+   "gap_id": "G13",
+   "blocks_steps": [
+    98
+   ],
+   "mts": [
+    "MT-35593",
+    "MT-36149",
+    "MT-36151"
+   ]
+  },
+  {
+   "what": "Autoflow, smart text reflow and primary text frames.",
+   "status": "missing",
+   "crates_likely": [
+    "hsk-studio-folio",
+    "hsk-studio-layout",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-LAY-008 (line 5564)",
+    "STU-LAY-020 (line 5851)",
+    "STU-LAY-123 (line 5855)"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Manual threading works, so this is speed rather than possibility, though for long features the speed matters a great deal.",
+   "rank": 11,
+   "gap_id": "G9",
+   "blocks_steps": [
+    17,
+    33
+   ],
+   "mts": [
+    "MT-30670",
+    "MT-30696",
+    "MT-30697",
+    "MT-30698",
+    "MT-145",
+    "MT-154"
+   ]
+  },
+  {
+   "what": "Text wrap and anchored objects: reflow accepts obstacles and anchors compute, but Folio stores no wrap record and no host reaches either.",
+   "status": "engine_only",
+   "crates_likely": [
+    "hsk-studio-folio",
+    "hsk-studio-layout",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-LAY-024 (line 6039)",
+    "STU-LAY-025 (line 6041)",
+    "STU-LAY-126 (line 5981)",
+    "STU-LAY-127 (line 6013)"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Standard in features, and it depends on graphics (G5) existing first.",
+   "rank": 12,
+   "gap_id": "G10",
+   "blocks_steps": [
+    53,
+    55
+   ],
+   "mts": [
+    "MT-30705",
+    "MT-30706",
+    "MT-30707",
+    "MT-30708",
+    "MT-30709",
+    "MT-30710",
+    "MT-30711",
+    "MT-157",
+    "MT-158",
+    "MT-162",
+    "MT-170"
+   ]
+  },
+  {
+   "what": "Preflight is 9 rules. No links, colour, ink, resolution, transparency, font, page-count or TOC-stale rules; profiles are neither stored, embedded nor exported; no preflight on export.",
+   "status": "missing",
+   "crates_likely": [
+    "hsk-studio-layout",
+    "hsk-studio-folio",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-LAY-055 (line 6982)",
+    "STU-LAY-056 (line 7016)",
+    "STU-LAY-057 (line 7021)",
+    "STU-LAY-154 (line 6986)"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "A green light today means little for press: the failures a printer cares about are not checked. New rules need graphics and colour to exist first.",
+   "rank": 13,
+   "gap_id": "G11",
+   "blocks_steps": [
+    81,
+    82
+   ],
+   "mts": [
+    "MT-30804",
+    "MT-30805",
+    "MT-30806",
+    "MT-30807",
+    "MT-30808",
+    "MT-30809",
+    "MT-30810",
+    "MT-35693",
+    "MT-182"
+   ]
+  },
+  {
+   "what": "Editor composition is a placeholder: fixed 0.5 em advance. Also no move or resize of a frame and no parent edit canvas, in a shell being rebuilt on Vulkan.",
+   "status": "missing",
+   "crates_likely": [
+    "hsk-studio-harness-view",
+    "hsk-studio-type",
+    "hsk-studio-layout",
+    "hsk-studio-render-gpu"
+   ],
+   "spec_clauses": [
+    "STU-LAY-167 (line 7599)",
+    "STU-TYP-127 (line 8076)",
+    "STU-SHL-087 (line 32226)"
+   ],
+   "size": "large",
+   "why_it_ranks_here": "This decides whether the GUI can be trusted, but it is tied to the Vulkan rebuild, so it does not lead the list for the engine path.",
+   "rank": 14,
+   "gap_id": "G14",
+   "blocks_steps": [
+    42,
+    52,
+    94
+   ],
+   "mts": [
+    "MT-30864",
+    "MT-30895",
+    "MT-34618"
+   ]
+  },
+  {
+   "what": "Package and handoff: no collect-for-output, no fonts or links report, no print path; booklet is a plan with no output.",
+   "status": "missing",
+   "crates_likely": [
+    "hsk-studio-layout",
+    "hsk-studio-package",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-LAY-058 (line 7041)",
+    "STU-LAY-059 (line 7053)",
+    "STU-LAY-060 (line 7090)",
+    "STU-LAY-155 (line 7045)",
+    "STU-LAY-157 (line 7092)"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "End-of-job work; it is needed only when the rest can reach it.",
+   "rank": 15,
+   "gap_id": "G15",
+   "blocks_steps": [
+    101,
+    102,
+    103,
+    104
+   ],
+   "mts": [
+    "MT-30816",
+    "MT-30817",
+    "MT-30818",
+    "MT-30829",
+    "MT-30830",
+    "MT-30831",
+    "MT-184",
+    "MT-185",
+    "MT-186"
+   ]
+  },
+  {
+   "what": "Tables beyond structure: no table or cell styles, strokes or fills from a host, no CSV to table.",
+   "status": "missing",
+   "crates_likely": [
+    "hsk-studio-folio",
+    "hsk-studio-layout",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-LAY-128 (line 6053)",
+    "STU-LAY-140 (line 6399)",
+    "STU-LAY-141 (line 6413)",
+    "STU-LAY-142 (line 6459)"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Structure works, so tables can be drafted; only formatting and data import are blocked.",
+   "rank": 16,
+   "gap_id": "G16",
+   "blocks_steps": [
+    29,
+    62,
+    65
+   ],
+   "mts": [
+    "MT-30713",
+    "MT-30753",
+    "MT-30754",
+    "MT-30755",
+    "MT-30757",
+    "MT-30758",
+    "MT-30759"
+   ]
+  },
+  {
+   "what": "Proofing: no spelling, no user dictionary, en-US hyphenation only, no language records in the host; find/change lacks formatting criteria; missing-font replace absent.",
+   "status": "missing",
+   "crates_likely": [
+    "hsk-studio-layout",
+    "hsk-studio-type",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-LAY-129 (line 6063)",
+    "STU-TYP-209 (line 9194)"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Matters for editorial quality, while this synthetic project can be proved without it.",
+   "rank": 17,
+   "gap_id": "G17",
+   "blocks_steps": [
+    45,
+    46,
+    84
+   ],
+   "mts": [
+    "MT-30715",
+    "MT-30716",
+    "MT-30717",
+    "MT-31023"
+   ]
+  },
+  {
+   "what": "Object styles and object effects on frames: object style engine has no host; four-target effects model is absent.",
+   "status": "engine_only",
+   "crates_likely": [
+    "hsk-studio-layout",
+    "hsk-studio-folio",
+    "hsk-studio-harness-view"
+   ],
+   "spec_clauses": [
+    "STU-LAY-032 (line 6309)",
+    "STU-LAY-039 (line 6530)",
+    "STU-LAY-134 (line 6226)"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Consistency tool and finish; manual formatting is a workaround once frame properties exist.",
+   "rank": 18,
+   "gap_id": "G18",
+   "blocks_steps": [
+    28,
+    57
+   ],
+   "mts": [
+    "MT-30739",
+    "MT-30740",
+    "MT-30741",
+    "MT-30744",
+    "MT-30767",
+    "MT-164",
+    "MT-167",
+    "MT-170"
+   ]
+  },
+  {
+   "what": "Separations, ink coverage, overprint preview and flattener for layout pages: press has the Separator and coverage, but only the vector artboard route feeds them.",
+   "status": "engine_only",
+   "crates_likely": [
+    "hsk-studio-press-write",
+    "hsk-studio-harness-view",
+    "hsk-studio-interop-layout"
+   ],
+   "spec_clauses": [
+    "STU-COL-211 (line 10838)",
+    "STU-COL-212 (line 10843)",
+    "STU-COL-214 (line 10884)",
+    "STU-LAY-160 (line 7206)",
+    "STU-LAY-161 (line 7417)",
+    "STU-LAY-250 (line 7236)",
+    "STU-LAY-252 (line 7298)"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Prepress verification on top of the colour work in G8, so it comes after it.",
+   "rank": 19,
+   "gap_id": "G19",
+   "blocks_steps": [
+    87,
+    88,
+    90
+   ],
+   "mts": [
+    "MT-30844",
+    "MT-30845",
+    "MT-30848",
+    "MT-30849",
+    "MT-31277",
+    "MT-31278",
+    "MT-31279",
+    "MT-31282",
+    "MT-31283",
+    "MT-35425",
+    "MT-35426",
+    "MT-35429",
+    "MT-35430"
+   ]
+  },
+  {
+   "what": "Navigation in the PDF: outlines exist in the engine, but press has no link annotations, tags or alternative-text output.",
+   "status": "missing",
+   "crates_likely": [
+    "hsk-studio-press-write",
+    "hsk-studio-interop-layout"
+   ],
+   "spec_clauses": [
+    "STU-LAY-065 (line 7507)",
+    "STU-LAY-146 (line 6548)",
+    "STU-PDF-002 (line 243)"
+   ],
+   "size": "medium",
+   "why_it_ranks_here": "Not required for press PDF/X; it matters for the digital edition, so it ranks last for this deliverable.",
+   "rank": 20,
+   "gap_id": "G20",
+   "blocks_steps": [
+    76,
+    77
+   ],
+   "mts": [
+    "MT-30770",
+    "MT-30857",
+    "MT-35593",
+    "MT-35698",
+    "MT-35699",
+    "MT-36149",
+    "MT-36151"
+   ]
+  }
+ ],
+ "coverage": {
+  "steps_total": 107,
+  "by_status": {
+   "callable": 33,
+   "engine_only": 39,
+   "missing": 35,
+   "NOT_INSPECTED": 0
+  },
+  "by_scene": {
+   "S1-template": {
+    "callable": 10,
+    "engine_only": 10,
+    "missing": 10
+   },
+   "S2-feature": {
+    "callable": 15,
+    "engine_only": 9,
+    "missing": 13
+   },
+   "S3-long-document": {
+    "callable": 0,
+    "engine_only": 8,
+    "missing": 2
+   },
+   "S4-prepress": {
+    "callable": 8,
+    "engine_only": 12,
+    "missing": 10
+   }
+  },
+  "share_of_project_that_could_run_today": {
+   "step_share_callable": 0.308,
+   "end_to_end_share": 0.0
+  },
+  "share_callable": 0.308,
+  "share_engine_only": 0.364,
+  "share_missing": 0.327,
+  "callable_through_corpus_command_id": 3,
+  "callable_through_rust_api_only": 30,
+  "first_step_not_callable": 1,
+  "deliverable_reachable_today": false,
+  "reading": "The callable share overstates readiness. Callable steps are mostly in-memory LayoutEditor edits that cannot be saved, and no host can write a layout PDF, so the deliverable cannot be produced today from any entry point except a hand-written Rust program calling engine crates directly. No frame, thread, story, style, table or parent edit has a RUN_COMMANDS id; the corpus-reachable steps are a layer opacity, a PDF import and a checkpoint.",
+  "status_rule": "callable: a RUN_COMMANDS or CLI command, or a public host API (LayoutEditor, Viewer) read at the pin. engine_only: a public engine function or record exists but a git grep of hsk-studio-harness, harness-core and harness-view finds no caller. missing: not found; evidence says where. Tests were not run, so nothing here proves that a call succeeds."
+ },
+ "runner_notes": {
+  "today": "A runner cannot use command_id for most steps. api: entries are Rust calls: link hsk_studio_harness with feature layout-ui (hsk_studio_harness::layout_ui is public), hold one LayoutEditor, and call apply. engine_only steps need a hand-written Rust program over the engine crates. The JSONL loop of SMB-HARNESS-DRIVE-1 covers RUN_COMMANDS and timeline ids only, so it reaches this scenario's document.* and layer.* steps and nothing else, until G2 lands.",
+  "ordering": "Steps are sequential. Do not skip a failed step silently: mark it blocked, keep going where state allows, and report status against this file, because the missing list is the purpose.",
+  "fixtures": "Generate all inputs from a fixed seed into a temp dir. Reuse the repo font and ICC fixtures named in input_assets. No proprietary profile, font or image. The synthetic CMYK profile proves mechanics only, not press colour.",
+  "determinism": "PDF export is deterministic when PdfX4 created and modified dates come from the runner (no clock is read, crates/hsk-studio-press-write/src/export.rs). Fix the dates, the seed, the fonts and the composition version. UNVERIFIED: the determinism of a whole magazine, since tests cover smaller documents.",
+  "how_to_compare": [
+   "state: LayoutEditor::state_json and Viewer::state_json shell.surfaces after each step against expected_state",
+   "preflight: compare findings as (rule_id, severity, object, page) sets, never a screen colour",
+   "PDF: compare ExportReceipt and read back through hsk-studio-press-read: page count, TrimBox, BleedBox, fonts embedded and subset, /GTS_PDFXVersion, output intent, /PageLabels, outlines",
+   "render: press-write render_page to PNG for each page, compare with SSIM against an approved baseline, and open the image before a verdict",
+   "TOC and index: compare page labels in the generated stories with the label of the page where each source paragraph lands",
+   "conformance: record check_pdfx4 as a self-check only; the receipt stays not_proven until an independent oracle passes (G13)"
+  ],
+  "gui_capture": "After the Vulkan shell lands, capture each step's visual_check headlessly at 1920 x 1080 using the accessibility tree and stable ids such as layout.preflight.status; quiet operation applies: no foreground window or focus capture.",
+  "disk": "Build outputs go under Handshake_Artifacts per HSK-ART-001. Never write proofs beside the fixtures in the repo."
+ }
+}

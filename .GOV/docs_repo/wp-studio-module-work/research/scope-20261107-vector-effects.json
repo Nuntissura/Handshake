@@ -1,0 +1,166 @@
+{
+  "id": "SMB-AI-LIVE-EFFECTS-1",
+  "file": "hsk-studio-ai-live-effects-1",
+  "brief": "lane-smb-ai-live-effects-1",
+  "crate": "hsk-studio-composite (Illustrator live effects on a vector object: folio record, composite evaluation, Viewer typed commands, over nib::live_effect)",
+  "crates_head": "c4d06841",
+  "summary": "The seven evaluating vector live effects are stored in the document, drawn by render and export, edited by typed commands and bakeable, or refused typed",
+  "target": "## Target\n\nHANDOFF next-work item 7, second bullet. Evidence: `S/research/truth-check-20261105-mt-vector-type-layout-interop.json` `top_missing` rank 2 and family V07. A designer can roughen, twist or zig-zag a path only in a Rust test: `hsk_studio_nib::live_effect` has no caller outside nib (`git grep 'live_effect\\|EffectRecord' c4d06841` outside `hsk-studio-nib/` finds none; the composite and folio hits for the words 'live effect' are comments and descriptors). A document cannot hold an effect: `StudioAppearanceRow` is Fill and Stroke only (`folio/src/paint.rs:204`) and `StudioVectorRecords` has no effect member (`folio/src/vector.rs:456`). So 7 PASS_V1 MTs (MT-30545..30550, MT-30559) prove pure functions nobody calls. This lane makes the seven evaluating effects real on a vector object: stored in the document, drawn by render and export, editable by typed commands, bakeable. All file:line below are at c4d06841; paths are under `handshake-studio-assets/crates/hsk-studio-`.\n\nThe closest pattern is `StudioEnvelope`: Folio stores (`folio/src/vector_tools.rs:397`, validation `:605-634`), composite evaluates through nib (`composite/src/vector.rs:1479`, `:1608`), Viewer commands in one egui-free file (`harness-view/src/view/vector/envelope.rs:63`, `:124`, `:140`), tests `composite/tests/vector_tools.rs:129` and `harness/tests/viewer_illustrator_tools.rs:167`. Follow it. Edges exist already: `composite/Cargo.toml:18` has nib; folio has no nib edge and gets none (`folio/Cargo.toml`), so Folio validates shape and nib validates parameters.\n\nClauses to read (spec module `14-studio-creative-suite.md`, v02.229): STU-VEC-022 :4084, STU-VEC-023 :4091, STU-VEC-054 :4424, STU-VEC-100 :2993, STU-VEC-101 :3028, STU-VEC-154 :4176, STU-VEC-155 :4201, STU-VEC-157 :4345, STU-VEC-158 :4374, STU-FX-002 :19395, STU-FX-003 :19397, STU-FX-007 :19413, STU-FX-011 :19421, STU-FX-012c :19433, STU-FX-027 :19720, Distort and Transform table :19737-19747, STU-CON-007 :22896.\n\n1. **Red first, compiling.** New `composite/tests/vector_live_filters.rs`, records written as JSON so the red commit compiles and fails at run time (`deny_unknown_fields`, `folio/src/vector.rs:454`, refuses the new member until it exists). For each of roughen, zig zag, pucker and bloat, twist, tweak, free distort, step repeat: a one-effect document through `prepare_vectors` equals a folio-free spec built from `nib::live_effect::evaluate` plus `prepare_vector_layers` (the method of `composite/tests/vector_tools.rs:88`, `:129`); the same through `expand_vectors`. Prove red by running.\n\n2. **Folio record.** Add one optional member to `StudioVectorRecords`, absent when empty, so existing record sets stay byte-identical (`vector.rs:483-484` shows the form; add to `new`, `:531`). Module beside `vector_tools.rs`, with `#![deny(clippy::arithmetic_side_effects)]` as `width_profile.rs` has. Proposed shape, names from STU-FX-027 and STU-FX-002 (`StudioLiveFilter`; no such type exists in code today, `git grep -E '(struct|enum|type) StudioLiveFilter'` is empty) and from STU-VEC-154 and `StudioEffect` (`raster.rs:716-717`):\n   - member `live_filters: Vec<StudioLiveFilterStack>`; stack `{layer_id, filters: Vec<StudioLiveFilter>}`, at most one stack per layer, list order = application order (STU-FX-003).\n   - `StudioLiveFilter {instance_id, enabled, effect_id, version, params}`; `params` an ordered list of `{key, type, value}` with `type` exactly `Int | Real | Bool | String` (STU-VEC-154 :4196-4199: typed map, untyped write rejected). Use a serde tagged enum so a wrong type cannot deserialize.\n   - Validation inside `validate_tools` (`vector_tools.rs:511`): layer exists and is a Vector payload (`PayloadMismatch`, as `:609`; group target ring and row scope are out of this slice and refuse here), stack and instance ids unique (`DuplicateIdentity`), finite reals (`InvalidField`), key grammar `key()` as smart filters use, string length and control characters as `text_ok` `:414`, `effect_id` non-empty and bounded, every count before use. Unknown `effect_id` or parameter is NOT Folio's refusal: Folio cannot see nib, and a later law set must stay loadable. It refuses at composite.\n   - Budgets: member count under `TOOLS_MAX_ENTRIES` (`:44`, loop `:518`, charged to `cx.nodes`), filters per stack and params per filter as named constants. STU-RAS-156 :1748 forbids a per-kind cap below 10 and STU-FX-006b :19407 allows only a performance budget, so the stack cap is a declared engine limit: 64 proposed. Params: the largest table is free distort at 16 rows (`live_effect.rs:449`); 32 proposed.\n   - Tests: byte identity without the member, wire round trip with exact reals, each refusal. Add the member's reference-looking properties to `package/tests/externals.rs` (table at `:528` onward): common rule 4b requires the whole package suite.\n\n3. **Transform table before it becomes wire format.** `live_effect.rs:18-19` and the lane notes of SMB-AI-DISTORT-EFFECTS-1 say every step-repeat row is Studio-declared because no recovered record exists. That is wrong: STU-VEC-157 :4345-4372 says the transform-each command and the live transform effect share one parameter set, and gives it. Today `STEP_REPEAT` (`live_effect.rs:462-474`) has all bounds unknown, and stores `random` where the spec names `randomize`. Once documents store these keys, a rename is a migration, so fix it first. Rows to copy exactly:\n\n   | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision |\n   |---|---|---|---|---|---|---|---|\n   | `scale_horizontal`, `scale_vertical` | -4000 | 4000 | 0 | 200 | 1.0 (see open question) | `percent` | 2 |\n   | `move_horizontal`, `move_vertical` | -4000 | 4000 | -100 | 100 | 1.0 (see open question) | `document_unit` | 4 |\n   | `rotate` | unknown | unknown | unknown | unknown | 0 | `deg` | unknown |\n   | `copies` | unknown | unknown | unknown | unknown | 0 | `count` | 0 |\n\n   Plus `reflect_x`, `reflect_y` default false, key `randomize` default false, provenance `Recovered(\"STU-VEC-157\")`. `seed` stays Studio-declared (STU-FX-011). Not in this slice, and said so in the descriptor: `scale_mode`, the `*_absolute` rows, `transform_objects`, `transform_patterns`, `scale_strokes_and_effects`, `scale_corners`; MT-30558 stays open. The other tables (STU-VEC-155, STU-VEC-158) are already in `live_effect.rs:409-505`: do not retype them. Update `vector_live_effects.rs` pins and `nib/src/descriptor.rs:10`, and name each changed pin in your notes.\n\n4. **Composite evaluation.** New module `composite/src/vector_live_filters.rs`, called from `FolioCx::own_geometry` (`vector.rs:1422`), which both `prepare_vectors` (`:2077`) and `expand_vectors` (`:2470`) use, so render, SVG (`harness-view/src/view/vector/interop.rs:433`), PDF (`pdf_export.rs:335`) and separations (`separations.rs:301`) all get it from one place. No GPU or render plan change: a vector layer is drawn on the host into a coverage plane and lowered through existing pigment routes (`vector.rs:2-4`), so render-gpu needs nothing.\n   - One converter: `StudioLiveFilter` to `EffectRecord` through `EffectRecord::from_parts` (`live_effect.rs:617`), public, because item 6 uses it too. No second reader of the parameter map.\n   - Early return `:1449` also tests for an enabled filter. A stack with only disabled entries takes the unchanged path and must render byte-identically to no stack.\n   - Insert before the loop at `:1459`: evaluate enabled filters in list order over the layer's whole path list, each result the next one's sources (`evaluate`, `live_effect.rs:762`; bounds-relative laws read the union of the current sources). The results then feed the existing fill and stroke paths, so strokes stroke the effected path, brushes and markers follow, and the envelope (`:1479`) wraps the effected geometry. Order law: filters, then envelope; Studio reading, parity UNVERIFIED (D5).\n   - Step repeat returns more paths than it took (`laws.rs:481`, sources then each copy). `paths`, `networks` and `profiles` are zipped one to one at `:1459`, so width profiles must be cycled by source index, output `k` taking profile `k % n`. Test it: a naive zip silently drops copies.\n   - `unit_px` false refuses `REFUSE_GEOMETRY_UNIT`, as `wrap` does (`:1611`). In a px document nib's pt reads as px, and `per_in` as per 72 px (see open question).\n   - `FolioCx` has no cancel token (`:1231`). Add one at both constructors (`:2042`, `:2447`). Cancel refuses and returns nothing.\n   - Refusal per layer through the existing `Result<_, &'static str>` to `push_refusal` (`:2102`), never a silent draw of the source. Map every `LiveEffectError` (`live_effect.rs:113`, 23 variants) to one `&'static str` in an exhaustive match with no wildcard, so a new variant fails compilation. `convert_to_shape` and `object_mosaic` keep their typed refusals (`:765-766`).\n\n   | Case | Result |\n   |---|---|\n   | Unknown effect id, other version, unknown key, wrong type, out of hard range | layer refused with nib's code mapped |\n   | `parameter_unset` (a table default is unknown) | refused, Studio never invents a default |\n   | Network path on the layer (`:1432`) | `vector_effect_network`, next slice |\n   | Path text or area text bound to the layer (`:2080`, `vector_text.rs:303`) | `vector_effect_text_bound`, text would follow the raw path |\n   | Work budget spent | `vector_effect_work_limit` |\n\n5. **Failure-class sweep (V4-06): every reader that takes vector geometry or records and would silently drop an effect.** List each site, fixed or not applicable with a reason.\n   - Raw geometry in composite: boolean operand `vector.rs:1281`, envelope top object `:1646`, clip source `:2118`, mask source `:2226-2227`, and `mask_node` from `:2244` (NOT_INSPECTED beyond its leaf test). A source layer holding an enabled filter refuses `vector_effect_source` rather than using the raw shape. Applying the effect there is a later slice.\n   - Direct record exporters that do not go through `expand_vectors`: `interop-fig-native/src/export.rs:392` (it already loses raster effects typed at `:398-399`), `interop-vector-svg/src/svg_export.rs:1137`, `interop-vector-core/src/eps_export.rs:372` (NOT_INSPECTED beyond that line). A filter there is a typed loss: `self.lose` for fig, `note` (`svg_export.rs:213`) for SVG. **Same class, existing:** `git grep -i envelope` finds nothing in those three crates' `src`, so a `StudioEnvelope` is dropped with no loss on these paths today. Add its loss line beside the filter's, and report it.\n   - Viewer entry budget list `harness-view/src/view/vector.rs:622` gains the member, and `validate_records` `:678-696` gains a retain like `:681`, so a deleted layer's stack survives for undo.\n   - Stored coordinates must follow the layer. Free distort's `src*`/`dst*` are document coordinates. Mesh envelope points are moved at `vector/arrange.rs:199-206` and `design/auto_layout.rs:1061-1067`; do the same for free distort corners at both sites, or a moved layer distorts against a frame left behind. Absolute sizes do not scale (`scale_strokes_and_effects` default false, STU-VEC-157). Read for any third transform site.\n   - `duplicate_layer` (`view/layers.rs:123`, `copy_subtree` `:135`): the first 45 lines of `copy_subtree` do not mention vector records, so a copy may lose its envelope and would lose its filters (UNVERIFIED: read it, pin the behaviour with a test, report). SMB-PR-ROUTING-REPAIR-1 edits `layers.rs:51`: ask before editing this file.\n   - Laws that must keep `fill_rule`: seen at `laws.rs:118`, `:209`, `:261`, `:433`; zig zag, pucker and step repeat not read. Test all seven.\n\n6. **Typed commands in the Viewer.** New egui-free `harness-view/src/view/vector/live_filters.rs`, shaped like `envelope.rs`, one method per STU-FX-007 verb, each ONE undo step (STU-FX-012c) through `commit_entry` (`vector/style.rs:618`) or, for bake, `commit_paths` (`vector/arrange.rs:213`). These reach the existing `layer.set_tiles_and_entry` and `layer.set_vector_paths_and_entry` rows (`harness-core/src/action.rs:856`, `:858`), so no new `Run` method and no RUN_COMMANDS row.\n   - `apply`, `update` (one key, typed, through `EffectRecord::set`), `reorder`, `toggle`, `remove`, `bake`, and a read of a layer's stack with each row's seven numeric fields from `EffectKind::params`, so a model can write a parameter without knowing the effect (STU-VEC-154).\n   - `apply` and `update` refuse a bad parameter before commit with nib's code, and store every resolved entry (`EffectRecord::entries`, `live_effect.rs:642`), including defaults, so a stored record does not change if a table default changes later.\n   - `bake` (this slice's part of STU-VEC-054 and STU-FX-003): the effected paths become the layer's paths through `AnchorPath::from_owned_path`, as `expand_envelope` does (`envelope.rs:140-175`); style and width of output `k` come from source `k % n`; the stack goes; an envelope stays. Refuse networks and text-bound layers. Never implicit on save or export (STU-VEC-054 :4427-4428). The five expand selectors are not this slice.\n   - Tests in new `harness/tests/viewer_vector_live_filters.rs`, `viewer` feature: apply then render differs from source; undo restores bytes; edit the source path and re-render follows (STU-FX-027); reorder two filters changes output deterministically; remove restores the exact prior render (STU-FX-003); same seed gives byte-identical output (STU-FX-011); save, reopen, same render; bake then render equals pre-bake render.\n   - No panel, menu item, tool or `PanelAction` arm. No egui line. `state_json` (`view/mod.rs:837`) stays with SMB-HARNESS-DRIVE-1. No CLI or `manual.rs` edit.\n\n7. **Descriptors.** `folio/src/lib.rs:1618`, `composite/src/lib.rs:198`, `nib/src/descriptor.rs:10` name the new member, codes and limits. Fix the wrong comment at `live_effect.rs:18-19`.\n\n8. **MTs.** Read MT-30525, MT-30526, MT-30535, MT-30540, MT-30557, MT-30558, MT-30564, MT-32970, MT-32980..32986, MT-289, MT-291. Their `operator_surface_required` is YES (read on MT-30525, 30526, 30535, 30557, 30558, 30564, 32970, 32982, 32983), so expect partial claims: claim a row only if you read it and this proves it. Their proof commands name test targets that do not exist. Do not edit MT files.\n\nHostile input (V4-01/02): typed refusal, no abort, bounded allocation. Test: over-count stacks, filters and params; non-finite and huge reals; a very long string; duplicate keys; a stack on a raster or group layer; step repeat with `copies` near `i64::MAX` (refused before allocation, `laws.rs:497`); a chain of step repeats each just under `MAX_OP_ELEMENTS` (`shape_ops.rs:56`, 2^18); 4096 layers each with a full stack, which is why one evaluation's budget is not enough: charge source elements against one aggregate budget per `prepare_vectors` or `expand_vectors` call, as `MAX_MASK_CONTENT_PIXELS` does at `vector.rs:2136`. Measure, then declare the number, and record timings debug and release. A huge `move` must refuse at `COORDINATE_LIMIT` (`nib/src/owned_path.rs:14`) or `REFUSE_VECTOR_OVER_LIMIT`, not allocate a plane. A canceled token during a long stack returns promptly.\n\nVendor parity stays UNVERIFIED (D5): every law here is the declared Studio reading v1. Do not bless a parity row.\n\nOut of scope: row scope and group or layer target ring (STU-VEC-023 second and third scopes); per-entry mask, blend, opacity and `render_scope` (STU-FX-002); Stylize, scribble and raster-effect settings (STU-VEC-156, STU-VEC-159, STU-FX-030); registering offset, simplify, round corners, geometry and warp as effect kinds; networks as sources; the five expand selectors and the rest of expand-appearance; effect styles; blend, live paint, trace, repeat; AI, SVG or PSD import of live effects; any panel, GUI, menu or Registry control; any egui, eframe, winit, wgpu, naga or WGSL line; any GPU kernel; any `Cargo.toml` change; no root input; no Master Spec edit; no MT edit.",
+  "diag": "report_for_host: composite returns per-layer typed refusals, codes only; the Viewer reports through its existing report path; nib::live_effect::outcome and report (live_effect.rs:804, :817) already map codes to observe for a host that emits",
+  "attr": "unchanged: composite and folio commit nothing; Viewer commands commit through the existing commit_entry and commit_paths path, which carries the Run context; no default_actor() or literal actor in new code",
+  "exposure": "medium",
+  "paths": "- nib: `src/live_effect.rs`, `src/live_effect/laws.rs` only if a test proves a defect, `src/descriptor.rs`, `tests/vector_live_effects.rs`.\n- folio: new `src/vector_live_filter.rs`, `src/vector.rs`, `src/vector_tools.rs` (`validate_tools` call), `src/lib.rs` (module line, DESCRIPTOR), new test file.\n- composite: new `src/vector_live_filters.rs`, `src/vector.rs`, `src/lib.rs` (module line, DESCRIPTOR), new `tests/vector_live_filters.rs`.\n- package: `tests/externals.rs` classification rows only.\n- harness-view: new `src/view/vector/live_filters.rs`, `src/view/vector.rs` (`mod` line, `:622`, `:678-696`), `src/view/vector/arrange.rs:199-206`, `src/view/design/auto_layout.rs:1061-1067`. Ask before `src/view/layers.rs`.\n- harness: new `tests/viewer_vector_live_filters.rs`.\n- interop-fig-native: `src/export.rs` loss lines. interop-vector-svg: `src/svg_export.rs` loss lines. interop-vector-core: `src/eps_export.rs` loss lines. Each with one test.",
+  "suites": "clippy over nib, folio, composite and their direct dependents; nextest WHOLE suites of hsk-studio-nib, hsk-studio-folio, hsk-studio-composite, hsk-studio-package (rule 4b), hsk-studio-interop-vector, hsk-studio-interop-vector-core, hsk-studio-interop-vector-svg, hsk-studio-interop-fig-native; hsk-studio-harness-view with [viewer] and hsk-studio-harness viewer_vector*, viewer_illustrator*, viewer_vector_live_filters tests (rule 4e: confirm the unit in .config/round-features.toml, which lists hsk-studio-harness-view [viewer] at line 44); doctests if added",
+  "closes": [
+    "truth-check 20261105 top_missing rank 2, object scope only: nib::live_effect unreachable from a document",
+    "truth-check 20261105 pass_status_findings V07 for MT-30545..30550: effects gain reach; MT-30559 stays a typed refusal by design"
+  ],
+  "mts": [
+    "MT-30526",
+    "MT-30535",
+    "MT-30525",
+    "MT-30540",
+    "MT-30557",
+    "MT-30558",
+    "MT-30564",
+    "MT-32970",
+    "MT-32980",
+    "MT-32981",
+    "MT-32982",
+    "MT-32983",
+    "MT-32984",
+    "MT-32985",
+    "MT-32986",
+    "MT-289",
+    "MT-291"
+  ],
+  "tree": "smb-ai-distort-effects-1",
+  "tree_reason": "PASS_V4, clean, tip 4b5ba2da is an ancestor of c4d06841 (checked with git merge-base), not in direction.workflow_20261107.target_reuse. Its target built nib, composite, folio, package, harness, harness_view, interop_vector, interop_vector_svg, interop_fig_native, render_cpu: every crate this slice names, at 20.37 GiB. It is the lane whose code this slice wires. Its target is old (newest file 2026-11-01, 188 commits behind), so workspace crates rebuild; third-party libraries (1.3 GiB) are reused. Fallback if another lane takes it: smb-ps-mode-convert-1 on D: (same overlap, 9.06 GiB, PASS_V4, clean, tip an ancestor of c4d06841).",
+  "disk": "d",
+  "overlaps": {
+    "SMB-PR-ROUTING-REPAIR-1": "Same crates folio and harness-view, different files (it: folio/multicam, audio routing, session sequence records, view/timeline, source_monitor, nest, layers.rs:51, mixer). Textual conflict only if this lane edits view/layers.rs for duplicate_layer, so ask first. A folio change by either rebuilds the other's dependents on rebase.",
+    "SMB-SESSION-WRITE-SAFETY-1": "No shared file: this lane does not touch harness cli, harness-core, session or write_atomic. Viewer save and reopen test goes through the save path it changes: rerun that test after it lands if it lands first.",
+    "SMB-HARNESS-DRIVE-1": "No shared file: no cli.rs, manual.rs or state_json edit here. Its `command` path over the Viewer's non-UI methods can reach these methods later; naming is an open question below.",
+    "SMB-OBSERVE-DIAG-SINK-1": "No shared file. This lane calls no new observe API; existing nib report at live_effect.rs:817 uses Observe::emit, which that lane wires. Its observe change rebuilds this lane's crates on rebase.",
+    "SMB-CONTROLS-EGUI-GATE-1": "No controls edit, no manifest edit, no Registry row. New Viewer file holds no egui line, so its gate stays green. harness-view Cargo.toml untouched: composite and nib are already optional deps under viewer (harness-view/Cargo.toml:16, :48, :53).",
+    "all": "Build on D:. Same push hold as the running lanes until STUDIO-R59 is recorded; one lane pushes at a time. Folio feeds many crates, so --per-sha holds D: long (12 commits on folio and session held it about 55 minutes): keep to about 8 commits, folio commits early."
+  },
+  "needs": {
+    "cargo_toml": "none: composite to nib, harness-view to composite and nib already exist",
+    "cargo_lock": "none",
+    "new_dependency": "none",
+    "schema": "additive member on hsk.studio.vector_records@1, absent when empty, so existing record sets are byte-identical; a document that uses it is refused by a reader built before it (deny_unknown_fields), as earlier members were",
+    "spec": "no Master Spec edit. SD items to propose on READY: object-scope stack held in vector records rather than the one StudioEffectStack; filters-then-envelope order; px as pt reading; STU-VEC-157 default cells; correction of the Studio-declared claim for Transform",
+    "root_inputs": "none; confirm no .config/round-features.toml change is needed (rule 4e)"
+  },
+  "red_team": {
+    "risks": [
+      "A record stored now becomes wire format, so a wrong key or shape needs a migration.",
+      "Silent wrong output: any path that reads raw layer geometry shows or exports the unaffected shape while the screen shows the effect.",
+      "Work explosion from document data: chained step repeat, or many layers with full stacks.",
+      "Second source of truth: a parallel effect stack against the spec's one StudioEffectStack.",
+      "Rework: Viewer methods sit in the area RF-01 will move, and SMB-HARNESS-DRIVE-1 is deciding command naming."
+    ],
+    "failure_scenarios": [
+      "Step repeat outputs 8 paths from 2 and the one-to-one zip at vector.rs:1459 drops 6 with no error.",
+      "A layer is moved, its free distort corners are not, and the art jumps.",
+      "An effected layer is used as a clip source: the clip uses the raw path while the layer draws roughened.",
+      "A fig or EPS export writes the raw path with no loss entry.",
+      "A table default changes in a later lane and an old document renders differently, because the stored record omitted that key.",
+      "An undo of a layer delete loses the stack, because validate_records or the pruning treats it as dangling.",
+      "A red commit referencing new types does not compile and is pushed, failing per-sha.",
+      "A step that bakes through AnchorPath::from_owned_path refuses a path shape a law emits (UNVERIFIED for every law)."
+    ],
+    "minimum_controls": [
+      "Item 3 lands before the composite commit; byte-identity test for absent member.",
+      "Differential tests of composite against direct nib evaluation for all seven kinds through both prepare_vectors and expand_vectors.",
+      "Step repeat test with two source paths, one width profile.",
+      "V4-06 list in the lane notes, every site fixed or not applicable with a reason; a test for each refusal code.",
+      "Commands store resolved entries; a test reads the stored bytes.",
+      "Aggregate work budget with a stated number and measured times; cancellation test.",
+      "Exhaustive match for the LiveEffectError mapping; no wildcard.",
+      "Red tests written as JSON records so the red commit compiles."
+    ]
+  },
+  "research_basis": {
+    "sources_checked": [
+      "Adobe Illustrator help, appearance attributes: https://helpx.adobe.com/illustrator/using/appearance-attributes.html (through search summary, page not fetched)",
+      "CreativePro, The Most Powerful Panel in Illustrator: https://creativepro.com/article/the-most-powerful-panel-illustrator (result listed, not read)",
+      "SkiaSharp SKPathEffect API: https://learn.microsoft.com/dotnet/api/skiasharp.skpatheffect (through search summary)",
+      "Project: nib live_effect.rs and laws.rs, folio vector_tools.rs and raster.rs, composite vector.rs, harness-view envelope.rs, spec clauses listed in target"
+    ],
+    "patterns_found": [
+      "Adobe's help, as summarised by the search: fills and strokes list in stacking order, effects list top to bottom in application order. This matches list order = application order here. Vendor behaviour stays UNVERIFIED (D5).",
+      "Skia wrappers expose path effects as composable path-to-path functions with a compose form, and a discrete jitter effect taking what appears to be a seed; the seed meaning was not confirmed. Same shape as nib's pure Vec<OwnedPath> to Vec<OwnedPath> evaluate.",
+      "In this repo a live geometry record is Folio data, composite evaluates at draw, the Viewer commits one undo step: StudioEnvelope, width profiles, brushes."
+    ],
+    "reuse_opportunities": [
+      "nib::live_effect entire (records, laws, budgets, codes)",
+      "FolioCx::own_geometry shared by render and export",
+      "envelope.rs command shape; commit_entry, commit_paths; expand_envelope bake path",
+      "composite/tests/vector_tools.rs differential method",
+      "MAX_MASK_CONTENT_PIXELS aggregate budget pattern"
+    ],
+    "rejected_options": [
+      "New StudioAppearanceRow variant: row indices key image_paints, pattern_paints, swatch_paints, brush_strokes and stroke_markers (vector.rs:560-619), so an effect row shifts them; dozens of matches across composite, harness-view and interop-fig-native; a paint style is shared across layers, so it is not object scope. It is the likely home of row scope later, after a stable row id exists.",
+      "New StudioEffectKind variant in the raster StudioEffectStack (raster.rs:740): closest to STU-VEC-023's words, but prepare_vectors takes no raster records (vector.rs:2025), the common block (blend, opacity, angle, noise) means nothing for a path operation, lowering runs after draw (lower_extensions.rs), and 56 StudioEffectKind:: references would need review. Recorded as an open question, since it is the spec-literal option.",
+      "Evaluating in the Viewer before composite: render and export would diverge, and folio-only hosts would get nothing.",
+      "Baking on apply: forbidden by STU-FX-001, STU-VEC-023.",
+      "Reading Inkscape's live path effects: GPL, not read."
+    ],
+    "unverified": [
+      "copy_subtree beyond its first 45 lines; mask_node beyond its leaf test; eps_export.rs beyond line 372.",
+      "fill_rule kept by zig zag, pucker and step repeat; AnchorPath::from_owned_path accepting every law's output.",
+      "Aggregate budget number and caps are proposals; not measured.",
+      "All vendor parity (D5). No test run for this scope."
+    ],
+    "selected_approach": "Object-scope stack in StudioVectorRecords, composite evaluates in own_geometry before the envelope, typed refusal everywhere else, Viewer commands shaped like envelope.rs, CPU only with no renderer change.",
+    "limits": "Web research was light on purpose: this slice wires existing laws and adds no field technique. No source-level field implementation was read, no vendor app was run, Skia C++ headers were not read, and no source found described Expand Appearance. No cargo, build or test was run for this scope; every behaviour claim about untested paths is from reading code. Blend, live paint and trace each need their own research before their briefs."
+  },
+  "next_slices": [
+    "SMB-AI-LIVE-EFFECTS-2: register what nib already computes as effect kinds: offset path, simplify, round corners, geometry operations, warp records (MT-30540, 30541, 30542, 30544); network sources; effected clip, mask, boolean and top-object sources.",
+    "SMB-AI-LIVE-EFFECTS-3: row scope and group target ring (STU-VEC-023), per-entry enable and blend at those scopes, settling the shared StudioEffectStack question.",
+    "Stylize parameter maps over existing raster layer styles (STU-VEC-156), scribble (STU-VEC-159, MT-30560), raster-effect settings (STU-FX-030, MT-30562), CPU only with typed GPU refusal; then the five expand selectors (STU-VEC-054, MT-30564).",
+    "Blend construct: STU-VEC-032 spec :4855, MT-30617, MT-30618.",
+    "Live Paint construct: STU-VEC-033 spec :4878, MT-30620, MT-30621; reuses vector network regions.",
+    "Image Trace: STU-VEC-035 spec :4926, MT-30626, MT-30627; deterministic and CPU only; any trace crate goes through the steward with a licence check.",
+    "Repeat construct radial, grid, mirror: STU-VEC-031 spec :4793, MT-30611; reuses step repeat maths."
+  ],
+  "open_questions": [
+    {
+      "for": "lead",
+      "question": "STU-VEC-023 says effects are carried in the shared StudioEffectStack and STU-VEC-022 forbids a vector-only reimplementation. This slice adds a separate stack in vector records.",
+      "default": "Accept as object-scope first step, same as StudioSmartFilterStack and StudioEnvelope already sit outside it; record as an SD item that the clause is partly met, and settle unification in slice 3."
+    },
+    {
+      "for": "lead or spec owner",
+      "question": "STU-VEC-157 gives default 1.0 for scale (unit percent) and for move. Copied literally, a fresh record with copies set makes 1 percent copies 1 unit away; nib's identity defaults are 100 and 0. MT-30558 AC-001 demands the table's values.",
+      "default": "Keep nib's 100 and 0 in this slice, labelled, because existing law and tests rest on identity and commands store resolved entries; raise an SD item saying 1.0 reads as a captured ratio. MT-30558 stays open."
+    },
+    {
+      "for": "lead",
+      "question": "Type and member names: StudioLiveFilter comes from the spec; StudioLiveFilterStack and live_filters are composed from it. Allowed, or another name?",
+      "default": "Use them; no canonical name for the per-layer holder is verified."
+    },
+    {
+      "for": "lead",
+      "question": "HOST rule 3 asks a Registry id for every new command. These are Viewer methods over existing RUN_COMMANDS rows, and SMB-HARNESS-DRIVE-1 is settling how commands are named, with O5 open.",
+      "default": "control_descriptors: none, as SMB-PRESS-INK-MANAGER-1 recorded; op strings follow the STU-FX-007 verbs; ids come when the drive lane's naming lands."
+    },
+    {
+      "for": "lead",
+      "question": "direction.dispatch pauses harness-view surfaces, and O6 is unanswered. Item 6 adds window-free Viewer logic only.",
+      "default": "Allowed, as today's practice in the handoff. If not, cut item 6 and the Viewer half of item 5; the lane still stands on Folio and composite tests, but has no typed command."
+    },
+    {
+      "for": "lead",
+      "question": "In a px document, nib's pt reads as px, and per_in as per 72 px. Non-px documents refuse.",
+      "default": "Accept as stated; same gate as strokes and envelopes."
+    },
+    {
+      "for": "lead",
+      "question": "Is the silent envelope drop on direct fig, SVG and EPS export (item 5) a finding for the next round?",
+      "default": "Fix the loss line here and report it as found."
+    }
+  ]
+}
