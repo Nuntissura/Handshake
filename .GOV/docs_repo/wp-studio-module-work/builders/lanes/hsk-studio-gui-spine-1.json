@@ -1,19 +1,60 @@
 {
   "crate": "hsk-studio-native-host (feature document), kumihimo-ui (one additive widget)",
   "lane": "SMB-GUI-SPINE-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "landed",
   "worktree": "wt-studio-lanes/smb-pr-entry-references-1",
-  "base": "e85e1440",
-  "commits": [],
+  "base": "a3215161",
+  "commits": [
+    {
+      "sha": "3ce0915e",
+      "kind": "red",
+      "what": "API skeleton (typed refusal not_built), HostEvent pointer/button/wheel/key/modifiers, scene gui + GuiArgs + cli flags, manifests (native-host optional kumihimo-ui + hsk-studio-ui-text, root allow list, Cargo.lock dependency list), 15 new tests red (proven at pre-rebase c591598a)"
+    },
+    {
+      "sha": "788465ff",
+      "kind": "green",
+      "what": "script.rs typed step queue (MAX_STEPS 4096, 1 MiB file bound)"
+    },
+    {
+      "sha": "2ef46468",
+      "kind": "green",
+      "what": "document.rs open refusal keeps the viewer's code; layer count without state_json"
+    },
+    {
+      "sha": "4a06b937",
+      "kind": "green",
+      "what": "kumihimo-ui widgets::scrollbar (passive)"
+    },
+    {
+      "sha": "2fc40206",
+      "kind": "green",
+      "what": "gui module: frame, regions, Layers view, command table, paint/upload, tree file, receipt gui member"
+    },
+    {
+      "sha": "4e2f9591",
+      "kind": "green",
+      "what": "window and offscreen GUI mode (live client size, settled scripted steps, pane follows the window, Wait for the Operator window), README"
+    },
+    {
+      "sha": "cede5958",
+      "kind": "fix",
+      "what": "review FIX_FIRST F1-F6 on 5e882c1d (research/review-smb-gui-spine-1-5e882c1d.json): Operator window keeps its size, polls until steps are applied, clamped first size for settled steps, wheel remainder, pointer (p + 0.49) / s with a 1.2 boundary test, exact psd_pixel_limit"
+    }
+  ],
   "capabilities_done": [],
-  "tests": {},
+  "tests": {
+    "red_proof": "c591598a content (pre-rebase of 3ce0915e), log logs/smb-gui-spine-1-red-tests-e85e1440.log (named by the HEAD at start): 16 run, 15 failed, 1 passed (the source scan is a guard)",
+    "bundled": "logs/smb-gui-spine-1-bundled-cede5958.log (first line sha cede5958): lane-check --owner smb-pr-entry-references-1 --disk d, step 0 clean, clippy clean of errors (4 pre-existing style warnings in scene.rs:135 and window.rs, none from this lane's new code), nextest -p hsk-studio-native-host -p kumihimo-ui -p hsk-studio-ui-text --features hsk-studio-native-host/document: 50 run, 50 passed, 0 skipped (native-host 25 incl. GPU host_vulkan 2, document_window 2, gui_window 2; kumihimo-ui 23; hsk-studio-ui-text 2), exit 0",
+    "per_sha": "logs/smb-gui-spine-1-persha-cede5958.log: --per-sha HEAD~1, range 4e2f9591..cede5958, default ok, features hsk-studio-native-host+document ok, PER_SHA_RESULT OK, exit 0. The whole-workspace per-sha of the Cargo.lock commit 3ce0915e was not run (the lead's step said HEAD~1).",
+    "binary_runs": "studio-vk via studio_gpu_run at cede5958: offscreen and quiet window final frame sha256 3a9feac98234e673b67a60d4692257eb2a68c07e938ac1993d5b43de9c5c479f equal, exact true, focus_changes 0, text inter"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-07T15:58:42Z",
+  "next": "validator: judge cede5958 on origin/codex/handshake-studio-assets (pushed on base a3215161); GATE_CHECK of the spine gate stays with an independent agent",
+  "updated_at": "2026-11-07T17:49:29Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -48,6 +89,54 @@
       "MT-34496 (read; STU-SHL-061 anti-thrash; no claim)",
       "MT-36250 (read; host workbench proof, an asset-local half at most; no claim)"
     ],
-    "reuses_tree_and_target": "smb-pr-entry-references-1"
+    "reuses_tree_and_target": "smb-pr-entry-references-1",
+    "artifacts": {
+      "final_frame_png": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-spine-1/gui-final-offscreen-cede5958.png",
+      "final_frame_window_png": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-spine-1/gui-final-window-cede5958.png",
+      "tree_file": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-spine-1/gui-final-tree-cede5958.json",
+      "fixture_handshake": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-spine-1/layered.handshake",
+      "test_pngs": "gui-offscreen.png, gui-swapchain.png (pointer session) in the same folder"
+    },
+    "decisions": [
+      "Scene value named `gui` (scene gui, receipt member gui).",
+      "Dock root id studio.dock.right (components.json dock_region), viewport studio.viewer.raster, status readouts studio.status.{chrome,command,revision,device} as Label nodes (not ghost buttons yet).",
+      "The pane copy goes through a host trait PaneSink with PortPane over any GpuClientPort: a fake GpuClientPort cannot mint a PaneId (private field in hsk-studio-vulkan), so the device-loss fake implements PaneSink (brief item (d) said &mut impl GpuClientPort).",
+      "The window GUI frame follows the live client size (Window::inner_size each iteration), not the Resized payload: on this machine a DPI change reported a size the window did not keep, which moved the layout under the scripted clicks (first focused run: hash mismatch; second: steps never settled). Scripted steps apply only when the last present had the frame's extent and a quiet run is back at its first size.",
+      "Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y use winit logical_key (all modifiers except Ctrl), lowercased.",
+      "Fonts: Inter Regular and Bold read at run time from the repo fixtures (CARGO_MANIFEST_DIR at compile time) or HSK_STUDIO_UI_FONTS; missing fonts give the box stand-in, stated as text: box_stand_in.",
+      "Rows: list Fill beside the reserved 10 px lane; no 12 px body padding for layer rows (rows span the body like the gallery layer_row scene)."
+    ],
+    "hostile": {
+      "a_10000_rows": "view only: 18 rows built at 574 px, nodes < 580, shape misses < 64, under 2 s (test ten_thousand_rows_build_bounded_and_over_budget_is_refused)",
+      "a_over_budget": "4100-layer PSD: the host shows the exact code psd_pixel_limit from the PSD importer (exit 7), asserted in ten_thousand_rows_build_bounded_and_over_budget_is_refused; Folio's BudgetExceeded is not reached by this input (NOT_PROVEN)",
+      "b_long_names": "4096-byte name via Viewer::rename_layer: row ellipsizes, AC-TEXT-01 clean, label full, shape misses grow < 64; 1 MiB name cut to 4096 bytes in the view",
+      "c_zero_size": "Resized 0x0 then restore: no paint, no Canvas::new(0), same frame bytes after (CPU); window exercise run minimises and restores with the same final hash",
+      "d_device_lost": "fake PaneSink: exit 3, 2 calls (no retry), 1 command (none after the loss); a real device loss NOT_PROVEN"
+    },
+    "v4_06_sweep": [
+      "content built once: window.rs and offscreen.rs fixed for scene gui (live frame); clear/painted/document scenes are static by design (not applicable)",
+      "open refusal flattened to open: document.rs fixed (not_found, the run's op error, the message's trailing code, else open)",
+      "heavy state_json for a count: document.rs fixed (Viewer::layers().len()); for the selection: named, the frame reads rows+selection+revision from one state_json per revision (a Viewer selection getter is a later harness-view lane)",
+      "stale line cites: README fixed (cites view_snapshot); the lane file blocker text is kernel-owned (lead)",
+      "quadratic Viewer::layers(): called once per revision inside state_json by the frame; named for harness-view",
+      "Canvas::new None: the frame maps it to HostError::Window(canvas_extent), never expect; gallery.rs:137 expect is kumihimo-ui test-scene code outside the owned paths (named, not changed)",
+      "checks::overlapping_controls O(n^2): runs on the built (visible) rows only"
+    ],
+    "cuts": "Vulkan UI pass (B2 GPU), glyph atlas, designer icon set (gallery stand-ins), scrollbar radius 3 and drag, keyboard focus and arrows/Space on rows, thumbnails (checker), AccessKit (tree file is the model path), menus and other B5 regions, zoom/pan; kumihimo Role has no ScrollBar/TabPanel/Canvas/Status (Slider/Group/Image/Group used)",
+    "deviation": "STU-SHL-110 steps SHL-P-09/10 not passed before this panel (decision spine_gate, Operator working-GUI priority)",
+    "rule_4e": ".config/round-features.toml has hsk-studio-native-host = [[\"document\"]]; kumihimo-ui tests are default-unit",
+    "paths_beyond_brief": "none (Cargo.toml line 319 and Cargo.lock dependency list per lead ruling Q2)",
+    "pre_rebase_shas": "c591598a aa2af4b5 689a239f 6abec2c1 22ba26fe 5e882c1d 62d079f2 (base e85e1440)",
+    "root_edits": "root Cargo.toml line 319: the native-host allow list gains hsk-studio-ui-text (lead ruling Q2). Cargo.lock: two lines in hsk-studio-native-host's dependency list, hsk-studio-ui-text and kumihimo-ui (both existing packages, no new [[package]], no kumihimo crate gains an hsk-studio dependency); accepted by the lead 2026-11-07.",
+    "review_5e882c1d": "FIX_FIRST F1-F6, all fixed in cede5958 (pre-rebase 62d079f2)",
+    "landed": "cede59587eed0189edce18ed93f60486bc6af520 pushed non-force to origin/codex/handshake-studio-assets on base a3215161 (origin re-read after the push equals the tip)",
+    "ready_claim_logs": "logs/smb-gui-spine-1-bundled-cede5958.log (50/50, exit 0) and logs/smb-gui-spine-1-persha-cede5958.log (PER_SHA_RESULT OK)",
+    "lead_decisions": [
+      {
+        "at": "2026-11-07T17:49:57Z",
+        "on": "Cargo.lock",
+        "decision": "Accepted both dependency-list lines (hsk-studio-ui-text and kumihimo-ui) for native-host: no new package, and no kumihimo crate gains an hsk-studio dependency."
+      }
+    ]
   }
 }

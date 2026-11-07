@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T17:33:46Z",
+ "updated_at": "2026-11-07T17:49:57Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19540,8 +19540,8 @@
   },
   {
    "lane_id": "SMB-GUI-SPINE-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-native-host (feature document), kumihimo-ui (one additive widget)",
    "lane_file": "builders/lanes/hsk-studio-gui-spine-1.json",
    "brief": "builders/briefs/lane-smb-gui-spine-1.md",
@@ -19549,7 +19549,7 @@
    "base": "e85e1440",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-07T15:58:42Z",
+   "updated_at": "2026-11-07T17:49:57Z",
    "closes": [
     "direction.blocker_decisions_20261107 order step SMB-GUI-SPINE-1: the first real panel on a real document in the asset-local Vulkan window (CPU-painted chrome, recorded STU-SHL-110 deviation)",
     "lead message 2026-11-07: a real .handshake document with a working profile reaches the window (demo.handshake stays the refused edit fixture)",
@@ -19561,7 +19561,8 @@
     "MT-34646 (read; STU-MDL-105 numeric node fields; no claim)",
     "MT-34496 (read; STU-SHL-061 anti-thrash; no claim)",
     "MT-36250 (read; host workbench proof, an asset-local half at most; no claim)"
-   ]
+   ],
+   "claim": "3ce0915e..cede5958"
   },
   {
    "lane_id": "SMB-ARTBOARD-EXPORT-1",
@@ -21990,6 +21991,21 @@
     "added_at": "2026-11-07T17:33:46Z",
     "item": "Engine forms worked around at the commit boundary: an empty story stored as one zero-length paragraph and range; pt spread bounds in a mm document",
     "owner": "a later layout engine lane"
+   },
+   {
+    "added_at": "2026-11-07T17:49:57Z",
+    "item": "The Vulkan UI pass (glyph atlas, primitive pass on the GPU, icon set), the full B5 static frame against mock-raster.html, menus and docking",
+    "owner": "the next GUI lanes (scope next_slices)"
+   },
+   {
+    "added_at": "2026-11-07T17:49:57Z",
+    "item": "Layer thumbnails, keyboard focus on rows, scrollbar drag and rounded thumb, zoom to fit, AccessKit; kumihimo Role has no ScrollBar, Canvas or Status role",
+    "owner": "later kumihimo-ui and spine lanes"
+   },
+   {
+    "added_at": "2026-11-07T17:49:57Z",
+    "item": "Viewer::run_command does not accept layer.set_visible (the host calls Viewer methods directly)",
+    "owner": "a later harness-view typed-rows slice"
    }
   ],
   "pause_20261103": {
