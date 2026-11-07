@@ -1,19 +1,39 @@
 {
   "crate": "hsk-studio-harness, hsk-studio-harness-core, hsk-studio-harness-view (writers, no drawing), hsk-studio-session",
   "lane": "SMB-SESSION-WRITE-SAFETY-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed",
   "worktree": "wt-studio-lanes/smb-pr-sequence-session-1",
-  "base": "c4d06841",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "base": "b954d4c5",
+  "commits": [
+    "d9d2e2af",
+    "96d7e6dc",
+    "ae716b3b",
+    "ab8a8e92",
+    "ba5867c2",
+    "570173af"
+  ],
+  "capabilities_done": [
+    "unique temp names in write_atomic and write_atomically",
+    "save compares its destination under an OS lock, typed refusals with a way out",
+    "edit in place requires --expect-revision, carried by the first edit; --save over another file needs --overwrite; batch uses save_new unless Overwrite",
+    "Viewer in-place save compares (expect_on_disk)"
+  ],
+  "tests": {
+    "red_027c6fbf": "14 of 14 failed, exit 100",
+    "focus2_546e1617": "21 run, 19 passed, 2 failed, exit 100",
+    "focus3_6127d99b": "2 run, 2 passed, exit 0",
+    "bundled": "facfcea9 (before rebase): 656 run, 656 passed, 24 skipped, exit 0; log smb-session-write-safety-1-bundled-facfcea9.log; -p session, harness-core, harness, harness-view --features hsk-studio-harness/audio-batch",
+    "bundled_b504b5d8": "656 run, 654 passed, 2 failed, 24 skipped, exit 100; both fixed in facfcea9",
+    "per_sha": "570173af: PER_SHA_RESULT OK shas=1, exit 0, tip only per lead; log smb-session-write-safety-1-persha-570173af.log",
+    "after_rebase": "compile check only, per the lead's landing rule; no test was run on the rebased tree, so harness_drive against the save compare and multi_process_save on b954d4c5 are unrun"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-07T05:20:57Z",
+  "next": "validator judges 570173af",
+  "updated_at": "2026-11-07T08:32:53Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -38,6 +58,72 @@
       "hbr-usage top_gaps[3]"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-pr-sequence-session-1"
+    "reuses_tree_and_target": "smb-pr-sequence-session-1",
+    "first_run": "first run at this tree (focused, red, 027c6fbf): 869 s including about 6 min in the disk lock queue; 100 Compiling lines, 32 of them workspace crates, so third-party crates were partly rebuilt (including wgpu, naga, serde) for this feature set (hsk-studio-harness/media); the rest were reused",
+    "soak_546e1617": "4 writers x 40 attempts = 160: 43 landed, 117 destination_changed, 0 save_busy, 0 open failures; 16 processes exited mid-save, 16 temps left; final revision 52 = 9 + 43",
+    "v4_06_atomic_writers": {
+      "regex": "fs::rename\\(|with_file_name\\(|\\.partial|-tmp",
+      "harness-view/src/view/export.rs write_atomic": "fixed",
+      "harness-view/src/view/audio_import.rs write_atomically": "fixed",
+      "package/src/save.rs": "not applicable: pid and attempt, create_new",
+      "reel/src/export.rs:760": "not applicable: pid and id",
+      "reel/src/export.rs:866 .vtt.partial": "fixed name, not fixed: candidate, lead decision",
+      "ps-ops/src/file_ops.rs:795": "not applicable: PostScript renamefile, not an atomic writer"
+    },
+    "limits_stated": [
+      "a writer that is not Studio takes no lock and can be lost between compare and rename",
+      "--overwrite on another file is an explicit replace",
+      "a non-Studio writer overwriting the file in place destroys the session's lazy source: the save names destination_changed, saving elsewhere can fail typed",
+      "a filesystem without OS locks runs the compare alone",
+      "stamp collision where modified times are coarse or cannot be set: 1 in 65536 per race on a removed sidecar",
+      "a filesystem whose try_lock succeeds without sharing the lock between machines gives one holder per machine",
+      "soak run on NTFS only",
+      "Viewer on destination_missing: Save As to the same name is refused too, another name works",
+      "batch save_new race has no dedicated test",
+      "Viewer after destination_missing: Save As to the same name is refused too, only another name works. Candidate: allow it",
+      "DRIVE-1 --save keeps its own overwrite_required pre-check, not destination_exists: a file created between that check and the save is replaced, because Viewer::save has no no-clobber path. Its in-place save does compare, and destination_changed reaches its reply through failure()"
+    ],
+    "bridge_lease": "host-owned epoch fence in kernel-bindings, no expiry anywhere in src; nothing built",
+    "paths_beyond_brief": [
+      "harness-core/src/harness.rs (approved)",
+      "harness-view/src/view/mod.rs open_inner, 3 lines (approved)",
+      "harness/src/lib.rs DESCRIPTOR",
+      "session/src/save_guard.rs new module",
+      "harness-core/src/batch.rs (approved, F6)",
+      "harness-core/src/action.rs RUN_COMMANDS rows",
+      "harness/tests/viewer_shell.rs"
+    ],
+    "measurement": "generated 512 MiB package, D: disk, debug test build, measured once under load: one fingerprint pass 1.68 s; open 3.52 s (includes one pass); save 17.57 s (includes two passes, about 3.4 s); canceled open refused in 88 us; test binaries measure_one_fingerprint_pass and measure_open_and_save_of_a_large_package run directly after the bundled run. Release build and baseline at c4d06841 not measured",
+    "review": "research/review-smb-session-write-safety-1-6127d99b.json F1-F7 fixed in b504b5d8",
+    "changed_existing_tests": [
+      "harness_headless verify_checks_something_and_save_never_clobbers_the_input",
+      "session_contract lazy_failures_are_typed_cancel_reads_nothing_and_memory_sessions_work",
+      "viewer_shell save_as_export_and_close_run_through_the_dialog_and_shortcuts"
+    ],
+    "soak_facfcea9": "4 writers x 40 attempts = 160: 59 landed, 101 destination_changed, 0 save_busy, 0 open failures; 16 processes exited mid-save, 16 temps left; final revision 68 = 9 + 59",
+    "ready_claim": {
+      "sha": "570173af",
+      "pushed_base": "b954d4c5",
+      "log": "smb-session-write-safety-1-bundled-facfcea9.log",
+      "pushed_at": "2026-11-07T08:32:38Z"
+    },
+    "candidates": [
+      "reel/src/export.rs:866 .vtt.partial fixed temp name",
+      "Viewer Save As to the same name after destination_missing",
+      "DRIVE-1 --save no-clobber through the session"
+    ],
+    "rebase_conflicts_resolved": "crates/hsk-studio-harness/src/cli.rs header, harness and session DESCRIPTOR lines, harness-core action.rs document.save row (kept DRIVE-1's parameters, added the lane's run methods)",
+    "lead_decisions": [
+      {
+        "at": "2026-11-07T08:33:24Z",
+        "on": "sidecar lock",
+        "decision": "Removal kept, holder verifies its stamp through the path; the coarse-mtime collision is stated in docs, not claimed closed."
+      },
+      {
+        "at": "2026-11-07T08:33:24Z",
+        "on": "CLI edit --expect-revision",
+        "decision": "Only the first edit carries the expectation, because a no-op keeps the revision."
+      }
+    ]
   }
 }

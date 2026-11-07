@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T08:10:03Z",
+ "updated_at": "2026-11-07T08:33:24Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19091,8 +19091,8 @@
   },
   {
    "lane_id": "SMB-SESSION-WRITE-SAFETY-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness, hsk-studio-harness-core, hsk-studio-harness-view (writers, no drawing), hsk-studio-session",
    "lane_file": "builders/lanes/hsk-studio-session-write-safety-1.json",
    "brief": "builders/briefs/lane-smb-session-write-safety-1.md",
@@ -19100,10 +19100,11 @@
    "base": "c4d06841",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-07T05:20:57Z",
+   "updated_at": "2026-11-07T08:33:24Z",
    "closes": [
     "hbr-usage top_gaps[3]"
-   ]
+   ],
+   "claim": "d9d2e2af..570173af"
   },
   {
    "lane_id": "SMB-HARNESS-DRIVE-1",
@@ -21380,6 +21381,21 @@
     "added_at": "2026-11-07T08:09:58Z",
     "item": "RUN-UI.md is stale on these commands",
     "owner": "record repair"
+   },
+   {
+    "added_at": "2026-11-07T08:33:24Z",
+    "item": "SMB-HARNESS-DRIVE-1 --save: use the no-clobber save path instead of an exists pre-check",
+    "owner": "SMB-COMMAND-SURFACE-1 or a later harness lane"
+   },
+   {
+    "added_at": "2026-11-07T08:33:24Z",
+    "item": "Viewer after destination_missing: allow Save As to the same name",
+    "owner": "a later harness-view lane"
+   },
+   {
+    "added_at": "2026-11-07T08:33:24Z",
+    "item": "reel/src/export.rs:866 fixed .vtt.partial temp name",
+    "owner": "SMB-PR-EXPORT-RECIPE-1"
    }
   ],
   "pause_20261103": {
