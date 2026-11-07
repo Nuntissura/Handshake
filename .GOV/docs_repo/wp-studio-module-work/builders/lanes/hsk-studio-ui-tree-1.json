@@ -1,0 +1,43 @@
+{
+  "crate": "kumihimo-ui",
+  "lane": "SMB-UI-TREE-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-type-sentinels-registry-1",
+  "base": "95ee277458b18fc333ba3fb8bc6231291ec10172",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on C:, push when green",
+  "updated_at": "2026-11-07T09:57:08Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "none in the core: a port, the host supplies observe",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "not_applicable",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "high"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-07T09:57:08Z",
+    "disk": "C",
+    "closes": [
+      "O4, O5 toolkit core"
+    ],
+    "closes_candidates": [],
+    "reuses_tree_and_target": "smb-type-sentinels-registry-1"
+  }
+}

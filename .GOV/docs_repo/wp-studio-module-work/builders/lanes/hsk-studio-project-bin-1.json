@@ -1,0 +1,43 @@
+{
+  "crate": "hsk-studio-folio, hsk-studio-session, hsk-studio-pulse, hsk-studio-harness-view, hsk-studio-harness-core",
+  "lane": "SMB-PROJECT-BIN-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-r54-followups-1",
+  "base": "95ee277458b18fc333ba3fb8bc6231291ec10172",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on C:, push when green",
+  "updated_at": "2026-11-07T09:57:08Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe: one terminal frame per command, codes and counters only",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "required: every commit step takes the caller's context (CommandContext or ActorContext); never a default actor",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "medium"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-07T09:57:08Z",
+    "disk": "C",
+    "closes": [
+      "workflows/backlog-20261107.json SMB-PROJECT-BIN-1"
+    ],
+    "closes_candidates": [],
+    "reuses_tree_and_target": "smb-r54-followups-1"
+  }
+}
