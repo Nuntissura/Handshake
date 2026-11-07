@@ -1,0 +1,71 @@
+{
+  "lane": "SMB-COMMAND-SURFACE-1",
+  "tip": "ae15cf6bc022e75aa2d8bde6de170e6572713f2a",
+  "base": "95ee2774",
+  "verdict": "FIX_FIRST",
+  "verdict_note": "No compile break and no test failure found by reading. F1 and F2 give wrong answers that no test asserts. Both fixes are a few lines; landing them before the bundled run saves a second build.",
+  "findings": [
+    {
+      "id": "F1",
+      "confidence": "READ",
+      "file": "hsk-studio-harness-core/src/harness.rs:622-627 with hsk-studio-harness-view/src/view/commands.rs:72,79",
+      "what": "Run::command_outcome passes `before` to own_op/push, which treat it as a frame count (harness.rs:458 `self.frames.count().saturating_sub(before)`; every other caller passes `self.frames.count()`). Viewer::run_command passes `self.run().ops().len()` instead. Every typed command that reaches no Run op (layout.*, catalog.*, photo.info.*, vector.set_tool_options, vector.add_font, and every pre-dispatch refusal) records observe.frames = frames - ops: 0 or a wrong number, though one frame was emitted.",
+      "scenario": "A session with 20 frames and 25 ops runs layout.draw_frame: the frame is emitted, but the record says observe.frames 0.",
+      "fix": "In command_outcome, drop the `before` parameter and take `let before = self.frames.count();` first (the frame is emitted later, inside own_op). Remove the argument at commands.rs:79."
+    },
+    {
+      "id": "F2",
+      "confidence": "READ",
+      "file": "hsk-studio-harness/src/cli/drive.rs:242-247",
+      "what": "For a non-layout typed row, undo_name is the last label of Run::history().undo, whether or not this command added a step. Viewer methods can succeed with no step: develop_change returns Ok on an unchanged edit (view/develop.rs:1024-1026), and set_tiles_and_entry leaves no step on an unchanged entry (harness.rs:1254 keeping_redo_without_new_step). The reply then gives the previous command's step as this command's.",
+      "scenario": "On a raw document, send photo.develop.kelvin {kelvin:5600} twice: the second reply names the first's step. Or send proof.select working_rgb, then proof.set_proof_colours {on:true} (already on): the reply says 'proof_select'.",
+      "fix": "Before run_command, read the correlation of the last undo_steps entry; after it, report the last label only if that correlation changed, else null. A count can stay level under a history cap, so do not use the count."
+    },
+    {
+      "id": "F3",
+      "confidence": "READ (mechanism); impact on Windows-only builds SUSPECT",
+      "file": "hsk-studio-harness-view/src/view/commands.rs:39-46 (read_bounded), used by vector.add_font and vector.set_document_cmyk_profile",
+      "what": "The size cap trusts metadata().len(). A non-regular file reports 0, then std::fs::read reads until EOF. /dev/zero, /dev/urandom or a FIFO allocates without bound. The size is also checked before the read, so a file that grows in between is not capped.",
+      "scenario": "vector.add_font {\"family\":\"x\",\"path\":\"/dev/zero\"} on a Unix build: the process is killed for out-of-memory.",
+      "fix": "Refuse when !meta.is_file() (resource_unreadable). Read with File::open(path)?.take(limit + 1).read_to_end(&mut buf) and refuse resource_too_large when buf.len() > limit."
+    },
+    {
+      "id": "F4",
+      "confidence": "READ",
+      "file": "hsk-studio-harness-view/src/view/commands/layout.rs:132-136",
+      "what": "run() opens the Layout Editor panel (toggle_panel creates a fresh LayoutEditor) before edit_of decodes the parameters. A first layout command with an undecodable value is refused, but the panel and editor are left open. The module promises a typed refusal 'before anything runs'.",
+      "scenario": "layout.draw_frame {page_id:p, x:\"NaN\", y:0, w:1, h:1} as the session's first layout command: the reply is parameter_invalid, and state.shell.surfaces.layout_editor is now non-null.",
+      "fix": "Move `let edit = edit_of(id, f)?;` above the editor-open block."
+    },
+    {
+      "id": "F5",
+      "confidence": "SUSPECT",
+      "file": "hsk-studio-harness/src/cli/drive.rs:517 (parameter_text) with view/commands/decode.rs json()/raw()",
+      "what": "A top-level empty JSON array passes the all-strings test vacuously and becomes \"\". The typed decoders then refuse that \"\" as parameter_invalid, where the caller meant an empty list. Whether an empty list is valid for each method is not verified.",
+      "scenario": "design.set_grid_tracks {node:n, rows:[], columns:[{\"type\":\"HUG\"}]} is refused parameter_invalid on rows.",
+      "fix": "Join only non-empty string arrays (`!items.is_empty() && items.iter().all(..)`), so \"[]\" reaches the decoders. Fields::list already accepts \"[]\". First check drive_viewer's text_list parsing of \"[]\"."
+    }
+  ],
+  "checked": [
+    "Compile: there are no ParamSpec or CommandEntry struct literals outside action/commands (git grep over the whole tree, plus the lane/smb-doc-new-1 and lane/smb-motion-commands-1 diffs). layer.rs OPACITY uses `..p(..)`. ALL_ROWS is built by a const loop with ROW_COUNT computed. The const fns are reachable from the child domain modules.",
+    "hsk-studio-controls headless: ui_descriptor uses only serde_json, which is a non-optional dependency. harness-core depends on controls with default-features=false. harness-view depends on controls with egui. MenuNodeKind and the MenuNode fields (kind, data_label, menu_only, help, label, id) exist.",
+    "harness-view gating: view is behind `viewer`, which brings in layout-ui, pigment, nib, components, type, develop (import-raw) and prism (import-psd). The audio-batch arms and BatchItem/MixFormat sit under the same cfg.",
+    "Every Viewer method the decoders call was checked against its real signature (about 45): set_fill … grid_reorder_*, info_command, develop_op (Refusal{code:&'static str, detail:String}), liquify, select_*, fill_*, proof_command, hosted_action, layout_editor, toggle_panel, menu_bar.",
+    "Every record type the decoders build was checked field by field: PathEdit, NetworkEdit, MeshEdit, SwatchSpec/SwatchColour, PaintSpec/GradientStop/StrokePanel(+solid), MarkerSpec, EnvelopeSpec, TransformOp/TransformEach(+Default)/Distribute/AlignTarget, AnchorAddr/EndAddr/Constraint/HandleSide/End/Mirroring/CornerTreatment/LineJoin, RecolorTable/Row/Adjust/Rgb, GridTrackMove(u32), Bounds, VectorTool, FillSettings/FillSource, MagneticOptions(+Default), LiquifyTool/Brush, StrokeSample, InfoCommand, DevelopOp, ProofCommand, PathTextSpec/PathTextOptions(+Default), PanelAction (41 variants), LayoutEdit/PageEdit/StyleEdit/TableEdit/StylePatch/FindQuery/FindScope/FindMode.",
+    "token<T: Copy>: every token table type derives Copy. Every Folio type behind folio_field! derives Deserialize and is re-exported at the root. The serde tokens used by the tests exist (warp arc/horizontal, StrokeCap snake_case, arrowhead tokens, arrow_align.*, GridTrackSize {type,value}, ProofCondition fields, shipped working_rgb).",
+    "LayoutEdit::command_id match is exhaustive over all 11 members and their sub-enums. The layout name stacks are pushed, popped, trimmed (MAX_HISTORY) and cleared exactly where the doc stacks are; layout_ui.rs is the only file that touches them, because the fields are private.",
+    "Dispatch: 150 typed ids are unique (and unique across all 173 RUN_COMMANDS rows); none equals a viewer canonical id <viewer_domain>.<method> over the 86 DRIVE_VIEWER methods, or one from the doc-new lane's 13 new methods. drive.rs gives timeline./viewer./studio. precedence, and viewer_row_of is filtered by command(id).is_none(). The panel action_of suffixes are unique.",
+    "Catalog: timeline keys and spec_commands contain no duplicates and no characters outside the grammar. Tool keys (33) and panel keys (12) are unique snake_case. Menu leaf ids are unique, including proof VIEW and COLOR, which differ (studio.color.proof vs studio.color.proof_menu). Recent leaves are data_label and skipped. No alias equals any author_id.",
+    "action_records corpus test: filtered to Surface::Run; command_outcome is a pub &mut fn with its own row. The help sweep in harness_drive.rs is unaffected.",
+    "Decoders: line cap 1 MiB, and serde recursion limit 128 at parse_line and again at each f.json re-parse. Mesh 1..=64; shape sides and points are bounded downstream in nib shape::polygon/star; no panicking index or arithmetic in decode.rs.",
+    "output_path guards: every typed row that writes a file (export_svg/pdf path, import_vector dest, batch_add output) declares OUTPUT_PATH and an overwrite flag. The guard matches the viewer-row export guard (same_file, then exists without overwrite). source follows import_vector dest only on success.",
+    "Attribution: every drive command requires --actor and --session (package_of). Typed rows run under the viewer's RunContext, and layout-only rows are recorded through command_outcome with that actor."
+  ],
+  "not_checked": [
+    "Runtime-only test assertions: what layout_doc() opens with (the 'one page' claim), the LayoutUiError codes invalid_geometry and table_too_large, hosted result texts ('offset path layer', 'graphic style', 'swatch'), the tables_json table_id key, and the attribution_json shape.",
+    "Builds with the audio-batch feature; clippy.",
+    "Textual merge with the motion-commands and doc-new lanes: both also edit manual.rs. Only id collisions were checked: none found.",
+    "SMB-SESSION-WRITE-SAFETY-1's save path on origin was not compared; only this tree's drive save and export guards were compared.",
+    "How Windows treats device paths (CON, \\\\.\\...) in read_bounded."
+  ]
+}

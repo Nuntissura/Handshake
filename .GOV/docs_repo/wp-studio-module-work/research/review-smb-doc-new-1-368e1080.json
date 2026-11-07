@@ -1,0 +1,48 @@
+{
+  "lane": "SMB-DOC-NEW-1",
+  "tip": "368e1080",
+  "base": "95ee2774",
+  "verdict": "FIX_FIRST",
+  "findings": [
+    {
+      "id": "F1",
+      "certainty": "READ",
+      "where": "hsk-studio-harness-core/src/harness/containers.rs:207 (add_artboard) with document_new.rs:231 mint_child_id; same class containers.rs:288-289 (page ids page-{page_count+1}, SPGS ids)",
+      "what": "A new artboard re-mints the id of a deleted one, so the artboard_options row kept 'inert' for the deleted artboard (document_new.rs:528) goes live on an unrelated artboard, and a Go to Artboard choice of the deleted one jumps to it. mint starts at artboards.len()+1 and only skips ids in the live list.",
+      "scenario": "vector doc A (SART..001); add B (..002); set_artboard_options B show_center_mark=true; delete B; add C -> C is SART..002 and state.containers reports C with B's options. Pages: delete page-3, add page -> page-3 again, re-attaching layout records that name page-3 (lane cut says page delete leaves them).",
+      "fix": "Treat as taken every id the session still remembers: in add_artboard pass a taken predicate that also checks the stored artboard_options rows (or session.revisions() node ids, which keep a removed container's name entry). For page ids, mint past the highest page-N ever seen in the document and entries, or skip ids the layout entries name."
+    },
+    {
+      "id": "F2",
+      "certainty": "READ (path), reachable only when the shown frame is gpu-shared (render.rs:332, rgba8 empty)",
+      "where": "hsk-studio-harness-view/src/view/info.rs:457-466 (info_composite -> info_render on the live snapshot), proof.rs:576-581, vector.rs:1260-1271",
+      "what": "After go_to_artboard picks an artboard other than the first, these read-backs still render the live document, which frames the first artboard. Info histogram and sampler values, and the proof view, are computed from the wrong artboard (different extent and pixels) while the canvas shows the chosen one. render_folio_vectors returns the first artboard's frame. Lane names these 'named_not_fixed'; they give wrong answers, not refusals.",
+      "scenario": "GPU display on, two artboards, go_to_artboard(second), open Info: samples and histogram describe artboard 1.",
+      "fix": "Use the same pattern as view/mod.rs:704: let framed = self.framed_snapshot()?; let snap = framed.as_ref().unwrap_or(live); in info_composite, info_scope_layers' render, proof_view_now and render_folio_vectors."
+    },
+    {
+      "id": "F3",
+      "certainty": "READ",
+      "where": "hsk-studio-harness-core/src/action/commands/document.rs:31-41 vs manual.rs:268-280 DRIVE_VIEWER rows and cli/drive.rs:146 + drive_viewer.rs:174 check_row",
+      "what": "drive routes the catalog ids to the viewer rows, whose check_row refuses undeclared keys, but the RUN_COMMANDS corpus (exported by corpus_json/manual) declares different keys: page.add declares `page` (row takes `after`), artboard.set_options declares `options` (row takes nine separate fields). A model following the corpus gets parameter_unknown. document.new: corpus `name` (and CLI --name) is the artboard name, but in the drive row `name` is the save-file base and the artboard name is `artboard_name`, so {\"name\":\"mark\"} silently names the file, not the artboard.",
+      "scenario": "{\"command\":\"command\",\"command_id\":\"page.add\",\"parameters\":{\"page\":\"page-1\"}} -> parameter_unknown; {\"command_id\":\"document.new\",\"parameters\":{\"profile\":\"vector\",\"width\":100,\"height\":100,\"name\":\"mark\"}} -> artboard 'Artboard 1', save_input mark.handshake.",
+      "fix": "Make the corpus ParamSpecs equal the viewer rows: page.add AFTER instead of PAGE; set_artboard_options the nine fields instead of OPTIONS; document.new ARTBOARD_NAME (and keep the save name under a distinct key)."
+    }
+  ],
+  "checked": [
+    "session: container_step.rs successor/inverse/binding; create_new (validate, token entry, open_bytes, saved_revision None); submit_containers_as/_keyed_as through check_command_context and submit_inner; the only Step match (session.rs:1429-1460) has the Containers arm; propose_containers Applied literal and name-revision slots; refusals change nothing (value_conflict before any publish).",
+    "artboard_options token: DOCUMENT_ENTRY_TOKENS, entry_references.rs NOT_APPLICABLE (count 14, classified test, bytes-kept test with body {}), set_document_entry token check; package externals test covers Folio schemas only, the entry carries no reference-like property.",
+    "HistoryStep.containers: all 19 literals in harness.rs plus 3 in containers.rs set it; history_step dispatch; container_history restores the step on refusal; ctx command id equals step.command_id for history.undo/redo; action_records run_pub_fns scan of containers.rs (impl Run header, every mutating pub fn has a corpus row, artboard_options is &self).",
+    "delete refusals: artboard_not_empty/last_artboard/page_not_empty/last_page are computed before any write; Folio still refuses a removed container a layer names.",
+    "bounds: check_size/check_position (NaN, inf, 0, negative, 1e309 parses to inf, non-whole px, >16348 pt, |pos|>1e7), MAX_ARTBOARDS 1000, MAX_PAGES 9999, raster 300000 px refused at render by MAX_VIEW_PIXELS (render.rs:399), CLI --size parse (size_invalid), --bits u8 parse.",
+    "view: active_artboard fallback when the chosen frame is deleted; framed_snapshot reorder; render.rs empty-document path and frame_extent; edit/select_liquify/arrange/interop/pdf/separations sites; reset_document_surfaces clears active_container; borrow shapes in mod.rs:782-797.",
+    "CLI execute_new: actor required, overwrite_required, save_new vs save_replacing; drive dispatch order and viewer_method/check_row."
+  ],
+  "not_checked": [
+    "Nothing was compiled or run. harness_drive process tests (possibly stale example binary) not assessed.",
+    "harness-view's own test targets and harness without the viewer feature were not traced for compile.",
+    "Whether Folio validates spread bounds against page sizes or units for a page added to a non-pt document; whether spreads all placed at (0,0) make a layout frame composite other spreads' layers.",
+    "clippy arithmetic_side_effects on the new modules.",
+    "GPU display path end to end (F2 traced from code only)."
+  ]
+}

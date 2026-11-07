@@ -1,0 +1,70 @@
+{
+  "lane": "SMB-LAYOUT-PERSIST-1",
+  "tip": "b21616b7",
+  "base": "672a1804",
+  "verdict": "FIX_FIRST",
+  "findings": [
+    {
+      "id": "F1",
+      "kind": "test_fails",
+      "confidence": "READ",
+      "where": "hsk-studio-session/tests/entry_references.rs:16 and :341 (every_document_entry_token_is_classified); cause hsk-studio-session/src/source.rs:170",
+      "what": "source.rs adds \"layout_records\" to DOCUMENT_ENTRY_TOKENS, but the token is in neither NAMING nor NOT_APPLICABLE, so assert_eq!(classified, tokens) fails in the session suite of the bundled run.",
+      "fix": "Add a NOT_APPLICABLE row, e.g. (\"layout_records\", \"layout editor records: SLYR frames, STXT stories, type styles, page ids; no sequence or clip id\"), and change the array type [(&str, &str); 14] to 15. a_token_that_names_neither_is_untouched_by_a_removal then gives it the body {} (an invalid entry is kept as it is, and the multicam removal does not touch it). SMB-PROJECT-BIN-1 also takes this count from 14 to 15 with PROJECT_BIN_ENTRY, so with both lanes it is 16."
+    },
+    {
+      "id": "F2",
+      "kind": "test_fails",
+      "confidence": "READ",
+      "where": "hsk-studio-harness-core/tests/action_records.rs:311-326 (corpus_lists_every_run_operation_with_recordability); cause hsk-studio-harness-core/src/harness.rs:1880 pub fn submit_layout(&mut self, ...)",
+      "what": "run_pub_fns() scans harness.rs and finds the new mutating Run::submit_layout. No Surface::Run RUN_COMMANDS row names it: the layout.* rows come from typed(), with Surface::Viewer and run_method LayoutEditor::apply. The test fails with 'mutating Run methods without a RUN_COMMANDS row: [\"submit_layout\"]'. SMB-DOC-EXPORT-1's first bundled run failed the same way on record_host_outcome (fixed at e85e1440).",
+      "fix": "In hsk-studio-harness-core/src/action/commands/document.rs, add entry(\"document.submit_layout\", \"submit_layout\", \"Commit layout edit\", false, true, &[]). This is the same 2-line form e85e1440 used, and the id stays outside the layout.* Viewer prefix."
+    },
+    {
+      "id": "F3",
+      "kind": "wrong_answer",
+      "confidence": "READ",
+      "where": "hsk-studio-session/src/layout_records.rs:336 (successor writes Some(r.to_bytes()?)) against :64 preflight, used by decode",
+      "what": "Writes and reads of the entry use different bounds. Each read (decode, layout_records_shape, open notes, undo's held-entry quote) refuses an entry over Budget.input_bytes (1 MiB) before parsing. The write only validates each member: one story's text may be up to payload_bytes 256 KiB, with up to 4096 stories. It then checks document_entries_fit against max_entry_bytes (512 MiB), and the encoded size is never checked. Input: 5 frames, then layout.replace_text of about 220 KB into each. The 5th commit succeeds and writes an entry over 1 MiB. After that, every layout edit refuses layout_records_unreadable, and the editor falls back to the text entry, so the stories disappear from it. layout.undo / EDIT > Undo of that 5th step refuses value_conflict, because successor() cannot decode the live entry (line 316). On reopen the entry gets a LossReason::Opaque note.",
+      "fix": "In successor(), after the bytes are built: let bytes = r.to_bytes()?; preflight(&bytes, budget, cancel).map_err(|_| SessionError::Provider(\"budget_exceeded\"))?; Some(bytes). This refuses the edit typed and changes nothing."
+    },
+    {
+      "id": "F4",
+      "kind": "wrong_answer",
+      "confidence": "READ",
+      "where": "hsk-studio-harness-view/src/view/shell.rs:1478-1488 (layout_doc fallback), used by layout_sync at :806; hsk-studio-harness-core/src/harness.rs:1891 (records quote is shape only)",
+      "what": "The named cut describes this as a layer delete leaving a stale entry that 'the next layout edit replaces'. It is wider than that. When the entry decodes but does not validate against the document, layout_doc loads the text-entry stories and styles, an empty flow, empty parent pages and empty longdoc into the editor. The next layout edit then commits exactly those, and nothing reports it, because layout_sync discards the note. Every layout story, thread, style, parent page and table is dropped; the frames stay with no text. A second trigger is on origin: layout.page.apply_parent pages=[page-2], then DOC-NEW-1 page.delete page-2 (the parent-page validator requires bound pages to exist), then layout.draw_frame. That last command returns Ok and the layout content is gone. Undo can recover it only within this session.",
+      "fix": "Refuse instead of replacing. In Run::submit_layout, if session.layout_records(cancel) errs while layout_records_shape decodes, return a typed code (layout_records_stale, or reuse layout_records_unreadable) and change nothing; the user recovers by undoing the step that made the entry stale. Alternative: in layout_doc, put the decoded records into the editor so that an edit keeps them and the commit refuses layout_records_rejected."
+    }
+  ],
+  "answers": {
+    "q1_lost_update_after_edit_undo": "No lost update. Viewer::layout_apply (shell.rs:771) calls layout_sync first. layout_sync rebuilds the editor from layout_doc() (the session document plus the stored entry) whenever same_layout differs (the comparison ignores only the revision), so a typed row or a layout_apply caller always edits the live state. The test confirms this: v.undo(), then NewStyle Caption, leaves only Caption. Non-edit rows (layout.find, layout.preflight) sync too, and layout.undo/redo act on the run history. The egui panel act() and the panel's Undo/Redo buttons only touch the editor and commit nothing (named cut). The next typed command drops what they did; nothing is re-applied. Exception: after the SMB-LAYOUT-PDF-HOST-1 merge, its export reads the editor without syncing (see q4).",
+    "q2_zero_length_story": "No refusal or misread found at the tip. Nothing reads the layout_records stories except LayoutRecords::parse (on open, read and commit, with the same relaxed rule) and the layout editor. The package keeps the entry as opaque bytes. No Folio validator or exporter at the tip reads the entry; PDF-HOST's exporter reads the editor's stories, which already had this engine form before the lane. Table cell stories: tables.rs commit() makes [0,0] only when every cell is empty, and non-empty cell stories are a real partition. The rule is looser than the engine's form: any number of [0,0] paragraphs and ranges is accepted (all() over an empty list is true). How the engine handles a crafted entry with 2 or more [0,0] paragraphs: not checked.",
+    "q3_history_field": "The new field is HistoryStep.layout: Option<hsk_studio_session::LayoutStep> (harness-core harness.rs). At e85e1440 the HistoryStep literals are the same 22 as at 672a1804, and all 22 set layout: None on the tip. harness.rs: 894, 928, 1227, 1349, 1385, 1428, 1504, 1641, 1675, 1743, 1805, 1871, 1974, 2033, 2064, 2113. containers.rs: 208, 244, 517. motion_commands.rs: 471, 484, 496. harness.rs:1937 is a `..` pattern and needs nothing. e85e1440 adds no literal, and rebasing onto e85e1440 merges harness.rs cleanly. SMB-PROJECT-BIN-1 (lane/smb-project-bin-1-d 0b84d1b5): yes, its Run::project_bin_command literal (EntryRestore of PROJECT_BIN_ENTRY) needs layout: None, or the build fails with E0063. That branch also has one textual conflict at the submit_sequence_edits_and_entry literal: take its `command` and add layout: None. It also conflicts on the token lists (session lib.rs, sequence_records.rs x3, source.rs; take both sides) and on the NOT_APPLICABLE count (see F1). SMB-WEB-HOST-1 (1ada8bc2): harness.rs merges without conflict, and the two refusals combine correctly in either landing order. layout_history_step first refuses not_a_layout_step when the run's newest label is not layout.*. Otherwise Run::undo/redo runs web_step_is_newer and refuses newest_step_is_web, which reaches layout.undo through op_error. Neither refusal changes state.",
+    "q4_merge_with_layout_pdf_host": "Textual (git merge-file on view/commands/layout.rs; 2 conflicts). (1) Imports: keep PDF-HOST's `use super::super::layout_export::{...}` and this lane's layout_ui import without LayoutEditor. (2) Drop `fn history` (this lane) and keep PDF-HOST's output_refused and output(). The `if let Some(v) = output(viewer, id, f)?` prefix in run() merges cleanly. Semantic, which breaks a test: PDF-HOST's layout_open (layout_export.rs:487-511) builds a sized blank document from blank_layout_doc, with a different document_id, and does `*editor = LayoutEditor::new(doc)` without committing it. In the merged tree, the next row that syncs drops it. Process test a_model_exports_a_sized_layout_through_the_process (layout_pdf_host.rs:299-316, demo.handshake has no pages) runs layout.open with 12 pages, then layout.preflight. preflight goes through this lane's `_ => viewer.layout_sync()` (layout.rs:132), which rebuilds the editor as demo plus one A4 spread. warnings is then 1, not 12, and export_pdf writes 1 page: two asserts fail. Separately, live_layout and layout_preflight (layout_export.rs:514-523) read the editor without syncing, so after EDIT > Undo export_pdf and export_idml write the undone layout. Smallest plan: rebase onto PDF-HOST and resolve the 2 hunks as above. Then (a) when a document is open, layout_open's sized path puts the sized spreads on the open document (keeping its id) and commits them as one step through a layout_commit helper taken from the tail of layout_apply (Run::submit_layout with command \"layout.open\"). (b) layout_sync returns early when nothing is open (self.run.snapshot().is_none()), so PDF-HOST's editor-only no-document flows are kept. (c) live_layout and layout_preflight call self.layout_sync() first. Rerun layout_pdf_host and layout_persist.",
+    "q5_undo_redo_across_reopen": "The document and entry state survives, and the test checks layers, spreads, stories, styles, flow and records after reopen. The inverse does not survive: Run::finish_open (harness.rs ~1044) clears undo_stack and redo_stack, as it does for every other step kind. After reopen, layout.undo refuses nothing_to_undo and layout.redo refuses nothing_to_redo; nothing is applied wrongly."
+  },
+  "checked": [
+    "full diff 672a1804..b21616b7 (12 files)",
+    "focused7-b21616b7.log: 6/6 pass at the tip with dirty=0, so the session, harness-core and harness-view libs and the harness viewer test targets compile",
+    "Run::submit_layout and the history_step layout branch: command ids, check_command_context, restore_step on refusal, redo stack",
+    "layout_records successor: same_state, the shape-only records quote, the inverse with expect = successor, no-change, the first-step entry removal on undo",
+    "propose_layout and publish structural seeding (adds only missing revision-0 entries; containers unaffected)",
+    "serde_json float_roundtrip is enabled through folio/package (no f64 drift in the undo quote)",
+    "Viewer layout_apply, layout_sync, same_layout, layout_history_step, layout_doc and fit_spreads; Folio requires pages in pt (layout.rs:436) and spread bounds in the document unit (lib.rs:685); the editor's refit_spreads keeps the mm label",
+    "LayoutEditor apply/undo semantics behind the failure path",
+    "test sites that scan or enumerate: entry_references token classification, action_records run_pub_fns, package externals schema list (no new Folio schema), harness_headless descriptor JSON",
+    "HistoryStep literals at e85e1440 compared with the tip; harness.rs rebase onto e85e1440 (merge-file clean)",
+    "three-way merges in temp files: layout.rs with PDF-HOST 3972c165, harness.rs with WEB-HOST 1ada8bc2 and PROJECT-BIN 0b84d1b5, session lib/sequence_records/source with PROJECT-BIN",
+    "PDF-HOST layout_export.rs layout_open, live_layout, layout_preflight and sized_layout_doc; layout_pdf_host.rs process test",
+    "WEB-HOST Run::undo/redo web_step_is_newer and refuse_for_web"
+  ],
+  "not_checked": [
+    "clippy on the new code (read by eye only; no -D warnings run)",
+    "compiling session, harness-core and harness-view test targets other than the two harness targets in the log (no struct literal of Applied or HistoryStep is in tests, by grep)",
+    "layout engine behaviour on a crafted zero-length story with 2 or more [0,0] paragraphs",
+    "commit-authority (CommitPort) sessions: submit_layout_as passes key None",
+    "fit_spreads rewriting the bounds of pt spreads that are not the sum of their pages (DOC-NEW-1 page.add rule not compared)",
+    "PROJECT-BIN and WEB-HOST files outside the overlap with this lane"
+  ]
+}

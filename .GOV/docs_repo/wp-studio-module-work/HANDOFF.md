@@ -276,9 +276,38 @@ These replaced D11 (eframe plus wgpu window) as a product path. Spec: v02.226..2
 
 </topic>
 
-<topic id="state" status="active" updated_at="2026-11-07T17:40:00Z" summary="Current state, 2026-11-07 evening; older sections kept for history">
+<topic id="state" status="active" updated_at="2026-11-07T18:20:00Z" summary="PAUSED 2026-11-07 about 18:20Z on the Operator's word; resume steps first, older sections kept for history">
 
-## Current state (2026-11-07, about 17:40Z)
+## PAUSED (2026-11-07, about 18:20Z)
+
+**Operator:** "let the agents finish their work then lets find a spot to pause work". Every agent reached its stop point and reported; no builder, reviewer, scope agent or watcher is running. No round is running. Nothing is pushed beyond what is listed.
+
+**Product origin:** cede5958. **READY_FOR_VALIDATION, unjudged (19):** routing-repair, write-safety, harness-drive, diag-sink, controls-egui-gate, gui-steward, motion-commands, command-surface, pigment-filter-kernels, ui-tree, audio-out-mix, doc-new, vk-host, doc-export, layout-pdf-host, project-bin, web-host, layout-persist, gui-spine. Trunk checks green at 5341e561, 672a1804 and 9ab80edd.
+
+**C: has room again.** Plan S executed on the Operator's approval (`direction.c_cap_20261107.plan_s_executed`): 169.15 GiB of older test-binary copies removed; C: free 338G to 504G. The round target kept its newest copy of every binary, so R60 relinks only what changed.
+
+**First action on resume: R60 FULL with canary.** Freeze the origin tip, then `python tools/lead/dispatch_r60.py <tip8> <commits since c4d06841> --write` writes `validation/dispatch-prompt-R60.txt` from the ledger's READY lanes. Read it, then dispatch one opus validator. Builders stay on D: during the round. A lane may land during it (CX-VAL-001), one at a time.
+
+**Paused lanes (code committed locally, not pushed; each lane file's `next` is exact):**
+
+| Lane | Tree (owner, disk d) | Branch | Tip | Base | Left |
+|---|---|---|---|---|---|
+| SMB-PR-EXPORT-RECIPE-1 | smb-r53-followups-1 | lane/smb-pr-export-recipe-1 | c79c858d | aa68164c | Review done (`research/review-smb-pr-export-recipe-1-c79c858d.json`, FIX_FIRST): F1 an output named *.vtt with a captions sidecar is overwritten by the sidecar while the receipt says Complete (refuse in CaptionPlan::new); F2 receipt.captions None when the media is published and the sidecar rename fails; F3 use std::fs::hard_link for no-clobber publish, rename fallback on FAT/exFAT. Then bundled, land. |
+| SMB-ARTBOARD-EXPORT-1 | smb-ai-distort-effects-1 | lane/smb-artboard-export-1 | 9db105fc | aa68164c | Pre-build review, bundled, land. Adds session token `export_settings`. |
+| SMB-PLACE-ASSET-1 | smb-pr-sequence-session-1 | lane/smb-place-asset-1 | 9d83222c | a3215161 | Pre-build review, bundled, land. Adds session token `raster_records`: whichever of these two lands second merges DOCUMENT_ENTRY_TOKENS and the count in session tests/entry_references.rs. Named, not fixed: layers.rs duplicate_layer copies a placed layer's pixels without its record. |
+| SMB-DRIVE-TYPED-2 | smb-pr-edit-footprint-1 | lane/smb-drive-typed-2 | 2bbe2207 | aa68164c | Pre-build review, bundled, land. About 80 typed rows; ALL_ROWS is a static; doc-new's rows .opt() and document arm done. |
+
+**Scoped, not dispatched (GUI line, one at a time before B9; these two touch different crates and may run together):**
+- SMB-GUI-FRAME-1 (new name): `research/scope-20261107-gui-frame-1.json`, tree smb-pr-entry-references-1. The complete static raster frame (B5) on the CPU painter. Lead leanings for its questions: rename the Viewport id to `studio.viewer.canvas` (STU-SHL-066 wins over the spine's `studio.viewer.raster`); unbuilt controls follow B6 (disabled with a reason); icons in this lane, cut first if it passes 10 commits. Design-data fixes it found: two fit_table rows 1 px short; `studio.toolgroup.smart_select` fails the STU-MDL-103 id charset.
+- SMB-VK-UI-PASS-1 (red team's proposed name): `research/scope-20261107-vk-ui-pass-1.json`, tree smb-pr-retime-hold-1. The GPU draws kumihimo-ui's display list with offline naga SPIR-V and glyph and icon atlases, pixel-compared against the CPU painter. Needs lead approval of a nested spv-build Cargo.lock (34 packages, all already in the root lock and cache) and one exact workspace-probe WGSL allow entry under O3 (lead leaning: approve), and READY with validation absent.
+
+**Waiting width lanes:** SMB-AI-LIVE-EFFECTS-1, SMB-TYPE-INDENT-SPACING-1, SMB-SCORE-EFFECTS-6 (re-scope first), SMB-PARSER-HOSTILE-1, and a filter-commands slice for the 19 new kernels (not scoped).
+
+**Open with the Operator:** the Vulkan SDK download (`vulkansdk-windows-X64-1.4.363.1.exe`, 303,066,832 bytes, sdk.lunarg.com) for the validation layer; the P3 reading (disk space or concurrency); whether three Adobe tooltip sentences copied from spec v02.229 module 14 (lines 24952 to 25501) into reel's export_parameter_rows.rs may ship.
+
+**Still true:** stash a06b4ea6 stays in the shared stash list (a builder's; left as instructed). The C: trees of the five lanes moved to D: are idle and untouched. Lane worktrees stay until their lanes PASS, then `tools/lead/lane_close.sh`.
+
+## State at about 17:40Z (2026-11-07, before the pause)
 
 **Authority:** `ledger.json` lanes and `direction.workflow_20261107`, `direction.blocker_decisions_20261107`, `direction.c_cap_20261107` (with `p3_note` and its amendment).
 

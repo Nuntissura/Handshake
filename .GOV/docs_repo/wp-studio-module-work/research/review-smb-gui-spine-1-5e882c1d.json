@@ -1,0 +1,93 @@
+{
+  "lane": "SMB-GUI-SPINE-1",
+  "tip": "5e882c1d",
+  "base": "e85e1440",
+  "reviewed_at": "2026-11-07",
+  "verdict": "FIX_FIRST",
+  "verdict_note": "Nothing here breaks compile or fails an existing test: the document build and the default (no document) build both trace clean, and step 0 (V4-03 machine paths, V4-05 fingerprints) has no hit. The findings are wrong behaviour in code paths that no test covers. F1 to F3 are a few lines in window.rs and F4 and F5 are a few lines in gui/mod.rs. All are native-host source, so fixing them after the bundled run would mean running native-host again. F6 is a test that claims more than it checks.",
+  "findings": [
+    {
+      "id": "F1",
+      "file": "crates/hsk-studio-native-host/src/window.rs:436-441 (script, Phase::Final) with :525-529 (tick)",
+      "sure": "READ",
+      "what": "The Operator's own GUI window snaps back to its first size once, after the first resize or maximise. The pre-existing 'never capture at another size' branch still runs for the Operator window. It now compares the live swapchain extent (Presenter::extent, set when the swapchain is created, vulkan present.rs:290) with self.base clamped to 2560x1440. The first time they differ, it calls request_inner_size(base). This lane made the GUI frame follow the window (live inner_size, pane re-created, min size), so this undoes the Operator's own resize.",
+      "scenario": "Run `studio-vk window --scene gui --document layered.handshake` on a 100% monitor and drag the window to 1600x900. The swapchain is re-created at 1600x900. At the next tick with needs_present (RedrawRequested, a hover repaint), script() sees extent (1600,900) != (1280,800), target == base and no 'resize_to_pane' recorded yet, so it requests 1280x800 and the window jumps back. Later resizes stick. On a 200% monitor the snap is used up at startup by the min-size clamp, which is why it is not seen on this machine.",
+      "fix": "Skip the Final-phase size enforcement for the Operator window: `if self.phase == Phase::Final && extent != (ww, wh) && !self.operator_wait()`. In frames-0 mode capture_now can never be true, so the enforcement has no purpose there."
+    },
+    {
+      "id": "F2",
+      "file": "crates/hsk-studio-native-host/src/window.rs:315-317 (operator_wait), :525-527 and :540 (ControlFlow::Wait), :501-506 (one step per iteration)",
+      "sure": "READ",
+      "what": "The Operator window with --script or --invoke applies at most one scripted step per OS event. operator_wait() ignores pending steps, so after each present the loop sets ControlFlow::Wait and gui_tick only runs again when winit delivers a window event.",
+      "scenario": "`studio-vk window --scene gui --document d.handshake --invoke studio.panel.layers.row.<id>.visibility`. The cli accepts --script and --invoke for any window run. The invoke is not applied until something such as a mouse move or WM_PAINT wakes the loop. With a multi-step script, the steps stall until the Operator moves the mouse over the window.",
+      "fix": "`fn operator_wait(&self) -> bool { !self.args.quiet && self.args.frames == 0 && self.steps.is_empty() }`. The loop then polls until the queue is empty and waits afterwards."
+    },
+    {
+      "id": "F3",
+      "file": "crates/hsk-studio-native-host/src/window.rs:500 (settled) with :326-328 (start)",
+      "sure": "READ",
+      "what": "A quiet GUI run larger than 2560x1440 that has any scripted step never applies a step and ends in Timeout (exit 6). start() sets self.base = (pw, ph) unclamped but creates the window at the clamped size. The GUI frame follows the live client size (the clamped size), so `g.extent() == self.base` is never true and no step is popped. The exit condition and capture_now both require steps.is_empty().",
+      "scenario": "`studio-vk window --quiet --frames 3 --scene gui --document d.handshake --size 3000x1000 --invoke studio.tab.layers`. rgba_len accepts 3000x1000, but the run times out at the deadline.",
+      "fix": "Compare with the window's first size: `g.extent() == (self.base.0.min(2560), self.base.1.min(1440))`, the same clamp script() uses for (ww, wh)."
+    },
+    {
+      "id": "F4",
+      "file": "crates/hsk-studio-native-host/src/gui/mod.rs:492-499 (HostEvent::Wheel)",
+      "sure": "READ for the arithmetic; SUSPECT for the size of the effect on a given device",
+      "what": "Any wheel delta smaller than one row is forced to a whole row (`if rows == 0 && y != 0 { rows = -y.signum() }`) and no remainder is kept. High-resolution wheels and precision touchpads send many small WM_MOUSEWHEEL deltas, which winit maps to LineDelta(< 1.0) and from_winit maps to y in (0, 1000). Each message then scrolls a full 32 px row.",
+      "scenario": "A touchpad swipe of 20 messages at LineDelta 0.05 each adds up to one notch, which should scroll 3 rows. The list scrolls 20 rows. Four quarter-notch messages scroll 4 rows, not 3. wheelpx 5 scrolls 32 px.",
+      "fix": "Keep an i64 accumulator on GuiFrame: add y*3 (lines) or y*1000/32 (pixels), scroll by acc / 1000, keep acc % 1000, and reset it on PointerLeft."
+    },
+    {
+      "id": "F5",
+      "file": "crates/hsk-studio-native-host/src/gui/mod.rs:429-433 (logical) against kumihimo-ui geom.rs Scale::edge/snap and hit.rs Rect::contains",
+      "sure": "READ",
+      "what": "Answer to lead Q3. At some fractional scales a click on a one-pixel line at a row edge selects the neighbour row. Paint puts the edge at physical round(y0*s). The hit test uses the integer pointer pixel divided by s against the unsnapped y0. When y0*s has a fraction in (0, 0.5), pixel floor(y0*s) is painted as row k+1 but hits row k. Scales 1, 1.25, 1.5, 1.75, 2, 2.25 and 3.5 put every row edge (26 + 32k) at .0 or .5, so they are consistent. Custom Windows scales such as 110%, 120% or 130% are not (at 1.2: 26*1.2 = 31.2, 32*1.2 = 38.4).",
+      "scenario": "At scale 1.2 the second row's top edge is at 1.2*(26+32) = 69.6, painted at y=70: no mismatch. The third row's top edge is at 1.2*90 = 108.0: none. The fourth row's top edge is at 1.2*122 = 146.4, painted at 146. A click at y=146 hits the third row (146/1.2 = 121.67 < 122) while that pixel shows the fourth row. The same applies to the eye-slot column edges, where a click selects the row instead of toggling the eye.",
+      "fix": "Map the pointer to `((x as f32 + 0.49) / s, (y as f32 + 0.49) / s)` in GuiFrame::logical. This matches round-half-up at .5 edges and removes the (0, .5) band. The other option is to hit-test against Scale::snap(bounds), which is a kumihimo-ui change outside the owned paths."
+    },
+    {
+      "id": "F6",
+      "file": "crates/hsk-studio-native-host/tests/gui_frame.rs:399-431 (ten_thousand_rows_build_bounded_and_over_budget_is_refused, the over-budget half)",
+      "sure": "READ",
+      "what": "The test claims more than it checks. Its doc says 'a PSD past Folio's node budget is the host's typed refusal', but it accepts any code except `open` and `not_built`. The builder's own probe shows that the 4100-layer input stops in the PSD importer with psd_pixel_limit and never reaches Folio's BudgetExceeded. The lane file says that part is NOT_PROVEN; the test text does not.",
+      "scenario": "Any future typed refusal from any layer of the stack, for example a decode error, passes this assertion.",
+      "fix": "Assert the exact code the input produces (psd_pixel_limit) and reword the doc line to say what is proven. Folio's budget refusal stays NOT_PROVEN until an input reaches it."
+    }
+  ],
+  "lead_questions": {
+    "q1_root_edits": "As approved, with one note. The root Cargo.toml has one changed line: the native-host allow list gains hsk-studio-ui-text, at line 319. Cargo.lock gains two lines, both inside hsk-studio-native-host's dependency list: hsk-studio-ui-text and kumihimo-ui, both existing packages, sorted, no new [[package]]. kumihimo-ui was already on the allow list but is a new optional dependency (feature document), so the lock gains two lines where the ruling says 'line'. No kumihimo-* crate gains a dependency: kumihimo-ui is the only kumihimo crate and its [dependencies] stays empty. The red commit c591598a touches no other root file: the only changes outside crates/ in base..tip are Cargo.toml and Cargo.lock, with no .config round-features or nextest change and no tools change. round-features already lists native-host [[\"document\"]].",
+    "q2_undo": "Correct. Viewer::set_visible goes to commit(), then run.panel_set(layer, VISIBLE, ...), which is one undo step. The test asserts the label 'panel_set visible <id>', the command_id layer.panel_set, and that undo has exactly 1 entry. Selection is viewer-local (Viewer::select only sets self.selected, which is not in history). An eye click never selects, so undo leaves the selection exactly as it was. Every Cmd goes through run(), then refresh(), which re-reads rows, selection and revision from one state_json and bumps state_rev, so all three panels rebuild after undo and redo. The status revision is state_json['revision'] = run.snapshot().document().revision, the document's revision, not a host counter. The undo test compares Viewport pixels and the viewer frame bytes, not the whole frame hash, because the status bar shows the last command; that is the correct comparison.",
+    "q3_hit_and_input": "No wrong layer from stale layout. Commands re-read rows before acting, eye toggles use the fresh `visible`, and pointer_up only activates when the id under the release equals the pressed id. A wheel between press and release therefore cancels instead of hitting the new row. A release outside the window gives a NaN point and no activation. A click on the scrollbar hits nothing: it has no actions and the list bounds exclude the 10 px lane. A click outside any row inside the list deselects, and a click outside the client area hits nothing. Exception: F5, a one-pixel edge band at custom fractional scales. The input path adds no Win32 or winit focus call (traced in window.rs and event.rs). The quiet runs feed scripted steps directly to GuiFrame::step, never OS input. keep_quiet still runs each tick, and the source scan guards the six named APIs.",
+    "q4_bounds": "Bounded. Rows built = rows_fit, at most 1024. rows[first..last] is index-safe: first <= total - page and last <= total. The scrollbar range is > 0 whenever it is built. The 4096-byte name is cut at a char boundary, and a 1 MiB name is cut to 4096 bytes. A Resized 0x0 sets minimized, after which frame() and upload return false and gui_tick creates no pane. Canvas::new None maps to Window(canvas_extent), with no expect. A failed open returns a typed code before the event loop. The dock build refusal becomes an empty state. The script is capped at 4096 steps and 1 MiB. Remaining unbounded cost, already named: one state_json per command, which clones run.ops() and calls the quadratic Viewer::layers().",
+    "q5_capture_and_construction": "The capture matches. The receipts for gui-final-offscreen-5e882c1d and gui-final-window-5e882c1d both give frame_sha256 3a9feac9...; offscreen exact is true; the window has focus_changes 0, no_activate and tool_window styles, scale_milli 1000 (fixed with --scale on a 2000 monitor). The PNG shows Sun and Red with no eye and dimmed names, Red absent from the canvas, Green selected, and the status bar 'layer.set_visible ok  revision 2' with the device. gui_window compares two independent paths (pane readback against swapchain capture) and also the tree files, so it does not pass by construction. Tests that are green by construction: the source scan, a guard the builder states is green by construction; and idle_minimise_resize_and_scale's restore equality, where the CPU canvas is never touched while minimised. The real proof of the restore is gui_quiet_exercise's hash. F6 is the over-budget assertion that claims more than it checks."
+  },
+  "builder_decisions_checked": {
+    "pane_sink": "Sound. PortPane<P: GpuClientPort + ?Sized> forwards to upload_pane. drive() and the window both go through it. The device-loss fake checks exit 3, sink.calls == 2 (no retry) and commands == 1 (none after the loss).",
+    "live_inner_size": "Sound for the quiet runs (gui_window passes at 5e882c1d per log tests3). The two problems it leaves are F1 (the pre-existing resize_to_pane now fights the Operator) and F3 (base is not clamped in settled).",
+    "settled_steps": "Sound for quiet runs within 2560x1440. See F3 for larger runs and F2 for the Operator window."
+  },
+  "checked": [
+    "Full diff e85e1440..5e882c1d (22 files) and the per-commit stats. Root diff limited to Cargo.toml and Cargo.lock.",
+    "gui/mod.rs and gui/view.rs at the tip, line by line. kumihimo-ui APIs they call: tree.rs Builder/Interaction/Panel::update/BuildError (5 variants, exhaustive match OK), hit.rs, geom.rs Scale::edge/snap/contains, semantic.rs valid_author_id/stable_id, widgets.rs layer_row/tab_row/scrollbar, paint.rs Resources, gallery icon ids (ICON_EYE=3, so ICON_NONE=0 does not collide).",
+    "harness-view Viewer: open (Result<(), String>), layers, set_visible to commit to run.panel_set, select, render_if_dirty, frame/render_error, state_json ('revision' = document revision, 'selected'), and undo/redo in edit.rs.",
+    "window.rs at the tip in full: the no-document GuiFrame stub (every method called, uninhabited match), start, gui_tick, script, tick, window_event and finish, compared against base script() and tick().",
+    "Default (no document) build compile path: lib.rs cfg, script.rs/scene.rs/cli.rs/offscreen.rs stubs, test crates gated with #![cfg(feature = \"document\")]. lane-check runs clippy --tests on native-host without features as a dependent of kumihimo-ui, so this path is built.",
+    "event.rs from_winit mappings and the Ctrl chord logic. script.rs parse bounds and CRLF handling.",
+    "cli.rs: new flags, the gui_only refusal, OPERATOR_DEADLINE, and the existing cli_and_observe bad-args list (all still refused).",
+    "Unchanged-test impact: document_window (refusal code path unchanged), host_vulkan (base equals pane extent for static scenes, iteration cap only when frames != 0, exit condition unchanged with empty steps), and the new receipt keys (no exact-receipt assertions).",
+    "All gui_frame.rs and gui_window.rs tests and kumihimo-ui tests/scrollbar.rs, read against the code; the kumihimo-ui tokens.rs colour-literal scan (scrollbar uses tokens only).",
+    "Step 0 policy: V4-03 machine-path regex run over all native-host and kumihimo-ui src/tests at the tip (42 files, no hit); V4-05 fingerprints (D16/D18/TIMECODE) do not match the new src.",
+    "Builder logs tests1 (gui_frame 13/13, scrollbar 1/1) and tests3 (gui_window 2/2 at 5e882c1d content). The 5e882c1d gui_frame.rs change is parentheses only.",
+    "Artifacts: gui-final-offscreen-5e882c1d.png (opened) and both final receipts."
+  ],
+  "not_checked": [
+    "No cargo run: compile is traced by reading. The document build is evidenced by the builder's logs, the default build only by reading.",
+    "Clippy at deny level was not run. No deny-level correctness pattern was seen in the diff.",
+    "The fixture builder tests/common/mod.rs (PSD byte assembly, save and reopen) was read only for its use by the tests.",
+    "winit 0.30.13 internals: WM_MOUSEACTIVATE handling for WS_EX_NOACTIVATE on a real click, how LineDelta is derived from high-resolution WM_MOUSEWHEEL (F4), and whether request_inner_size un-maximises (F1).",
+    "Real device loss (NOT_PROVEN, as the lane says). Folio BudgetExceeded through the GUI (NOT_PROVEN; see F6).",
+    "Performance of a full-window CPU repaint and upload on every hover change, and state_json cost per command at 4096 layers (bounded, not measured).",
+    "Whether the Operator window's minimised state polls every 15 ms (pre-existing presenter Skipped path)."
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "lane": "SMB-LAYOUT-PDF-HOST-1",
+  "tip": "eee4ff70",
+  "base": "95ee2774",
+  "verdict": "FIX_FIRST",
+  "findings": [
+    {
+      "id": "F1",
+      "sure": "READ",
+      "where": "harness-core/src/action/commands/layout.rs (whole file); action/commands.rs; tests/action_records.rs:321-325; harness/src/cli/drive.rs:158-161; harness/tests/layout_pdf_host.rs:200-203",
+      "what": "Collides with SMB-COMMAND-SURFACE-1 (ae15cf6b). Both rewrite layout.rs ROWS from the same empty base, so git conflicts. Both define `layout.preflight` with different routes: COMMAND-SURFACE has typed(..., \"LayoutEditor::preflight\") Surface::Viewer -> Viewer::run_command -> editor.preflight_json(); this lane has entry(..., \"viewer.layout_preflight\") -> Viewer::layout_preflight -> report_json. Keeping both rows fails `command ids are unique` (action_records) and ui_seed refuses the whole catalog (duplicate author id studio.command.layout-preflight). After the merge, this lane's rows built with entry() get Surface::Run, so COMMAND-SURFACE's action_records filter (surface == Run) puts \"viewer.layout_open\" etc. into corpus_methods and the `stale` assert fails. COMMAND-SURFACE's p() sets required:true, so corpus_json reports every layout.export_pdf parameter as required while DRIVE_VIEWER says may. viewer_domain() maps unknown methods to \"vector\", so the five new DRIVE_VIEWER rows get canonical ids vector.layout_open, vector.export_layout_pdf, ... in help and ui_seed.",
+      "scenario": "Rebase either lane on the other; harness-core action_records corpus test fails, and harness tests fail too (catalog_invalid / layout_catalog_rows test unwrap on \"LayoutEditor::preflight\").",
+      "fix": "Second to land (expected: this lane, after COMMAND-SURFACE): (a) layout.rs: keep COMMAND-SURFACE's 37 typed rows and its layout.preflight; drop this lane's CMD_LAYOUT_PREFLIGHT row and its re-export; append the other four rows. (b) Mark the optional params with .opt() (keep only path, and source/page/px_per_pt/path for render_pdf_page, as required). (c) action_records.rs: corpus_methods = rows with surface == Run whose run_method does not start with \"viewer.\"; keep this lane's DRIVE_VIEWER membership check for the viewer.* ones. (d) drive.rs: keep COMMAND-SURFACE's viewer_row_of check and Surface::Viewer -> typed() branch; put this lane's strip_prefix(\"viewer.\") branch after `let Some(entry)` (either order is safe because these rows stay Surface::Run). (e) manual.rs viewer_domain: map layout_open, layout_preflight, export_layout_pdf, export_layout_idml, render_pdf_page to \"layout\". (f) layout_pdf_host.rs:200: drop CMD_LAYOUT_PREFLIGHT from the loop. Cleaner alternative: make the four rows typed() Surface::Viewer with output_path() shapes and add arms in COMMAND-SURFACE's view/commands/layout.rs run() that call Viewer::layout_open/export_layout_pdf/export_layout_idml/render_pdf_page; then the drive.rs viewer.* route and the action_records partition are not needed. If COMMAND-SURFACE lands second, it makes the same edits the other way."
+    },
+    {
+      "id": "F2",
+      "sure": "READ",
+      "where": "harness-view/src/view/layout_export.rs:594-598, 682-684 (and the manual text at :25-26); test tests/layout_pdf_host.rs:110-113",
+      "what": "host_loss `paragraph_break_inside_paragraph_not_drawn` is false. The break IS drawn. The pieces are joined with their clusters at story offsets, and reflow_flow -> layout paragraph.rs build_items runs UAX #14 on the story text: the LF between the two glyph clusters is a Mandatory opportunity (opp_after), so a forced penalty ends the line there. Repeated terminators also make blank lines (blank_lines). What is actually lost is the paragraph boundary: the text after the break keeps the first paragraph's style, space before and after, and first-line indent. No text vanishes: every visible byte is in exactly one piece, and the spans are clipped into that piece. The test asserts only that the code is reported and that glyphs_drawn > 0, and the 20 pt frame overflows after one line, so it does not prove that the text on both sides of the break is drawn.",
+      "scenario": "ReplaceText \"ab\\ncd\" into a tall frame: the PDF shows two lines, but the receipt says the break was not drawn.",
+      "fix": "Rename to `paragraph_break_inside_paragraph_set_as_line_break` (element stories, count) and fix the manual line to match. Optionally give the test a tall frame and assert page_texts(...)[0] holds both sides."
+    },
+    {
+      "id": "F3",
+      "sure": "SUSPECT (the colour rule is UNVERIFIED against the ISO 15930-7 text; the code path is READ)",
+      "where": "harness-view/src/view/layout_export.rs:633 (default_fill DeviceRgb), :674-680 (self-check reported, write not gated)",
+      "what": "With pdfx.x4_2010 and a CMYK or gray output intent (the test uses the CMYK ICC), story text with no style fill is painted DeviceRGB black. PDF/X-4 does not allow device RGB unless the output intent is RGB. press check_pdfx4 has no colour-space rule (pdfx.rs:192-249), so self_check.all_passed can be true, while the written file carries GTS_PDFXVersion PDF/X-4. receipt.conformance does stay not_proven: ignore_preflight cannot change it, and there is no other path that changes it.",
+      "scenario": "The test pdfx4_with_a_cmyk_output_intent... writes an X-4-identified file with DeviceRGB text against a CMYK intent.",
+      "fix": "Set default_fill from the intent: components 4 -> Colour::DeviceCmyk([0,0,0,1]), 1 -> DeviceGray(0.0), otherwise DeviceRgb. When pdfx is X4 and the self-check fails (!all_passed), refuse `pdfx_self_check_failed` before write_atomic (the bytes are already in hand at :674). Style fills that are RGB under a non-RGB intent stay engine losses."
+    },
+    {
+      "id": "F4",
+      "sure": "READ",
+      "where": "harness-view/src/view/layout_export.rs:725-727",
+      "what": "export_layout_idml passes every doc.stories entry as a host story and passes LongDocExportInput.stories as &[]. layout_ui/tables.rs:159-175 puts a table's cell story into doc.stories and sets cell_story_id. export_folio_longdoc (idml_longdoc.rs:1533-1546) looks cell, footnote and endnote stories up only in longdoc.stories, so note(id) returns DanglingStory.",
+      "scenario": "layout.table.insert_table, then layout.table.set_cell_text, then layout.export_idml: refused `dangling_story`. A valid layout with a filled table cannot be exported.",
+      "fix": "Split doc.stories: ids named by rec.longdoc tables[].cell_story_id, footnotes[].note_story_id and endnotes[].note_story_id go into LongDocExportInput.stories as StoryInput, and the rest go into FolioExportInput.stories."
+    }
+  ],
+  "checked": [
+    "full diff 95ee2774..eee4ff70 (13 files); layout_export.rs read whole",
+    "compile: the lane's focused run (7 passed) compiled harness and harness-view viewer; reviewed the action_records partition by eye (types: Option<&str> == Option<&'static str>, partition over &&str): compiles",
+    "harness-core corpus tests at tip: uniqueness, recordable list, corpus_json length, Run scan, stale check: pass with the new rows (viewer.* split out)",
+    "harness_drive.rs every_viewer_row_of_the_manual_reaches_its_method with the 5 new rows: the values built from their kinds give typed method refusals (output_profile_unreadable, source_unreadable, layout_document_has_pages), none in the forbidden list",
+    "item 1: COMMAND-SURFACE ae15cf6b diffs of commands.rs, layout.rs, action_records.rs, drive.rs, manual.rs (viewer_domain, viewer_row_of), ui_seed.rs, view/commands.rs run_command and layout::run",
+    "item 2: pieces_of, span clipping, append_paragraph index shifts, build_items/opp_after/blank_lines in hsk-studio-layout paragraph.rs",
+    "item 3: preflight gate (errors>0 && !ignore_preflight), with_pdfx_standard and PdfExport::new X-4 requirements (gts_pdfx_output_intent, TrimBox), check_pdfx4 rule list, receipt conformance",
+    "item 4: sized_layout_doc bounds (finite, 1..=14400, 1..=1000) checked before allocation; MAX_EXPORT_TEXT_BYTES; Type limits per piece give a typed text_shaping_refused; render_page scale 0..=100 and max_flatten_pixels canvas bound before allocation; read_bounded size check before read; no viewer font -> layout_font_unavailable; unknown family -> font_substituted",
+    "item 5: write_atomic at tip is SMB-SESSION-WRITE-SAFETY-1's (96d7e6dc, in base): unique sibling plus rename with backoff; refuse_existing requires overwrite; the drive export_over_source guard covers export_layout_pdf, export_layout_idml and render_pdf_page (by `path`) on both the viewer.* and the catalog route; process test r[7]",
+    "item 6: Cargo.lock adds one line (hsk-studio-interop-layout in hsk-studio-harness-view deps); interop-layout pulls no egui or GPU crates and does not depend back on harness-view (no cycle)"
+  ],
+  "not_checked": [
+    "cargo build/tests (none run, by method)",
+    "glyph coverage: text the bundled font cannot map (CJK, emoji) in Type's notdef/refusal behaviour, so whether such text silently becomes .notdef",
+    "plan_story is O(paragraphs x character_ranges), bounded only by the Folio node budget",
+    "refuse_existing then write_atomic is check-then-act: a file created during shaping is replaced (same pattern as the existing exports)",
+    "footnotes and endnotes in the layout PDF (only tables are reported as host_loss)",
+    "the ISO 15930-7 text for the F3 colour rule"
+  ]
+}

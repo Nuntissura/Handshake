@@ -2,18 +2,47 @@
   "crate": "hsk-studio-reel",
   "lane": "SMB-PR-EXPORT-RECIPE-1",
   "status": null,
-  "phase": "build",
+  "phase": "review",
   "worktree": "wt-studio-lanes/smb-r53-followups-1",
   "base": "aa68164c",
-  "commits": [],
+  "commits": [
+    {
+      "sha": "e072cb46",
+      "what": "red: tests/export_publish_safety.rs (item 1), 7 of 8 red by running",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r53-followups-1/red1-smb-pr-export-recipe-1-e072cb46.log"
+    },
+    {
+      "sha": "a4e4557e",
+      "what": "item 1 publish safety fix (src/export.rs)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r53-followups-1/fix1-smb-pr-export-recipe-1-e072cb46.log (run on the uncommitted fix; 15/15 publish_safety+export_queue+export_captions)"
+    },
+    {
+      "sha": "f5406a31",
+      "what": "item 6a pin of the 6 presets x os_encoder, green on the unchanged presets.rs",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r53-followups-1/pin-smb-pr-export-recipe-1-a4e4557e.log"
+    },
+    {
+      "sha": "c79c858d",
+      "what": "items 2-9: export_parameters (453 rows), export_recipe (StudioExportRecipe, job_from_recipe), Container::capability, presets through the record, DESCRIPTOR",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r53-followups-1/focus2-smb-pr-export-recipe-1-f5406a31.log (run on the tree committed as c79c858d; 17/17)"
+    }
+  ],
   "capabilities_done": [],
-  "tests": {},
+  "tests": {
+    "focused_not_bundled": "focused runs only; the bundled lane-check has NOT run (held for the lead's review, HANDOFF workflow item 10)",
+    "export_publish_safety": "9 tests (1 cfg(windows)); 7 red at e072cb46, all green after the fix",
+    "export_queue+export_captions": "unedited, green with the fix (export_captions.rs:161 unedited)",
+    "export_parameters": "4 tests green",
+    "export_recipe": "9 tests green (preset pin green before and after the change)",
+    "unit": "export::tests::capability_equals_the_muxer_answer green (140 cells, 70 carried)",
+    "clippy": "cargo clippy -p hsk-studio-reel --tests clean (default features) at f5406a31 + the c79c858d tree; dependents and feature units not yet"
+  },
   "verdicts": [],
   "blockers": [],
-  "lock_wait_s": 0,
+  "lock_wait_s": 129,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on C:, push when green",
-  "updated_at": "2026-11-07T17:22:06Z",
+  "next": "lead: read-only code-check and red-team on aa68164c..c79c858d; then the builder runs the one bundled lane-check",
+  "updated_at": "2026-11-07T17:58:44Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -94,6 +123,105 @@
       "MT-35261",
       "MT-35295"
     ],
-    "reuses_tree_and_target": "smb-r53-followups-1"
+    "reuses_tree_and_target": "smb-r53-followups-1",
+    "spec_basis": "v02.229 module 14: STU-VID-060..063 (SM:24889..25558), STU-IO-101..108 (SM:21135..21187), STU-IO-141..147, 160, 162, 163, 166, 173..185, STU-FX-104..106 (SM:12785..12827), STU-AUT-131",
+    "facts_moved_since_c4d06841": "reel src and tests unchanged between c4d06841 and aa68164c (git diff empty); every brief file:line held. harness-view render_queue.rs moved to src/view/timeline_export/render_queue.rs (ExportRecipe built by hand at :251)",
+    "decisions": [
+      "publish order: media rename first, then sidecar; a sidecar rename failure after it is a Failed receipt with published_media true and the media facts (ExportReceipt.published_media / published_sidecar, receipt JSON key published)",
+      "added beyond 1a-e (same class, STU-IO-162): output or sidecar path that is a directory refused before the first frame; export-sidecar-exists moved before the first frame; output and sidecar re-checked right before the renames (narrows, does not close, a race with a writer outside reel)",
+      "record carries reel's typed codec selection (RecipeVideoCodec, PcmChoice) besides the brief's fields: the dictionary's codec integers are exporter-local and unconsumed; does_video/does_audio derive from it",
+      "H.264/HEVC bitrate comes only from ADBEVideoTargetBitrate (Mbps float, rounded to bps); on VC-3/AV1 it is not consumed",
+      "record fields reel does not consume (non-empty output_targets, standard_filters) are export_parameter_not_consumed; MetadataExportOption has one member None",
+      "colour values refused export_parameter_kind_unsupported (no StudioColorProfile reference); the only colour row is publishing_destination, refused as credential first",
+      "codec-selection integers = signed rows labelled Video Codec / Audio Codec (4); unlabelled ADBEVideoCodec_Unabridged not classified",
+      "unknown identifier refusal carries no identifier; credential refusal names recipe and field only",
+      "rule order in set_parameter: credential, structure, kind, range, codec exporter, unit",
+      "STU-FX-106 declared_hard_only soft=hard NOT applied: STU-IO-103 / 061b item 2 followed, soft stays absent"
+    ],
+    "limits_lead_overrulable": "identifier 128 B; parameters <= 453; text/path 4096 B; name 256 B; recipe_id 1..=128 printable ASCII; exporter ids 1..=64 printable ASCII; output_targets <= 64 of 1..=255 B, no / \\ : NUL .., not '.'; standard_filters <= 64 of 1..=256 B",
+    "names_proposed_not_spec": [
+      "job_from_recipe",
+      "Container::capability",
+      "export_parameter_not_consumed",
+      "export_parameter_unknown",
+      "export_parameter_wrong_kind",
+      "export_parameter_non_finite",
+      "export_parameter_negative_zero",
+      "export_parameter_takes_no_value",
+      "export_parameter_kind_unsupported",
+      "export_parameter_source_mismatch",
+      "export_parameter_meaning_unestablished",
+      "export_parameter_conversion",
+      "export_recipe_limit",
+      "export_recipe_field_invalid",
+      "export_exporter_unavailable",
+      "export-output-path (dir), export-sidecar-path"
+    ],
+    "v4_06_sweep_publish": {
+      "export.rs:760 temp_path pid+item id": "fixed: temp_beside with one process-wide counter",
+      "export.rs:836 remove_file(temp) on any error": "fixed: removes only Run.temps (created by this item with create_new)",
+      "export.rs:866 fixed .vtt.partial": "fixed: temp_beside + create_new",
+      "export.rs:1076 create_new media temp": "kept (create_temp records it only after create_new succeeded)",
+      "export.rs:1146 fs::write sidecar temp": "fixed: create_new + write_all + sync_all",
+      "export.rs:1148 remove_file(side_temp)": "removed: cleanup is Run.temps in run_item",
+      "export.rs:1153 remove_file(output) before rename": "removed (rename replaces)",
+      "export.rs:1155 rename media": "kept, now preceded by the no-overwrite and sidecar-path re-check",
+      "export.rs:1158 remove_file(side) before rename": "removed (rename replaces)",
+      "export.rs:1160 rename sidecar": "kept; failure after the media rename is stated in the receipt",
+      "reel-native src": "no fs::write / fs::rename / remove_file / create_new / File::create hit (git grep) - not applicable",
+      "other reel src": "no hit outside export.rs (git grep over crates/hsk-studio-reel/src)",
+      "harness-view writers": "not touched (SMB-SESSION-WRITE-SAFETY-1)"
+    },
+    "v4_06_sweep_item8": {
+      "min<=max assumptions in reel": "none outside the new code: .clamp sites (export.rs:756 pcm, aac_lc.rs:359, mp3.rs:506/1316, mp3_dsp.rs:487, vc3/mod.rs:197) use constant ordered bounds; new range check never assumes order (DEGENERATE_BOUNDS not enforced, each side compared alone)",
+      "ExportRecipe readers that could ignore a new setting": "plan (export.rs:621) and make_encoder (:563) read ExportRecipe only, which carries no dictionary setting; StudioExportRecipe::resolve refuses every unconsumed parameter instead; harness-view timeline_export/render_queue.rs:199-251 (read only) builds ExportRecipe by hand from its output module and refuses unbuilt options explicitly, it does not go through StudioExportRecipe (next lane)",
+      "tests that collapse hard and soft": "none: no soft_min/soft_max in any reel test before this lane; export_parameters asserts soft absent on all 453"
+    },
+    "not_proven_or_not_run": [
+      "bundled lane-check not run yet (clippy dependents, round feature units av1/prores/av1-encode/av1+av1-encode/studio-aac, doctests, harness/harness-view focused tests)",
+      "e (no delete before rename): proven only that overwrite replaces and a directory target keeps the old entry; a rename failing after a successful delete cannot be forced portably",
+      "d sidecar-rename-after-media receipt: Windows-only test (POSIX rename replaces an open file)",
+      "race with a writer outside reel between the re-check and the rename: narrowed, not closed (atomic no-replace publish needs a platform call; next lane)",
+      "vendor parity UNVERIFIED (D5)"
+    ],
+    "mts_read": "read active acceptance of all 51; MT proof commands name hsk-studio-pulse tests/contracts.rs (F-R55-3 class), not repointed",
+    "mts_this_proves_partly_or_fully": {
+      "full_on_clause": [
+        "MT-33768..MT-33781 (facet counts and rows)",
+        "MT-33783..MT-33797 (061b reading rules, one table per facet compared cell for cell)",
+        "MT-33370",
+        "MT-33371",
+        "MT-33372",
+        "MT-33375",
+        "MT-33408",
+        "MT-33411",
+        "MT-33428",
+        "MT-33430",
+        "MT-33431",
+        "MT-33438"
+      ],
+      "partly": {
+        "MT-33766": "record and consumption exist; writers are the next lane",
+        "MT-33767": "own ExportParameter record, not the 14.9.1 StudioEffectParameter type",
+        "MT-33373": "identifier fallback and coverage count; no UserManual coverage report",
+        "MT-33406": "ticks stored and kept distinct; no display-rate derivation",
+        "MT-33432": "names the one missing consumed setting, not every setting of the format",
+        "MT-33368": "record exists; no portable import",
+        "MT-33369": "no group_path, description, step fields, enumerated_values, is_hidden in the source table",
+        "MT-33782": "honest fallback only, no authored labels",
+        "MT-33405": "two containers, preset count not declared",
+        "MT-33418": "units typed undeclared vs dimensionless; colour values refused (no StudioColorProfile)",
+        "MT-35261": "MP4 and MOV only",
+        "MT-35295": "no portable import, not the 704"
+      }
+    },
+    "cut": [
+      "new writers / Container variants",
+      "group_path, soft bounds, defaults, authored labels/units",
+      "colour values",
+      "JSON parser / import",
+      "harness-view render_queue through the recipe"
+    ],
+    "host_integration_note": "job_from_recipe returns ExportJob, so AdmittedExportQueue::submit admits it unchanged (no harness-view edit). New receipt fields published_media / published_sidecar: harness settlement of a Failed receipt does not read them yet (NOT_INSPECTED beyond job_admission.rs submit/run)"
   }
 }

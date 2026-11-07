@@ -1,0 +1,81 @@
+{
+  "lane": "SMB-AUDIO-OUT-MIX-1",
+  "tip": "812b8ebb",
+  "base": "95ee2774",
+  "verdict": "FIX_FIRST",
+  "verdict_note": "No compile break or failing test found; the four new tests should pass as written. FIX_FIRST because findings 1-4 give wrong answers and each fix is a few lines, so landing them before the bundled run saves a second run.",
+  "findings": [
+    {
+      "id": 1,
+      "confidence": "READ",
+      "where": "hsk-studio-harness-view/src/view/shell.rs:1391 (Viewer::close), mod.rs:520 open_inner; field program_audio mod.rs:277",
+      "what": "Neither close nor open touches program_audio. After FILE > Close the device stream stays open and keeps its score-device admission permit (max_open_streams 4). The host loop's audio_out_pump keeps rendering the closed document's bus stream while audible: pump skips refresh and follow because self.monitor is None. audio_out_transport then returns audio_out_closed 'no program monitor' even though the output is still open and playing.",
+      "scenario": "audio_out_open, Play, then Viewer::close(), then audio_out_run(500): consumed frames keep rising with the closed document's audio, and Pause is refused.",
+      "fix": "In Viewer::close, and in open_inner when it replaces the document, call self.audio_out_close() under cfg(all(feature=\"audio-batch\", feature=\"audio-device\"))."
+    },
+    {
+      "id": 2,
+      "confidence": "READ",
+      "where": "hsk-studio-harness-view/src/view/audio_session/playback.rs:168-170 vs :174",
+      "what": "A refused open still changes state. open_monitor runs, replacing the program monitor and dropping its bound frame sources and extents, before open_output can refuse (unknown_device, unauthorized, invalid_rate, admission_denied). The test's own refusal sequence triggers this.",
+      "scenario": "Monitor on seq A with set_monitor_sources bound; audio_out_open(provider, grant, \"no-such-device\", 480, Some(\"B\")) fails unknown_device, but the monitor is now on B with no decoder, so export_sequence later refuses frame_decoder_missing.",
+      "fix": "Call provider.open_output and AudioOut::with_buses first; call open_monitor only after they succeed, closing the new stream if open_monitor fails."
+    },
+    {
+      "id": 3,
+      "confidence": "READ",
+      "where": "hsk-studio-harness-view/src/view/audio_session.rs:443 (stem_name_collision check)",
+      "what": "paths[..i].contains(p) is case-sensitive, but NTFS on the Operator's Windows machine is not. Bus names that differ only in case (DX/dx, or a bus named Rest next to rest) map to the same file. With overwrite=false the second write fails with output_exists after the first stem is written, and the cleanup removes it, so the refusal is misleading. With overwrite=true the second stem silently replaces the first: the report lists two StemPrints on one file, and the sum check still passes because it re-renders streams instead of reading the files.",
+      "scenario": "export_sequence_stems with two submix buses named 'DX' and 'dx', format wav_float, overwrite=true.",
+      "fix": "Compare to_ascii_lowercase() of the file stems (file_stem output is ASCII), including 'rest', before building paths."
+    },
+    {
+      "id": 4,
+      "confidence": "SUSPECT (the code path is READ; whether the -90 dB gate means the delivered files is the lead's call)",
+      "where": "hsk-studio-harness-view/src/view/audio_session.rs:485-512 (sum check); audio_import.rs quantize (round, no dither)",
+      "what": "The -90 dB residual is measured on a fresh float re-render of the print and the stems, not on what was written. For wav16, aiff16 and flac16 each stem and the print are rounded to 16 bits, so the written stems can miss the print by up to (stems+1)/2 LSB: 1.5 LSB, about -86.8 dBFS, for 2 stems. StemReport.sums_to_print still says true.",
+      "scenario": "export_sequence_stems(..., MixFormat::Wav{bits:16}, ...) with 2 stems on full-scale material: the report passes, but summing the decoded files against a 16-bit print shows a residual near -87 dBFS.",
+      "fix": "When !float, run each stem sample and print sample through the same quantize(bits) before accumulating; or add measured:'float_render' and the format LSB to to_json and have sums_to_print say so."
+    },
+    {
+      "id": 5,
+      "confidence": "READ",
+      "where": "hsk-studio-harness-view/src/view/audio_session.rs:299-306 (sequence_sound)",
+      "what": "A non-empty stored edit list that matches no clip source is skipped with continue. The cause can be rate, channel count, frame count or identity. The mixdown, stems, playback and Export Media then carry the unrepaired audio with no signal. The doc comment claims never the unrepaired audio in its place. repaired_sources() is the only trace, and no receipt or say line reports it.",
+      "scenario": "Repair a clip at 48 kHz, save, reopen, and bind the sound port at 44.1 kHz or with a decoder whose samples differ in one bit: export_sequence_mix succeeds and prints the unrepaired source.",
+      "fix": "When doc.ops is non-empty and repaired is empty, record repair_unmatched (the source sha256) in SequenceSound and surface it in the mixdown, stem and Export Media receipts and the say line. A hard refusal would break edit lists that belong to an open audio file."
+    },
+    {
+      "id": 6,
+      "confidence": "READ",
+      "where": "hsk-studio-harness-view/src/view/audio_session/playback.rs:168 (stream built once at open)",
+      "what": "The bus stream is built once, in audio_out_open. A waveform edit, undo, routing or mixer change made while the output is open keeps playing the old mix until the next audio_out_open. The lane claims waveform edits reach playback; that is true only at open, and no test covers editing while open.",
+      "scenario": "audio_out_open, Play, waveform_edit(Invert): the device keeps playing the unrepaired audio.",
+      "fix": "Record the document revision at open and expose stale:true in to_json when it differs, or rebuild by close-and-reopen on revision change in the drive layer. At minimum, state 'reopen after edits' in the module manual."
+    },
+    {
+      "id": 7,
+      "confidence": "READ",
+      "where": "hsk-studio-harness-view/src/view/audio_session.rs:477-481 (stem failure cleanup)",
+      "what": "With overwrite=true, a later stem's failure removes the earlier stems this call already renamed over existing files. The old files are gone too, so the directory holds neither the old set nor the new one.",
+      "scenario": "Re-print a stem set with overwrite=true; stem 2 hits a disk-full error: stem 1, both old and new, is deleted.",
+      "fix": "Write every stem to its unique temp first and rename them all only after every encode succeeded; on failure remove only the temps."
+    }
+  ],
+  "checked": [
+    "Full diff 95ee2774..812b8ebb: audio_import.rs, audio_session.rs, new audio_session/playback.rs, mod.rs, timeline/export_media.rs, tests/audio_out_mix.rs",
+    "Compile surface: MixFormat new variants (only matches! and the export_from match use it, so no exhaustive match breaks; audio_batch.rs:543 refuses Wav in batch jobs, which is fine); &dyn reel::MediaProvider (object-safe, Send+Sync); reel::WavProvider and WAV_PROVIDER_ID exported with no feature gate; WAV float 32 and int 16/24 accepted by wav.rs encode_segment, chunk layout LE interleaved matches Chunks; StreamConfig fields; ChannelLayout from score; CloseReport, Counters::underrun_frames, DeviceGrant, DeviceId::parse; ProgramMonitor play/pause/scrub/set_looping all return Result<(),MonitorFail>; refresh signature; disjoint field borrows in audio_out_pump and audio_out_transport; private fail and build_bus_stream reachable from the child module; feature gates (playback requires audio-batch and audio-device, matching the field and state_json gates); AudioPort coercion in export_media; export_prepare returns MonitorFail",
+    "Test oracles: refusal order in SoftwareProvider (unauthorized before unknown_device); 'nope' maps to mixdown; stereo balance at centre is unity (0.125) and mono is equal-power (impulse 0.354 > 0.3); a muted track has no strip, so its pre-fader send dies (send residual about -15 dB > -20); export_over_source compares the exact PathBuf stored by open_inner; the waveform edit entry is written by the first edit and removed by one undo; replay after reopen uses the fallback registry (Invert needs no plugin); selection JSON equality",
+    "Device ownership: no view path constructs a provider; cpal-backend is enabled by no crate; the test uses SoftwareProvider only",
+    "Real-time: rendering happens in pump on the caller thread; score-device's callback only copies (its descriptor and an existing allocation test); no mutex or log in the view path",
+    "Persistence: no new document entry is added (the existing WAVEFORM_EDIT_ENTRY is reused), so entry or external classification is unaffected",
+    "WAV size guard: lane refuses data over u32::MAX-64 before render; reel refuses over u32 before the header"
+  ],
+  "not_checked": [
+    "No cargo, clippy or test run (method)",
+    "Whether score MixGraph render past a stem stream's own length_samples (a stem with only early tracks) returns silence or errors; the stems render the print's frame count",
+    "Timing flake risk in test 1: on a loaded C: run, a ring underrun in the first 100 ms would cut the take_while prefix below 4800",
+    "NestedAudioSources behaviour on stem sequences with muted nested clips",
+    "MT files and the backlog rows the brief names as acceptance"
+  ]
+}

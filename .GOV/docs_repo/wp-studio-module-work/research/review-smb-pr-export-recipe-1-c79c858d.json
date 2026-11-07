@@ -1,0 +1,61 @@
+{
+  "lane": "SMB-PR-EXPORT-RECIPE-1",
+  "tip": "c79c858d",
+  "base": "aa68164c",
+  "verdict": "FIX_FIRST",
+  "verdict_note": "One cheap fix (F1, owned file, item 1d class). Nothing found that breaks the build or fails a test in any round unit. F1 was already wrong at base, so the lead may waive it to BUILD and move it to the next lane; fixing it now saves a reel re-run later.",
+  "findings": [
+    {
+      "id": "F1",
+      "certainty": "READ",
+      "severity": "wrong answer (receipt), pre-existing at base",
+      "where": "crates/hsk-studio-reel/src/export.rs:914-918 (CaptionPlan::new, sidecar = output.with_extension(\"vtt\")), publish at :1221 then :1226",
+      "what": "If the output path ends in .vtt (any case on a case-insensitive filesystem), the sidecar path is the output path. The media is renamed onto x.vtt, then the sidecar temp is renamed onto the same path and replaces it. The receipt is Complete with published_media=true, published_sidecar=true and output_sha256 = the media hash, but the file on disk is WebVTT and the media is gone. None of the checks catch it: plan (:654-658), check_sidecar_path (:917, :1217-1219) and the overwrite-off re-check (:1214) all pass, because neither path exists before the renames.",
+      "scenario": "ExportJob { output: d/x.vtt, overwrite: false } with submit_with_captions(sidecar: true). Same with x.VTT on NTFS: Path equality is case-sensitive, the filesystem is not.",
+      "fix": "In CaptionPlan::new before check_sidecar_path: if output.extension().is_some_and(|e| e.eq_ignore_ascii_case(\"vtt\")) { return Err(unsupported(\"export-sidecar-path\")); }. Add one assert to tests/export_publish_safety.rs: refused, 0 frame calls, no entries."
+    },
+    {
+      "id": "F2",
+      "certainty": "READ",
+      "severity": "minor wrong answer (struct only, not in to_json)",
+      "where": "crates/hsk-studio-reel/src/export.rs:856-859 and :881-885",
+      "what": "receipt.captions is set only when execute returns Ok. In the case the lane adds (sidecar rename fails after the media rename), a job with embed=true has published media that carries a tx3g track, but receipt.captions stays None, which the field doc (:304) reads as 'no captions'. receipt.mux.text_samples still shows the track. ExportReceipt::to_json does not serialize captions, so the JSON is unaffected.",
+      "scenario": "The Windows test a_sidecar_rename_failure_after_the_media_states_what_was_published with ExportCaptions.embed = true.",
+      "fix": "Have the closure also return the caption receipt, and fill receipt.captions when run.published is Some, with sidecar_sha256 set to None because the sidecar was not published. Non-blocking."
+    },
+    {
+      "id": "F3",
+      "certainty": "SUSPECT (race; the builder declared it as narrowed, not closed)",
+      "severity": "wrong answer under a concurrent writer",
+      "where": "crates/hsk-studio-reel/src/export.rs:1214-1221",
+      "what": "With overwrite off, the exists() re-check followed by std::fs::rename (which replaces on Windows and Unix) is a check-then-act race. A file created at the output in between, by another process or by another ExportQueue in the same process, is replaced silently and the receipt says Complete. The builder's note says an atomic no-replace publish 'needs a platform call'. That is inaccurate: std::fs::hard_link(temp, output) fails with AlreadyExists atomically on NTFS, ext4 and APFS.",
+      "scenario": "Two queues in one process, both overwrite=false on the same output, finishing within the same few microseconds.",
+      "fix": "When !overwrite: hard_link(temp, &job.output), mapping AlreadyExists to export-output-exists, then remove the temp. Keep the current rename only where hard links are unsupported (FAT/exFAT, some network shares: ErrorKind::Unsupported or the like). Lead's call; fine to defer as declared."
+    }
+  ],
+  "lead_questions": {
+    "Q1_provenance": "The fixture tests/fixtures/stu-vid-061b-rows.txt is byte-identical to Master Spec v02.229 spec-modules/14-studio-creative-suite.md lines 24952..25501 with CR stripped. I verified this independently: the sha256 of those spec lines is c19e4b92f419d768904ce66fc4336dc914b2cbb3457978608cbb9292fff89ab3, 58,934 bytes, the same as the committed blob, and .gitattributes gives eol=lf. It is Handshake's own spec text: 14 facet headings, 14 derivation notes, 14 table headers and 453 markdown rows. No vendor file is committed (no .epr or XML preset, no binary). Per STU-VID-061 (SM:24894) the rows were 'recovered' from 1,541 shipped vendor recipes. The vendor-originating content is ADBE* parameter identifiers, preset usage counts, four-char format codes and 44 shipped UI labels copied verbatim. 41 labels are short UI strings; 3 are tooltip sentences (ADBEVideoMaxBitrate, ADBEVideoMinBitrate, ADBEVideoTargetBitrate). The same labels are also in src/export_parameter_rows.rs. This is not the Arial class (a whole proprietary file). Whether the 3 tooltip sentences may ship is an Operator/lead call; the spec already carries them.",
+    "Q2_publish_windows": "On Rust 1.97 (rust-toolchain.toml), std::fs::rename replaces an existing file on Windows and Unix and fails when the target is a directory. On Windows it also fails when the target is open without FILE_SHARE_DELETE. Overwrite on: the code relies on the replacing rename, and there is no delete first (the old :1153/:1158 deletes are gone). Overwrite off: the code relies on the exists() re-check, then a replacing rename, which leaves F3. Target open by another process (Windows): the media rename fails, the receipt is Failed, nothing is published and both temps are removed. The same on the sidecar gives Failed with published_media=true and published_sidecar=false (test d3), and the old .vtt stays beside the new media. Crash between the two renames: on disk are the new media, the old or no .vtt, and a leaked .<out>.vtt.partial-<pid>-<n>. There is no receipt, and nothing ever sweeps the leaked temp. A rerun with overwrite off is refused export-output-exists before the first frame; with overwrite on it replaces both. Two processes: temp names carry the pid, so they never collide. If a pid is reused and finds a leaked temp, create_new fails, that one item is Failed MEDIA_IO, nothing is deleted, and the next attempt gets a new n. The receipt is honest except F1, F2 and F3. Downstream, harness-view job_admission.rs:306-313 settle_export ignores published_media, so a Failed-with-media receipt settles as plain Failed. That file is not this lane's.",
+    "Q3_job_from_recipe": "I found no silent divergence. Each of the 6 consumed identifiers either goes into the job or is compared with a source fact. WIDTH/HEIGHT are compared with format(), FPS with ticks_per_frame() (i128 compare, so 8475667200 and 8475675675 stay distinct), RATE with rate(), CHANNELS with channels() (negative values refused). BITRATE goes Mbps to bps with round(); I checked that the round trip is exact for the presets' 20/8/15 Mbit/s. None of the 17 DEGENERATE_BOUNDS rows can reach the encoder. On set, ADBEVideoCodec and ADBEAudioCodec are refused codec-without-exporter or missing_unit, and the other 15 are refused missing_unit. resolve (:558-568) would refuse any of them as not_consumed anyway. The only value resolve fills in itself is the HEVC profile, which it sets to High (:587); the record has no HEVC profile field and the HEVC preset already used High, so the pin holds. Latent: StudioExportRecipe::resolve is pub and skips the source-fact and Span checks. Its only callers are ExportPreset::recipe (presets carry no source-fact parameters) and job_from_recipe, so nothing is affected today.",
+    "Q4_bounds": "The parameters map is keyed by &'static dictionary ids, so it holds at most 453 entries; the >=453 guard can never trigger. An identifier over 128 bytes is refused before lookup, and an unknown identifier is never echoed. Lookup is a binary search over a table the test checks is sorted. Text over 4096 bytes is refused. The String has already been allocated by the caller but is moved, not cloned. name over 256 bytes is refused before to_owned. NaN and +/-inf on float rows are non_finite; float on FPS is frame_rate_stored_as_float; -0.0 is negative_zero. Negative bitrates are OutOfRange (min 0.19). i64::MIN/MAX are tested. megabits_to_bits(f64::MAX) returns None, so overflow becomes a typed Conversion error. to_json prints only finite floats; Rust's f64 Display never uses an exponent, and json_f64 appends .0.",
+    "Q5_render_queue": "No behaviour that harness-view src/view/timeline_export/render_queue.rs:194-251 relies on changed. The ExportRecipe, ExportJob and ExportQueue signatures are unchanged and no dependent constructs ExportReceipt literally (git grep). The changes it can see: an output path that is a directory is now refused export-output-path before the first frame, where it used to fail MEDIA_IO after the full render (no dependent test pins either); and receipt to_json has a new 'published' key. Consumers only read fields from that JSON (timeline/export_media.rs:417, viewer tests index receipt[\"outcome\"] and similar); none compares the whole object. Temp names keep the .<name>.partial-<pid>-<n> shape; no dependent references .partial."
+  },
+  "checked": [
+    "Full diff aa68164c..c79c858d: export.rs, export_parameters.rs, export_parameter_rows.rs (head and the 6 consumed rows), export_recipe.rs, mux.rs capability, presets.rs, lib.rs, all 3 new tests, fixture",
+    "Publish path at tip: run_item :798-896, CaptionPlan :907-944, execute :1122-1231, temp_beside/create_temp :780-796; every file handle is dropped before its rename and before cleanup",
+    "Red commit e072cb46 compiles on its own (published_* asserts were added in a4e4557e); pin commit f5406a31 uses only existing API",
+    "No feature-gated code in the new modules; cfg!(av1-encode) is handled in resolve and in the pin test; lib.rs cfg re-exports do not collide with the new names",
+    "Dependents: 12 test files glob-import hsk_studio_reel::* (harness, harness-view, reel-native); none uses any newly exported name, so there is no glob ambiguity; no ExportReceipt literal outside reel",
+    "DESCRIPTOR parses as JSON (python json.loads), with the new export_recipe key; only engine_video.rs uses contains() on it",
+    "Fixture blob sha256 equals spec v02.229 lines 24952..25501",
+    "Test assertions read against the code: degenerate list, credential order, unit rule, codec rule, capability grid count 140/70, preset pin under av1-encode on and off"
+  ],
+  "not_checked": [
+    "No cargo, clippy or test run (read-only); clippy on dependents and in the feature units is NOT_INSPECTED beyond reading for gated code",
+    "Exact Rust 1.97 Windows rename internals (MoveFileExW versus FileRenameInfoEx fallback) were not read in std source; the open-target and directory-target outcomes rest on the builder's Windows-green tests c2/d3 and documented std behaviour",
+    "Vendor parity (D5) and the legal status of the 3 tooltip sentences",
+    "The 453 rows are not compared cell by cell beyond the consumed rows; the green test every_row_and_cell_equals_the_spec_table does that",
+    "harness-view settle_export consumers of published_media beyond job_admission.rs:306-313",
+    "MT contract rows (the F-R55-3 pulse-crate naming)"
+  ]
+}

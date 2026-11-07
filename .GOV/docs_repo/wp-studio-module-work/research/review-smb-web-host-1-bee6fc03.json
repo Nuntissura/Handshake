@@ -1,0 +1,102 @@
+{
+  "lane": "SMB-WEB-HOST-1",
+  "tip": "bee6fc03",
+  "base": "912cb86f",
+  "verdict": "FIX_FIRST",
+  "verdict_reason": "Nothing found that breaks the build or the lane's own tests at bee6fc03. The tip must be rebased onto 98e4099c anyway (drive.rs conflicts), and that rebuild could carry fixes F1 to F4, all of them in web_commands.rs, so the bundled run goes once on the fixed and rebased tree.",
+  "findings": [
+    {
+      "id": "F1",
+      "sure": "READ",
+      "file": "crates/hsk-studio-harness-core/src/web_commands.rs:554 (Port::resolve 752-763, asset_id 781)",
+      "what": "web.export refuses ordinary pages. `<a href>` is a navigation carrier (Load::Document, web-assets carriers.rs:577). Its reference reaches Port::resolve even when it names the document itself (assets.rs decide: only reads_text contexts turn a self-spelling into SelfReference). The document's own name comes back Granted, and then `assets.contains(&recipe.file)` refuses export_path_collision. A directory link (`href=\"/\"`, `\"./\"`, `\"docs/\"`) fails asset_id at the empty last segment (line 781), so it is Denied and the export refuses asset_denied.",
+      "scenario": "local_root/index.html holds `<a href=\"index.html\">Home</a>` (or `<a href=\"/\">`); web.export_recipe output_root=out; web.export refuses export_path_collision (or asset_denied: not_granted: /). The lane's fixture has only `#top` and https links, so its tests pass.",
+      "fix": "In export, skip a Granted id equal to `port.document` (the document is already written from out_doc). For a navigation-only reference that is the site root or a directory, list it as a link and do not copy or refuse it (Port::resolve already gets `loads`). Alternatively, name the directory-link refusal as a declared cut."
+    },
+    {
+      "id": "F2",
+      "sure": "READ",
+      "file": "crates/hsk-studio-harness-core/src/web_commands.rs:502-506",
+      "what": "A stale site record comes back after undo, save and reopen. save writes the sidecar only when site or recipe is Some, and never removes or clears an existing one.",
+      "scenario": "web.open P (no sidecar), web.site {...}, web.save overwrite (sidecar written), web.undo (site None, the step survives the save), web.save overwrite (sidecar untouched), web.open P: the undone site is back. The same happens after web.open source=... and web.save to an existing P that has an old sidecar.",
+      "fix": "When the record is None and sidecar(&path) exists, write sidecar_json(None, None) (read_sidecar already maps nulls to (None, None)) or remove the file."
+    },
+    {
+      "id": "F3",
+      "sure": "READ",
+      "file": "crates/hsk-studio-harness-core/src/web_commands.rs:540-559, 585-588, 843-848",
+      "what": "An export collision is caught after files are already written, so a refusal that should change nothing leaves files behind. Collisions are checked case-sensitively (BTreeSet of ids, `assets.contains(&recipe.file)`) and the reserved output names are never checked. On NTFS, two references that differ only in case both resolve (symlink_metadata is case-insensitive) and come back as two ids. write_new then fails on the second one, after the earlier files are on disk.",
+      "scenario": "On Windows, `<img src=\"Logo.png\"><img src=\"logo.png\">` (or an asset `Index.html` beside recipe.file `index.html`, or a referenced `studio-export-manifest.json`): web.export writes Logo.png and the files before it, then refuses export_path_collision. output_root is left non-empty with no manifest, so the next export refuses output_not_empty. A referenced `studio-publish-receipt.json` is overwritten by the next publish, and the publish after that refuses export_changed.",
+      "fix": "Before the first write, build one ASCII-case-folded set of every output name (asset ids, recipe.file, MANIFEST_FILE, RECEIPT_FILE) and refuse export_path_collision on any duplicate."
+    },
+    {
+      "id": "F4",
+      "sure": "READ",
+      "file": "crates/hsk-studio-harness-core/src/web_commands.rs:612-617",
+      "what": "web.publish can overwrite the site's source files, and its guard against publishing into the export does not hold. The only guard compares target_root with export_root, and it runs only when both paths canonicalize. Nothing compares the target with the site's local_root, and a target that does not exist yet skips the check.",
+      "scenario": "(a) A local_or_network target with root_path = local_root and a minify recipe: publish replaces local_root/index.html (the open document's file) with the minified export, and state still says dirty:false. (b) root_path = <output_root>/live, not yet created: the first publish writes into the export tree, although the lane notes say a publish root inside the export is refused.",
+      "fix": "Canonicalize the nearest existing ancestor of target_root. Refuse publish_over_export when it is inside or contains the export root, and refuse a target equal to the canonical local_root or the document's folder."
+    },
+    {
+      "id": "F5",
+      "sure": "READ",
+      "file": "crates/hsk-studio-harness-core/src/web_commands.rs:759 (and the read at 565)",
+      "what": "The asset gate can grant a file outside the site root. symlink_metadata checks only the last path component, so a junction or symlink directory inside local_root is followed. The module docs promise 'a regular file under the site root'.",
+      "scenario": "local_root/media is a junction to C:/Users/<u>/Documents and the page has `<img src=\"media/tax.pdf\">`: the file is Granted, then copied into the export and published.",
+      "fix": "In Port::resolve, require canonicalize(join(root,id)).starts_with(canonicalize(root)), otherwise answer Denied."
+    },
+    {
+      "id": "F6",
+      "sure": "READ",
+      "file": "crates/hsk-studio-harness-core/src/harness.rs Run::undo (bee6fc03:1902); manual.rs DRIVE_LIMITS web line",
+      "what": "Q5: history.undo after a web edit can undo a different, older step and report success. The two histories do not know about each other. The manual's limit line declares this, but the reply gives no sign of it.",
+      "scenario": "A package edit (layer.rename), then web.set_text, then history.undo (or a drive `undo` line): the rename is undone, ok:true, and the web edit stays. With no package step, the reply is nothing_to_undo although a web step exists.",
+      "fix": "Give run steps and web steps a sequence number from one counter on Run. history.undo and history.redo refuse a typed `newest_step_is_web` (hint web.undo) when the web host's newest undo step is newer than the run's newest step. If the lead accepts the documented limit instead, this finding can be dropped."
+    },
+    {
+      "id": "F7",
+      "sure": "READ (needs a panic)",
+      "file": "crates/hsk-studio-harness-core/src/web_commands.rs:1223-1225",
+      "what": "`std::mem::take(&mut run.web)` moves the host out for the call. If anything in execute panics, the drive's catch_unwind (drive.rs:586) keeps the session going with an empty WebHost: document, history, site and recipe are gone, and revision reads 0. The manual promises 'what it had already changed stays changed'.",
+      "scenario": "Any panic inside hsk_studio_web parse or preview during a web command.",
+      "fix": "Call `run.web.execute(row, params, &ctx, run.cancel)` directly. The borrows are of disjoint fields, so no take is needed."
+    }
+  ],
+  "rebase_onto_98e4099c": {
+    "method": "read-only `git merge-tree 912cb86f 98e4099c bee6fc03` (trivial mode, no objects written)",
+    "conflicts": [
+      "crates/hsk-studio-harness/src/cli/drive.rs imports (lines 20-22): take origin's `action::{self, Surface, ValueType}` and the manual import with `viewer_row_of`, plus the lane's `harness::{motion_commands, web_commands}`",
+      "crates/hsk-studio-harness/src/cli/drive.rs dispatch (after the motion_commands::row block): keep both ifs. The order does not matter: viewer_row_of(\"web.*\") is None because viewer_domain never returns \"web\", and the `.filter(|_| action::command(id).is_none())` excludes web ids anyway"
+    ],
+    "clean": "action/commands.rs (mod web; and web::ROWS sit after video, apart from origin's catalog/panel/proof lines), manual.rs (the web DRIVE_LIMITS line and the web_commands key do not touch origin's edited lines), harness.rs (origin only adds command_outcome), harness-view view/mod.rs, harness-core Cargo.toml, Cargo.lock",
+    "viewer_domain": "no web arm needed: web.* rows are RUN_COMMANDS rows, not DRIVE_VIEWER rows; DRIVE_VIEWER is not touched by this lane",
+    "row_pattern": "web.rs uses the old entry()/p() (Surface::Run). This still compiles on origin and must stay Run: action_records' Run-surface scan needs web_command, and typed() would route the rows to Viewer::run_command, which has no web arm (command_not_driveable). After the rebase p() sets required:true, so corpus_json and help drive.web_commands claim every web parameter is required (for example web.open path and source, which the engine refuses together). Mark the optional ones with `.opt()`; no test fails either way, and motion rows have the same gap.",
+    "catalog": "web rows become `studio.command.web.<kebab>` descriptors: valid author ids, no alias collision, so the catalog.list test is unaffected; harness_drive help-row tests iterate drive.commands/drive.typed, which hold no web rows",
+    "plan": "rebase onto 98e4099c; resolve the two drive.rs hunks as above; optionally add .opt() on the optional web params; the bundled run then covers harness-core and harness"
+  },
+  "answers": {
+    "q2_dependency_closure": "hsk-studio-web -> accord, observe, web-core, web-assets, sha2 =0.10.9 (force-soft); web-core -> accord, observe, sha2; web-assets -> accord, web-core; observe -> accord. None reaches harness-core, so there is no cycle. html5ever is a dev-dependency only. No winit, egui or wgpu. SHA-256 is web-core's sha256_hex over sha2 0.10.9 (cfg-if, cpufeatures 0.2.17, digest 0.10.7), which is already in Cargo.lock and used by hsk-studio-package and the interop crates. The lock diff is the single dependency line. License: the closure is the workspace's own crates plus the sha2/digest family; their license fields were NOT read in this review.",
+    "q3_file_system": "Asset ids: `..` escape, backslash, absolute, UNC, drive-letter (':' is not portable), dot-leading, reserved device names and over-deep paths are all refused in asset_id/portable. recipe.file is a single portable name. Manifest paths read back are re-checked with asset_id. There is no walk of local_root: only referenced paths are stat'ed. Peak export memory is bounded at about 1 GiB plus one 256 MiB asset. Gaps: F1, F3, F4 and F5. Secrets: the name check is top-level and case-folded, and any other unlisted key is refused parameter_unknown, so nothing slips by name. Through the drive, params_from_text refuses parameter_unknown before the engine's credential_in_site_record, so the code differs from the documented one; the value is not echoed. Value-level secrets (host `user:pw@h`) are not detected, and none is claimed.",
+    "q4_span_rewrite": "apply sorts the edits stably by (start, end), and patched() sorts the forward edits the same way before zipping them with Applied.changed, so the inverse spans line up, including zero-width inserts at one position and adjacent deletions. UTF-8 boundaries are checked by apply. Quoting and escaping are engine code (set_attribute requotes an unquoted value when it needs it), unchanged at base. Undo after save works in-process; reopen clears the history, as the docs say. Only F2 is wrong across save and reopen.",
+    "q5_history_undo": "see F6"
+  },
+  "checked": [
+    "full diff 912cb86f..bee6fc03; green commit touched no test (7b2f444a..bee6fc03 = Cargo.lock, Cargo.toml, web_commands.rs)",
+    "web_commands.rs whole file: execute, open/read/edit/record/push/step_back/save/port/export/publish/verify, patched, minified, Port, asset_id, portable, checked_path, read_bounded, write_atomic/new/replacing, read_manifest, sidecar read/write round trip, run()",
+    "harness.rs begin_at, own_or_push, push, note_unrecordable, undo/history_step",
+    "drive.rs dispatch, motion(), web(), refuse, catch_unwind; motion_commands::params_from_text",
+    "hsk-studio-web-core source_dom_patch apply, SourcePatch, set_attribute, remove_attribute, set_text head",
+    "hsk-studio-web-assets decide / resolves_to_document / DocumentUrl / a-href carrier",
+    "web_host.rs assertions traced against the code paths (all consistent)",
+    "origin 98e4099c: commands.rs, action.rs, harness.rs, manual.rs, drive.rs, drive_viewer.rs, view/commands.rs run_command, ui_seed, UiCatalog insert/valid_author_id, action_records scan, harness_drive help-row tests, catalog test; trivial merge-tree",
+    "Cargo.toml of web, web-core, web-assets, accord, observe; Cargo.lock sha2 entries"
+  ],
+  "not_checked": [
+    "no cargo or tests run; the builder's green claim (39/39) is taken from the lane file, not re-run",
+    "engine internals beyond the functions named (preview_tree, document_media_blocks, parse limits, escape_attr/escape_text)",
+    "license fields of sha2/digest/cpufeatures/cfg-if",
+    "harness-view Viewer::say and the drive reply shape beyond web()",
+    "scenario-board-slides-web.json steps 85-117 against the implementation",
+    "whether hsk-studio-package (sha2 user) is enabled in harness-core's default build"
+  ]
+}

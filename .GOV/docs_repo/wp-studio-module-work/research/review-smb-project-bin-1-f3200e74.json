@@ -1,0 +1,92 @@
+{
+  "lane": "SMB-PROJECT-BIN-1",
+  "tip": "f3200e74bd9a31d9556a4867d9b50f6e6f1188b3",
+  "base": "912cb86f",
+  "verdict": "FIX_FIRST",
+  "findings": [
+    {
+      "id": "F1",
+      "confidence": "READ",
+      "severity": "wrong_answer",
+      "where": "hsk-studio-harness-core/src/harness.rs Run::new_sequence (sequence_edits_and_entry_step with SEQUENCE_SETTINGS_ENTRY) + Run::history_step sequences branch (~2093-2120)",
+      "what": "Undo of sequence.new is refused and the history gets stuck there. The step is a multicam Insert with the settings entry attached. Undo first submits the multicam inverse (remove the sequence) and only afterwards swaps the entry back. During that commit the session runs keep_entry_valid(SEQUENCE_SETTINGS_ENTRY, next) (session.rs ~1402-1408; a multicam proposal carries only MULTICAM_ENTRY). The held settings entry still names the new sequence, so it validates now and fails with DanglingReference after the removal: folio_rejected. restore_step then puts the step back, so every later undo refuses at the same step. sequence_records.rs docs say this outright: a timeline or multicam step cannot remove its sequence. Before this lane, submit_sequence_edits_and_entry was only ever called with audio_routing and multicam entries, and those block no commit.",
+      "scenario": "open empty package; project_new_sequence(\"main\", PRESET); undo() -> false, error folio_rejected; sequence still present; undo stack top still sequence.new. The lane test never undoes sequence.new (it undoes 3 steps: place, place, import).",
+      "fix": "In history_step's sequences branch, when undoing a step whose entry is a guarded token (sequence_settings; media_markers too, for safety), swap the entry back BEFORE submit_multicam_as, and swap it again if the submit fails. Redo keeps the current order (insert first, then the entry). Add one red test: new sequence, undo, redo, all ok, and the settings entry is absent after the undo."
+    },
+    {
+      "id": "F2",
+      "confidence": "READ",
+      "severity": "merge_break",
+      "where": "hsk-studio-harness-core/src/harness.rs Run::project_bin_command: HistoryStep { ... sequences: None, ctx, revision } literal",
+      "what": "SMB-DOC-NEW-1 (tip 368e1080) adds the field `containers: Option<..>` to HistoryStep and updates every literal it found. This lane adds a new literal, so whichever lane lands second fails with E0063 (missing field `containers`).",
+      "fix": "When rebasing onto DOC-NEW-1, add `containers: None` to the literal."
+    },
+    {
+      "id": "F3",
+      "confidence": "READ",
+      "severity": "merge_break",
+      "where": "hsk-studio-session/tests/entry_references.rs NOT_APPLICABLE [_; 14] and hsk-studio-session/src/source.rs DOCUMENT_ENTRY_TOKENS",
+      "what": "DOC-NEW-1 also raises NOT_APPLICABLE from 13 to 14 (its row is artboard_options), and it edits the same DOCUMENT_ENTRY_TOKENS line. The union has 15 rows, so a resolution that keeps `14` does not compile, and the token line conflicts as text.",
+      "fix": "When merging, set [(&str,&str); 15] and keep both tokens."
+    },
+    {
+      "id": "F4",
+      "confidence": "READ",
+      "severity": "wrong_answer_after_merge",
+      "where": "hsk-studio-harness-core/src/manual.rs DRIVE_VIEWER project_* rows vs SMB-COMMAND-SURFACE-1 (tip ae15cf6b) manual.rs viewer_domain()",
+      "what": "COMMAND-SURFACE-1 gives each viewer row the canonical id `<viewer_domain(method)>.<method>`, and any method its match does not list falls through to \"vector\". The 8 project_* rows would get the canonical ids vector.project_new_sequence, vector.project_import and so on, in ui_seed, the catalog and drive. Both lanes also append to the same tail of DRIVE_VIEWER (after proof_set_save_name) and edit drive_viewer.rs, so those are textual conflicts. COMMAND-SURFACE-1 keeps the `entry()` signature (it adds surface: Run), so the 7 video.rs rows still compile.",
+      "fix": "When rebasing onto COMMAND-SURFACE-1, add an arm to viewer_domain for the 8 project_* methods (a project or video domain), then resolve the DRIVE_VIEWER tail and the drive_viewer.rs arms."
+    },
+    {
+      "id": "F5",
+      "confidence": "READ",
+      "severity": "wrong_answer_minor",
+      "where": "hsk-studio-harness-view/src/view/project.rs project_import: `|| !digests.insert(hex)` runs before classify and stage_tile",
+      "what": "A digest goes into the batch set before the file is classified and staged. When the first of two identical files is then refused (MEDIA_IMPORT_UNSUPPORTED, a decode code, entry_too_large or total_too_large), the second copy is reported already_imported, although no item holds those bytes.",
+      "scenario": "project_import([a.bin, copy_of_a.bin]) with an unsupported type -> refused [{a.bin: MEDIA_IMPORT_UNSUPPORTED}, {copy_of_a.bin: already_imported}]; bin unchanged.",
+      "fix": "Insert into `digests` only after stage_tile succeeds; keep the check `digests.contains(&hex)` where it is."
+    },
+    {
+      "id": "F6",
+      "confidence": "SUSPECT",
+      "severity": "wrong_answer_edge",
+      "where": "hsk-studio-folio/src/project_bin.rs apply_project_bin_command Remove: `used.iter().any(|s| **s == next.media_items[at].source)`",
+      "what": "item_in_use compares the whole ClipSource value (artifact_manifest_id, asset_id and digest), but the bin keys items by content digest. A clip that cuts from the same bytes under another manifest handle, or with asset_id set (an imported or relinked document), does not block the removal. Every place in the harness that builds a source uses `sha256:<hex>` with asset_id None, so this only happens with documents from outside. Nested sequences and multicam angles are covered: they are ClipSource::Sequence, and the walk covers every document sequence. No other folio type holds a ClipSource. Routing holds no media.",
+      "fix": "Match on the content digest: `matches!(s, ClipSource::Media{content_digest,..} if content_digest == item_digest)`."
+    },
+    {
+      "id": "F7",
+      "confidence": "SUSPECT",
+      "severity": "unbounded_aggregate_memory",
+      "where": "hsk-studio-harness-view/src/view/project.rs media::project_bind",
+      "what": "Bind reads every bin item in full and keeps all of them at the same time: every video as an Arc in the decoder, and every audio item decoded to planar f32 (2x the size of 16-bit PCM, 4x for 8-bit). The only aggregate bound is the package's 4 GiB max_total_bytes after reopen. Staging caps each session at 1 GiB, but a package can grow past that over several save and reopen cycles. Bind has no cap or refusal of its own.",
+      "fix": "Charge the summed item bytes and the decoded sample count against one bind budget and refuse typed (bind_too_large), or decode lazily."
+    }
+  ],
+  "answers": {
+    "1_entry_token": "Classified in DOCUMENT_ENTRY_TOKENS, is_sequence_record_token, check_entry, invalid_entry_notes, entry_references NOT_APPLICABLE and package externals CLASSIFIED (StudioMediaItem.source, StudioProjectBin.media_items). keep_entry_valid needs no row: the bin names only the SDOC id. The package walks every studio/* body for timeline_media, so embedding and the externals report pick the bin up without a token list. An older document without the entry reads as None. An older build does NOT refuse typed: the unknown token stays an opaque entry with a note (source.rs document_entry returns None), and its prefix keeps the media referenced. That degrades without refusing; it is not a defect.",
+    "2_size": "No unbounded allocation. read_audio_file checks metadata first (1 GiB): a 10 GB file is refused media_read before any read. A file under 1 GiB is read whole, and classify copies it again for video (Arc::from(&[u8])), so the peak is about 2x the file. stage_tile refuses a body over 512 MiB with entry_too_large, but only after the read, digest and classify. MAX_STAGED_BYTES is 1 GiB per session and staged bodies are never released, undone or refused imports included. Reopen: tile_bytes reads one whole asset (at most 512 MiB) per call. See F7 for bind. The Folio input budget covers only the bin JSON (16 MiB cap, also checked after apply), never the media.",
+    "3_all_or_none": "Both statements hold, at two layers. The Viewer refuses files one at a time (typed rows), then submits the files that survive as ONE Folio Import, and that Import is all or none. If Folio refuses the batch (budget_exceeded, folder_missing), the Viewer returns Err with the code, the per-file lists are lost, and the bytes stay staged. No contradiction; see F5 for a wrong per-file code.",
+    "4_in_use": "Every clip of every document sequence is walked, so nested-sequence and multicam-angle media (both ClipSource::Sequence pointing at a sequence in document.sequences) are covered. Routing holds no media reference, and media_markers are keyed by digest and only go inert. Gap: F6.",
+    "5_digest": "Two files with the same bytes: deduplicated in the batch and against the bin, and Folio refuses DuplicateItem again (F5 is the wrong-code edge). A file that changes on disk between import and save: the bytes are captured in memory at import, the digest is SHA-256 of those same bytes (reel full_digest and session stage_tile are both SHA-256), and the save writes the staged bytes, so a later change on disk does not matter. Reopen verifies the hash.",
+    "6_undo_attribution": "Bin commands: one entry-only HistoryStep labelled with the command id, ctx from Run::begin(command id) at the live revision, no revision bump, and the generic entry-only undo and redo swap. add_tracks and place_clip: timeline steps under their own command id. sequence.new: one grouped step (multicam Insert plus the settings entry), labelled and attributed, but its undo is broken (F1). No business event for the project_bin token, which matches entry_business_event."
+  },
+  "checked": [
+    "folio project_bin.rs in full: validate, parse bounds, apply (all 4 commands), with_tracks, sequence_from_settings, with_clip",
+    "session project_bin.rs, plus the sequence_records.rs and source.rs registration sites; session.rs keep_entry_valid, the commit entry guard (~1402), propose_multicam entry, stage_tile and tile_bytes, MAX_STAGED_BYTES, write_options Granted",
+    "package references.rs and externals.rs: the studio/* walk, embeddable_digests, Limits (512 MiB per entry, 4 GiB total)",
+    "harness-core: the new Run methods, sequence_edits_and_entry_step, submit_sequence_edits_as, submit_sequence_as, history_step (timeline, sequences and entry-only branches), keeping_redo_without_new_step, HistoryStep fields, entry_business_event",
+    "harness-view project.rs in full, ReservedIds, the gating of the media feature; drive_viewer.rs arms and cfg; harness and harness-view feature chains",
+    "the harness tests/project_bin.rs assertions: undo covers place, place and import only",
+    "collisions: COMMAND-SURFACE-1 ae15cf6b (commands.rs entry/typed signatures, viewer_domain, ui_seed, the action_records corpus filter) and DOC-NEW-1 368e1080 (HistoryStep containers, DOCUMENT_ENTRY_TOKENS, NOT_APPLICABLE)",
+    "base movement 95ee2774..912cb86f on the files the lane touched (harness.rs, manual.rs, session lib.rs): the motion rows and the diag sink, no semantic clash"
+  ],
+  "not_checked": [
+    "reel ReelFrameDecoder.layout cost on a large video (whether it decodes every frame) and the import_audio_external internals",
+    "whether the multicam inverse of Insert is exactly Remove{expect} (assumed from the step shape)",
+    "the package streaming save path memory for 512 MiB assets",
+    "whether apply_project_bin_command's CommandContext command id passes any accord CommandId grammar beyond RUN_COMMANDS (the lane's focused tests pass before the rebase)",
+    "folio inline tests and the harness drive process test, which were not re-derived",
+    "every other lane landing now beyond the two named"
+  ]
+}

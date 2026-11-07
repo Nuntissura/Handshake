@@ -5,15 +5,38 @@
   "phase": "build",
   "worktree": "wt-studio-lanes/smb-pr-edit-footprint-1",
   "base": "aa68164c",
-  "commits": [],
+  "commits": [
+    {
+      "sha": "a1a68f93",
+      "what": "red: typed rows (mixer, multitrack, waveform, spectral, monitor, prototype, design.instance) in harness-core per-domain files, ALL_ROWS a static, tests/harness_drive_audio.rs; proven red on the test target",
+      "base": "aa68164c"
+    },
+    {
+      "sha": "b7fea846",
+      "what": "lead additions 1 and 2: SMB-DOC-NEW-1 rows .opt() as their drive rows, viewer_domain document arm; manual limits"
+    },
+    {
+      "sha": "1ba6389a",
+      "what": "harness-view view/commands mixer.rs, waveform.rs, monitor.rs, prototype.rs, design.rs, dispatch arms, engine_refusal; PrototypePlay::dispatch_trigger; drive tracks design.import_fig dest; prototype rows take the spec ids"
+    },
+    {
+      "sha": "2bbe2207",
+      "what": "test fixes after the first focused run: undo labels are '<op> <target>', design steps are design_instance, program sequence holds a clip"
+    }
+  ],
   "capabilities_done": [],
-  "tests": {},
+  "tests": {
+    "red_a1a68f93": "nextest --test harness_drive_audio (audio-batch) on the red tree: 6 run, 1 pass (catalog rows), 5 fail as intended (lead 1 and 2 asserts; process rows unknown_command, example binary not rebuilt for red); log check-smb-drive-typed-2-red-tests-aa68164c-dirty.log",
+    "clippy_1ba6389a_dirty": "clippy harness-core --tests, harness-view [viewer] and [viewer,media], harness [audio-batch] lib + harness_drive_audio, harness default harness_drive_audio: all exit 0, no warning in a changed file; log clippy-smb-drive-typed-2-b7fea846-dirty-2.log",
+    "focused_1ba6389a": "example rebuilt (mtime checked), nextest --test harness_drive_audio [audio-batch]: 6 run, 3 pass, 3 fail on test expectations (undo label form, empty program sequence), fixed in 2bbe2207; log focused-smb-drive-typed-2-1ba6389a-clean-audio-batch.log",
+    "focused_2bbe2207": "example rebuilt (mtime checked), nextest -p hsk-studio-harness --features audio-batch --test harness_drive_audio: 6 run, 6 pass, exit 0; log focused-smb-drive-typed-2-2bbe2207-clean-audio-batch.log"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on C:, push when green",
-  "updated_at": "2026-11-07T17:22:06Z",
+  "next": "PAUSED by the Operator (coordinator 2026-11-07) at tip 2bbe2207 (local, not pushed; base aa68164c). Left: (1) message the lead with tip 2bbe2207 for the read-only code-check and red-team review; (2) on release, one bundled lane-check (--owner smb-pr-edit-footprint-1 --disk d): harness-core suite, harness-view [viewer], harness [audio-batch] targets incl. harness_drive_audio, process tests with no target flags (-E filter); (3) land: fetch, rebase on origin/codex/handshake-studio-assets, lane-check --per-sha HEAD~1, guarded push, READY_FOR_VALIDATION. Not run yet: bundled run, per-sha, media-only and viewer-only units of harness_drive_audio.",
+  "updated_at": "2026-11-07T18:06:45Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -38,6 +61,50 @@
       "workflows/backlog-20261107.json SMB-DRIVE-TYPED-2"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-pr-edit-footprint-1"
+    "reuses_tree_and_target": "smb-pr-edit-footprint-1",
+    "paths_beyond_brief": [
+      "hsk-studio-harness-core/src/action/commands/{mixer,multitrack,waveform,spectral,monitor,prototype}.rs (new) and commands.rs, design.rs, document.rs: the dispatch's pattern (98e4099c) puts rows here, not in harness/src/cli/drive_audio.rs or drive_design.rs, which the brief named and which were not created",
+      "hsk-studio-harness-view/src/view/commands/{mixer,waveform,monitor,prototype,design}.rs (new) and commands.rs",
+      "hsk-studio-harness-view/src/view/prototype.rs: PrototypePlay::dispatch_trigger (additive, 6 lines)",
+      "hsk-studio-harness/src/cli/drive.rs: design.import_fig makes its dest the session source (1 line, as import_vector)",
+      "hsk-studio-harness/tests/harness_drive_audio.rs (new, named in the brief)"
+    ],
+    "facts_moved_since_c4d06841": [
+      "source_monitor.rs source_edit 561 -> 563, open_source_media 749 -> 752",
+      "export_media.rs bind_program_media 464 -> 473",
+      "mixer.rs 145/297, waveform.rs 100/743, timeline/audio.rs 399/422, design/instance.rs 76/400, spectral_display.rs 194 unchanged",
+      "SpectralMaskOp lives in hsk-studio-score/src/spectral_mask.rs:57; prototype play is Viewer::open_prototype (mod.rs:410) and PrototypePlay (prototype.rs)"
+    ],
+    "spec_basis": [
+      "STU-PRO-138/139 prototype.start_session, dispatch_trigger, read_runtime_variables, capture_frame, end_session (ids taken from the spec)",
+      "STU-DS-008/009/016/017/162 instance commands",
+      "STU-VID-024/025 source to program edits",
+      "STU-AUT-147 command corpus"
+    ],
+    "cut": [
+      "waveform plugin edit (WaveformEdit::Plugin): needs Viewer::register_waveform_plugin with a plugin file, no row",
+      "prototype session ids (MT-33255 AC-002): one prototype session per viewer",
+      "spectral set_params separate row (spectral.open re-opens with new params), spectral images/columns (pixels not in replies)",
+      "mixer follows history.undo only through the timeline (multitrack.open); mixer.open alone rebuilds at its next edit (in DRIVE_LIMITS)",
+      "typed rows are not recordable (as every typed row)"
+    ],
+    "v4_06_sibling_sites": {
+      "class": "engine reachable from Rust only, no row",
+      "regex": "pub fn (register_waveform_plugin|set_spectral_params|spectral_image|spectral_columns|spectral_tile|mixer_undo|waveform_undo|open_waveform|set_smart_match_options|frame_raster|smart_raster|directional_raster)\b",
+      "sites": {
+        "register_waveform_plugin": "named, cut (plugin file and grant)",
+        "set_spectral_params": "covered by spectral.open re-open",
+        "spectral_image/spectral_columns/spectral_tile": "named, not a row (pixel data)",
+        "mixer_undo/waveform_undo": "covered by history.undo (waveform follows lazily; mixer through the timeline)",
+        "open_waveform (raw samples)": "covered by audio.waveform_open_clip",
+        "set_smart_match_options/frame_raster/smart_raster/directional_raster": "named, not rows"
+      }
+    },
+    "mts_slice_proves": [
+      "MT-33500 (corpus rows, partial: no schemas)",
+      "MT-33673 (typed commands, partial)",
+      "MT-33255 AC-001 (dispatch_trigger + capture_frame without a window; AC-002 session id NOT proven)",
+      "MT-33507, MT-33462 NOT proven (typed rows not recordable)"
+    ]
   }
 }

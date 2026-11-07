@@ -1,0 +1,69 @@
+{
+  "lane": "SMB-DOC-EXPORT-1",
+  "tip": "82950f9c",
+  "base": "95ee2774",
+  "verdict": "FIX_FIRST",
+  "findings": [
+    {
+      "id": "F1",
+      "sure": "READ",
+      "file": "hsk-studio-harness/src/cli/drive.rs:220 (with harness-view/src/view/doc_export.rs:861,872)",
+      "what": "The drive guard that refuses an export over the opened package 'whatever the flags' lists only export, export_vector_svg and export_vector_pdf. viewer.export_document gets past it, and Viewer::export_document_inner refuses the source only when overwrite is false, then write_atomic replaces it.",
+      "scenario": "In a `command --stdin` session on a.handshake, send {command_id: viewer.export_document, parameters: {path: <a.handshake>, recipe: {format: png}, overwrite: true}}. The package is replaced by PNG bytes, so the document is lost with no Run save op.",
+      "fix": "Add \"export_document\" to the matches! list at drive.rs:220, which gives export_over_source and overwrite_required like the other exports."
+    },
+    {
+      "id": "F2",
+      "sure": "READ (code); filesystem behaviour per CreateHardLinkW on FAT32/exFAT",
+      "file": "hsk-studio-harness-view/src/view/export.rs:200-210 (write_new)",
+      "what": "The no-clobber write uses std::fs::hard_link. On FAT32/exFAT, and on SMB/NAS targets without link support, the link fails with a non-AlreadyExists error, so the result is export_write. The temp file is removed, no fallback is tried, and nothing is left behind. Every export without --overwrite, and every batch Skip or Rename recipe target, therefore fails on those volumes even when nothing exists at the path. The native batch target in the same folder succeeds, because Run::save_new uses the session save_guard path (lock, compare, rename), which explicitly supports FAT and network shares. The result is two no-clobber writers with two different semantics.",
+      "scenario": "`export doc.handshake E:/card/out.tif --tiff` with E: on exFAT gives export_write and no file. The same job's handshake target written to E:/card succeeds.",
+      "fix": "When hard_link fails with an error other than AlreadyExists, reserve the name with OpenOptions::new().write(true).create_new(true).open(path) (AlreadyExists maps to destination_exists), then call replace_with_backoff(temp, path). On failure remove both the reservation and the temp. This works on every filesystem and keeps the refusal typed."
+    },
+    {
+      "id": "F3",
+      "sure": "READ",
+      "file": "hsk-studio-harness-view/src/view/doc_export.rs:797-803 (raster_record)",
+      "what": "The V4-02 running budget counts samples x (depth/8) bytes against max_input_bytes (512 MiB), but the buffer allocated is vec![0f32; samples], 4 bytes per sample. At the cap, one 8-bit PSD layer allocates a 2 GiB transient buffer (1 GiB at 16-bit) before quantize. The allocation is bounded, but at 4x the stated budget, so the module note 'checked against their budgets before allocation' does not hold.",
+      "scenario": "An 8-bit PSD export of a document with a raster layer of about 134M pixels passes the check at 512 MiB and allocates 2 GiB of f32.",
+      "fix": "Charge samples*4 (the f32 buffer) to `total`, or quantize each pixel straight into a u8/u16 Vec and drop the f32 buffer."
+    },
+    {
+      "id": "F4",
+      "sure": "READ (collision with SMB-COMMAND-SURFACE-1 at 120f1e55)",
+      "file": "hsk-studio-harness-core/src/manual.rs viewer_domain (command-surface lane, line ~264)",
+      "what": "After COMMAND-SURFACE-1 lands, viewer_domain does not list export_document, so it falls back to 'vector'. The canonical id becomes vector.export_document and the ui_seed descriptor goes in the vector domain, while its sibling export is photo.export. The textual merge is clean (the hunks are apart), so nothing flags this. DRIVE_LIMITS on that branch also says the 'three exports' emit no frame, but export_document does emit one.",
+      "fix": "At rebase, add \"export_document\" to the photo arm of viewer_domain. If COMMAND-SURFACE rewrites drive.rs:220, keep F1's guard on the method name."
+    }
+  ],
+  "answers": {
+    "1_write_new_hard_link": "The temp file is a sibling, so cross-volume linking never happens. When link support is missing, the result is a typed export_write refusal with the temp removed: no fallback and no leftover, except when remove_file itself fails (for example a scanner holding the temp), which leaves a .hsk-PID-N.export-tmp file. The two writers have different semantics from Run::save_new / save_guard (F2). It does not touch write_atomic/save_guard code.",
+    "2_psd_writer": "A layer rect extending past the canvas, or at negative coordinates, is valid PSD. Group records follow the lsct 3 / lsct 1 + luni convention. PSB lengths (8-byte channel lengths and layer-info length) go through encode_record/put_len. 4 GB is unreachable: the whole-file max_input_bytes of 512 MiB is checked in compose_psd and write_psd. The test re-reads with interop-psd only: read_psd, and the viewer reopen also goes through interop-psd. It tests 8-bit only, so a format error both sides share stays invisible. SUSPECT, not verified against Photoshop: for 16-bit files the writer puts layer info in the primary section, while Photoshop's own 16-bit files carry it in a global Lr16 block (the reader accepts both).",
+    "3_cmyk": "The pipeline is the linear frame flattened on white, then WideEngine from WORKING_PROFILE_LINEAR_SRGB into the given profile, chunked by pixel count (count = len/3 <= MAX_WIDE_PIXELS, correct). The ink readout is the sum of the 4 clamped inks x 100, and the formula is correct. 355.7% is the darkest output of the synthetic hsk-synth-cmyk-v2 LUT profile for the source's (0,0,0) pixel. A synthetic LUT has no press TAC, so this is not a bug signal. The value was not cross-checked: t1_lcms2.json has no leg into that profile. The test's `ink <= 400` assertion is weak but correct.",
+    "4_batch": "Each output leaks one Harness (a Selection holding one String) and one CancellationToken, roughly 100 B, so memory grows linearly but not materially. The per-output Viewer and its document are dropped. A rerun skips correctly: a taken path with Skip gives skipped_existing, and a race that ends in destination_exists also maps to skipped_existing. Outputs are whole or absent (write_new/write_atomic). The .batch-src.handshake temp is removed on every path; a crash leaves .hsk-* temps. Not a finding, only noted: the job's cancel token does not reach the per-output Viewer, so cancel takes effect between targets, not inside a long CMYK or PSD export.",
+    "5_profile_path": "This is the same pattern as five existing harness/harness-view tests that include_bytes the same ../hsk-studio-prism/tests/oracle/profiles/hsk-synth-cmyk-v2.icc. It works in the workspace. Packaging the crate would break all of them equally; this lane adds no new risk.",
+    "6_collisions": "LAYOUT-PDF-HOST-1 (eee4ff70): its manual.rs DRIVE_VIEWER rows go after export_vector_pdf and this lane's go after export, two unchanged lines apart. In drive_viewer.rs its arms go after export_vector_pdf and this lane's after export, also apart. view/mod.rs uses different lines. The textual merge is clean. COMMAND-SURFACE-1 (120f1e55): harness.rs command_outcome (line ~619) and this lane's record_host_outcome (line ~681) do not overlap. The view/mod.rs and manual.rs hunks are separate. The semantic issue is F4. This lane adds no RUN_COMMANDS rows, so CommandEntry.surface does not affect it."
+  },
+  "checked": [
+    "full diff 95ee2774..82950f9c, all 13 files",
+    "compose.rs against layers::encode_record, writer::write_psd/encode_layer_info, document LayerInfo/LayerSection, error variants, Limits defaults",
+    "doc_export.rs whole file: recipe decode, crop, stage, CMYK (WideTransformRequest, MAX_WIDE_PIXELS units in wide.rs:1031-1037, MAX_WIDE_PROFILE_BYTES 2 MiB vs the 96852 B profile), PSD records, Viewer::export_document, RecipeTargets",
+    "visibility: develop::export_dialog pub mod, Refusal pub fields + Display, SRGB_V4_ICC &[u8], create_unique_sibling pub(crate), harness-view view gated on feature viewer, which enables psd/tiff/raster/develop/prism",
+    "render.rs split into Rendered/CanvasFrame; Canvas local struct with linear straight pixels",
+    "batch.rs write_target match, the exporter reborrow through run_batch/process, BatchPorts literals in tests use ..BatchPorts::new, the compile_fail doctest still E0063",
+    "cli.rs: Parsed fields exist (tiff, compression, predictor, dpi, png, jpeg, quality, depth) under derive(Default), same_file not cfg-gated, no duplicate flag arms, cfg(viewer) batch exporter wiring",
+    "drive.rs viewer_method guard and object-to-text param coercion (drive.rs:483); harness_drive.rs every_viewer_row test with export_document recipe=L1 gives recipe_not_json, which is not in the forbidden list",
+    "session save_guard Expect::Absent semantics against write_new",
+    "folio opacity percent units for the PSD look()",
+    "lane file: green 7/7 tests/doc_export.rs at 82950f9c (builder claim)",
+    "COMMAND-SURFACE-1 (120f1e55) and LAYOUT-PDF-HOST-1 (eee4ff70) diffs from 95ee2774 on manual.rs, drive_viewer.rs, harness.rs, view/mod.rs, action_records.rs, ui_seed.rs"
+  ],
+  "not_checked": [
+    "the 16-bit layered PSD with primary-section layer info against Photoshop or another PSD reader (SUSPECT in answer 2)",
+    "the 355.7% ink value against lcms2 (no oracle leg)",
+    "hard-link behaviour on specific SMB/NAS servers (Samba config dependent)",
+    "interop-tiff and interop-raster internals (the builder ran the decode-back tests green)",
+    "composite tile grid (max tile width) against the doc_export CELL=256 placement for sparse layers with only edge-partial tiles",
+    "suites other than tests/doc_export.rs; no cargo was run"
+  ]
+}

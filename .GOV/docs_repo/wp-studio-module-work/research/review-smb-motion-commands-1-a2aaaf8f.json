@@ -1,0 +1,65 @@
+{
+  "lane": "SMB-MOTION-COMMANDS-1",
+  "tip": "a2aaaf8f",
+  "base": "95ee2774",
+  "verdict": "FIX_FIRST",
+  "findings": [
+    {
+      "id": "F1",
+      "certainty": "READ",
+      "file": "hsk-studio-harness-core/src/motion_commands.rs:87-100 (params_from_text) with hsk-studio-harness/src/cli/drive.rs:505 (parameter_text)",
+      "what": "In the JSONL loop, a List whose items are all strings arrives comma-joined, and a Class given as a bare enumeration member arrives unquoted. params_from_text parses both with serde_json::from_str and refuses parameter_invalid. As a result composition.precompose cannot be run from the drive loop with its declared type: layer_ids [\"SLYR-a\",\"SLYR-b\"] becomes the text SLYR-a,SLYR-b and is refused. The same happens to queue_set_settings time_span \"work_area_only\" and resolution \"full\". The is_string() arm of the Class check is unreachable from the drive. The in-process tests pass JSON values directly, so no test catches this. Brief acceptance is the JSONL loop, and precompose is scenario step 38.",
+      "scenario": "{\"command\":\"command\",\"command_id\":\"composition.precompose\",\"parameters\":{\"layer_ids\":[\"SLYR-...0002\"],\"name\":\"T02\"}} -> error parameter_invalid key layer_ids",
+      "fix": "In params_from_text, when from_str fails: for List, split the text on ',' into a string array; for Class, use Value::String(text). Alternatively, have Live::motion take the raw JSON parameter values instead of the text map. Add one drive line for precompose to motion_commands_run_in_the_session_loop."
+    },
+    {
+      "id": "F2",
+      "certainty": "READ",
+      "file": "hsk-studio-harness-core/src/motion_commands.rs:1045-1076 (layer_duplicate) via create_layer :270-288",
+      "what": "The copy's document layer is built fresh: visible true, no appearance, default name. Composite reads dl.visible and dl.effective_appearance() (blend mode, opacity, fill opacity) for every composition layer (hsk-studio-composite/src/temporal/composition.rs:1003-1028). So the duplicate renders differently from its source when the source document layer is hidden, has a blend mode, or has a document opacity. A live boolean group is known to the vector records by its id, so its copy renders Content::None.",
+      "scenario": "composition.add_layer kind precomp -> layer.set_visible false on that layer (a driveable row) -> composition.duplicate_layer: the copy is visible. The same happens for an existing group or empty-raster layer that has an authored appearance.",
+      "fix": "Build the new StudioLayer from a clone of the source (new layer_id and name; keep visible, appearance and payload). Refuse layer_duplicate_unsupported when the source has vector-record or raster-record state keyed by its id."
+    },
+    {
+      "id": "F3",
+      "certainty": "READ",
+      "file": "hsk-studio-harness-core/src/motion_commands.rs:408-421 (commit, created-layer failure path)",
+      "what": "This path runs when an entry write fails after the layer was created. set_document_entry can refuse total_too_large (max_entry_bytes), which motion_entries_bytes does not pre-check, or canceled. The rollback has two faults. (a) run.current is set from last_command.take() AFTER the quiet undo, so the refusal record for composition.add_layer carries command_id history.undo and the undo's correlation; restructure_and_entry_step captures ctx before the undo. (b) restructure_inner cleared redo_stack on success, and the rollback clears it again, so a refused command destroys the redo history. That contradicts the module's claim that a refusal changes nothing; the existing *_and_entry steps use keeping_redo_without_new_step to avoid this.",
+      "scenario": "Composition records near max_entry_bytes, then composition.add_layer kind shape with a large root: refused total_too_large, the record's command_id is history.undo, and the redo stack is empty.",
+      "fix": "Capture let ctx = run.last_command.clone() right after restructure_inner returns, and use it for run.current before own_op. Wrap the created branch in run.keeping_redo_without_new_step(...), or save and restore redo_stack on failure."
+    },
+    {
+      "id": "F4",
+      "certainty": "READ",
+      "file": "hsk-studio-harness-core/src/motion_commands.rs:1687-1699 (add_at_current)",
+      "what": "The declared value parameter of keyframe.add_at_current / toggle_at_current behaves inconsistently. If the property already has keys, value is silently ignored and the command reports ok with the interpolated value. If the property has no keys but a knowable static value (opacity 80), value overrides it and the render changes, which breaks the command's own STU-MOT-038 invariant.",
+      "scenario": "opacity static [80], no keys; keyframe.add_at_current time 0 value [50] -> key 50, render 80 -> 50. With keys present, value [50] is dropped with ok.",
+      "fix": "Honour value only when slot() had no knowable implied value, that is, when the hint created the member. Otherwise refuse parameter_invalid on value."
+    }
+  ],
+  "rulings_on_questions": {
+    "two_ids": "No collision. Every motion row id is <word>.<snake> with a prefix that has no underscore, so spec_id (dot to underscore, then uppercase) is injective. No other RUN_COMMANDS row is uppercase. row() matches the STUDIO_* form exactly and case-sensitively; lowercase studio_* is unknown_command. The spec (STU-MOT-130) names only the four namespaces, and each row's derived id sits in the right one. The canonical row id is what gets recorded.",
+    "grouped_layer_creation": "Undo/redo order is correct. Group = [structure, composition entry, motion entry]. Undo pops newest first (entries restored, then the layer deleted). Redo applies the structure first, then the entries. group_step rolls back a partial group (history_group_failed). Attribution is the restructure context (command_id = row id). The only defect is the create-then-entry-refusal rollback (F3).",
+    "folio_validates_before_store": "Every mutating path goes through motion_entries_bytes, which validates the composition always and the motion records whenever they are stored or created, against the document plus the created layers. validate_keyed refuses equal or descending key times, values with the wrong component count or not finite, out-of-range tangent count or influence, Bezier without a tangent, time > MAX_COMPOSITION_TICK, and more than MAX_STREAM_KEYFRAMES keys. NaN cannot arrive through JSON; a computed NaN or inf tangent from add_preserving (u rounding to 1.0 on huge segments) is refused as invalid_field, with no panic. Negative durations and negative times are refused by u64 decoding. Duplicate composition or layer ids, dangling precomp, render cycles and parent cycles are refused in Folio.",
+    "expression_set_source": "No wrong answer: the row takes layer_id, animator, selector and source, with no property key. A call addressed to a property refuses parameter_unknown, and a non-expression selector refuses selector_not_expression. Folio bounds the source to 1..=65536 bytes. Refusing instead is not needed for correctness.",
+    "drive_test_change_at_tip": "Not bug-masking. The shift by one (open line first, end line last) and exit 1 on refused lines match the existing protocol: a_stdin_session_... asserts r[0] is open and r.len() is lines + 2, and the hostile test asserts exit 1 on any refusal. NOTE: at d3ed4c4e the first assert (exit) panicked, so none of the later asserts (out[1..7], the reopen read) have ever executed. By trace they hold: the minted SCOM-...0001 target, invalid_field on width 1, undo reverting keyframe.set, and streams skipped when empty.",
+    "attribution": "Every record and step takes the Run's context. On success: begin(op) for entry steps, the restructure context for created layers, history group context from the newest inner step. No default actor. The one wrong attribution is F3(a)."
+  },
+  "checked": [
+    "full diff 95ee2774..a2aaaf8f; d3ed4c4e..a2aaaf8f (test-only)",
+    "motion_commands.rs end to end (row, params_from_text, plan, commit, push_step, every apply arm, slot/shape_slot/text_slot, curve and add_preserving)",
+    "harness.rs push/own_op/begin/quietly/restructure_inner/restructure_and_entry_step/keeping_redo_without_new_step/history_step/group_step/swap_entry",
+    "session motion.rs (motion_entries_bytes, composition_records, motion_records) and session.rs set_document_entry limits",
+    "folio composition.rs validate_keyed, validate_layer, validate_composition_records; motion_records expression bound",
+    "drive.rs dispatch/motion/reply/parse_line/parameter_text; harness_drive.rs protocol tests; action_records corpus tests (uniqueness, run_method scan)",
+    "composite temporal/composition.rs content and appearance resolution for composition layers",
+    "spec STU-MOT-130 namespace clause"
+  ],
+  "not_checked": [
+    "compilation or clippy at the tip (src unchanged since d3ed4c4e, which reportedly built)",
+    "whether harness-core lib/action_records and the feature-media tests in tests/motion_commands.rs ran green at d3ed4c4e",
+    "the add_preserving math against motion keyframe::shape (relying on the media test add_at_current_leaves_the_real_evaluator_unchanged)",
+    "chronicle acceptance of the minted SLYR ids after an undo and re-create",
+    "Folio's per-kind checks for text_animators on non-text layers, output module id uniqueness, and render-queue composition references"
+  ]
+}

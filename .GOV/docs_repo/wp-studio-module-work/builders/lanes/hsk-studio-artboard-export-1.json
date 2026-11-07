@@ -2,18 +2,42 @@
   "crate": "hsk-studio-harness-view, hsk-studio-folio, hsk-studio-interop-vector-svg, hsk-studio-interop-vector-core, hsk-studio-interop-raster",
   "lane": "SMB-ARTBOARD-EXPORT-1",
   "status": null,
-  "phase": "build",
+  "phase": "paused",
   "worktree": "wt-studio-lanes/smb-ai-distort-effects-1",
   "base": "aa68164c",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    "1bd864ef red: SVG of a board off the origin frames that board",
+    "20d7b0b2 vector exports frame a named board (origin), export_document frames the chosen board",
+    "006190e5 red: export settings record, session token, Run::set_export_settings, export rows, export.run refuses not_built",
+    "9db105fc export.run writes every node named files at its constraints"
+  ],
+  "capabilities_done": [
+    "SVG/EPS/PDF framed on a named board incl. origin",
+    "export_document frames the chosen board",
+    "StudioExportSettings record (STU-IO-111..114, 117) saved as session entry export_settings",
+    "export.set_settings: one attributed entry-only undo step, survives save and reopen",
+    "export.run: per board and per layer, PNG/JPG at SCALE/WIDTH/HEIGHT, SVG, PDF, many named files in one run"
+  ],
+  "tests": {
+    "focused_local": {
+      "harness-view viewer_artboard_export": "6/6 pass (smb-artboard-export-1-green5-view.log)",
+      "folio export_settings_records": "4/4 pass (green6-folio)",
+      "harness artboard_export": "1/1 pass (green6-harness)",
+      "interop-vector-core eps_export::tests": "1/1 pass (green2-core)"
+    },
+    "red_proofs": {
+      "svg_frames_the_chosen_board_at_its_origin": "red at aa68164c (red1b)",
+      "export_run tests": "red at 006190e5 not_built (red4-view)"
+    },
+    "bundled": "NOT RUN",
+    "per_sha": "NOT RUN"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on C:, push when green",
-  "updated_at": "2026-11-07T17:22:06Z",
+  "next": "PAUSED by the Operator at tip 9db105fc (not pushed). Left: (1) message the lead with tip 9db105fc so code-check and red-team agents review the diff aa68164c..9db105fc; (2) on release one bundled run: lane-check.sh --owner smb-ai-distort-effects-1 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-session -p hsk-studio-harness-core -p hsk-studio-interop-vector-core -p hsk-studio-interop-vector-svg -p hsk-studio-interop-vector -p hsk-studio-package -p hsk-studio-harness-view --features hsk-studio-harness-view/viewer, then a second lane-check for harness with the named target --test artboard_export (in-process, no example binary) --features viewer; (3) land: fetch, rebase on origin/codex/handshake-studio-assets, lane-check --per-sha HEAD~1, guarded sha push, READY_FOR_VALIDATION. Never claim PASS.",
+  "updated_at": "2026-11-07T18:06:09Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -38,6 +62,52 @@
       "workflows/backlog-20261107.json SMB-ARTBOARD-EXPORT-1"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-ai-distort-effects-1"
+    "reuses_tree_and_target": "smb-ai-distort-effects-1",
+    "facts_moved_since_c4d06841": "SMB-DOC-NEW-1 already routed edit.rs:466, select_liquify.rs:151, arrange.rs:159, interop.rs:587, pdf_export.rs:339, separations.rs:305 through Viewer::active_artboard (Go to Artboard view state) and render.rs:441 through framed_snapshot; render.rs:268 moved to :441. Still first-board at base: svg_export.rs:1167, eps_export.rs:386 (size only, no origin), and the SVG viewBox started at 0 0 for every board.",
+    "v4_06_first_artboard": {
+      "regex": "artboards(\\(\\))?\\s*\\.\\s*(first|get\\(0\\)|iter\\(\\)\\s*\\.\\s*next)|artboards\\[0\\]|active_artboard\\(",
+      "sites": {
+        "interop-vector-svg/src/svg_export.rs:1167": "fixed: ExportOptions::framed_by (size and origin)",
+        "interop-vector-core/src/eps_export.rs:386": "fixed: framed_by, page translated by the origin",
+        "harness-view/src/view/vector/interop.rs:587": "fixed: vector_svg_framed passes the board origin",
+        "harness-view/src/view/vector/pdf_export.rs:339": "fixed: vector_pdf_framed takes a named frame (origin was already right)",
+        "harness-view/src/view/doc_export.rs export_document_inner": "fixed (sibling found): rendered the live snapshot, ignoring Go to Artboard",
+        "harness-view/src/view/render.rs:441 frame_extent": "not applicable: frames the first board of the snapshot it is given; callers pass framed_snapshot or export_set::target_view",
+        "harness-view/src/view/document_new.rs:163 active_artboard": "not applicable: the default when nothing is chosen",
+        "harness-view/src/view/edit.rs:466, select_liquify.rs:151": "named through go_to_artboard (tool canvas, view state)",
+        "harness-view/src/view/vector/arrange.rs:159": "named through go_to_artboard (align to artboard)",
+        "harness-view/src/view/vector/separations.rs:305": "named through go_to_artboard; separations are not an export.run format (cut)",
+        "harness-core/src/harness/containers.rs:275": "not applicable: a new board aligns to the first board top (placement rule)"
+      }
+    },
+    "paths_beyond_brief": [
+      "hsk-studio-session/src/source.rs (entry token export_settings) and tests/entry_references.rs (row): needed for save and reopen",
+      "hsk-studio-harness-core/src/harness/export_settings.rs (new), harness.rs (mod line), action/commands/export.rs (new rows file), action/commands.rs (mod + DOMAINS line)",
+      "hsk-studio-harness-view view/commands/export.rs (new), commands.rs (arm), mod.rs (module + state.export_settings), doc_export.rs (V4-06 sibling fix)",
+      "hsk-studio-harness/tests/artboard_export.rs (new in-process drive test)",
+      "not touched: hsk-studio-interop-raster (resampler lives in harness-view export_set.rs)"
+    ],
+    "cut": [
+      "SCALE above 1 resamples the 1x render (no vector re-render at scale; note resampled_from_1x)",
+      "outline_text, include_id_attribute, simplify_stroke recorded, not applied (note svg_options_not_applied)",
+      "DISPLAY_P3_V4 refused at export; DOCUMENT writes sRGB",
+      "JSON_TREE, GIF, video settings not admitted",
+      "use_absolute_bounds reads the same path bounds",
+      "SVG keeps hidden layers of a contents-only layer target as display=none",
+      "layer targets need an artboard; text/adjustment/fill layers have no bounds (export_node_bounds_unknown)",
+      "separations not an export.run format",
+      "inspect.render_selection (STU-AUT-166) not added; export.run on a node covers the file case",
+      "no partial-write rollback: a failure after the pre-checks names the files already written"
+    ],
+    "mts_proved_candidates": [
+      "MT-33378 STU-IO-111",
+      "MT-33379 STU-IO-112",
+      "MT-33380 STU-IO-113 (SVG, PDF; JSON_TREE cut)",
+      "MT-33381 STU-IO-114",
+      "MT-33384 STU-IO-117",
+      "MT-477 STU-IO-010 per-layer and per-artboard single-target export (partial)",
+      "MT-119 STU-VEC-028 per-artboard export (partial)"
+    ],
+    "round_feature_units": "harness-view tests/viewer_artboard_export.rs and harness tests/artboard_export.rs are #![cfg(feature = \"viewer\")]; both crates have a [\"viewer\"] round unit (rule 4e ok)"
   }
 }

@@ -1,0 +1,110 @@
+{
+  "lane": "SMB-UI-TREE-1",
+  "tip": "44ab8e1698ccb68df14a13725736393573038229",
+  "base": "95ee2774",
+  "verdict": "FIX_FIRST",
+  "verdict_reason": "F1 and F2 change golden hashes and test outcomes; fixing them before the bundled run saves a second run. F3-F6 are small and touch the same files.",
+  "findings": [
+    {
+      "id": "F1",
+      "confidence": "READ",
+      "where": "src/paint.rs:157-163 (Prim::Rect), src/emit.rs:87-90 and :166 (state edges, Divider), tests/paint.rs:123 (golden)",
+      "what": "1 and 2 logical px rects go through Scale::snap like any rect, so their thickness depends on where they sit. scale_rules.hairline says a 1 px line is max(1, floor(s)) and a 2 px edge is max(2, round(2s)). Scale::hairline and edge_px exist but only RRect borders and lines use them.",
+      "scenario": "Gallery toolbar divider at x 72..73: at s=1.5 edge(72)=108 and edge(73)=round(109.5)=110, so it paints 2 px wide where the rule says 1. The Toolbar golden at 1.5 pins that. A 2 px state edge at y0=2 and s=1.25 paints 3..5 (2 px) where the rule says 3. Two dividers in one toolbar can come out 1 px and 2 px.",
+      "fix": "In paint, draw a Rect whose logical w or h is 1 or 2 at a fixed thickness: x0p = edge(x0), x1p = x0p + hairline() (edge_px(2) for 2). Anchor bottom and right edges on edge(x1) so they stay inside the owner. Then re-pin the 1.5 goldens."
+    },
+    {
+      "id": "F2",
+      "confidence": "READ (mechanism); the visible overflow needs a real font",
+      "where": "src/layout.rs:34, src/checks.rs:46, src/emit.rs:98 and :117-118, hsk-studio-ui-text/src/lib.rs:59, hsk-studio-ui-text/tests/text_sample.rs:92",
+      "what": "Layout and clipped_labels measure a Label at weight 0, the token's 400. Emit shapes it with the inherited Surface state weight: the active Tab is 600, so TypeText picks Inter-Bold 700. The active tab's label box is sized for regular text but paints bold, which is wider. AC-TEXT-01 has severity block and says 'Tabs ... never ellipsize'; it cannot see this. BoxText ignores weight, so no kumihimo test can catch it.",
+      "scenario": "TabRow with 'Layers' active and Inter: the box is about 37 px (regular) and the bold run is about 40 px, so it spills into the pad. text_sample.rs:92 asserts clipped_labels is empty and passes falsely. If the check is fixed alone, that test fails.",
+      "fix": "Resolve the weight once and carry it on the label: add a weight to Paint::Label, set by tab_row from `selected`, or reserve the active weight on every tab so activating one does not change the width. Use that weight in layout content(), emit and clipped_labels."
+    },
+    {
+      "id": "F3",
+      "confidence": "READ",
+      "where": "src/checks.rs:40 and :47-49, against src/emit.rs:124-131",
+      "what": "For a Value, AC-TEXT-01 sets avail = w - 2*S3 and ignores the unit. Emit reserves uw + S1 for the unit and right-aligns the value in what is left, so a value that runs into its unit passes the check.",
+      "scenario": "A 72 px field with unit 'px' and value '1024.50': the value's room is 60 - uw - 2, but the check compares against 60.",
+      "fix": "When unit is Some, subtract text.measure(unit, Caption).ceil() + S1 from avail."
+    },
+    {
+      "id": "F4",
+      "confidence": "READ",
+      "where": "src/semantic.rs:47-49, src/tree.rs:333",
+      "what": "stable_id maps '.' to '-', but segments may contain '-'. The Builder dedups author_id only, so gui.tree can show a model two nodes with the same id.",
+      "scenario": "'studio.tab.a-b' and 'studio.tab-a.b' are both valid and distinct, and both become 'hs-studio-tab-a-b'. finish() returns Ok.",
+      "fix": "In Builder::add, also insert stable_id(author_id) into a second set and return DuplicateId when it collides."
+    },
+    {
+      "id": "F5",
+      "confidence": "READ",
+      "where": "src/semantic.rs:59",
+      "what": "u32::parse accepts a leading '+', so the instance grammar takes '#+2'.",
+      "scenario": "valid_author_id(\"studio.tab.x#+2\") returns true.",
+      "fix": "Require !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()) before parsing."
+    },
+    {
+      "id": "F6",
+      "confidence": "READ",
+      "where": "src/tree.rs:446-452 and :486-494",
+      "what": "FrameKey has no text or font epoch, and Panel has no invalidate. Faces cannot be added once a port is boxed into Text, so a font change means a new Text. With the same state_rev, update returns Ok(false) and keeps the old display list, whose glyph ids belong to the old faces, and paints it through the new port's FaceIds.",
+      "scenario": "The host rebuilds Text with another family and calls update(rev unchanged): it paints wrong glyphs and the layout keeps the old widths.",
+      "fix": "Give Text an epoch() (unique per instance), put it in FrameKey, or add Panel::invalidate()."
+    },
+    {
+      "id": "F7",
+      "confidence": "SUSPECT (structure)",
+      "where": "src/tree.rs:379-388 and :448",
+      "what": "The frame key uses the rev of the whole Interaction. If a host shares one Interaction per window, which cross-panel focus needs, every hover change rebuilds every panel and idle-quiet fails. If it keeps one per panel, Tab order across panels and hover clearing on leave cannot be expressed. Every later panel inherits whichever choice this makes.",
+      "scenario": "Five panels on one Interaction: moving the pointer across toolbar buttons rebuilds all five on each crossing.",
+      "fix": "Decide who owns it now. Key each panel on its own slice: hovered, pressed and focused only when the id is in this tree, plus focus_visible when focused is in this tree."
+    },
+    {
+      "id": "F8",
+      "confidence": "READ",
+      "where": "src/hit.rs:31-38",
+      "what": "focus_order keeps nodes that cannot be seen or hit: empty bounds (a Fill squeezed to 0), nodes outside a clip ancestor, and nodes below MAX_DEPTH, which layout, emit and hit skip. There is no hidden flag.",
+      "scenario": "A clipped scroll list: Tab focuses rows scrolled out of view, the ring is drawn under the scissor, and the user sees nothing.",
+      "fix": "Skip nodes with empty bounds or bounds outside the intersection of their clip ancestors."
+    },
+    {
+      "id": "F9",
+      "confidence": "SUSPECT (cost)",
+      "where": "src/text.rs:211-223",
+      "what": "ellipsize shapes and caches every prefix, one char at a time from the end. Every candidate goes into the 4096-entry line cache.",
+      "scenario": "A 4096-byte layer name means about 4096 shape calls (each a full TypeText request) per rebuild, and it fills the line cache, which then resets whole: every label is reshaped on every rebuild.",
+      "fix": "Binary-search over char boundaries, and shape candidates without inserting them into the cache."
+    }
+  ],
+  "answers": {
+    "1_closure": "kumihimo-ui/Cargo.toml has an empty [dependencies] and no dev, build or target tables. Metadata allowed = []. workspace-probe.rs:642 kumihimo_dependency rejects any hsk-studio-* in every table and spelling (self-test cases :1097-1104 cover dev, build, target, package rename and case). Its tests use only kumihimo_ui and std. The adapter direction is right: Studio depends on kumihimo, per O5. hsk-studio-prism is used only for profile_hash (SHA-256): a heavier edge than needed, but allowed.",
+    "2_tokens": "I regenerated tokens.rs into scratch from the committed copy with tools/gen_tokens.py: it is byte-identical to the committed file. Today the crate copy matches kernel S/gui-design/design-system.json (sha256 9acbbee2...). .gitattributes gives the copy eol=lf, so SOURCE_FNV64 holds on autocrlf checkouts. Python is needed only to regenerate. No build.rs, and the test is pure Rust. Drift is still silent in one direction: nothing compares the crate copy with the kernel authority, so a designer edit in the kernel fails nothing until someone refreshes the copy. When design files change, have the lead compare SOURCE_FNV64 with the kernel file.",
+    "3_snap_layout_hit": "Edge snapping is consistent at 1.25, 1.5 and 1.75: shared edges, round half away from zero, clamped i32. Thin rects break the hairline rule (F1). Negative and zero sizes: Rect::new normalises, xywh clamps w and h at 0, Canvas refuses 0 and anything over 16384, Scale is limited to [0.5, 8], Image checks for an empty rect before dividing, every loop intersects the clip. Huge trees: MAX_NODES 65536. Layout, emit, hit and semantic recursion stop at depth 256, and preorder is iterative. Focus order with unseen nodes: F8.",
+    "4_retained": "Change detection is a key of (caller state_rev, Interaction rev, viewport f32 bits, scale bits, theme). It cannot see a font change (F6). It trusts the caller to bump state_rev, otherwise the panel goes stale by contract. A failed build keeps the previous tree and list and returns Err.",
+    "5_semantic_ids": "fnv64 and stable_id are pure functions of author_id and the walk is a deterministic preorder, so ids are stable across runs and processes. stable_id collisions are not handled (F4). fnv64 collisions are not checked (2^-64 per pair).",
+    "6_text_caches": "The line cache (4096) and mask cache (8192) are bounded and reset whole when full. The mask key carries px_size_64 and the bin, so a scale change cannot serve stale rasters (clear_masks is optional). There is no font-change invalidation (F6). The adapter's outline cache is bounded by the faces' glyph counts. Missing glyphs come out as a notdef box from the font; refusals are counted in PaintStats. ellipsize floods the line cache (F9).",
+    "7_goldens": "The BoxText goldens pin geometry, snapping, state colours, scissor, procedural icons and the coverage LUT path. No real-text regression trips them: adapter raster orientation, quarter-pixel bins, kerning, cap-height centring. text_sample.rs asserts ink, no refusals and determinism, but pins no hash. Pinning one Inter widget hash at s=1 (fixture font in the repo, fixed-point rasteriser) would cover it.",
+    "8_root_edits": "The Cargo.lock diff adds one [[package]] hsk-studio-ui-text, with no source or checksum. The registry set is unchanged. The Cargo.toml diff adds members, declared-members and the metadata entry (allowed accord, prism, type, kumihimo-ui; dev-allowed interop-raster), and matches the adapter manifest."
+  },
+  "checked": [
+    "the full diff list of 95ee2774..44ab8e16; the tree is at the tip",
+    "manifests: kumihimo-ui, hsk-studio-ui-text, the root Cargo.toml and Cargo.lock diffs; the probe kumihimo gate and its self-test cases",
+    "src: geom, layout, tree, hit, emit, semantic, text, paint, checks, widgets, the gallery build and render paths, the hsk-studio-ui-text adapter",
+    "tests: layout, paint, tree, tokens, text_sample: what each asserts",
+    "tokens: regenerated in scratch and byte-identical; the copy equals the kernel design-system.json; eol attribute",
+    "worked by hand: divider snapping at s=1.5 and 2 px edges at s=1.25",
+    "AC-TEXT-01 rule text and scale_rules.hairline in the design files",
+    "the lane file: focused green is 18/18 at 8b093b3b plus the lint fixes, so compile risk is low"
+  ],
+  "not_checked": [
+    "no cargo, build or test run; golden hash values not recomputed",
+    "hsk-studio-type API signatures used by the adapter (the green focused run compiled them)",
+    "display.rs Prim::KINDS against the designer's renderer.primitives beyond what tests/tokens.rs asserts",
+    "GalleryIcons procedural masks",
+    "the probe beyond the kumihimo gate and dev-allowed parsing",
+    "STU-MDL-103 spec text for the stable_id derivation (whether the collision in F4 is in the spec itself)",
+    "the text-sample PNGs (the lead has judged them)"
+  ]
+}
