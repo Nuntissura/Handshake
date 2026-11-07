@@ -1,19 +1,89 @@
 {
   "crate": "hsk-studio-harness-view, hsk-studio-harness, hsk-studio-score-device, hsk-studio-reel, hsk-studio-pulse",
   "lane": "SMB-AUDIO-OUT-MIX-1",
-  "status": null,
-  "phase": "build",
-  "worktree": "wt-studio-lanes/smb-pr-retime-output-1",
-  "base": "95ee277458b18fc333ba3fb8bc6231291ec10172",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "status": "READY_FOR_VALIDATION",
+  "phase": "landed",
+  "worktree": "wt-studio-lanes/smb-r53-followups-1",
+  "base": "12133fdf",
+  "commits": [
+    {
+      "sha": "4c649dbb",
+      "what": "engine: audio out hosted, routed mixdown with WAV, stems with sum check, repaired audio in the mix",
+      "pushed": true,
+      "base": "12133fdf"
+    },
+    {
+      "sha": "87c71f80",
+      "what": "clippy type alias",
+      "pushed": true,
+      "base": "12133fdf"
+    },
+    {
+      "sha": "bae43a73",
+      "what": "review fixes 1-7 (research/review-smb-audio-out-mix-1-812b8ebb.json)",
+      "pushed": true,
+      "base": "12133fdf"
+    },
+    {
+      "sha": "b7991930",
+      "what": "tests/audio_import.rs MixFormat match covers Wav/WavFloat; engine landing tip",
+      "pushed": true,
+      "base": "12133fdf"
+    },
+    {
+      "sha": "28de83ac",
+      "what": "audio.* typed rows through Viewer::run_command and the process; rows landing tip",
+      "pushed": true,
+      "base": "b7991930"
+    }
+  ],
+  "capabilities_done": [
+    "Viewer::audio_out_devices/open/transport/pump/run/json/close",
+    "MixFormat::Wav/WavFloat",
+    "Viewer::export_sequence_mix",
+    "Viewer::export_sequence_stems + sum check",
+    "SequenceSound repaired-audio resolution (playback, mixdown, stems, Export Media)",
+    "Viewer::open_waveform_from_clip",
+    "audio.* typed rows (10) through Viewer::run_command and the drive process"
+  ],
+  "tests": {
+    "focused": {
+      "target": "hsk-studio-harness tests/audio_out_mix.rs --features audio-batch,audio-device",
+      "result": "4 passed, 0 failed, exit 0",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-audio-out-mix-1/focused-5.log",
+      "tree": "21364580"
+    },
+    "checks": "cargo check harness-view --tests features media, audio-batch, audio-device, viewer: exit 0, no new warnings",
+    "clippy": "cargo clippy -p hsk-studio-harness-view --features audio-batch,audio-device at 812b8ebb: exit 0, no warning in lane files",
+    "bundled": {
+      "sha": "0199f99d",
+      "base": "912cb86f",
+      "command": "lane-check --owner smb-pr-retime-output-1 -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/audio-batch,hsk-studio-harness/audio-device -E package(harness-view) | (package(harness) & (binary(audio_out_mix) | binary(audio_import)))",
+      "result": "211 passed, 1 skipped, exit 0",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-audio-out-mix-1/bundled-smb-audio-out-mix-1-0199f99d.log",
+      "first_run": "2244041f exit 101: tests/audio_import.rs:121 non-exhaustive MixFormat match (fixed in 40e5b658)"
+    },
+    "per_sha": {
+      "range": "bbe988d0..4bc23a35 (40e5b658, 4bc23a35)",
+      "owner": "smb-r53-followups-1",
+      "disk": "d",
+      "result": "PER_SHA_RESULT OK shas=2",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-audio-out-mix-1/per-sha-d-smb-audio-out-mix-1-4bc23a35.log",
+      "landing": "origin moved to 12133fdf (SMB-UI-TREE-1, pigment filter kernels): no file of this lane touched; clean rebase, pushed with no new run (landing rule)"
+    },
+    "rows_focused": {
+      "tree": "40e5b658 + rows (committed as 4bc23a35, rebased to 28de83ac)",
+      "command": "cargo nextest run -p hsk-studio-harness-core -p hsk-studio-harness --features hsk-studio-harness/audio-batch,hsk-studio-harness/audio-device -E binary(audio_out_mix)|binary(action_records)|binary(harness_drive_typed), no target flags",
+      "result": "19 passed, 0 failed, exit 0",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-audio-out-mix-1/rows-focused-1.log"
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on C:, push when green",
-  "updated_at": "2026-11-07T09:57:08Z",
+  "next": "validator: judge 28de83ac",
+  "updated_at": "2026-11-07T14:50:21Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -33,11 +103,48 @@
   },
   "notes": {
     "dispatched_at": "2026-11-07T09:57:08Z",
-    "disk": "C",
+    "disk": "D",
     "closes": [
       "workflows/backlog-20261107.json SMB-AUDIO-OUT-MIX-1"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-pr-retime-output-1"
-  }
+    "reuses_tree_and_target": "smb-r53-followups-1",
+    "v4_06_sibling_sites": {
+      "class": "audio reads of the sound port that skip repaired-audio resolution",
+      "regex": "export\\.audio|audio_mix_stream|bus_stream\\(|open_mixer|AudioOut::|with_buses\\(",
+      "sites": {
+        "harness-view/src/view/timeline/export_media.rs export_prepare": "fixed: reads Viewer::sequence_sound",
+        "harness-view/src/view/timeline_export.rs:478 nested bus in the export job": "fixed through export_prepare (gets the resolved port)",
+        "harness-view/src/view/audio_session.rs bus_stream / bus_stream_with": "caller passes sources; playback, mixdown and stems pass SequenceSound",
+        "harness-view/src/view/mixer.rs:178 open_mixer": "not fixed, named: caller-supplied port; a host passes Viewer::sequence_sound() to hear repairs in the mixer",
+        "harness-view/src/view/audio_import.rs:925 audio_mix_stream / export_audio": "not applicable: the one open audio file, no document clip"
+      }
+    },
+    "paths_beyond_brief": [
+      "harness-view/src/view/mod.rs Viewer field program_audio + init + state_json audio_out (outside :38-41)",
+      "harness-view/src/view/audio_session/playback.rs (new, child of audio_session.rs)",
+      "harness-view/src/view/shell.rs Viewer::close closes the audio output (lead review fix 1)"
+    ],
+    "spec_basis": [
+      "STU-ARC-013 realtime audio callbacks",
+      "STU-VID-023 program monitor",
+      "STU-FX-137 routing is part of the document",
+      "STU-OVR-015 waveform editor"
+    ],
+    "old_tree_idle": "smb-pr-retime-output-1 (C:)",
+    "second_step": "done: audio.* typed rows landed at 28de83ac; the rows dispatch through Viewer::run_command domain arm audio (manual.rs viewer_domain maps only DRIVE_VIEWER methods; no audio method is a DRIVE_VIEWER row, so no arm was added there)",
+    "not_proven": [
+      "real device output: every test and the drive process open score-device SoftwareProvider (software-clock-out) only; no OS audio device is opened",
+      "encode-failure path of the stem temp-then-replace (no injected encode failure test)",
+      "observe frames: only run_command command_outcome terminal frame"
+    ],
+    "lead_decisions": [
+      {
+        "at": "2026-11-07T14:51:08Z",
+        "on": "viewer_domain audio arm",
+        "decision": "Accepted the builder's reading: viewer_domain maps only old viewer.<method> rows, none of which is an audio method; typed audio.* rows dispatch by id prefix in run_row, where the arm is, so they cannot fall through to vector.*."
+      }
+    ]
+  },
+  "branch": "lane/smb-audio-out-mix-1-d"
 }

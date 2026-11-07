@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T13:35:06Z",
+ "updated_at": "2026-11-07T14:51:08Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19436,8 +19436,8 @@
   },
   {
    "lane_id": "SMB-AUDIO-OUT-MIX-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness-view, hsk-studio-harness, hsk-studio-score-device, hsk-studio-reel, hsk-studio-pulse",
    "lane_file": "builders/lanes/hsk-studio-audio-out-mix-1.json",
    "brief": "builders/briefs/lane-smb-audio-out-mix-1.md",
@@ -19445,10 +19445,11 @@
    "base": "95ee277458b18fc333ba3fb8bc6231291ec10172",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-07T09:57:08Z",
+   "updated_at": "2026-11-07T14:51:08Z",
    "closes": [
     "workflows/backlog-20261107.json SMB-AUDIO-OUT-MIX-1"
-   ]
+   ],
+   "claim": "4c649dbb..28de83ac"
   },
   {
    "lane_id": "SMB-DOC-EXPORT-1",
@@ -21743,6 +21744,16 @@
     "added_at": "2026-11-07T13:35:06Z",
     "item": "tokens.rs copy of the kernel design-system.json has no drift check (regeneration needs Python; nothing compares the copy)",
     "owner": "a later kumihimo-ui or steward lane"
+   },
+   {
+    "added_at": "2026-11-07T14:51:08Z",
+    "item": "BWF export; stems for a bus that feeds another bus",
+    "owner": "a later audio lane"
+   },
+   {
+    "added_at": "2026-11-07T14:51:08Z",
+    "item": "Real OS audio device output proof",
+    "owner": "a later audio lane with an Operator-run check"
    }
   ],
   "pause_20261103": {
