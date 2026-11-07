@@ -1,19 +1,37 @@
 {
   "crate": "hsk-studio-harness, hsk-studio-harness-core, hsk-studio-harness-view, hsk-studio-web",
   "lane": "SMB-WEB-HOST-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-sentinels-native-1",
   "base": "912cb86f099b2ac96eb9efb4f944d85bb11cef22",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    "2731d49b red: web rows, refusing host, tests/web_host.rs (red proven at pre-rebase 7b2f444a: 5/5 failed, red-7b2f444a.log)",
+    "6fc3a7d6 green: harness-core web_commands host, edge harness-core -> hsk-studio-web",
+    "aa68164c review fixes F1-F7 (review-smb-web-host-1-bee6fc03.json), .opt() on optional web params"
+  ],
+  "capabilities_done": [
+    "web.open/read/insert_element/insert_fragment/set_text/set_attribute/remove_attribute/remove_node/undo/redo/save",
+    "web.site/remote_target/export_recipe (sidecar survives save+reopen)",
+    "web.export static tree + manifest",
+    "web.publish local_or_network + receipt",
+    "web.verify",
+    "web.preview/media/assets",
+    "drive JSONL dispatch of web.*"
+  ],
+  "tests": {
+    "red_7b2f444a": "nextest -p hsk-studio-harness --test web_host: 5 run, 0 passed, 5 failed, EXIT 100",
+    "bundled_1ada8bc2": "lane-check --owner smb-sentinels-native-1 --disk d: step 0 clean, clippy ok, nextest -p harness-core -p harness-view -p harness --features hsk-studio-harness/viewer: 477 run, 477 passed, 22 skipped (bundled-smb-web-host-1-1ada8bc2.log); pre-rebase tree, same lane diff",
+    "per_sha": "PER_SHA_RESULT OK shas=1 range=6fc3a7d6..aa68164c (per-sha-smb-web-host-1-aa68164c.log)",
+    "base": "9ab80edd",
+    "rebase_check_aa68164c": "lane-check hold: cargo check -p harness-core -p harness-view -p harness --tests --features hsk-studio-harness/viewer EXIT 0; nextest -E binary(harness_drive)|binary(action_records)|binary(web_host): 37 run, 37 passed (web_host 9, action_records 6, harness_drive 22) (rebase-check-smb-web-host-1-aa68164c.log)"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-07T11:17:20Z",
+  "next": "validator",
+  "updated_at": "2026-11-07T17:20:23Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -38,6 +56,21 @@
       "workflows/backlog-20261107.json SMB-WEB-HOST-1"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-sentinels-native-1"
-  }
+    "reuses_tree_and_target": "smb-sentinels-native-1",
+    "edge": "NEW EDGE harness-core -> hsk-studio-web (not harness-view as the brief path said: the corpus scan in harness-core/tests/action_records.rs needs run_method web_command to be a pub fn of impl Run). Cargo.lock: one dependency line, registry package set unchanged.",
+    "beyond_brief_paths": "harness-core/src/web_commands.rs (engine), harness-core/src/harness.rs (Run field, web_command, web_state), harness-core/src/manual.rs (web_commands table, one limit line), harness-core/src/action/commands.rs (mod + DOMAINS), harness-view/src/view/mod.rs (mod line), harness/src/cli/drive.rs (web.* dispatch)",
+    "cuts": "web history is the host own, not the run history (no web session-entry token); site/recipe in a sidecar index.html.studio-site.json, not Folio; one document per export, document folder must equal local_root; no source maps, preprocessors or asset rewriting (typed refusals); publish local_or_network only; no JobPort, no business events, no controls registry ids; missing linked page fails export closed (not a link_broken warning)",
+    "v4_06_sites": "class: a path from a command reaching the file system. Sites: web.open path (checked_path, read_bounded), web.save path + sidecar (checked_path, write_atomic; drive refuses the opened package), export output_root (checked_path, must be empty), asset references (asset_id: no .. escape, no backslash, portable names, reserved device names refused), publish root_path (checked_path, not inside/over export), verify root (checked_path), manifest paths read back (asset_id re-check). All fixed; 7 sites.",
+    "mts": "MT-34220, MT-34341, MT-34343, MT-34348, MT-34356, MT-34360 named by the backlog row; MT files not read or edited",
+    "review_fixes": "F1 self/folder links listed (manifest links); F2 sidecar rewritten when unset; F3 case-folded output-name check before any write; F4 publish_over_source and nearest-ancestor export guard; F5 canonical-root containment; F6 history.undo/redo refuse newest_step_is_web by correlation order; F7 host used in place",
+    "clippy_warning": "harness-core action/commands.rs:184 large_const_arrays on ALL_ROWS (warn, not deny), probably crossed by the 20 web rows; not fixed (commands.rs const shape is shared)",
+    "lead_decisions": [
+      {
+        "at": "2026-11-07T17:20:57Z",
+        "on": "F6",
+        "decision": "history.undo after a web edit undoing an older package step with ok:true is a silent wrong answer; fixed with a typed refusal naming web.undo, not documented as a limit."
+      }
+    ]
+  },
+  "tip": "aa68164c5731e20bc77e7794cc5be2bc69cc6e56"
 }

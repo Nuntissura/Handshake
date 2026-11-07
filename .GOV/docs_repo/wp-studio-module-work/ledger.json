@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T16:56:28Z",
+ "updated_at": "2026-11-07T17:20:57Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19522,8 +19522,8 @@
   },
   {
    "lane_id": "SMB-WEB-HOST-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness, hsk-studio-harness-core, hsk-studio-harness-view, hsk-studio-web",
    "lane_file": "builders/lanes/hsk-studio-web-host-1.json",
    "brief": "builders/briefs/lane-smb-web-host-1.md",
@@ -19531,10 +19531,11 @@
    "base": "912cb86f099b2ac96eb9efb4f944d85bb11cef22",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-07T11:17:20Z",
+   "updated_at": "2026-11-07T17:20:57Z",
    "closes": [
     "workflows/backlog-20261107.json SMB-WEB-HOST-1"
-   ]
+   ],
+   "claim": "2731d49b..aa68164c"
   },
   {
    "lane_id": "SMB-GUI-SPINE-1",
@@ -21844,6 +21845,16 @@
     "added_at": "2026-11-07T16:56:28Z",
     "item": "Multicam playback gap (named earlier by the command-surface work)",
     "owner": "a later video lane"
+   },
+   {
+    "added_at": "2026-11-07T17:20:57Z",
+    "item": "Site record in a sidecar beside the page, not Folio; one document per export; publish to local folders only; no source maps, preprocessors or asset rewriting; no JobPort, business events or controls registry ids; a link to a missing page fails the export closed instead of warning link_broken",
+    "owner": "later web lanes"
+   },
+   {
+    "added_at": "2026-11-07T17:20:57Z",
+    "item": "clippy large_const_arrays warning on ALL_ROWS at harness-core action/commands.rs:184 (likely tipped over by the 20 web rows)",
+    "owner": "the next harness typed-rows lane"
    }
   ],
   "pause_20261103": {
