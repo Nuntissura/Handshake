@@ -1,19 +1,57 @@
 {
   "crate": "hsk-studio-pigment, hsk-studio-folio (smart filter records), hsk-studio-render-gpu (one refusal arm)",
   "lane": "SMB-PIGMENT-FILTER-KERNELS-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-ps-mode-convert-1",
-  "base": "c4d06841",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "base": "98e4099c",
+  "commits": [
+    {
+      "sha": "3ca4467f",
+      "kind": "red",
+      "what": "Folio wire tests for the kernel kinds; red proven before rebase as 622c2540, log Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pigment-filter-kernels-1/red-folio-1.log (exit 100, 3 failed)"
+    },
+    {
+      "sha": "10a3536e",
+      "kind": "red",
+      "what": "plumbing and stub kernels; red proven before rebase as 186b7b2e, log Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pigment-filter-kernels-1/red-2-622c2540.log"
+    },
+    {
+      "sha": "2637ebf7",
+      "kind": "green",
+      "what": "nineteen kernels, Sobel extraction, DESCRIPTOR, docs"
+    },
+    {
+      "sha": "0ee78ea0",
+      "kind": "fix",
+      "what": "review F1: morphology unpremultiplies in place, roundness peak matches the 32 B/px charge"
+    },
+    {
+      "sha": "5341e561",
+      "kind": "fix",
+      "what": "clippy needless_range_loop in morph_square (array loop), no behaviour change"
+    }
+  ],
+  "capabilities_done": [
+    "19 raster kernel kinds in pigment filter_kernels as StackFilter::Kernel, reaching raster layer smart filters, placed layers and clip effect PigmentFilter through the existing record path",
+    "Folio StudioSmartFilterKind gains the 19 kinds (parameterless kinds as empty struct variants so unknown fields are refused); finiteness only, no invented range",
+    "render-gpu: one typed refusal arm per kernel key before device work; host falls back to render-cpu"
+  ],
+  "tests": {
+    "tip": "5341e561 (pushed to origin/codex/handshake-studio-assets, base 98e4099c)",
+    "bundled": "at 38a06822 (= 0ee78ea0 before the last rebase, base 1374cc25): lane-check --owner smb-ps-mode-convert-1 --disk d, step 0 clean, clippy over pigment folio package composite render-cpu harness render-gpu and dependents exit 0, nextest 911 passed 0 failed (pigment 295, folio 238, composite[motion] 214, render-cpu 118, package 42, harness[viewer] smart_filter_package + filter_kernels_package 2, render-gpu gpu_smart_filter 2), LANE_CHECK_EXIT 0, log Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pigment-filter-kernels-1/bundled-smb-pigment-filter-kernels-1-38a06822.log",
+    "after_bundled": "5341e561 lint fix: cargo clippy -p hsk-studio-pigment --tests exit 0 with no warning in lane files, filter_kernels 27 passed, log Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pigment-filter-kernels-1/clippy-fix-smb-pigment-filter-kernels-1.log",
+    "per_sha": "lane-check --per-sha HEAD~1 at 5341e561: PER_SHA_RESULT OK shas=1, log Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pigment-filter-kernels-1/per-sha-smb-pigment-filter-kernels-1-5341e561.log",
+    "origin_move": "1374cc25..98e4099c touched hsk-studio-harness only (cli, harness_drive tests, motion_commands), none of the lane's changed crates: no suite re-run (brief proof rule)",
+    "gpu": "gpu_smart_filter refusal row passed in the bundled run; whether a live adapter was present is NOT_INSPECTED (gate returns early without one unless strict)",
+    "doctests": "none added"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-07T06:23:52Z",
+  "next": "validator: judge 3ca4467f..5341e561 on base 98e4099c; never PASS from the builder",
+  "updated_at": "2026-11-07T13:29:12Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -58,6 +96,38 @@
       "MT-32892",
       "MT-32863"
     ],
-    "reuses_tree_and_target": "smb-ps-mode-convert-1"
+    "reuses_tree_and_target": "smb-ps-mode-convert-1",
+    "path_beyond_brief": "crates/hsk-studio-pigment/src/blur_math.rs: visibility only, cos_sin_deg and bilinear_add made pub(crate) for emboss (the brief's SUBPIXEL_FILTER reading needs the bilinear read; copying it would duplicate maths, CX-CAP-001)",
+    "v4_06_sweep": {
+      "a_matches": {
+        "regex": "StackFilter::|StudioSmartFilterKind::",
+        "sites": [
+          "pigment/src/smart_filter.rs render validate: Kernel arm added (fixed)",
+          "pigment/src/smart_filter.rs render run: Kernel arm added (fixed)",
+          "pigment/src/smart_filter.rs SmartFilterOp::check: Kernel arm added (fixed)",
+          "pigment/src/smart_filter.rs from_record: 19 arms (fixed)",
+          "folio/src/smart_filter.rs validate_smart_filters: wildcard arm calls kernel_floats_finite, whose own match is exhaustive (fixed)",
+          "folio/src/clip_finishing.rs PigmentFilter: wildcard arm calls kernel_floats_finite (fixed)",
+          "render-gpu/src/plan_sink.rs compile_smart: refusal arm (fixed)",
+          "render-cpu/src/plan_sink/extended.rs:507 if let Liquify mesh charge: not applicable, kernels store no mesh",
+          "render-cpu/src/plan_sink/extended.rs:58 SMART_ENTRY_BYTES = 128 (inspected): review reading puts SmartFilterEntryOp at about 192 B (about 176 at base); budget charge only, outside the owned paths: candidate for the lead, unchanged",
+          "composite/src/clip_finishing.rs:409,411,690 construct old kinds only: not applicable"
+        ]
+      },
+      "b_inherited_rules": "new Folio arms check finiteness only: negative angles legal, no MAX_CLIP_BLUR_PX cap (tests folio_invents_no_range_for_the_new_kinds, clip_effect_filter_kernels_inherit_no_invented_range)",
+      "c_plane_dependence": "pinned: mosaic grid and basic_blur border move with a cropped plane (item3_a_cropped_plane_moves_the_mosaic_grid_and_the_replicated_border); written in the module docs",
+      "d_costs": "surface and bilateral cost O(1), u32::MAX refused as filter_over_budget, 2000 refusals under 1 s (item5_unbounded_radii_are_refused_quickly); roundness and dust use disc_len, O(r) with r hard-bounded",
+      "e_bound_drift_report_only": "Median 1..=500 vs table 0..255; GaussianBlur <= 1000 vs table 0..30000; UnsharpMask ranges with no table check: unchanged"
+    },
+    "readings": "edge gate of sharpen_edges and despeckle: the largest of the three colour channel Sobel magnitudes >= 0.1 (Studio reading); surface and bilateral exclude samples beyond the plane; emboss gray from Rec. 709 luma of premultiplied bilinear samples; all class Approximate, vendor parity UNVERIFIED (D5)",
+    "known_gaps": "see pigment filter_kernels DESCRIPTOR gaps; SmartFilterStack::render has no cancel token (report only); STU-FX-016 tessellation unmet; Emboss color-amount not modelled; Mosaic row 3 and Minimax Operation/Channel/Direction rows not implemented",
+    "mt_state": "no MT file edited; candidates unchanged; AC-005 (operator surface) not addressed, so no row closes",
+    "review": "research/review-smb-pigment-filter-kernels-1-f36e155a.json FIX_FIRST F1 fixed in 0ee78ea0",
+    "candidates_for_lead": [
+      "SMART_ENTRY_BYTES 128 against an entry of about 192 B (176 at base)",
+      "no cancel inside one SmartFilterStack::render (run_smart checks cancel per job)",
+      "an older build rejects the new kinds with a serde string message, not a typed code"
+    ],
+    "harness_tolerance": "filter_kernels_package 1e-6 held with no loosening: max delta 5.96e-8 and 0 across the two stacks (Solarize, Sharpen Edges, Despeckle, Dust & Scratches included)"
   }
 }

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T12:31:03Z",
+ "updated_at": "2026-11-07T13:29:59Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19299,8 +19299,8 @@
   },
   {
    "lane_id": "SMB-PIGMENT-FILTER-KERNELS-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-pigment, hsk-studio-folio (smart filter records), hsk-studio-render-gpu (one refusal arm)",
    "lane_file": "builders/lanes/hsk-studio-pigment-filter-kernels-1.json",
    "brief": "builders/briefs/lane-smb-pigment-filter-kernels-1.md",
@@ -19308,7 +19308,7 @@
    "base": "c4d06841",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-07T06:23:52Z",
+   "updated_at": "2026-11-07T13:29:59Z",
    "closes": [
     "truth-check raster-effects family Photoshop-style filter families: Maximum, Minimum, Custom Convolution, Dust & Scratches, Despeckle, Surface blur, Emboss listed as missing; engine and record path only",
     "truth-check: box, directional and radial kernels used only by composition effects now also reach raster layers and clip effects",
@@ -19330,7 +19330,8 @@
     "MT-32814",
     "MT-32892",
     "MT-32863"
-   ]
+   ],
+   "claim": "3ca4467f..5341e561"
   },
   {
    "lane_id": "SMB-DOC-NEW-1",
@@ -21701,6 +21702,26 @@
     "added_at": "2026-11-07T12:31:03Z",
     "item": "Widget ids not seeded in the UiCatalog; tools in group 'unfiled'; typed rows not recordable; develop ops needing mask-source or tone-family records, whole VectorNetwork writes and non-default path-text options stay Rust-only",
     "owner": "later command-surface lanes"
+   },
+   {
+    "added_at": "2026-11-07T13:29:59Z",
+    "item": "SMART_ENTRY_BYTES is 128 against an entry of about 192 B",
+    "owner": "a later pigment lane"
+   },
+   {
+    "added_at": "2026-11-07T13:29:59Z",
+    "item": "No cancel inside one SmartFilterStack::render",
+    "owner": "a later pigment lane"
+   },
+   {
+    "added_at": "2026-11-07T13:29:59Z",
+    "item": "An older build rejects the new kernel kinds with a serde string, not a typed code",
+    "owner": "a later folio lane"
+   },
+   {
+    "added_at": "2026-11-07T13:29:59Z",
+    "item": "Filter commands (the operator surface, AC-005) for the nineteen kernels",
+    "owner": "backlog: the filter commands slice"
    }
   ],
   "pause_20261103": {
