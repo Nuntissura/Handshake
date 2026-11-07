@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T09:59:06Z",
+ "updated_at": "2026-11-07T10:25:44Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19262,8 +19262,8 @@
   },
   {
    "lane_id": "SMB-OBSERVE-DIAG-SINK-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-observe, hsk-studio-harness-core, hsk-studio-harness",
    "lane_file": "builders/lanes/hsk-studio-observe-diag-sink-1.json",
    "brief": "builders/briefs/lane-smb-observe-diag-sink-1.md",
@@ -19271,12 +19271,13 @@
    "base": "c4d06841",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-07T05:20:57Z",
+   "updated_at": "2026-11-07T10:25:44Z",
    "closes": [
     "hbr-usage rules[8]",
     "hbr-usage rules[38]",
     "hbr-usage rules[41]"
-   ]
+   ],
+   "claim": "5e24e678..1374cc25"
   },
   {
    "lane_id": "SMB-CONTROLS-EGUI-GATE-1",
@@ -21626,6 +21627,21 @@
     "added_at": "2026-11-07T08:33:24Z",
     "item": "reel/src/export.rs:866 fixed .vtt.partial temp name",
     "owner": "SMB-PR-EXPORT-RECIPE-1"
+   },
+   {
+    "added_at": "2026-11-07T10:25:44Z",
+    "item": "harness_drive parallel_sessions_on_one_source_do_not_touch_each_other leaks child processes when it panics on its first join: children's stdout and stderr outlive the test (seen once under stale-binary runs)",
+    "owner": "a later harness lane"
+   },
+   {
+    "added_at": "2026-11-07T10:25:44Z",
+    "item": "Discard sinks in harness-view brush_mix, fill_tools, vector separations and swatch, and composite effects: forward with a measured rate (lane notes)",
+    "owner": "a later observe and harness-view lane"
+   },
+   {
+    "added_at": "2026-11-07T10:25:44Z",
+    "item": "builders/studio-env.sh: export STUDIO_DIAG_DIR under the owner's artifact folder for builder runs",
+    "owner": "lead"
    }
   ],
   "pause_20261103": {

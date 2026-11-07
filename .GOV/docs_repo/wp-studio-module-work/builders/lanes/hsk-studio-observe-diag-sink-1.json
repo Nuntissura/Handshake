@@ -1,47 +1,67 @@
 {
   "crate": "hsk-studio-observe, hsk-studio-harness-core, hsk-studio-harness",
   "lane": "SMB-OBSERVE-DIAG-SINK-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-r53-followups-1",
-  "base": "c4d06841",
+  "base": "95ee2774",
   "commits": [
-    "91a5fe98",
-    "845d06e9",
-    "eb559398",
-    "3c4811ed",
-    "84a8d056",
-    "f6862a0e",
-    "36dd94f3"
+    "5e24e678",
+    "6eba836f",
+    "e81c09d6",
+    "b3e2659b",
+    "8ceef111",
+    "aa1da6f0",
+    "dfac3507",
+    "1374cc25"
   ],
   "capabilities_done": [
     "Observe::emit* offers its record to the thread RingProducerPort (bind_thread_ring); adapter stays Handshake MT-36190",
     "durable JSONL sink for the standalone host (harness-core diag_sink.rs), bounded, write failure never fails the command",
     "FrameSink passes frames to the sink; op records also written",
     "panic record in the CLI and desktop binaries; existing exit behaviour kept",
-    "studio-harness health, typed exits 0, 3, 4, 5; manual names the command, flag, variable and default"
+    "studio-harness health, typed exits 0, 3, 4, 5; manual names the command, flag, variable and default",
+    "state, command, undo and the command --stdin session leave what they ran (through cli::run_process and the viewer harness taking the process sink); the window uses STUDIO_DIAG_DIR or the default"
   ],
   "tests": {
     "bundled_sha": "36dd94f3",
     "bundled_log": "Handshake_Artifacts/WP-KERNEL-STUDIO/SMB-OBSERVE-DIAG-SINK-1/smb-observe-diag-sink-1-bundled-36dd94f3.log",
     "bundled": "120 run, 120 passed, 2 skipped (the emit_cost measures), exit 0; step 0 clean; clippy over tested crates and direct dependents",
     "desktop_check": "cargo check -p hsk-studio-harness --features desktop --bins exit 0 at 84a8d056 (log smb-observe-diag-sink-1-desktop-check-84a8d056.log); 36dd94f3 not checked with desktop yet, --per-sha covers it",
-    "earlier_bundled": {
+    "not_run": [
+      "observe suite after the rebases (observe untouched by origin; last green at 36dd94f3 in the bundled run)",
+      "per-sha of commits before the tip (lead: tip only)",
+      "harness feature-unit test suites other than viewer (compile only, through per-sha)",
+      "doctests (none added)"
+    ],
+    "pushed_tip": "1374cc256f205c8f68c8afb2e6c578e6167dee11",
+    "landing": {
+      "sha": "1374cc25",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/SMB-OBSERVE-DIAG-SINK-1/smb-observe-diag-sink-1-landing-1374cc25.log",
+      "command": "lane-check -- cargo nextest run -p hsk-studio-harness-core -p hsk-studio-harness --features hsk-studio-harness/viewer --no-fail-fast -E 'package(hsk-studio-harness-core) | binary(harness_drive) | binary(diag_sink_process)'",
+      "result": "101 run, 101 passed, 0 skipped, exit 0; step 0 clean"
+    },
+    "per_sha": {
+      "range": "dfac3507..1374cc25",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/SMB-OBSERVE-DIAG-SINK-1/smb-observe-diag-sink-1-per-sha-1374cc25.log",
+      "result": "PER_SHA_RESULT OK shas=1: default unit plus 22 feature units of harness-core, harness-view and harness (desktop+viewer included), exit 0"
+    },
+    "landing_at_3dbe2120_before_origin_moved": "101 run, 101 passed; per-sha 3dbe2120 OK with every feature unit",
+    "failed_runs": {
+      "landing 3dbe2120 run 1 and 2": "114 run, 94 passed, 20 failed: harness_drive and state_command_and_undo spawned a stale example; named targets with or without --example do not refresh target/debug/examples/studio-harness.exe; no product failure; fixed by an -E filter with no target flags (lead-approved method change)",
+      "leak": "run 2 harness_drive parallel_sessions_on_one_source_do_not_touch_each_other FAIL + LEAK: the test panicked on its first join while its other spawned studio-harness command --stdin children were still running; the leaked handles are those children inherited stdout/stderr pipes (nextest names no handle; which child UNVERIFIED); the test passed in the green runs"
+    },
+    "earlier": {
       "84a8d056": "120 run, 109 passed, 11 failed, test helper, fixed in f6862a0e",
       "f6862a0e": "120 run, 119 passed, 1 failed, product defect in seq order across rotation, fixed in 36dd94f3"
-    },
-    "not_run": [
-      "--per-sha",
-      "rebase on origin (origin moved 16 commits to b954d4c5)",
-      "doctests (none added)"
-    ]
+    }
   },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 6971,
   "bg_pids": [],
-  "next": "builder: pushes held until R59 is recorded and the lead releases; then rebase, --per-sha HEAD~1 per the lead, guarded push, READY_FOR_VALIDATION on the pushed commit",
-  "updated_at": "2026-11-07T08:22:00Z",
+  "next": "validator: judge 1374cc25 against base 95ee2774 (8 commits 5e24e678..1374cc25)",
+  "updated_at": "2026-11-07T10:26:00Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -148,6 +168,22 @@
       "new_tests": "crates/hsk-studio-harness/tests/diag_sink_process.rs sets STUDIO_DIAG_DIR or --diag-dir and points LOCALAPPDATA, XDG_STATE_HOME and HOME under its scratch on every Command; crates/hsk-studio-harness-core/tests/diag_sink.rs passes the dir to its children"
     },
     "review": "review-smb-observe-diag-sink-1-3c4811ed.json F1, F2, F3 fixed in 84a8d056",
-    "lead_followup": "export STUDIO_DIAG_DIR in studio-env.sh after landing (lead owned)"
+    "lead_followup": "export STUDIO_DIAG_DIR in studio-env.sh after landing (lead owned)",
+    "rebases": "c4d06841 -> b954d4c5 (SMB-HARNESS-DRIVE-1: cli.rs, manual.rs, both binaries conflicted; drive commands kept) -> 95ee2774 (clean)",
+    "window_diag": "the desktop window takes no --diag-dir (drive window_args refuses unknown flags); it uses STUDIO_DIAG_DIR or the default, named in manual diagnostics.dir_flag",
+    "in_process_drive": "in-process cli::run of state, command, undo with --diag-dir records only run_start and run_end: the viewer builds its own harness, which takes only the process sink; stated in manual diagnostics.library_callers",
+    "brief_trap": "harness_drive binary() takes target/debug/examples/studio-harness.exe when desktop is off; any run with named targets spawns a stale example",
+    "lead_decisions": [
+      {
+        "at": "2026-11-07T10:25:44Z",
+        "on": "default diag dir",
+        "decision": "Real binaries write to the OS-local state dir by default, size-capped; tests pin STUDIO_DIAG_DIR or --diag-dir and never write the default (CX-GIT-003)."
+      },
+      {
+        "at": "2026-11-07T10:25:44Z",
+        "on": "discard sinks",
+        "decision": "Left as they are, listed with rates; a candidate lane."
+      }
+    ]
   }
 }
