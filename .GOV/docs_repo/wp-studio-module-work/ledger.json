@@ -22032,7 +22032,12 @@
     "lane/smb-layout-pdf-host-1",
     "lane/smb-project-bin-1",
     "lane/smb-layout-persist-1",
-    "lane/smb-web-host-1"
+    "lane/smb-web-host-1",
+    "lane/smb-layout-pdf-host-1-d",
+    "lane/smb-doc-export-1-d",
+    "lane/smb-audio-out-mix-1-d",
+    "lane/smb-ui-tree-1-d",
+    "lane/smb-project-bin-1-d"
    ],
    "target_reuse": {
     "SMB-PR-ROUTING-REPAIR-1": {
@@ -22091,29 +22096,49 @@
      "previous_branch": "lane/smb-pr-routing-repair-1"
     },
     "SMB-UI-TREE-1": {
-     "tree": "smb-type-sentinels-registry-1",
-     "branch": "lane/smb-ui-tree-1",
-     "previous_branch": "lane/smb-type-sentinels-registry-1"
+     "tree": "smb-pr-retime-hold-1",
+     "branch": "lane/smb-ui-tree-1-d",
+     "previous_branch": "lane/smb-ui-tree-1",
+     "old_tree_idle": "smb-type-sentinels-registry-1 (C:, branch lane/smb-ui-tree-1 kept at its tip, nothing switched or deleted)",
+     "moved_at": "2026-11-07T12:35:56Z",
+     "moved_tip": "5873c04e",
+     "tree_from": "SMB-GUI-STEWARD-1 READY at 7879e7e9"
     },
     "SMB-AUDIO-OUT-MIX-1": {
-     "tree": "smb-pr-retime-output-1",
-     "branch": "lane/smb-audio-out-mix-1",
-     "previous_branch": "lane/smb-pr-retime-output-1"
+     "tree": "smb-r53-followups-1",
+     "branch": "lane/smb-audio-out-mix-1-d",
+     "previous_branch": "lane/smb-audio-out-mix-1",
+     "old_tree_idle": "smb-pr-retime-output-1 (C:, branch lane/smb-audio-out-mix-1 kept at its tip, nothing switched or deleted)",
+     "moved_at": "2026-11-07T12:35:56Z",
+     "moved_tip": "40e5b658",
+     "tree_from": "SMB-OBSERVE-DIAG-SINK-1 READY at 1374cc25"
     },
     "SMB-DOC-EXPORT-1": {
-     "tree": "smb-pr-nudge-1",
-     "branch": "lane/smb-doc-export-1",
-     "previous_branch": "lane/smb-pr-nudge-1"
+     "tree": "smb-pr-sequence-session-1",
+     "branch": "lane/smb-doc-export-1-d",
+     "previous_branch": "lane/smb-doc-export-1",
+     "old_tree_idle": "smb-pr-nudge-1 (C:, branch lane/smb-doc-export-1 kept at its tip, nothing switched or deleted)",
+     "moved_at": "2026-11-07T12:35:56Z",
+     "moved_tip": "6cf52d85",
+     "tree_from": "SMB-SESSION-WRITE-SAFETY-1 READY at 570173af"
     },
     "SMB-LAYOUT-PDF-HOST-1": {
-     "tree": "smb-layout-composer-depth-1",
-     "branch": "lane/smb-layout-pdf-host-1",
-     "previous_branch": "lane/smb-layout-composer-depth-1"
+     "tree": "smb-pr-edit-footprint-1",
+     "branch": "lane/smb-layout-pdf-host-1-d",
+     "previous_branch": "lane/smb-layout-pdf-host-1",
+     "old_tree_idle": "smb-layout-composer-depth-1 (C:, branch lane/smb-layout-pdf-host-1 kept at its tip, nothing switched or deleted)",
+     "moved_at": "2026-11-07T12:35:56Z",
+     "moved_tip": "a26b4d11",
+     "tree_from": "SMB-COMMAND-SURFACE-1 READY at 98e4099c"
     },
     "SMB-PROJECT-BIN-1": {
-     "tree": "smb-r54-followups-1",
-     "branch": "lane/smb-project-bin-1",
-     "previous_branch": "lane/smb-r54-followups-1"
+     "tree": "smb-folio-angle-unbounded-1",
+     "branch": "lane/smb-project-bin-1-d",
+     "previous_branch": "lane/smb-project-bin-1",
+     "old_tree_idle": "smb-r54-followups-1 (C:, branch lane/smb-project-bin-1 kept at its tip, nothing switched or deleted)",
+     "moved_at": "2026-11-07T12:35:56Z",
+     "moved_tip": "3f2c64a5",
+     "tree_from": "SMB-MOTION-COMMANDS-1 READY at 912cb86f"
     },
     "SMB-LAYOUT-PERSIST-1": {
      "tree": "smb-id-toc-persist-1",
@@ -22241,6 +22266,42 @@
     "composition and board spec questions"
    ],
    "scoped_lanes": "Per the backlog: SMB-TYPE-INDENT-SPACING-1 and SMB-AI-LIVE-EFFECTS-1 close few steps and wait; SMB-PR-EXPORT-RECIPE-1 keeps its publish-safety part first; SMB-SCORE-EFFECTS-6 is re-scoped against noise and multiband hosts; SMB-PARSER-HOSTILE-1 is a safety track behind features."
+  },
+  "c_cap_20261107": {
+   "at": "2026-11-07T12:35:56Z",
+   "evidence": "studio-env cap guard in five builder logs, e.g. Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ui-tree-1/bundled-a20ff042.log: 'C:/HandshakeBuild/WP-KERNEL-STUDIO held 377 GiB at 2026-11-07T12:25:27Z > cap 360 GiB (Operator grant CX-984-014: 400 GB); SSD build refused (77)'. df at 12:35Z: C: 338G free.",
+   "growth": "333.2 GiB at 11:21Z to 377 GiB at 12:25Z, from the five C: lanes' builds (SMB-AUDIO-OUT-MIX-1, SMB-LAYOUT-PDF-HOST-1, SMB-DOC-EXPORT-1, SMB-PROJECT-BIN-1, SMB-UI-TREE-1).",
+   "guard_fallback": "The guard's order is: the cargo manager cleans stale C: output first, then D:. Cleaning needs the Operator's approval of an inspected list (HSK-ART-005, CX-107). Proposal S (research/cargo-cleanup-plan-20261107-S.json, 169.2 GiB, mostly older test-binary copies in the idle C: round target) is pending.",
+   "decision": "Without that answer nothing is removed. The five C: lanes move to idle D: trees whose READY lanes are on origin, reusing warm targets, so no new target is created (P3). Their C: trees and branches stay exactly as they were. No C: build until the tree is under the cap.",
+   "moves": {
+    "SMB-LAYOUT-PDF-HOST-1": {
+     "from_tree": "smb-layout-composer-depth-1",
+     "to_tree": "smb-pr-edit-footprint-1",
+     "tip": "a26b4d11"
+    },
+    "SMB-DOC-EXPORT-1": {
+     "from_tree": "smb-pr-nudge-1",
+     "to_tree": "smb-pr-sequence-session-1",
+     "tip": "6cf52d85"
+    },
+    "SMB-AUDIO-OUT-MIX-1": {
+     "from_tree": "smb-pr-retime-output-1",
+     "to_tree": "smb-r53-followups-1",
+     "tip": "40e5b658"
+    },
+    "SMB-UI-TREE-1": {
+     "from_tree": "smb-type-sentinels-registry-1",
+     "to_tree": "smb-pr-retime-hold-1",
+     "tip": "5873c04e"
+    },
+    "SMB-PROJECT-BIN-1": {
+     "from_tree": "smb-r54-followups-1",
+     "to_tree": "smb-folio-angle-unbounded-1",
+     "tip": "3f2c64a5"
+    }
+   },
+   "r60": "R60 FULL needs the C: round target (199 GiB, warm), and a full round grows it. Above the cap the round cannot build on C:. It waits for the Operator's answer on S, or runs cold on a new D: round target if the lead decides the wait costs more than the cold build. Not decided yet.",
+   "cost": "All builders now share the D: lock queue; the C: lock is idle."
   }
  },
  "round_R45": {
