@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T13:29:59Z",
+ "updated_at": "2026-11-07T13:35:06Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19419,8 +19419,8 @@
   },
   {
    "lane_id": "SMB-UI-TREE-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "kumihimo-ui",
    "lane_file": "builders/lanes/hsk-studio-ui-tree-1.json",
    "brief": "builders/briefs/lane-smb-ui-tree-1.md",
@@ -19428,10 +19428,11 @@
    "base": "95ee277458b18fc333ba3fb8bc6231291ec10172",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-07T09:57:08Z",
+   "updated_at": "2026-11-07T13:35:06Z",
    "closes": [
     "O4, O5 toolkit core"
-   ]
+   ],
+   "claim": "85b67512..12133fdf"
   },
   {
    "lane_id": "SMB-AUDIO-OUT-MIX-1",
@@ -21722,6 +21723,26 @@
     "added_at": "2026-11-07T13:29:59Z",
     "item": "Filter commands (the operator surface, AC-005) for the nineteen kernels",
     "owner": "backlog: the filter commands slice"
+   },
+   {
+    "added_at": "2026-11-07T13:35:06Z",
+    "item": "No Inter 500/600 face in the repo: those weights draw with 400 or 700; one family, no fallback chain, script fixed to Latn",
+    "owner": "a later ui-text lane"
+   },
+   {
+    "added_at": "2026-11-07T13:35:06Z",
+    "item": "Focus movement between panels (F6 region cycle), size-literal check in source, availability fields in the semantic tree",
+    "owner": "SMB-GUI-SPINE-1 or a later kumihimo-ui lane"
+   },
+   {
+    "added_at": "2026-11-07T13:35:06Z",
+    "item": "IME, gesture arbiter, menus, docking",
+    "owner": "later kumihimo-ui lanes"
+   },
+   {
+    "added_at": "2026-11-07T13:35:06Z",
+    "item": "tokens.rs copy of the kernel design-system.json has no drift check (regeneration needs Python; nothing compares the copy)",
+    "owner": "a later kumihimo-ui or steward lane"
    }
   ],
   "pause_20261103": {

@@ -1,19 +1,88 @@
 {
   "crate": "kumihimo-ui",
   "lane": "SMB-UI-TREE-1",
-  "status": null,
-  "phase": "build",
-  "worktree": "wt-studio-lanes/smb-type-sentinels-registry-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
+  "worktree": "wt-studio-lanes/smb-pr-retime-hold-1",
   "base": "95ee277458b18fc333ba3fb8bc6231291ec10172",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "85b67512",
+      "kind": "red",
+      "note": "red proof at its pre-rebase twin 4aa48b70: 18 run, 5 passed, 13 failed, exit 100"
+    },
+    {
+      "sha": "ac4e5734",
+      "kind": "green",
+      "note": "kumihimo-ui core + hsk-studio-ui-text adapter"
+    },
+    {
+      "sha": "50b5cdac",
+      "kind": "green",
+      "note": "clippy"
+    },
+    {
+      "sha": "c62469a3",
+      "kind": "green",
+      "note": "review fixes F1-F9"
+    },
+    {
+      "sha": "12133fdf",
+      "kind": "chore",
+      "note": "untrack .pyc; pushed tip"
+    }
+  ],
+  "capabilities_done": [
+    "B0 tokens generated from design-system.json",
+    "B1/B2 edge snapping",
+    "retained node arena, builder, idle-quiet Panel",
+    "stack layout behind LayoutPort",
+    "display list = renderer.primitives (11)",
+    "CPU painter",
+    "hit test, focus order, press/release",
+    "semantic tree with stable ids, numeric fields, explicit truncation",
+    "text port + shaped-line and glyph caches (kumihimo-ui), TypeText adapter over hsk-studio-type",
+    "widgets: toolbar, icon/text/toggle button, tab row, slider, layer row",
+    "tree-method checks AC-GEOM-02/03, AC-TEXT-01/03"
+  ],
+  "tests": {
+    "focused_green": {
+      "sha": "8b093b3b+uncommitted lint fixes (now 44ab8e16)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ui-tree-1/green-check-8b093b3b.log",
+      "result": "18 run, 18 passed; clippy OK; probe --self-test status ok 80 cases; cargo metadata --locked OK",
+      "exit": 0
+    },
+    "red_proof": {
+      "sha": "4aa48b70",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ui-tree-1/red-proof-4aa48b70.log",
+      "result": "18 run, 5 passed, 13 failed",
+      "exit": 100
+    },
+    "step0": "lane-check --step0-only clean at 44ab8e16",
+    "bundled": {
+      "sha": "fe26fee6 (pre-rebase twin of 12133fdf; the commits that landed meanwhile touch only composite, folio, harness, pigment, render-cpu, render-gpu)",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ui-tree-1/bundled-fe26fee6.log",
+      "owner": "smb-pr-retime-hold-1",
+      "disk": "d",
+      "result": "clippy over kumihimo-ui + hsk-studio-ui-text clean; 24 run, 24 passed",
+      "exit": 0
+    },
+    "review_fix_focused": {
+      "note": "focused kumihimo-ui run before pinning: 22 run, 20 passed; the 2 failures were the unpinned goldens and a test that needed layout before focus_order (both fixed in a20ff042)"
+    },
+    "per_sha": {
+      "range": "14254cbd..fe26fee6",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ui-tree-1/per-sha-fe26fee6.log",
+      "result": "PER_SHA_RESULT OK shas=1 (changed kumihimo-ui, dependents hsk-studio-ui-text)",
+      "exit": 0
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on C:, push when green",
-  "updated_at": "2026-11-07T09:57:08Z",
+  "next": "validator",
+  "updated_at": "2026-11-07T13:34:32Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -33,11 +102,56 @@
   },
   "notes": {
     "dispatched_at": "2026-11-07T09:57:08Z",
-    "disk": "C",
+    "disk": "D",
     "closes": [
       "O4, O5 toolkit core"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-type-sentinels-registry-1"
-  }
+    "reuses_tree_and_target": "smb-pr-retime-hold-1",
+    "text_sample": {
+      "at": "2026-11-07T10:34:17Z",
+      "dir": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ui-tree-1/text-sample-1",
+      "files": "text-specimen-g100|g140-s100|s125|s150|s200.png, widget-{toolbar,tab_row,slider,layer_row}-s100|s200.png",
+      "lead_read": "text reads clearly at 96 dpi; keep default LUT (gamma 1.0)"
+    },
+    "adapter_crate": {
+      "crate": "hsk-studio-ui-text",
+      "approved_by": "lead 2026-11-07 (steward exception for root Cargo.toml members, declared-members, metadata allowed/dev-allowed)",
+      "deps": [
+        "hsk-studio-accord",
+        "hsk-studio-prism",
+        "hsk-studio-type",
+        "kumihimo-ui"
+      ],
+      "dev_deps": [
+        "hsk-studio-interop-raster"
+      ],
+      "cargo_lock": "gains only the hsk-studio-ui-text workspace record"
+    },
+    "text_gaps": [
+      "no Inter weight 500 or 600 face in the repo fixtures: body_strong, tab active, title, heading and timecode render with Inter-Bold 700 or Regular 400 (nearest weight)",
+      "one family, no fallback chain (no Noto/CJK fallback), script fixed to Latn",
+      "mono style uses the UI face (code font UNVERIFIED in design-system.json)"
+    ],
+    "assets_inspected": {
+      "handshake_text_mechanics": "origin/codex/handpick: text buffer, cursor, UTF-16 formatting; deps ecolor (egui family), ropey, unicode-*; not adopted in this slice: no text-edit state here, and its deps are not in the lock",
+      "handshake_context_menu": "origin/codex/handpick: ContextMenu model and keyboard navigation with &static str ids; not adopted: menus are B6, later; menus should consume this model rather than a copy"
+    },
+    "old_tree_idle": "smb-type-sentinels-registry-1 (C:)",
+    "f4_ruling": "lead 2026-11-07: keep the STU-MDL-103 stable_id derivation; Builder refuses a colliding stable_id (DuplicateStableId)",
+    "rebased_onto": "98e4099c (origin/codex/handshake-studio-assets); commits bb4bc69e red, 7c849e3d, 2e30cea5, 14254cbd, fe26fee6",
+    "pushed": {
+      "tip": "12133fdfcf9ce0627d2c5915b3b0157b4a4f8452",
+      "base": "5341e561",
+      "at": "2026-11-07T13:34:32Z"
+    },
+    "lead_decisions": [
+      {
+        "at": "2026-11-07T13:35:06Z",
+        "on": "F4 stable_id",
+        "decision": "Accepted the builder's reading: keep the STU-MDL-103 derivation (an escaped encoding would contradict the spec example) and refuse a colliding stable_id with BuildError::DuplicateStableId."
+      }
+    ]
+  },
+  "branch": "lane/smb-ui-tree-1-d"
 }
