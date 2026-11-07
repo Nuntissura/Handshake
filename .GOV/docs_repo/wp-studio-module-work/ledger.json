@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T15:58:42Z",
+ "updated_at": "2026-11-07T16:35:52Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19472,8 +19472,8 @@
   },
   {
    "lane_id": "SMB-LAYOUT-PDF-HOST-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness-view, hsk-studio-harness, hsk-studio-interop-layout",
    "lane_file": "builders/lanes/hsk-studio-layout-pdf-host-1.json",
    "brief": "builders/briefs/lane-smb-layout-pdf-host-1.md",
@@ -19481,10 +19481,11 @@
    "base": "95ee277458b18fc333ba3fb8bc6231291ec10172",
    "disk_planned": "C",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-07T09:57:08Z",
+   "updated_at": "2026-11-07T16:35:52Z",
    "closes": [
     "workflows/backlog-20261107.json SMB-LAYOUT-PDF-HOST-1"
-   ]
+   ],
+   "claim": "92227383..3972c165"
   },
   {
    "lane_id": "SMB-PROJECT-BIN-1",
@@ -21822,6 +21823,16 @@
     "added_at": "2026-11-07T15:52:03Z",
     "item": "Crop and resize change the export only; CMYK is TIFF only; a PSD refuses an active stage; text, vector, adjustment layers and masks are typed PSD losses; no IPTC or wide-gamut profiles",
     "owner": "later export lanes"
+   },
+   {
+    "added_at": "2026-11-07T16:35:52Z",
+    "item": "Placed graphics, vector paths and raster tiles in the layout PDF (listed as losses); tables (table_not_exported); design records, outlines, tagged PDF, CMYK conversion of RGB style fills",
+    "owner": "later layout PDF lanes"
+   },
+   {
+    "added_at": "2026-11-07T16:35:52Z",
+    "item": "Script and language detection (everything shapes as Latin, English); layout.open emits no observe frame of its own; PDF/X conformance not claimed",
+    "owner": "later layout and type lanes"
    }
   ],
   "pause_20261103": {

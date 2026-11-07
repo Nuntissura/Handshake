@@ -1,19 +1,80 @@
 {
   "crate": "hsk-studio-harness-view, hsk-studio-harness, hsk-studio-interop-layout",
   "lane": "SMB-LAYOUT-PDF-HOST-1",
-  "status": null,
-  "phase": "build",
-  "worktree": "wt-studio-lanes/smb-layout-composer-depth-1",
-  "base": "95ee277458b18fc333ba3fb8bc6231291ec10172",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "status": "READY_FOR_VALIDATION",
+  "phase": "ready",
+  "worktree": "wt-studio-lanes/smb-pr-edit-footprint-1",
+  "base": "e85e1440",
+  "commits": [
+    {
+      "sha": "92227383",
+      "kind": "red",
+      "note": "typed rows per ruling F1; stub refuses"
+    },
+    {
+      "sha": "cde13272",
+      "kind": "green",
+      "note": "layout_export.rs"
+    },
+    {
+      "sha": "14522e34",
+      "kind": "fix",
+      "note": "review F2-F4"
+    },
+    {
+      "sha": "3972c165",
+      "kind": "fix",
+      "note": "render_pdf_page typed row only (duplicate author id); pushed tip"
+    }
+  ],
+  "capabilities_done": [
+    "layout.open (sized blank layout: N pages, WxH pt)",
+    "layout.preflight",
+    "layout.export_pdf (Type glyphs, page labels, PDF/X-4 + ICC output intent, check_pdfx4 self-check, preflight gate)",
+    "layout.export_idml (export_folio_longdoc)",
+    "layout.render_pdf_page (press render_page -> PNG)",
+    "catalog id -> viewer row drive route"
+  ],
+  "tests": {
+    "bundled-1": {
+      "sha": "59abe9db",
+      "tests": 475,
+      "passed": 474,
+      "failed": 1,
+      "exit": 100,
+      "failure": "harness_drive_typed the_catalog_is_one_registry_and_old_ids_still_resolve: DuplicateAuthorId layout.render-pdf-page",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-pdf-host-1/bundled-smb-layout-pdf-host-1-59abe9db.log"
+    },
+    "bundled-2": {
+      "sha": "91d3ee79 (same tree as abc8774b before rebase over SMB-UI-TREE-1 and pigment kernels)",
+      "tests": 475,
+      "passed": 475,
+      "failed": 0,
+      "skipped": 22,
+      "exit": 0,
+      "layout_pdf_host": 8,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-pdf-host-1/bundled-smb-layout-pdf-host-1-91d3ee79.log"
+    },
+    "per-sha": {
+      "sha": "3972c165",
+      "result": "PER_SHA_RESULT OK shas=1",
+      "exit": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-pdf-host-1/persha-smb-layout-pdf-host-1-3972c165.log"
+    },
+    "check-after-rebase": {
+      "sha": "3972c165",
+      "cmd": "cargo check -p harness-core -p harness-view -p harness --features harness/viewer,harness-view/viewer --tests",
+      "exit": 0,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-pdf-host-1/check-smb-layout-pdf-host-1-3972c165.log",
+      "why": "rebase onto e85e1440 conflicted in drive.rs and drive_viewer.rs (SMB-DOC-NEW-1, SMB-DOC-EXPORT-1)"
+    }
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on C:, push when green",
-  "updated_at": "2026-11-07T09:57:08Z",
+  "next": "validator: judge 3972c165 (lane commits 92227383..3972c165 on e85e1440)",
+  "updated_at": "2026-11-07T16:35:14Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -33,11 +94,55 @@
   },
   "notes": {
     "dispatched_at": "2026-11-07T09:57:08Z",
-    "disk": "C",
+    "disk": "D",
     "closes": [
       "workflows/backlog-20261107.json SMB-LAYOUT-PDF-HOST-1"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-layout-composer-depth-1"
-  }
+    "reuses_tree_and_target": "smb-pr-edit-footprint-1",
+    "paths_beyond_brief": [
+      "hsk-studio-harness-view/src/view/mod.rs (mod line)",
+      "hsk-studio-harness-view/src/view/text.rs (Type ports pub(super), no behaviour change)",
+      "hsk-studio-harness-core/src/action/commands/layout.rs, commands.rs, action.rs (rows, re-exports)",
+      "hsk-studio-harness-core/src/manual.rs (DRIVE_VIEWER rows)",
+      "hsk-studio-harness-core/tests/action_records.rs (viewer.<method> run_method checked against DRIVE_VIEWER)",
+      "hsk-studio-harness/src/cli/drive.rs (catalog->viewer route, export_over_source list)",
+      "hsk-studio-harness/src/cli/drive_viewer.rs (row dispatch)"
+    ],
+    "cargo_lock": "one line: hsk-studio-interop-layout in hsk-studio-harness-view deps; no new external crate",
+    "v4_06_siblings": {
+      "class": "host export route without preflight gate / typed refusal",
+      "sites": {
+        "view/vector/pdf_export.rs export_vector_pdf": "not fixed (String refusals, no preflight; out of scope)",
+        "view/vector/interop.rs export_vector_svg": "not fixed (same)",
+        "cli/drive.rs export_over_source list": "fixed (layout exports added)"
+      }
+    },
+    "cuts": [
+      "placed graphics, vector paths, raster tiles in layout PDF (engine losses)",
+      "tables (table_not_exported)",
+      "design records, outlines, tagged PDF, CMYK conversion of RGB fills",
+      "script/language detection (Latin, en)",
+      "layout.open and layout.preflight emit no observe frame (no job, no sink)",
+      "PDF/X conformance not claimed"
+    ],
+    "spec_basis": [
+      "STU-LAY-054",
+      "STU-LAY-061",
+      "STU-LAY-154",
+      "STU-LAY-158"
+    ],
+    "old_tree_idle": "smb-layout-composer-depth-1 (C:)",
+    "pushed": {
+      "tip": "3972c165",
+      "on": "e85e1440",
+      "at": "2026-11-07T16:35:14Z"
+    },
+    "claims_not_proven": [
+      "glyph fill colour space under a CMYK intent not read back (press reader keeps no source colour for glyphs): test prints NOT_PROVEN",
+      "intermediate commits 92227383, cde13272, 14522e34 not compile-checked one by one; tip only (--per-sha HEAD~1)",
+      "bundled run (475/475) was on 91d3ee79, before the rebases over SMB-UI-TREE-1, SMB-DOC-NEW-1, SMB-VK-HOST-1, SMB-DOC-EXPORT-1; after them only cargo check --tests and per-sha"
+    ]
+  },
+  "branch": "lane/smb-layout-pdf-host-1-d"
 }
