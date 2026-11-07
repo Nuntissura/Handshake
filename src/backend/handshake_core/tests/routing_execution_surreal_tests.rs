@@ -1335,14 +1335,14 @@ mod authenticated_promotion_fixture {
 
     impl PublicPromotionFixture {
         pub(super) async fn create() -> Self {
-            let root = surreal_test_store_support::canonical_artifacts_root_for_proof()
-                .expect("verified promotion artifact root");
-            let owner = root.join("WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1")
-                .join("MT-017").join("authenticated-routing-fixture");
-            assert!(owner.starts_with(&root));
-            std::fs::create_dir_all(&owner).expect("create assigned promotion fixture descendant");
+            let owner = std::path::PathBuf::from(
+                std::env::var_os(surreal_test_store_support::TEST_STORE_ROOT_ENV)
+                    .filter(|value| !value.is_empty())
+                    .expect("explicit admitted promotion store root"),
+            );
+            assert!(owner.is_absolute(), "promotion store root must be absolute");
             let isolated = IsolatedSurrealTestStore::create_in(&owner).await.expect("isolated promotion database");
-            let channel = NativeChannel::create(&owner);
+            let channel = NativeChannel::create(isolated.scope_path().parent().expect("validated promotion store owner"));
             let registry = Arc::new(CapabilityRegistry::new());
             registry.profile_by_id("Operator").expect("actual loaded Operator profile");
             let database: Arc<dyn Database> = Arc::new(SurrealDatabase::new(isolated.storage().clone()));

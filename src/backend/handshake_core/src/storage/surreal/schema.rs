@@ -17,6 +17,9 @@ use super::{
     SurrealAdminContext, SurrealStorage, SurrealStorageConfig, SurrealStorageError, DEFAULT_DATABASE, DEFAULT_NAMESPACE,
 };
 
+#[path = "schema_revision166.rs"]
+mod revision166;
+
 pub const SCHEMA_VERSION: &str = "wp-kernel-012-surreal-v1";
 pub const SCHEMA_REVISION: i64 = 167;
 
@@ -6424,15 +6427,7 @@ struct PredecessorUpgradeBindings {
 
 impl SchemaState {
     fn is_exact_pre_routing(&self, production: bool, config: &SurrealStorageConfig) -> bool {
-        self.version == SCHEMA_VERSION && self.revision == PRE_ROUTING_REVISION
-            && self.target_revision == PRE_ROUTING_REVISION
-            && self.namespace == config.namespace() && self.database == config.database()
-            && self.apply_state == "complete"
-            && self.source_manifest_sha256 == if production { PRE_ROUTING_PRODUCTION_SOURCE } else { SCHEMA_LINEAGE_SHA256 }
-            && self.generated_surql_sha256 == if production { PRE_ROUTING_PRODUCTION_GENERATED } else { PRE_ROUTING_BASE_GENERATED }
-            && if production {
-                EXPECTED_PRODUCTION_SCHEMA_PIN.is_some_and(|pin| self.info_fingerprint_sha256 == pin.0)
-            } else { self.info_fingerprint_sha256 == EXPECTED_SCHEMA_INFO_SHA256 }
+        revision166::recognizes(self, production, config)
     }
 
     fn is_exact_pre_member_enrollment(&self, production: bool, config: &SurrealStorageConfig) -> bool {
@@ -9267,8 +9262,8 @@ async fn upgrade_pre_routing(
         return fail_closed(database, "HANDSHAKE_SURREAL_PRE_ROUTING_PRECONDITION_FAILED".to_owned()).await;
     }
     let predecessor = read_schema_catalog(database).await?;
-    let expected_catalog = if production { PRE_ROUTING_PRODUCTION_CATALOG } else { PRE_ROUTING_BASE_CATALOG };
-    if routing_predecessor_catalog_sha256(production)? != expected_catalog {
+    let expected_catalog = if production { revision166::PRODUCTION_CATALOG } else { revision166::BASE_CATALOG };
+    if revision166::predecessor_catalog_sha256(production)? != expected_catalog {
         return fail_closed(database, "HANDSHAKE_SURREAL_PRE_ROUTING_SOURCE_CATALOG_MISMATCH".to_owned()).await;
     }
     let old_production = EXPECTED_PRODUCTION_SCHEMA_PIN;
@@ -9279,6 +9274,10 @@ async fn upgrade_pre_routing(
         return fail_closed(database, format!(
             "HANDSHAKE_SURREAL_PRE_ROUTING_CATALOG_MISMATCH: observed={}; fields={}; indexes={}",
             predecessor.info_fingerprint_sha256, predecessor.fields_defined, predecessor.indexes_defined)).await;
+    }
+    if read_knowledge_schema_registry_metadata(database).await?
+        != expected_knowledge_schema_registry_metadata().map_err(SurrealStorageError::TransactionWorker)? {
+        return fail_closed(database, "HANDSHAKE_SURREAL_FIRST_PIN_REGISTRY_MISMATCH".to_owned()).await;
     }
     let model_lane_upgrade = if production {
         verify_other_production_module_receipts(database).await?;
@@ -9302,12 +9301,14 @@ IF $current = NONE OR $current.version != $version
 {{ THROW 'HANDSHAKE_SURREAL_PRE_ROUTING_STATE_CHANGED'; }};
 {}
 {}
+{}
 UPDATE ONLY handshake_schema_state:primary SET revision = $revision, target_revision = $revision,
  source_manifest_sha256 = $source, generated_surql_sha256 = $generated,
  info_fingerprint_sha256 = $pending_info, apply_state = 'schema_applied', updated_at = time::now();
 COMMIT TRANSACTION;
-"#, routing_receipt_upgrade_statements(),
-        model_lane_upgrade.as_ref().map(|prepared| prepared.routing_sql_fragment()).unwrap_or_default());
+"#, revision166::upgrade_statements(production),
+        model_lane_upgrade.as_ref().map(|prepared| prepared.routing_sql_fragment()).unwrap_or_default(),
+        revision166::cloud_upgrade_statements(production));
     let SurrealValueData::Object(mut bindings) = SurrealValue::into_value(RoutingSuccessorBindings {
         version: SCHEMA_VERSION.to_owned(), previous_revision: PRE_ROUTING_REVISION,
         revision: SCHEMA_REVISION, namespace: database.config.namespace().to_owned(), database: database.config.database().to_owned(),
@@ -12032,6 +12033,7 @@ mod tests {
     }
 
     include!("schema_revision166_first_pin_tests.rs");
+    include!("schema_revision166_upgrade_tests.rs");
 
     #[tokio::test]
     async fn mt139_current_schema_info_pin_matches_fresh_mem_catalog() {
