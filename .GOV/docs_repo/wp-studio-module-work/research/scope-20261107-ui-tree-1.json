@@ -1,0 +1,20 @@
+{
+ "id": "SMB-UI-TREE-1",
+ "file": "hsk-studio-ui-tree-1",
+ "brief": "lane-smb-ui-tree-1",
+ "crate": "kumihimo-ui",
+ "crates_head": "kumihimo-ui",
+ "summary": "The GUI toolkit core: node tree, stack layout, display list, CPU painter, hit test, semantic tree and text port",
+ "target": "Read first: `direction.blocker_decisions_20261107` in S/ledger.json (binding), S/research/blockers-20261107-red-team.json, S/research/blockers-20261107-vulkan-engineer.json, S/research/blockers-20261107-shell-architect.json, S/gui-design/build-order.json. Where the red team and a position differ, the decisions record wins. Design authority for look and components: S/gui-design/design-system.json, components.json, acceptance-checks.json, build-order.json (steps B0 to B5), mock-raster.html.\n\nBuild `kumihimo-ui`, with no `hsk-studio-*` crate anywhere in its closure (D8, O5), so it can publish as a Kumihimo module later:\n1. Generated design tokens from `design-system.json` (B0). Edge-based pixel snapping (B1).\n2. Retained node arena and builder: one tree rebuilt per panel, no render when idle. Stack layout with spec tokens behind a layout port. No Taffy.\n3. Display list as one enum, from the designer's primitive list. A CPU painter draws it into RGBA, so builders and agents see pixels with no window and no GPU. The Vulkan pass comes later and draws the same list.\n4. Hit test, focus order, and a semantic tree with stable element ids: this is what `gui.tree` will return to a model.\n5. Text behind a port: shaping stays in `hsk-studio-type`, reached through a trait this crate defines, with a Studio-side adapter. Include a glyph cache. Text sharpness is the designer's top quality lever: small unhinted greyscale text at 96 dpi is the top risk, so produce a real text sample PNG early and send the lead its path for the designer to judge. Read `handshake_text_mechanics` and `handshake_context_menu` in the Kumihimo material the red team names.\n6. Red tests: layout at the designer's sizes, no overlap and no clipped label by the acceptance checks, golden pixel hashes for a toolbar, a tab row, a slider and a layer row.\n\nNo window code. No Vulkan. About 5 commits.",
+ "diag": "none in the core: a port, the host supplies observe",
+ "attr": "not_applicable",
+ "exposure": "high",
+ "paths": "crates/kumihimo-ui and its tests, plus a thin text adapter beside hsk-studio-type only if needed. Anything else: message the lead.",
+ "suites": "kumihimo-ui",
+ "closes": [
+  "O4, O5 toolkit core"
+ ],
+ "mts": [],
+ "tree": "smb-type-sentinels-registry-1",
+ "disk": "d"
+}

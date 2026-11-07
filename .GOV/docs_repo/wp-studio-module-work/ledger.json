@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T08:03:22Z",
+ "updated_at": "2026-11-07T08:03:35Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19227,6 +19227,22 @@
    "closes": [
     "workflows/backlog-20261107.json SMB-MOTION-COMMANDS-1"
    ]
+  },
+  {
+   "lane_id": "SMB-GUI-STEWARD-1",
+   "status": null,
+   "phase": "build",
+   "crate": "workspace root, tools, .config, skeleton crates",
+   "lane_file": "builders/lanes/hsk-studio-gui-steward-1.json",
+   "brief": "builders/briefs/lane-smb-gui-steward-1.md",
+   "worktree": "wt-studio-lanes/smb-pr-retime-hold-1",
+   "base": "9e73d34cd5d24180fd7a56ff4453a066abb9a5ee",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-07T08:03:35Z",
+   "closes": [
+    "direction.blocker_decisions_20261107 steward"
+   ]
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -21652,7 +21668,8 @@
     "lane/smb-controls-egui-gate-1",
     "lane/smb-pigment-filter-kernels-1",
     "lane/smb-doc-new-1",
-    "lane/smb-motion-commands-1"
+    "lane/smb-motion-commands-1",
+    "lane/smb-gui-steward-1"
    ],
    "target_reuse": {
     "SMB-PR-ROUTING-REPAIR-1": {
@@ -21694,6 +21711,11 @@
      "tree": "smb-folio-angle-unbounded-1",
      "branch": "lane/smb-motion-commands-1",
      "previous_branch": "lane/smb-folio-angle-unbounded-1"
+    },
+    "SMB-GUI-STEWARD-1": {
+     "tree": "smb-pr-retime-hold-1",
+     "branch": "lane/smb-gui-steward-1",
+     "previous_branch": "lane/smb-controls-egui-gate-1"
     }
    },
    "why": {

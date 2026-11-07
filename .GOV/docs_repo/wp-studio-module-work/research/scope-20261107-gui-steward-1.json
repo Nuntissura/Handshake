@@ -1,0 +1,20 @@
+{
+ "id": "SMB-GUI-STEWARD-1",
+ "file": "hsk-studio-gui-steward-1",
+ "brief": "lane-smb-gui-steward-1",
+ "crate": "workspace root, tools, .config, skeleton crates",
+ "crates_head": "root, hsk-studio-vulkan, hsk-studio-native-host, kumihimo-ui",
+ "summary": "One landing that makes the GUI lanes possible: skeleton crates, locked pins, gate allow list, GPU lock and test group, round config",
+ "target": "You are the workspace steward for this landing. Read first: `direction.blocker_decisions_20261107` in S/ledger.json (binding), S/research/blockers-20261107-red-team.json, S/research/blockers-20261107-vulkan-engineer.json, S/research/blockers-20261107-shell-architect.json, S/gui-design/build-order.json. Where the red team and a position differ, the decisions record wins. Also read S/builders/WORKSPACE_RULES.md, S/builders/lanes/workspace-steward.json and S/tools/steward-sync.sh.\n\nOne landing, as small as it can be:\n1. **Skeleton crates**, each a real empty crate with a DESCRIPTOR, in the workspace: `hsk-studio-vulkan` (all Vulkan unsafe, ash =0.38.0; default build carries no wgpu, naga, winit, eframe or egui), `hsk-studio-native-host` (winit =0.30.13 plus windows-sys; the only crate allowed winit), `kumihimo-ui` (toolkit: no `hsk-studio-*` anywhere in its closure from birth).\n2. **Pins at versions already in Cargo.lock.** The lock's dependency set should not change. If it would, stop and report the exact delta: no download happens without the lead's word. No Taffy. No accesskit patch.\n3. **Quarantine gate:** `tools/workspace-probe.rs` allow list gains winit for `hsk-studio-native-host` only, with the decision as its reason. Add the rule that `kumihimo-*` has no `hsk-studio-*` in its closure. Ash is not on the banned list.\n4. **GPU contention:** extend the GPU lock and the nextest test group to the new Vulkan crates, in `tools/run-round.sh` crate_gpu and `.config/nextest.toml`, because foreign GPU clients broke R39. A binary run of the host takes the GPU lock. The kernel's `builders/studio-env.sh` is the lead's: send the lead the exact lines it needs.\n5. **Round config:** add `hsk-studio-controls = [[\"egui\"]]` to `.config/round-features.toml` [crates], from SMB-CONTROLS-EGUI-GATE-1, which is on origin by the time you start. Add the run-round guard that refuses a `CARGO_TARGET_*_LINKER` from the environment. The 5-unit matrix cut is NOT in this landing unless the lead says so.\n\nThese root inputs force R60 to be full, which is already the plan. State exactly which root files changed. Run the probe's self-test, the registry and licence checks of steward-sync, and `cargo metadata --locked`. No new product behaviour.",
+ "diag": "none: workspace configuration",
+ "attr": "not_applicable",
+ "exposure": "high",
+ "paths": "root Cargo.toml, Cargo.lock if unchanged in dependency set, crates/hsk-studio-vulkan, crates/hsk-studio-native-host, crates/kumihimo-ui, tools/workspace-probe.rs, tools/run-round.sh, .config/nextest.toml, .config/round-features.toml",
+ "suites": "workspace-probe self-test and the three new crates",
+ "closes": [
+  "direction.blocker_decisions_20261107 steward"
+ ],
+ "mts": [],
+ "tree": "smb-pr-retime-hold-1",
+ "disk": "d"
+}

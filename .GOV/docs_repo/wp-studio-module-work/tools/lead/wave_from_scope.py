@@ -37,7 +37,9 @@ def main():
     trees = dict(x.split("=", 1) for x in a.tree)
     led = json.load(open(os.path.join(S, "ledger.json"), encoding="utf-8"))
     status = {str(x.get("lane_id", "")).lower(): x.get("status") for x in led["lanes"]}
-    in_use = {v["tree"] for k, v in led["direction"]["workflow_20261107"]["target_reuse"].items() if not str(status.get(k.lower(), "")).startswith("PASS_V")}
+    # A READY lane whose tip is on origin hands over its tree and target (direction.blocker_decisions_20261107.capacity).
+    done = lambda s: str(s).startswith("PASS_V") or s == "READY_FOR_VALIDATION"
+    in_use = {v["tree"] for k, v in led["direction"]["workflow_20261107"]["target_reuse"].items() if not done(status.get(k.lower(), ""))}
     lanes = []
     for area in a.areas:
         L = json.load(open(os.path.join(S, "research", f"scope-20261107-{area}.json"), encoding="utf-8"))
@@ -51,7 +53,7 @@ def main():
         full = os.path.join(LANES, t)
         if t in in_use:
             sys.exit(f"{area}: tree {t} is in use")
-        if not str(status.get(t, "")).startswith("PASS_V"):
+        if not done(status.get(t, "")):
             sys.exit(f"{area}: tree {t} status is {status.get(t)}")
         if git(full, "status", "--porcelain").stdout.strip():
             sys.exit(f"{area}: tree {t} is not clean")

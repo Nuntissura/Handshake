@@ -1,0 +1,20 @@
+{
+ "id": "SMB-VK-HOST-1",
+ "file": "hsk-studio-vk-host-1",
+ "brief": "lane-smb-vk-host-1",
+ "crate": "hsk-studio-vulkan, hsk-studio-native-host",
+ "crates_head": "hsk-studio-vulkan, hsk-studio-native-host",
+ "summary": "The first real Vulkan window: offscreen capture with no window, a quiet window, swapchain recovery, and a real document on screen",
+ "target": "Read first: `direction.blocker_decisions_20261107` in S/ledger.json (binding), S/research/blockers-20261107-red-team.json, S/research/blockers-20261107-vulkan-engineer.json, S/research/blockers-20261107-shell-architect.json, S/gui-design/build-order.json. Where the red team and a position differ, the decisions record wins. Spec: `15-native-desktop-gui-vulkan-gpu-ownership.md` under K/.GOV/spec/master-spec-v02.229/spec-modules/.\n\nGoal: the Operator can see a real document in a real pure-Vulkan window. No egui, eframe or wgpu in the default build. No shaders, pipelines or descriptors in this lane.\n1. **Offscreen first, red first:** device on Vulkan 1.3, clear an image, read it back and write a PNG, with no window and no HWND. Agents screenshot through this, so it is the proof path.\n2. **Quiet window:** winit in `hsk-studio-native-host` only, with a typed HostEvent stream past that crate. `window --quiet` shows focus_changes 0 and its capture hash equals the offscreen one. Read WS_EX_NOACTIVATE and quiet handling from the Kumihimo native code named in the red team's file. The Operator uses this machine, so nothing may take focus or capture input in any test (HBR-QUIET).\n3. **Swapchain state machine:** explicit states for surface loss, out-of-date, minimise and resize, with injected faults in tests. PMv2 DPI. No Vulkan means a typed refusal, with no fallback.\n4. **Buffer present:** present a CPU-painted RGBA buffer with vkCmdCopyBufferToImage or vkCmdBlitImage.\n5. **Document on screen:** a `document` feature links harness-view[viewer] with Prefer::Cpu and BackendChoice::None. `demo.handshake` from the repo shows in the window, through `Viewer`'s public open and render. A paused, focus-free run writes a capture to the artifact root. Send the lead that PNG's path: the Operator wants to see it.\n\nDevice: transient owner behind `GpuClientPort`, leasing raw handles, one device per process, panes draw into an owner image, so a later hand-over to Handshake swaps owner and presenter. All unsafe in `hsk-studio-vulkan`. Bounded fence waits. Host disables overlay layers in its own process. Host binary runs take the GPU lock.\n\nValidation layers are absent on this machine: every receipt says `validation: absent`. Use the stand-ins the red team lists. 3 to 5 commits.",
+ "diag": "producer_through_observe: typed frames for device, swapchain state and refusals",
+ "attr": "not_applicable: no document mutation",
+ "exposure": "high",
+ "paths": "crates/hsk-studio-vulkan, crates/hsk-studio-native-host and their tests. Anything else: message the lead.",
+ "suites": "the two new crates; harness-view is linked, not edited",
+ "closes": [
+  "O6 first milestone"
+ ],
+ "mts": [],
+ "tree": "smb-pr-entry-references-1",
+ "disk": "d"
+}

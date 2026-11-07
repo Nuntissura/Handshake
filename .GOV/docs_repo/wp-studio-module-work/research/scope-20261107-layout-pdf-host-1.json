@@ -1,0 +1,20 @@
+{
+ "id": "SMB-LAYOUT-PDF-HOST-1",
+ "file": "hsk-studio-layout-pdf-host-1",
+ "brief": "lane-smb-layout-pdf-host-1",
+ "crate": "hsk-studio-harness-view, hsk-studio-harness, hsk-studio-interop-layout",
+ "crates_head": "harness-view, harness, interop-layout",
+ "summary": "Host for layout PDF and IDML export: the edge to hsk-studio-interop-layout, Viewer export of the live LayoutDoc with glyph lowering and page labels, a command row and a typed preflight-before-export r",
+ "target": "Host for layout PDF and IDML export: the edge to hsk-studio-interop-layout, Viewer export of the live LayoutDoc with glyph lowering and page labels, a command row and a typed preflight-before-export result. Includes the size of the page so a deck can leave A4.\n\nWhy this lane: the eight professional project scenarios in `S/workflows/scenario-*.json` show engines that exist and cannot be reached. This row of `S/workflows/backlog-20261107.json` ranks it: steps unblocked 9, scenarios {\"board-slides-web\": 2, \"print-publication\": 5, \"vector-brand\": 2}. Read that row and the scenario steps it unblocks: they are your acceptance. A step is done when a model can run it through a command, in the JSONL loop of `harness/src/cli/drive.rs` once SMB-HARNESS-DRIVE-1 lands, and the result reaches save and export.\n\nFacts verified at c4d06841 by the backlog agent, read-only, not run. Treat them as claims and check them:\n- hsk-studio-interop-layout/src/pdf_export.rs:287 export_pdf, :294 export_pdf_with; idml_encode.rs:250 export_idml\n- git grep interop-layout over harness, harness-view, harness-core Cargo.toml: 0 hits\n- hsk-studio-harness-view/src/layout_ui.rs:146 LayoutEdit has no export member; hsk-studio-harness-view/src/view/vector/pdf_export.rs:364 export_vector_pdf is the only host PDF route\n\nDepends on: []. If a dependency is not on origin yet, build what does not need it and tell the lead what waits.\n\nHow to work:\n1. Read the code first. Use the spec's names and cite clauses (`.GOV/spec/master-spec-v02.229/spec-modules/14-studio-creative-suite.md`). Use only names already in the spec, MTs or code.\n2. Red test and focused test per item. Engine, command and test: no draw code and no panel. The GUI is being rebuilt in pure Vulkan, and a panel lane will call your command.\n3. Commands register in the existing catalog (`RUN_COMMANDS` in `harness-core/src/action.rs`, or a `viewer.<method>` row) with typed parameters and typed refusals. Each mutating command is one named undo step, carries the caller's attribution, and survives save and reopen.\n4. V4-06: a short list of sibling sites, fixed or named. Hostile input: bounded work and allocation, typed refusals, no panic.\n5. About 5 commits. Width over polish. State what you cut.\nMTs: read those your slice proves and name them in your report; the lead records them. Do not edit MT files.\n\nOut of scope: panels, drawing, RF-01, render-gpu, any Cargo.lock change without asking the lead.",
+ "diag": "producer_through_observe: one terminal frame per command, codes and counters only",
+ "attr": "required: every commit step takes the caller's context (CommandContext or ActorContext); never a default actor",
+ "exposure": "medium",
+ "paths": "hsk-studio-harness-view/Cargo.toml (new edge, lead approval); Cargo.lock; hsk-studio-harness-view/src/view/layout_export.rs (new, egui-free); hsk-studio-harness-core/src/action.rs (rows); hsk-studio-harness/tests/layout_pdf_host.rs (new)",
+ "suites": "the suites of the crates you edit, with named targets only for harness and harness-view unless you edit their src",
+ "closes": [
+  "workflows/backlog-20261107.json SMB-LAYOUT-PDF-HOST-1"
+ ],
+ "mts": [],
+ "tree": "smb-layout-marker-lookups-1",
+ "disk": "D"
+}

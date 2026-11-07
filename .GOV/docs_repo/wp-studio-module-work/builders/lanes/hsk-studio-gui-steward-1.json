@@ -1,0 +1,43 @@
+{
+  "crate": "workspace root, tools, .config, skeleton crates",
+  "lane": "SMB-GUI-STEWARD-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-pr-retime-hold-1",
+  "base": "9e73d34cd5d24180fd7a56ff4453a066abb9a5ee",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push when green",
+  "updated_at": "2026-11-07T08:03:35Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "none: workspace configuration",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "not_applicable",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "high"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-07T08:03:35Z",
+    "disk": "D",
+    "closes": [
+      "direction.blocker_decisions_20261107 steward"
+    ],
+    "closes_candidates": [],
+    "reuses_tree_and_target": "smb-pr-retime-hold-1"
+  }
+}

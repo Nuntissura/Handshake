@@ -1,0 +1,20 @@
+{
+ "id": "SMB-DOC-EXPORT-1",
+ "file": "hsk-studio-doc-export-1",
+ "brief": "lane-smb-doc-export-1",
+ "crate": "hsk-studio-harness-view, hsk-studio-harness-core, hsk-studio-harness, hsk-studio-interop-tiff, hsk-studio-interop-psd, hsk-studio-prism",
+ "crates_head": "harness-view, harness-core, harness, interop-tiff, interop-psd, prism",
+ "summary": "One document-level export recipe: tagged 16-bit TIFF, layered PSD, CMYK conversion, resize, output sharpening and watermark through ExportFormat, with the batch runner able to write non-native formats",
+ "target": "One document-level export recipe: tagged 16-bit TIFF, layered PSD, CMYK conversion, resize, output sharpening and watermark through ExportFormat, with the batch runner able to write non-native formats.\n\nWhy this lane: the eight professional project scenarios in `S/workflows/scenario-*.json` show engines that exist and cannot be reached. This row of `S/workflows/backlog-20261107.json` ranks it: steps unblocked 8, scenarios {\"photo-retouch\": 8}. Read that row and the scenario steps it unblocks: they are your acceptance. A step is done when a model can run it through a command, in the JSONL loop of `harness/src/cli/drive.rs` once SMB-HARNESS-DRIVE-1 lands, and the result reaches save and export.\n\nFacts verified at c4d06841 by the backlog agent, read-only, not run. Treat them as claims and check them:\n- hsk-studio-harness-view/src/view/export.rs:27 ExportFormat holds Png and Jpeg { quality } only\n- hsk-studio-harness-view/src/view/mod.rs:672 Viewer::export\n- hsk-studio-interop-tiff/src/encode.rs:159 TIFF writer exists\n- hsk-studio-harness-view/src/view/develop.rs:1161 TiffExportSettings: TIFF is reached only by the develop route; PSD writer location taken from the scenario, not re-read\n\nDepends on: [\"SMB-SESSION-WRITE-SAFETY-1 merged (it owns view/export.rs:140)\"]. If a dependency is not on origin yet, build what does not need it and tell the lead what waits.\n\nHow to work:\n1. Read the code first. Use the spec's names and cite clauses (`.GOV/spec/master-spec-v02.229/spec-modules/14-studio-creative-suite.md`). Use only names already in the spec, MTs or code.\n2. Red test and focused test per item. Engine, command and test: no draw code and no panel. The GUI is being rebuilt in pure Vulkan, and a panel lane will call your command.\n3. Commands register in the existing catalog (`RUN_COMMANDS` in `harness-core/src/action.rs`, or a `viewer.<method>` row) with typed parameters and typed refusals. Each mutating command is one named undo step, carries the caller's attribution, and survives save and reopen.\n4. V4-06: a short list of sibling sites, fixed or named. Hostile input: bounded work and allocation, typed refusals, no panic.\n5. About 5 commits. Width over polish. State what you cut.\nMTs: read those your slice proves and name them in your report; the lead records them. Do not edit MT files.\n\nOut of scope: panels, drawing, RF-01, render-gpu, any Cargo.lock change without asking the lead.",
+ "diag": "producer_through_observe: one terminal frame per command, codes and counters only",
+ "attr": "required: every commit step takes the caller's context (CommandContext or ActorContext); never a default actor",
+ "exposure": "medium",
+ "paths": "hsk-studio-harness-view/src/view/export.rs; hsk-studio-harness-view/src/view/doc_export.rs (new, egui-free); hsk-studio-harness/src/cli.rs (export verb arguments); hsk-studio-harness/tests/doc_export.rs (new)",
+ "suites": "the suites of the crates you edit, with named targets only for harness and harness-view unless you edit their src",
+ "closes": [
+  "workflows/backlog-20261107.json SMB-DOC-EXPORT-1"
+ ],
+ "mts": [],
+ "tree": "smb-pr-nudge-1",
+ "disk": "C"
+}
