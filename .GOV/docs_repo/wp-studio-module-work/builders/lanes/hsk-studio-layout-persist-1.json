@@ -1,19 +1,50 @@
 {
   "crate": "hsk-studio-session, hsk-studio-harness-view, hsk-studio-harness-core, hsk-studio-package",
   "lane": "SMB-LAYOUT-PERSIST-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-id-toc-persist-1",
   "base": "1374cc256f205c8f68c8afb2e6c578e6167dee11",
-  "commits": [],
+  "commits": [
+    {
+      "sha": "d119ff75",
+      "what": "red: layout_records entry, LayoutStep, Session::submit_layout_as, Run::submit_layout, LayoutEdit::command_id; layout_apply stub",
+      "pushed": true,
+      "base": "aa68164c"
+    },
+    {
+      "sha": "ab2e0ebd",
+      "what": "Viewer::layout_apply commits each edit as one document step; load reads the entry",
+      "pushed": true
+    },
+    {
+      "sha": "89709cdb",
+      "what": "layout.* rows commit through layout_apply; layout.undo/redo on document history; spreads in document unit",
+      "pushed": true
+    },
+    {
+      "sha": "906df1eb",
+      "what": "review fixes F1-F4, Q2 of b21616b7",
+      "pushed": true
+    },
+    {
+      "sha": "a32151614e46913c8f6e5cb77aca956a02b5b530",
+      "what": "PDF-HOST integration: sized layout.open commits; layout_sync early return; exports sync first",
+      "pushed": true
+    }
+  ],
   "capabilities_done": [],
-  "tests": {},
+  "tests": {
+    "red": "tests/layout_persist.rs 1 passed, 3 failed (exit 100) before the green commit: red-layout-persist.log",
+    "bundled_033773ba": "lane-check --owner smb-id-toc-persist-1 --disk d: step 0 clean, clippy, nextest 438 passed, 0 failed, 3 skipped (exit 0); session, harness-core, harness-view suites + harness layout_persist, layout_pdf_host, harness_drive_typed, viewer_shell, viewer_layout_*; Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-persist-1/bundled-smb-layout-persist-1-033773ba.log",
+    "after_rebase_on_aa68164c": "cargo check of the 4 crates --tests --features hsk-studio-harness/viewer exit 0 (check-a3215161.log); --per-sha HEAD~1 PER_SHA_RESULT OK (persha-smb-layout-persist-1-a3215161.log); tests not rerun after the WEB-HOST rebase"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-07T10:26:01Z",
+  "next": "validator",
+  "updated_at": "2026-11-07T17:33:14Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -38,6 +69,58 @@
       "workflows/backlog-20261107.json SMB-LAYOUT-PERSIST-1"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-id-toc-persist-1"
+    "reuses_tree_and_target": "smb-id-toc-persist-1",
+    "spec_basis": [
+      "STU-LAY-013",
+      "STU-LAY-067",
+      "STU-SDB-001"
+    ],
+    "paths_beyond_brief": [
+      "hsk-studio-session/src/session.rs (Step::Layout, propose_layout, Applied::layout_inverse, publish seeds revisions when layers or spreads change)",
+      "hsk-studio-session/src/source.rs (token layout_records)",
+      "hsk-studio-session/src/sequence_records.rs (open/set hooks)",
+      "hsk-studio-harness-core/src/harness.rs (HistoryStep.layout, Run::submit_layout, undo/redo branch)",
+      "hsk-studio-harness-core/src/motion_commands.rs (layout: None at 3 sites)",
+      "hsk-studio-harness-view/src/view/shell.rs beyond 1378-1386 (layout_apply, layout_sync, layout_history_step, layout_history, fit_spreads)",
+      "hsk-studio-harness-view/src/view/commands/layout.rs (COMMAND-SURFACE-1 rows routed to the persisted path)",
+      "hsk-studio-harness-core/src/harness/containers.rs (layout: None at 3 sites, DOC-NEW-1's)"
+    ],
+    "v4_06_sites": {
+      "class": "layout edit applied to the editor only, never committed",
+      "regex": "\\.apply\\(LayoutEdit|editor\\.apply\\(|ed\\.apply\\(|editor\\.(undo|redo)\\(\\)",
+      "sites": {
+        "view/commands/layout.rs run": "fixed (layout_apply, layout_history_step)",
+        "layout_ui.rs act() (egui panel buttons)": "not fixed: draw code, panel lane calls Viewer::layout_apply",
+        "layout_ui.rs ui() Undo/Redo buttons": "not fixed: editor-local, panel lane",
+        "shell.rs layout_editor() direct apply (tests)": "by design local; next layout_apply resyncs"
+      }
+    },
+    "cut": [
+      "egui panel buttons still edit the editor only",
+      "editor state after EDIT > Undo is stale until the next layout command (hosted.rs layout_state)",
+      "an undecodable layout_records entry blocks layout commits (typed layout_records_unreadable) until removed",
+      "duplicate keys in the entry's top object keep the last value",
+      "no new RUN_COMMANDS rows: COMMAND-SURFACE-1's rows are the commands",
+      "Q5 ruling: a layout step's inverse does not survive reopen (open clears the history, as for every step kind)",
+      "an entry made stale outside the editor (page.delete of a parent-bound page, a frame removed) refuses layout edits typed layout_records_stale until that step is undone"
+    ],
+    "engine_findings": [
+      "hsk-studio-layout keeps one [0,0] paragraph in a zero-length story and tables keep a [0,0] range; Folio's partition refuses both; the entry accepts that form",
+      "layout_ui pages panel writes spread bounds from pt page values in the spread's unit; a mm or in document refuses them in Folio; fit_spreads converts at commit"
+    ],
+    "rule_4e": "tests/layout_persist.rs is #![cfg(feature = \"viewer\")]; round-features harness has [\"viewer\"]",
+    "pushed_base": "aa68164c",
+    "lead_decisions": [
+      {
+        "at": "2026-11-07T17:33:46Z",
+        "on": "Q5",
+        "decision": "A layout step's inverse not surviving reopen is consistent with the rest of history; named as a limit, no fix."
+      },
+      {
+        "at": "2026-11-07T17:33:46Z",
+        "on": "F4",
+        "decision": "A stale stored entry is refused typed (layout_records_stale) instead of being silently replaced by the text-entry fallback."
+      }
+    ]
   }
 }
