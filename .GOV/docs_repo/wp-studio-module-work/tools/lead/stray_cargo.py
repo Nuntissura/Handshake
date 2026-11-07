@@ -27,7 +27,9 @@ def local_targets():
     for r in roots:
         for sub in ("target", os.path.join("handshake-studio-assets", "target")):
             p = os.path.join(r, sub)
-            if os.path.isdir(p):
+            # nextest writes its store at <workspace>/target/nextest by default: small junit output, no compiled build.
+            # Reported apart so that a real local build still stands out.
+            if os.path.isdir(p) and os.listdir(p) != ["nextest"]:
                 out.append(p.replace("\\", "/"))
     return out
 

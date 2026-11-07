@@ -1,0 +1,43 @@
+{
+  "crate": "hsk-studio-vulkan, hsk-studio-native-host",
+  "lane": "SMB-VK-HOST-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-pr-entry-references-1",
+  "base": "7879e7e974121079e5ac1708a6a1835d064d7465",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push when green",
+  "updated_at": "2026-11-07T08:49:06Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "producer_through_observe: typed frames for device, swapchain state and refusals",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "not_applicable: no document mutation",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "high"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-07T08:49:06Z",
+    "disk": "D",
+    "closes": [
+      "O6 first milestone"
+    ],
+    "closes_candidates": [],
+    "reuses_tree_and_target": "smb-pr-entry-references-1"
+  }
+}
