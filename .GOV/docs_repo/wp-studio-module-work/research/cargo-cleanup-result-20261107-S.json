@@ -1,0 +1,27 @@
+{
+ "schema": "hsk.studio.cleanup_result@1",
+ "plan": "CARGO-CLEANUP-PLAN-20261107-S",
+ "execute": true,
+ "at": "2026-11-07T18:03:04Z",
+ "total_gib": 169.15,
+ "results": [
+  {
+   "id": "S-C01",
+   "owner": "studio-round",
+   "planned_gib": 166.38,
+   "files": 3939,
+   "dirs": [],
+   "gib": 166.38,
+   "status": "REMOVED"
+  },
+  {
+   "id": "S-C02",
+   "owner": "smb-pr-media-markers-1",
+   "planned_gib": 2.78,
+   "files": 394,
+   "dirs": [],
+   "gib": 2.78,
+   "status": "REMOVED"
+  }
+ ]
+}

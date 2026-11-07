@@ -22,6 +22,7 @@ WORKTREES = os.path.dirname(KERNEL)
 ART = os.environ.get("HANDSHAKE_ARTIFACTS_ROOT") or os.path.join(WORKTREES, "Handshake_Artifacts")
 D_ROOT = os.path.join(ART, "WP-KERNEL-STUDIO").replace("\\", "/")
 C_LANES = "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes"
+C_ROUND = "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target"  # the round target, named in the docstring; plan S, 2026-11-07
 HASHED = re.compile(r"^(?:lib)?(?P<name>.+?)-(?P<hash>[0-9a-f]{16})\.(?P<ext>exe|pdb|dll|dll\.lib|dll\.exp|lib|exp)$")
 GIB = 1024.0 ** 3
 MAX_FILES_PER_SEC = 600
@@ -29,7 +30,7 @@ MAX_FILES_PER_SEC = 600
 
 def allowed_path(p):
     p = p.replace("\\", "/")
-    if re.fullmatch(re.escape(C_LANES) + r"/[A-Za-z0-9_.-]+", p):
+    if p == C_ROUND or re.fullmatch(re.escape(C_LANES) + r"/[A-Za-z0-9_.-]+", p):
         return True
     return re.fullmatch(re.escape(D_ROOT) + r"/[A-Za-z0-9_.-]+/target", p) is not None
 
@@ -72,6 +73,8 @@ def all_binaries(folder):
 def select(c):
     """Returns (files with sizes, directories to remove whole, their bytes)."""
     debug = os.path.join(c["path"], "debug")
+    if c.get("select") == "older_copies":  # plan S: keep the newest copy of each binary, also in the round target
+        return older_copies(os.path.join(debug, "deps")), [], 0
     if c["owner"] == "studio-round":
         files = all_binaries(os.path.join(debug, "deps")) + all_binaries(debug)
         inc = os.path.join(debug, "incremental")
