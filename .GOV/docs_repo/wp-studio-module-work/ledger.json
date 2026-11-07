@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T10:26:01Z",
+ "updated_at": "2026-11-07T11:16:34Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19350,8 +19350,8 @@
   },
   {
    "lane_id": "SMB-MOTION-COMMANDS-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness-core, hsk-studio-session, hsk-studio-folio",
    "lane_file": "builders/lanes/hsk-studio-motion-commands-1.json",
    "brief": "builders/briefs/lane-smb-motion-commands-1.md",
@@ -19359,10 +19359,11 @@
    "base": "c4d06841",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-07T07:12:07Z",
+   "updated_at": "2026-11-07T11:16:34Z",
    "closes": [
     "workflows/backlog-20261107.json SMB-MOTION-COMMANDS-1"
-   ]
+   ],
+   "claim": "e26ba095..912cb86f"
   },
   {
    "lane_id": "SMB-GUI-STEWARD-1",
@@ -21658,6 +21659,16 @@
     "added_at": "2026-11-07T10:25:44Z",
     "item": "builders/studio-env.sh: export STUDIO_DIAG_DIR under the owner's artifact folder for builder runs",
     "owner": "lead"
+   },
+   {
+    "added_at": "2026-11-07T11:16:34Z",
+    "item": "Property expressions need a Folio store (expression.set_source edits a text selector's source only)",
+    "owner": "a later folio and motion lane"
+   },
+   {
+    "added_at": "2026-11-07T11:16:34Z",
+    "item": "Text, solid and adjustment layer creation; keyframe selection and copy/paste; parent compensation; recordable motion rows; Registry descriptors",
+    "owner": "later motion lanes"
    }
   ],
   "pause_20261103": {

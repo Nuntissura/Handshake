@@ -1,19 +1,45 @@
 {
   "crate": "hsk-studio-harness-core, hsk-studio-session, hsk-studio-folio",
   "lane": "SMB-MOTION-COMMANDS-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-folio-angle-unbounded-1",
   "base": "c4d06841",
-  "commits": [],
+  "commits": [
+    {
+      "sha": "e26ba095",
+      "subject": "red: rows, Run::motion_command, drive arm, tests; every command refuses not_built",
+      "pushed": true
+    },
+    {
+      "sha": "2b54bbc8",
+      "subject": "engine: 54 typed motion commands",
+      "pushed": true
+    },
+    {
+      "sha": "ac2ca335",
+      "subject": "drive session test reads open/end lines and the refusal exit",
+      "pushed": true
+    },
+    {
+      "sha": "912cb86f",
+      "subject": "review fixes F1-F4 (review-smb-motion-commands-1-a2aaaf8f.json)",
+      "pushed": true
+    }
+  ],
   "capabilities_done": [],
-  "tests": {},
+  "tests": {
+    "red_proof": "smb-motion-commands-1-red.log at 838a3bbe (pre-rebase red commit, same tests): 15 run, 0 passed, 15 failed, EXIT 100",
+    "bundled": "smb-motion-commands-1-bundle-625e05ce.log at 625e05ce (base 95ee2774): lane-check step 0 clean, clippy, nextest -p harness-core -p session -p harness-view -p harness --features hsk-studio-harness/media, no target flags, -E package(harness-core)|package(session)|binary(motion_commands)|binary(harness_drive)|harness-view lib|harness lib: 276 passed, 2 skipped, EXIT 0",
+    "after_origin_move": "origin moved to 1374cc25 (DIAG-SINK-1, touches harness-core and harness); rebased to 912cb86f; smb-motion-commands-1-moved-912cb86f.log: -E package(harness-core)|binary(motion_commands)|binary(harness_drive)|binary(diag_sink_process)|harness lib, features media: 120 passed, EXIT 0",
+    "per_sha": "smb-motion-commands-1-persha-912cb86f.log: PER_SHA_RESULT OK shas=1 range=ac2ca335..912cb86f"
+  },
   "verdicts": [],
   "blockers": [],
-  "lock_wait_s": 0,
+  "lock_wait_s": 2893,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-07T07:12:07Z",
+  "next": "validator: judge 912cb86f (base 1374cc25); never PASS from the builder",
+  "updated_at": "2026-11-07T11:11:26Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -38,6 +64,64 @@
       "workflows/backlog-20261107.json SMB-MOTION-COMMANDS-1"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-folio-angle-unbounded-1"
+    "reuses_tree_and_target": "smb-folio-angle-unbounded-1",
+    "spec_basis": [
+      "STU-MOT-130 typed command vocabulary, ids STUDIO_COMPOSITION_* / STUDIO_PROPERTY_* / STUDIO_KEYFRAME_* / STUDIO_EXPRESSION_*",
+      "STU-MOT-038 keyframe operations, each a typed command and one reversible step; adding a key never changes the render",
+      "STU-MOT-020b retained static value",
+      "STU-CMP-110 typed-steerable layer switches, masks, mattes, cameras, lights"
+    ],
+    "decisions": [
+      "Row ids are lowercase composition.*/property.*/keyframe.*/expression.* because the business-event envelope admits only [a-z0-9._-]{1,64}; spec_id() maps each to its STUDIO_* id and Run::motion_command accepts both",
+      "Record edits are document entries: entry-only steps make no document revision (existing reading); a layer-creating step also commits the document layer, grouped as one history step",
+      "harness-core names no serde trait (no serde edge): typed decoding via macros, no Cargo change",
+      "The evaluator for add-at-current mirrors motion keyframe::shape (no harness-core edge to motion); pinned by the media test against composite scene evaluation"
+    ],
+    "paths_beyond_brief": [
+      "hsk-studio-harness-core/src/action/commands/motion.rs (the per-domain rows file, per the lead)",
+      "hsk-studio-harness-core/src/manual.rs (drive JSON lists motion_commands)",
+      "hsk-studio-harness/src/cli/drive.rs (one dispatch arm; DRIVE-1 landed)",
+      "hsk-studio-harness-view/src/view/edit.rs (Viewer::motion_command)",
+      "hsk-studio-harness/tests/harness_drive.rs (one process test)",
+      "hsk-studio-session/src/lib.rs (re-export)"
+    ],
+    "v4_06_sibling_sites": [
+      "Session::set_composition_records and set_motion_records: whole-record writes, kept (tests and importers use them), not a named step",
+      "Run::set_document_entry token composition/motion: whole-record write without history, kept; the typed commands are the named route",
+      "hsk-studio-harness-view timeline_export render_queue reads the records only: not applicable"
+    ],
+    "cut": [
+      "property expressions: Folio stores no expression on a composition property, so expression.set_source edits the text selector's source only",
+      "text layer creation (needs a story in the text entry); solid and adjustment layer kinds (layer_kind_unsupported)",
+      "keyframe selection, copy, paste and reverse paste; graph-editor-only ops",
+      "set_parent does not compensate the child's transform",
+      "recording: rows are recordable false, reported not_recordable",
+      "controls Registry descriptors (host_integration control_descriptors none)"
+    ],
+    "ready": {
+      "tip": "912cb86f",
+      "base": "1374cc25",
+      "claim_log": "smb-motion-commands-1-bundle-625e05ce.log + smb-motion-commands-1-moved-912cb86f.log",
+      "at": "2026-11-07T11:11:26Z"
+    },
+    "review_fixes": [
+      "F1 drive text: comma-joined string list and bare enum member decode (drive test runs precompose, queue_add, queue_set_settings)",
+      "F2 duplicate_layer copies the source StudioLayer (visible, appearance, kind); refused when another entry names the id",
+      "F3 failed entry write after a layer commit: context captured before rollback, keeping_redo_without_new_step (not test-proven: no cheap way to force total_too_large)",
+      "F4 add/toggle at current: value only seeds a property with no implied value, else parameter_invalid"
+    ],
+    "mts_proved": [
+      "MT-33884",
+      "MT-33885",
+      "MT-34030",
+      "MT-34217 (partial: typed-steerable switches, masks, mattes, cameras, lights; Argus and manual obligations not covered)"
+    ],
+    "lead_decisions": [
+      {
+        "at": "2026-11-07T11:16:34Z",
+        "on": "expression.set_source",
+        "decision": "Kept: it edits a text selector's source and refuses typed elsewhere; review found it not misleading."
+      }
+    ]
   }
 }
