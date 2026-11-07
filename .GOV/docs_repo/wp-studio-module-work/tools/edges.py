@@ -8,7 +8,7 @@ import pathlib, re, sys, tomllib
 root = pathlib.Path(sys.argv[1])
 path = root / "Cargo.toml"
 text = path.read_text(encoding="utf-8")
-full = lambda n: n if n.startswith("hsk-studio-") else f"hsk-studio-{n}"
+full = lambda n: n if n.startswith(("hsk-studio-", "kumihimo-")) else f"hsk-studio-{n}"
 for spec in sys.argv[2:]:
     remove = spec.startswith("remove:")
     rest = spec.removeprefix("remove:")

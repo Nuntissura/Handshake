@@ -5,15 +5,43 @@
   "phase": "build",
   "worktree": "wt-studio-lanes/smb-r53-followups-1",
   "base": "c4d06841",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    "91a5fe98",
+    "845d06e9",
+    "eb559398",
+    "3c4811ed",
+    "84a8d056",
+    "f6862a0e",
+    "36dd94f3"
+  ],
+  "capabilities_done": [
+    "Observe::emit* offers its record to the thread RingProducerPort (bind_thread_ring); adapter stays Handshake MT-36190",
+    "durable JSONL sink for the standalone host (harness-core diag_sink.rs), bounded, write failure never fails the command",
+    "FrameSink passes frames to the sink; op records also written",
+    "panic record in the CLI and desktop binaries; existing exit behaviour kept",
+    "studio-harness health, typed exits 0, 3, 4, 5; manual names the command, flag, variable and default"
+  ],
+  "tests": {
+    "bundled_sha": "36dd94f3",
+    "bundled_log": "Handshake_Artifacts/WP-KERNEL-STUDIO/SMB-OBSERVE-DIAG-SINK-1/smb-observe-diag-sink-1-bundled-36dd94f3.log",
+    "bundled": "120 run, 120 passed, 2 skipped (the emit_cost measures), exit 0; step 0 clean; clippy over tested crates and direct dependents",
+    "desktop_check": "cargo check -p hsk-studio-harness --features desktop --bins exit 0 at 84a8d056 (log smb-observe-diag-sink-1-desktop-check-84a8d056.log); 36dd94f3 not checked with desktop yet, --per-sha covers it",
+    "earlier_bundled": {
+      "84a8d056": "120 run, 109 passed, 11 failed, test helper, fixed in f6862a0e",
+      "f6862a0e": "120 run, 119 passed, 1 failed, product defect in seq order across rotation, fixed in 36dd94f3"
+    },
+    "not_run": [
+      "--per-sha",
+      "rebase on origin (origin moved 16 commits to b954d4c5)",
+      "doctests (none added)"
+    ]
+  },
   "verdicts": [],
   "blockers": [],
-  "lock_wait_s": 0,
+  "lock_wait_s": 6971,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-07T05:20:57Z",
+  "next": "builder: pushes held until R59 is recorded and the lead releases; then rebase, --per-sha HEAD~1 per the lead, guarded push, READY_FOR_VALIDATION on the pushed commit",
+  "updated_at": "2026-11-07T08:22:00Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -40,6 +68,86 @@
       "hbr-usage rules[41]"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-r53-followups-1"
+    "reuses_tree_and_target": "smb-r53-followups-1",
+    "paths_beyond_brief": [
+      "crates/hsk-studio-harness-core/src/diag_sink.rs and its lib.rs line, lead approved",
+      "crates/hsk-studio-harness/examples/studio-harness.rs one call, lead approved"
+    ],
+    "emit_cost_ns_release_min_median": {
+      "before_wiring": "93.6 / 98.3",
+      "no_port": [
+        "93.4 / 97.6",
+        "93.9 / 100.0"
+      ],
+      "noop_port_bound": [
+        "96.4 / 102.1",
+        "96.6 / 101.3"
+      ],
+      "note": "4096000 progress emits per measure; before ran alone, after ran beside the bound test; the no-port difference is inside the spread of the two after runs"
+    },
+    "target_reuse": {
+      "first_bundled_run": "84a8d056, 810 s total of which 590 s on the lock, compiled 18 third-party and 68 workspace crates",
+      "first_build_on_this_tree": "focused harness run at 845d06e9, 1m08 build after 839 s on the lock, compiled 74 third-party and 12 workspace crates",
+      "reading": "third-party crates were not fully reused on the first build of each unit; cause not investigated"
+    },
+    "stack_overflow_leaves": "No hook runs and no record of its own: every line already written, no run_end; health counts the run in previous_runs.unterminated_or_running. Test a_stack_overflow_leaves_the_lines_written_and_no_end_of_run, STATUS_STACK_OVERFLOW on Windows.",
+    "not_proven": [
+      "a real panic through the CLI or desktop binary: the panic and overflow tests re-execute the test binary and call start_process",
+      "the desktop window was never launched: its hook and sink are compile-only",
+      "read-only directory on Windows: the attribute stops nothing, the test prints NOT_PROVEN; a path that is a file and an unlistable empty path carry the claim",
+      "a full disk on a real volume: unit test with an injected writer under cfg(test)",
+      "non-UTF-8 dir in health (F2): fix by reading, no test",
+      "power loss: only panic records are synced",
+      "process birth is host-observed, not the GUI-DESKTOP-050 binding; no shipped path binds a ring port (MT-36190)"
+    ],
+    "v4_06_discard_sinks": {
+      "regex": "impl .*SinkPort for|struct (Quiet|Discard|Null|FrameCount)",
+      "sites_src": [
+        {
+          "site": "harness-view/src/view/brush_mix.rs:34 Quiet",
+          "state": "left, lead direction",
+          "rate": "1 or more frames per 64x64 block with coverage, per paint call (one stroke); a full 4096x4096 stroke is about 4096 blocks; frames per block UNVERIFIED"
+        },
+        {
+          "site": "harness-view/src/view/fill_tools.rs:293 uses the brush_mix Quiet",
+          "state": "left, lead direction",
+          "rate": "same per block, per fill call; frames per block UNVERIFIED"
+        },
+        {
+          "site": "harness-view/src/view/vector/separations.rs:62 Quiet",
+          "state": "left, lead direction",
+          "rate": "one Prism transform per process colour conversion; rate per separation UNVERIFIED"
+        },
+        {
+          "site": "harness-view/src/view/vector/swatch.rs:65 Quiet",
+          "state": "left, lead direction",
+          "rate": "one Prism transform per Lab or CMYK swatch resolve; rate UNVERIFIED"
+        },
+        {
+          "site": "composite/src/temporal/composition/effects.rs:209 Discard",
+          "state": "left, lead direction",
+          "rate": "at most one per colour control read when its profile differs from the plan; per-frame rate UNVERIFIED"
+        },
+        {
+          "site": "harness-core/src/import/colour.rs:36 FrameCount",
+          "state": "left, counts frames for the receipt and drops the bytes",
+          "rate": "per Prism conversion of an import; UNVERIFIED"
+        }
+      ],
+      "not_discarding": [
+        "harness-core/src/harness.rs:132 FrameSink, fixed in this lane",
+        "pigment/src/caller.rs:316,344 collect",
+        "prism lib.rs:523 and wide.rs:833 ForwardSink forward",
+        "harness-core folio_report sinks not listed by the regex; NOT_INSPECTED"
+      ],
+      "test_only": "prism wide_job/tests.rs:37 Null and the Quiet sinks under crates/*/tests and examples: not listed site by site"
+    },
+    "v4_06_spawned_binaries": {
+      "existing_tests_that_spawn_studio_harness": 0,
+      "how": "git grep CARGO_BIN_EXE_studio and studio-harness under crates/*/tests, examples and tools at c4d06841",
+      "new_tests": "crates/hsk-studio-harness/tests/diag_sink_process.rs sets STUDIO_DIAG_DIR or --diag-dir and points LOCALAPPDATA, XDG_STATE_HOME and HOME under its scratch on every Command; crates/hsk-studio-harness-core/tests/diag_sink.rs passes the dir to its children"
+    },
+    "review": "review-smb-observe-diag-sink-1-3c4811ed.json F1, F2, F3 fixed in 84a8d056",
+    "lead_followup": "export STUDIO_DIAG_DIR in studio-env.sh after landing (lead owned)"
   }
 }

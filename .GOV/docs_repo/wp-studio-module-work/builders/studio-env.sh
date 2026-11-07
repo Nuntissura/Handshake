@@ -221,7 +221,7 @@ cargo() {
       case " $* " in
         *" nextest run "*|*" nextest r "*)
           case " $* " in
-            *" --workspace "*|*" hsk-studio-render-gpu "*|*"=hsk-studio-render-gpu "*)
+            *" --workspace "*|*" hsk-studio-render-gpu "*|*"=hsk-studio-render-gpu "*|*" hsk-studio-vulkan "*|*"=hsk-studio-vulkan "*|*" hsk-studio-native-host "*|*"=hsk-studio-native-host "*)
               if [ "${STUDIO_GPU_TEST_LOCK:-1}" != 0 ]; then
                 studio_disk_lock_run "cargo $*" dbl_gpu_run "$STUDIO_GPU_TEST_LOCK_DIR" builder "${STUDIO_OWNER:-studio-team-dev}" \
                   "gpu tests: cargo $* (cwd $PWD)" command cargo "${STUDIO_NX_ARGS[@]}"
@@ -230,9 +230,23 @@ cargo() {
           esac ;;
       esac
       studio_disk_lock_run "cargo $*" command cargo "${STUDIO_NX_ARGS[@]}" ;;
-    build|b|check|c|clippy|run|r|bench|doc|d|rustc|rustdoc|fix|install|miri|tarpaulin|llvm-cov)
+    run|r)
+      # SMB-GUI-STEWARD-1 (direction.blocker_decisions_20261107.gpu_contention): a run of the Vulkan host crates also
+      # holds the GPU test lock, because foreign GPU clients broke R39.
+      case " $* " in
+        *" hsk-studio-vulkan "*|*"=hsk-studio-vulkan "*|*" hsk-studio-native-host "*|*"=hsk-studio-native-host "*)
+          if [ "${STUDIO_GPU_TEST_LOCK:-1}" != 0 ]; then
+            studio_disk_lock_run "cargo $*" dbl_gpu_run "$STUDIO_GPU_TEST_LOCK_DIR" builder "${STUDIO_OWNER:-studio-team-dev}" \
+              "gpu run: cargo $* (cwd $PWD)" command cargo "$@"
+            return $?
+          fi ;;
+      esac
+      studio_disk_lock_run "cargo $*" command cargo "$@" ;;
+    build|b|check|c|clippy|bench|doc|d|rustc|rustdoc|fix|install|miri|tarpaulin|llvm-cov)
       studio_disk_lock_run "cargo $*" command cargo "$@" ;;
     *) command cargo "$@" ;;
   esac
 }
-export -f cargo studio_disk_lock_run studio_nextest_args studio_ssd_cap_check studio_ssd_measure studio_ssd_kib  # the dbl_* functions export themselves (tools/disk-build-lock.sh)
+# A host binary run outside cargo holds the GPU test lock and no disk lock: studio_gpu_run <exe> [args...] (status 75: no lock).
+studio_gpu_run() { dbl_gpu_run "$STUDIO_GPU_TEST_LOCK_DIR" builder "${STUDIO_OWNER:-studio-team-dev}" "gpu run: $* (cwd $PWD)" "$@"; }
+export -f cargo studio_disk_lock_run studio_nextest_args studio_ssd_cap_check studio_ssd_measure studio_ssd_kib studio_gpu_run  # the dbl_* functions export themselves (tools/disk-build-lock.sh)
