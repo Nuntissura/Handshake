@@ -1,19 +1,40 @@
 {
   "crate": "hsk-studio-harness-view, hsk-studio-harness-core, hsk-studio-harness, hsk-studio-interop-tiff, hsk-studio-interop-psd, hsk-studio-prism",
   "lane": "SMB-DOC-EXPORT-1",
-  "status": null,
-  "phase": "build",
-  "worktree": "wt-studio-lanes/smb-pr-nudge-1",
-  "base": "95ee277458b18fc333ba3fb8bc6231291ec10172",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
+  "worktree": "wt-studio-lanes/smb-pr-sequence-session-1",
+  "base": "672a1804",
+  "commits": [
+    "4e66b91b",
+    "381330ed",
+    "c9a34106",
+    "73107f5a",
+    "bbe56263",
+    "e85e1440"
+  ],
+  "capabilities_done": [
+    "doc export recipe PNG/JPEG/TIFF 8|16 tagged sRGB",
+    "CMYK TIFF via Prism wide path",
+    "layered PSD (raster layers, groups)",
+    "crop + develop export stage (size, sharpen, watermark)",
+    "batch non-native targets via TargetExporter",
+    "CLI export --recipe and flags, batch --recipe, photo.export_document drive row"
+  ],
+  "tests": {
+    "red_62b55834": "tests/doc_export.rs 7 run 0 passed 7 failed (not_implemented), exit 100",
+    "green_82950f9c": "tests/doc_export.rs 7 run 7 passed, exit 0 (log Handshake_Artifacts/WP-KERNEL-STUDIO/smb-doc-export-1/green2-62b55834.log, worktree = 82950f9c)",
+    "fix_1d72c29a": "tests/doc_export.rs 8 run 8 passed, exit 0 (log Handshake_Artifacts/WP-KERNEL-STUDIO/smb-doc-export-1/fix1-82950f9c.log, worktree = 1d72c29a)",
+    "bundled_d_56a729e0": "lane-check --owner smb-pr-sequence-session-1 --disk d: clippy + nextest interop-psd, harness-core, harness-view, harness [viewer]: 579 run 579 passed 22 skipped, exit 0 (log Handshake_Artifacts/WP-KERNEL-STUDIO/smb-doc-export-1/bundled-d-smb-doc-export-1-56a729e0.log); first run at 6cf52d85 578/579 (corpus row for record_host_outcome), fixed in 56a729e0",
+    "per_sha_2e2796de": "PER_SHA_RESULT OK shas=1 range=db4b8cdf..2e2796de (log persha-d-smb-doc-export-1-2e2796de.log); rebase onto 12133fdf touched no lane file",
+    "landing_e85e1440": "rebased onto cf6788d6 (DOC-NEW-1 overlap: semantic merge in render.rs empty-document return folded into the first lane commit), cargo check 4 crates [viewer] --tests exit 0 (landcheck2-1d0fe4ae.log), per-sha HEAD~1 OK at 1d0fe4ae (persha-d-smb-doc-export-1-1d0fe4ae.log); rebased onto 672a1804 (VK-HOST-1, no lane file), pushed e85e1440 with no new run"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on C:, push when green",
-  "updated_at": "2026-11-07T09:57:08Z",
+  "next": "validator round; not proven: 16-bit PSD layer-info placement vs Photoshop UNVERIFIED, write_new no-link fallback untested, full suites not rerun after the cf6788d6 rebase (cargo check only, per lead)",
+  "updated_at": "2026-11-07T15:51:21Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -33,11 +54,35 @@
   },
   "notes": {
     "dispatched_at": "2026-11-07T09:57:08Z",
-    "disk": "C",
+    "disk": "D",
     "closes": [
       "workflows/backlog-20261107.json SMB-DOC-EXPORT-1"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-pr-nudge-1"
-  }
+    "reuses_tree_and_target": "smb-pr-sequence-session-1",
+    "spec_basis": [
+      "STU-RAS-042",
+      "STU-RAS-043",
+      "STU-IO-134",
+      "STU-IO-135",
+      "STU-IO-136",
+      "STU-AUT-129",
+      "STU-AUT-131",
+      "STU-RAW-017"
+    ],
+    "paths_beyond_brief": [
+      "hsk-studio-interop-psd/src/compose.rs (new) + lib.rs",
+      "hsk-studio-harness-view/src/view/render.rs (render_linear_with_records)",
+      "hsk-studio-harness-view/src/view/develop/export_dialog.rs (stage_from_fields, read_watermark_graphic)",
+      "hsk-studio-harness-view/src/view/mod.rs (mod line)",
+      "hsk-studio-harness-core/src/batch.rs (TargetExporter, BatchPorts.exporter)",
+      "hsk-studio-harness-core/src/harness.rs (Run::record_host_outcome)",
+      "hsk-studio-harness-core/src/manual.rs (export/batch usage, viewer.export_document row)",
+      "hsk-studio-harness/src/cli/drive_viewer.rs (export_document)"
+    ],
+    "v4_06": "class: export writes that replace an existing file (rename-over); regex write_atomic\\( in harness-view/harness src: doc_export.rs (fixed: write_new unless overwrite); not changed, named: mod.rs:714 Viewer::export, develop.rs:1146/1182/1245, vector/interop.rs:414/611, vector/pdf_export.rs:370, design/fig_import.rs:544, bin/studio-harness.rs:29",
+    "review_82950f9c": "F1-F3 fixed in 1d72c29a; F4 at rebase; 16-bit layer info placement (primary vs Lr16) UNVERIFIED: the Adobe spec page names the keys but not the placement; write_new non-link fallback not exercised (no FAT/exFAT/SMB volume in tests)",
+    "old_tree_idle": "smb-pr-nudge-1 (C:)"
+  },
+  "branch": "lane/smb-doc-export-1-d"
 }
