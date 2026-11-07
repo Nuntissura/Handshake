@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T11:17:20Z",
+ "updated_at": "2026-11-07T12:31:03Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19384,8 +19384,8 @@
   },
   {
    "lane_id": "SMB-COMMAND-SURFACE-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness-core, hsk-studio-harness, hsk-studio-controls, hsk-studio-harness-view (command file only)",
    "lane_file": "builders/lanes/hsk-studio-command-surface-1.json",
    "brief": "builders/briefs/lane-smb-command-surface-1.md",
@@ -19393,11 +19393,12 @@
    "base": "b954d4c51d9256573b5a35cf234bf6de26475e7d",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-07T08:10:03Z",
+   "updated_at": "2026-11-07T12:31:03Z",
    "closes": [
     "workflows/backlog-20261107.json SMB-DRIVE-TYPED-1",
     "RF-05 seed"
-   ]
+   ],
+   "claim": "95ee2774..98e4099c"
   },
   {
    "lane_id": "SMB-VK-HOST-1",
@@ -21685,6 +21686,21 @@
     "added_at": "2026-11-07T11:16:34Z",
     "item": "Text, solid and adjustment layer creation; keyframe selection and copy/paste; parent compensation; recordable motion rows; Registry descriptors",
     "owner": "later motion lanes"
+   },
+   {
+    "added_at": "2026-11-07T12:31:03Z",
+    "item": "Engine defect: panel.vector_export.export_svg refuses Folio DuplicateIdentity on the demo fixture's group layer (test known_defect_export_svg_group_duplicate_identity)",
+    "owner": "a later vector/folio lane"
+   },
+   {
+    "added_at": "2026-11-07T12:31:03Z",
+    "item": "Engine defect candidate: layout.replace_text with \"one\\ntwo\" keeps one paragraph; whether a newline ends a paragraph is UNVERIFIED (test known_defect_replace_text_newline_keeps_one_paragraph)",
+    "owner": "a later layout lane"
+   },
+   {
+    "added_at": "2026-11-07T12:31:03Z",
+    "item": "Widget ids not seeded in the UiCatalog; tools in group 'unfiled'; typed rows not recordable; develop ops needing mask-source or tone-family records, whole VectorNetwork writes and non-default path-text options stay Rust-only",
+    "owner": "later command-surface lanes"
    }
   ],
   "pause_20261103": {

@@ -1,19 +1,57 @@
 {
   "crate": "hsk-studio-harness-core, hsk-studio-harness, hsk-studio-controls, hsk-studio-harness-view (command file only)",
   "lane": "SMB-COMMAND-SURFACE-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-pr-edit-footprint-1",
   "base": "b954d4c51d9256573b5a35cf234bf6de26475e7d",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "95ee277458b18fc333ba3fb8bc6231291ec10172",
+      "what": "RUN_COMMANDS split per domain",
+      "base": "7879e7e9"
+    },
+    {
+      "sha": "243c588f",
+      "what": "red: typed commands through the process (not run red)"
+    },
+    {
+      "sha": "1a39dc7a",
+      "what": "UiDescriptor catalog seed, 150 typed rows, Viewer::run_command decoders, drive dispatch"
+    },
+    {
+      "sha": "fdd1710e",
+      "what": "review fixes F1-F5, two engine defect candidates pinned by name"
+    },
+    {
+      "sha": "150db071",
+      "what": "defect test text escape"
+    },
+    {
+      "sha": "98e4099c742721e7635f576c5cc88ef6654d23f4",
+      "what": "test data fixes; READY tip",
+      "base": "912cb86f"
+    }
+  ],
+  "capabilities_done": [
+    "RUN_COMMANDS per-domain files",
+    "UiDescriptor/UiCatalog seed (RF-05) with aliases, catalog.list/resolve",
+    "typed rows: 37 layout, 41 panel, 7 proof, 25 vector, 8 design, 30 photo, 2 catalog",
+    "viewer rows answer <domain>.<method>, viewer.<method> alias"
+  ],
+  "tests": {
+    "trunk_check_b954d4c5": "cargo check --workspace --tests exit 0",
+    "split_per_sha": "PER_SHA_RESULT OK 20ad6cc0",
+    "bundled_c358ea53": "lane-check clippy clean; nextest 311 run, 309 pass, 2 fail (test data), 21 skipped; log bundled-smb-command-surface-1-c358ea53.log",
+    "typed_120f1e55": "harness_drive_typed 8/8 pass, exit 0; log typed-smb-command-surface-1-120f1e55.log",
+    "per_sha_98e4099c": "PER_SHA_RESULT OK shas=1 range=150db071..98e4099c; log persha-smb-command-surface-1-98e4099c.log"
+  },
   "verdicts": [],
   "blockers": [],
-  "lock_wait_s": 0,
+  "lock_wait_s": 3600,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-07T08:10:03Z",
+  "next": "validator: judge 98e4099c on base 912cb86f",
+  "updated_at": "2026-11-07T12:29:35Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -39,6 +77,46 @@
       "RF-05 seed"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-pr-edit-footprint-1"
+    "reuses_tree_and_target": "smb-pr-edit-footprint-1",
+    "mistakes": [
+      "A per-sha started with ';' after a conflicted rebase ran on mid-rebase HEAD 570173af and held the D: lock about 20 min (PID 130424); kill refused by the harness, left to finish. All push chains use && since."
+    ],
+    "defect_candidates": [
+      "export_svg DuplicateIdentity: demo fixture, draw rectangle + ellipse, select, set_fill, align, offset_path, outline_stroke, then panel.vector_export.export_svg -> 'svg_export: folio DuplicateIdentity SLYR-...0001' (test known_defect_export_svg_group_duplicate_identity)",
+      "layout.replace_text 'one\ntwo' into a new frame's story keeps 1 paragraph (test known_defect_replace_text_newline_keeps_one_paragraph); whether \n is a paragraph terminator in Studio is UNVERIFIED"
+    ],
+    "paths_beyond_brief": [
+      "hsk-studio-harness-core/src/harness.rs Run::command_outcome",
+      "hsk-studio-harness-core/src/manual.rs viewer_domain, drive.typed",
+      "hsk-studio-harness-view/src/layout_ui.rs LayoutEdit::command_id and undo-name stacks (no draw change)",
+      "hsk-studio-harness-view/src/view/mod.rs one mod line"
+    ],
+    "cut": [
+      "widget ids not seeded (no enumeration)",
+      "tool family unknown: tools in group 'unfiled'",
+      "typed rows not recordable",
+      "develop ops with MaskSource/FamilyOp, VectorNetwork whole-record set, path-text options beyond defaults",
+      "red commit not proven red by a run",
+      "harness-view whole suite not run: only binaries matching ~layout"
+    ],
+    "spec_basis": [
+      "STU-SHL-240",
+      "STU-SHL-243",
+      "STU-MDL-100",
+      "STU-MDL-103",
+      "STU-AUT-147"
+    ],
+    "lead_decisions": [
+      {
+        "at": "2026-11-07T12:31:03Z",
+        "on": "red proof",
+        "decision": "Accepted as a named gap: 243c588f is the red test commit but was never run red; the validator judges the tests on their own."
+      },
+      {
+        "at": "2026-11-07T12:31:03Z",
+        "on": "builder error",
+        "decision": "A per-sha chained with ';' after a conflicted rebase ran on a mid-rebase HEAD and held the D: lock about 20 minutes; the builder now chains with &&. Recorded as a lead lesson for builder_method.md."
+      }
+    ]
   }
 }
