@@ -1,19 +1,63 @@
 {
   "crate": "workspace root, tools, .config, skeleton crates",
   "lane": "SMB-GUI-STEWARD-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "landed",
   "worktree": "wt-studio-lanes/smb-pr-retime-hold-1",
   "base": "9e73d34cd5d24180fd7a56ff4453a066abb9a5ee",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    {
+      "sha": "7ab918bf",
+      "kind": "red",
+      "what": "probe self-test fixtures (new crates, kumihimo rule, winit entry, member paths, registry owners, version pin); red proven: self-test exit 2, self_test_toolkit_gain_not_rejected_kumihimo_gate_dependency/kumihimo-ui/hsk-studio-controls"
+    },
+    {
+      "sha": "7879e7e9",
+      "kind": "green",
+      "what": "skeleton crates, root members/edges/pins, probe rules, registry-sync version match, GPU predicates, linker guard, controls [egui] unit"
+    }
+  ],
+  "capabilities_done": [
+    "skeleton crates hsk-studio-vulkan (ash =0.38.0 [loaded,std]), hsk-studio-native-host (winit =0.30.13 [rwh_06], windows-sys =0.61.2), kumihimo-ui (no deps), each with DESCRIPTOR and one test",
+    "Cargo.lock: only 3 workspace records added; registry package set unchanged",
+    "probe: winit allowed for hsk-studio-native-host only; kumihimo_gate_dependency; crates/kumihimo-* member paths; native-host native owner; naga designated; =X.Y.Z matches lock X.Y.Z+meta",
+    "GPU lock and nextest GPU group extended to hsk-studio-vulkan and hsk-studio-native-host (run-round crate_gpu, .config/nextest.toml)",
+    "run-round refuses CARGO_TARGET_*_LINKER from the environment (case-insensitive); accepts kumihimo-* names",
+    "round-features: hsk-studio-controls = [[\"egui\"]]"
+  ],
+  "tests": {
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/SMB-GUI-STEWARD-1/smb-gui-steward-1-e71a40f2-hold.log",
+    "sha_built": "e71a40f2 (pre-rebase tip; rebase onto 570173af touched none of the lane's files)",
+    "probe_self_test": {
+      "red_exit": 2,
+      "green_exit": 0,
+      "cases": 80
+    },
+    "probe_selections": "107/107 accepted",
+    "cargo_metadata_locked": 0,
+    "cargo_check_new_crates": 0,
+    "bundled": {
+      "argv": "lane-check.sh --owner smb-pr-retime-hold-1 --disk d -- cargo nextest run -p hsk-studio-vulkan -p hsk-studio-native-host -p kumihimo-ui",
+      "exit": 0,
+      "passed": 3,
+      "failed": 0
+    },
+    "per_sha": {
+      "argv": "lane-check.sh --owner smb-pr-retime-hold-1 --disk d --per-sha HEAD~1",
+      "result": "PER_SHA_RESULT OK shas=1",
+      "exit": 0
+    },
+    "registry_sync_check": 0,
+    "license_gate": 0,
+    "step0": 0,
+    "print_plan": "base script: vulkan/native-host gpu_lock=0, kumihimo-ui exit 2, linker env accepted; new: gpu_lock=1, kumihimo-ui ok, linker env exit 2 (upper and lower case), RUNNER var not refused"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-07T08:03:35Z",
+  "next": "lead: apply the studio-env.sh lines and edges.py line (kernel files) and commit this lane file and dep-requests.jsonl; validator judges at R60",
+  "updated_at": "2026-11-07T08:48:10Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -38,6 +82,34 @@
       "direction.blocker_decisions_20261107 steward"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-pr-retime-hold-1"
+    "reuses_tree_and_target": "smb-pr-retime-hold-1",
+    "landed": {
+      "pushed": "7879e7e974121079e5ac1708a6a1835d064d7465",
+      "base_pushed_on": "570173af",
+      "at": "2026-11-07T08:48:10Z"
+    },
+    "root_files_changed": [
+      "Cargo.toml",
+      "Cargo.lock",
+      ".config/nextest.toml",
+      ".config/round-features.toml",
+      "tools/workspace-probe.rs",
+      "tools/run-round.sh",
+      "tools/registry-sync.py"
+    ],
+    "beyond_brief": "tools/registry-sync.py (3 lines): its exact-version regex could not pin ash, whose lock record is 0.38.0+1.3.281; kernel builders/dep-requests.jsonl: 3 request lines appended (uncommitted)",
+    "not_proven": "no GPU or window code exists yet; studio-env.sh GPU predicates proven on a scratch copy only until the lead applies them",
+    "lead_decisions": [
+      {
+        "at": "2026-11-07T08:50:19Z",
+        "on": "winit",
+        "decision": "Allowed in hsk-studio-native-host only (direction.blocker_decisions_20261107.window_layer)."
+      },
+      {
+        "at": "2026-11-07T08:50:19Z",
+        "on": "registry-sync.py",
+        "decision": "3-line regex change to pin ash accepted as needed for the pin."
+      }
+    ]
   }
 }

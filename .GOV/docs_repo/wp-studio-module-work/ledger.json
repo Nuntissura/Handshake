@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T08:49:06Z",
+ "updated_at": "2026-11-07T08:50:19Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19232,8 +19232,8 @@
   },
   {
    "lane_id": "SMB-GUI-STEWARD-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "workspace root, tools, .config, skeleton crates",
    "lane_file": "builders/lanes/hsk-studio-gui-steward-1.json",
    "brief": "builders/briefs/lane-smb-gui-steward-1.md",
@@ -19241,10 +19241,11 @@
    "base": "9e73d34cd5d24180fd7a56ff4453a066abb9a5ee",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-07T08:03:35Z",
+   "updated_at": "2026-11-07T08:50:19Z",
    "closes": [
     "direction.blocker_decisions_20261107 steward"
-   ]
+   ],
+   "claim": "7ab918bf..7879e7e9"
   },
   {
    "lane_id": "SMB-COMMAND-SURFACE-1",
