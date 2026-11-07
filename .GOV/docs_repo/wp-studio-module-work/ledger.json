@@ -22322,7 +22322,13 @@
     }
    },
    "r60": "R60 FULL needs the C: round target (199 GiB, warm), and a full round grows it. Above the cap the round cannot build on C:. It waits for the Operator's answer on S, or runs cold on a new D: round target if the lead decides the wait costs more than the cold build. Not decided yet.",
-   "cost": "All builders now share the D: lock queue; the C: lock is idle."
+   "cost": "All builders now share the D: lock queue; the C: lock is idle.",
+   "p3_note": {
+    "at": "2026-11-07T13:31:42Z",
+    "reading": "HANDOFF reads P3 'live' as not yet PASS. After the move D: holds 10 lane targets in use by lanes that are not PASS (doc-new, vk-host, layout-persist, web-host, layout-pdf-host, doc-export, audio, ui-tree, project-bin, plus filters READY), C: none besides the round target. The move created no target and no disk growth (each target already existed and is reused), and the total across both disks stays within 2 x 6, but D: alone is over 6.",
+    "decision": "No new lane goes on D: until D: is back at 6 or the Operator rules. Width lanes already scoped (SMB-AI-LIVE-EFFECTS-1, SMB-SCORE-EFFECTS-6, SMB-TYPE-INDENT-SPACING-1, SMB-PR-EXPORT-RECIPE-1, SMB-PARSER-HOSTILE-1, SMB-ARTBOARD-EXPORT-1, SMB-PLACE-ASSET-1, SMB-DRIVE-TYPED-2) wait. The D: lock, not coding, is the bottleneck now, so more lanes would mostly queue.",
+    "question_for_operator": "Is the per-disk P3 limit about disk space (then reused targets on a disk with 1.7 TB free are fine) or about concurrency (then 4 of the 10 D: lanes pause until C: has room)?"
+   }
   }
  },
  "round_R45": {
