@@ -1,0 +1,497 @@
+{
+ "schema": "hsk.studio.cleanup_plan@1",
+ "file_id": "CARGO-CLEANUP-PLAN-20261107-R",
+ "generated_at": "2026-11-07T05:43:00Z",
+ "status": "PROPOSED: nothing deleted. Needs the Operator's approval of this list (HSK-ART-005, CX-107).",
+ "authority": "Operator 2026-11-07: 'reuse when posible, remove only after inspection of the proposed cargo removal/ or partially removal'.",
+ "inspection": [
+  "research/cargo-inspect-20261107-C.json",
+  "research/cargo-inspect-20261107-D.json"
+ ],
+ "state_basis": {
+  "round": "STUDIO-R59 running on C:; C: studio-round is not a candidate",
+  "lanes": "five lanes building on D: in reused trees; those targets are not candidates"
+ },
+ "totals_gib": {
+  "C": 35.0,
+  "D": 610.3,
+  "all": 645.3
+ },
+ "whole_target_removals": "None proposed: every PASS lane's target stays for reuse.",
+ "before_execution": "Re-inspect. If any candidate's newest file changed, or a process or lane uses it, that candidate needs fresh approval. Execute through a guarded script, written on approval, that works only inside these paths and only on the named file kinds.",
+ "candidates": [
+  {
+   "id": "R-C01",
+   "disk": "C",
+   "owner": "smb-pr-retime-output-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes\\smb-pr-retime-output-1",
+   "kind": "partial",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts and fingerprints",
+    "the worktree"
+   ],
+   "gib": 22.74,
+   "target_total_gib": 50.68,
+   "newest_file_utc": "2026-11-06T03:38Z",
+   "lane_status": "PASS_V2",
+   "cost_if_wrong": "A later lane reusing this tree under the same feature set relinks that one test binary. Compiled libraries stay."
+  },
+  {
+   "id": "R-C02",
+   "disk": "C",
+   "owner": "smb-pr-nudge-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes\\smb-pr-nudge-1",
+   "kind": "partial",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts and fingerprints",
+    "the worktree"
+   ],
+   "gib": 9.27,
+   "target_total_gib": 19.23,
+   "newest_file_utc": "2026-11-06T04:52Z",
+   "lane_status": "PASS_V2",
+   "cost_if_wrong": "A later lane reusing this tree under the same feature set relinks that one test binary. Compiled libraries stay."
+  },
+  {
+   "id": "R-C03",
+   "disk": "C",
+   "owner": "smb-r54-followups-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes\\smb-r54-followups-1",
+   "kind": "partial",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts and fingerprints",
+    "the worktree"
+   ],
+   "gib": 1.19,
+   "target_total_gib": 11.38,
+   "newest_file_utc": "2026-11-05T11:03Z",
+   "lane_status": "PASS_V4",
+   "cost_if_wrong": "A later lane reusing this tree under the same feature set relinks that one test binary. Compiled libraries stay."
+  },
+  {
+   "id": "R-C04",
+   "disk": "C",
+   "owner": "smb-layout-blank-line-lookups-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes\\smb-layout-blank-line-lookups-1",
+   "kind": "partial",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts and fingerprints",
+    "the worktree"
+   ],
+   "gib": 0.6,
+   "target_total_gib": 3.24,
+   "newest_file_utc": "2026-11-05T16:44Z",
+   "lane_status": "PASS_V2",
+   "cost_if_wrong": "A later lane reusing this tree under the same feature set relinks that one test binary. Compiled libraries stay."
+  },
+  {
+   "id": "R-C05",
+   "disk": "C",
+   "owner": "smb-layout-sentinels-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes\\smb-layout-sentinels-1",
+   "kind": "partial",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts and fingerprints",
+    "the worktree"
+   ],
+   "gib": 0.54,
+   "target_total_gib": 3.26,
+   "newest_file_utc": "2026-11-01T14:42Z",
+   "lane_status": "PASS_V6",
+   "cost_if_wrong": "A later lane reusing this tree under the same feature set relinks that one test binary. Compiled libraries stay."
+  },
+  {
+   "id": "R-C06",
+   "disk": "C",
+   "owner": "smb-layout-composer-depth-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes\\smb-layout-composer-depth-1",
+   "kind": "partial",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts and fingerprints",
+    "the worktree"
+   ],
+   "gib": 0.48,
+   "target_total_gib": 3.63,
+   "newest_file_utc": "2026-11-06T05:14Z",
+   "lane_status": "PASS_V2",
+   "cost_if_wrong": "A later lane reusing this tree under the same feature set relinks that one test binary. Compiled libraries stay."
+  },
+  {
+   "id": "R-C07",
+   "disk": "C",
+   "owner": "smb-pr-sequence-presets-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes\\smb-pr-sequence-presets-1",
+   "kind": "partial",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts and fingerprints",
+    "the worktree"
+   ],
+   "gib": 0.18,
+   "target_total_gib": 4.77,
+   "newest_file_utc": "2026-11-02T15:11Z",
+   "lane_status": "PASS_V4",
+   "cost_if_wrong": "A later lane reusing this tree under the same feature set relinks that one test binary. Compiled libraries stay."
+  },
+  {
+   "id": "R-D01",
+   "disk": "D",
+   "owner": "studio-round",
+   "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\studio-round\\target",
+   "kind": "partial",
+   "remove": [
+    "debug/incremental",
+    "every .exe and .pdb test or binary output in debug/deps and debug"
+   ],
+   "keep": [
+    "third-party and workspace libraries",
+    "build scripts",
+    "fingerprints",
+    ".studio-workspace-root",
+    "everything outside target/"
+   ],
+   "gib": 562.66,
+   "target_total_gib": 584.38,
+   "newest_file_utc": "2026-10-24T05:58Z",
+   "lane_status": "n/a: round target",
+   "evidence": "Nothing written since 2026-10-24. Rounds R51 to R58 all used --target-dir C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target (their union.argv). tools/run-round.sh takes the target as an argument; no tool inspected names this D: path as a target.",
+   "cost_if_wrong": "If a round returns to D:, every test binary relinks and workspace crates rebuild as they would anyway after two weeks of changes. Libraries stay."
+  },
+  {
+   "id": "R-D02",
+   "disk": "D",
+   "owner": "smb-type-authored-token-1",
+   "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\smb-type-authored-token-1\\target",
+   "kind": "partial",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts and fingerprints",
+    "the worktree"
+   ],
+   "gib": 43.57,
+   "target_total_gib": 68.28,
+   "newest_file_utc": "2026-11-05T17:53Z",
+   "lane_status": "PASS_V2",
+   "cost_if_wrong": "A later lane reusing this tree under the same feature set relinks that one test binary. Compiled libraries stay."
+  },
+  {
+   "id": "R-D03",
+   "disk": "D",
+   "owner": "smb-sentinels-native-1",
+   "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\smb-sentinels-native-1\\target",
+   "kind": "partial",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts and fingerprints",
+    "the worktree"
+   ],
+   "gib": 2.08,
+   "target_total_gib": 5.38,
+   "newest_file_utc": "2026-11-02T08:51Z",
+   "lane_status": "PASS_V5",
+   "cost_if_wrong": "A later lane reusing this tree under the same feature set relinks that one test binary. Compiled libraries stay."
+  },
+  {
+   "id": "R-D04",
+   "disk": "D",
+   "owner": "smb-tiff-channels-1",
+   "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\smb-tiff-channels-1\\target",
+   "kind": "partial",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts and fingerprints",
+    "the worktree"
+   ],
+   "gib": 1.13,
+   "target_total_gib": 3.81,
+   "newest_file_utc": "2026-11-01T14:17Z",
+   "lane_status": "PASS_V6",
+   "cost_if_wrong": "A later lane reusing this tree under the same feature set relinks that one test binary. Compiled libraries stay."
+  },
+  {
+   "id": "R-D05",
+   "disk": "D",
+   "owner": "smb-pr-track-display-1",
+   "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\smb-pr-track-display-1\\target",
+   "kind": "partial",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts and fingerprints",
+    "the worktree"
+   ],
+   "gib": 0.24,
+   "target_total_gib": 3.42,
+   "newest_file_utc": "2026-11-05T15:13Z",
+   "lane_status": "PASS_V2",
+   "cost_if_wrong": "A later lane reusing this tree under the same feature set relinks that one test binary. Compiled libraries stay."
+  },
+  {
+   "id": "R-D06",
+   "disk": "D",
+   "owner": "smb-type-sentinels-registry-1",
+   "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\smb-type-sentinels-registry-1\\target",
+   "kind": "partial",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts and fingerprints",
+    "the worktree"
+   ],
+   "gib": 0.24,
+   "target_total_gib": 1.43,
+   "newest_file_utc": "2026-11-01T08:54Z",
+   "lane_status": "PASS_V6",
+   "cost_if_wrong": "A later lane reusing this tree under the same feature set relinks that one test binary. Compiled libraries stay."
+  },
+  {
+   "id": "R-D07",
+   "disk": "D",
+   "owner": "smb-folio-angle-unbounded-1",
+   "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\smb-folio-angle-unbounded-1\\target",
+   "kind": "partial",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts and fingerprints",
+    "the worktree"
+   ],
+   "gib": 0.16,
+   "target_total_gib": 4.44,
+   "newest_file_utc": "2026-11-01T09:25Z",
+   "lane_status": "PASS_V7",
+   "cost_if_wrong": "A later lane reusing this tree under the same feature set relinks that one test binary. Compiled libraries stay."
+  },
+  {
+   "id": "R-D08",
+   "disk": "D",
+   "owner": "smb-ai-distort-effects-1",
+   "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\smb-ai-distort-effects-1\\target",
+   "kind": "partial",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts and fingerprints",
+    "the worktree"
+   ],
+   "gib": 0.1,
+   "target_total_gib": 20.37,
+   "newest_file_utc": "2026-11-01T03:42Z",
+   "lane_status": "PASS_V4",
+   "cost_if_wrong": "A later lane reusing this tree under the same feature set relinks that one test binary. Compiled libraries stay."
+  },
+  {
+   "id": "R-D09",
+   "disk": "D",
+   "owner": "smb-ps-mode-convert-1",
+   "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-STUDIO\\smb-ps-mode-convert-1\\target",
+   "kind": "partial",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts and fingerprints",
+    "the worktree"
+   ],
+   "gib": 0.1,
+   "target_total_gib": 9.06,
+   "newest_file_utc": "2026-11-01T03:36Z",
+   "lane_status": "PASS_V4",
+   "cost_if_wrong": "A later lane reusing this tree under the same feature set relinks that one test binary. Compiled libraries stay."
+  }
+ ],
+ "not_candidates": {
+  "targets": [
+   {
+    "owner": "smb-pr-media-markers-1",
+    "disk": "C",
+    "gib": 17.44,
+    "reason": "status READY_FOR_VALIDATION"
+   },
+   {
+    "owner": "smb-press-observe-1",
+    "disk": "C",
+    "gib": 1.34,
+    "reason": "under 0.1 GiB to gain"
+   },
+   {
+    "owner": "smb-pr-sequence-presets-1-red",
+    "disk": "C",
+    "gib": 0.28,
+    "reason": "status no ledger row"
+   },
+   {
+    "owner": "smb-pr-edit-footprint-1",
+    "disk": "D",
+    "gib": 30.46,
+    "reason": "in use by SMB-HARNESS-DRIVE-1"
+   },
+   {
+    "owner": "smb-pr-entry-references-1",
+    "disk": "D",
+    "gib": 52.7,
+    "reason": "in use by SMB-PR-ROUTING-REPAIR-1"
+   },
+   {
+    "owner": "smb-pr-retime-hold-1",
+    "disk": "D",
+    "gib": 45.15,
+    "reason": "in use by SMB-CONTROLS-EGUI-GATE-1"
+   },
+   {
+    "owner": "smb-pr-sequence-session-1",
+    "disk": "D",
+    "gib": 6.72,
+    "reason": "in use by SMB-SESSION-WRITE-SAFETY-1"
+   },
+   {
+    "owner": "smb-r53-followups-1",
+    "disk": "D",
+    "gib": 4.04,
+    "reason": "in use by SMB-OBSERVE-DIAG-SINK-1"
+   },
+   {
+    "owner": "validator-r54-probe",
+    "disk": "D",
+    "gib": 6.02,
+    "reason": "status no ledger row"
+   },
+   {
+    "owner": "smb-r52-followups-1",
+    "disk": "D",
+    "gib": 2.98,
+    "reason": "under 0.1 GiB to gain"
+   },
+   {
+    "owner": "smb-fig-grid-3",
+    "disk": "D",
+    "gib": 14.21,
+    "reason": "status PAUSED"
+   },
+   {
+    "owner": "smb-col-swatch-groups-1",
+    "disk": "D",
+    "gib": 2.72,
+    "reason": "under 0.1 GiB to gain"
+   },
+   {
+    "owner": "smb-id-toc-persist-1",
+    "disk": "D",
+    "gib": 3.8,
+    "reason": "under 0.1 GiB to gain"
+   },
+   {
+    "owner": "smb-layout-entry-text-1",
+    "disk": "D",
+    "gib": 2.69,
+    "reason": "under 0.1 GiB to gain"
+   },
+   {
+    "owner": "smb-layout-marker-lookups-1",
+    "disk": "D",
+    "gib": 2.8,
+    "reason": "under 0.1 GiB to gain"
+   },
+   {
+    "owner": "smb-press-ink-coverage-1",
+    "disk": "D",
+    "gib": 1.73,
+    "reason": "under 0.1 GiB to gain"
+   },
+   {
+    "owner": "smb-press-ink-manager-1",
+    "disk": "D",
+    "gib": 2.42,
+    "reason": "under 0.1 GiB to gain"
+   },
+   {
+    "owner": "smb-pr-merge-sync-1",
+    "disk": "D",
+    "gib": 1.9,
+    "reason": "under 0.1 GiB to gain"
+   },
+   {
+    "owner": "smb-layout-blank-line-lookups-1",
+    "disk": "D",
+    "gib": 0.8,
+    "reason": "under 0.1 GiB to gain"
+   },
+   {
+    "owner": "smb-layout-composer-depth-1",
+    "disk": "D",
+    "gib": 0.38,
+    "reason": "under 0.1 GiB to gain"
+   },
+   {
+    "owner": "smb-sentinels-native-1-red",
+    "disk": "D",
+    "gib": 0.73,
+    "reason": "status no ledger row"
+   },
+   {
+    "owner": "smb-type-sentinels-registry-1-red",
+    "disk": "D",
+    "gib": 0.21,
+    "reason": "status no ledger row"
+   },
+   {
+    "owner": "validator-r53-probe",
+    "disk": "D",
+    "gib": 0.36,
+    "reason": "status no ledger row"
+   }
+  ],
+  "always": "logs, results, receipts, red logs, exports, per-sha dirs, tmp, validator-* folders, ROUND_IDENTITY, locks, the cargo registry, oracle corpus, C: studio-round"
+ },
+ "findings": {
+  "why_copies_multiply": "Measured on smb-pr-retime-output-1, viewer_timeline: 10 fingerprints, differing by 4 feature sets and 3 profile hashes; the workspace libraries also multiply (harness_view 4 copies, harness_core 3). Different package selections in lane runs unify features differently. Lead reading, not yet proven as the only cause.",
+  "debug_symbols": "In that target .pdb files are 36.2 of 47.0 GiB of test binaries. The lanes already use line-tables-only. Whether no debug info in builder lanes saves disk and link time without hurting failure reports is NOT measured; next step after R59.",
+  "feature_unification": "Cargo workspace-wide feature unification or a hakari-style crate might stop the copies. UNVERIFIED: needs current research and a measurement before any proposal.",
+  "sccache": "Already measured at 0% hits across lane targets on 2026-10-20 (START_LOG). Not proposed."
+ }
+}

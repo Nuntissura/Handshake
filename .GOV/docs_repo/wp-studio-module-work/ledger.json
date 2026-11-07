@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T05:20:57Z",
+ "updated_at": "2026-11-07T05:43:00Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -21604,8 +21604,12 @@
     "page_file": "system-managed, 50 GB allocated, 1.7 GB in use"
    },
    "lead_error": "44 lane_watch.sh and r59_gate.sh processes kept running after the lead stopped their tasks, some since 2026-11-06T02:30Z, through R57 and R58. Found and stopped 2026-11-07. Their effect on those rounds is UNVERIFIED; commit free was 3.9 GB right after stopping them, so they were not the memory shortage. lane_watch.sh now ends itself.",
-   "cargo_inspection": "research/cargo-inspect-20261107-C.json",
-   "worktree_question_closed": "direction.after_r57_20261106.blocked_on_operator.new_lane_worktrees: answered by the Operator with this condition."
+   "cargo_inspection": [
+    "research/cargo-inspect-20261107-C.json",
+    "research/cargo-inspect-20261107-D.json"
+   ],
+   "worktree_question_closed": "direction.after_r57_20261106.blocked_on_operator.new_lane_worktrees: answered by the Operator with this condition.",
+   "cargo_proposal": "research/cargo-cleanup-plan-20261107-R.json"
   }
  },
  "round_R45": {

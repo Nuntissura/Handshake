@@ -83,7 +83,7 @@ def inspect_deps(deps):
     return parts, older, crates, newest
 
 
-def inspect_target(owner, path, disk, statuses):
+def inspect_target(owner, path, disk, statuses, reused):
     row = {"owner": owner, "disk": disk, "path": path}
     parts = collections.Counter()
     newest = 0.0
@@ -138,9 +138,12 @@ def inspect_target(owner, path, disk, statuses):
         row["tree_head"] = subprocess.run(["git", "-C", tree, "rev-parse", "--short=8", "HEAD"], capture_output=True, text=True).stdout.strip()
     row["tree_clean"] = clean
     done = str(row["lane_status"]).startswith("PASS_V")
-    row["reuse_candidate"] = bool(done and clean)
+    in_use = reused.get(owner)
+    row["in_use_by"] = in_use
+    row["reuse_candidate"] = bool(done and clean and not in_use)
     row["proposal"] = (
-        "live: keep" if not done and row["lane_status"] != "no ledger row"
+        f"in use by {in_use}: keep" if in_use
+        else "live: keep" if not done and row["lane_status"] != "no ledger row"
         else "reuse with its tree" if row["reuse_candidate"]
         else "inspect by hand: no reusable tree"
     )
@@ -155,6 +158,8 @@ def main():
     a = ap.parse_args()
     led = json.load(open(os.path.join(S, "ledger.json"), encoding="utf-8"))
     statuses = {str(x.get("lane_id", "")).lower(): x.get("status") for x in led["lanes"]}
+    reuse = led["direction"].get("workflow_20261107", {}).get("target_reuse", {})
+    reused = {v["tree"]: k for k, v in reuse.items() if not str(statuses.get(k.lower(), "")).startswith("PASS_V")}
     wanted = []
     if a.disk in ("c", "all") and os.path.isdir(C_ROOT):
         wanted += [(n, os.path.join(C_ROOT, n), "C") for n in sorted(os.listdir(C_ROOT)) if os.path.isdir(os.path.join(C_ROOT, n))]
@@ -162,7 +167,7 @@ def main():
         wanted += [(n, os.path.join(D_ROOT, n, "target"), "D") for n in sorted(os.listdir(D_ROOT)) if os.path.isdir(os.path.join(D_ROOT, n, "target"))]
     if a.owners:
         wanted = [w for w in wanted if w[0] in a.owners]
-    rows = [inspect_target(o, p, d, statuses) for o, p, d in wanted]
+    rows = [inspect_target(o, p, d, statuses, reused) for o, p, d in wanted]
     report = {
         "schema": "hsk.studio.target_inspection@1",
         "generated_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
