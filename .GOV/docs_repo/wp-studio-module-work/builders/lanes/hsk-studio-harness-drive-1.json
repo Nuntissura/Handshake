@@ -1,19 +1,48 @@
 {
   "crate": "hsk-studio-harness, hsk-studio-harness-core, hsk-studio-harness-view (non-draw methods only)",
   "lane": "SMB-HARNESS-DRIVE-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed",
   "worktree": "wt-studio-lanes/smb-pr-edit-footprint-1",
-  "base": "c4d06841",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "base": "9e73d34c",
+  "commits": [
+    {
+      "sha": "13d830b5",
+      "subject": "harness, DRIVE-1 red: state, command, undo and the stdin session through the real process; the window classifier"
+    },
+    {
+      "sha": "4fdc95fb",
+      "subject": "harness, DRIVE-1: a model drives Studio as a process, no window"
+    },
+    {
+      "sha": "b954d4c5",
+      "subject": "harness, DRIVE-1: review fixes: no file replaced unasked, the viewer owns the timeline, a panic is one refusal"
+    }
+  ],
+  "capabilities_done": [
+    "state, command, undo and the command --stdin JSONL session through the real process, feature viewer",
+    "required --actor and --session on every command; optional --owner and --access-space; resolved attribution in every response",
+    "driveable: 8 RUN_COMMANDS rows, 39 timeline.<key>, 86 viewer.<method> (transitional prefix), menu leaves studio.*",
+    "window classifier: only no argument, the window's own flags or an existing file open the window",
+    "no file replaced without overwrite; saving over the source needs overwrite and the expected revision; an export over the source always refuses",
+    "typed refusals for hostile lines; a panic in a line answers command_panicked; closed stdin ends cleanly",
+    "manual: help and help --json generated from the drive tables"
+  ],
+  "tests": {
+    "argv": "lane-check.sh --owner smb-pr-edit-footprint-1 --disk d -- cargo nextest run -p hsk-studio-harness -p hsk-studio-harness-core -p hsk-studio-harness-view --features hsk-studio-harness/desktop --no-fail-fast",
+    "exit": 0,
+    "sha": "c8d79bc6",
+    "passed": 411,
+    "failed": 0,
+    "skipped": 20,
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/bundled-smb-harness-drive-1-c8d79bc6.log"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-07T05:20:57Z",
+  "next": "validator: judge b954d4c5; the viewer and desktop,viewer round units run tests/harness_drive.rs, and the viewer unit is the first run of the example path",
+  "updated_at": "2026-11-07T08:08:58Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -43,6 +72,81 @@
       "MT-33634..33639",
       "MT-35107..35133"
     ],
-    "reuses_tree_and_target": "smb-pr-edit-footprint-1"
+    "reuses_tree_and_target": "smb-pr-edit-footprint-1",
+    "target_reuse_first_run": {
+      "total_s": 596,
+      "lock_wait_s_approx": 490,
+      "build": "1m35s",
+      "compiled": "23 workspace crates, no third-party crate recompiled",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/red-smb-harness-drive-1-c4d06841-dirty.log"
+    },
+    "red_proof": "only only_no_argument_or_an_existing_file_opens_a_window was red on behaviour; the other 15 failing process tests failed at binary lookup in 3 runs, and run 4 was stopped when the lead changed the direction",
+    "not_proven": [
+      "the rebased tree b954d4c5 on 9e73d34c was not compiled or run: landed commits touch harness-view (mixer, source_monitor, timeline, timeline/nest, Cargo.toml) and controls, none of my files",
+      "13d830b5 and 4fdc95fb had no per-sha check; 13d830b5 carries the stale binary path in harness_drive.rs and would fail its tests at binary lookup",
+      "process tests were never seen red on behaviour",
+      "the bundled run spawned only the desktop bin: the example path and the default-features feature_unavailable arm did not run",
+      "render cost per line UNVERIFIED (lead ruling allows it)"
+    ],
+    "gaps": [
+      "common rule (3): viewer.<method> rows have no RUN_COMMANDS row and no controls registry id (lead accepted the transitional prefix)",
+      "STU-MDL-003: studio.<domain>.<command>.v<N> ids, schemas, dry_run, SimulationReceipt",
+      "cross-process undo: Run undo stack is memory only, against STU-HIS-002 and STU-CON-009",
+      "STU-AUT-005 capability grants; STU-AUT-003 promotion gate",
+      "--diag-dir waits for SMB-OBSERVE-DIAG-SINK-1",
+      "host_integration one terminal frame per command holds only for commands that reach a Run operation: pre-dispatch refusals and viewer.select, set_tool, set_brush, select_rect, select_ellipse, select_lasso, clear_selection, the three exports, timeline zoom, scroll and scrub, studio.view.* emit none; stated in DRIVE_LIMITS",
+      "write safety: only an in-memory revision check; another process saving the source mid-session is not seen (SMB-SESSION-WRITE-SAFETY-1); its refusal codes replace overwrite_required on rebase if it lands first"
+    ],
+    "cut": [
+      "layer.restructure",
+      "Viewer methods that take a whole typed record",
+      "default-features feature_unavailable test",
+      "deep-layer-tree package case",
+      "RUN-UI.md update (candidate, lead ruling)"
+    ],
+    "paths_beyond_brief": [
+      "crates/hsk-studio-harness/examples/studio-harness.rs (lead approved)",
+      "crates/hsk-studio-harness-core/src/action.rs (lead approved)",
+      "crates/hsk-studio-harness/src/lib.rs DESCRIPTOR (lead ruling)"
+    ],
+    "bundled_run_c8d79bc6": {
+      "total_s": 1279,
+      "clippy": "1m22s",
+      "test_build": "8m31s",
+      "tests": "43.6s, 411 passed, 20 skipped, 120 binaries; harness_drive 22 passed"
+    },
+    "stale_log": "bundled-smb-harness-drive-1-95af749d.log is a run stopped in the lock queue before it built anything: mislabelled, because the commit was still landing; never a proof",
+    "determinism": "the_same_commands_on_the_same_package_give_byte_identical_output passed with no field excluded, on one package, one path, 6 lines",
+    "pushed": {
+      "tip": "b954d4c5",
+      "base": "9e73d34c",
+      "origin_before": "9e73d34c",
+      "rule": "lead landing rule: rebase clean and no file overlap with the landed commits, so no new run"
+    },
+    "proof_basis": "the bundled run and PER_SHA_RESULT OK are at c8d79bc6 on base c4d06841 (same content as b954d4c5 before the rebase); the rebased tree on 9e73d34c has not been compiled or run",
+    "per_sha": {
+      "range": "95af749d..c8d79bc6",
+      "result": "PER_SHA_RESULT OK",
+      "seconds": 3027,
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-edit-footprint-1/per-sha-smb-harness-drive-1-c8d79bc6.log",
+      "note": "tip only (lead ruling); the two earlier commits had no per-sha check"
+    },
+    "lead_decisions": [
+      {
+        "at": "2026-11-07T08:09:58Z",
+        "on": "viewer.<method> prefix",
+        "decision": "Accepted as transitional for width; the gap against common rule (3) and STU-MDL-003 is named."
+      },
+      {
+        "at": "2026-11-07T08:09:58Z",
+        "on": "one-shot undo",
+        "decision": "Refuses undo_needs_live_session; undo works in the JSONL loop."
+      },
+      {
+        "at": "2026-11-07T08:09:58Z",
+        "on": "--owner and --access-space",
+        "decision": "Optional, defaulting to the actor, with the resolved attribution printed in every response and stated as a limit."
+      }
+    ]
   }
 }
