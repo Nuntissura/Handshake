@@ -63,6 +63,7 @@ while true; do
     note "origin" "$(git -C "$SCOUT" ls-remote origin refs/heads/codex/handshake-studio-assets 2>/dev/null | cut -c1-8)"
     free=$(df -BG /c | tail -n 1 | awk '{print $4}')
     note "C: free band" "$(( ${free%G} / 50 * 50 ))G+"
+    note "stray cargo" "$(python "$S/tools/lead/stray_cargo.py" --brief 2>/dev/null)"
   fi
   n=$((n + 1))
   sleep "$TICK_S"
