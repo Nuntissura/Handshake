@@ -22,6 +22,9 @@ def write_wave(lanes, base, log_line, drop_prefixes=(), add_candidates=()):
         lid = L["id"]
         assert lid not in known, lid
         low = lid.lower()
+        # HSK-ART-005: a lane may take over a completed lane's worktree and target together. `tree` is that worktree's
+        # dir and stays the --owner, because the target is bound to one tree. Default: the lane's own new worktree.
+        tree = L.get("tree", low)
         disk = L.get("disk", "d")
         hi = {
             "schema_id": "hsk.studio_mt_host_integration@1",
@@ -69,7 +72,7 @@ effort: high
 
 <topic id="paths" status="active" summary="Owned paths">
 
-## Owned paths (lane worktree `wt-studio-lanes/{low}`, branch `lane/{low}`, base {base})
+## Owned paths (lane worktree `wt-studio-lanes/{tree}`, branch `lane/{low}`, base {base})
 
 {L['paths']}
 
@@ -80,8 +83,8 @@ effort: high
 ## Proof
 
 - Red first per item, proven red by running it; keep compiling red commits, a pushed red commit must compile the round units of the changed crates and direct dependents and fail only its own new tests.
-- One bundled run on {disk_word} (`lane-check.sh --owner {low}{disk_arg}`): step 0; {L['suites']}; doctests if added.
-- Push when that run is green: rebase on `origin/codex/handshake-studio-assets`, `lane-check.sh --owner {low}{disk_arg} --per-sha origin/codex/handshake-studio-assets`, push on `PER_SHA_RESULT OK` with the guarded sha form.
+- One bundled run on {disk_word} (`lane-check.sh --owner {tree}{disk_arg}`): step 0; {L['suites']}; doctests if added.
+- Push when that run is green: rebase on `origin/codex/handshake-studio-assets`, `lane-check.sh --owner {tree}{disk_arg} --per-sha origin/codex/handshake-studio-assets`, push on `PER_SHA_RESULT OK` with the guarded sha form.
 - If origin moves after your bundled run: when the commits touch none of your crates, rebase, `--per-sha`, your new tests only, push; when they touch one of your crates, run that crate's suite once, then the same. Do not repeat whole runs for a move. The next full round proves the union.
 - Set READY_FOR_VALIDATION on a pushed commit. Never claim PASS.
 
@@ -94,7 +97,7 @@ effort: high
             "lane": lid,
             "status": None,
             "phase": "build",
-            "worktree": f"wt-studio-lanes/{low}",
+            "worktree": f"wt-studio-lanes/{tree}",
             "base": base,
             "commits": [],
             "capabilities_done": [],
@@ -106,7 +109,7 @@ effort: high
             "next": f"builder: red first, one bundled run on {disk_word}, push when green",
             "updated_at": now,
             "host_integration": hi,
-            "notes": {"dispatched_at": now, "disk": disk_word[0], "closes": L["closes"], "closes_candidates": L["mts"]},
+            "notes": dict({"dispatched_at": now, "disk": disk_word[0], "closes": L["closes"], "closes_candidates": L["mts"]}, **({"reuses_tree_and_target": tree} if tree != low else {})),
         }
         dump(f"{S}/builders/lanes/{L['file']}.json", lane, 2)
         led["lanes"].append({

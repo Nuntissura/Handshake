@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-06T20:02:37Z",
+ "updated_at": "2026-11-07T05:14:28Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -21432,8 +21432,60 @@
      "18:05Z": 6.4,
      "18:48Z": 9.3,
      "19:40Z": 8.5
+    },
+    "opened": {
+     "at": "2026-11-07T05:14:28Z",
+     "commit_free_gb": 120.5,
+     "note": "Chrome open at 14.1 GB; the Operator also said to start working again."
     }
    }
+  },
+  "workflow_20261107": {
+   "at": "2026-11-07T05:14:28Z",
+   "operator_words": [
+    "record the new suggest workflow so future sessions and handoffs use it. then start working again, worktrees are allowed only if you merge en remove them after completion.",
+    "chrome stays open because i am using it.",
+    "also manage cargo better. reuse when posible, remove only after inspection of the proposed cargo removal/ or partially removal"
+   ],
+   "authority": [
+    "Codex CX-GIT-001A",
+    "root HSK-ART-005",
+    "HANDOFF.md topic workflow"
+   ],
+   "lead_readings": {
+    "suggested_workflow": "The 'what would speed it up' list the lead gave the Operator on 2026-11-07, plus the lessons behind it. The rules are in HANDOFF.md topic workflow.",
+    "remove_only_after_inspection": "The inspection goes to the Operator, who approves the exact list (CX-107, takeover prompt). Overrulable: the Operator's words do not say who inspects.",
+    "complete": "PASS verdict and no next lane reusing the worktree."
+   },
+   "lane_branches": [],
+   "target_reuse": {},
+   "why": {
+    "window": "2026-11-06T02:28Z to 2026-11-07T03:43Z, about 25 hours",
+    "hours": {
+     "finish five paused lanes, 30 commits": 4.9,
+     "rounds R57 and R58": 7.9,
+     "fix markers on reversed clips, one lane, 11 commits": 4.5,
+     "nothing running, R59 held for memory": 7.5
+    },
+    "causes": [
+     "Test runs took 3 h 48 in R57 and R58 against about 2 h 03 for like sizes on 1 and 2 November; cause UNVERIFIED.",
+     "Lead errors on one lane: a wrong hand check before R58, and a pair rule that failed review.",
+     "One builder from 2026-11-06T11:29Z: the lead held new lanes on CX-GIT-001 and asked inside long messages.",
+     "A 40 GB memory gate that was the lead's judgement."
+    ],
+    "not_inspected": "Why no product commits carry author dates 25 to 29 October."
+   },
+   "memory_reading": {
+    "at": "2026-11-07T05:14:28Z",
+    "commit_free_gb": 120.5,
+    "commit_limit_gb": 177.9,
+    "chrome_private_gb": 14.1,
+    "chrome_processes": 61,
+    "page_file": "system-managed, 50 GB allocated, 1.7 GB in use"
+   },
+   "lead_error": "44 lane_watch.sh and r59_gate.sh processes kept running after the lead stopped their tasks, some since 2026-11-06T02:30Z, through R57 and R58. Found and stopped 2026-11-07. Their effect on those rounds is UNVERIFIED; commit free was 3.9 GB right after stopping them, so they were not the memory shortage. lane_watch.sh now ends itself.",
+   "cargo_inspection": "research/cargo-inspect-20261107-C.json",
+   "worktree_question_closed": "direction.after_r57_20261106.blocked_on_operator.new_lane_worktrees: answered by the Operator with this condition."
   }
  },
  "round_R45": {

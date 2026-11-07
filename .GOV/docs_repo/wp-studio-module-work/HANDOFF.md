@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-HANDOFF
 file_kind: handoff
-updated_at: 2026-11-05T22:59:01Z
+updated_at: 2026-11-07T05:14:28Z
 wp: WP-KERNEL-STUDIO
 authority: Handshake Codex, KERNEL_BUILDER_PROTOCOL, START_LOG.md, ledger.json, validation/*, builders/briefs/wave-parity-2-common.md, builders/studio-env.sh (this file is a projection; they win on conflict)
 previous_version: handoff-archive/HANDOFF-20261101.md
@@ -23,27 +23,27 @@ READ FIRST, in this order. The repo's authority wins over your preferences and o
 2. .GOV/codex/Handshake_Codex_v1.4.md (CX-VAL-001..011, CX-VERIFY, CX-MODULE-LIFECYCLE).
 3. .GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md.
 4. .GOV/docs_repo/wp-studio-module-work/HANDOFF.md, every topic. It holds the truth check of 2026-11-05, the Vulkan GUI pivot, current state and work order.
-5. In the same folder: ledger.json key direction (pause_20261105 first), builders/briefs/wave-parity-2-common.md, builders/DISPATCH_TEMPLATES.md.
+5. In the same folder: ledger.json key direction (workflow_20261107 first), builders/briefs/wave-parity-2-common.md, builders/DISPATCH_TEMPLATES.md.
 Verify every claim against files, git and command output. Label what you cannot verify UNVERIFIED. Do not write agent-local memory.
 
-STATE: dev is paused. Nothing is running. Product origin 1940292c. Four lanes are READY for STUDIO-R57, five are paused and not on the product branch (their commits are on GitHub backup branches), and R57 must be a FULL round.
+STATE: read the state topic and ledger.json; this prompt holds no fixed state.
 
 FIRST STEPS:
-1. Confirm: no cargo, rustc or nextest process running; product origin; the five lane tips in the state topic, locally and on their backup branches.
-2. Report to the Operator in plain words where things stand, then put the open Vulkan decisions O1, O3 and O6 to them (vulkan-gui-pivot topic). They decide what the GUI restart looks like.
-3. Finish the paused lanes with fresh builders, one lane pushing at a time. Each lane file's `next` holds its exact steps. Prompt in the dispatch-prompts topic.
-4. Dispatch STUDIO-R57, FULL, when no lane is building on C:. Prompt shape: validation/dispatch-prompt-R56.txt.
-5. Then follow the next-work topic.
+1. Confirm which cargo, rustc or nextest processes are running and who started them; product origin; lane statuses in ledger.json.
+2. Report to the Operator in plain words where things stand, then put open decisions to them one at a time (workflow topic).
+3. Follow the workflow topic, then the next-work topic.
 
 DO:
 - Follow the Operator's instructions directly and fully. Do not hand instructions back or ask them to re-confirm a decision. Operator decides scope, pace and stopping.
 - Keep lane state in ledger.json, one line per event in START_LOG.md, and update HANDOFF.md before any pause.
 - Guard every push: SHA=$(git rev-parse HEAD) && [ -n "$SHA" ] && git push origin "$SHA:refs/heads/<branch>". Commit with git -c core.fscache=false, path-limited. End commit messages with the Co-Authored-By line your session specifies.
 - Report your own and your agents' mistakes plainly. Check what agents report before you repeat it: they state mistakes as confidently as facts.
+- Follow the workflow topic: several lanes at once, reuse before building, close what you open, inspect before proposing a removal.
 
 DO NOT:
 - No new egui, eframe, winit, wgpu, naga or WGSL line. Studio GUI lanes stay paused (D1, D6, D7, D8).
-- Do not delete anything (files, branches, worktrees, build targets) without explicit Operator approval in the same turn; deletions only through a guarded script. Never delete or force-push a remote branch. No git reset --hard, git clean or worktree removal without approval.
+- Do not delete anything (files, branches, worktrees, build targets) without explicit Operator approval in the same turn; deletions only through a guarded script. The one standing approval: a completed lane's worktree and local lane branch, through tools/lead/lane_close.sh (Codex CX-GIT-001A). Never delete or force-push a remote branch. No git reset --hard or git clean without approval.
+- Do not ask the Operator to close Chrome; they use it.
 - Do not stop processes your session did not start.
 - Do not create, confirm or edit gameplan steps for Studio, reinstall the gameplan hook, or edit the Operator's global config.
 - Do not touch WP-KERNEL-012 files. Do not integrate Studio into Handshake.
@@ -84,7 +84,7 @@ Studio is the Handshake creative module that unifies raster imaging, vector illu
 **Phase now:** engine lanes under the HOST INTEGRATION rules. GUI lanes are paused for the Vulkan pivot. Engine work has moved through video timeline, layout, type and session in the last rounds.
 
 **How work runs:**
-1. The lead scopes a lane: brief, lane file, ledger row, worktree in `wt-studio-lanes/<lane>`.
+1. The lead scopes a lane: brief, lane file, ledger row, and a reused or new worktree in `wt-studio-lanes/` (workflow topic).
 2. A builder writes red tests first, then the fix, runs one bundled check, and pushes after a per-commit compile check.
 3. A separate validator round judges every READY claim at a frozen sha, adversarially. Rounds are full or scoped (CX-VAL-011 decides; R54 was full, R55 and R56 scoped, so R57 must be full).
 4. Findings become lanes. Decisions go to the Operator or the spec owner as SD items.
@@ -246,17 +246,35 @@ These replaced D11 (eframe plus wgpu window) as a product path. Spec: v02.226..2
 
 </topic>
 
+<topic id="workflow" status="active" updated_at="2026-11-07T05:14:28Z" summary="How the work runs from 2026-11-07, on the Operator's instruction">
+
+## Workflow from 2026-11-07
+
+**Source:** the Operator, 2026-11-07, on the lead's suggested list: "record the new suggest workflow so future sessions and handoffs use it", "worktrees are allowed only if you merge en remove them after completion", "chrome stays open because i am using it", "also manage cargo better. reuse when posible, remove only after inspection of the proposed cargo removal/ or partially removal". **Authority:** Codex CX-GIT-001A, root HSK-ART-005, `ledger.json` `direction.workflow_20261107`, which also holds the account of why this changed.
+
+1. **Keep several lanes running.** One builder per lane, disjoint files, one lane pushing at a time. A round takes hours, so it should judge many fixes, not one. If the team shrinks to one builder, tell the Operator why.
+2. **New lane: reuse first.** Run `tools/lead/target_report.py`. Take a completed lane's clean worktree and its target together, choosing the one whose built crates overlap most: confirm its tip is on origin, then `git -C "$W/<old lane>" switch -c lane/<new lane> <base>`. Give `lanegen` `tree=<old lane>`; `--owner` stays the old lane's dir, because the target is bound to that tree. Add the branch to `direction.workflow_20261107.lane_branches`. Never point two trees at one target (`diagnostics/stale-artifacts.md` M2). Only if nothing fits, create a new worktree. sccache is not the answer: measured at 0% hits across lane targets on 2026-10-20 (`START_LOG.md`), so do not retry it unless that cause changed.
+3. **Close what you open.** A worktree stays only until its lane is complete: PASS verdict and no next lane reusing it. Then `bash tools/lead/lane_close.sh <dir> <LANE-ID>` (dry run) and again with `--apply`. It checks the verdict, a clean tree, that the tip is on origin, and that no process names the tree. It removes with native Git only and writes a read-only record. If it stops, stop: no manual cleanup. The roughly 100 older worktrees are not covered: list them for the Operator.
+4. **Cargo removal: inspect, propose, then approve.** Before proposing any removal, inspect with `tools/lead/target_report.py` and show what each part holds and what would rebuild. Prefer the partial removal that keeps compile reuse: test binaries take most of the space (47 of 51 GiB in `smb-pr-retime-output-1`) and cost only a relink, while third-party libraries are about 1.7 GiB and cost a compile. Lead's reading: the Operator still approves each exact list (CX-107). Unchanged: incremental stays off, the registry cache is never removable, C: tree cap 360 GiB.
+5. **Decisions go to the Operator one at a time, in the next-step box.** A question buried in a long message can go unseen: CX-GIT-001's went unanswered for about 16 hours while the team ran one builder. Keep the rest in the `operator-items` topic.
+6. **Chrome stays open.** Do not ask to close it. Measure commit free before a round and record it. If it is under 40 GB (the lead's judgement, not a measurement), say so and let the Operator decide; builders then use `CARGO_BUILD_JOBS=2`. The page file is system-managed, so the commit limit moves (199.5 GB, later 177.9 GB). Rounds take no runtime override (CX-VAL-007).
+7. **Do not let one edge case hold the team.** The fix budget (CX-EXEC-015) still ends a loop at 3. Keep other lanes moving during it. Before ruling on behaviour, read the code and ask what kind of clip or row it is; give a validator the lead's checks as claims to break.
+8. **Watch test-run time.** Compare each union's duration when recording a round. On file: R52 92 units 2 h 03; R54 160 units 2 h 03; R56 94 units 2 h 23; R57 160 units 3 h 48; R58 91 units 3 h 48. The slowdown's cause is UNVERIFIED; 44 of the lead's leftover watchers and a Chrome memory shortage were both present during R57 and R58. Look into a scoped union over 3 hours.
+9. **Leave no processes behind.** `lane_watch.sh` now ends itself after `WATCH_MAX_S`. After stopping a watcher, count what is left. Before any pause, confirm none remain.
+
+</topic>
+
 <topic id="state" status="active" summary="Current state at the pause of 2026-11-05">
 
-## Current state (2026-11-06, new lead running)
+## Current state (2026-11-07, new lead running)
 
-**Authority:** `ledger.json` `direction.resume_20261106` and `direction.after_r57_20261106`, `validation/round-R57.json`. They supersede the pause text below, which is kept for history.
+**Authority:** `ledger.json` `direction.workflow_20261107`, `direction.resume_20261106` and `direction.after_r57_20261106`, `validation/round-R57.json`. They supersede the pause text below, which is kept for history.
 
 - All five paused lanes landed; product origin 4ffe1b06 at STUDIO-R57 FULL: 406 PASS, 1 FAIL. HIGH F-R56-1 closed on the crash.
 - STUDIO-R58 at 89bbf702: 325 PASS, 1 FAIL. SMB-PR-MEDIA-MARKERS-1 is FAIL_V2 on reversed audio (F-R58-1); fix budget 2 of 3, so one more FAIL escalates to the Operator. Repaired on origin at c4d06841, READY, SAFE_TO_JUDGE by the third V4-13 read (`research/pre-review-r59-media-markers.json`). Approach changed under CX-EXEC-003 after three attempts: alignment reads the continuous mapping on every clip, appearing reads keep the frame law on Video (`direction.after_r58_20261106.approach_change`).
-- NEXT ACTION: dispatch STUDIO-R59 with `validation/dispatch-prompt-R59.txt` (general-purpose, opus, xhigh) as soon as the memory gate opens: commit free at least 40 GB, or the Operator says start (`direction.after_r58_20261106.r59_memory_gate`). Chrome held about 140 GB, commit free about 8 GB. A full round is due by R60 (CX-VAL-011).
+- NEXT ACTION: read STUDIO-R59 when it is recorded (`validation/dispatch-prompt-R59.txt`). The memory gate opened on 2026-11-07: commit free 120.5 GB with Chrome open at 14.1 GB. A full round is due by R60 (CX-VAL-011).
 - Lead error on record: the new lead approved a merge_sync pin by a hand check that missed the row's clip was audio. Withdrawn. Lesson: ask what kind of clip a row holds before reasoning about frames, and give a validator the lead's checks as claims to break.
-- New lanes are held: CX-GIT-001 bans creating worktrees and branches and the new-lane step below does both. No Operator exception is on record; the question is with the Operator. Remediation in an existing lane worktree is unaffected.
+- New lanes are allowed again under Codex CX-GIT-001A, on the Operator's condition: merge, then remove (workflow topic).
 - Open with the Operator: O1, O3, O6 (lead's picks in the session report: O1 yes through a separate new WP while WP-012 keeps its pin; O3 wgpu only, WGSL compiled by naga; O6 window-free Viewer logic only), cleanup list, waivers (F-R57-14).
 - Lead reading on SD-67 withdrawn and SD-64 revised on F-R57-3 and F-R57-2.
 - C: physical free fell 415 to about 240 GB outside Studio's tree (cause UNVERIFIED). R57's default build took 28 m against 13 m from outside load.
@@ -354,7 +372,7 @@ Dispatch in the background and wait for the notification; do not poll. A builder
 
 **New lane.**
 1. Read the code and write facts into the brief: exact clauses to grep, file:line, what is out of scope.
-2. `git -C "$W/<existing lane>" worktree add -q -b lane/<lane> "$W/<lane>" <base>`.
+2. Reuse a completed lane's tree and target (workflow topic, item 2). Only if nothing fits: `git -C "$W/<existing lane>" worktree add -q -b lane/<lane> "$W/<lane>" <base>`, which must be removed after completion (CX-GIT-001A).
 3. Write brief, lane file and ledger row (`tools/lead/lanegen.py`), commit and push, then dispatch.
 
 Every brief needs: V4-06 failure-class sweep, red first, hostile input, host_integration block, MT rows to read, what not to touch. Keep builders' commit counts modest: a `--per-sha` hold grows with commits and dependents (12 commits on folio and session held D: for about 55 minutes).
@@ -365,7 +383,7 @@ Every brief needs: V4-06 failure-class sweep, red first, hostile input, host_int
 
 **Short path after a move of origin:** if the new commits touch none of a lane's crates: rebase, `--per-sha`, new tests only. If they touch one: that crate's suite once. The next full round proves the union. Do not repeat whole runs for a move.
 
-**Disk.** Two lock queues, C: and D:. At most 6 live lane targets per disk (P3); a PASS lane's target is listed for approved deletion (P2). The lead reads "live" as not yet PASS. When no round is running, moving queued builders to C: cuts their lock wait.
+**Disk.** Two lock queues, C: and D:. At most 6 live lane targets per disk (P3); a PASS lane's target is a reuse candidate first, and is proposed for whole or partial removal only after inspection (HSK-ART-005, workflow topic item 4). The lead reads "live" as not yet PASS. When no round is running, moving queued builders to C: cuts their lock wait.
 
 **Red commits.** A pushed red commit must compile and fail only its own new tests. Do not tell builders that no pushed commit may fail its tests.
 
@@ -373,7 +391,7 @@ Every brief needs: V4-06 failure-class sweep, red first, hostile input, host_int
 
 **Windows shell notes.** Long inline heredocs fail in this harness: write scripts and messages with the Write tool. Use `MSYS_NO_PATHCONV=1` for `git show "$O:$A/..."`. Do not run the Grep tool across `.GOV` (6,000+ JSON files time out); use `git grep` in a product tree and python for JSON. A `TaskStop` can leave an agent's child processes alive; agents must stop their own by PID.
 
-**Helpers** (optional, read before use): `tools/lead/lanegen.py`, `tools/lead/record_ready.py`, `tools/lead/mt_prefilter.py`.
+**Helpers** (optional, read before use): `tools/lead/lanegen.py`, `tools/lead/record_ready.py`, `tools/lead/mt_prefilter.py`, `tools/lead/target_report.py`, `tools/lead/lane_close.sh`, `tools/lead/lane_watch.sh`.
 
 </topic>
 
