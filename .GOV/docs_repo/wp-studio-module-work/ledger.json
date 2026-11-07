@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T05:14:28Z",
+ "updated_at": "2026-11-07T05:20:57Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19070,6 +19070,94 @@
     "STUDIO-R57 PASS_V1 @4ffe1b06 (NOT_PROVEN lines: 75, see round-R57.json)",
     "STUDIO-R58 PASS_V2 @89bbf702 (NOT_PROVEN lines: 75, see round-R58.json)"
    ]
+  },
+  {
+   "lane_id": "SMB-PR-ROUTING-REPAIR-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-folio, hsk-studio-session, hsk-studio-pulse, hsk-studio-harness-view (id minting, no drawing)",
+   "lane_file": "builders/lanes/hsk-studio-pr-routing-repair-1.json",
+   "brief": "builders/briefs/lane-smb-pr-routing-repair-1.md",
+   "worktree": "wt-studio-lanes/smb-pr-entry-references-1",
+   "base": "c4d06841",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-07T05:20:57Z",
+   "closes": [
+    "F-R57-2",
+    "F-R57-3"
+   ]
+  },
+  {
+   "lane_id": "SMB-SESSION-WRITE-SAFETY-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness, hsk-studio-harness-core, hsk-studio-harness-view (writers, no drawing), hsk-studio-session",
+   "lane_file": "builders/lanes/hsk-studio-session-write-safety-1.json",
+   "brief": "builders/briefs/lane-smb-session-write-safety-1.md",
+   "worktree": "wt-studio-lanes/smb-pr-sequence-session-1",
+   "base": "c4d06841",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-07T05:20:57Z",
+   "closes": [
+    "hbr-usage top_gaps[3]"
+   ]
+  },
+  {
+   "lane_id": "SMB-HARNESS-DRIVE-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness, hsk-studio-harness-core, hsk-studio-harness-view (non-draw methods only)",
+   "lane_file": "builders/lanes/hsk-studio-harness-drive-1.json",
+   "brief": "builders/briefs/lane-smb-harness-drive-1.md",
+   "worktree": "wt-studio-lanes/smb-pr-edit-footprint-1",
+   "base": "c4d06841",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-07T05:20:57Z",
+   "closes": [
+    "hbr-usage top_gaps[0]",
+    "MT-33547..33557",
+    "MT-33500..33507",
+    "MT-33634..33639",
+    "MT-35107..35133"
+   ]
+  },
+  {
+   "lane_id": "SMB-OBSERVE-DIAG-SINK-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-observe, hsk-studio-harness-core, hsk-studio-harness",
+   "lane_file": "builders/lanes/hsk-studio-observe-diag-sink-1.json",
+   "brief": "builders/briefs/lane-smb-observe-diag-sink-1.md",
+   "worktree": "wt-studio-lanes/smb-r53-followups-1",
+   "base": "c4d06841",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-07T05:20:57Z",
+   "closes": [
+    "hbr-usage rules[8]",
+    "hbr-usage rules[38]",
+    "hbr-usage rules[41]"
+   ]
+  },
+  {
+   "lane_id": "SMB-CONTROLS-EGUI-GATE-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-controls, hsk-studio-harness-core (manifest), tools/workspace-probe.rs",
+   "lane_file": "builders/lanes/hsk-studio-controls-egui-gate-1.json",
+   "brief": "builders/briefs/lane-smb-controls-egui-gate-1.md",
+   "worktree": "wt-studio-lanes/smb-pr-retime-hold-1",
+   "base": "c4d06841",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-07T05:20:57Z",
+   "closes": [
+    "HANDOFF vulkan-gui-pivot: egui optional in controls",
+    "HANDOFF vulkan-gui-pivot: mechanical quarantine gate"
+   ]
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -21457,8 +21545,40 @@
     "remove_only_after_inspection": "The inspection goes to the Operator, who approves the exact list (CX-107, takeover prompt). Overrulable: the Operator's words do not say who inspects.",
     "complete": "PASS verdict and no next lane reusing the worktree."
    },
-   "lane_branches": [],
-   "target_reuse": {},
+   "lane_branches": [
+    "lane/smb-pr-routing-repair-1",
+    "lane/smb-session-write-safety-1",
+    "lane/smb-harness-drive-1",
+    "lane/smb-observe-diag-sink-1",
+    "lane/smb-controls-egui-gate-1"
+   ],
+   "target_reuse": {
+    "SMB-PR-ROUTING-REPAIR-1": {
+     "tree": "smb-pr-entry-references-1",
+     "branch": "lane/smb-pr-routing-repair-1",
+     "previous_branch": "lane/smb-pr-entry-references-1"
+    },
+    "SMB-SESSION-WRITE-SAFETY-1": {
+     "tree": "smb-pr-sequence-session-1",
+     "branch": "lane/smb-session-write-safety-1",
+     "previous_branch": "lane/smb-pr-sequence-session-1"
+    },
+    "SMB-HARNESS-DRIVE-1": {
+     "tree": "smb-pr-edit-footprint-1",
+     "branch": "lane/smb-harness-drive-1",
+     "previous_branch": "lane/smb-pr-edit-footprint-1"
+    },
+    "SMB-OBSERVE-DIAG-SINK-1": {
+     "tree": "smb-r53-followups-1",
+     "branch": "lane/smb-observe-diag-sink-1",
+     "previous_branch": "lane/smb-r53-followups-1"
+    },
+    "SMB-CONTROLS-EGUI-GATE-1": {
+     "tree": "smb-pr-retime-hold-1",
+     "branch": "lane/smb-controls-egui-gate-1",
+     "previous_branch": "lane/smb-pr-retime-hold-1"
+    }
+   },
    "why": {
     "window": "2026-11-06T02:28Z to 2026-11-07T03:43Z, about 25 hours",
     "hours": {
