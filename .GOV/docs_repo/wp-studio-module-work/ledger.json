@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T17:20:57Z",
+ "updated_at": "2026-11-07T17:22:06Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19561,6 +19561,125 @@
     "MT-34496 (read; STU-SHL-061 anti-thrash; no claim)",
     "MT-36250 (read; host workbench proof, an asset-local half at most; no claim)"
    ]
+  },
+  {
+   "lane_id": "SMB-ARTBOARD-EXPORT-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness-view, hsk-studio-folio, hsk-studio-interop-vector-svg, hsk-studio-interop-vector-core, hsk-studio-interop-raster",
+   "lane_file": "builders/lanes/hsk-studio-artboard-export-1.json",
+   "brief": "builders/briefs/lane-smb-artboard-export-1.md",
+   "worktree": "wt-studio-lanes/smb-ai-distort-effects-1",
+   "base": "aa68164c",
+   "disk_planned": "C",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-07T17:22:06Z",
+   "closes": [
+    "workflows/backlog-20261107.json SMB-ARTBOARD-EXPORT-1"
+   ]
+  },
+  {
+   "lane_id": "SMB-PLACE-ASSET-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness-view, hsk-studio-harness-core, hsk-studio-folio, hsk-studio-composite",
+   "lane_file": "builders/lanes/hsk-studio-place-asset-1.json",
+   "brief": "builders/briefs/lane-smb-place-asset-1.md",
+   "worktree": "wt-studio-lanes/smb-pr-sequence-session-1",
+   "base": "aa68164c",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-07T17:22:06Z",
+   "closes": [
+    "workflows/backlog-20261107.json SMB-PLACE-ASSET-1"
+   ]
+  },
+  {
+   "lane_id": "SMB-PR-EXPORT-RECIPE-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-reel",
+   "lane_file": "builders/lanes/hsk-studio-pr-export-recipe-1.json",
+   "brief": "builders/briefs/lane-smb-pr-export-recipe-1.md",
+   "worktree": "wt-studio-lanes/smb-r53-followups-1",
+   "base": "aa68164c",
+   "disk_planned": "C",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-07T17:22:06Z",
+   "closes": [
+    "Fixed sidecar temp name at src/export.rs:866, noted by the lead from SMB-SESSION-WRITE-SAFETY-1",
+    "New finding from this read, not yet run: an item refused or failing in one ExportQueue deletes another queue's live temp in the same process (src/export.rs:755-761, :798, :836)",
+    "New findings from this read, not yet run: sidecar temp leak on failure; Failed receipt with media published; old output deleted before the rename (src/export.rs:1142-1161)",
+    "truth-check top_missing[3], part: 0 of 453 parameter ids; no StudioExportRecipe record (MT-33766 note). Not closed: writers, 704 identities",
+    "Correction to truth-check family container and exporter catalogue, which lists no WAV writer: wav, AIFF and FLAC encoders exist (src/wav.rs:425, src/audio/provider.rs:418) and are reached only by harness-view view/audio_import.rs:723, not by ExportQueue. MixFormat there (audio_import.rs:482) offers FLAC and AIFF only. Input for the next lane, no code change here",
+    "MT-33766",
+    "MT-33767",
+    "MT-33768",
+    "MT-33769",
+    "MT-33770",
+    "MT-33771",
+    "MT-33772",
+    "MT-33773",
+    "MT-33774",
+    "MT-33775",
+    "MT-33776",
+    "MT-33777",
+    "MT-33778",
+    "MT-33779",
+    "MT-33780",
+    "MT-33781",
+    "MT-33782",
+    "MT-33783",
+    "MT-33784",
+    "MT-33785",
+    "MT-33786",
+    "MT-33787",
+    "MT-33788",
+    "MT-33789",
+    "MT-33790",
+    "MT-33791",
+    "MT-33792",
+    "MT-33793",
+    "MT-33794",
+    "MT-33795",
+    "MT-33796",
+    "MT-33797",
+    "MT-33368",
+    "MT-33369",
+    "MT-33370",
+    "MT-33371",
+    "MT-33372",
+    "MT-33373",
+    "MT-33375",
+    "MT-33405",
+    "MT-33406",
+    "MT-33408",
+    "MT-33411",
+    "MT-33418",
+    "MT-33428",
+    "MT-33430",
+    "MT-33431",
+    "MT-33432",
+    "MT-33438",
+    "MT-35261",
+    "MT-35295"
+   ]
+  },
+  {
+   "lane_id": "SMB-DRIVE-TYPED-2",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-harness, hsk-studio-harness-core",
+   "lane_file": "builders/lanes/hsk-studio-drive-typed-2.json",
+   "brief": "builders/briefs/lane-smb-drive-typed-2.md",
+   "worktree": "wt-studio-lanes/smb-pr-edit-footprint-1",
+   "base": "aa68164c",
+   "disk_planned": "C",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-07T17:22:06Z",
+   "closes": [
+    "workflows/backlog-20261107.json SMB-DRIVE-TYPED-2"
+   ]
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -22192,7 +22311,11 @@
     "lane/smb-audio-out-mix-1-d",
     "lane/smb-ui-tree-1-d",
     "lane/smb-project-bin-1-d",
-    "lane/smb-gui-spine-1"
+    "lane/smb-gui-spine-1",
+    "lane/smb-artboard-export-1",
+    "lane/smb-place-asset-1",
+    "lane/smb-pr-export-recipe-1",
+    "lane/smb-drive-typed-2"
    ],
    "target_reuse": {
     "SMB-PR-ROUTING-REPAIR-1": {
@@ -22309,6 +22432,26 @@
      "tree": "smb-pr-entry-references-1",
      "branch": "lane/smb-gui-spine-1",
      "previous_branch": "lane/smb-vk-host-1"
+    },
+    "SMB-ARTBOARD-EXPORT-1": {
+     "tree": "smb-ai-distort-effects-1",
+     "branch": "lane/smb-artboard-export-1",
+     "previous_branch": "lane/smb-doc-new-1"
+    },
+    "SMB-PLACE-ASSET-1": {
+     "tree": "smb-pr-sequence-session-1",
+     "branch": "lane/smb-place-asset-1",
+     "previous_branch": "lane/smb-doc-export-1-d"
+    },
+    "SMB-PR-EXPORT-RECIPE-1": {
+     "tree": "smb-r53-followups-1",
+     "branch": "lane/smb-pr-export-recipe-1",
+     "previous_branch": "lane/smb-audio-out-mix-1-d"
+    },
+    "SMB-DRIVE-TYPED-2": {
+     "tree": "smb-pr-edit-footprint-1",
+     "branch": "lane/smb-drive-typed-2",
+     "previous_branch": "lane/smb-layout-pdf-host-1-d"
     }
    },
    "why": {
