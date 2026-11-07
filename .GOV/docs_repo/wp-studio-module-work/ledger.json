@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T15:24:26Z",
+ "updated_at": "2026-11-07T15:27:13Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19404,8 +19404,8 @@
   },
   {
    "lane_id": "SMB-VK-HOST-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-vulkan, hsk-studio-native-host",
    "lane_file": "builders/lanes/hsk-studio-vk-host-1.json",
    "brief": "builders/briefs/lane-smb-vk-host-1.md",
@@ -19413,10 +19413,11 @@
    "base": "7879e7e974121079e5ac1708a6a1835d064d7465",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-07T08:49:06Z",
+   "updated_at": "2026-11-07T15:27:13Z",
    "closes": [
     "O6 first milestone"
-   ]
+   ],
+   "claim": "177f6183..672a1804"
   },
   {
    "lane_id": "SMB-UI-TREE-1",
@@ -21770,6 +21771,21 @@
     "added_at": "2026-11-07T15:24:26Z",
     "item": "Board profile refused; new commands not recordable; background_fill stored but not rendered; ruler-origin scope, orientation, constrain-proportions and artboard presets; deleting a non-empty artboard or page refused without cascade; mm and in documents render at whole-number sizes only",
     "owner": "later document lanes"
+   },
+   {
+    "added_at": "2026-11-07T15:27:13Z",
+    "item": "demo.handshake opens as no_working_profile in the document feature: a real .handshake document in the window needs a working profile or a fixture that has one",
+    "owner": "SMB-GUI-SPINE-1"
+   },
+   {
+    "added_at": "2026-11-07T15:27:13Z",
+    "item": "Real surface and device loss, owner rebind, IME, pen, per-monitor-v2 DPI, validation layer (needs the Vulkan SDK download, pending the Operator)",
+    "owner": "later Vulkan host lanes"
+   },
+   {
+    "added_at": "2026-11-07T15:27:13Z",
+    "item": "7 clippy warnings (derivable impl, large Err, two complex types, two is_multiple_of, one collapsible if)",
+    "owner": "a later vulkan lane"
    }
   ],
   "pause_20261103": {

@@ -1,19 +1,39 @@
 {
   "crate": "hsk-studio-vulkan, hsk-studio-native-host",
   "lane": "SMB-VK-HOST-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "ready",
   "worktree": "wt-studio-lanes/smb-pr-entry-references-1",
   "base": "7879e7e974121079e5ac1708a6a1835d064d7465",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    "177f6183",
+    "045bb059",
+    "0ab6596a",
+    "672a1804"
+  ],
+  "capabilities_done": [
+    "offscreen clear and CPU buffer readback to PNG, no window",
+    "quiet window, focus_changes 0, swapchain hash equals offscreen hash",
+    "swapchain state machine with injected faults; real resize, minimise, restore without activation",
+    "CPU-painted RGBA buffer presented by vkCmdCopyBufferToImage plus vkCmdBlitImage",
+    "document feature: Viewer::open plus render on render-cpu in the quiet window (PNG source)"
+  ],
+  "tests": {
+    "bundled": "17 of 17 passed, exit 0, lane-check on D: at d39a818f (pre-rebase sha of ef2acdbd); log Handshake_Artifacts/WP-KERNEL-STUDIO/smb-vk-host-1/smb-vk-host-1-bundled-d39a818f.log",
+    "bundled_first": "85cbdf83: 14 of 17, three quiet-window Timeouts (deadline counted driver load), fixed in d39a818f",
+    "per_sha": "PER_SHA_RESULT OK at 8387592d (HEAD~1 range), log smb-vk-host-1-persha-8387592d.log",
+    "post_rebase_check": "cargo check -p hsk-studio-vulkan -p hsk-studio-native-host --tests --features document, exit 0 at ef2acdbd on origin 12133fdf",
+    "validation": "absent",
+    "landing": "pushed 672a1804 on origin base cf6788d6 (SMB-DOC-NEW-1); rebase clean and disjoint (no file of this lane, Cargo.lock, round-features or harness-view manifest touched; Viewer new/open/render_if_dirty/frame/render_error/state_json unchanged), so no run after the last rebase, per lead release"
+  },
   "verdicts": [],
-  "blockers": [],
+  "blockers": [
+    "demo.handshake: no_working_profile (harness-view render.rs:391), outside lane paths; pinned as a typed refusal test"
+  ],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-07T08:49:06Z",
+  "next": "validator: judge origin 672a1804; never PASS by builder",
+  "updated_at": "2026-11-07T15:25:57Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -38,6 +58,30 @@
       "O6 first milestone"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-pr-entry-references-1"
+    "reuses_tree_and_target": "smb-pr-entry-references-1",
+    "first_capture": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-vk-host-1/first-capture-painted-window.png",
+    "document_capture": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-vk-host-1/document-window-capture.png",
+    "root_edits_lead_approved": "Cargo.lock native-host dependency list only; .config/round-features.toml hsk-studio-native-host = [[\"document\"]]; png and sha2 dep-requests lines",
+    "not_proven": "real surface and device loss (pure machine only), owner rebind, OS IME, AccessKit, pen, PMv2 beyond IsProcessDPIAware, red-first runs, validation layer",
+    "review": "research/review-smb-vk-host-1-a7e966f1.json F1-F4 fixed in fbc194aa",
+    "clippy_warnings_accepted": [
+      "owner.rs: impl Default for OwnerConfig can be derived",
+      "owner.rs open_device: Err variant very large (Refusal, Option<ash::Instance>)",
+      "present.rs: very complex type",
+      "scene.rs:120 manual is_multiple_of (two sites)",
+      "window.rs: very complex type (report tuple)",
+      "window.rs: collapsible if"
+    ],
+    "ready_at": "2026-11-07T15:25:57Z",
+    "ready_tip": "672a18040ecb343eb4c98a1cc1f453a3f04ea389",
+    "ready_base": "cf6788d68cb5cea826386d211cb575c5a3c9c6b0",
+    "ready_log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-vk-host-1/smb-vk-host-1-bundled-d39a818f.log (17/17, same tree content as 672a1804 for the two crates)",
+    "lead_decisions": [
+      {
+        "at": "2026-11-07T15:27:13Z",
+        "on": "landing order",
+        "decision": "Released ahead of SMB-DOC-EXPORT-1 because its push needed no run and it is on the GUI critical path; doc-export was told to expect it."
+      }
+    ]
   }
 }
