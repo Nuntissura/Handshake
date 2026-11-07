@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T05:43:00Z",
+ "updated_at": "2026-11-07T06:11:48Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -21609,7 +21609,28 @@
     "research/cargo-inspect-20261107-D.json"
    ],
    "worktree_question_closed": "direction.after_r57_20261106.blocked_on_operator.new_lane_worktrees: answered by the Operator with this condition.",
-   "cargo_proposal": "research/cargo-cleanup-plan-20261107-R.json"
+   "cargo_proposal": "research/cargo-cleanup-plan-20261107-R.json",
+   "cargo_proposal_approved": {
+    "at": "2026-11-07T05:57:18Z",
+    "words": "Approve the list",
+    "condition": "after STUDIO-R59 is recorded, with a fresh inspection; a changed candidate needs fresh approval"
+   }
+  },
+  "operator_direction_20261107": {
+   "at": "2026-11-07T06:11:48Z",
+   "operator_words": [
+    "take over development, i am going to bed. use parallel agents where posible delegate and orchestrate work.",
+    "you are allowed to expand scope, create extra mt, and manage asigned diskpace/folders. make sure no stray cargo builds happen. use red team and code check sub agents to inspect work before expensive cargo builds. minimal testing and no busy work if this does not help progress. i expect rapid code implementation. i rather have width and depth in all the adobe suite, figma and afinity clones tools and features. and a working coherent GUI. and then fix what is broken. use also a gui designer for the vulkan work, and a workflow agents that describes a profesion workflow and toolcalls an agent or human would do to finish a profesion project from start to end to create multiple scenes and workflows so we can check if tools work and the gui works or if tool layout or panel layuout is clean, has fitting and coherent behaviour and look etc.",
+    "resolve all blockers on your own, deliberate with a fitting agent team on the blockers, this include also the gui/vulkan work."
+   ],
+   "replaces": "The takeover prompt's 'GUI lanes stay paused' and the HANDOFF work order's priority. D1, D7 and D8 stand.",
+   "kept": "Independent verdicts: only a validator says PASS, and READY means unjudged. No force pushes. Studio is not integrated into Handshake. refund-claim-20261021.md untouched. Protected branches and worktrees.",
+   "lead_readings": {
+    "minimal_testing": "Fewer builder runs and fewer rounds; rounds that run still follow CX-VAL. Nothing gets called PASS without a verdict.",
+    "manage_disk": "Not acted on beyond approved lists. The lead's edit relaxing root HSK-ART-005 was refused by the harness's permission check on 2026-11-07, so removals still need the Operator's approval of the exact list. Plan R has it. For the Operator to decide."
+   },
+   "root_authority_not_changed": "CLAUDE.md and AGENTS.md were not edited for this direction.",
+   "review_prompts": "builder lanes get read-only code-check and red-team agents before the bundled run; they report only what would break or be wrong."
   }
  },
  "round_R45": {

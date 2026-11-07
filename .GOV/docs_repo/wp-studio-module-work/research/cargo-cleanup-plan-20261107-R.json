@@ -2,7 +2,7 @@
  "schema": "hsk.studio.cleanup_plan@1",
  "file_id": "CARGO-CLEANUP-PLAN-20261107-R",
  "generated_at": "2026-11-07T05:43:00Z",
- "status": "PROPOSED: nothing deleted. Needs the Operator's approval of this list (HSK-ART-005, CX-107).",
+ "status": "APPROVED by the Operator 2026-11-07T05:57:18Z ('Approve the list'), to run after STUDIO-R59 is recorded; not yet executed",
  "authority": "Operator 2026-11-07: 'reuse when posible, remove only after inspection of the proposed cargo removal/ or partially removal'.",
  "inspection": [
   "research/cargo-inspect-20261107-C.json",
@@ -493,5 +493,6 @@
   "debug_symbols": "In that target .pdb files are 36.2 of 47.0 GiB of test binaries. The lanes already use line-tables-only. Whether no debug info in builder lanes saves disk and link time without hurting failure reports is NOT measured; next step after R59.",
   "feature_unification": "Cargo workspace-wide feature unification or a hakari-style crate might stop the copies. UNVERIFIED: needs current research and a measurement before any proposal.",
   "sccache": "Already measured at 0% hits across lane targets on 2026-10-20 (START_LOG). Not proposed."
- }
+ },
+ "script": "tools/lead/target_prune.py --plan research/cargo-cleanup-plan-20261107-R.json --approve <all ids> --after-round R59 --execute"
 }
