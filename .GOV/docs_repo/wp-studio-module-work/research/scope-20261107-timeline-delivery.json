@@ -1,0 +1,218 @@
+{
+  "id": "SMB-PR-EXPORT-RECIPE-1",
+  "file": "hsk-studio-pr-export-recipe-1.json",
+  "brief": "lane-smb-pr-export-recipe-1.md",
+  "crate": "hsk-studio-reel",
+  "crates_head": "c4d06841",
+  "summary": "StudioExportRecipe with the 453-row export parameter dictionary and declared container capabilities, consumed by the real export path, plus the export publish-safety fixes; no new writer.",
+  "target": "## Target\n\nSpec: resolve `.GOV/spec/SPEC_CURRENT.md`, v02.229, module `14-studio-creative-suite.md`; `SM:` below is a line in that module. Code: `crates/hsk-studio-reel/` at c4d06841 unless named. Nothing was run; every code fact is read.\n\n**The gap.** Spec law says every output is a `StudioExportRecipe`, a typed parameter set (STU-VID-060 SM:24889, STU-IO-101 SM:21135). No such record exists: the name appears in no code at c4d06841, and `ExportRecipe` is four fields (`src/export.rs:106`). 0 of the 453 parameter identifiers of STU-VID-061 are in code (no `ADBE` token in `crates/`). STU-VID-062 (SM:25503) wants each container to declare what it carries; today that knowledge exists only as refusals inside `check_combination` (`src/mux.rs:224`). So each later writer would invent its own settings, and a preset is six hand-built Rust values (`src/presets.rs:47`). Separately, the export publish step can destroy other work (item 1).\n\nThis lane does not add a writer. It builds the contract every writer plugs into and makes the real export path consume it. The next lane adds writers (`next_slices`). Say so in your report: a table nothing reads is not reach, which is why items 5 and 6 are required.\n\n### 1. Publish safety, red first (reported by the lead from SMB-SESSION-WRITE-SAFETY-1; that lane's owned paths exclude reel)\n\nNew file `tests/export_publish_safety.rs`, with `dir` and `entries` shaped like `tests/export_queue.rs:107`, `:114`. Each red proven by running.\n\na. **Fixed sidecar temp.** `src/export.rs:864-867` names it `<output stem>.vtt.partial`, and `:1146` `std::fs::write` overwrites whatever is there. Red: a sentinel file at that exact name survives a captioned export byte for byte. Fix: unique name, `create_new`, same directory.\n\nb. **Another queue's temp is deleted.** `temp_path` (`:755-761`) uses pid plus item id, and every `ExportQueue` restarts ids at 1 (`:372`, `next_id` default 0). `run_item` computes the temp before `plan` (`:798`) and on ANY error removes it (`:836`), though the comment says \"Our own temp file only\". So in one process, queue B on the same output, refused in `plan` or failing `create_new` (`:1076`), removes queue A's live temp. Red: queue A held mid-run by a barrier in its video source, queue B runs on the same output and refuses, then A is released: A must end Complete with its file published. STU-IO-162 (SM:21418) says never by racing. Fix: a process-wide counter in the temp name, and remove only a temp this item created.\n\nc. **Sidecar temp leak.** `run_item` removes `temp` only (`:836`). Any failure after `:1146` (`:1153`, `:1155`) leaves the sidecar temp. Red: output path is a directory with `overwrite` true, captions with sidecar on; after the Failed receipt `entries` shows no temp.\n\nd. **Failed receipt with media published.** `:1155` renames the media, then `:1158` `remove_file(side)` or `:1160` can fail. Red: `<output>.vtt` is a directory with `overwrite` true. Today the receipt says Failed while the new media is on disk, against the module doc at `:19-20` and `:25-26`. Fix: refuse in `CaptionPlan::new` (`:858`) when the sidecar path is a directory. For a rename failure that cannot be pre-checked, the receipt must state what was published. Choose and state the order.\n\ne. **Remove before rename.** `:1152-1154` and `:1157-1159` delete the old file first, so a failed rename loses it, against `:19-20`. Rust `std::fs::rename` replaces an existing file on Unix and Windows and fails when the target is a directory (source in `research_basis`), so remove the deletes. A failing rename is hard to force, so prove what you can and state the rest.\n\nV4-06 sweep for this class in reel and reel-native. The read found only `src/export.rs:760`, `:836`, `:866`, `:1076`, `:1146`, `:1148`, `:1153`, `:1155`, `:1158`, `:1160`; reel-native has no hit for `fs::write`, `fs::rename`, `remove_file`, `create_new` or `File::create` under `src/`. List each site, fixed or not applicable with a reason. Do not touch harness-view writers: SMB-SESSION-WRITE-SAFETY-1 owns them.\n\n### 2. Parameter dictionary (MT-33767..33797, STU-VID-061 SM:24894, 061b SM:24924)\n\nNew `src/export_parameters.rs` and a data file beside it, all 453 rows of the facet tables at SM:24952..25501, one const row each.\n\nRow fields, named as STU-IO-102 SM:21137: `identifier`, `label` (Option), `type_code`, `facet`, `hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision`, `is_slider`, plus provenance `used_by_preset_count`, `used_by_formats`, and `bound_state` with the five tokens of STU-FX-106 SM:12816.\n\nClosed enums: 12 type codes (STU-IO-104 SM:21162), 14 facets (STU-IO-105 SM:21181).\n\nType column to code, with measured counts: `signed integer` 226 signed_integer; `tab or section group` 72 tab_group; `container / group header (no value of its own)` 71 group_header; `enumerated integer chosen from a constrained list` 24 enumerated_integer; `floating point` 23 floating_point; `button / action (no stored value)` 18 action; `file or folder path string` 11 path; `boolean` 3 boolean; `multi-instance group (repeating rows)` 2 repeating_group; `opaque / arbitrary data` 1 opaque; `colour` 1 colour; `string` 1 string.\n\nFacet counts (the spec table and my parse agree): other 178, publishing_destination 86, video_codec 41, audio 36, rate_control 34, colour 22, layout 16, gop_structure 13, multiplexing 10, video_frame 5, vr_immersive 5, captions 4, metadata 2, performance 1.\n\nMeasured bound shapes, all 453: none declared 365; `hard_max` only 8 (`ADBEVideoJ2KColorPrimaries`, `ADBE10BitBlackPoint`, `ADBE10BitWhitePoint`, `ADBEBlackPoint`, `ADBEHighlight`, `ADBEWhitePoint`, `VideoVariableBitrateType`, `EXRCompressionLevel`); `false`/`false` 14; equal numeric pair 35 (signed 15, tab group 19, opaque 1); min above max 2; `0,0` text 1; true range 28. Soft, default and unit are `--` on all 453; precision is 2 on 209 and `--` on 244; slider yes on 37; labels on 44.\n\nTraps. Do not \"clean\" any of these; store them as the table says:\n- `--` is absent, never 0, never unbounded by decision, never copied from its twin (061b, STU-IO-103 SM:21160). STU-FX-106 tells `declared_hard_only` to set soft equal to hard; STU-IO-103 and 061b forbid that for export. Follow the export clauses and name it in notes.\n- `ADBEVideoCodec` (SM:25465) and `ADBEAudioCodec` (SM:25437) declare 0 and -1. `hard_min <= hard_max` is false, and an honest range check refuses every value.\n- 15 more signed-integer rows declare 0/0, for example `ADBEExportColorSpace` SM:25013. 061b explains 0/0 only for group headers.\n- `ADBEVideoFPS` (SM:25486) is typed boolean with bounds 1..254016000000: it is ticks per frame (STU-IO-142 SM:21337).\n- `ADBEVideoAspect` (SM:25485) declares the text `0,0`.\n- `ADBEAudioNumChannels` (SM:24972) declares -51..32.\n- `ADBEFTPPassword` (SM:25313) is typed enumerated integer; refresh tokens are typed path.\n- Identifiers `0`, `13`, `51` and other bare numbers are real rows.\n- `ADBEAudioCodec` says used by 1701 presets, above the 1,541 of STU-VID-061: do not assert an upper bound.\n- Three labels are sentences (SM:25416, :25417, :25419): keep them verbatim.\n\nProof:\n- `tests/fixtures/stu-vid-061b-rows.txt` holds SM:24952..25501 verbatim. SHA-256 of those lines, LF-joined with a trailing LF, is c19e4b92f419d768904ce66fc4336dc914b2cbb3457978608cbb9292fff89ab3 (58,934 bytes), measured from v02.229. The test normalises CRLF, pins that hash, parses every row, and compares every cell to the const table.\n- Tests: per-facet counts; 453 distinct; 44 labelled; every soft, default and unit field absent; STU-IO-144's worked example `ADBEAACAudioMode` hard 0..3, precision 2.\n- A table typed by hand or by a throwaway generator is fine. Commit no generator (repo governance minimisation), add no `build.rs`, read nothing from the spec at build or test time.\n\n### 3. Honest labels and units (STU-IO-106 SM:21183, STU-VID-061a SM:24919, 061b item 4)\n\n`label_source` on each row: `recovered` for the 44, `identifier_fallback` for the 409. Author no label and no unit in this table. `unit` is typed so `undeclared` differs from `dimensionless`. A public coverage count returns (453, 44, 409).\n\n### 4. `StudioExportRecipe` and validation (STU-IO-101, 103, 108, STU-VID-063 SM:25554)\n\nNew `src/export_recipe.rs`. Record: `recipe_id`, `name`, `target_format`, `parameters` (BTreeMap of identifier to typed value), `source_scope`, `output_targets`, `does_video`, `does_audio`, `metadata_export_option`, `standard_filters`. `target_format` carries the exporter identity, per STU-IO-141 SM:21335 and STU-IO-108 SM:21187. Lead reading, overrulable: class id = `MUXER_ID` (`src/mux.rs:38`), file type = `Container::as_str`.\n\nUse a new error type with `code()`; do not add a `ReelError` variant. `ReelError` derives `Eq` and is matched exhaustively in `src/report.rs`, so a value-carrying variant would ripple.\n\nRefusals, all before any frame, none clamping (spec token where one exists):\n\n| Case | Code | Clause |\n|---|---|---|\n| Value outside a declared usable hard bound | `EFFECT_PARAM_OUT_OF_RANGE`, naming identifier, value, both bounds | STU-FX-104 SM:12785 |\n| Value on a row with no declared bound | accepted unclamped at this stage | STU-IO-103 |\n| One-sided row | known side enforced, other not | STU-FX-104 |\n| Non-finite number; wrong value kind | typed refusal | V4-01 |\n| Value on type codes 1, 7, 8, 11 | typed refusal; the dictionary still keeps those rows | STU-IO-104 |\n| Numeric row whose `unit` is undeclared and has no authored unit | `export_parameter_missing_unit` | STU-IO-175 SM:21480 |\n| Codec integer with no exporter identity | `export_codec_integer_without_exporter` | STU-IO-177 SM:21484 |\n| Frame rate not given as integer ticks | `export_frame_rate_stored_as_float`; 8475667200 and 8475675675 stay distinct, as do 10594584000 and 10594594594 | STU-IO-178 SM:21486 |\n| Any `publishing_destination` row, or any credential row outside that facet | `export_credential_in_recipe_record`, naming the recipe and field, never the value | STU-IO-147 SM:21365, STU-IO-185 SM:21500 |\n\nCredential rows outside the facet, measured: `ADBEStockRefreshToken` SM:25225, `ADBEStockLogin` SM:25224, `ADBEStockLoginSubGroup` SM:25072.\n\nDegenerate rows, default until the lead rules (open question): the 17 signed rows with min >= max keep their declared cells, are named in a const list, and are not range-enforced. A test pins that list.\n\n### 5. Container declaration (STU-VID-062, STU-IO-141; MT-35261)\n\n`Container::capability()` in `src/mux.rs` beside `check_combination`, declaring exporter identity, does_video, does_audio, video codecs, PCM layouts, colour metadata, caption streams and timecode tracks.\n\nFacts read:\n- VC-3 refused in MP4 (`:261`), allowed in MOV. AV1, H.264, HEVC have no container refusal.\n- PCM 16/24/32 integer or 32 float; MP4 rate cap 65535 (`:282`).\n- Colour is `nclx` in MP4, `nclc` in MOV (`:1032-1033`).\n- Captions are `tx3g` through `write_text_track` (`:410`). No container check in the lines read to `:440`; confirm.\n- `mux.rs` has no timecode track code (grep `tmcd` and `timecode` empty), so timecode is declared false.\n\nProof that the declaration cannot drift: an in-crate differential grid over container x video (none, av1, h264, hevc, vc3) x PCM (none, 16, 24, 32, 32 float, plus invalid 8 and 64 float) x rate (48000, 65536): the capability answer equals what `Muxer::new` (`:371`) answers for every cell. Reuse `provisional_entry` (`src/export.rs:541`) for entries, as `plan` does.\n\nScope limit: declare only MP4 and MOV. Do not add rows for formats with no writer and do not add `Container` variants; that is the next lane.\n\n### 6. The real path consumes the recipe (STU-VID-063: a user recipe is the same record as a shipped one; MT-35295)\n\na. Each of the six presets (`src/presets.rs:47`) yields a `StudioExportRecipe`. `ExportPreset::recipe` (`:106`) resolves through it. Pin, before the change, the exact `ExportRecipe` for all 6 presets x `os_encoder` true and false, with typed refusals unchanged. `tests/export_captions.rs:161` stays green unedited. `preset_recipe` (`hsk-studio-harness-view/src/view/timeline_export.rs:616`) needs no edit; if it does, stop and tell the lead.\n\nb. A public function, proposed name `job_from_recipe` (like `capability`, a builder proposal, not a spec name), returns an `ExportJob`, so `AdmittedExportQueue::submit` (`hsk-studio-harness-view/src/view/job_admission.rs:247`) admits it unchanged (HOST INTEGRATION 6). It reads source facts before the first frame.\n\nc. Consumed identifiers, a closed list, each with a `studio_declared` unit recorded in the writer binding, not in the dictionary row:\n\n| Identifier | Spec line | Declared hard | Consumed as | Unit | Mismatch |\n|---|---|---|---|---|---|\n| `ADBEVideoWidth` | SM:25489 | 4..30000 | must equal source `format().width` | pixels | refuse |\n| `ADBEVideoHeight` | SM:25488 | 4..16384 | must equal source `format().height` | pixels | refuse |\n| `ADBEVideoFPS` | SM:25486 | 1..254016000000 | must equal `ticks_per_frame()` | ticks per frame | refuse |\n| `ADBEAudioRatePerSecond` | SM:24974 | 8000..192000 | must equal source `rate()` | hertz | refuse |\n| `ADBEAudioNumChannels` | SM:24972 | -51..32 | must equal source `channels()`; a negative value is refused, its meaning is not established | channels | refuse |\n| `ADBEVideoTargetBitrate` | SM:25419 | 0.19..240 | OS encoder `OsVideoSettings.bitrate`, STU-IO-143 SM:21357 | megabits per second | n/a |\n\nWidth 20000 is inside the dictionary and refused by the muxer (`max_side` 16384, `src/mux.rs` `MuxLimits`): test it as a writer refusal, not a dictionary one.\n\nd. Any other valid parameter: typed refusal, proposed code `export_parameter_not_consumed` (no spec token exists; the lead may rename it), naming the identifier, before the first frame. Never silently ignored. This is the STU-VID-062 rule that an unsupported combination is refused before encoding starts.\n\ne. An H.264 or HEVC recipe with no target bitrate is `export_preset_incomplete` naming it (STU-IO-179 SM:21488). Do not relabel the six presets as complete against the 453.\n\nf. End to end: one VC-3 MOV export through `job_from_recipe` publishes bytes identical to the same job built by hand. Refusal tests assert the source's frame calls stayed 0, as `tests/export_queue.rs:280` does.\n\n### 7. Hostile input (V4-01/02), red where it is a new check\n\nBounded before allocation or clone: parameter count at most the row count; identifier at most 128 bytes, an unknown id refused without echoing it; text and path values at most 4096 bytes; `name` at most 256 bytes; `recipe_id` at most 128 ASCII; `output_targets` at most 64, each at most 255 bytes with no separator, `..`, NUL, drive colon or empty name; `standard_filters` at most 64. Numbers: NaN, infinities, -0.0, i64 extremes, and bitrate conversion overflow are typed. Lookup is O(log n) per parameter. Your limits are lead-overrulable; list them. `deny(clippy::arithmetic_side_effects)` in the new modules, as `src/export.rs:27`.\n\n### 8. V4-06 failure-class sweep\n\nBesides item 1: every place in reel that assumes `min <= max` for a parameter; every place that reads `ExportRecipe` and could ignore a new setting (`plan` `:621`, `make_encoder` `:563`, harness-view `render_queue.rs:199-251`, read only); every test that would collapse hard and soft. List each with its result.\n\n### 9. Determinism\n\nNo clock, random id or locale in any record (STU-IO-163 SM:21420). `StudioExportRecipe::to_json` is deterministic and hand-written like `ExportReceipt::to_json` (`src/export.rs:299`), because reel has no serde and `tools/workspace-probe.rs:495` does not allow it. No JSON parser in this lane. Two calls give identical bytes; BTreeMap order pinned.\n\n### MTs to read\n\nRead, claim a row only if you read it and this proves it, do not edit MT files.\n\nDictionary: MT-33766, MT-33767, MT-33768..33781 (14 facet rows), MT-33782, MT-33783, MT-33784..33797 (14 tables, in alphabetical facet order: audio, captions, colour, gop_structure, layout, metadata, multiplexing, other, performance, publishing_destination, rate_control, video_codec, video_frame, vr_immersive).\n\nRecord: MT-33368..33373, MT-33375, MT-33405, MT-33406, MT-33408, MT-33411, MT-33418, MT-35261, MT-35295. Descriptors: MT-33428, MT-33430, MT-33431, MT-33432, MT-33438.\n\nExpect partly met on: MT-33369 (no `group_path`, step fields or `is_hidden` in the source table; do not invent them), MT-33766, MT-33782 (no authored labels), MT-35261 (two containers), MT-35295 (no portable import, not the 704). These contracts name `hsk-studio-pulse` as crate and pulse proof commands, the same class as F-R55-3: report it, do not repoint.\n\nVendor parity UNVERIFIED (D5). Every bound is the spec's capture; nothing here was checked against a vendor app.\n\n### Out of scope\n\nNew writers or `Container` variants; image sequences; MXF; classifying the 178 `other` rows or authoring the 409 labels (STU-VID-083 SM:25697); `group_path`; soft bounds, defaults; importing the 704 identities; persistence (STU-IO-166 SM:21426 is the host's SurrealDB; add no other database); any new command, control id, or `RUN_COMMANDS` row; manual.rs; timeline render state, proxies, offline, peak jobs, default transitions, time remap (`next_slices`); harness-view writers; any GUI or panel. No egui, eframe, winit, wgpu, naga or WGSL line. No GPU work; this lane has no pixels. No `Cargo.toml` or `Cargo.lock` change. No Master Spec edit: propose SD items. Never touch WP-KERNEL-012 files or refund-claim-20261021.md.\n\nPUSH HOLD: if STUDIO-R59 is not recorded when you start, push nothing and ask the lead (at this scope's read, `validation/round-R59.json` did not exist). One lane pushes at a time.\n",
+  "diag": "report_for_host: reel returns typed refusal codes with identifiers and bounds; emission stays with the host, and a credential value is never in any message. ExportQueue has no observe call today (no observe hit in src/export.rs) and this lane does not add one.",
+  "attr": "unchanged: nothing commits to a document; recipes are values and export is a read of the document plus a write of new artifacts (STU-IO-162). No actor is taken or defaulted.",
+  "exposure": "low",
+  "paths": [
+    "crates/hsk-studio-reel/src/export.rs",
+    "crates/hsk-studio-reel/src/presets.rs",
+    "crates/hsk-studio-reel/src/mux.rs (capability declaration beside check_combination only)",
+    "crates/hsk-studio-reel/src/lib.rs (mod lines, re-exports, DESCRIPTOR)",
+    "crates/hsk-studio-reel/src/export_parameters.rs and its data file (new)",
+    "crates/hsk-studio-reel/src/export_recipe.rs (new)",
+    "crates/hsk-studio-reel/tests/export_publish_safety.rs (new)",
+    "crates/hsk-studio-reel/tests/export_parameters.rs (new)",
+    "crates/hsk-studio-reel/tests/export_recipe.rs (new)",
+    "crates/hsk-studio-reel/tests/fixtures/stu-vid-061b-rows.txt (new)"
+  ],
+  "suites": [
+    "lane-check step 0, then clippy over hsk-studio-reel and its direct dependents hsk-studio-harness, hsk-studio-harness-view, hsk-studio-reel-native",
+    "nextest WHOLE hsk-studio-reel in the default unit and in each round unit of .config/round-features.toml:22: av1, prores, av1-encode, av1 + av1-encode, studio-aac. av1-encode matters: presets resolve differently under cfg!(feature = av1-encode), src/presets.rs",
+    "cargo test --doc -p hsk-studio-reel (lib.rs carries a compile_fail doctest; rule 4d if you add doc examples)",
+    "dependents that pin the export path, focused: hsk-studio-harness tests timeline_export, composition_export, timeline_captions, render_queue_records, render_queue_settings, motion_records_session; hsk-studio-harness-view tests viewer_timeline_nest, viewer_timeline_nest_2. Feature unit for these NOT_INSPECTED: read .config/round-features.toml before the run (rule 4e), a test that compiles to zero tests proves nothing",
+    "not needed: hsk-studio-package suite, because no Folio field is added (rule 4b)"
+  ],
+  "closes": [
+    "Fixed sidecar temp name at src/export.rs:866, noted by the lead from SMB-SESSION-WRITE-SAFETY-1",
+    "New finding from this read, not yet run: an item refused or failing in one ExportQueue deletes another queue's live temp in the same process (src/export.rs:755-761, :798, :836)",
+    "New findings from this read, not yet run: sidecar temp leak on failure; Failed receipt with media published; old output deleted before the rename (src/export.rs:1142-1161)",
+    "truth-check top_missing[3], part: 0 of 453 parameter ids; no StudioExportRecipe record (MT-33766 note). Not closed: writers, 704 identities",
+    "Correction to truth-check family container and exporter catalogue, which lists no WAV writer: wav, AIFF and FLAC encoders exist (src/wav.rs:425, src/audio/provider.rs:418) and are reached only by harness-view view/audio_import.rs:723, not by ExportQueue. MixFormat there (audio_import.rs:482) offers FLAC and AIFF only. Input for the next lane, no code change here"
+  ],
+  "mts": [
+    "MT-33766",
+    "MT-33767",
+    "MT-33768",
+    "MT-33769",
+    "MT-33770",
+    "MT-33771",
+    "MT-33772",
+    "MT-33773",
+    "MT-33774",
+    "MT-33775",
+    "MT-33776",
+    "MT-33777",
+    "MT-33778",
+    "MT-33779",
+    "MT-33780",
+    "MT-33781",
+    "MT-33782",
+    "MT-33783",
+    "MT-33784",
+    "MT-33785",
+    "MT-33786",
+    "MT-33787",
+    "MT-33788",
+    "MT-33789",
+    "MT-33790",
+    "MT-33791",
+    "MT-33792",
+    "MT-33793",
+    "MT-33794",
+    "MT-33795",
+    "MT-33796",
+    "MT-33797",
+    "MT-33368",
+    "MT-33369",
+    "MT-33370",
+    "MT-33371",
+    "MT-33372",
+    "MT-33373",
+    "MT-33375",
+    "MT-33405",
+    "MT-33406",
+    "MT-33408",
+    "MT-33411",
+    "MT-33418",
+    "MT-33428",
+    "MT-33430",
+    "MT-33431",
+    "MT-33432",
+    "MT-33438",
+    "MT-35261",
+    "MT-35295"
+  ],
+  "tree": "smb-pr-retime-output-1",
+  "tree_reason": "Only reel-built targets not in target_reuse are smb-pr-nudge-1 and smb-pr-retime-output-1, both C:, PASS_V2, clean, reuse_candidate, tips b9a87c7b and d54293da, both ancestors of c4d06841 (checked with git merge-base). This one has the most overlap: it also built harness (a direct dependent of reel), and 37 crates against 35. Neither built reel_native. Cost: 50.68 GiB against 19.23. Fallback if another lane takes it or C: space matters: smb-pr-nudge-1, which then builds harness once. The D: trees with reel built (smb-pr-edit-footprint-1, smb-pr-entry-references-1, smb-pr-retime-hold-1) are all in target_reuse.",
+  "disk": "ssd",
+  "overlaps": {
+    "SMB-PR-ROUTING-REPAIR-1": "None. Touches folio, session, pulse, harness-view id mints; this lane edits none of them.",
+    "SMB-SESSION-WRITE-SAFETY-1": "Same failure class, disjoint paths. Its brief owns harness-view view/export.rs:140 and view/audio_import.rs:779 and does not name reel; this lane owns reel src/export.rs. Its V4-06 list should point here for reel. The phrase in its lane file was not found on this read: the lead's note is the source for the report.",
+    "SMB-HARNESS-DRIVE-1": "None. No cli.rs or manual.rs edit.",
+    "SMB-OBSERVE-DIAG-SINK-1": "None by file. reel src/report.rs uses Observe::emit; this lane does not edit it. If that lane changes the emit signature, it rebases reel, not this lane.",
+    "SMB-CONTROLS-EGUI-GATE-1": "None. No controls id and no harness-view manifest."
+  },
+  "needs": {
+    "cargo_toml": "none",
+    "cargo_lock": "none",
+    "new_dependency": "none; serde in reel is deliberately avoided (tools/workspace-probe.rs:495)",
+    "schema": "none",
+    "spec": "no edit; SD items proposed for the conflicts in open_questions"
+  },
+  "red_team": {
+    "risks": [
+      "Paper reach: a 453-row table and 30-plus MT rows can look like progress while no new file format exists",
+      "Transcription error in 453 rows",
+      "A tidy-minded fix to rows that look wrong, which changes spec data",
+      "A recipe path that diverges from today's export output",
+      "Credentials stored in a recipe",
+      "Vendor identifiers reaching an operator or model surface (STU-FX-103 import_key, STU-SECTION-003, STU-VID-061a)"
+    ],
+    "failure_scenarios": [
+      "A range check on ADBEVideoCodec (0, -1) refuses every codec value, or a validity assert panics on that row",
+      "ADBEVideoFPS typed boolean is coerced to bool and the frame rate is lost; 8475667200 and 8475675675 normalise to one rate",
+      "A valid parameter is accepted and silently ignored, so an export differs from its recipe",
+      "Bitrate conversion through f64 turns 20.0 into a value other than 20_000_000 and a preset drifts",
+      "A barrier test for queue collision hangs a test binary instead of failing",
+      "The dictionary bound 240 Mbit/s refuses a recipe that the OS encoder path accepts directly (OS_MAX_BITRATE 400_000_000, src/os_encode.rs:72)",
+      "Fixture line endings change on checkout and the hash test fails on another machine",
+      "A credential value leaks through a refusal message"
+    ],
+    "minimum_controls": [
+      "Items 5 and 6 are required, not optional, and the report states plainly that no writer was added",
+      "Fixture holds the spec lines verbatim, pinned by SHA-256, compared cell by cell; a validator can diff it against SM:24952..25501",
+      "A const list and a test pin the 17 degenerate rows, ADBEVideoFPS and ADBEVideoAspect",
+      "Unconsumed parameters are a typed refusal, tested with the source's frame calls at 0",
+      "Exact pins for 6 presets x os_encoder, and one byte-identical end-to-end export",
+      "Barrier tests carry a bounded timeout and normalise CRLF before hashing",
+      "A test feeds a sentinel secret value to each credential row and asserts it is absent from Display and Debug of the error",
+      "No manual, state_json or control surface is added, so raw identifiers reach no operator or model surface in this lane"
+    ]
+  },
+  "research_basis": {
+    "scope_statement": "Narrow, not the broad sweep of GLOBAL-RESEARCH. The record shape, enumerations, bounds and refusals are dictated by the spec, so field practice was checked only for the parts below. No GitHub, Reddit or paper search was done.",
+    "sources_checked": [
+      "Master Spec v02.229 module 14: STU-VID-060..064, STU-IO-101..110, 140..148, 160..185, STU-FX-103..107",
+      "Code at c4d06841: reel export.rs, mux.rs, presets.rs, wav.rs, error.rs, report.rs; harness-view timeline_export.rs, render_queue.rs, audio_import.rs, media.rs, job_admission.rs; folio composition/effects.rs; composite tests/simulations_records.rs",
+      "https://doc.rust-lang.org/std/fs/fn.rename.html (fetched 2026-11-07): rename replaces an existing file; platform behaviour may change; fails across filesystems",
+      "https://docs.rs/rav1e/0.8.1/rav1e/config/enum.InvalidConfig.html (documentation only, BSD-2-Clause, already a reel optional dependency): typed config errors carrying actual and max, including TargetBitrateNeeded",
+      "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-mediaconvert-preset.html: a preset is declarative settings for a single output, with container, video and audio settings, validated against job validation"
+    ],
+    "licence_disclosure": "A web search for FFmpeg's option documentation returned search-tool text summarising libavutil/opt.c, which is LGPL source, instead of documentation. The pages were not opened, but that summary did reach this auditor, against the no-LGPL rule. Nothing in this file draws on it: the no-clamp refusal comes from STU-FX-104 and STU-IO-103. Do not point a builder at those results.",
+    "patterns_found": [
+      "A declarative settings record validated before any encode, per single output (MediaConvert)",
+      "Typed config errors naming the actual value and bound (rav1e)",
+      "Spec rows transcribed cell for cell in a test, already used here (composite tests/simulations_records.rs:4)"
+    ],
+    "reuse_opportunities": [
+      "ExportJob and AdmittedExportQueue unchanged",
+      "provisional_entry and Muxer::new as the differential oracle",
+      "ExportReceipt::to_json as the JSON style",
+      "tests/export_queue.rs helpers"
+    ],
+    "rejected_options": [
+      "Writers first: real bytes, but small and separate. Preset weight in STU-VID-062: audio-only WAVE 1, AIFF 1, MP3 3, AAC 2; stills 14 (DPX 4, oEXR 4, PNG 2, JPEG 1, TIFF 1, TPIC 1, DIBB 1); MXF family 306, a large writer. Each would invent its settings without this contract. Image sequences also need an RGB frame path: ExportVideoSource delivers planes per VideoFormat and ChromaFormat has Mono and YUV only (src/model.rs:330)",
+      "Timeline delivery first (MT-33741, 33742, 33765, 33734, 33732): needs folio records, session commands and pulse together, the three crates SMB-PR-ROUTING-REPAIR-1 is editing, and folio is a dependency of session and pulse so builds cost more. Larger, with real rebase exposure now",
+      "Dictionary in folio beside StudioEffectParamSpec (src/composition/effects.rs:342): closest to the same-record wording, but that struct lacks these type codes and facet, its unit is not optional, and it would widen clippy to all folio dependents",
+      "Dictionary in pulse as the MTs name: pulse has no export code and no reel edge",
+      "reel depending on folio: a new module edge pulling serde and schemars into reel's pure closure; steward-owned",
+      "serde in reel: not on reel's allowed list, tools/workspace-probe.rs:495",
+      "Reading the spec at build or test time: the spec lives in the kernel, outside the product repo"
+    ],
+    "selected_approach": "Reel-local const table with a verbatim, hash-pinned fixture; a typed record; a capability declaration proven against the muxer; presets and a job constructor through the record; refusal of anything not consumed."
+  },
+  "next_slices": [
+    "Audio-only delivery through ExportQueue: WAV, AIFF, FLAC using the existing encode_segment writers, Container variants, the harness-view match at timeline/export_media.rs:373; MT-35261 rows WAVE and AIFF",
+    "Image sequences, STU-IO-148: RGB frame path, one file per frame, DPX then PNG, TIFF, EXR reusing interop-raster and composite encoders through a port; render queue formats (render_queue.rs:231-235)",
+    "Recipe as typed command and portable record: session or host storage, controls ids, state_json, manual entries; classify 178 other rows and author 409 labels (STU-VID-083, MT-33841); locate the 704 identities (corpus NOT_INSPECTED)",
+    "Proxies and offline as states, MT-33741: attached proxy record, project toggle, Make offline and Link media commands, offline placeholder (reuse reel ProxySource, package externals LinkState, interop-media offline references)",
+    "Preview render scope and state, MT-33742, with work area and persisted playhead, MT-33737",
+    "Queued peak, conform and seek-index jobs through the session JobPort, MT-33765",
+    "Default transitions and apply commands, MT-33734; clip time remapping on the keyframe surface, MT-33732 (composite TimeRemap exists at temporal/composition.rs:233); raw settings on media items, MT-35260",
+    "MXF writer family, the heaviest STU-VID-062 weight at 306 of 1,541 presets"
+  ],
+  "open_questions": [
+    {
+      "q": "May this lane use the C: tree before R59 is recorded? Running briefs say build on D: only, and validation/round-R59.json did not exist at this read.",
+      "default": "Start after R59 is recorded. No reel-built D: tree is free. A fresh D: tree is the alternative at full compile cost."
+    },
+    {
+      "q": "Taking smb-pr-retime-output-1 changes its newest file, and the approved cleanup candidate R-C01 needs fresh approval if a lane uses it or its newest file changes (research/cargo-cleanup-plan-20261107-R.json before_execution). Same for R-C02 on smb-pr-nudge-1.",
+      "default": "Run R-C01 after R59, as approved, before the lane starts."
+    },
+    {
+      "q": "STU-VID-061 says each identifier is a StudioEffectParameter, the same record; STU-IO-102 gives an export record; code has folio StudioEffectParamSpec, unreachable from reel without a new edge.",
+      "default": "Reel-local row with the same field names and bound_state tokens. Next lane pins tokens against folio in a crate that sees both. SD item."
+    },
+    {
+      "q": "STU-VID-061b says unit is -- on all 453 and authoring is explicit scope; STU-IO-160 and 175 reject a numeric parameter with no unit.",
+      "default": "The table stores undeclared. A recipe value on a numeric undeclared row is refused export_parameter_missing_unit, except the six consumed rows with a studio_declared unit in the writer binding. SD item."
+    },
+    {
+      "q": "STU-VID-061a says Studio must author labels and not expose raw identifiers; STU-IO-106 says display the identifier, mark identifier_fallback, inventing a label is forbidden.",
+      "default": "STU-IO-106 for now. Authoring goes to STU-VID-083 work. Nothing is exposed in this lane. SD item."
+    },
+    {
+      "q": "Rows the reading convention does not explain: 15 signed rows at 0/0, ADBEVideoCodec and ADBEAudioCodec at 0/-1, ADBEVideoFPS typed boolean with a range, and 12 group-header rows at false/false, which include value-looking ids. ADBEStillSequence (SM:25223) is typed group header though STU-IO-148 calls export_as_sequence a declared parameter. ADBEAudioCodec counts 1701 presets against 1,541.",
+      "default": "Store verbatim; do not range-enforce the 17; refuse values on group headers in this lane since none is consumed. Revisit in recipe import. SD item."
+    },
+    {
+      "q": "Which identifiers have established semantics (STU-VID-061a forbids inventing them)?",
+      "default": "Only the six in item 6, from their facet wording and STU-IO-142, 143. Lead reading, overrulable."
+    },
+    {
+      "q": "Dictionary bound or writer bound for a Studio exporter: STU-IO-144 says use the declared bound, STU-IO-143 says bounds are per exporter and read from the exporter. ADBEVideoTargetBitrate declares 240 Mbit/s; the OS path takes 400.",
+      "default": "Enforce both in a recipe, so 300 Mbit/s is refused through a recipe while direct ExportRecipe is unchanged. State it in notes."
+    },
+    {
+      "q": "This lane ticks many MT contracts and adds no file format. Is that the right first slice, or should audio-only writers come first?",
+      "default": "This slice first: 32 of the 37 MTs named for this area, and every later writer plugs into it. The writers lane is next and small."
+    }
+  ]
+}

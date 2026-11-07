@@ -1,0 +1,63 @@
+{
+  "crate": "hsk-studio-pigment, hsk-studio-folio (smart filter records), hsk-studio-render-gpu (one refusal arm)",
+  "lane": "SMB-PIGMENT-FILTER-KERNELS-1",
+  "status": null,
+  "phase": "build",
+  "worktree": "wt-studio-lanes/smb-ps-mode-convert-1",
+  "base": "c4d06841",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "verdicts": [],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "builder: red first, one bundled run on D:, push when green",
+  "updated_at": "2026-11-07T06:23:52Z",
+  "host_integration": {
+    "schema_id": "hsk.studio_mt_host_integration@1",
+    "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
+    "spec_version": "v02.229",
+    "gui_host": "none",
+    "gpu": "none",
+    "diagnostics": {
+      "internal_diagnostics": "report_for_host: pigment and folio return typed refusals and work counters, emission stays with the host",
+      "flight_recorder": "none",
+      "palmistry": "none"
+    },
+    "control_descriptors": "none",
+    "attribution": "unchanged: filters render, the record is written by its existing callers, and this lane adds no mutating operation",
+    "jobs": "none",
+    "settings": "none",
+    "refactor_exposure": "medium"
+  },
+  "notes": {
+    "dispatched_at": "2026-11-07T06:23:52Z",
+    "disk": "D",
+    "closes": [
+      "truth-check raster-effects family Photoshop-style filter families: Maximum, Minimum, Custom Convolution, Dust & Scratches, Despeckle, Surface blur, Emboss listed as missing; engine and record path only",
+      "truth-check: box, directional and radial kernels used only by composition effects now also reach raster layers and clip effects",
+      "HANDOFF next-work item 7, filter kernels, first slice; the effect gallery, brush tips, merge and flatten stay open"
+    ],
+    "closes_candidates": [
+      "MT-32811",
+      "MT-32817",
+      "MT-32818",
+      "MT-32889",
+      "MT-32941",
+      "MT-32879",
+      "MT-32880",
+      "MT-32810",
+      "MT-32850",
+      "MT-32887",
+      "MT-32942",
+      "MT-32943",
+      "MT-32851",
+      "MT-32822",
+      "MT-32814",
+      "MT-32892",
+      "MT-32863"
+    ],
+    "reuses_tree_and_target": "smb-ps-mode-convert-1"
+  }
+}

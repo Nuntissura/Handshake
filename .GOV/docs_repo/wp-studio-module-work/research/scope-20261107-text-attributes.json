@@ -1,0 +1,168 @@
+{
+ "id": "SMB-TYPE-INDENT-SPACING-1",
+ "file": "hsk-studio-type-indent-spacing-1",
+ "brief": "lane-smb-type-indent-spacing-1",
+ "crate": "hsk-studio-folio (stored fields), hsk-studio-layout (composition), hsk-studio-interop-layout (IDML import), hsk-studio-harness-view (one edit field and two shift calls)",
+ "crates_head": "c4d06841",
+ "summary": "Paragraph indents and spacing (STU-TYP-185) stored on the existing composition settings, composed by every layout composer, imported from IDML and editable through the existing style command, with no new composition token.",
+ "target": "## Target\n\nSpec: Master Spec v02.229 `14-studio-creative-suite.md` STU-TYP-185 (:8823), STU-TYP-108 (:7889, :7895), STU-TYP-105/106 (:7861, :7877), STU-TYP-201 (:9064), STU-TYP-130 (:8096), STU-TYP-187 (:8870). Read MT-30971, MT-30972, MT-30999, MT-30898. Evidence: `research/truth-check-20261105-mt-vector-type-layout-interop.json` top_missing rank 1, family T10.\n\nThe gap, in plain words: a paragraph cannot say it is indented or has space around it. Layout states the convention outright: `threaded_reflow.rs:11` \"paragraphs have no space before or after\", and `compose_flow` gives every line the whole slot. Folio declares the gap (`typestyle.rs:30-32`, `story.rs:14`). InDesign writes these values into every IDML package (root style of all three `oracle-corpus/adobe-session/indesign/ID-03__*.idml`: `LeftIndent`, `RightIndent`, `FirstLineIndent`, `LastLineIndent`, `SpaceBefore`, `SpaceAfter`, all 0 there), and the importer drops them behind one loss code (`idml_composition.rs:37-38`, `:363-364`). So any real document with an indent breaks its lines at the wrong measure, today, in IDML reflow and PDF export. Lists (hanging indent), tabs (positions from the left indent) and drop caps (per-line narrowing) all stand on this.\n\nWhat already exists, so this is small. Reuse it; do not build beside it:\n- `StudioCompositionSettings` (`typestyle.rs:206-255`) already travels per paragraph style (`style_composition`, `:356`) and per paragraph (`paragraph_composition`, `:359`), with `overlaid` (`:262`), `is_empty` (`:258`), `validate` (`:292`), unknown fields refused (`:205`), and absent fields not encoded.\n- `layout/styles.rs:131-151` and `:247-258` already resolve STU-TYP-201 steps 3 and 4 and hand the result to `compose_flow` in `ParagraphStyling.composition` (`:174`); `typeset.rs:278` maps it to `ParagraphParams` (`:241`).\n- Every composer takes a per-line width: `threaded_reflow.rs:381`, `breaker.rs:209`, `:334`, `adobe_composer.rs:119`, `:523`, `cjk.rs:769`. The paragraph composer already handles a width that changes by line (`adobe_composer.rs:536-539`, `:780-782`, `flat_from`), and `tests/composer_depth_diff.rs` already covers two measures.\n- `Slot` holds `x_start_pt` and `width_pt` (`threaded_reflow.rs:213-214`); alignment, justification and the CJK path all read those (`:1264`, `:1276`, `:1326-1327`, `:1353-1355`, `:1373`). `Cursor.extra` already moves baselines (`:193`, `:273`), a column change already resets it (`:344`, `:349`), and Split already skips space at the top of a column (`:1103-1105`).\n- All other consumers go through `compose` (`:729`): table cells, notes, running text, story tables, liquid. `pdf_export.rs:1054` and `anchors.rs:283` read `Line.x_start_pt`, so they follow.\n\n### Items, red first\n\n1. **Store (Folio).** Add to `StudioCompositionSettings`, under the spec names: `left_indent`, `right_indent`, `first_line_indent`, `last_line_indent`, `space_before`, `space_after` as `Option<Length>`, and `space_between_same_style` as `Option<bool>`. Extend `overlaid`. `validate`: unit must be `pt` (STU-TYP-108 :7895 stores points; follow `layoutflow.rs:865` `finite_length(.., GeometryUnit::Pt, ..)` with signed values allowed), finite, nothing else.\n\n| Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision |\n|---|---|---|---|---|---|---|---|\n| `left_indent` | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | 0 | points | UNKNOWN |\n| `right_indent` | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | 0 | points | UNKNOWN |\n| `first_line_indent` | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | 0 | points | UNKNOWN |\n| `last_line_indent` | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | 0 | points | UNKNOWN |\n| `space_before` | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | 0 | points | UNKNOWN |\n| `space_after` | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | 0 | points | UNKNOWN |\n\n   No clamp and no invented bound, including negatives (STU-TYP-106 :7877; a guessed number is a specification defect). `last_line_indent` must never merge into `right_indent` (:8836). Hold the table as data in Folio, in the shape of `composite/src/simulations.rs:414` `ParamRow` with every UNKNOWN as `None` and hard kept apart from soft, so MT-30972 has something to read. Name it yourself and list it as Studio-minted. Rule 4b: run the package suite; `package/tests/externals.rs:404` and `mask_tiles.rs:346` read the schema.\n2. **Indents in composition (layout).** `ParagraphParams` gets the resolved values (engine default 0, STU-TYP-201 step 1). In `compose_flow`, narrow each slot where it is collected: Single `:1048-1051`, Span `:1093-1096`, Split `:1120` and `:1146-1150`. Rule: x moves by `left_indent` (plus `first_line_indent` on the paragraph's first line); width loses both of those and `right_indent`. With wrap obstacles the indents measure from the free gap `next_slot` returns (`:354`), a Studio reading, UNVERIFIED (D5). A slot the indents leave with no width is skipped like a baseline with no gap (`:361`, `:371`), still as the first line if it was; if nothing remains the result is the existing overset (`:1158-1166`) or `BudgetExceeded` (`:311`). When all indents are zero, execute no float operation on the slot, so bits cannot move.\n3. **`last_line_indent`.** The last line is known only after breaking. Break; narrow `slots[L]` for the set stage (alignment and justification then read it). If the last line no longer fits, break once more with the width at index L narrowed; the second result stands, and if its last line still does not fit it is `overfull`. Bounded: one re-break, only when this indent is positive and the line overflows. A negative value widens the last line at the set stage only. Studio reading, UNVERIFIED (D5). Measure: this can raise the paragraph composer's state count (`flat_from` moves late), so run 600, 1800 and 5000 words, debug and release, with and without it, per composer, and record the numbers. If the refusal point moves materially, stop and send them.\n4. **Space (layout).** Hold `space_after` as a pending value and add it with the next paragraph's `space_before` to `cursor.extra`, so one gap can be judged whole. A paragraph at `cursor.line == 0` takes none, as Split does at `:1103`. A push past the column bottom needs no code: `next_slot` resets `extra`. Anchored `pre` (`:1022-1039`) stays after the attribute space. `space_between_same_style`: when this paragraph's effective flag is true and it shares a non-null `style_ref` with the one before, the gap is zero. `styles::apply` knows both: add a computed bool to `ParagraphStyling`. Span and Split: `max(flow value, attribute value)`; the spec calls the span fields `span_column_min_space_before/after` (:8873), and code holds them at `threaded_reflow.rs:682`. Studio reading, UNVERIFIED (D5). A break sentinel replaces the cursor (`:1432-1439`) and drops the pending value; pin that.\n5. **Places that assume a line owns its column or recompute y (V4-06, see sweep). Red by running each.**\n   - `balance_band` rebuilds every baseline with `extra: 0.0` (`:764`), so balancing would silently erase paragraph space. Carry the gap in `Meta` (`:235`) and add it per column, except at a column's first line; keep the existing `return false` when it no longer fits (`:772`).\n   - `autosize.rs:195-196` sizes width from `width_pt` plus insets, and `:185-192` checks against that room. With indents the final composition at that width would wrap. Have `Composition` (`:716`) report each line's indent total, and count it in both.\n6. **Stale byte key (V4-06).** `replace_story_text` moves paragraph starts, `shift_flow_records` (`textflow.rs:151`) moves only flow records, and nothing moves `paragraph_composition`. After an edit before an overridden paragraph, `styles.rs:222-229` refuses `InvalidInput`, or the override lands on another paragraph that now has that start. Red by running through `LayoutEditor`. Add a shift for the type-style records beside `shift_flow_records`: map with `map_pos`, take the edited story, drop an override naming no paragraph of it, and keep the first of two that collapse together (`textflow.rs:9`: first touched wins). Call it at `layout_ui.rs:1067` and `layout_ui/find.rs:101`. Same class, read not run: `paragraph_flows` collapsing into a merged paragraph makes `threaded_reflow.rs:666-670` refuse. Prove it; if red, fix it in the same commit shape.\n7. **IDML import (interop-layout).** In `settings_of` (`idml_composition.rs:167`) map `LeftIndent`, `RightIndent`, `FirstLineIndent`, `LastLineIndent`, `SpaceBefore`, `SpaceAfter` through `Reader::number` (`:135`, signed, finite) into `Length` pt; add them to `COMPOSITION_ATTRIBUTES` (`:71`) and update the module docs (`:37-38`). Names are verified on the three InDesign-written packages; only the value 0 is seen there, so semantics stay UNVERIFIED. `SpaceBefore=\"4\"` in those files is on `TableStyle`, not a paragraph; do not read it. No attribute for `space_between_same_style` appears in that root style: leave it unmapped and say so. End-to-end proof: `reflow_import_typeset` over an IDML fixture with values set gives narrowed lines and gaps, and PDF export places the glyphs at the moved x (existing helpers in `interop-layout/tests/layout_flow_pdf.rs`).\n8. **Typed edit.** `StyleEdit::EditStyle` (`layout_ui/styles.rs:46`, `:145`) gains a composition field on `StylePatch` (`:32`): `None` unchanged, `Some(None)` clears the style's entry, `Some(Some(settings))` sets it. Non-finite or wrong-unit values refuse through Folio (`:110`), and a character style refuses `WrongStyleScope`. It is the existing command, one undo step (`layout_ui.rs:16`), so no new id. No GUI line: the panel at `:344` stays as is. Proof in `harness/tests/viewer_layout_styles.rs`: edit, compose, undo, redo.\n9. **Composition token (STU-TYP-130).** Do not add a token and do not touch `folio/src/composition_token.rs`. Reading: the clause bumps for changed semantics, and these fields are new inputs that leave every existing document's output unchanged. Layout takes no token at all today (no `COMPOSITION_VERSION` in `layout/src`; the token lane's `composing_sites` covers the Viewer text path only). Proof obligations: `tests/composer_depth_diff.rs` passes with its table untouched (never re-bless it), `d5_id_oracle.rs` and every composer row pass unchanged, including with real IDML zeros now stored, and a test pins that settings holding only zero indents give bit-identical lines to no settings. **If any existing row changes, stop and send me the case: that is a token decision, not a fix.** `mt_30898_folios_token_list_is_types_constants_in_order` stays green. Record the reading in `notes.declared_readings` and `notes.spec_proposals`.\n10. **MTs.** Read MT-30971 and MT-30972 first; claim only what this proves, as partly met. Their proof commands name `-p hsk-studio-type --test mt_30971/72` and their write paths name Type only, which cannot hold this proof: do not edit MT files, report it in the notes as SMB-TYPE-AUTHORED-TOKEN-1 did for MT-30898. The `gui_obligation` of both stays open.\n\n### V4-06 failure-class sweep\n\nList every site with fixed or not applicable and a reason.\n- **Class A, a consumer that treats a line as filling its column.** Regex `width_pt|available_pt|x_start_pt|column_x\\(|inner_x\\(` over `crates/hsk-studio-layout/src`, `crates/hsk-studio-interop-layout/src`, `crates/hsk-studio-harness-view/src/layout_ui*`. Known: `autosize.rs:195`, `footnotes.rs:231`, `:255`, `endnotes.rs:294`, `table.rs:457`, `:1020`, `anchors.rs:283`, `pdf_export.rs:1054`, `layout_ui.rs:702`.\n- **Class B, a path that recomputes a baseline and loses `extra`.** Regex `baseline_of\\(|extra: 0\\.0|baseline_y_pt =`. Known: `:764`.\n- **Class C, a story byte key not following an edit.** Regex `replace_story_text\\(|shift_flow_records\\(|paragraph_start`. Known callers: `layout_ui.rs:1065`, `find.rs:97`, `xref.rs:465` (`write_cross_reference`, takes only flow records), `find_change.rs:401`, `data_merge.rs:344`. `conditional_view` (`textflow.rs:273`) and `remap_records` (`:225`) show no caller in any `src`: state it, then decide.\n- **Class D, a settings record that a path never reads.** `paragraph_params` callers, and `styling = None` paths such as `endnotes.rs:284`: an unstyled note has no indents, which is correct; say so.\n\n### Hostile input (V4-01/02)\n\nValues are finite in Folio, but sums are not: `x0 + indents` and accumulated `extra` over up to 65,536 paragraphs can reach infinity, and `+inf + -inf` is NaN, which passes the `baseline + descent > bottom` test at `:339` and yields a NaN slot. After every addition check finiteness and refuse `InvalidGeometry`. Tests: `f64::MAX` in each field through a struct literal, alternating `+MAX` and `-MAX` space, IDML attributes `1e308`, `-1e308`, `NaN`, `inf`, `1e999` (typed loss `composition_value_invalid`). An indent wider than the frame on every composer gives a typed answer, no abort and no hang. No new allocation beyond existing per-paragraph vectors; `MAX_PARAGRAPH_COMPOSITION` (`typestyle.rs:189`) is unchanged. Vendor parity UNVERIFIED (D5); do not re-bless any parity row.\n\n### Out of scope\n\nTabs (STU-TYP-197), lists (198), drop caps (196), keep options (186), rules, shading, borders; the character attribute record and OpenType features on `StoryRange` (155-159, 170): `text.rs:573` keeps `features: &[]`; ruby, kenten, warichu, vertical; `redefine_style_from_selection` and override reporting (202); document text default (STU-TYP-201 step 2); variable binding (204); `Viewer` live text (`view/text.rs`, `composite` vector text), which does not compose through layout; IDML export of these fields (`folio_export.rs` and `idml_encode.rs` hold no composition record today; whether a loss is noted is NOT_INSPECTED, report it); a local-override command or any new controls Registry or RUN_COMMANDS row (next slice, after the command contract); the mixed-leading question in `baseline_of` (`:273` multiplies earlier lines by the current paragraph's height; read, not run: report it, do not fix it, and write the space tests at one leading); any GUI; no egui, eframe, winit, wgpu, naga or WGSL line; no GPU code; no `Cargo.toml` change; no Master Spec edit.\n\n## Host integration\n\n```json\n{\"schema_id\": \"hsk.studio_mt_host_integration@1\", \"direction_ref\": \"STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030\", \"spec_version\": \"v02.229\", \"gui_host\": \"none\", \"gpu\": \"none\", \"diagnostics\": {\"internal_diagnostics\": \"report_for_host: layout returns typed refusals, overset and counters, emission stays with the host\", \"flight_recorder\": \"none\", \"palmistry\": \"none\"}, \"control_descriptors\": \"none: the existing EditStyle command gains a field, no new control\", \"attribution\": \"unchanged: composition commits nothing; the LayoutEditor edit stays in its caller-held undo history; no default_actor()\", \"jobs\": \"none\", \"settings\": \"none\", \"refactor_exposure\": \"low\"}\n```\n\n## Owned paths (lane worktree `wt-studio-lanes/smb-r54-followups-1`, branch `lane/smb-type-indent-spacing-1`, base c4d06841 or the origin tip at dispatch)\n\n- folio: `src/typestyle.rs`, DESCRIPTOR, `tests/type_style_composition.rs`.\n- layout: `src/threaded_reflow.rs`, `src/typeset.rs`, `src/styles.rs`, `src/autosize.rs`, `src/textflow.rs`, `lib.rs` exports and DESCRIPTOR, `tests/`.\n- interop-layout: `src/idml_composition.rs`, `src/descriptor.rs`, `tests/`.\n- harness-view: `src/layout_ui.rs` (the one call), `src/layout_ui/find.rs` (the one call), `src/layout_ui/styles.rs`; no GUI line.\n- harness: `tests/viewer_layout_styles.rs`, `tests/layout_ui_fixture/` only if needed.\n- package: externals test only (4b).\n\n## Proof\n\n- Red first per item, proven red by running it; keep compiling red commits, a pushed red commit must compile the round units of the changed crates and direct dependents and fail only its own new tests.\n- One bundled run on C: (`lane-check.sh --owner smb-r54-followups-1 --disk ssd`; log names carry the lane id and sha): step 0; clippy over folio, layout, interop-layout, harness-view and their direct dependents; nextest WHOLE suites of folio, layout, interop-layout, package (4b), harness-view and harness with `--features hsk-studio-harness-view/viewer,hsk-studio-harness/viewer`; doctests if added.\n- Push when green: rebase on `origin/codex/handshake-studio-assets`, `lane-check.sh --owner smb-r54-followups-1 --disk ssd --per-sha origin/codex/handshake-studio-assets`, push on `PER_SHA_RESULT OK` with the guarded sha form.\n- If origin moves after the bundled run: commits touching none of your crates: rebase, `--per-sha`, your new tests only, push; touching one of your crates: that crate's suite once, then the same. The next full round proves the union.\n- Set READY_FOR_VALIDATION on a pushed commit. Never claim PASS.\n\n## Not verified by this scoping\n\n- No code was built or run; every claim about current behaviour comes from reading c4d06841. The red tests prove them.\n- All InDesign behaviour in this lane is UNVERIFIED (D5). The corpus shows attribute names with value 0 only.\n- The mixed-leading reading of `baseline_of` (`threaded_reflow.rs:273`) is UNVERIFIED.\n- The effect of `last_line_indent` on composer budgets is not measured.\n- Whether IDML export notes a loss for composition records is NOT_INSPECTED.\n- The reuse tree's lane status and built crates come from the 2026-11-07 inspection file; its cleanliness and tip were checked live.\n",
+ "diag": "report_for_host: layout returns typed refusals, overset and counters; no new Observe code; emission stays with the host",
+ "attr": "unchanged: composition commits nothing; the LayoutEditor style edit stays in its caller-held undo history; no default_actor() or literal actor added",
+ "exposure": "low",
+ "paths": [
+  "crates/hsk-studio-folio/src/typestyle.rs",
+  "crates/hsk-studio-folio/tests/type_style_composition.rs",
+  "crates/hsk-studio-layout/src/threaded_reflow.rs",
+  "crates/hsk-studio-layout/src/typeset.rs",
+  "crates/hsk-studio-layout/src/styles.rs",
+  "crates/hsk-studio-layout/src/autosize.rs",
+  "crates/hsk-studio-layout/src/textflow.rs",
+  "crates/hsk-studio-layout/src/lib.rs (exports and DESCRIPTOR)",
+  "crates/hsk-studio-layout/tests/ (new indent and spacing test file)",
+  "crates/hsk-studio-interop-layout/src/idml_composition.rs",
+  "crates/hsk-studio-interop-layout/src/descriptor.rs",
+  "crates/hsk-studio-interop-layout/tests/idml_composition.rs",
+  "crates/hsk-studio-harness-view/src/layout_ui.rs (the one call at :1067)",
+  "crates/hsk-studio-harness-view/src/layout_ui/find.rs (the one call at :101)",
+  "crates/hsk-studio-harness-view/src/layout_ui/styles.rs",
+  "crates/hsk-studio-harness/tests/viewer_layout_styles.rs",
+  "crates/hsk-studio-package/tests/externals.rs (only if rule 4b requires it)"
+ ],
+ "suites": [
+  "hsk-studio-folio",
+  "hsk-studio-layout",
+  "hsk-studio-interop-layout",
+  "hsk-studio-package",
+  "hsk-studio-harness-view [viewer]",
+  "hsk-studio-harness [viewer]"
+ ],
+ "closes": [
+  "truth-check top_missing rank 1, the indent and spacing part only",
+  "the declared convention at threaded_reflow.rs:11, paragraphs have no space before or after",
+  "the declared gap at typestyle.rs:30-32 for indents and spacing",
+  "the stale paragraph_composition key after a text edit (found in this scoping; no finding id yet)"
+ ],
+ "mts": [
+  "MT-30971 (candidate, partly met: engine half; gui_obligation open; proof command cannot run)",
+  "MT-30972 (candidate, partly met: engine half; gui_obligation open; proof command cannot run)",
+  "MT-30999 (read; STU-TYP-201 steps 3 and 4 only, no claim on the whole order)",
+  "MT-30898 (read only; no claim; token rule)"
+ ],
+ "tree": "smb-r54-followups-1",
+ "tree_reason": "PASS_V4 per research/cargo-inspect-20261107-C.json, not in target_reuse. Checked live on 2026-11-07: git status empty, branch lane/smb-r54-followups-1, tip 2fba5f61, an ancestor of c4d06841. Target 11.38 GiB on C:, of which 8.05 GiB test binaries. Built crates include folio, layout, interop_layout, package, type, harness_view, harness_core, session, controls, composite: 6 of the 7 crates this lane rebuilds or tests; only harness is missing, and that costs one crate. The D: trees with the same count (smb-ps-mode-convert-1, smb-ai-distort-effects-1) lack interop_layout. Second choice if another lane takes it: smb-layout-composer-depth-1 on C: (3.63 GiB, has layout and interop_layout, lacks harness_view and harness). Do not take smb-type-authored-token-1: it is the audit tree and 68.28 GiB.",
+ "disk": "ssd",
+ "overlaps": {
+  "SMB-PR-ROUTING-REPAIR-1": "Same crates, different files. It owns folio multicam.rs and routing records, session, pulse, and id mint functions under harness-view src/view. This lane owns folio typestyle.rs and harness-view src/layout_ui. mint_style at layout_ui/styles.rs:80 is outside its stated view path; if it widens to that function, the hunk is small. folio lib.rs needs no edit here because typestyle is exported by glob (lib.rs:85).",
+  "SMB-SESSION-WRITE-SAFETY-1": "None: this lane does not touch session or harness-core.",
+  "SMB-HARNESS-DRIVE-1": "None in files: this lane adds one test in hsk-studio-harness tests/viewer_layout_styles.rs, not cli or manual.rs. New typed edits do not reach its CLI; no action.",
+  "SMB-OBSERVE-DIAG-SINK-1": "None: no observe or FrameSink change.",
+  "SMB-CONTROLS-EGUI-GATE-1": "None in files; it edits controls and consumer manifests, this lane changes no manifest. Rebase only. harness-view/Cargo.toml:18 layout-ui = dep:egui is untouched here. No Registry row is added, which is why item 8 extends an existing command."
+ },
+ "needs": {
+  "cargo_toml": "none",
+  "cargo_lock": "none",
+  "new_dependency": "none",
+  "new_module_edge": "none: layout already depends on folio and type; interop-layout on layout and folio; harness-view on layout",
+  "schema": "additive fields under hsk.studio.type_style_records@1, absent fields not encoded, so existing bytes stand. Same shape as SMB-LAYOUT-COMPOSER-WIRING. A build older than this lane refuses a record that sets them (deny_unknown_fields, typestyle.rs:205); no shipped documents exist per the lead decision recorded in the token lane.",
+  "composition_token": "none, on the reading in item 9",
+  "spec": "No spec edit by the lane. Proposals for the spec owner: (1) stored indents and spacing use Length pt; (2) space_before is dropped at the top of a column or frame, including a story's first line; (3) the gap between paragraphs is the sum of after and before; (4) a Span or Split paragraph takes the larger of the min field and the attribute; (5) last_line_indent narrows the right side of the last line, with one re-break; (6) indents measure from the free gap under text wrap; (7) new attribute inputs that leave existing output unchanged do not bump the composition token."
+ },
+ "red_team": {
+  "risks": [
+   "Silent output change on existing documents, which would legally require a new token.",
+   "A stored field that no composer honours on one path: another pass that cannot reach a document.",
+   "balance_band erases spacing, because it rebuilds baselines with extra 0.",
+   "Width auto-size wraps text, because it ignores indents.",
+   "NaN geometry from summed finite values.",
+   "Local overrides go stale or land on the wrong paragraph after an edit.",
+   "The last-line re-break lowers the paragraph size the composer can answer.",
+   "Mapping real IDML zeros changes which paragraphs have settings at all.",
+   "Vendor behaviour is assumed from forum and search text."
+  ],
+  "failure_scenarios": [
+   "A builder folds last_line_indent into right_indent because the simple path looks equal on one-line tests. A two-line test with both values set exposes it.",
+   "Space before is added at the top of column 2 after a natural column break, or kept after a push past the bottom. Pin both cases.",
+   "A 5,000-word justified paragraph with a positive last_line_indent crosses PARA_STATE_BUDGET and refuses where it answered before. Measure, then stop and report.",
+   "A centred paragraph in a width-only auto-size frame: x_start at the extent bound is huge, so deriving indents from x would give a giant frame. Hence the reported indent total, not x.",
+   "A find and replace deleting a paragraph break merges two overridden paragraphs: duplicate key, then validate refuses DuplicateIdentity at the next edit.",
+   "An IDML SpaceBefore on a TableStyle read by a loose attribute scan. settings_of is called only on paragraph elements; keep it so.",
+   "A hyphen run at the last line: re-break changes earlier lines of a justified paragraph. That is allowed only when last_line_indent is set; the differential table shows no other paragraph moved."
+  ],
+  "minimum_controls": [
+   "composer_depth_diff.rs and d5_id_oracle.rs unchanged, and no table re-blessed (item 9).",
+   "A bit-identity test of zero-only settings against no settings.",
+   "One test per composer (first-fit, Knuth-Plass, single-line, every-line, CJK) and per flow (Single, Span, Split) for each indent.",
+   "Red-first tests for balance, width auto-size and the stale key, each proven red by running.",
+   "Finiteness checked after every sum, with the hostile table run on each composer.",
+   "Timings recorded at 600, 1800 and 5000 words with a stop rule.",
+   "Every vendor reading labelled UNVERIFIED (D5) and carried to the oracle session list."
+  ]
+ },
+ "research_basis": {
+  "sources_checked": [
+   "Oracle corpus, read directly: oracle-corpus/adobe-session/indesign/ID-03__para_hyph_w240.idml, ID-03__para_nohyph_w240.idml, ID-03__single_hyph_w240.idml: root paragraph style attribute names and values; SpaceBefore=4 and SpaceAfter=-4 found on TableStyle.",
+   "Adobe community, fetched: https://community.adobe.com/t5/indesign-discussions/quot-space-before-quot-not-working/m-p/12471105 : a user post states Space Before is ignored at the top of a text frame; it does not address columns or a story's first frame.",
+   "Adobe help, NOT read: https://helpx.adobe.com/indesign/using/formatting-paragraphs.html and the /si/ copy answered HTTP 403. A web search digest reports that page as saying Space Before is not honoured at the top of a column or frame. Treat as UNVERIFIED.",
+   "Typst docs and par.rs at docs.rs (Apache-2.0), web search digest only: https://docs.rs/crate/typst/0.12.0/source/src/model/par.rs : first_line_indent and hanging_indent as paragraph style fields. The layout code was not reached.",
+   "TUGboat on parshape, search digest only: https://TUG.org/TUGboat/tb36-2/tb113wright-parshape.pdf and https://TUG.org/TUGboat/tb21-3/tb68fine.pdf : hanging indents are special cases of a per-line width and offset shape.",
+   "No copyleft source was opened. A ConTeXt texlinebreak.c appeared in search results; its source was not opened and its licence was not checked.",
+   "Web search for an Adobe IDML specification did not find it. IDML names here rest on the corpus alone."
+  ],
+  "patterns_found": [
+   "Paragraph shape is per-line x and width over one breaker; first-line and hanging indents are special cases of that shape. The composers here already take a per-line width.",
+   "Space before is suppressed at the top of a frame in InDesign by the sources above; column behaviour rests on the search digest. Studio's Split path already does this.",
+   "IDML writes indents and spacing as plain numeric attributes on paragraph styles; only zeros observed."
+  ],
+  "reuse_opportunities": [
+   "StudioCompositionSettings with overlaid, validate, is_empty and its two record lists.",
+   "layout/styles.rs chain resolution and ParagraphStyling.",
+   "Slot and Cursor.extra in compose_flow; adobe_composer flat_from.",
+   "idml_composition.rs settings_of and Reader.",
+   "layoutflow.rs:865 pt-only length check; composite simulations.rs:414 ParamRow shape.",
+   "tests/composer_depth_diff.rs and d5_id_oracle.rs as the no-change proof.",
+   "StyleEdit::EditStyle and LayoutEditor's undo."
+  ],
+  "rejected_options": [
+   "A separate paragraph-attribute record now: a second overlay, resolver, validator and importer for the same chain. Revisit if the lead prefers the spec's word (open question 1).",
+   "Fields inline on StoryParagraph: changes the story wire form and every literal, while local overrides already have a home.",
+   "Character side first (features on StoryRange): 48 lines in 36 files build StoryRange, and only Viewer live text consumes Type features through a request with features: &[]; Folio has no Type edge (story.rs:19). Larger, and with less reach today. It is next.",
+   "Tabs first: tab width depends on position in the line, which the breakers' sums assume fixed, and positions are measured from the left indent.",
+   "A new composition token: no semantics change for any existing document.",
+   "Refusing a slot narrowed to nothing: under wrap a later slot can be wider, and the existing no-gap rule already covers it."
+  ],
+  "selected_approach": "Extend the existing composition settings with the STU-TYP-185 block; narrow slots and add to Cursor.extra in the one composition core, so every composer and flow gets it; repair balance, auto-size and the byte key; import from IDML; extend the existing style edit. Field-aligned on per-line shape; project-appropriate because it adds no new surface, dependency, command or token."
+ },
+ "next_slices": [
+  "SMB-TYPE-RANGE-FEATURES-1: tag map stored on StoryRange (STU-TYP-170, 174, 175), range split and merge sweep (layout_ui.rs:1095, grep.rs:177, textflow.rs:126), passed into Type requests (text.rs:573); gives MT-30955, 30956, 30957 their missing storage.",
+  "SMB-TYPE-TAB-STOPS-1: tab_list store and IDML, alignment kinds and multi-character leaders (STU-TYP-197), breaker handling of position-dependent width.",
+  "SMB-TYPE-LISTS-1: list_type, bullets, numbering, hanging through this lane's indents (STU-TYP-198).",
+  "SMB-TYPE-DROP-CAPS-1: per-line narrowing plus character binding (STU-TYP-196).",
+  "SMB-TYPE-KEEP-OPTIONS-1: keep with next, keep lines, widow and orphan, start_paragraph (STU-TYP-186).",
+  "SMB-TYPE-CHARACTER-ATTRIBUTES-1: character record, numeric block and enumerations, STU-TYP-201 steps 6 and 7, mixed marker (STU-TYP-155 to 157, 111).",
+  "Local paragraph override command, override reporting and clear_overrides (STU-TYP-202) with Registry and RUN_COMMANDS rows, after the command contract.",
+  "IDML export of composition settings and indents, so round trip stops dropping them.",
+  "Ruby, kenten and warichu (STU-TYP-167 to 169), after character attributes and vertical composition exist."
+ ],
+ "open_questions": [
+  {
+   "question": "Do the fields live on StudioCompositionSettings, or in a new record named after the spec's paragraph-attribute record (STU-TYP-110)?",
+   "default": "On StudioCompositionSettings: same chain, overlay and importer, least code. A later rename stays possible because the wire is additive."
+  },
+  {
+   "question": "Is it right that no composition token is added, since these are new inputs and every existing output is proven unchanged? STU-TYP-130 does not address this case.",
+   "default": "No token; recorded as a declared reading and spec proposal, overrulable. Any changed existing row stops the lane."
+  },
+  {
+   "question": "Stale-key finding: should the paragraph_flows repair (threaded_reflow.rs:666-670 after a merge) ride in this lane if proven red?",
+   "default": "Yes: same helper and same class, one test."
+  },
+  {
+   "question": "Layout placement carries no composition_version, and STU-TYP-130 says every composed result must. This lane does not fix it. Does it need its own lane?",
+   "default": "Separate later lane; note it against MT-30898 AC-001."
+  },
+  {
+   "question": "Add indents, space at column top, last-line rule and same-style gap to the vendor oracle session list?",
+   "default": "Yes, as D5 rows for InDesign; needs the Operator at the app, and does not block this lane."
+  }
+ ]
+}

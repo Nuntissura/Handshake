@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T06:11:48Z",
+ "updated_at": "2026-11-07T06:23:52Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19158,6 +19158,41 @@
     "HANDOFF vulkan-gui-pivot: egui optional in controls",
     "HANDOFF vulkan-gui-pivot: mechanical quarantine gate"
    ]
+  },
+  {
+   "lane_id": "SMB-PIGMENT-FILTER-KERNELS-1",
+   "status": null,
+   "phase": "build",
+   "crate": "hsk-studio-pigment, hsk-studio-folio (smart filter records), hsk-studio-render-gpu (one refusal arm)",
+   "lane_file": "builders/lanes/hsk-studio-pigment-filter-kernels-1.json",
+   "brief": "builders/briefs/lane-smb-pigment-filter-kernels-1.md",
+   "worktree": "wt-studio-lanes/smb-ps-mode-convert-1",
+   "base": "c4d06841",
+   "disk_planned": "D",
+   "host_integration": "see lane file",
+   "updated_at": "2026-11-07T06:23:52Z",
+   "closes": [
+    "truth-check raster-effects family Photoshop-style filter families: Maximum, Minimum, Custom Convolution, Dust & Scratches, Despeckle, Surface blur, Emboss listed as missing; engine and record path only",
+    "truth-check: box, directional and radial kernels used only by composition effects now also reach raster layers and clip effects",
+    "HANDOFF next-work item 7, filter kernels, first slice; the effect gallery, brush tips, merge and flatten stay open",
+    "MT-32811",
+    "MT-32817",
+    "MT-32818",
+    "MT-32889",
+    "MT-32941",
+    "MT-32879",
+    "MT-32880",
+    "MT-32810",
+    "MT-32850",
+    "MT-32887",
+    "MT-32942",
+    "MT-32943",
+    "MT-32851",
+    "MT-32822",
+    "MT-32814",
+    "MT-32892",
+    "MT-32863"
+   ]
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -21550,7 +21585,8 @@
     "lane/smb-session-write-safety-1",
     "lane/smb-harness-drive-1",
     "lane/smb-observe-diag-sink-1",
-    "lane/smb-controls-egui-gate-1"
+    "lane/smb-controls-egui-gate-1",
+    "lane/smb-pigment-filter-kernels-1"
    ],
    "target_reuse": {
     "SMB-PR-ROUTING-REPAIR-1": {
@@ -21577,6 +21613,11 @@
      "tree": "smb-pr-retime-hold-1",
      "branch": "lane/smb-controls-egui-gate-1",
      "previous_branch": "lane/smb-pr-retime-hold-1"
+    },
+    "SMB-PIGMENT-FILTER-KERNELS-1": {
+     "tree": "smb-ps-mode-convert-1",
+     "branch": "lane/smb-pigment-filter-kernels-1",
+     "previous_branch": "lane/smb-ps-mode-convert-1"
     }
    },
    "why": {

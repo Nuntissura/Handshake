@@ -84,7 +84,8 @@ effort: high
 
 - Red first per item, proven red by running it; keep compiling red commits, a pushed red commit must compile the round units of the changed crates and direct dependents and fail only its own new tests.
 - One bundled run on {disk_word} (`lane-check.sh --owner {tree}{disk_arg}`): step 0; {L['suites']}; doctests if added.
-- Push when that run is green: rebase on `origin/codex/handshake-studio-assets`, `lane-check.sh --owner {tree}{disk_arg} --per-sha origin/codex/handshake-studio-assets`, push on `PER_SHA_RESULT OK` with the guarded sha form.
+- Before that bundled run, message the lead with your tip: read-only code-check and red-team agents inspect the diff first (HANDOFF topic workflow, item 10). Until then use `cargo check` and focused tests only, through `lane-check.sh` or a shell that sourced `builders/studio-env.sh`. A repo-local `target/` is a governance violation.
+- Push when that run is green: rebase on `origin/codex/handshake-studio-assets`, `lane-check.sh --owner {tree}{disk_arg} --per-sha HEAD~1` (the tip only, item 11), push on `PER_SHA_RESULT OK` with the guarded sha form.
 - If origin moves after your bundled run: when the commits touch none of your crates, rebase, `--per-sha`, your new tests only, push; when they touch one of your crates, run that crate's suite once, then the same. Do not repeat whole runs for a move. The next full round proves the union.
 - Set READY_FOR_VALIDATION on a pushed commit. Never claim PASS.
 
