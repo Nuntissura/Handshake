@@ -1,19 +1,82 @@
 {
   "crate": "hsk-studio-harness-core, hsk-studio-harness, hsk-studio-harness-view, hsk-studio-session",
   "lane": "SMB-DOC-NEW-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "worktree": "wt-studio-lanes/smb-ai-distort-effects-1",
   "base": "c4d06841",
-  "commits": [],
+  "commits": [
+    {
+      "sha": "b721f142",
+      "what": "harness, DOC-NEW-1 red: a blank document through `new`, its refusals and the catalog rows"
+    },
+    {
+      "sha": "220ce7e3",
+      "what": "session, DOC-NEW-1: a new document is a written package; one artboard or page edit is one step"
+    },
+    {
+      "sha": "6830f750",
+      "what": "harness-core, DOC-NEW-1: document.new and the artboard and page commands of Run"
+    },
+    {
+      "sha": "ccbd44c6",
+      "what": "harness-view, DOC-NEW-1: the viewer creates documents, edits artboards and pages, frames the one chosen"
+    },
+    {
+      "sha": "047afaef",
+      "what": "harness, DOC-NEW-1: the new verb and the drive routes; the scenarios' first steps"
+    },
+    {
+      "sha": "61568011",
+      "what": "harness, DOC-NEW-1: new writes through save_new, or save_replacing with --overwrite"
+    },
+    {
+      "sha": "72007612",
+      "what": "harness, DOC-NEW-1, review F1-F3 of 368e1080: no reused ids, every read-back framed, catalog keys equal drive keys"
+    },
+    {
+      "sha": "6b06379f",
+      "what": "harness, DOC-NEW-1: the key-equality test skips the menu id, which has no catalog row"
+    },
+    {
+      "sha": "cf6788d6",
+      "what": "harness-view, DOC-NEW-1: a new document closes the audio out device too (integration with AUDIO-OUT-MIX-1)"
+    }
+  ],
   "capabilities_done": [],
-  "tests": {},
+  "tests": {
+    "bundled_907d6045": {
+      "command": "lane-check.sh --owner smb-ai-distort-effects-1 --disk d -- cargo nextest run -p hsk-studio-session -p hsk-studio-harness-core -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/viewer --no-fail-fast",
+      "result": "616 run, 615 passed, 1 failed (routed_catalog_rows_declare_the_drive_rows_keys: test expected a catalog row for the menu id studio.document.new; fixed in the test), 24 skipped; clippy clean on lane files; step 0 clean",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-doc-new-1/smb-doc-new-1-bundled-907d6045.log"
+    },
+    "rerun_ea494556": {
+      "result": "document_new 15 run, 15 passed",
+      "log": "smb-doc-new-1-rerun-ea494556.log"
+    },
+    "after_diag_sink_bfb58b72": {
+      "result": "harness-core + harness suites 323 run, 323 passed, 21 skipped",
+      "log": "smb-doc-new-1-moved-bfb58b72.log"
+    },
+    "after_motion_f0a84327": {
+      "result": "session + harness-core + harness-view + harness suites 656 run, 656 passed, 24 skipped",
+      "log": "smb-doc-new-1-moved2-f0a84327.log"
+    },
+    "tip_cf6788d6": {
+      "result": "cargo check --tests of the four crates (harness viewer) exit 0; lane-check --per-sha HEAD~1 PER_SHA_RESULT OK",
+      "logs": [
+        "smb-doc-new-1-check-a1-cf6788d6.log",
+        "smb-doc-new-1-persha-a1-cf6788d6.log"
+      ]
+    },
+    "not_run_on_tip": "suites after the COMMAND-SURFACE-1, UI-TREE-1, filter-kernel and AUDIO-OUT-MIX-1 landings (lead instruction: check plus per-sha only); harness_drive under --example in focus4 may have used a stale binary"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-07T07:12:07Z",
+  "next": "validator: judge tip cf6788d6 (base 28de83ac); never PASS from the builder",
+  "updated_at": "2026-11-07T15:23:38Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -38,6 +101,90 @@
       "workflows/backlog-20261107.json SMB-DOC-NEW-1"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-ai-distort-effects-1"
+    "reuses_tree_and_target": "smb-ai-distort-effects-1",
+    "spec_basis": [
+      "STU-SHL-023 FILE > New studio.document.new",
+      "STU-SHL-026 DOCUMENT > Artboards, Pages & Spreads",
+      "STU-DOC-001 containers",
+      "STU-VEC-028 many artboards, per-artboard ruler origin",
+      "STU-VEC-165 artboard contract (options entry)",
+      "STU-VEC-115 16348 pt hard bound",
+      "STU-RAS-145 colour modes, duotone not creatable",
+      "STU-TYP-130 new documents store the current composition token"
+    ],
+    "v4_06": {
+      "class": "the first artboard frames the view, tools and exports",
+      "regex": "artboards\\.first\\(\\)|artboards\\[0\\]|artboards\\.get\\(0\\)",
+      "fixed": [
+        "view/render.rs (frame_extent, via the framed view copy)",
+        "view/edit.rs canvas",
+        "view/select_liquify.rs tool_canvas",
+        "view/vector/arrange.rs align to artboard",
+        "view/vector/interop.rs svg export",
+        "view/vector/pdf_export.rs",
+        "view/vector/separations.rs",
+        "view/mod.rs export read-back",
+        "view/info.rs info_composite and info_scope_plane",
+        "view/proof.rs read-back",
+        "view/vector.rs render_folio_vectors"
+      ],
+      "named_not_fixed": [],
+      "remaining_matches": 0
+    },
+    "cuts": [
+      "board profile refused profile_not_available (no board container exists)",
+      "commands not recordable (a recording reports them typed)",
+      "background_fill is state only, not rendered",
+      "ruler_origin scope enumeration and the can-change predicate of STU-VEC-165",
+      "artboard orientation, constrain proportions, presets library",
+      "delete of a non-empty artboard or page refused, no cascade",
+      "page delete does not touch layout entries naming the page (SMB-LAYOUT-PERSIST-1 owns those records)",
+      "document name is the file name only; no title field",
+      "non-whole mm/in artboards are refused by the render (artboard_bounds)"
+    ],
+    "paths_beyond_brief": [
+      "hsk-studio-session/src/container_step.rs, session.rs, lib.rs, source.rs (new entry token), tests/entry_references.rs (token classified), tests/new_document.rs",
+      "hsk-studio-harness-core/src/document_new.rs, src/harness/containers.rs, harness.rs (HistoryStep field, summary bounds), manual.rs, tests/action_records.rs (scan includes containers.rs)",
+      "hsk-studio-harness-view view/mod.rs, edit.rs, render.rs, select_liquify.rs, vector/arrange.rs, interop.rs, pdf_export.rs, separations.rs",
+      "hsk-studio-harness/src/cli/drive.rs, drive_viewer.rs"
+    ],
+    "stash_left": "stash a06b4ea6 (\"smb-doc-new-1 wip before red proof\") left in the shared stash list on lead instruction",
+    "mts": [
+      "MT-34444 (FILE New, partial)",
+      "MT-34447 (DOCUMENT Artboards and Pages, partial)",
+      "MT-119 (many artboards, per-artboard attributes, partial)",
+      "MT-30584 (STU-VEC-028)",
+      "MT-30585 and MT-30586 (STU-VEC-165 fields as typed state; ruler_origin scope cut)"
+    ],
+    "landed": {
+      "tip": "cf6788d68cb5cea826386d211cb575c5a3c9c6b0",
+      "base": "28de83ac",
+      "at": "2026-11-07T15:23:38Z",
+      "push": "28de83ac..cf6788d6 non-force"
+    },
+    "review": {
+      "file": "research/review-smb-doc-new-1-368e1080.json",
+      "fixed": [
+        "F1 ids never re-minted (revisions, options rows, history)",
+        "F2 info/proof/render_folio_vectors read-backs framed",
+        "F3 catalog keys equal drive row keys; name = artboard name, file_name = save base"
+      ],
+      "fix_tests_not_run_red": true
+    },
+    "integration_fixes": [
+      "motion_commands.rs: three HistoryStep literals take containers: None (folded into the core commit)",
+      "shell.rs: the AUDIO-OUT-MIX-1 device close moved into reset_document_surfaces, so document.new frees it too"
+    ],
+    "open_after_rebase": [
+      "catalog ParamSpecs of the doc rows keep required=true although the drive rows mark them optional (ParamSpec gained `required` and `shape` in COMMAND-SURFACE-1)",
+      "viewer_domain maps the new viewer rows to the default domain `vector`, so their canonical viewer ids read vector.add_artboard etc.; the catalog ids document.new / artboard.* / page.* route through DRIVE_CATALOG_ROUTES"
+    ],
+    "lead_decisions": [
+      {
+        "at": "2026-11-07T15:24:26Z",
+        "on": "landing order",
+        "decision": "After five rebases (each landing touched a file the lane edits, and each check then waited 30-60 min in the D: queue), the lead held every other lane's push until SMB-DOC-NEW-1 was on origin; lanes now land one at a time."
+      }
+    ]
   }
 }

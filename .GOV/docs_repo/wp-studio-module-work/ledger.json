@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T14:51:08Z",
+ "updated_at": "2026-11-07T15:24:26Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19335,8 +19335,8 @@
   },
   {
    "lane_id": "SMB-DOC-NEW-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-harness-core, hsk-studio-harness, hsk-studio-harness-view, hsk-studio-session",
    "lane_file": "builders/lanes/hsk-studio-doc-new-1.json",
    "brief": "builders/briefs/lane-smb-doc-new-1.md",
@@ -19344,10 +19344,11 @@
    "base": "c4d06841",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-07T07:12:07Z",
+   "updated_at": "2026-11-07T15:24:26Z",
    "closes": [
     "workflows/backlog-20261107.json SMB-DOC-NEW-1"
-   ]
+   ],
+   "claim": "b721f142..cf6788d6"
   },
   {
    "lane_id": "SMB-MOTION-COMMANDS-1",
@@ -21754,6 +21755,21 @@
     "added_at": "2026-11-07T14:51:08Z",
     "item": "Real OS audio device output proof",
     "owner": "a later audio lane with an Operator-run check"
+   },
+   {
+    "added_at": "2026-11-07T15:24:26Z",
+    "item": "Doc rows in the catalog mark their optional parameters as required (COMMAND-SURFACE-1 added the `required` field after they were written): add .opt()",
+    "owner": "the next harness typed-rows lane (SMB-DRIVE-TYPED-2)"
+   },
+   {
+    "added_at": "2026-11-07T15:24:26Z",
+    "item": "Doc-new's viewer rows fall into viewer_domain's default and read vector.* (catalog ids document.new, artboard.*, page.* still route correctly): add a document arm",
+    "owner": "the next harness typed-rows lane (SMB-DRIVE-TYPED-2)"
+   },
+   {
+    "added_at": "2026-11-07T15:24:26Z",
+    "item": "Board profile refused; new commands not recordable; background_fill stored but not rendered; ruler-origin scope, orientation, constrain-proportions and artboard presets; deleting a non-empty artboard or page refused without cascade; mm and in documents render at whole-number sizes only",
+    "owner": "later document lanes"
    }
   ],
   "pause_20261103": {
