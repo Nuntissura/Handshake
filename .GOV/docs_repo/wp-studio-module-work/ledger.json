@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-11-07T07:57:24Z",
+ "updated_at": "2026-11-07T08:03:22Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -19145,8 +19145,8 @@
   },
   {
    "lane_id": "SMB-CONTROLS-EGUI-GATE-1",
-   "status": null,
-   "phase": "build",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation",
    "crate": "hsk-studio-controls, hsk-studio-harness-core (manifest), tools/workspace-probe.rs",
    "lane_file": "builders/lanes/hsk-studio-controls-egui-gate-1.json",
    "brief": "builders/briefs/lane-smb-controls-egui-gate-1.md",
@@ -19154,11 +19154,12 @@
    "base": "c4d06841",
    "disk_planned": "D",
    "host_integration": "see lane file",
-   "updated_at": "2026-11-07T05:20:57Z",
+   "updated_at": "2026-11-07T08:03:22Z",
    "closes": [
     "HANDOFF vulkan-gui-pivot: egui optional in controls",
     "HANDOFF vulkan-gui-pivot: mechanical quarantine gate"
-   ]
+   ],
+   "claim": "474eb2a7..9e73d34c"
   },
   {
    "lane_id": "SMB-PIGMENT-FILTER-KERNELS-1",
@@ -21320,6 +21321,16 @@
     "added_at": "2026-11-07T07:57:24Z",
     "item": "A stale id returning with the wrong kind via a direct commit still refuses the whole routing set",
     "owner": "a later session lane"
+   },
+   {
+    "added_at": "2026-11-07T08:03:22Z",
+    "item": "Round unit running the 17 headless controls tests in a no-egui build",
+    "owner": "workspace steward"
+   },
+   {
+    "added_at": "2026-11-07T08:03:22Z",
+    "item": "Cargo.lock toolkit gate: the quarantine gate's DESIGNATED set omits naga",
+    "owner": "workspace steward"
    }
   ],
   "pause_20261103": {

@@ -1,19 +1,38 @@
 {
   "crate": "hsk-studio-controls, hsk-studio-harness-core (manifest), tools/workspace-probe.rs",
   "lane": "SMB-CONTROLS-EGUI-GATE-1",
-  "status": null,
-  "phase": "build",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed 9e73d34c on base 2ae24210 (2ae24210..9e73d34c); rebase clean, no file overlap with the commits that landed",
   "worktree": "wt-studio-lanes/smb-pr-retime-hold-1",
   "base": "c4d06841",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "commits": [
+    "474eb2a7",
+    "c7698b62",
+    "2fa227ae",
+    "9e73d34c"
+  ],
+  "capabilities_done": [
+    "egui optional in controls, default off",
+    "mechanical toolkit gate in workspace-probe"
+  ],
+  "tests": {
+    "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-hold-1/smb-controls-egui-gate-1-b790772c-bundled.log",
+    "controls_no_egui": "17 passed of 17, exit 0",
+    "controls_feature_egui": "21 passed of 21, exit 0",
+    "controls_before": "21 at c4d06841, all in one build",
+    "harness_core": "42 passed of 42, exit 0",
+    "doctests_controls": "0 in each feature set, exit 0",
+    "probe_self_test": "ok, 34 cases",
+    "probe_selections": "accepted 104 of 104 (steward's selections plus controls [egui])",
+    "gate_red": "stubbed gate rejected the self-test, exit 2: Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-hold-1/smb-controls-egui-gate-1-c4d06841-red-item4.log",
+    "item1_red": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-hold-1/smb-controls-egui-gate-1-c4d06841-red-item1.log"
+  },
   "verdicts": [],
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "builder: red first, one bundled run on D:, push when green",
-  "updated_at": "2026-11-07T05:20:57Z",
+  "next": "validator: judge 9e73d34c; steward: add the round unit in notes.round_features_line_for_steward",
+  "updated_at": "2026-11-07T08:02:44Z",
   "host_integration": {
     "schema_id": "hsk.studio_mt_host_integration@1",
     "direction_ref": "STUDIO-INTEGRATION-REFACTOR-INVENTORY-20261030",
@@ -39,6 +58,49 @@
       "HANDOFF vulkan-gui-pivot: mechanical quarantine gate"
     ],
     "closes_candidates": [],
-    "reuses_tree_and_target": "smb-pr-retime-hold-1"
+    "reuses_tree_and_target": "smb-pr-retime-hold-1",
+    "first_bundled_run": "582 s under one disk-lock hold on D:. 411 s of it is the union list (--workspace test build, 6m43s), the rest 171 s. Third-party crates reused: 26 of 549 in Cargo.lock were compiled, all in the union list step, 0 in the controls and harness-core steps; 56 Studio members compiled in the union list.",
+    "consumers_of_controls": {
+      "hsk-studio-harness-view": "features = [\"egui\"]: calls egui_adapter and menu_bar_ui",
+      "hsk-studio-harness-core": "no feature line: names no gated item, no compile error",
+      "hsk-studio-harness": "no feature line: no compile error, gets egui through harness-view"
+    },
+    "lead_rulings": "Option B (default off, steward adds the round unit after the push); cfg lines approved in controls src/menu.rs and tests; feature line on harness-view only.",
+    "round_features_line_for_steward": "hsk-studio-controls = [[\"egui\"]]",
+    "verified_before_push": {
+      "union_keeps_tests": "cargo nextest list --workspace -E package(=hsk-studio-controls) lists all 21, including the 4 drawing tests",
+      "doctest_unit_headless": "cargo test --doc -p hsk-studio-controls -v: 14 units, none is egui; the controls lib is in the graph. No counterfactual with an ungated egui line was run",
+      "harness_core_tree": "cargo tree -p hsk-studio-harness-core -e normal: no egui, eframe, winit, wgpu or naga line; no direct toolkit dependency",
+      "lock_and_root": "Cargo.lock and root Cargo.toml unchanged; registry-sync check exit 0; cargo metadata --locked exit 0"
+    },
+    "gate_runs_where": "steward-sync only: --self-test, then inspect per package and per round feature set. run-round and lane-check do not run the probe.",
+    "candidates_not_done": [
+      "round unit that runs the 17 headless tests in a no-egui build",
+      "move the harness-view feature line under its viewer feature, so harness-view without viewer has no egui",
+      "gate on Cargo.lock toolkit records: a new crate's transitive wgpu or naga reaches only DESIGNATED, which does not list naga",
+      "moving gesture semantics out of egui_adapter.rs",
+      "converting tests that assert no drawing to the headless path",
+      "RF-01, RF-05, RF-12, render-gpu, any panel or Viewer surface, Kumihimo"
+    ],
+    "mt_rows_claimed": "none: no MT row read",
+    "ready_commit": "9e73d34cd5d24180fd7a56ff4453a066abb9a5ee",
+    "pushed_base": "2ae24210b89a166465ad11879a6a61448103c892",
+    "proof_shas": {
+      "bundled_run": "b790772c on base c4d06841, the same four commits before the rebase",
+      "per_sha": "PER_SHA_RESULT OK on b790772c, range HEAD~1 as the lead's release named it, 3073 s: Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-retime-hold-1/smb-controls-egui-gate-1-b790772c-per-sha.log",
+      "after_rebase": "no new run, by the lead's landing rule: the 9 commits that landed (c4d06841..2ae24210) touch none of this lane's files, but do touch harness-view source. The union of the two is not compiled at 9e73d34c; the next round proves it."
+    },
+    "lead_decisions": [
+      {
+        "at": "2026-11-07T08:03:22Z",
+        "on": "controls default features",
+        "decision": "default = [], with a declared round unit, so a consumer cannot gain egui by accident."
+      },
+      {
+        "at": "2026-11-07T08:03:22Z",
+        "on": "consumer feature lines",
+        "decision": "Only harness-view enables egui on controls."
+      }
+    ]
   }
 }
