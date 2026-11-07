@@ -1,0 +1,53 @@
+{
+ "schema": "hsk.studio.cleanup_plan@1",
+ "file_id": "CARGO-CLEANUP-PLAN-20261107-S",
+ "generated_at": "2026-11-07T11:23:23Z",
+ "status": "PROPOSED: nothing deleted. Needs the Operator's approval of this list (HSK-ART-005, CX-107).",
+ "why": "Studio's C: tree measured 333.2 GiB at 11:21Z against the 360 GiB cap (alert 330, stop 355). Five lanes build on C:, and R60 FULL must build on C:. Above the cap the guard refuses every C: build.",
+ "inspection": [
+  "research/cargo-inspect-20261107-C-round.json"
+ ],
+ "candidates": [
+  {
+   "id": "S-C01",
+   "disk": "C",
+   "owner": "studio-round",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target",
+   "kind": "partial",
+   "remove": [
+    "for each test or binary name and extension in debug/deps, every copy except the newest"
+   ],
+   "keep": [
+    "the newest copy of each binary",
+    "all libraries, build scripts and fingerprints"
+   ],
+   "gib": 166.38,
+   "target_total_gib": 198.47,
+   "lane_status": "n/a: round target, idle until R60",
+   "cost_if_wrong": "R60 relinks the test binaries whose older copy it would have reused; compiled libraries stay. Must run before R60 starts or after it records, never during."
+  },
+  {
+   "id": "S-C02",
+   "disk": "C",
+   "owner": "smb-pr-media-markers-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-media-markers-1",
+   "kind": "partial",
+   "remove": [
+    "older copies of test and binary outputs, as S-C01"
+   ],
+   "keep": [
+    "as S-C01"
+   ],
+   "gib": 2.78,
+   "target_total_gib": 17.44,
+   "lane_status": "PASS_V3, tree idle and reusable",
+   "cost_if_wrong": "a relink for a later lane reusing this tree"
+  }
+ ],
+ "totals_gib": {
+  "C": 169.2
+ },
+ "not_candidates": "Every C: lane target in use by a lane; the registry; logs and results; whole-target removal of any target.",
+ "before_execution": "Re-inspect with tools/lead/target_prune.py; a changed or in-use candidate is skipped. Not during a round.",
+ "default_without_answer": "Nothing is removed. The lead keeps C: builds lean and runs R60 if the tree has room; above 355 GiB it stops C: builds rather than remove anything."
+}

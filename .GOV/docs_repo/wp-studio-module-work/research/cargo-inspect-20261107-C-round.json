@@ -1,0 +1,117 @@
+{
+ "at": "2026-11-07T11:22:07Z",
+ "targets": [
+  {
+   "owner": "studio-round",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target",
+   "gib": 198.47,
+   "parts_gib": {
+    "test_and_binary_outputs": 187.35,
+    "workspace_libraries": 6.49,
+    "third_party_libraries": 3.18,
+    "examples": 0.8,
+    "dep_info_and_other": 0.42,
+    "build": 0.21,
+    ".fingerprint": 0.02,
+    "incremental": 0.0
+   },
+   "older_binary_variants_gib": 166.38
+  },
+  {
+   "owner": "smb-pr-media-markers-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-media-markers-1",
+   "gib": 17.44,
+   "parts_gib": {
+    "test_and_binary_outputs": 13.66,
+    "workspace_libraries": 1.96,
+    "third_party_libraries": 1.61,
+    "build": 0.1,
+    "examples": 0.1,
+    ".fingerprint": 0.01,
+    "dep_info_and_other": 0.01,
+    "incremental": 0.0
+   },
+   "older_binary_variants_gib": 2.78
+  },
+  {
+   "owner": "smb-press-observe-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-press-observe-1",
+   "gib": 1.34,
+   "parts_gib": {
+    "test_and_binary_outputs": 0.6,
+    "third_party_libraries": 0.48,
+    "workspace_libraries": 0.11,
+    "build": 0.08,
+    "examples": 0.07,
+    ".fingerprint": 0.0,
+    "dep_info_and_other": 0.0,
+    "incremental": 0.0
+   },
+   "older_binary_variants_gib": 0.01
+  },
+  {
+   "owner": "smb-pr-sequence-presets-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-sequence-presets-1",
+   "gib": 4.59,
+   "parts_gib": {
+    "test_and_binary_outputs": 2.27,
+    "third_party_libraries": 1.12,
+    "workspace_libraries": 0.95,
+    "examples": 0.13,
+    "build": 0.1,
+    ".fingerprint": 0.01,
+    "dep_info_and_other": 0.01,
+    "incremental": 0.0
+   },
+   "older_binary_variants_gib": 0.0
+  },
+  {
+   "owner": "smb-pr-sequence-presets-1-red",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-pr-sequence-presets-1-red",
+   "gib": 0.28,
+   "parts_gib": {
+    "workspace_libraries": 0.18,
+    "third_party_libraries": 0.06,
+    "build": 0.03,
+    "test_and_binary_outputs": 0.01,
+    ".fingerprint": 0.0,
+    "dep_info_and_other": 0.0,
+    "examples": 0.0,
+    "incremental": 0.0
+   },
+   "older_binary_variants_gib": 0.0
+  },
+  {
+   "owner": "smb-layout-sentinels-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-layout-sentinels-1",
+   "gib": 2.73,
+   "parts_gib": {
+    "test_and_binary_outputs": 0.92,
+    "workspace_libraries": 0.88,
+    "third_party_libraries": 0.77,
+    "build": 0.1,
+    "examples": 0.04,
+    ".fingerprint": 0.01,
+    "dep_info_and_other": 0.0,
+    "incremental": 0.0
+   },
+   "older_binary_variants_gib": 0.0
+  },
+  {
+   "owner": "smb-layout-blank-line-lookups-1",
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-layout-blank-line-lookups-1",
+   "gib": 2.65,
+   "parts_gib": {
+    "test_and_binary_outputs": 1.05,
+    "third_party_libraries": 0.75,
+    "workspace_libraries": 0.7,
+    "build": 0.1,
+    "examples": 0.04,
+    ".fingerprint": 0.01,
+    "dep_info_and_other": 0.0,
+    "incremental": 0.0
+   },
+   "older_binary_variants_gib": 0.0
+  }
+ ]
+}
