@@ -271,12 +271,26 @@ These replaced D11 (eframe plus wgpu window) as a product path. Spec: v02.226..2
 13. **Blockers are the lead's to resolve.** The Operator: "resolve all blockers on your own, deliberate with a fitting agent team". Use a position agent per concern, then a red team, then record the decision in `direction.blocker_decisions_20261107`. Do not hold work on a question to the Operator when a recorded decision can be reversed later.
 14. **GUI designer and workflow agents.** A designer owns the Vulkan GUI's look, layout and coherence (`gui-design/`). Workflow agents write professional projects end to end as scenarios (`workflows/scenario-*.json`): tool calls, GUI expectations and a measured gap list. The gap lists choose the next feature lanes, and later the same scenarios test the tools and the GUI.
 15. **Leave no processes behind.** `lane_watch.sh` now ends itself after `WATCH_MAX_S`. After stopping a watcher, count what is left. Before any pause, confirm none remain.
+16. **Lanes land one at a time (amends item 11, 2026-11-07).** With many lanes on one disk lock, free-for-all landing livelocked: SMB-DOC-NEW-1 rebased five times in about 3 hours, because each landing touched a file it edits and each re-check waited 30 to 60 minutes in the D: queue. Builders now hold their push until the lead releases them, and the lead releases one lane at a time. A lane whose push needs no run (a clean, disjoint rebase) may go ahead of one still waiting for a check. The rest of the landing rule stands: rebase; cargo check only if landed commits touch a file the lane edits; `--per-sha HEAD~1`; guarded push.
+17. **Trunk check after about every 3 landings.** A builder whose tree sits at origin runs `cargo check --workspace --tests`, plus the harness [viewer] and native-host [document] units, on D:. All green on 2026-11-07: 5341e561, 672a1804, 9ab80edd.
 
 </topic>
 
-<topic id="state" status="active" summary="Current state at the pause of 2026-11-05">
+<topic id="state" status="active" updated_at="2026-11-07T17:40:00Z" summary="Current state, 2026-11-07 evening; older sections kept for history">
 
-## Current state (2026-11-07, new lead running)
+## Current state (2026-11-07, about 17:40Z)
+
+**Authority:** `ledger.json` lanes and `direction.workflow_20261107`, `direction.blocker_decisions_20261107`, `direction.c_cap_20261107` (with `p3_note` and its amendment).
+
+- **Product origin:** a3215161. R59 PASSED (SMB-PR-MEDIA-MARKERS-1 PASS_V3). Since then 18 lanes landed READY_FOR_VALIDATION, unjudged: routing-repair, write-safety, harness-drive, diag-sink, controls-egui-gate, gui-steward, motion-commands, command-surface, pigment-filter-kernels, ui-tree, audio-out-mix, doc-new, vk-host, doc-export, layout-pdf-host, project-bin, web-host and layout-persist. Every one had a pre-build review, and every review found real defects, fixed before its bundled run.
+- **R60 is blocked on C: room.** It must be FULL with a canary (the steward changed root inputs). The C: Studio tree measured 377 GiB at 12:25Z against the 360 GiB cap, so the guard refuses C: builds. Proposal S (`research/cargo-cleanup-plan-20261107-S.json`, 169.2 GiB of older test-binary copies, mostly in the idle round target) waits for the Operator; nothing is deleted without approval. The dispatch prompt is generated at freeze by `python tools/lead/dispatch_r60.py <candidate8> <commits since c4d06841> --write` from the ledger's READY lanes (FULL plus canary, the new Vulkan crates, the GPU lock).
+- **All building is on D:.** Five C: lanes moved to idle D: trees at 12:35Z; their C: trees and branches are untouched (`direction.c_cap_20261107.moves`). D: holds more than 6 non-PASS lane targets (P3 note): no lane creates a new D: target; new lanes reuse READY lanes' trees.
+- **In flight:** SMB-GUI-SPINE-1 (first real panel: a layered document beside a kumihimo-ui Layers panel in the Vulkan window, capture `Handshake_Artifacts/WP-KERNEL-STUDIO/smb-gui-spine-1/gui-final-offscreen-5e882c1d.png`), in pre-build review. A width wave on base aa68164c: SMB-ARTBOARD-EXPORT-1, SMB-PLACE-ASSET-1, SMB-PR-EXPORT-RECIPE-1 and SMB-DRIVE-TYPED-2 (with doc-new's .opt() and document-arm fixes).
+- **Waiting width lanes (scoped):** SMB-AI-LIVE-EFFECTS-1, SMB-TYPE-INDENT-SPACING-1, SMB-SCORE-EFFECTS-6 (re-scope first), SMB-PARSER-HOSTILE-1 (safety track), and a filter-commands slice for the 19 new kernels (not yet scoped).
+- **Open with the Operator:** plan S; the Vulkan SDK download (`vulkansdk-windows-X64-1.4.363.1.exe`, 303,066,832 bytes, sdk.lunarg.com) for the validation layer; the P3 reading (disk space or concurrency).
+- **Notes for the report:** stash a06b4ea6 stays in the shared stash list (a builder's, left as instructed); 16-bit PSD layer-info placement against Photoshop is UNVERIFIED; two engine defects pinned by tests (export_svg on a group gives DuplicateIdentity; replace_text with a newline keeps one paragraph).
+
+## Earlier state (2026-11-07 morning, new lead running)
 
 **Authority:** `ledger.json` `direction.workflow_20261107`, `direction.resume_20261106` and `direction.after_r57_20261106`, `validation/round-R57.json`. They supersede the pause text below, which is kept for history.
 
