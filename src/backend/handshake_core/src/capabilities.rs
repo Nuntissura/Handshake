@@ -19,6 +19,7 @@ const CANONICAL_CAPABILITY_IDS: &[&str] = &[
     "account.identity.enrollment.revoke",
     "account.identity.member_profile.assign",
     "artifact.read",
+    "device.gpu.shell",
     "model_lane.navigation.read",
     "model_lane.recovery.execute",
     "calendar.sync.read",
@@ -390,8 +391,8 @@ impl CapabilityRegistry {
     /// Resolves if a requested capability is granted by a list of held capabilities.
     /// Returns true if allowed, false if denied or unknown.
     pub fn can_perform(&self, requested: &str, granted: &[String]) -> bool {
-        // 1. Sanity check: requested must be valid
-        if !self.is_valid(requested) {
+        // Shell bootstrap authority cannot come from a capability string.
+        if requested == "device.gpu.shell" || !self.is_valid(requested) {
             return false;
         }
 
@@ -595,6 +596,41 @@ mod tests {
 
         assert!(!registry.is_valid("magic.wand")); // Invalid axis
         assert!(!registry.is_valid("unknown_id")); // Invalid ID
+    }
+
+    #[test]
+    fn test_shell_gpu_capability_is_not_grantable_by_strings_or_profiles() {
+        let mut registry = CapabilityRegistry::new();
+        let capability = "device.gpu.shell";
+        assert!(registry.ids().contains(capability));
+        assert!(registry.is_valid(capability));
+        assert!(!registry.axes().contains(capability));
+
+        for granted in [
+            Vec::new(),
+            vec!["device".to_string()],
+            vec!["device:gpu".to_string()],
+            vec![capability.to_string()],
+        ] {
+            assert!(!registry.can_perform(capability, &granted));
+            assert!(matches!(
+                registry.enforce_can_perform(capability, &granted),
+                Ok(false)
+            ));
+        }
+
+        for profile in registry.profiles.values_mut() {
+            profile.allowed.push(capability.to_string());
+        }
+        for profile_id in registry.profiles.keys() {
+            assert!(matches!(registry.profile_can(profile_id, capability), Ok(false)), "{profile_id}");
+        }
+        for unknown in ["device.gpu.shell.unknown", "device.gpu.shell:unknown"] {
+            assert!(matches!(
+                registry.enforce_can_perform(unknown, &[capability.to_string()]),
+                Err(RegistryError::UnknownCapability(_))
+            ));
+        }
     }
 
     #[test]
